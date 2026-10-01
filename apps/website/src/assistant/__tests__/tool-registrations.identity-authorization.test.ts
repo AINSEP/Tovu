@@ -246,6 +246,10 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
 /** Seed the target principal, a custom role, and a custom policy the fixtures reference. */
 async function seedTargets(repos: IdentityRepos): Promise<void> {
   await addPrincipal(repos, "target-principal");
+  await repos.sessions.save({
+    id: "target-session", workspaceId: WORKSPACE_ID, principalId: "target-principal",
+    tokenHash: "target-token-hash", createdAt: "2026-07-29T00:00:00.000Z", expiresAt: "2026-07-30T00:00:00.000Z",
+  });
   await repos.roles.save({ id: "target-role", workspaceId: WORKSPACE_ID, name: "Target Role", isBuiltin: false });
   await repos.policies.save({ id: "target-policy", workspaceId: WORKSPACE_ID, name: "Target Policy", isBuiltin: false, isFrozen: false });
 }
@@ -258,7 +262,96 @@ async function stateFingerprint(repos: IdentityRepos): Promise<string> {
   const assignments = await Promise.all(principals.map((p) => repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
   const attachments = await Promise.all(principals.map((p) => repos.principalPolicies.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
   const users = await Promise.all(principals.map((p) => repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
-  return JSON.stringify({ principals, roles, policies, assignments, attachments, users });
+  const sessions = await Promise.all(principals.map((p) => repos.sessions.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
+  return JSON.stringify({ principals, roles, policies, assignments, attachments, users, sessions });
+}
+
+/** Enable must start from disabled so a no-op cannot masquerade as success. */
+async function prepareSuccessTarget(repos: IdentityRepos, toolId: string): Promise<void> {
+  if (toolId !== "identity_user_enable") return;
+  const target = await repos.principals.findById({ workspaceId: WORKSPACE_ID, id: "target-principal" });
+  assert.ok(target);
+  await repos.principals.save({ ...target, status: "disabled", disabledAt: "2026-07-28T00:00:00.000Z" });
+}
+
+/** These fixtures are valid, unreferenced custom targets with no permissions to trigger the grant clamp. */
+async function assertSuccessfulResult(repos: IdentityRepos, toolId: string, result: unknown): Promise<void> {
+  const scope = { workspaceId: WORKSPACE_ID };
+  const out = result as {
+    created: boolean;
+    user: { principalId: string; username: string; email?: string; status: string };
+    users: Array<{ principalId: string }>;
+    role: { id: string; name: string };
+    roles: Array<{ id: string }>;
+    policy: { id: string; name: string };
+    policies: Array<{ id: string }>;
+    deleted: { roleId?: string; policyId?: string };
+    assigned: { principalId: string; roleId: string };
+    attached: { principalId: string; policyId: string };
+  };
+  assert.ok(out, `${toolId} must return a result`);
+  switch (toolId) {
+    case "identity_user_list":
+      assert.ok(out.users.some((user: { principalId: string }) => user.principalId === "target-principal"));
+      break;
+    case "identity_role_list":
+      assert.ok(out.roles.some((role: { id: string }) => role.id === "target-role"));
+      break;
+    case "identity_policy_list":
+      assert.ok(out.policies.some((policy: { id: string }) => policy.id === "target-policy"));
+      break;
+    case "identity_user_create": {
+      assert.equal(out.created, true);
+      assert.equal(out.user.username, "newcomer");
+      const stored = await repos.users.findByPrincipalId({ ...scope, principalId: out.user.principalId });
+      assert.equal(stored?.username, "newcomer");
+      assert.equal((await repos.principals.findById({ ...scope, id: out.user.principalId }))?.status, "active");
+      break;
+    }
+    case "identity_user_update_email":
+      assert.equal(out.user.email, "a@b.test");
+      assert.equal((await repos.users.findByPrincipalId({ ...scope, principalId: "target-principal" }))?.email, "a@b.test");
+      break;
+    case "identity_user_disable":
+    case "identity_user_enable": {
+      const status = toolId === "identity_user_disable" ? "disabled" : "active";
+      assert.equal(out.user.status, status);
+      assert.equal((await repos.principals.findById({ ...scope, id: "target-principal" }))?.status, status);
+      break;
+    }
+    case "identity_role_create":
+    case "identity_role_rename": {
+      const name = toolId === "identity_role_create" ? "Custom Role" : "Renamed";
+      assert.equal(out.role.name, name);
+      assert.equal((await repos.roles.findById({ ...scope, id: out.role.id }))?.name, name);
+      break;
+    }
+    case "identity_policy_create":
+    case "identity_policy_update": {
+      const name = toolId === "identity_policy_create" ? "Custom Policy" : "Renamed Policy";
+      assert.equal(out.policy.name, name);
+      assert.equal((await repos.policies.findById({ ...scope, id: out.policy.id }))?.name, name);
+      break;
+    }
+    case "identity_role_delete":
+      assert.deepEqual(out.deleted, { roleId: "target-role" });
+      assert.equal(await repos.roles.findById({ ...scope, id: "target-role" }), null);
+      break;
+    case "identity_policy_delete":
+      assert.deepEqual(out.deleted, { policyId: "target-policy" });
+      assert.equal(await repos.policies.findById({ ...scope, id: "target-policy" }), null);
+      break;
+    case "identity_role_assign":
+      assert.deepEqual(out.assigned, { principalId: "target-principal", roleId: "target-role" });
+      assert.deepEqual((await repos.principalRoles.listByPrincipalId({ ...scope, principalId: "target-principal" })).map((row) => row.roleId), ["target-role"]);
+      break;
+    case "identity_policy_attach":
+      assert.deepEqual(out.attached, { principalId: "target-principal", policyId: "target-policy" });
+      assert.deepEqual((await repos.principalPolicies.listByPrincipalId({ ...scope, principalId: "target-principal" })).map((row) => row.policyId), ["target-policy"]);
+      break;
+    default:
+      assert.fail(`missing success assertion for ${toolId}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -317,18 +410,9 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const caller = await addPrincipal(repos, "granted-caller");
     await grant(repos, caller, declaredPermissions(toolId));
 
-    const error = await wired(deps, identityWiredId(toolId))
-      .handler(executionContext(caller, TOOL_INPUTS[toolId]))
-      .then(() => null, (e: unknown) => e);
-
-    // Not "succeeds": some tools legitimately fail past the gate for domain reasons (the INV-07
-    // clamp, a still-referenced role). What is asserted is that the gate itself is satisfied by
-    // exactly what the catalog advertises — if it were not, this would be a FORBIDDEN.
-    assert.equal(
-      error instanceof IdentityForbiddenError,
-      false,
-      `'${toolId}' refused a caller holding its own declared permission(s) [${declaredPermissions(toolId).join(", ")}] — the catalog disagrees with the code: ${String(error)}`,
-    );
+    await prepareSuccessTarget(repos, toolId);
+    const result = await wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId]));
+    await assertSuccessfulResult(repos, toolId, result);
   });
 }
 
@@ -350,11 +434,8 @@ for (const toolId of OR_GATED_TOOL_IDS) {
       const caller = await addPrincipal(repos, `caller-${permission}`);
       await grant(repos, caller, [permission]);
 
-      const error = await wired(deps, identityWiredId(toolId))
-        .handler(executionContext(caller, TOOL_INPUTS[toolId]))
-        .then(() => null, (e: unknown) => e);
-
-      assert.equal(error instanceof IdentityForbiddenError, false, `'${permission}' alone should satisfy ${toolId}: ${String(error)}`);
+      const result = await wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId]));
+      await assertSuccessfulResult(repos, toolId, result);
     });
   }
 }

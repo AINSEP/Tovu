@@ -64,26 +64,62 @@ function findRule(blocks: RuleBlock[], selector: string): RuleBlock | undefined 
   return blocks.find((block) => block.selector === selector);
 }
 
+function declarations(block: RuleBlock): Record<string, string> {
+  return Object.fromEntries(block.body.split(";").filter((entry) => entry.includes(":")).map((entry) => {
+    const colon = entry.indexOf(":");
+    return [entry.slice(0, colon).trim(), entry.slice(colon + 1).trim()];
+  }));
+}
+
 describe("styles/external-mcp-tool-picker.css", () => {
   const blocks = ruleBlocks(readFileSync(CSS_PATH, "utf8"));
 
   // Selectors the global `button` reset would otherwise win `color` on if any of these declared
   // `background`/`border` without it — see this file's header.
   const CONTROL_SELECTORS = [
-    ".external-mcp-tool-actions button",
-    ".external-mcp-tool-actions .btn-secondary",
-    ".external-mcp-tool-enable",
-    ".external-mcp-tool-row[data-locked] .external-mcp-tool-enable",
-    ".external-mcp-tool-write",
+    [".external-mcp-tool-actions button", "var(--primary-ink)"],
+    [".external-mcp-tool-actions .btn-secondary", "var(--fg-2)"],
+    [".external-mcp-tool-enable", "var(--fg)"],
+    [".external-mcp-tool-row[data-locked] .external-mcp-tool-enable", "var(--faint)"],
+    [".external-mcp-tool-write", "var(--fg)"],
     // `ExternalMcpSourceRow`'s own per-server "Tools" trigger (2026-09-10) — a bare `<button>`,
     // subject to the same global reset as every other control pinned above.
-    ".external-mcp-source-tools-open",
+    [".external-mcp-source-tools-open", "var(--fg-2)"],
   ];
 
-  it.each(CONTROL_SELECTORS)("%s declares color explicitly", (selector) => {
+  it.each(CONTROL_SELECTORS)("%s declares its legible color explicitly", (selector, color) => {
     const block = findRule(blocks, selector);
     expect(block, `no rule found for selector: ${selector}`).toBeDefined();
     expect(block!.body).toMatch(/(?:^|;|\s)color\s*:/);
+    expect(declarations(block!).color).toBe(color);
+  });
+
+  it("keeps warning badges, locked rows and zero grants visually distinct", () => {
+    for (const [selector, expected] of [
+      [".external-mcp-tool-badge", { color: "var(--danger)", background: "var(--danger-bg)" }],
+      [".external-mcp-tool-lock", { color: "var(--danger)" }],
+      [".external-mcp-tool-count[data-zero]", { color: "var(--danger)", "font-weight": "600" }],
+      [".external-mcp-tool-row", { color: "var(--fg)" }],
+      [".external-mcp-tool-row[data-locked]", { background: "var(--surface-2)" }],
+    ] as const) {
+      const block = findRule(blocks, selector);
+      expect(block, selector).toBeDefined();
+      expect(declarations(block!), selector).toMatchObject(expected);
+    }
+  });
+
+  it("pairs action text with the global primary and secondary button backgrounds", () => {
+    const globalBlocks = ruleBlocks(readFileSync(path.resolve(__dirname, "../../styles.css"), "utf8"));
+    const primary = globalBlocks.find((block) => block.selector.split(",").some((selector) => selector.trim() === "button"));
+    expect(primary).toBeDefined();
+    expect(declarations(primary!)).toMatchObject({ background: "var(--primary)", color: "var(--primary-ink)" });
+    const action = findRule(blocks, ".external-mcp-tool-actions button")!;
+    expect(declarations(action).background ?? declarations(primary!).background).toBe("var(--primary)");
+    const secondary = findRule(globalBlocks, ".btn-secondary");
+    expect(secondary).toBeDefined();
+    expect(declarations(secondary!)).toMatchObject({ background: "var(--surface)", color: "var(--fg-2)" });
+    const secondaryAction = findRule(blocks, ".external-mcp-tool-actions .btn-secondary")!;
+    expect(declarations(secondaryAction).background ?? declarations(action).background ?? declarations(secondary!).background).toBe("var(--surface)");
   });
 
   it("the tool list is a fixed-height, vertically-scrolling container — the live higgsfield connection advertises 101 tools", () => {
@@ -91,6 +127,7 @@ describe("styles/external-mcp-tool-picker.css", () => {
     expect(block).toBeDefined();
     expect(block!.body).toMatch(/max-height\s*:/);
     expect(block!.body).toMatch(/overflow-y\s*:\s*auto/);
+    expect(declarations(block!)).toMatchObject({ "max-height": "22rem", "overflow-y": "auto" });
   });
 
   it("long tool names and descriptions wrap instead of clipping or truncating", () => {
@@ -101,6 +138,12 @@ describe("styles/external-mcp-tool-picker.css", () => {
       expect(block!.body).not.toMatch(/text-overflow\s*:\s*ellipsis/);
       expect(block!.body).not.toMatch(/overflow\s*:\s*hidden/);
       expect(block!.body).not.toMatch(/white-space\s*:\s*nowrap/);
+      const values = declarations(block!);
+      expect(values["overflow-wrap"]).toBe("anywhere");
+      expect(["normal", "pre-wrap", "pre-line", "break-spaces"]).toContain(values["white-space"] ?? "normal");
+      for (const property of ["overflow", "overflow-x"]) {
+        expect(["hidden", "clip"]).not.toContain(values[property]);
+      }
     }
   });
 });

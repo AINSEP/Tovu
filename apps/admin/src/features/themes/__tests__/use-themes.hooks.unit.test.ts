@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { api, type PresentationSettings } from "@/lib/api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
@@ -768,6 +769,7 @@ describe("useWiredThemes", () => {
   });
 
   it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
     const getPresentationSpy = vi.spyOn(api, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "ws", activeThemeId: "basic", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic"],
@@ -778,10 +780,8 @@ describe("useWiredThemes", () => {
 
     const { result } = renderHook(() => useWiredThemes());
 
-    // Bound translator falls back to the English source string with no override in play — proves
-    // `t` is `themes-i18n.ts`'s own dictionary translator, not the raw identity function every
-    // `useThemes({ port, t })` unit test above passes.
     expect(result.current.t("Themes")).toBe("Themes");
+    await waitFor(() => expect(result.current.t("Themes")).toBe("Temas"));
 
     await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
     expect(getPresentationSpy).toHaveBeenCalledTimes(1);

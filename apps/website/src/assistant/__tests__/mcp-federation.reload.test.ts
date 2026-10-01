@@ -149,6 +149,36 @@ test("reload() admits only the NEW connection — attach's extraConnections excl
   assert.deepEqual(result.newlyAdmittedConnectionIds, ["higgsfield"]);
 });
 
+test("a failed connect remains retryable and is admitted by the next successful reload", async () => {
+  const registry = fakeRegistry();
+  const attempts: string[][] = [];
+  const failure = { connectionId: "higgsfield", reason: "sign-in not ready" };
+  const coordinator = createFederationReloadCoordinator(
+    {
+      registry,
+      deps: FEDERATION_DEPS,
+      resolveConnections: async () => [connection("higgsfield")],
+      attach: async (params) => {
+        attempts.push((params.extraConnections ?? []).map((c) => c.config.connectionId));
+        if (attempts.length === 1) {
+          return { registeredToolIds: [], sessions: [], reports: [], connectFailures: [failure] };
+        }
+        return admitAllImpl(params);
+      },
+    },
+    [],
+  );
+
+  assert.deepEqual(await coordinator.reload(), { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [failure] });
+  assert.equal(coordinator.admittedConnectionIds().has("higgsfield"), false);
+  const second = await coordinator.reload();
+  assert.deepEqual(attempts, [["higgsfield"], ["higgsfield"]]);
+  assert.deepEqual(second.newlyAdmittedConnectionIds, ["higgsfield"]);
+  assert.deepEqual(second.connectFailures, []);
+  assert.equal(coordinator.admittedConnectionIds().has("higgsfield"), true);
+  assert.equal(registry.registered.length, 1);
+});
+
 test("admittedConnectionIds() grows after a successful reload, so a second reload never re-attempts the same connection", async () => {
   const registry = fakeRegistry();
   const coordinator = createFederationReloadCoordinator(
@@ -207,22 +237,29 @@ test("a reload() call that arrives after one is already in flight sees roster st
   // report success to the second caller without its connection ever having been admitted.
   const registry = fakeRegistry();
   const firstPassGate = deferred<void>();
+  const firstAttachStarted = deferred<void>();
   const roster: ResolvedFederatedConnection[] = [connection("higgsfield")];
+  let attachCalls = 0;
 
   const coordinator = createFederationReloadCoordinator(
     {
       registry,
       deps: FEDERATION_DEPS,
-      resolveConnections: async () => {
-        await firstPassGate.promise;
-        return [...roster];
+      resolveConnections: async () => [...roster],
+      attach: async (params) => {
+        attachCalls += 1;
+        if (attachCalls === 1) {
+          firstAttachStarted.resolve();
+          await firstPassGate.promise;
+        }
+        return admitAllImpl(params);
       },
-      attach: admitAllImpl,
     },
     [],
   );
 
   const first = coordinator.reload();
+  await firstAttachStarted.promise; // the first pass has already captured the old roster
   const second = coordinator.reload(); // queued — must observe the push below, not the pre-push roster
 
   roster.push(connection("second-vendor")); // the "just-committed write" the second caller is for
@@ -230,7 +267,8 @@ test("a reload() call that arrives after one is already in flight sees roster st
 
   const [firstResult, secondResult] = await Promise.all([first, second]);
 
-  assert.deepEqual(firstResult.newlyAdmittedConnectionIds, ["higgsfield", "second-vendor"].filter((id) => firstResult.newlyAdmittedConnectionIds.includes(id)));
+  assert.deepEqual(firstResult.newlyAdmittedConnectionIds, ["higgsfield"]);
+  assert.deepEqual(secondResult.newlyAdmittedConnectionIds, ["second-vendor"]);
   const allAdmitted = new Set([...firstResult.newlyAdmittedConnectionIds, ...secondResult.newlyAdmittedConnectionIds]);
   assert.equal(allAdmitted.has("second-vendor"), true, "the connection committed after the second reload() call must end up admitted");
   assert.equal(registry.registered.length, 2, "both connections registered exactly once each, never zero, never twice");

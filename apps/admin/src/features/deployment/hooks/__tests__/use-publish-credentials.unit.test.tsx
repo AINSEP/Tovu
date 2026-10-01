@@ -752,7 +752,7 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
     expect(row.verification).toBeUndefined();
   });
 
-  it("a rejected verify surfaces a translated, per-row verifyError and leaves any prior verification result alone", async () => {
+  it("a rejected first verify surfaces a translated, per-row verifyError without inventing a verification result", async () => {
     const port = createFakePublishCredentialsPort({
       listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
       verifyCredential: () => Promise.reject(new Error("network down")),
@@ -769,6 +769,28 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
     expect(row.verifyError).toContain("network down");
     expect(row.verifying).toBe(false);
     expect(row.verification).toBeUndefined();
+  });
+
+  it("a rejected re-verify retains the previous verification result alongside the transport error", async () => {
+    const verification = { status: "valid" as const, message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z" };
+    const verifyCredential = vi.fn().mockResolvedValueOnce(verification).mockRejectedValueOnce(new Error("network down"));
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      verifyCredential,
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => { await result.current.verify("github-pages"); });
+    expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.verification).toEqual(verification);
+    await act(async () => { await result.current.verify("github-pages"); });
+
+    const row = result.current.rows!.find((r) => r.providerId === "github-pages")!;
+    expect(row.verification).toEqual(verification);
+    expect(row.verifyError).toContain("Could not verify this token");
+    expect(row.verifyError).toContain("network down");
+    expect(row.verifying).toBe(false);
+    expect(verifyCredential).toHaveBeenCalledTimes(2);
   });
 
   it("an in-flight verify sets verifying: true on that row only, never touching a sibling provider's row", async () => {

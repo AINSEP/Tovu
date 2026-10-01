@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { api, ApiError } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -957,6 +958,7 @@ describe("useThemeExplore — delete", () => {
 
   it("confirmDelete removes the file via the port and refetches the file list", async () => {
     const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const deleteSpy = vi.spyOn(port, "deleteThemeFile");
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.files.length).toBe(3));
 
@@ -967,6 +969,7 @@ describe("useThemeExplore — delete", () => {
       await result.current.confirmDelete();
     });
 
+    expect(deleteSpy).toHaveBeenCalledWith("basic", "pages/about.html");
     expect(result.current.deleteTarget).toBeNull();
     expect(result.current.deleting).toBe(false);
     expect(result.current.notice).toBe("Deleted pages/about.html");
@@ -1116,6 +1119,30 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
     unmount();
 
     expect(() => rejectDetail(new Error("too late"))).not.toThrow();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("drops an old theme's failed detail load after the new theme has loaded on the mounted hook", async () => {
+    let rejectStale!: (reason: unknown) => void;
+    const stale = new Promise<never>((_resolve, reject) => { rejectStale = reject; });
+    const port = createFakeThemeExplorePort({
+      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      files: [],
+    });
+    const getDetail = port.getThemeDetail.bind(port);
+    vi.spyOn(port, "getThemeDetail").mockImplementation((id) => id === "a" ? stale : getDetail(id));
+    const { result, rerender } = renderHook(
+      ({ themeId }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      { initialProps: { themeId: "a" } }
+    );
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith("a"));
+    rerender({ themeId: "b" });
+    await waitFor(() => expect(result.current.detail?.id).toBe("b"));
+    await act(async () => {
+      rejectStale(new Error("stale theme failed"));
+      await stale.catch(() => {});
+    });
+    expect(result.current.detail?.id).toBe("b");
     expect(result.current.error).toBeNull();
   });
 
@@ -1487,6 +1514,7 @@ describe("useThemeExplore — reset", () => {
       contents: { "pages/index.html": "<h1>Changed</h1>" },
     });
     port.resetThemeFile = () => Promise.resolve({ content: "<h1>Original</h1>" });
+    const resetSpy = vi.spyOn(port, "resetThemeFile");
     const getThemeFileSpy = vi.spyOn(port, "getThemeFile");
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
@@ -1498,6 +1526,8 @@ describe("useThemeExplore — reset", () => {
       await result.current.reset();
     });
 
+    expect(resetSpy).toHaveBeenCalledWith("basic", "pages/index.html");
+    expect(getThemeFileSpy).toHaveBeenCalledWith("basic", "pages/index.html");
     expect(result.current.source).toBe("<h1>Original</h1>");
     expect(result.current.sourceLoaded).toBe(true);
     expect(result.current.dirty).toBe(false);
@@ -2004,13 +2034,15 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
     });
 
     expect(copySpy).toHaveBeenCalledTimes(1);
+    expect(copySpy).toHaveBeenCalledWith("basic", "css/a.css");
     expect(result.current.notice).toBe("Copied to css/a-1.css");
     expect(result.current.error).toBe("detail read failed");
     expect(result.current.copyingPath).toBeNull();
   });
 
   it("Rename: the notice says Renamed and the read failure is its own error", async () => {
-    const { result } = await renderWithFailingReread();
+    const { port, result } = await renderWithFailingReread();
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
     act(() => result.current.startRename("css/a.css"));
     act(() => result.current.setRenameDraft("b.css"));
 
@@ -2019,6 +2051,7 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
     });
 
     await waitFor(() => expect(result.current.renaming).toBe(false));
+    expect(renameSpy).toHaveBeenCalledWith("basic", "css/a.css", "b.css");
     expect(result.current.notice).toBe("Renamed to css/b.css");
     expect(result.current.error).toBe("detail read failed");
   });
@@ -2423,7 +2456,9 @@ describe("useThemeExplore — setPagePublished, the remaining notice/error branc
  */
 describe("useThemeExplore — onKeyDown save shortcut", () => {
   function dispatchKey(init: KeyboardEventInit) {
-    window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+    const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+    window.dispatchEvent(event);
+    return event;
   }
 
   it("ignores a key that isn't s, even with a modifier held", async () => {
@@ -2471,6 +2506,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
     });
 
     expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
     // Not dirty yet — swallowed, but nothing was actually saved.
     expect(putSpy).not.toHaveBeenCalled();
   });
@@ -2485,7 +2521,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
     await act(async () => {
-      dispatchKey({ key: "s", metaKey: true });
+      expect(dispatchKey({ key: "s", metaKey: true }).defaultPrevented).toBe(true);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -2504,7 +2540,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
     act(() => result.current.setSource("<h1>Changed</h1>"));
 
     await act(async () => {
-      dispatchKey({ key: "S", ctrlKey: true }); // uppercase — toLowerCase() must normalize it
+      expect(dispatchKey({ key: "S", ctrlKey: true }).defaultPrevented).toBe(true); // uppercase must normalize
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -2637,6 +2673,7 @@ describe("useWiredThemeExplore", () => {
   });
 
   it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
     const getDetailSpy = vi.spyOn(api, "getThemeDetail").mockResolvedValue({
       id: "basic",
       name: "Basic",
@@ -2652,10 +2689,8 @@ describe("useWiredThemeExplore", () => {
 
     const { result } = renderHook(() => useWiredThemeExplore("basic"));
 
-    // Bound translator falls back to the English source string with no override in play — same
-    // proof `useWiredThemes`'s own test uses that `t` is `themes-i18n.ts`'s dictionary translator,
-    // not the raw identity function every `useThemeExplore({ port, t })` unit test above passes.
     expect(result.current.t("Themes")).toBe("Themes");
+    await waitFor(() => expect(result.current.t("Themes")).toBe("Temas"));
 
     await waitFor(() => expect(result.current.detail?.name).toBe("Basic"));
     expect(getDetailSpy).toHaveBeenCalledTimes(1);
@@ -2957,16 +2992,19 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
 
   it("cancels a switch when the open file is clicked again mid-flight, without re-reading it over typed edits", async () => {
     const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
-    holdReads(port, "pages/about.html");
+    const about = holdReads(port, "pages/about.html");
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setView("html"));
     act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
     const readSpy = vi.spyOn(port, "getThemeFile");
+    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     act(() => result.current.select("pages/about.html"));
+    await waitFor(() => expect(readSpy).toHaveBeenCalledWith("basic", "pages/about.html"));
+    const heldRead = readSpy.mock.results[0]!.value;
     act(() => result.current.select("pages/index.html"));
-    await act(async () => {});
+    await act(async () => { about.release(); await heldRead; });
 
     expect(result.current.highlightedPath).toBe("pages/index.html");
     expect(result.current.selected).toBe("pages/index.html");
@@ -3143,8 +3181,8 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
 
     it("U5: a navigation back to the open file cancels the held switch without re-reading over typed edits", async () => {
       const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
-      holdReads(port, "pages/about.html");
-      const { result, rerender, modes } = mountForNav(port);
+      const about = holdReads(port, "pages/about.html");
+      const { result, rerender, modes, sources } = mountForNav(port);
       await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
       act(() => result.current.setView("html"));
       act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
@@ -3155,8 +3193,11 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
       // Held, not opened: the typed file is still the open one while about's text is out.
       expect(result.current.selected).toBe("pages/index.html");
+      await waitFor(() => expect(readSpy).toHaveBeenCalledWith("basic", "pages/about.html"));
+      const heldRead = readSpy.mock.results[0]!.value;
       rerender({ fileId: "pages/index.html" });
-      await act(async () => {});
+      await waitFor(() => expect(result.current.highlightedPath).toBe("pages/index.html"));
+      await act(async () => { about.release(); await heldRead; });
 
       expect(modes).not.toContain("unloaded");
       expect(result.current.highlightedPath).toBe("pages/index.html");
@@ -3164,6 +3205,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
       expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
       expect(result.current.dirty).toBe(true);
+      expect(sources).not.toContain("<h1>About</h1>");
     });
 
     it("U6: a click after a navigation started owns the selection when that navigation's listing lands late", async () => {

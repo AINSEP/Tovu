@@ -249,7 +249,8 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   });
 
   test(`${toolId}: a denied principal is rejected`, async () => {
-    const { deps } = fakeRouteDeps({ allow: false });
+    const { deps, settingsRepo } = fakeRouteDeps({ allow: false });
+    const revisionsBefore = await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: WORKSPACE_ID });
 
     await assert.rejects(
       () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
@@ -260,20 +261,28 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
         return true;
       },
     );
+    if (toolId === "settings_set_ui_preference") {
+      assert.equal(await settingsRepo.getUserValue({
+        workspaceId: WORKSPACE_ID, principalId: PRINCIPAL_ID, settingId: LANGUAGE_DEFINITION.settingId,
+      }), null, "a denied write must leave the caller's value absent");
+      assert.deepEqual(await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: WORKSPACE_ID }), revisionsBefore);
+    }
   });
 }
 
-test("settings_get_effective / settings_get_raw: reading another principal's user layer requires settings.user.read as a SECOND check", async () => {
-  const { deps, authorizeCalls } = fakeRouteDeps();
-  authorizeCalls.length = 0;
+for (const toolId of ["settings_get_effective", "settings_get_raw"]) {
+  test(`${toolId}: reading another principal's user layer requires settings.user.read as a SECOND check`, async () => {
+    const { deps, authorizeCalls } = fakeRouteDeps();
+    authorizeCalls.length = 0;
 
-  await wired(deps, "settings_get_effective").handler(executionContext({ namespace: "core.presentation", principalId: OTHER_PRINCIPAL_ID }));
+    await wired(deps, toolId).handler(executionContext({ namespace: "core.presentation", key: "site_title", principalId: OTHER_PRINCIPAL_ID }));
 
-  assert.equal(authorizeCalls.length, 2, "the base read permission, then the cross-principal permission");
-  assert.equal(authorizeCalls[0].permission, "settings.read");
-  assert.equal(authorizeCalls[1].permission, "settings.user.read");
-  assert.equal(authorizeCalls[1].principalId, PRINCIPAL_ID, "the cross-principal check is evaluated against the CALLER, not the target");
-});
+    assert.equal(authorizeCalls.length, 2, "the base read permission, then the cross-principal permission");
+    assert.equal(authorizeCalls[0].permission, PERMISSION_OF[toolId]);
+    assert.equal(authorizeCalls[1].permission, "settings.user.read");
+    assert.equal(authorizeCalls[1].principalId, PRINCIPAL_ID, "the cross-principal check is evaluated against the CALLER, not the target");
+  });
+}
 
 /**
  * The regression the handoff's §3 asked for, filed against the ROUTE and found to be missing from
@@ -337,28 +346,31 @@ test("settings_get_effective: reading one's OWN principalId does not trigger the
   assert.equal(authorizeCalls.length, 1, "a self-read never needs the second, cross-principal permission");
 });
 
-test("settings_get_effective / settings_get_raw: a caller lacking settings.user.read cannot read another principal's layer", async () => {
-  let call = 0;
-  const settingsRepo = new InMemorySettingsRepo({ definitions: [DEFINITION] });
-  const deps = {
-    workspaceId: WORKSPACE_ID,
-    settingsRepo,
-    settingsReady: Promise.resolve(),
-    clock: { nowIso: () => NOW },
-    idGen: { newId: () => "id-unused" },
-    principalRepo: { findById: async () => null },
-    // First call (the base read permission) is allowed; the second (cross-principal) is denied.
-    authorize: async () => {
-      call += 1;
-      return call === 1 ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
-    },
-  } as unknown as RouteDeps;
+for (const toolId of ["settings_get_effective", "settings_get_raw"]) {
+  test(`${toolId}: a caller lacking settings.user.read cannot read another principal's layer`, async () => {
+    let call = 0;
+    const settingsRepo = new InMemorySettingsRepo({ definitions: [DEFINITION] });
+    const deps = {
+      workspaceId: WORKSPACE_ID,
+      settingsRepo,
+      settingsReady: Promise.resolve(),
+      clock: { nowIso: () => NOW },
+      idGen: { newId: () => "id-unused" },
+      principalRepo: { findById: async () => null },
+      // First call (the base read permission) is allowed; the second (cross-principal) is denied.
+      authorize: async (params: { permission: string }) => {
+        call += 1;
+        return params.permission === PERMISSION_OF[toolId] ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
+      },
+    } as unknown as RouteDeps;
 
-  await assert.rejects(
-    () => wired(deps, "settings_get_effective").handler(executionContext({ namespace: "core.presentation", principalId: OTHER_PRINCIPAL_ID })),
-    /is not authorized for 'settings\.user\.read'/,
-  );
-});
+    await assert.rejects(
+      () => wired(deps, toolId).handler(executionContext({ namespace: "core.presentation", key: "site_title", principalId: OTHER_PRINCIPAL_ID })),
+      /is not authorized for 'settings\.user\.read'/,
+    );
+    assert.equal(call, 2);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // 6. settings_set_ui_preference — the curated write's structural bounds

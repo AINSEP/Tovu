@@ -22,6 +22,11 @@ test("float32ToInt16Pcm clamps out-of-range input instead of wrapping", () => {
 test("buildWavHeader is exactly 44 bytes and encodes the RIFF/WAVE/fmt/data structure", () => {
   const header = buildWavHeader({ sampleCount: 100, sampleRate: 16000 });
   assert.equal(header.length, WAV_HEADER_BYTES);
+  assert.equal(header.length, 44);
+  assert.equal(header.readUInt32LE(16), 16); // fmt chunk size
+  assert.equal(header.readUInt16LE(20), 1); // PCM format
+  assert.equal(header.readUInt32LE(28), 32000); // mono 16-bit byte rate
+  assert.equal(header.readUInt16LE(32), 2); // block alignment
   assert.equal(header.toString("ascii", 0, 4), "RIFF");
   assert.equal(header.toString("ascii", 8, 12), "WAVE");
   assert.equal(header.toString("ascii", 12, 16), "fmt ");
@@ -46,6 +51,8 @@ test("encodeMonoWav produces a header-plus-samples buffer whose data chunk match
 test("encodeMonoWav accepts a plain array, not just a Float32Array", () => {
   const wav = encodeMonoWav({ samples: [0, 0.5], sampleRate: 8000 });
   assert.equal(wav.length, WAV_HEADER_BYTES + 4);
+  assert.equal(wav.readUInt32LE(24), 8000);
+  assert.deepEqual([wav.readInt16LE(44), wav.readInt16LE(46)], [0, 0x3fff]);
 });
 
 test("encodeMonoWav of an empty recording is still a valid, playable zero-length WAV", () => {

@@ -21,6 +21,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../con
 import type { UIResource } from "../index.js";
 import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../features/webhooks/agent-tools.js";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
+import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 import type { RouteDeps } from "../../server/routes/types.js";
@@ -237,17 +238,21 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 }
 
 test("webhooks_create_subscription: rejects a non-https target the same way the domain function does", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, webhookSubscriptionRepo } = fakeRouteDeps();
   await assert.rejects(
     () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "http://example.test", topics: ["post.published"] })),
+    { message: "WEBHOOKS_VALIDATION_FAILED: target_url must use https://" },
   );
+  assert.deepEqual(await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("webhooks_create_subscription: rejects a target the egress allowlist disallows", async () => {
-  const { deps } = fakeRouteDeps({ allowedTarget: false });
+  const { deps, webhookSubscriptionRepo } = fakeRouteDeps({ allowedTarget: false });
   await assert.rejects(
     () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "https://example.test", topics: ["post.published"] })),
+    { message: "WEBHOOKS_VALIDATION_FAILED: target_url 'https://example.test' is not an allowed egress target" },
   );
+  assert.deepEqual(await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped", async () => {
@@ -258,12 +263,40 @@ test("webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubsc
   );
 });
 
+test("webhooks_get_deliveries returns recent delivery details in newest-first order with a limit, and listing reports the latest delivery", async () => {
+  const { deps, webhookDeliveryRepo } = fakeRouteDeps();
+  const created = await wired(deps, "webhooks_create_subscription").handler(executionContext(TOOL_INPUTS.webhooks_create_subscription)) as {
+    subscription: { id: string };
+  };
+  const delivery = (id: string, createdAt: string): WebhookDeliveryRecord => ({
+    id, workspaceId: WORKSPACE_ID, subscriptionId: created.subscription.id, eventId: `event-${id}`,
+    topic: "post.published", status: "delivered", attempts: 2, nextAttemptAt: createdAt,
+    lastResponseStatus: 202, lastError: null, signedWithVersion: 1, createdAt,
+    deliveredAt: createdAt, deadAt: null,
+  });
+  const middle = delivery("middle", "2026-07-29T00:01:00.000Z");
+  const newest = delivery("newest", "2026-07-29T00:02:00.000Z");
+  const oldest = delivery("oldest", NOW);
+  // Deliberately insert out of order: the handler cannot rely on repo ordering.
+  for (const row of [middle, newest, oldest]) await webhookDeliveryRepo.enqueue(row);
+  await webhookDeliveryRepo.enqueue({ ...newest, id: "foreign-workspace", workspaceId: "other-ws" });
+  await webhookDeliveryRepo.enqueue({ ...newest, id: "foreign-subscription", subscriptionId: "other-sub" });
+  const view = ({ workspaceId: _workspaceId, ...row }: WebhookDeliveryRecord) => row;
+
+  const all = await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id })) as { deliveries: unknown[] };
+  assert.deepEqual(all.deliveries, [newest, middle, oldest].map(view));
+  const limited = await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id, limit: 2 })) as { deliveries: unknown[] };
+  assert.deepEqual(limited.deliveries, [newest, middle].map(view));
+  const listed = await wired(deps, "content_read.webhook_subscription").handler(executionContext({})) as { subscriptions: Array<{ lastDelivery: unknown }> };
+  assert.deepEqual(listed.subscriptions[0]?.lastDelivery, view(newest));
+});
+
 // ---------------------------------------------------------------------------
 // 5. Multi-tool workflow
 // ---------------------------------------------------------------------------
 
 test("workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, webhookSubscriptionRepo } = fakeRouteDeps();
 
   const created = (await wired(deps, "webhooks_create_subscription").handler(
     executionContext({ label: "  My Endpoint  ", targetUrl: "https://example.test/hooks", topics: ["post.published", "post.published"] }),
@@ -307,5 +340,10 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(afterRemoveList.subscriptions[0].status, "disabled");
 
   // A disabled subscription is terminal — resuming it is refused, not silently accepted.
-  await assert.rejects(() => wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id, paused: false })));
+  const beforeDeniedResume = structuredClone(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: created.subscription.id }));
+  await assert.rejects(
+    () => wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id, paused: false })),
+    { message: `WEBHOOKS_VALIDATION_FAILED: webhook subscription '${created.subscription.id}' is disabled and cannot be paused or resumed` },
+  );
+  assert.deepEqual(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: created.subscription.id }), beforeDeniedResume);
 });

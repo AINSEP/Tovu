@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file Regression coverage for the expanded post-preview's flex chain (`a380c716`).
@@ -36,23 +37,12 @@ import { describe, expect, it } from "vitest";
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/editor.css"), "utf8");
 
 /**
- * Every declaration block whose selector list is EXACTLY `selector`, concatenated.
- *
- * Concatenated rather than first-match (`/re/.exec(...)?.[0]`, the pattern the sibling CSS suites
- * use) because this feature deliberately splits some of its rules across two blocks —
- * `.post-preview-surface` declares its flex behavior in one and its `margin-top` in another, next to
- * the override that zeroes it. A first-match helper would quietly assert against whichever block
- * happens to come first and report a missing declaration the moment someone reorders them.
+ * Resolve duplicate declarations instead of accepting any earlier occurrence. Some selectors are
+ * deliberately split across blocks (surface flex behavior and margin-top), so keep distinct
+ * properties while letting later declarations of the same property win.
  */
 function declarationsFor(selector: string): string {
-  // Anchored at line start (`m` flag), which is what distinguishes `.post-preview-surface` from
-  // `.post-preview-expanded .post-preview-surface` and from `.post-preview-fab:hover` — this
-  // stylesheet writes one rule per line with the selector in column 0. Throwing on no match turns a
-  // renamed or mistyped selector into that error instead of a bare "expected '' to match /.../".
-  const pattern = new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`, "gm");
-  const bodies = [...stylesheet.matchAll(pattern)].map((match) => match[1]);
-  if (bodies.length === 0) throw new Error(`No rule for selector "${selector}" in src/styles/editor.css`);
-  return bodies.join(";");
+  return effectiveDeclarationsFor(stylesheet, selector);
 }
 
 describe("expanded post-preview flex chain (an empty white panel is the symptom of breaking it)", () => {
@@ -66,7 +56,7 @@ describe("expanded post-preview flex chain (an empty white panel is the symptom 
 
   it("gives that .editor-shell a resolved height to divide up (flex: 1; min-height: 0)", () => {
     const rule = declarationsFor(".post-preview-expanded .editor-shell");
-    expect(rule).toMatch(/flex\s*:\s*1/);
+    expect(rule).toMatch(/flex\s*:\s*1\s*;/);
     // Without `min-height: 0` a flex item's `auto` minimum floors it at its content height, so the
     // iframe cannot shrink to fit and the panel scrolls instead of filling.
     expect(rule).toMatch(/min-height\s*:\s*0/);
@@ -80,7 +70,7 @@ describe("expanded post-preview flex chain (an empty white panel is the symptom 
 
   it("gives .post-preview-surface its own resolved height while expanded", () => {
     const rule = declarationsFor(".post-preview-expanded .post-preview-surface");
-    expect(rule).toMatch(/flex\s*:\s*1/);
+    expect(rule).toMatch(/flex\s*:\s*1\s*;/);
     expect(rule).toMatch(/min-height\s*:\s*0/);
   });
 
@@ -92,7 +82,7 @@ describe("expanded post-preview flex chain (an empty white panel is the symptom 
 
   it("lets the expanded device frame grow to fill .editor-shell (2026-09-22 device-width preview)", () => {
     const rule = declarationsFor(".post-preview-expanded .page-preview-frame");
-    expect(rule).toMatch(/flex\s*:\s*1/);
+    expect(rule).toMatch(/flex\s*:\s*1\s*;/);
     expect(rule).toMatch(/min-height\s*:\s*0/);
   });
 });

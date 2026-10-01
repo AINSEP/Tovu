@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,11 +159,14 @@ describe("MediaPickerDialog — dismissal", () => {
   });
 
   it("calls onCancel on Escape, via the real useMediaPickerDialog hook", async () => {
+    const user = userEvent.setup();
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    const cancel = await screen.findByRole("button", { name: "Cancel" });
+    cancel.focus();
+    await user.keyboard("{Escape}");
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
@@ -265,10 +268,13 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
 describe("MediaPickerDialog — focus management", () => {
 
   it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
+    await screen.findByTitle("Sunset");
+    const cancel = screen.getByRole("button", { name: "Cancel" });
     const { event, first } = tabFromLastFocusableInDialog();
 
+    expect(first).not.toBe(cancel);
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(first);
   });

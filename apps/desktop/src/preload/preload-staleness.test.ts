@@ -74,3 +74,31 @@ test("the staleness predicate itself refuses the exact incident shape (build old
   assert.match(failure, /STALE/);
   assert.match(failure, /npm run build:preload/);
 });
+
+
+test("the compiled preload exposes every current source bridge method regardless of mtimes", async (t) => {
+  const builtPath = path.join(desktopDir, "dist", "preload", "preload.mjs");
+  if (!fs.existsSync(builtPath)) {
+    t.skip("preload has not been built in this checkout");
+    return;
+  }
+  const exposed = new Map<string, Record<string, unknown>>();
+  t.mock.module("electron", {
+    namedExports: {
+      contextBridge: { exposeInMainWorld: (name: string, bridge: Record<string, unknown>) => exposed.set(name, bridge) },
+      ipcRenderer: {}, webFrame: {}, webUtils: {},
+    },
+  });
+  await import("./preload.mts");
+  const expected = new Map(exposed);
+  assert.deepEqual([...expected.keys()].sort(), ["tovuRunner", "tovuVoice"]);
+  exposed.clear();
+  await import("../../dist/preload/preload.mjs");
+  assert.deepEqual([...exposed.keys()].sort(), [...expected.keys()].sort());
+  for (const [name, sourceBridge] of expected) {
+    const builtBridge = exposed.get(name)!;
+    for (const method of Object.keys(sourceBridge)) {
+      assert.equal(typeof builtBridge[method], "function", `${name}.${method} must be callable in the loaded build`);
+    }
+  }
+});

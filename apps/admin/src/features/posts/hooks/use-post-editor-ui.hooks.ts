@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 /**
  * @file The post/page editor's UI-interaction layer — every onClick/onChange handler `PostEditor.tsx`
  * wires to a button or control, split out of that component per the owner's explicit direction
@@ -65,4 +67,32 @@ export function usePostEditorUi(deps: PostEditorUiDependencies): PostEditorUiCon
     onViewTemplateClick: () => setShowTemplateModal(true),
     onCloseTemplateModal: () => setShowTemplateModal(false),
   };
+}
+
+/**
+ * Escape in an iframe stays in its own document. Rebind after each preview navigation.
+ * @complexity O(1) — listeners belong to a single preview frame.
+ */
+export function usePostPreviewIframeEscape(expanded: boolean, onCollapse: () => void): (node: HTMLIFrameElement | null) => void {
+  const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+    if (!iframe || !expanded) return;
+    let frameDocument: Document | null = null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCollapse();
+    };
+    const bind = () => {
+      frameDocument?.removeEventListener("keydown", onKeyDown);
+      // Cross-origin dev previews cannot expose their document; the visible exit control remains available.
+      frameDocument = iframe.contentDocument;
+      frameDocument?.addEventListener("keydown", onKeyDown);
+    };
+    bind();
+    iframe.addEventListener("load", bind);
+    return () => {
+      iframe.removeEventListener("load", bind);
+      frameDocument?.removeEventListener("keydown", onKeyDown);
+    };
+  }, [iframe, expanded, onCollapse]);
+  return setIframe;
 }

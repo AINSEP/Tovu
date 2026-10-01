@@ -85,13 +85,13 @@ test("the partition name does not leak the operator's directory layout", () => {
 type FakeRequest = EventEmitter & { end: () => void };
 
 /** A fake request that can also carry a body, as `redeemBootSession`'s does. */
-type FakeBodyRequest = FakeRequest & { setHeader: () => void; write: (body: string) => void; body?: string };
+type FakeBodyRequest = FakeRequest & { setHeader: (name: string, value: string) => void; write: (body: string) => void; body?: string };
 
 /** A fake response: an EventEmitter with a status. */
 type FakeResponse = EventEmitter & { statusCode: number };
 
 /** One recorded `net.request` call, with the body its request was sent. */
-type RecordedCall = AuthRequestOptions<unknown> & { body?: string };
+type RecordedCall = AuthRequestOptions<unknown> & { body?: string; headers: Record<string, string> };
 
 /** Minimal Electron `net` stand-in that answers with `statusCode` and records the request. */
 function fakeNet(statusCode: number) {
@@ -99,9 +99,10 @@ function fakeNet(statusCode: number) {
   return {
     calls,
     request(options: AuthRequestOptions<unknown>) {
-      calls.push(options);
+      const call: RecordedCall = { ...options, headers: {} };
+      calls.push(call);
       const request = new EventEmitter() as FakeBodyRequest;
-      request.setHeader = () => {};
+      request.setHeader = (name, value) => { call.headers[name.toLowerCase()] = value; };
       request.write = (body) => {
         request.body = body;
         calls[calls.length - 1]!.body = body;
@@ -148,6 +149,7 @@ test("posts the token to the boot-session route, with useSessionCookies", async 
   assert.equal(net.calls[0]!.session, REDEEM_INPUT.session);
   assert.equal(net.calls[0]!.url, "http://127.0.0.1:3001/api/admin/v1/auth/boot-session");
   assert.equal(net.calls[0]!.method, "POST");
+  assert.equal(net.calls[0]!.headers["content-type"], "application/json");
   assert.deepEqual(JSON.parse(net.calls[0]!.body!), { token: "tok-abc" });
 });
 

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Composer, useComposer } from "@jini-ai/chat/react";
 
@@ -38,7 +39,7 @@ function ComposerHarness() {
       {/* Plain text probes, not the picker's own chip UI — this harness proves the state
           transition (`pluginRefIds`), not the chip's rendering (already covered by
           `SelectedAgentPluginTray`'s own tests). */}
-      <div data-testid="pinned-refs">{selectedPluginRefIds.join(",")}</div>
+      <div data-testid="pinned-refs">{JSON.stringify(selectedPluginRefIds)}</div>
       <div data-testid="draft">{composer.draft}</div>
       <Composer
         composer={composer}
@@ -64,11 +65,15 @@ afterEach(() => {
 
 describe("typing /ui-ux-design in the composer", () => {
   it("pins pluginRefIds=[\"ui-ux-design\"] and clears the draft, identically to the + picker chip", async () => {
+    const user = userEvent.setup();
     render(<ComposerHarness />);
     await waitForCapabilitiesLoaded();
 
     const textarea = screen.getByRole("textbox");
-    fireEvent.change(textarea, { target: { value: "/ui-ux-design" } });
+    await user.click(textarea);
+    await user.type(textarea, "/ui-ux-design");
+    expect(textarea).toHaveFocus();
+    expect(textarea).toHaveValue("/ui-ux-design");
 
     // Two rows fuzzy-match while the exact command word is still being confirmed: the agent-plugin
     // item itself (now via its new `command` field) and the Skill row, whose description literally
@@ -83,16 +88,19 @@ describe("typing /ui-ux-design in the composer", () => {
     });
     expect(options[0]).toHaveTextContent("UI/UX Design (Agent Plugin)");
 
-    fireEvent.keyDown(textarea, { key: "Enter" });
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(screen.getByTestId("pinned-refs")).toHaveTextContent("ui-ux-design");
+      expect(JSON.parse(screen.getByTestId("pinned-refs").textContent!)).toEqual(["ui-ux-design"]);
     });
     // The literal typed `/ui-ux-design` does not linger in the box — the command-bearing slash path
     // skips Composer.tsx's own insertText-driven clear, so the host's `{ draft: "" }` outcome
     // (`resolveComposerDiscoveryOutcome`'s pluginRefId branch) is what clears it.
     await waitFor(() => {
       expect(screen.getByTestId("draft")).toHaveTextContent("");
+      expect(screen.getByTestId("draft").textContent).toBe("");
+      expect(textarea).toHaveValue("");
     });
   });
 
@@ -143,7 +151,31 @@ describe("typing /ui-ux-design in the composer", () => {
 
     fireEvent.keyDown(textarea, { key: "Enter" });
 
+    // Negative assertions must observe async host outcomes as well as the key event itself.
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+
     expect(screen.getByTestId("draft")).toHaveTextContent("/nonexistent-plugin");
-    expect(screen.getByTestId("pinned-refs")).toHaveTextContent("");
+    expect(screen.getByTestId("pinned-refs")).toHaveTextContent("[]");
+    expect(JSON.parse(screen.getByTestId("pinned-refs").textContent!)).toEqual([]);
+    expect(textarea).toHaveValue("/nonexistent-plugin");
+  });
+
+  it("does not pin or clear the draft when Enter commits an IME composition", async () => {
+    const user = userEvent.setup();
+    render(<ComposerHarness />);
+    await waitForCapabilitiesLoaded();
+    const textarea = screen.getByRole("textbox");
+    await user.type(textarea, "/ui-ux-design");
+    await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
+
+    fireEvent.keyDown(textarea, { key: "Enter", isComposing: true });
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(JSON.parse(screen.getByTestId("pinned-refs").textContent!)).toEqual([]);
+    expect(screen.getByTestId("draft").textContent).toBe("/ui-ux-design");
+    expect(textarea).toHaveValue("/ui-ux-design");
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(JSON.parse(screen.getByTestId("pinned-refs").textContent!)).toEqual(["ui-ux-design"]));
+    await waitFor(() => expect(textarea).toHaveValue(""));
   });
 });

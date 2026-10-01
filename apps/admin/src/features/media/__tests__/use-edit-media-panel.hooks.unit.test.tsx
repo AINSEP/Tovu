@@ -43,6 +43,8 @@ const ITEM: AdminMedia = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("useEditMediaPanel — injected port (no fetch stub)", () => {
@@ -151,6 +153,51 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
+  const copyCases = [
+    { method: "copyHash", flag: "hashCopied", text: ITEM.sha256 },
+    { method: "copyUrl", flag: "urlCopied", text: "https://localhost:3000/m/old-title" },
+    { method: "copyEmbedCode", flag: "embedCopied", text: `<div data-embed-config='{"type":"media","slug":"${ITEM.slug}"}'></div>` },
+  ] as const;
+
+  it.each(copyCases)("$method waits for clipboard success, then resets $flag after 1500ms", async ({ method, flag, text }) => {
+    vi.useFakeTimers();
+    let resolveWrite!: () => void;
+    const writeText = vi.fn(() => new Promise<void>((resolve) => { resolveWrite = resolve; }));
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const item = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+
+    let copying!: Promise<void>;
+    await act(async () => { copying = result.current[method](); });
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(text);
+    expect(result.current[flag]).toBe(false);
+    await act(async () => { resolveWrite(); await copying; });
+    expect(result.current[flag]).toBe(true);
+    act(() => { vi.advanceTimersByTime(1499); });
+    expect(result.current[flag]).toBe(true);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(result.current[flag]).toBe(false);
+  });
+
+  it.each(copyCases)("$method leaves $flag false when clipboard permission is denied", async ({ method, flag }) => {
+    let rejectWrite!: (error: Error) => void;
+    const writeText = vi.fn(() => new Promise<void>((_, reject) => { rejectWrite = reject; }));
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const item = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+
+    let copying!: Promise<void>;
+    await act(async () => { copying = result.current[method](); });
+    expect(result.current[flag]).toBe(false);
+    await act(async () => {
+      rejectWrite(new Error("clipboard permission denied"));
+      await expect(copying).resolves.toBeUndefined();
+    });
+    expect(result.current[flag]).toBe(false);
+  });
+
   /**
    * Negative verification (per this refactor's own required check): confirms the assertions above
    * are not vacuous. Temporarily replacing `port.updateMedia` in `use-edit-media-panel.hooks.ts`'s
@@ -174,6 +221,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     });
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.error).toBe("save route down");
     expect(onSaved).not.toHaveBeenCalled();
   });
 });

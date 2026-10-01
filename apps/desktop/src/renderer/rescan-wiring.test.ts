@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,16 +39,41 @@ test("a hook owns the rescan call, not the component — this repo keeps logic o
   assert.match(appHooks, /rescanSites\(\)/);
 });
 
-test("the rescan result replaces the project list rather than waiting for the next poll", () => {
+test("the rescan result replaces the project list rather than waiting for the next poll", async () => {
   // Discarding it would leave the operator staring at the old grid for up to 4s after a rescan
   // that had already found their site — indistinguishable, to them, from the button not working.
   const hook = appHooks.slice(appHooks.indexOf("export function useSiteRescan("));
   assert.match(hook.slice(0, hook.indexOf("\nexport ")), /setProjects\(/);
+  const harness = hookHarness();
+  let resolve!: (records: unknown[]) => void;
+  let projects: unknown[] = [{ id: 'stale' }];
+  const result = [{ id: '/discovered/a', port: 4321 }, { id: '/discovered/b', port: 4322 }];
+  const useRescan = sourceFunction(appHooks, 'useSiteRescan', {
+    ...harness.bindings,
+    runnerInventoryBridge: () => ({ rescanSites: () => new Promise((done) => { resolve = done; }) }),
+  });
+  const setProjects = (next: unknown[]) => { projects = next; };
+  const scanning = harness.render(() => useRescan(setProjects)).rescan();
+  assert.equal(harness.render(() => useRescan(setProjects)).rescanning, true);
+  assert.deepEqual(projects, [{ id: 'stale' }]);
+  resolve(result);
+  await scanning;
+  assert.deepEqual(projects, result);
+  assert.equal(harness.render(() => useRescan(setProjects)).rescanning, false);
 });
 
 test("the Projects header renders a Rescan control wired to that hook", () => {
   assert.match(appTsx, /onRescan/);
   assert.match(appTsx, /Rescan/);
+  let calls = 0;
+  const header = sourceFunction(appTsx, 'MainHeader');
+  const button = elements(header({ activeId: 'projects', isCreating: false, activeLabel: 'Projects',
+    onRescan: async () => { calls++; }, rescanning: false })).find((element) => element.type === 'button' && element.props.children === 'Rescan');
+  assert.ok(button, 'the Rescan button must render');
+  button.props.onClick();
+  assert.equal(calls, 1, 'the button itself must invoke onRescan');
+  assert.match(appTsx, /<MainArea\b[^>]*onRescan=\{rescan\}/);
+  assert.match(appTsx, /<MainHeader\b[^>]*onRescan=\{onRescan\}/);
 });
 
 test("a rescan failure is reported ALONGSIDE the grid, never in place of it", () => {
@@ -71,4 +97,16 @@ test("a rescan failure is reported ALONGSIDE the grid, never in place of it", ()
   // No early return between the message and the grid — that is what "in place of it" would look like.
   assert.doesNotMatch(tail.slice(0, tail.indexOf('<SiteGrid')), /\breturn\b/);
   assert.ok(tail.includes('<SiteGrid'), 'the grid is not rendered after the rescan message');
+  const projects = [{ id: '/sites/a' }, { id: '/sites/b' }];
+  let gridProps: any;
+  const bodyComponent = sourceFunction(appTsx, 'ProjectsBody', {
+    SiteGrid: (props: any) => { gridProps = props; return null; },
+    NoWebsitesYet: () => assert.fail('populated projects must not become an empty state'),
+  });
+  const onOpen = () => {};
+  const rendered = elements(bodyComponent({ projectsLoading: false, loadError: null,
+    rescanError: 'scan failed', addError: null, projects, onOpen }));
+  assert.ok(rendered.some((element) => element.props.children === 'scan failed'));
+  assert.deepEqual(gridProps?.projects, projects, 'a rescan error must preserve every existing card');
+  assert.equal(gridProps.onOpen, onOpen, 'the preserved grid must remain usable');
 });

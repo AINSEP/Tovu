@@ -366,6 +366,23 @@ test("every wired registration publishes the inputSchema from its catalog entry 
   }
 });
 
+test("every content_read card preserves all member tools' published input properties", () => {
+  const cards = registrationsById();
+  const members = new Map(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })
+    .map((registration) => [registration.descriptor.id, registration]));
+  for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
+    const member = members.get(memberId);
+    const card = cards.get(cardId);
+    assert.ok(member, `${memberId} must exist before the collapse`);
+    assert.ok(card, `${cardId} must exist after the collapse`);
+    const memberSchema = member.descriptor.inputSchema as { properties: Record<string, unknown> };
+    const cardSchema = card.descriptor.inputSchema as { properties: Record<string, unknown> };
+    for (const property of Object.keys(memberSchema.properties)) {
+      assert.ok(Object.hasOwn(cardSchema.properties, property), `${cardId} dropped ${memberId}'s '${property}' input`);
+    }
+  }
+});
+
 test("identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended", () => {
   const registration = wiredRegistration("identity_user_create");
   const catalog = catalogEntry("identity_user_create");
@@ -694,6 +711,26 @@ test("search_components actually executes through the REAL ToolExecutor and retu
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   assert.ok(Array.isArray(result.output), "search_components must return an array of hits");
+  const button = result.output.find((hit: { id: string }) => hit.id === "shadcn.button");
+  assert.ok(button, "the real button manifest must be returned, not an empty array");
+  assert.equal(button.provider, "shadcn");
+  assert.deepEqual(button.capabilities, ["button", "action"]);
+  assert.equal(button.score, 1);
+});
+
+test("describe_component executes through the REAL ToolExecutor and returns a known button's manifest", async () => {
+  const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
+  const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "describe_component", { id: "shadcn.button" });
+
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  const output = result.output as { id: string; provider: string; capabilities: string[]; propsSchema: { type: string; required: string[]; properties: Record<string, unknown> } };
+  assert.equal(output.id, "shadcn.button");
+  assert.equal(output.provider, "shadcn");
+  assert.deepEqual(output.capabilities, ["button", "action"]);
+  assert.equal(output.propsSchema.type, "object");
+  assert.ok(output.propsSchema.required.includes("label"));
+  assert.deepEqual(output.propsSchema.properties.label, { type: "string" });
 });
 
 test("describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable", async () => {

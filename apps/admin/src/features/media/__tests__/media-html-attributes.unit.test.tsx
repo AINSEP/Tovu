@@ -243,7 +243,7 @@ describe("describeMediaHtmlAttributeError", () => {
     // brand-new field ships English-first, not blank, for a locale that hasn't been translated yet.
     expect(
       describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "formaction" }, "xx-not-a-real-locale")
-    ).toContain("formaction");
+    ).toBe("'formaction' is not an allowed HTML attribute.");
   });
 });
 

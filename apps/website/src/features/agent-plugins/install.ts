@@ -540,7 +540,10 @@ async function publish(extractionRoot: string, finalRoot: string): Promise<void>
   try {
     await rename(extractionRoot, finalRoot);
   } catch (error) {
-    if (!isErrnoException(error) || (error.code !== "EEXIST" && error.code !== "ENOTEMPTY")) {
+    // macOS reports EACCES, rather than ENOTEMPTY, when the winning install has already
+    // frozen its destination directory. Still require a real directory below: a permission
+    // failure with no published winner must remain PUBLISH_FAILED.
+    if (!isErrnoException(error) || (error.code !== "EEXIST" && error.code !== "ENOTEMPTY" && error.code !== "EACCES")) {
       throw new AgentPluginInstallError("PUBLISH_FAILED", `failed to publish the extracted package to '${finalRoot}'`, { cause: error });
     }
     if (!(await isRealDirectory(finalRoot))) {

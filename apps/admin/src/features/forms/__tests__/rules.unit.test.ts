@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminFormDefinition } from "@/lib/api";
 import { describeTrashError, formRowMenuItems, formsListError } from "../rules";
@@ -115,9 +115,11 @@ describe("formRowMenuItems", () => {
 
   it("Delete's onSelect calls handlers.onDelete with the form, not handlers.onToggleStatus", () => {
     const calls: AdminFormDefinition[] = [];
-    const items = formRowMenuItems(form({ id: "f9" }), { ...handlers, onDelete: (f) => calls.push(f) }, (k) => k);
+    const onToggleStatus = vi.fn();
+    const items = formRowMenuItems(form({ id: "f9" }), { ...handlers, onToggleStatus, onDelete: (f) => calls.push(f) }, (k) => k);
     items.find((i) => i.key === "delete")?.onSelect();
     expect(calls).toEqual([form({ id: "f9" })]);
+    expect(onToggleStatus).not.toHaveBeenCalled();
   });
 
   it("keeps Edit and the status toggle present alongside Delete (three items total)", () => {

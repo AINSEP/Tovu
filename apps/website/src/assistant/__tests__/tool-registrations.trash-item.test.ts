@@ -607,17 +607,21 @@ test("with no delegate tool registered but a non-empty registry, trash_item is s
 
 test("trash_item never reaches TrashPort.purgeSelected, on any input shape a model is likely to send", async () => {
   const { routeDeps } = harness(EVERYTHING);
+  const before = await seedPost(routeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  let purgeCalls = 0;
   class PurgeWasReachedError extends Error {}
   const guarded = {
     ...routeDeps,
     trash: {
       ...routeDeps.trash,
       async purgeSelected(): Promise<never> {
+        purgeCalls += 1;
         throw new PurgeWasReachedError("trash_item reached purgeSelected");
       },
     },
   } as RouteDeps;
-  const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges: createSurfaceExchangeStore() }), TRASH_ITEM_TOOL_ID);
+  const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges }), TRASH_ITEM_TOOL_ID);
 
   for (const input of [{}, { entityType: "post", entityId: "post-1" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
     try {
@@ -626,6 +630,14 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
       assert.ok(!(error instanceof PurgeWasReachedError), `reached purgeSelected with ${JSON.stringify(input)}`);
     }
   }
+  const confirmed = await raiseDialog(trashItem, { entityType: "post", entityId: "post-1" });
+  answer(surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: "content_post_delete", decision: "confirm" });
+  const result = await confirmed.pending as { outcome: { deleted: boolean } };
+  assert.equal(result.outcome.deleted, true);
+  assert.equal(purgeCalls, 0, "even a confirmed delegate operation must never purge");
+  assert.equal((await trashRows(guarded))[0]?.entityId, "post-1");
+  assert.equal(await guarded.trash.restore({ workspaceId: guarded.workspaceId, entityType: "post", entityId: "post-1", at: NOW }), "restored");
+  assert.equal((await guarded.postRepo.findById({ workspaceId: guarded.workspaceId, id: "post-1" }))?.title, before.title);
 });
 
 // --- generic-kind acceptance tests (trash T4c, over the real-SQLite form harness) ------------
@@ -693,12 +705,14 @@ test("a generic kind (form): permission is checked before any dialog is raised",
 
 test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", async () => {
   const h = sqliteFormHarness();
+  let purgeCalls = 0;
   class PurgeWasReachedError extends Error {}
   const guarded = {
     ...h.routeDeps,
     trash: {
       ...h.routeDeps.trash,
       async purgeSelected(): Promise<never> {
+        purgeCalls += 1;
         throw new PurgeWasReachedError("trash_item reached purgeSelected");
       },
     },
@@ -710,6 +724,16 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
   } catch (error) {
     assert.ok(!(error instanceof PurgeWasReachedError), "trash_item's generic path must never reach purgeSelected");
   }
+  const confirmed = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
+  answer(h.surfaces.surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
+  const result = await confirmed.pending as { outcome: { trashed: boolean } };
+  assert.equal(result.outcome.trashed, true);
+  assert.equal(purgeCalls, 0, "even a confirmed generic operation must never purge");
+  assert.equal(h.formIsLive("f1"), false);
+  const rows = await guarded.trash.list({ workspaceId: guarded.workspaceId, now: NOW, limit: 50 });
+  assert.equal(rows.items[0]?.entityId, "f1");
+  assert.equal(await guarded.trash.restore({ workspaceId: guarded.workspaceId, entityType: "form", entityId: "f1", at: NOW }), "restored");
+  assert.equal(h.formIsLive("f1"), true, "the form must remain recoverable");
 });
 
 test("a widget with a corrupt payload can still be trashed, through widgets_trash_instance directly AND through trash_item, both tagged with the AI marker", async () => {

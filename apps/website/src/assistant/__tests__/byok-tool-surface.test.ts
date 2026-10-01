@@ -181,6 +181,9 @@ test("describe_tool returns a real tool's input schema, and refuses an unknown i
   const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
   assert.notEqual(found.isError, true);
   assert.match(found.content, /content_read\.workspace/);
+  const registered = s.registry.list().find((tool) => tool.id === "content_read.workspace");
+  assert.ok(registered?.inputSchema);
+  assert.deepEqual(JSON.parse(found.content).inputSchema, registered.inputSchema);
 
   const missing = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
   assert.equal(missing.isError, true);
@@ -209,11 +212,16 @@ test("execute_delegated_tool requires a toolId, and says so", async () => {
 
 test("execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable", async () => {
   const s = surface();
-  // Reaches the executor (so the id resolves and the string was parsed into a real object); the
-  // handler then fails on its own terms against these fake deps. What matters is that it is NOT
-  // rejected at the argument-shape gate — that is the regression this guards.
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: '{"unused":true}' }));
+  let received: unknown;
+  s.registry.register(fakeAllowedRegistration("probe_encoded_input", async (ctx) => {
+    received = ctx.input;
+    return { received: ctx.input };
+  }));
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_encoded_input", input: '{"unused":true}' }));
   assert.doesNotMatch(result.content, /must be a JSON object/, "a JSON-encoded object string must be parsed, not refused");
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(received, { unused: true });
+  assert.deepEqual(JSON.parse(result.content), { received: { unused: true } });
 });
 
 test("execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong", async () => {
@@ -228,8 +236,20 @@ test("execute_delegated_tool refuses an input that is neither an object nor JSON
 });
 
 test("execute_delegated_tool treats an empty-string input the same as omitted — no input, not a parse error", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: "" }));
+  const s = surface();
+  const received: unknown[] = [];
+  s.registry.register(fakeAllowedRegistration("probe_empty_input", async (ctx) => {
+    received.push(ctx.input);
+    return { noInput: ctx.input === undefined };
+  }));
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input", input: "" }));
   assert.doesNotMatch(result.content, /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
+  const omitted = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input" }));
+  assert.notEqual(result.isError, true);
+  assert.notEqual(omitted.isError, true);
+  assert.deepEqual(received, [undefined, undefined]);
+  assert.deepEqual(result, omitted);
+  assert.deepEqual(JSON.parse(result.content), { noInput: true });
 });
 
 test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {
@@ -404,6 +424,24 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
   assert.equal(requested.runId, RUN.id);
   assert.equal(requested.principalId, PRINCIPAL.id);
   assert.equal(final.phase, "unknown-tool", "ToolExecutor.execute throws 'unknown tool' for an id it does not know");
+});
+
+test("ordinary successful and throwing delegated handlers record their complete audit trail", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false });
+  s.registry.register(fakeAllowedRegistration("probe_audit_success", async () => ({ saved: true })));
+  s.registry.register(fakeAllowedRegistration("probe_audit_failure", async () => { throw new Error("probe failure"); }));
+  const success = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }));
+  const failure = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_failure", input: {} }));
+  assert.notEqual(success.isError, true);
+  assert.deepEqual(JSON.parse(success.content), { saved: true });
+  assert.equal(failure.isError, true);
+  assert.deepEqual(sink.events.map(({ toolId, phase, workspaceId, principalId, runId }) => ({ toolId, phase, workspaceId, principalId, runId })),
+    [
+      ["probe_audit_success", "requested"], ["probe_audit_success", "completed"],
+      ["probe_audit_failure", "requested"], ["probe_audit_failure", "failed"],
+    ].map(([toolId, phase]) => ({ toolId, phase, workspaceId: "ws-meta-tool", principalId: PRINCIPAL.id, runId: RUN.id })),
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -729,7 +767,7 @@ const FEDERATION_WORKSPACE = "ws-federation-surface";
 /** One enabled `stdio` row allowlisting exactly `echo`, saved through the real store so admission
  *  goes through the real `readEnabledExternalMcpConfigs` -> `toResolvedFederatedConnections` path,
  *  not a hand-built `ResolvedFederatedConnection`. */
-async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring): Promise<void> {
+async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring, allowedToolNames = "echo"): Promise<void> {
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock: { nowIso: () => "2026-09-24T00:00:00.000Z" } },
     {
@@ -740,7 +778,7 @@ async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: Ae
       enabled: true,
       command: "npx",
       args: "-y echo-mcp-server",
-      allowedToolNames: "echo",
+      allowedToolNames,
       writeAllowedToolNames: "",
       principalId: "principal-federation-surface",
       env: "",
@@ -792,6 +830,39 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
     hits.some((hit) => hit.id === "mcp__echo-server__echo"),
     `expected a federated hit for the echo tool; got: ${JSON.stringify(hits)}`,
   );
+});
+
+test("BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring, "echo, write_ungranted");
+  const remoteResult = { content: [{ type: "text", text: "remote echo result" }] };
+  const session = new InMemoryMcpSession({
+    tools: [
+      { name: "echo", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
+      { name: "write_ungranted", inputSchema: { type: "object" }, annotations: { readOnlyHint: false } },
+      { name: "unlisted", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
+    ],
+    onCall: () => remoteResult,
+  });
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { federationConnect: async () => session });
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }));
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }]);
+  const parsed = JSON.parse(result.content);
+  assert.deepEqual(parsed.federated, { connectionId: "echo-server", tool: "echo", remoteReportedError: false });
+  assert.match(parsed.untrusted, /remote echo result/);
+  const payload = parsed.untrusted.match(/<untrusted-data-[^>]+>\n([\s\S]*?)\n<\/untrusted-data-/)?.[1];
+  assert.ok(payload);
+  assert.deepEqual(JSON.parse(payload), remoteResult);
+  const refused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__unlisted", input: {} }));
+  assert.equal(refused.isError, true);
+  assert.equal(session.calls.length, 1);
+  const writeRefused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
+  assert.equal(writeRefused.isError, true);
+  assert.equal(session.calls.length, 1, "a missing write grant must prevent remote execution");
 });
 
 // `settled: true`, not `false`: with no federation there is nothing still connecting, and

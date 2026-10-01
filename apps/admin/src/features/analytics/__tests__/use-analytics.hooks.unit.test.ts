@@ -70,6 +70,14 @@ describe("useAnalytics", () => {
     const { result } = renderHook(() => useWiredAnalytics());
     await waitFor(() => expect(result.current.hits).toEqual([HIT]));
     expect(result.current.error).toBeNull();
+    const hitsCalls = fetchMock.mock.calls.filter(([url]) => !String(url).includes("/settings/effective"));
+    expect(hitsCalls).toHaveLength(1);
+    const [url, init] = hitsCalls[0];
+    expect(new URL(String(url), window.location.origin).pathname).toBe(
+      "/api/admin/v1/workspaces/workspace-local/analytics/recent-hits",
+    );
+    expect(new URL(String(url), window.location.origin).search).toBe("");
+    expect((init as RequestInit | undefined)?.method ?? "GET").toBe("GET");
   });
 
   it("surfaces a server error's message on the error channel, verbatim", async () => {

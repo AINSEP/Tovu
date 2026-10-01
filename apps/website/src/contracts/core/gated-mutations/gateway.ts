@@ -302,6 +302,10 @@ export async function execute<TResult>(
     );
   }
 
+  if (record.scopeId !== hooks.scopeId) {
+    throw new ForbiddenError(`confirmation token belongs to a different scope`, "SCOPE_MISMATCH");
+  }
+
   // 4. plan re-derivation / hash comparison — U-001-B3. `details` is kept, not discarded: it is
   // the plan the operator confirmed, and step 5 hands it to the mutation so the mutation never has
   // to (and never may) re-derive a second one of its own. See `executeMutation`'s doc comment.

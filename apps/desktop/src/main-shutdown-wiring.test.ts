@@ -14,10 +14,21 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
+import { createShutdownTracker } from "./shutdown-tracker.ts";
+import { decideBeforeQuit } from "./quit-drain-gate.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => { resolve = res; });
+  return { promise, resolve };
+}
+
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 /** Just the `window.on("closed", ...)` handler in `openSiteWindow`. Scoped deliberately: the
  *  `createWindow`-failed `catch` above it legitimately calls `recordSiteClosed` before its own
@@ -40,7 +51,7 @@ function beforeQuitHandler() {
   return source.slice(start, end);
 }
 
-test("before-quit waits on in-flight teardowns, not only on openSites", () => {
+test("before-quit waits on in-flight teardowns, not only on openSites", async () => {
   // The defect: the `closed` handler empties `openSites` synchronously and only then begins
   // stopping the child, so closing the last window made this read "nothing to drain" while a
   // `detached` tovu serve was still alive — and it outlives the app.
@@ -52,6 +63,34 @@ test("before-quit waits on in-flight teardowns, not only on openSites", () => {
     /if \(openSites\.size === 0 \|\| shuttingDown\) return;/,
     "openSites.size alone is the condition that let the app quit mid-teardown",
   );
+
+  const teardown = deferred();
+  const pendingTeardowns = createShutdownTracker();
+  pendingTeardowns.track(teardown.promise);
+  let onQuit!: (event: { preventDefault: () => void }) => void;
+  let prevented = 0;
+  let finalQuits = 0;
+  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    app: {
+      on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
+      quit: () => { finalQuits++; },
+      exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
+    },
+    quitPhase: "idle", openSites: new Map(), pendingTeardowns,
+    decideBeforeQuit, finalQuitHeldForUpdate: () => false,
+    setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
+  });
+  onQuit({ preventDefault: () => { prevented++; } });
+  try {
+    await flush();
+    assert.equal(prevented, 1);
+    assert.equal(finalQuits, 0, "app.quit() must await a tracked teardown even with no open windows");
+  } finally {
+    teardown.resolve();
+    await pendingTeardowns.drain();
+    await flush();
+  }
+  assert.equal(finalQuits, 1);
 });
 
 test("termination signals route into the graceful quit, armed once the app is ready", () => {
@@ -104,7 +143,7 @@ test("the closed handler tracks its teardown so the drain can find it", () => {
   assert.match(closedHandler(), /pendingTeardowns\.track\(/);
 });
 
-test("the closed handler drops the crash-safety row only AFTER the child is stopped", () => {
+test("the closed handler drops the crash-safety row only AFTER the child is stopped", async () => {
   // The row is what lets the NEXT launch reap a child this process left running, so it must outlive
   // the child. Dropped up front, a hard kill during the stop stranded a tovu serve that
   // `reconcileOrphans` could never find.
@@ -114,6 +153,36 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
   assert.notEqual(stopAt, -1, "expected server.stop() in the closed handler");
   assert.notEqual(rowAt, -1, "expected recordSiteClosed() in the closed handler");
   assert.ok(stopAt < rowAt, "recordSiteClosed must not run before server.stop()");
+
+  // Run the actual registration fragment with injected dependencies, without loading Electron.
+  const stop = deferred();
+  const pendingTeardowns = createShutdownTracker();
+  let onClosed!: () => void;
+  let stopCalls = 0;
+  let closedRows = 0;
+  const window = { on: (_event: string, listener: () => void) => { onClosed = listener; } };
+  vm.runInNewContext(handler, {
+    window,
+    openSites: new Map([["/site", { window }]]),
+    siteDir: "/site", partition: "site-partition", ctx: { registryPath: "/registry" },
+    net: {}, session: { fromPartition: () => ({}) },
+    pendingTeardowns,
+    endSiteSession: async () => ({ ok: true }),
+    server: { pid: 123, adminUrl: "http://127.0.0.1:3001/admin/", stop: () => { stopCalls++; return stop.promise; } },
+    recordSiteClosed: () => { closedRows++; },
+  });
+  onClosed();
+  try {
+    await flush();
+    assert.equal(stopCalls, 1);
+    assert.equal(closedRows, 0, "the crash-safety row must outlive a pending server.stop()");
+    assert.equal(pendingTeardowns.size, 1, "the stop must remain tracked until it settles");
+  } finally {
+    stop.resolve();
+    await pendingTeardowns.drain();
+    await flush();
+  }
+  assert.equal(closedRows, 1);
 });
 
 test("closing a window only deletes the entry that window still owns", () => {

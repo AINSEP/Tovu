@@ -263,8 +263,24 @@ test("a 401 names the real cause — the authorization expired — and points at
 
   await assert.rejects(
     session.listTools(),
-    /refused 'tools\/list' with 401 — its authorization has expired or been revoked, reconnect it in Settings → External MCP/,
+    (error: unknown) => {
+      assert.ok(error instanceof McpAuthFailedError);
+      assert.match(error.message, /refused 'tools\/list' with 401 — its authorization has expired or been revoked, reconnect it in Settings → External MCP/);
+      return true;
+    },
   );
+});
+
+test("a tools/call 401 retains the auth-failure class used by the reauthorization hook", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => request.message?.method === "tools/call" ? { status: 401, body: "" } : politeServer()(request),
+  });
+  const session = await connect(exchange);
+  await assert.rejects(session.callTool({ name: "generate_image", arguments: { prompt: "x" } }), (error: unknown) => {
+    assert.ok(error instanceof McpAuthFailedError);
+    assert.match(error.message, /refused 'tools\/call' with 401/);
+    return true;
+  });
 });
 
 test("a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one", async () => {
@@ -327,6 +343,25 @@ test("an oversized body is refused before it is parsed", async () => {
   const session = await connect(exchange);
 
   await assert.rejects(session.listTools(), /exceeded 4194304 bytes/);
+});
+
+test("a successful hosted call sends the remote name and arguments and returns the complete result", async () => {
+  const expected = {
+    content: [{ type: "text", text: "generated image" }],
+    structuredContent: { assetId: "asset-1" },
+    isError: false,
+  };
+  const exchange = new ScriptedMcpHttpExchange({ respond: politeServer({ callResult: expected, sessionId: "sess-call" }) });
+  const session = await connect(exchange);
+  const result = await session.callTool({ name: "generate_image", arguments: { prompt: "x" } });
+  const sent = exchange.lastRequestFor("tools/call");
+  assert.ok(sent);
+  assert.equal(sent.method, "POST");
+  assert.equal(sent.url, SPEC.url);
+  assert.deepEqual(sent.message?.params, { name: "generate_image", arguments: { prompt: "x" } });
+  assert.equal(sent.headers.authorization, "Bearer token-abc");
+  assert.equal(sent.headers["mcp-session-id"], "sess-call");
+  assert.deepEqual(result, expected);
 });
 
 test("a JSON-RPC error frame becomes a protocol error carrying the remote's own code and message", async () => {
@@ -458,6 +493,9 @@ test("a failed handshake that already had a session id issued still cleans it up
   // The original handshake failure must win — a failed best-effort cleanup must not replace or
   // swallow it.
   await assert.rejects(connect(exchange), /remote returned JSON-RPC error -32000: no/);
+  const deletes = exchange.sent.filter((request) => request.method === "DELETE");
+  assert.equal(deletes.length, 1, "the issued remote session must be cleaned up once");
+  assert.equal(deletes[0]?.headers["mcp-session-id"], "sess-doomed");
 });
 
 test("a closed session refuses further calls instead of reopening one", async () => {

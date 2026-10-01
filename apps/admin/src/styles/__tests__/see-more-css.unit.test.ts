@@ -78,6 +78,14 @@ function extractRulePreludes(strippedCss: string): string[] {
     .filter((prelude): prelude is string => prelude !== null && prelude.length > 0);
 }
 
+function declarations(block: string): Record<string, string> {
+  const body = block.slice(block.indexOf("{") + 1);
+  return Object.fromEntries(body.split(";").filter((entry) => entry.includes(":")).map((entry) => {
+    const colon = entry.indexOf(":");
+    return [entry.slice(0, colon).trim(), entry.slice(colon + 1).trim()];
+  }));
+}
+
 describe("styles/see-more.css comment hygiene", () => {
   it("keeps the clamp selector's prelude free of leaked comment text", () => {
     const raw = readFileSync(CSS_PATH, "utf8");
@@ -86,6 +94,14 @@ describe("styles/see-more.css comment hygiene", () => {
     // Regression pin: if any comment above this rule loses its opening `/*` again, the prelude
     // here would be that comment's prose plus this selector fused together, not this exact string.
     expect(preludes).toContain(".see-more .see-more-text");
+    for (const selector of [
+      ".see-more",
+      ".see-more .see-more-text.is-expanded",
+      ".see-more .see-more-toggle",
+      ".see-more .see-more-toggle:hover",
+    ]) {
+      expect(preludes).toContain(selector);
+    }
   });
 
   it("keeps the clamp declarations attached to their selector", () => {
@@ -99,5 +115,33 @@ describe("styles/see-more.css comment hygiene", () => {
     expect(block).toContain("display: -webkit-box");
     expect(block).toContain("-webkit-line-clamp: var(--see-more-lines, 2)");
     expect(block).toContain("overflow: hidden");
+    expect(declarations(block)).toMatchObject({
+      display: "-webkit-box",
+      "-webkit-box-orient": "vertical",
+      "-webkit-line-clamp": "var(--see-more-lines, 2)",
+      overflow: "hidden",
+      "white-space": "normal",
+      "overflow-wrap": "anywhere",
+    });
+  });
+
+  it("lifts the clamp and reveals overflow when the text is expanded", () => {
+    const stripped = stripWellFormedComments(readFileSync(CSS_PATH, "utf8"));
+    expect(extractRulePreludes(stripped)).toContain(".see-more .see-more-text.is-expanded");
+    const ruleStart = stripped.indexOf(".see-more .see-more-text.is-expanded {");
+    expect(ruleStart).toBeGreaterThan(-1);
+    const block = stripped.slice(ruleStart, stripped.indexOf("}", ruleStart));
+    expect(block).toContain("display: block;");
+    expect(block).toContain("-webkit-line-clamp: unset;");
+    expect(block).toContain("overflow: visible;");
+  });
+
+  it("keeps the toggle legible and overrides the global filled button style", () => {
+    const stripped = stripWellFormedComments(readFileSync(CSS_PATH, "utf8"));
+    expect(extractRulePreludes(stripped)).toContain(".see-more .see-more-toggle");
+    const ruleStart = stripped.indexOf(".see-more .see-more-toggle {");
+    expect(ruleStart).toBeGreaterThan(-1);
+    const block = stripped.slice(ruleStart, stripped.indexOf("}", ruleStart));
+    expect(declarations(block)).toMatchObject({ display: "inline-block", background: "none", color: "var(--link)", border: "none" });
   });
 });

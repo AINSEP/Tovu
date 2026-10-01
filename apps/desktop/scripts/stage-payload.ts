@@ -53,6 +53,8 @@ import {
   newestMtime,
   parseNpmLsPaths,
   stageBundledNpm,
+  STAGED_SHELLS,
+  stagePayloadFiles,
   stageDir,
   pruneNativePrebuilds,
   resolveNpmLsCommand,
@@ -80,37 +82,6 @@ const desktopDir = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(desktopDir, "..", "..");
 const outDir = path.join(desktopDir, "staging", "tovu-payload");
 const repoModulesDir = path.join(repoRoot, "node_modules");
-
-/**
- * The two SPA builds, staged at their checkout-relative paths so one `path.join` serves both modes.
- *
- * `marker` is the exact file the SERVER probes to decide between serving the shell and answering
- * 503 — `admin-static.ts:92/115` checks `index.html`, and `site-chat-static.ts:37` checks
- * `site-assistant.js`. Site-chat has NO `index.html` at all: it is a single self-mounting IIFE
- * bundle loaded by a `<script>` tag, not an app with client-side routing (`app.ts:1336-1338`).
- * Asserting the wrong marker would have hard-failed staging on a perfectly good build.
- */
-const STAGED_SHELLS: ShellEntry[] = [
-  {
-    relative: path.join("apps", "admin", "dist"),
-    marker: "index.html",
-    // NOT `npm run admin:build`. That chains through `check-no-linked-jini.mjs`, which correctly
-    // refuses to build while any @jini-ai/* package is npm-linked -- a guard that exists for
-    // DISTRIBUTABLE builds. Refreshing a shell for a local package run is not that, and the direct
-    // vite invocation is the command that actually works on a linked checkout. Do not suggest
-    // `npm run unlink:jini` here: it swaps the whole tree to published Jini for no benefit.
-    buildWith: "cd apps/admin && npx vite build",
-    sourceDirs: [path.join("apps", "admin", "src")],
-    sourceFiles: [path.join("apps", "admin", "package.json")],
-  },
-  {
-    relative: path.join("apps", "site-chat", "dist"),
-    marker: "site-assistant.js",
-    buildWith: "cd apps/site-chat && npx vite build",
-    sourceDirs: [path.join("apps", "site-chat", "src")],
-    sourceFiles: [path.join("apps", "site-chat", "package.json")],
-  },
-];
 
 // `never`, not `void`: the body always ends in `process.exit(1)`, which @types/node itself types as
 // `never` — so this only states what already happens, and every call site below is understood as
@@ -344,11 +315,7 @@ mkdirSync(outDir, { recursive: true });
 
 // `package.json` is staged verbatim because `resolveCliEntry` reads `bin.tovu` from it in BOTH
 // modes — copying it is what keeps that function free of any packaged-mode branch at all.
-cpSync(path.join(repoRoot, "package.json"), path.join(outDir, "package.json"));
-cpSync(path.join(repoRoot, "dist"), path.join(outDir, "dist"), { recursive: true, dereference: true });
-for (const shell of STAGED_SHELLS) {
-  cpSync(path.join(repoRoot, shell.relative), path.join(outDir, shell.relative), { recursive: true, dereference: true });
-}
+stagePayloadFiles({ repoRoot, outDir });
 
 const jiniRoots = stageJiniPackages();
 const staged =

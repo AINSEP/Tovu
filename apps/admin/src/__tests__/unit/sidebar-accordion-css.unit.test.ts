@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file Guards the one accordion invariant that lives in CSS and cannot be asserted by rendering.
@@ -35,6 +36,10 @@ describe("sidebar accordion stylesheet", () => {
     const declaresDisplay = /\.cms-section-items\s*(?:,[^{]*)?\{[^}]*\bdisplay\s*:/.test(stylesheet);
     const restoresHidden = /\.cms-section-items\[hidden\]\s*\{[^}]*display\s*:\s*none/.test(stylesheet);
 
+    // Keep the shipped hidden rule protected even if a selector-list refactor makes the regex
+    // above miss the ordinary display rule. A later display override must also fail this check.
+    expect(effectiveDeclarationsFor(stylesheet, ".cms-section-items[hidden]")).toMatch(/display\s*:\s*none\s*;/);
+
     // Not "the rule exists" but "the rule exists IF it is needed" — a future refactor that drops the
     // flex layout entirely may legitimately drop the override with it, and this should not fail then.
     if (declaresDisplay) {
@@ -52,5 +57,6 @@ describe("sidebar accordion stylesheet", () => {
     // moment a section becomes collapsible.
     const toggleRule = /\.cms-group-toggle\s*\{[^}]*\}/.exec(stylesheet)?.[0] ?? "";
     expect(toggleRule).toMatch(/font\s*:\s*inherit/);
+    expect(effectiveDeclarationsFor(stylesheet, ".cms-group-toggle")).toMatch(/font\s*:\s*inherit\s*;/);
   });
 });

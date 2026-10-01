@@ -174,24 +174,54 @@ describe("SiteAssistantHeader", () => {
     assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null);
   });
 
-  it("Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)", () => {
+  it("keeps confirmation open on non-Escape keydown without resetting", () => {
+    let resetCount = 0;
+    renderHeader({ title: "My Site", hasMessages: true, onReset: () => (resetCount += 1) });
+    clickButton("New thread");
+    const cancel = dom.window.document.activeElement!;
+    assert.equal(cancel.textContent, "Cancel");
+
+    for (const key of ["Tab", "Enter", "a"]) {
+      act(() => {
+        cancel.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      });
+      assert.ok(container.querySelector(".tovu-site-assistant__reset-confirm"), `${key} must not dismiss confirmation on keydown`);
+      assert.equal(resetCount, 0);
+    }
+  });
+
+  it("Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)", (t) => {
+    const added = t.mock.method(window, "addEventListener");
     let resetCount = 0;
     renderHeader({ title: "My Site", hasMessages: true, onReset: () => (resetCount += 1) });
 
     assert.doesNotThrow(() => pressEscape());
+    assert.equal(added.mock.calls.filter(({ arguments: args }) => args[0] === "keydown").length, 0);
 
     assert.equal(resetCount, 0);
     assert.equal(container.querySelector("button")?.textContent, "New thread");
   });
 
-  it("removes its Escape listener on unmount — a later Escape after unmount touches nothing", async () => {
+  it("removes its Escape listener on unmount — a later Escape after unmount touches nothing", async (t) => {
+    const added = t.mock.method(window, "addEventListener");
+    const removed = t.mock.method(window, "removeEventListener");
     let resetCount = 0;
     renderHeader({ title: "My Site", hasMessages: true, onReset: () => (resetCount += 1) });
     clickButton("New thread");
 
+    const keydownAdds = () => added.mock.calls.filter(({ arguments: args }) => args[0] === "keydown");
+    const keydownRemoves = () => removed.mock.calls.filter(({ arguments: args }) => args[0] === "keydown");
+    assert.equal(keydownAdds().length, 1);
+    assert.equal(keydownRemoves().length, 0);
+    clickButton("Cancel");
+    assert.deepEqual(keydownRemoves().map((call) => call.arguments), keydownAdds().map((call) => call.arguments));
+    clickButton("New thread");
+    assert.equal(keydownAdds().length, 2);
+
     await act(async () => {
       root.unmount();
     });
+    assert.deepEqual(keydownRemoves().map((call) => call.arguments), keydownAdds().map((call) => call.arguments));
 
     assert.doesNotThrow(() => pressEscape());
     assert.equal(resetCount, 0, "an unmounted component's onReset must never fire");

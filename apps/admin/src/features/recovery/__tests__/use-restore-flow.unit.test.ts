@@ -89,14 +89,63 @@ describe("mount / point-change effect", () => {
     act(() => view.result.current.setAcknowledged(true));
     expect(view.result.current.acknowledged).toBe(true);
 
+    fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
+    await act(async () => view.result.current.startPlan());
+    fetchMock.mockResolvedValueOnce(jsonResponse({ confirmationToken: "tok1" }));
+    await act(async () => view.result.current.doConfirm());
+    fetchMock.mockResolvedValueOnce(jsonResponse({ restoreRunId: "run1", state: "succeeded", restartRequired: true }));
+    await act(async () => view.result.current.doExecute());
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "execution failed" }, 500));
+    await act(async () => view.result.current.doExecute());
+    expect(view.result.current).toMatchObject({
+      step: "done", plan: { planId: "plan1", planHash: "hash1" }, confirmationToken: "tok1",
+      result: { restoreRunId: "run1", state: "succeeded", restartRequired: true }, ceremonyError: "execution failed",
+    });
+
     fetchMock.mockResolvedValueOnce(jsonResponse({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
     view.rerender({ point: POINT_2 });
 
     expect(view.result.current.disclosure).toBeNull();
     expect(view.result.current.acknowledged).toBe(false);
     expect(view.result.current.step).toBe("idle");
-    const secondCall = fetchMock.mock.calls[1];
+    expect(view.result.current).toMatchObject({
+      plan: null, confirmationToken: null, result: null, busy: false, error: null, ceremonyError: null,
+    });
+    const secondCall = fetchMock.mock.calls.at(-1)!;
     expect(JSON.parse(String((secondCall[1] as RequestInit).body))).toEqual({ restorePointId: "rp2" });
+  });
+
+  it("clears a disclosure error when the point changes", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "disclosure failed" }, 500));
+    const view = renderHook(({ point }) => useWiredRestoreFlow({ point }), { initialProps: { point: POINT } });
+    await waitFor(() => expect(view.result.current.error).toBe("disclosure failed"));
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
+    view.rerender({ point: POINT_2 });
+    expect(view.result.current.error).toBeNull();
+    await waitFor(() => expect(view.result.current.disclosure).not.toBeNull());
+  });
+
+  it("resets busy when changing points during a ceremony request", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
+    const view = renderHook(({ point }) => useWiredRestoreFlow({ point }), { initialProps: { point: POINT } });
+    await waitFor(() => expect(view.result.current.disclosure).not.toBeNull());
+    let resolvePlan!: (response: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { resolvePlan = resolve; }));
+    let pending!: Promise<void>;
+    act(() => { pending = view.result.current.startPlan(); });
+    expect(view.result.current.busy).toBe(true);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
+    view.rerender({ point: POINT_2 });
+    expect(view.result.current.busy).toBe(false);
+    expect(view.result.current.step).toBe("idle");
+    await waitFor(() => expect(view.result.current.disclosure).not.toBeNull());
+    view.unmount();
+    await act(async () => {
+      resolvePlan(jsonResponse({ planId: "plan1", planHash: "hash1" }));
+      await pending;
+    });
   });
 });
 

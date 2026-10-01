@@ -343,13 +343,17 @@ describe("Seo — defaults form", () => {
     const user = userEvent.setup();
     const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
     renderSeo({ save });
+    await user.clear(screen.getByLabelText("Default meta description"));
+    await user.type(screen.getByLabelText("Default meta description"), "An edited description");
+    await user.clear(screen.getByLabelText("Twitter @site handle"));
+    await user.type(screen.getByLabelText("Twitter @site handle"), "@updated");
     await user.click(screen.getByRole("button", { name: "Save settings" }));
 
     expect(save).toHaveBeenCalledWith({
       titleTemplate: "%s | Site",
-      defaultDescription: "A default description",
+      defaultDescription: "An edited description",
       defaultOgImage: "media:og1",
-      twitterSite: "@site",
+      twitterSite: "@updated",
       defaultRobots: { noindex: false, nofollow: false },
       sitemapEnabled: true,
     });
@@ -431,7 +435,7 @@ describe("Seo — default OG image (MediaRefField)", () => {
     const setDefaultOgImage = vi.fn();
     renderSeo({ defaultOgImage: "media:og1", setDefaultOgImage });
     await user.type(screen.getByLabelText(/Default Open Graph/), "x");
-    expect(setDefaultOgImage).toHaveBeenCalled();
+    expect(setDefaultOgImage).toHaveBeenCalledWith("media:og1x");
   });
 
   it("has no Remove control while empty, and shows one once a value is set", () => {
@@ -622,7 +626,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Title"), "x");
-    expect(setField).toHaveBeenCalledWith("title", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("title", "Entry titlex");
   });
 
   it("toggling Noindex calls setField('noindex', checked)", async () => {
@@ -646,7 +650,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Description"), "x");
-    expect(setField).toHaveBeenCalledWith("description", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("description", "Entry descriptionx");
   });
 
   it("typing in Canonical URL calls setField('canonical', value)", async () => {
@@ -654,7 +658,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Canonical URL"), "x");
-    expect(setField).toHaveBeenCalledWith("canonical", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("canonical", "https://example.com/entryx");
   });
 
   it("typing in OG title calls setField('ogTitle', value)", async () => {
@@ -662,7 +666,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("OG title"), "x");
-    expect(setField).toHaveBeenCalledWith("ogTitle", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("ogTitle", "OG titlex");
   });
 
   it("typing in OG description calls setField('ogDescription', value)", async () => {
@@ -670,7 +674,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("OG description"), "x");
-    expect(setField).toHaveBeenCalledWith("ogDescription", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("ogDescription", "OG descx");
   });
 
   it("typing in OG image calls setField('ogImage', value)", async () => {
@@ -678,7 +682,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("OG image (media ref or URL)"), "x");
-    expect(setField).toHaveBeenCalledWith("ogImage", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("ogImage", "og.pngx");
   });
 
   it("typing in Twitter title calls setField('twitterTitle', value)", async () => {
@@ -686,7 +690,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Twitter title"), "x");
-    expect(setField).toHaveBeenCalledWith("twitterTitle", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("twitterTitle", "Twitter titlex");
   });
 
   it("typing in Twitter description calls setField('twitterDescription', value)", async () => {
@@ -694,7 +698,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Twitter description"), "x");
-    expect(setField).toHaveBeenCalledWith("twitterDescription", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("twitterDescription", "Twitter descx");
   });
 
   it("typing in Twitter image calls setField('twitterImage', value)", async () => {
@@ -702,7 +706,7 @@ describe("SeoEntryPanel", () => {
     const setField = vi.fn();
     renderPanel({ setField });
     await user.type(screen.getByLabelText("Twitter image (media ref or URL)"), "x");
-    expect(setField).toHaveBeenCalledWith("twitterImage", expect.any(String));
+    expect(setField).toHaveBeenCalledWith("twitterImage", "tw.pngx");
   });
 
   it("every text/textarea field falls back to '' when fieldValue() itself returns undefined (e.g. setField(key, undefined) was called)", () => {
@@ -865,8 +869,8 @@ describe("AnalyzePanel (reached via SeoEntryPanel's analysis)", () => {
         { code: "i", severity: "info", message: "m" },
       ],
     });
-    expect(document.querySelector(".status-failure")).toBeInTheDocument();
-    expect(document.querySelector(".status-unavailable")).toBeInTheDocument();
-    expect(document.querySelector(".status-success")).toBeInTheDocument();
+    expect(screen.getByText("e").closest("li")?.querySelector(".status")).toHaveClass("status-failure");
+    expect(screen.getByText("w").closest("li")?.querySelector(".status")).toHaveClass("status-unavailable");
+    expect(screen.getByText("i").closest("li")?.querySelector(".status")).toHaveClass("status-success");
   });
 });

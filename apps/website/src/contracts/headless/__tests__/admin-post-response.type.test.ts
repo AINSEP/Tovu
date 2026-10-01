@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 import type { AdminPost } from "../contracts.js";
 
@@ -18,24 +20,34 @@ import type { AdminPost } from "../contracts.js";
  * `AdminPost.bodyJson` and `PostEditor.tsx`'s `editor.commands.setContent(post.bodyJson as never)`
  * call.
  *
- * IMPORTANT CAVEAT, disclosed rather than silently worked around: this repo's root `tsconfig.json`
- * excludes every `__tests__` directory and every `.test.ts` file (see its own `exclude` array), and
- * `npm run typecheck` runs against that same config — so the `@ts-expect-error` directive below is NOT
- * type-checked by any command this repo currently runs (`npm test` uses `tsx`, which strips types
- * without checking them; ~10 other files in this codebase already carry the identical pattern and
- * the identical gap, e.g. `widgets/__tests__/unit/registry.unit.test.ts`). This file's directive was
- * independently verified with a scratch tsconfig that includes test files
- * (`tsc --noEmit` against this file alone, `strict: true`, same compiler options as the root
- * config) — confirmed to fail with "Unused '@ts-expect-error' directive" BEFORE `AdminPost` became a
- * discriminated union, and to pass cleanly after. That verification is not repeatable by a checked-in
- * script in this dispatch's scope; flagged in the handoff for the Coordinator/Architect to decide
- * whether test files should join `npm run typecheck`'s coverage project-wide.
+ * The root typecheck excludes tests and tsx strips types. The first runtime test therefore uses
+ * the TypeScript compiler API to strictly check this file and its imported contract, including
+ * the @ts-expect-error directive and the exhaustive switch below, without emitting files.
  */
 
 /** Stand-in for the real TipTap editor's props contract — see this file's header. */
 interface TiptapEditorProps {
   bodyJson: Record<string, unknown>;
 }
+
+test("REQ-3: strict TypeScript checking enforces this file's error directives and exhaustiveness proofs", () => {
+  const program = ts.createProgram([fileURLToPath(import.meta.url)], {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    strict: true,
+    esModuleInterop: true,
+    skipLibCheck: true,
+    noEmit: true,
+    types: ["node"],
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  assert.equal(diagnostics.length, 0, ts.formatDiagnostics(diagnostics, {
+    getCanonicalFileName: (name) => name,
+    getCurrentDirectory: () => process.cwd(),
+    getNewLine: () => "\n",
+  }));
+});
 
 /** Only the `"doc"` branch of `AdminPost` satisfies this — the whole point of the union. */
 function buildTiptapProps(post: Extract<AdminPost, { bodyFormat: "doc" }>): TiptapEditorProps {
@@ -72,8 +84,7 @@ const docPost: AdminPost = {
 
 test("REQ-3: constructing Tiptap props from the un-narrowed AdminPost union is a type error — an html-format row must be excluded by the type system, not a forgettable runtime check", () => {
   // @ts-expect-error — `AdminPost` (the full union) is not assignable to the "doc"-only branch
-  // `buildTiptapProps` requires; this line only compiles because tsx does not type-check (see this
-  // file's header for how the directive itself was independently verified against a real tsc pass).
+  // `buildTiptapProps` requires; the compiler-API test above validates this directive.
   const props = buildTiptapProps(htmlPost);
   assert.ok(props, "reached at runtime only because tsx strips types — the real assertion is the @ts-expect-error line above");
 });

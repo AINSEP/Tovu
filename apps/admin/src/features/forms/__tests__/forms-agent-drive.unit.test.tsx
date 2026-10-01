@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -71,6 +71,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("driving a new form's field editor through page.* verbs", () => {
@@ -84,6 +85,21 @@ describe("driving a new form's field editor through page.* verbs", () => {
 
     expect((screen.getByLabelText(/^Name$/) as HTMLInputElement).value).toBe("Contact us");
     expect((screen.getByLabelText(/^Slug$/) as HTMLInputElement).value).toBe("contact-us");
+
+    // A separate state change re-renders the controlled fields before Save reads their state.
+    await executePageCapability(driver, "page.click", { handle: "form-fields-add" });
+    await driver.settle?.();
+    expect(await handlesOf(driver)).toContain("form-field-2-id");
+    expect(screen.getByLabelText(/^Name$/)).toHaveValue("Contact us");
+    expect(screen.getByLabelText(/^Slug$/)).toHaveValue("contact-us");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: { slug: "contact-us" } }));
+    await executePageCapability(driver, "page.click", { handle: "form-editor-save" });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/forms$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toMatchObject({ name: "Contact us", slug: "contact-us" });
   });
 
   it("a second find_elements after page.click(\"form-fields-add\") discovers the new row's handles", async () => {
@@ -159,6 +175,7 @@ describe("addressing the forms list", () => {
     const linkHandles = links.map((link) => link.handle);
     expect(linkHandles).toContain("forms-new");
     expect(linkHandles).toContain("forms-row-f1-edit");
+    expect(linkHandles).toEqual(["forms-new", "forms-row-f1-edit"]);
     // `RowMenu`'s own trigger button ("Actions for form ...") is real markup on this page, but it
     // carries no `data-agent-element` of its own — see this file's header. Confirmed here by role,
     // not by absence-of-handle alone, since a bare handle search can't distinguish "not tagged"

@@ -244,10 +244,15 @@ test("theme_rename_file refuses when authorize() denies, and never touches disk"
 });
 
 test("theme_rename_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = deps.themes.find((t) => t.manifest.id === "plain");
+  assert.equal(before?.tokens["--ink"], "#000");
+  // Another editor changed the package after discovery; rename must refresh the live snapshot.
+  fs.writeFileSync(path.join(themesDir, "plain", "tokens.json"), '{"--ink":"#123456"}', "utf8");
   await wired(deps, "theme_rename_file").handler(executionContext({ themeId: "plain", path: "styles.css", name: "main.css" }));
   const live = deps.themes.find((t) => t.manifest.id === "plain");
   assert.equal(live?.status, "valid");
+  assert.equal(live?.tokens["--ink"], "#123456", "rename must reload the live theme data");
 });
 
 test("performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct", () => {

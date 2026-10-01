@@ -172,19 +172,11 @@ function buildSpoofPluginFixture(pluginsRoot: string): { markerPath: string } {
     [
       "import { writeFileSync } from 'node:fs';",
       "",
-      // A DYNAMIC import wrapped in try/catch, not a static one: this repo's own
-      // `resolveDefaultSdkModulePath()` (plugin-sdk-resolver.ts) has a separate, pre-existing path
-      // bug unrelated to CIC U-002's wiring (reported alongside this fix, not corrected here — it
-      // is fail-closed, not a security gap: a wrong redirect target still blocks the planted
-      // package via `shortCircuit: true`, it just throws instead of resolving). A static import
-      // would let that unrelated ENOENT abort this module's evaluation before the marker below ever
-      // gets written, which would make this test unable to distinguish 'the resolver was never
-      // registered' from 'the resolver was registered but points at a broken path'. Catching the
-      // import lets this fixture report all three real outcomes distinctly.
+      // Record import errors so a broken redirect fails with the actual loader error.
       "let outcome;",
       "try {",
       "  const sdkNamespace = await import('@tovu/sdk');",
-      "  outcome = { status: sdkNamespace.IS_PLANTED === true ? 'planted' : 'real' };",
+      "  outcome = { status: sdkNamespace.IS_PLANTED === true ? 'planted' : 'real', definePluginType: typeof sdkNamespace.definePlugin };",
       "} catch (error) {",
       "  outcome = { status: 'import-failed', message: String(error && error.message || error) };",
       "}",
@@ -239,7 +231,9 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
   // TOVU_PLUGINS_DIR takes first precedence in `pluginsInstallDir()` (server/runtime/composition/
   // deps.ts), overriding whatever `siteDir()`/`resolveSiteRoot()` would otherwise resolve — this
   // sidesteps that resolution entirely and points site-plugin discovery straight at the fixture.
-  const child = spawnServe([dir, "--port", String(port)], { TOVU_PLUGINS_DIR: pluginsRoot });
+  const username = "sdk-resolver-owner";
+  const password = "sdk-resolver-test-password";
+  const child = spawnServe([dir, "--port", String(port)], { TOVU_PLUGINS_DIR: pluginsRoot, TOVU_ADMIN_USER: username, TOVU_ADMIN_PASSWORD: password });
   let stdoutBuf = "";
   child.stdout.on("data", (chunk: Buffer) => {
     stdoutBuf += chunk.toString();
@@ -251,11 +245,6 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
     const workspaceIdMatch = /workspaceId=(\S+)/.exec(stdoutBuf);
     assert.ok(workspaceIdMatch, `expected the boot line to report workspaceId=... (stdout so far: ${stdoutBuf})`);
     const workspaceId = workspaceIdMatch![1];
-
-    // Same fallback identity/wiring.ts's own seeder uses — mirrors whatever this process's real
-    // ambient env actually seeded the owner account with, rather than assuming either value.
-    const username = process.env.TOVU_ADMIN_USER ?? "admin";
-    const password = process.env.TOVU_ADMIN_PASSWORD ?? "tovu-dev";
 
     const loginRes = await fetch(`http://127.0.0.1:${port}/api/admin/v1/auth/login`, {
       method: "POST",
@@ -284,16 +273,14 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
     }
     assert.ok(fs.existsSync(markerPath), "the plugin's server/index.mjs must have been import()-ed at least once (no marker file was ever written)");
 
-    const observed = JSON.parse(fs.readFileSync(markerPath, "utf8")) as { status: string; message?: string };
-    // Either 'real' (resolved to the runtime's actual bundled SDK) or 'import-failed' (blocked
-    // before evaluation — e.g. by the separate, fail-closed default-path bug noted above) proves
-    // the security property: the planted shadow package was never reached. Only 'planted' means
-    // registerPluginSdkResolver() was not registered before this import() could run.
+    const observed = JSON.parse(fs.readFileSync(markerPath, "utf8")) as { status: string; definePluginType?: string; message?: string };
     assert.notEqual(
       observed.status,
       "planted",
       `the plugin's bare '@tovu/sdk' import resolved to the PLANTED local node_modules/@tovu/sdk instead of the runtime's real SDK build — registerPluginSdkResolver() was not registered before this import() could run (observed: ${JSON.stringify(observed)})`
     );
+    assert.equal(observed.status, "real", `the plugin must import the runtime's real SDK successfully (observed: ${JSON.stringify(observed)})`);
+    assert.equal(observed.definePluginType, "function", "the imported SDK must expose the runtime's definePlugin export");
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);

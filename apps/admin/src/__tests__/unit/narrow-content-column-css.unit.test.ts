@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file Regression coverage for the narrow-content-column layout audit (web-design pass,
@@ -28,6 +29,14 @@ import { describe, expect, it } from "vitest";
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
 describe("narrow-content-column layout fixes", () => {
+  it.each([
+    [".tier", /white-space\s*:\s*nowrap\s*;/],
+    [".status", /white-space\s*:\s*nowrap\s*;/],
+    [".editor-actions", /flex-wrap\s*:\s*wrap\s*;/],
+  ] as const)("keeps the final declarations for %s safe after later or responsive rules", (selector, expected) => {
+    expect(effectiveDeclarationsFor(stylesheet, selector)).toMatch(expected);
+  });
+
   it("keeps .tier pills on one line (Plugins' TIER column wrapped 'tier-3' into 'tier-' / '3' at narrow widths)", () => {
     const rule = /\.tier\s*\{[^}]*\}/.exec(stylesheet)?.[0] ?? "";
     expect(rule).toMatch(/white-space\s*:\s*nowrap/);

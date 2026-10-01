@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { parse as parseToml } from "smol-toml";
+import { load as parseYaml } from "js-yaml";
 
 import { parseAgentPluginManifest } from "../../manifest.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
@@ -112,6 +114,36 @@ test("every operator-supplied value in both templates is marked as a placeholder
   // assistant writes into someone ELSE's repo.
   const flyToml = await readFile(path.join(SKILL_DIR, "references", "fly.template.toml"), "utf8");
   assert.ok(!/^\s*app\s*=\s*"tovu"/m.test(flyToml), "fly.template.toml must not hardcode this repo's own production app name");
+  const config = parseToml(flyToml);
+  assert.equal(config.app, "<<PLACEHOLDER: fly app name>>");
+  assert.equal(config.primary_region, "<<PLACEHOLDER: fly region, e.g. iad — this is NOT a default>>");
+  assert.deepEqual(config.mounts, [{
+    source: "<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>",
+    destination: "/workspace/Tovu/sites",
+  }]);
+  const service = config.http_service as Record<string, unknown>;
+  assert.equal(service.auto_stop_machines, false);
+  assert.equal(service.auto_start_machines, true);
+  assert.equal(service.min_machines_running, 1);
+
+  const workflowText = await readFile(path.join(SKILL_DIR, "references", "fly-deploy.template.yml"), "utf8");
+  // Substitute syntax-safe tokens before parsing: placeholder punctuation is not YAML.
+  const token = (value: string) => `placeholder_${Buffer.from(value).toString("hex")}`;
+  const workflow = parseYaml(workflowText.replace(/<<PLACEHOLDER:[^>]+>>/g, token)) as {
+    on: { push: { branches: string[] } };
+    concurrency: { group: string; "cancel-in-progress": boolean };
+    jobs: { deploy: { steps: unknown[] } };
+  };
+  assert.deepEqual(workflow.on.push.branches, [token("<<PLACEHOLDER: default branch, e.g. main>>")]);
+  assert.equal(workflow.concurrency.group, `fly-deploy-${token("<<PLACEHOLDER: fly app name>>")}`);
+  assert.equal(workflow.concurrency["cancel-in-progress"], false);
+  assert.deepEqual(workflow.jobs.deploy.steps, [
+    { uses: "actions/checkout@v4" },
+    { uses: "superfly/flyctl-actions/setup-flyctl@v1" },
+    { run: "flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0",
+      env: { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" } },
+  ]);
+
 });
 
 test("fly-server.md encodes the single-machine rule and forbids autoscaling", async () => {
@@ -120,6 +152,12 @@ test("fly-server.md encodes the single-machine rule and forbids autoscaling", as
   assert.match(skill, /fly scale count/i);
   assert.match(skill, /autoscal/i);
   assert.match(skill, /SQLite/);
+  // Prose drift guard; the template values above establish the config policy.
+  assert.ok(skill.includes("### Rule 1 — Exactly one machine. Never autoscale."));
+  assert.ok(skill.includes("Never run `fly scale count` above 1."));
+  assert.ok(skill.includes("Never enable autoscaling"));
+  assert.doesNotMatch(skill, /(?:you (?:may|should|must)|please)\s+(?:enable autoscal\w*|run more than (?:exactly )?one machine)/i);
+  assert.doesNotMatch(skill, /(?:^|\n)\s*(?:[-*]\s*)?(?:Enable|Turn on)\s+autoscal\w*/i);
 });
 
 test("fly-server.md states that the volume shadows the image's ENTIRE sites/ tree", async () => {

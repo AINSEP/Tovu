@@ -21,6 +21,7 @@ import {
   SERVER_INFO,
   handleSitesMcpRequest,
 } from "./sites-mcp-server.ts";
+import { SITES_MCP_TOOLS } from "./sites-mcp-tools.ts";
 import { sitesFilePath } from "./tracked-sites.ts";
 
 function fakeContext() {
@@ -99,6 +100,7 @@ test("tools/list returns every tool in ONE page with no nextCursor", async () =>
 
   assert.ok(Array.isArray(response!.result.tools));
   assert.ok(response!.result.tools.length >= 3);
+  assert.deepEqual(response!.result.tools, SITES_MCP_TOOLS.map(({ handler, ...published }) => published));
   // `drainToolsList` (`mcp-protocol.ts:162-177`) follows a `nextCursor` while one is present and
   // throws past its page cap. A cursor here would send it looking for a second page forever.
   assert.equal("nextCursor" in response!.result, false);
@@ -111,6 +113,8 @@ test("tools/list tolerates a cursor it did not issue instead of failing the conn
   );
 
   assert.ok(Array.isArray(response!.result.tools));
+  assert.deepEqual(response!.result.tools, SITES_MCP_TOOLS.map(({ handler, ...published }) => published));
+  assert.equal("nextCursor" in response!.result, false);
 });
 
 test("tools/call dispatches to the named tool", async () => {

@@ -131,10 +131,14 @@ test("an API that stays down is still reported, once, after the retries give up"
 });
 
 test("a non-reachability failure is reported immediately, not retried", async () => {
-  mockLoadExecutionConfig.mockRejectedValue(new ApiError("forbidden", 403, "FORBIDDEN", {}));
+  const forbidden = new ApiError("forbidden", 403, "FORBIDDEN", {});
+  mockLoadExecutionConfig.mockRejectedValue(forbidden);
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 
   renderHook(() => useExecutionConfig());
+  await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+  expect(consoleError).toHaveBeenCalledExactlyOnceWith("[AssistantDock] failed to load execution config", forbidden);
+  expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);
   await flush(5_000);
 
   expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);

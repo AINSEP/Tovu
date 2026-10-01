@@ -15,6 +15,12 @@ vi.mock("../../taxonomy/TermPicker", () => ({
   ),
 }));
 
+// The external GrapesJS runtime needs a browser; keep its mount boundary observable here.
+vi.mock("@jini-ai/ui/html-editor", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@jini-ai/ui/html-editor")>(),
+  InteractiveHtmlEditor: () => <div data-testid="interactive-editor" />,
+}));
+
 /**
  * @file `PageEditor` had no test of any kind before this pass (see the note this corrects in
  * `features/pages/README.md`, which claims "There is no PageEditor" — it is live-wired in
@@ -136,16 +142,10 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     confirmingDelete: false,
     setConfirmingDelete: vi.fn(),
     deleting: false,
-    // Mirrors `useDirtyGuard.confirmLeave`'s real behavior (message text included) closely enough
-    // for these characterization tests: gated on the SAME `dirty` override every pre-existing
-    // back-link test here already sets, calling through to `window.confirm` exactly like the real
-    // hook does, rather than a fixed stub that would stop proving the component actually reads
-    // `confirmLeave` off the controller.
-    confirmLeave: () => !(overrides.dirty ?? false) || window.confirm("You have unsaved changes. Leave without saving?"),
-    // The real hook's no-Interactive-editor branch of `onBackLinkClick`: exactly `confirmLeave`.
-    onBackLinkClick: async (event) => {
-      if (!(!(overrides.dirty ?? false) || window.confirm("You have unsaved changes. Leave without saving?"))) event.preventDefault();
-    },
+    // Hook behavior is covered in use-page-editor.unit.test.ts; these spies also prove
+    // that the component delegates the click to its controller.
+    confirmLeave: vi.fn(() => true),
+    onBackLinkClick: vi.fn(async () => {}),
     recoverableDraft: null,
     restoreRecoveredDraft: vi.fn(),
     discardRecoveredDraft: vi.fn(),
@@ -269,9 +269,9 @@ describe("header", () => {
     expect(screen.getByRole("link", { name: /pages/i })).toHaveAttribute("href", "/admin/pages");
   });
 
-  it("back link navigates through without confirming when the working copy is not dirty", () => {
+  it("back link delegates to a controller that allows navigation without confirming", () => {
     const confirmSpy = vi.spyOn(window, "confirm");
-    renderEditor({ dirty: false });
+    const { ctrl } = renderEditor({ dirty: false });
     const watcher = watchDefaultPrevented();
 
     fireEvent.click(screen.getByRole("link", { name: /pages/i }));
@@ -279,18 +279,26 @@ describe("header", () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     // The screen's own onClick did not call preventDefault — only the test's own listener did.
     expect(watcher.result()).toBe(false);
+    expect(ctrl.onBackLinkClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ preventDefault: expect.any(Function) }));
     vi.restoreAllMocks();
   });
 
-  it("back link asks for confirmation when dirty, and does not navigate away if the operator cancels", () => {
+  it("back link delegates to a controller that prompts and cancels navigation", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
-    renderEditor({ dirty: true });
+    // A prescribed controller decision: this fixture does not derive it from dirty state
+    // or implement the hook's flush/confirm logic.
+    const onBackLinkClick = vi.fn(async (event: { preventDefault: () => void }) => {
+      window.confirm("You have unsaved changes. Leave without saving?");
+      event.preventDefault();
+    });
+    const { ctrl } = renderEditor({ dirty: true, onBackLinkClick });
     const watcher = watchDefaultPrevented();
 
     fireEvent.click(screen.getByRole("link", { name: /pages/i }));
 
     expect(window.confirm).toHaveBeenCalledWith("You have unsaved changes. Leave without saving?");
     expect(watcher.result()).toBe(true);
+    expect(ctrl.onBackLinkClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ preventDefault: expect.any(Function) }));
     vi.restoreAllMocks();
   });
 });
@@ -658,6 +666,10 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const { container } = renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+    const target = container.querySelector("form")!.getAttribute("target");
+    expect(target).toBeTruthy();
+    expect(preview).toHaveAttribute("name", target);
     const form = container.querySelector("form");
     expect(form).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
     expect(screen.getByText(/publish to make it visible on the site/i)).toBeInTheDocument();
@@ -722,6 +734,10 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const { container } = renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+    const target = container.querySelector("form")!.getAttribute("target");
+    expect(target).toBeTruthy();
+    expect(preview).toHaveAttribute("name", target);
     expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
     expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
   });
@@ -730,6 +746,10 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const { container } = renderEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+    const target = container.querySelector("form")!.getAttribute("target");
+    expect(target).toBeTruthy();
+    expect(preview).toHaveAttribute("name", target);
     expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
     expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
   });
@@ -768,23 +788,16 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
   });
 
-  // The one interactive-view assertion that does NOT mount GrapesJS, and the regression this
-  // pins: the tab used to mount the editor unconditionally, which meant it could mount before the
-  // active theme's CSS had resolved — and `InteractiveHtmlEditor` reads its canvas styling once, at
-  // mount, so that canvas stayed unstyled (browser-default Times on white) for the rest of its life
-  // no matter what arrived afterwards. See `use-theme-canvas-styling.hooks.ts`.
   it("waits for the theme's canvas styling instead of mounting the editor unstyled", () => {
-    renderEditor({ view: "interactive", canvasStyling: { status: "pending" } });
+    const { ctrl, rerender } = renderEditor({ view: "interactive", canvasStyling: { status: "pending" } });
     expect(screen.getByText(/loading the theme/i)).toBeInTheDocument();
-  });
+    expect(screen.queryByTestId("interactive-editor")).not.toBeInTheDocument();
 
-  // No "renders in interactive view" test: `InteractiveHtmlEditor` mounts a real GrapesJS editor,
-  // which drives an `<iframe>` whose `onload` fires asynchronously — jsdom does not implement enough
-  // of the canvas/frame machinery GrapesJS's `FrameView` expects (confirmed directly: mounting it
-  // here throws an uncaught `TypeError` from inside `grapesjs.mjs` after the test has already
-  // finished, "Cannot read properties of undefined (reading 'getTypes')", polluting the run per
-  // Vitest's own "might cause false positive tests" warning). Interactive-tab correctness is
-  // verified in a real browser instead — see the self-validation report.
+    ctrl.canvasStyling = { status: "ready", styling: {} };
+    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    expect(screen.queryByText(/loading the theme/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("interactive-editor")).toBeInTheDocument();
+  });
 });
 
 describe("device toggle (preview view only)", () => {

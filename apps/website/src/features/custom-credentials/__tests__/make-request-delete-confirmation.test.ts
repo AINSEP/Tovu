@@ -166,6 +166,15 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
+function actionFromDialog(ui: UIResource, action: "confirm" | "cancel") {
+  const match = ui.resource.text.match(/var PLAN = (.+);/);
+  assert.ok(match, "the rendered dialog must include its button actions");
+  const plan = JSON.parse(match[1]!);
+  assert.equal(plan[action].toolName, TOOL_ID);
+  assert.match(ui.resource.text, new RegExp(`data-mcpui-action="${action}"`));
+  return plan[action].params as Record<string, unknown>;
+}
+
 /** Raises the DELETE dialog and returns everything a test needs to answer it. */
 async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, unknown> = { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/my-app" }) {
   const emitted: unknown[] = [];
@@ -206,21 +215,28 @@ test("the call stays open after the dialog is shown, and nothing is decrypted or
 });
 
 test("the dialog names exactly what is about to be sent — label, resolved host, method, and path", async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
+  const { deps, writeDeps, httpClient } = fakeRouteDeps();
   await seedFlyIo(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/my-app" });
+  const url = "https://api.fly.io/v1/apps/my-app?force=true&destroy_volumes=true";
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "fly.io", method: "DELETE", url });
 
   assert.match(ui.resource.text, /fly\.io/);
   assert.match(ui.resource.text, /api\.fly\.io/);
   assert.match(ui.resource.text, /DELETE/);
   assert.match(ui.resource.text, /\/v1\/apps\/my-app/);
   assert.match(ui.resource.text, /irreversible/i);
+  assert.match(ui.resource.text, /<dt>Credential<\/dt><dd>fly\.io<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Host<\/dt><dd>api\.fly\.io<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Method<\/dt><dd>DELETE<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Path<\/dt><dd>\/v1\/apps\/my-app\?force=true&amp;destroy_volumes=true<\/dd>/);
 
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: actionFromDialog(ui, "confirm") });
+  assert.equal((await pending as { executed: boolean }).executed, true);
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0]!.url, url, "the displayed query parameters must also be sent");
 });
 
 test("the dialog names a url resolved through additionalHosts exactly the same way as its base host", async () => {
@@ -263,8 +279,10 @@ test("confirm: the human's click performs the real DELETE (decrypting exactly on
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool);
+  const params = actionFromDialog(ui, "confirm");
+  assert.equal(params[SURFACE_EXCHANGE_ID_PARAM], exchangeId);
+  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params });
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { executed: true; status: number; headers: Record<string, string>; bodyText: string };
@@ -289,8 +307,10 @@ test("cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTT
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool);
+  const params = actionFromDialog(ui, "cancel");
+  assert.equal(params[SURFACE_EXCHANGE_ID_PARAM], exchangeId);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params });
 
   const result = await pending;
   assert.deepEqual(result, { executed: false, cancelled: true });

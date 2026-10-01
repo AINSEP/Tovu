@@ -378,17 +378,18 @@ function parseJsonArray(raw: string | null): string[] {
 /**
  * A connection's "admitted under this" fingerprint — what `external-mcp-revocation.ts`'s per-call
  * gate compares a roster connection's row against to catch a delete-then-recreate, a
- * url/command/args/transport/authMode edit, or a rotated/cleared `sealedEnv` credential, none of
+ * url/command/args/transport/authMode edit, or a rotated/cleared static credential, none of
  * which re-admit an already-running connection (the registry is append-only;
  * `mcp-federation/reload.ts` never re-admits an admitted id).
  *
- * `sealedEnv`'s CIPHERTEXT is included (not `sealedOAuth`): a `static_env`/`stdio` credential is
+ * `sealedEnv`'s CIPHERTEXT is included: a `static_env`/`stdio` credential is
  * resealed only when an operator actually submits a new `env` block — an ordinary toggle/rename
  * leaves `env` undefined and carries the existing seal through byte-for-byte (see
  * `resolveExternalMcpSealedEnv`'s `rawEnv === undefined` branch), so the ciphertext is stable across
- * cosmetic saves and only moves when the credential itself is rotated or cleared. `sealedOAuth` is
- * deliberately excluded: it is re-sealed on every OAuth token refresh, so hashing it would flip the
- * revision — and refuse the connection — on every refresh, not just a genuine revocation.
+ * cosmetic saves and only moves when the credential itself is rotated or cleared. On `static_env`
+ * rows, `sealedOAuth` holds the dedicated static access token and follows the same preservation rule,
+ * so its ciphertext is included too. On OAuth rows it is excluded: re-sealing on token refresh must
+ * not refuse an otherwise valid connection.
  *
  * Otherwise deliberately narrow: `label`, `enabled`, both grant lists, OAuth status/expiry/tokens,
  * and `updatedAt` are excluded, because none of them identify WHERE or via WHAT credentials a call
@@ -404,7 +405,7 @@ function parseJsonArray(raw: string | null): string[] {
  * @overallScore 100
  */
 export function externalMcpAdmissionRevision(
-  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode" | "sealedEnv">,
+  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode" | "sealedEnv" | "sealedOAuth">,
 ): string {
   return createHash("sha256")
     .update(
@@ -416,6 +417,7 @@ export function externalMcpAdmissionRevision(
         record.args,
         record.authMode,
         record.sealedEnv?.ciphertext ?? null,
+        record.authMode === "static_env" ? (record.sealedOAuth?.ciphertext ?? null) : null,
       ]),
     )
     .digest("hex");

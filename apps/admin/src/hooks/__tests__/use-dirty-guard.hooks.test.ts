@@ -41,7 +41,21 @@ describe("confirmLeave", () => {
     const { result } = renderHook(() => useDirtyGuard({ title: "Hello" }, original));
 
     expect(result.current.confirmLeave()).toBe(true);
+    expect(result.current.confirmLeave(false)).toBe(true);
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("prompts for work outside tracked state even when the tracked form is clean", () => {
+    const original = { title: "Hello" };
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { result } = renderHook(() => useDirtyGuard(original, original));
+
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.confirmLeave(true)).toBe(false);
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    confirmSpy.mockReturnValue(true);
+    expect(result.current.confirmLeave(true)).toBe(true);
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
   });
 
   it("prompts and returns the operator's answer when dirty", () => {
@@ -63,10 +77,13 @@ describe("beforeunload", () => {
     renderHook(() => useDirtyGuard({ title: "Hello (edited)" }, original));
 
     const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
+    Object.defineProperty(event, "returnValue", { value: "unchanged", writable: true });
     const preventDefaultSpy = vi.spyOn(event, "preventDefault");
     window.dispatchEvent(event);
 
     expect(preventDefaultSpy).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    expect(event.returnValue).toBe("");
   });
 
   it("does not intercept the event while clean", () => {

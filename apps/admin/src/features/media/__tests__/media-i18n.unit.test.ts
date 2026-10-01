@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import ts from "typescript";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
+import { MEDIA_ORDER_OPTIONS } from "../rules";
 
 /**
  * @file `MEDIA_DICT` cross-locale coverage — the exact gap a live audit caught 2026-09-07: `Media.tsx`
@@ -47,6 +51,30 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
   it("covers every copy string Media.tsx's MediaTypeEmptyState/Media screen call t() with (spot check: the video empty-state copy this audit found missing)", () => {
     for (const locale of locales) {
       expect(MEDIA_DICT[locale]["Uploaded videos appear here once you add them."], `locale ${locale}`).toBeTruthy();
+    }
+  });
+
+  it("translates every literal t() key in Media.tsx and rules.ts, plus the order-option labels, in every locale", () => {
+    const keys = new Set(MEDIA_ORDER_OPTIONS.map((option) => option.label));
+    for (const filename of ["Media.tsx", "rules.ts"]) {
+      const source = ts.createSourceFile(filename, readFileSync(resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
+      function visit(node: ts.Node) {
+        if (ts.isCallExpression(node)) {
+          const callee = node.expression;
+          const isTranslator = (ts.isIdentifier(callee) && callee.text === "t")
+            || (ts.isPropertyAccessExpression(callee) && callee.name.text === "t");
+          const [key] = node.arguments;
+          if (isTranslator && key && ts.isStringLiteralLike(key)) keys.add(key.text);
+        }
+        ts.forEachChild(node, visit);
+      }
+      visit(source);
+    }
+    expect(keys.has("Uploaded videos appear here once you add them.")).toBe(true);
+    for (const locale of locales) {
+      for (const key of keys) {
+        expect(MEDIA_DICT[locale][key] ?? COMMON_I18N[locale]?.[key], `${locale} translation for ${JSON.stringify(key)}`).toBeTruthy();
+      }
     }
   });
 });

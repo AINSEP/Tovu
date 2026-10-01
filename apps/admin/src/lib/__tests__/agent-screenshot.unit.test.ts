@@ -1,18 +1,43 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, MAX_SCREENSHOT_BYTES, captureAdminScreenshotToolResult } from "../agent-screenshot";
+import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, MAX_SCREENSHOT_BYTES, captureAdminScreenshotToolResult, renderAdminScreenshotCanvas } from "../agent-screenshot";
 
 /**
  * @file `agent-screenshot.ts`'s orchestration logic — the part `App.hooks.tsx`'s `useAgentPageBridge`
  * registers under `createFrontendSessionBridge`'s `"admin."` executor prefix to answer
  * `admin.capture_screenshot` invocations.
  *
- * `renderElementToCanvas` is always a fake here. The real `html2canvas`-backed adapter
- * (`renderAdminScreenshotCanvas`, this module's other export) needs a real browser layout engine to
- * produce anything meaningful — jsdom does not lay out or paint — so it is exercised only by manual/
- * browser verification, the same "port tested with a fake, real adapter left to integration" split
- * `site-evidence/browser-port.ts` documents for its own Playwright adapter.
+ * The orchestration tests inject a canvas fake. The adapter test mocks html2canvas-pro to pin
+ * its library selection and viewport options; actual painting still needs browser verification.
  */
+
+vi.mock("html2canvas-pro", () => ({ default: vi.fn() }));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("renderAdminScreenshotCanvas", () => {
+  it("uses html2canvas-pro with the current viewport and no device-pixel scaling", async () => {
+    const { default: html2canvas } = await import("html2canvas-pro");
+    const canvas = fakeCanvas({ "0.7": 1000 });
+    vi.mocked(html2canvas).mockResolvedValue(canvas as unknown as HTMLCanvasElement);
+    vi.stubGlobal("scrollX", 23);
+    vi.stubGlobal("scrollY", 47);
+    vi.stubGlobal("innerWidth", 1024);
+    vi.stubGlobal("innerHeight", 768);
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1000);
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(740);
+    const element = document.createElement("main");
+
+    expect(await renderAdminScreenshotCanvas(element)).toBe(canvas);
+    expect(html2canvas).toHaveBeenCalledWith(element, {
+      scale: 1, useCORS: true, x: 23, y: 47, width: 1024, height: 768,
+      windowWidth: 1000, windowHeight: 740,
+    });
+  });
+});
 
 /** A fake canvas whose `toDataURL` returns a data URL sized to a requested byte count, so the
  *  size-budget retry loop can be asserted without ever decoding a real image. */
@@ -67,6 +92,7 @@ describe("captureAdminScreenshotToolResult", () => {
     expect(result.content[1]).toMatchObject({ type: "image", mimeType: "image/jpeg" });
     expect(typeof (result.content[1] as { data: string }).data).toBe("string");
     expect((result.content[1] as { data: string }).data.length).toBeGreaterThan(0);
+    expect((result.content[1] as { data: string }).data).toBe(canvas.toDataURL.mock.results[0].value.split(",")[1]);
     document.body.removeChild(element);
   });
 
@@ -95,6 +121,9 @@ describe("captureAdminScreenshotToolResult", () => {
     expect(canvas.toDataURL).toHaveBeenNthCalledWith(1, "image/jpeg", 0.7);
     expect(canvas.toDataURL).toHaveBeenNthCalledWith(2, "image/jpeg", 0.4);
     expect(result.content[1]).toMatchObject({ type: "image" });
+    const data = (result.content[1] as { data: string }).data;
+    expect(data).toBe(canvas.toDataURL.mock.results[1].value.split(",")[1]);
+    expect(atob(data).length).toBeLessThanOrEqual(MAX_SCREENSHOT_BYTES);
     document.body.removeChild(element);
   });
 

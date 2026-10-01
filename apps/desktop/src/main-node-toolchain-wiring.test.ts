@@ -18,6 +18,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
+import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +33,26 @@ function withoutComments(source: string): string {
 }
 
 const source = withoutComments(rawSource);
+
+/** Execute only the actual top-level toolchain try/catch, leaving Electron startup out of the test. */
+function initializeToolchain(write: () => unknown, build: (input: unknown) => unknown, warnings: string[]): unknown {
+  const parsed = ts.createSourceFile("main.ts", rawSource, ts.ScriptTarget.Latest, true);
+  const guardedWrite = parsed.statements.find((statement) =>
+    ts.isTryStatement(statement) && statement.tryBlock.getText(parsed).includes("writeNodeToolchain("),
+  );
+  assert.ok(guardedWrite, "the toolchain write must have its own guarding try/catch");
+  const compiled = ts.transpileModule(`let NODE_TOOLCHAIN_ENV;\n${guardedWrite.getText(parsed)}\nNODE_TOOLCHAIN_ENV;`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  return vm.runInNewContext(compiled, {
+    app: { getPath: () => "/user-data" },
+    process: { execPath: "/electron" },
+    DESKTOP_ROOTS: { npmRoot: "/npm" },
+    writeNodeToolchain: write,
+    buildNodeToolchainEnv: build,
+    console: { warn: (message: string) => warnings.push(message) },
+  });
+}
 
 test("both functions are imported from node-toolchain.ts", () => {
   assert.match(
@@ -63,6 +85,18 @@ test("a writeNodeToolchain failure is caught and warned once, never thrown -- a 
   assert.match(surrounding, /try\s*\{/, "expected writeNodeToolchain to run inside a try block");
   assert.match(surrounding, /\}\s*catch/, "expected a catch clause guarding the call");
   assert.match(surrounding, /console\.warn/, "expected a console.warn on failure");
+  const warnings: string[] = [];
+  let fallback: unknown;
+  assert.doesNotThrow(() => {
+    fallback = initializeToolchain(
+      () => { throw new Error("disk full"); },
+      () => { assert.fail("a failed write must not try to build a toolchain env"); },
+      warnings,
+    );
+  });
+  assert.equal(fallback, undefined);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /could not write the bundled node toolchain.*disk full/);
 });
 
 test("startTovuServer is called with nodeToolchainEnv, so the write's result actually reaches the child", () => {
@@ -71,6 +105,20 @@ test("startTovuServer is called with nodeToolchainEnv, so the write's result act
   const body = source.slice(callIndex);
   const ownCall = body.slice(0, body.indexOf("});") + 3);
   assert.match(ownCall, /nodeToolchainEnv/, "expected the startTovuServer call to pass nodeToolchainEnv");
+  assert.match(ownCall, /nodeToolchainEnv:\s*NODE_TOOLCHAIN_ENV\s*[,}]/, "the child must receive the written toolchain's environment");
+  const environment = { TOVU_NODE_TOOLCHAIN_DIR: "/user-data/node-toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm" };
+  const warnings: string[] = [];
+  const actual = initializeToolchain(
+    () => ({ toolchainDir: "/user-data/node-toolchain" }),
+    (input) => {
+      assert.equal((input as { toolchainDir: string }).toolchainDir, "/user-data/node-toolchain");
+      assert.equal((input as { npmRoot: string }).npmRoot, "/npm");
+      return environment;
+    },
+    warnings,
+  );
+  assert.equal(actual, environment);
+  assert.deepEqual(warnings, []);
 });
 
 test("a null writeNodeToolchain result (a launch from a disk image) is guarded, never dereferenced", () => {

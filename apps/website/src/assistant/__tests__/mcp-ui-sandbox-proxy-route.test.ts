@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import express from "express";
 
@@ -111,4 +112,60 @@ test("the served body only accepts sandbox-resource-ready from its own host wind
     !body.includes(`params: {} }, "*")`),
     "the ready notification must be addressed to the host origin, never broadcast to any framer",
   );
+});
+
+test("executing the served sandbox script rejects foreign windows and origins and accepts its host", () => {
+  let handler: express.RequestHandler | undefined;
+  registerMcpUiSandboxProxyRoute({ get: (path: string, callback: express.RequestHandler) => {
+    assert.equal(path, MCP_UI_SANDBOX_PROXY_PATH);
+    handler = callback;
+  } } as unknown as express.Express);
+  let body = "";
+  const response = {
+    set: () => response,
+    type: () => response,
+    send: (html: string) => { body = html; return response; },
+  };
+  assert.ok(handler);
+  handler({} as express.Request, response as unknown as express.Response, () => undefined);
+  assert.equal(body, SANDBOX_PROXY_HTML);
+  const baseUrl = "https://admin.example";
+  const scripts = [...body.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+  assert.ok(scripts.length > 0, "the served page must install its message listener");
+  const listeners: Array<(event: { source: unknown; origin: string; data: unknown }) => void> = [];
+  const writes: string[] = [];
+  const documentCalls: string[] = [];
+  const notifications: Array<{ message: unknown; origin: string }> = [];
+  const host = { postMessage: (message: unknown, origin: string) => notifications.push({ message, origin }) };
+  const context = {
+    window: {
+      parent: host,
+      location: { origin: baseUrl },
+      addEventListener: (type: string, listener: typeof listeners[number]) => {
+        assert.equal(type, "message");
+        listeners.push(listener);
+      },
+    },
+    document: {
+      open: () => documentCalls.push("open"),
+      write: (html: string) => { documentCalls.push("write"); writes.push(html); },
+      close: () => documentCalls.push("close"),
+    },
+  };
+  for (const script of scripts) runInNewContext(script[1]!, context);
+  assert.ok(listeners.length > 0);
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0]!.origin, baseUrl);
+  assert.equal((notifications[0]!.message as { method: string }).method, "ui/notifications/sandbox-proxy-ready");
+
+  const data = { method: "ui/notifications/sandbox-resource-ready", params: { html: "<p>trusted resource</p>" } };
+  for (const listener of listeners) {
+    listener({ source: {}, origin: baseUrl, data }); // same origin, different window
+    listener({ source: host, origin: "https://attacker.example", data }); // host window, different origin
+  }
+  assert.deepEqual(documentCalls, [], "untrusted messages must not open or write the document");
+  assert.deepEqual(writes, []);
+  for (const listener of listeners) listener({ source: host, origin: baseUrl, data });
+  assert.deepEqual(documentCalls, ["open", "write", "close"]);
+  assert.deepEqual(writes, ["<p>trusted resource</p>"]);
 });

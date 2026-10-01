@@ -7,6 +7,7 @@ import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
 import type { AdminPost } from "@/lib/api";
+import { currentRoutePath, installInternalLinkInterceptor } from "@/lib/router";
 
 /**
  * @file Regression test for this batch's RowMenu wiring on `Posts.tsx` — representative test for
@@ -92,6 +93,16 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
     const before = await handlesOf(driver);
     expect(before).toContain("posts-row-p1-menu");
     expect(before).toContain("posts-row-p2-menu");
+    for (const post of [POST, SECOND_POST]) {
+      expect(before).toContain(`posts-row-${post.id}-edit`);
+      expect(before).toContain(`posts-row-${post.id}-view-live`);
+      expect(container.querySelector(`[data-agent-element="posts-row-${post.id}-edit"]`))
+        .toHaveAttribute("href", `/admin/posts/${post.slug}`);
+      const liveLink = container.querySelector(`[data-agent-element="posts-row-${post.id}-view-live"]`);
+      expect(liveLink).toHaveAttribute("href", `/${post.slug}`);
+      expect(liveLink).toHaveAttribute("target", "_blank");
+    }
+
     // Distinct handles — id-derived, not position-derived. A duplicate would not fail loudly; it
     // would make `page.click` silently resolve to whichever menu the DOM reaches first (see
     // `buildAgentListHandles`'s own doc comment).
@@ -115,6 +126,26 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
     expect(bodyHandles).toContain("posts-row-p1-menu-item-edit");
     // Post p1's own item, not p2's — p2's menu was never opened.
     expect(bodyHandles).not.toContain("posts-row-p2-menu-item-edit");
+  });
+
+  it("opens each post's editor through its scoped title-link handle", async () => {
+    const previousUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const previousState = window.history.state;
+    window.history.replaceState(null, "", "/admin/posts");
+    const uninstall = installInternalLinkInterceptor();
+    try {
+      const { container } = renderPosts({ posts: [POST, SECOND_POST] });
+      const driver = createDomPageDriver({ root: container, pages: {} });
+      for (const post of [POST, SECOND_POST]) {
+        await executePageCapability(driver, "page.click", { handle: `posts-row-${post.id}-edit` });
+        await driver.settle?.();
+        expect(currentRoutePath()).toBe(`/posts/${post.slug}`);
+        expect(window.location.pathname).toBe(`/admin/posts/${post.slug}`);
+      }
+    } finally {
+      uninstall();
+      window.history.replaceState(previousState, "", previousUrl);
+    }
   });
 
   it("recomputes row-menu handles when the posts list changes across a re-render, not just on first render", async () => {

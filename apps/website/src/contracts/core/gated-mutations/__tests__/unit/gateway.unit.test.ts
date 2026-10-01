@@ -9,7 +9,7 @@ import {
   execute,
   plan,
 } from "../../gateway.js";
-import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, mintToken } from "../../token.js";
+import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, isRedeemable, mintToken } from "../../token.js";
 import type { AuthorizeFn, PrincipalKind } from "../../ports.js";
 
 /**
@@ -114,14 +114,18 @@ function makeDeps(overrides: Partial<Record<string, unknown>> = {}) {
 
 test("AC-10: plan() succeeds for a principal holding only {domain}.read and produces no state change", async () => {
   const hooks = makeHooks();
-  const deps = makeDeps();
+  const deps = makeDeps({
+    authorize: (async ({ permission }) => ({ allowed: permission === hooks.readPermission, reason: "read_only" })) as AuthorizeFn,
+  });
 
   const result = await plan({ deps, principalId: "u-1", principalKind: "user", hooks });
 
   assert.equal(result.domain, "database.migrate");
   assert.ok(result.planId);
   assert.ok(result.planHash);
+  assert.equal(result.planHash, "sha256:" + "1".repeat(64));
   assert.equal(hooks.mutationRuns, 0, "plan() must never invoke the domain mutation");
+  assert.equal(await deps.tokens.count(), 0, "plan() must not mint a confirmation token");
 });
 
 test("AC-11: plan() returns an identical planHash for user, agent, and api_key principal kinds holding the same permission", async () => {
@@ -152,11 +156,9 @@ test("AC-09: plan() rejects when the caller lacks {domain}.read", async () => {
 
 test("architectural guard (AC-09): gateway.ts exposes no direct single-call mutation entry point beyond plan/confirm/execute", async () => {
   const gatewayModule = await import("../../gateway.js");
-  const exportedNames = Object.keys(gatewayModule);
-  const disallowed = exportedNames.filter(
-    (name) => /mutate|migrate|run|apply/i.test(name) && !["plan", "confirm", "execute"].includes(name)
-  );
-  assert.deepEqual(disallowed, [], "no export beyond plan/confirm/execute may perform a gated mutation directly");
+  assert.deepEqual(Object.keys(gatewayModule).sort(), [
+    "ForbiddenError", "PlanStaleError", "UnauthenticatedError", "authorizeForHooks", "confirm", "execute", "plan",
+  ], "new runtime exports must be reviewed for a direct mutation entry point");
 });
 
 // ---------------------------------------------------------------------------
@@ -202,6 +204,20 @@ test("AC-14: an authorized user's confirm() mints a token with exactly a 600-sec
   assert.equal(token.confirmerPrincipalId, "u-1");
 });
 
+test("AC-14: a confirmed token cannot execute in another scope with the same principal and plan hash", async () => {
+  const hooks = makeHooks();
+  const deps = makeDeps();
+  const token = await confirm({ deps, principalId: "u-1", principalKind: "user", hooks, planId: "p1", planHash: "sha256:" + "1".repeat(64) });
+  const otherScopeHooks = makeHooks({ scopeId: "workspace-2" });
+
+  await assert.rejects(
+    execute({ deps, principalId: "u-1", principalKind: "user", hooks: otherScopeHooks, confirmationToken: token.confirmationToken }),
+    (err: unknown) => err instanceof ForbiddenError && err.reasonCode === "SCOPE_MISMATCH"
+  );
+  assert.equal(otherScopeHooks.mutationRuns, 0);
+  assert.equal((await deps.tokens.findByToken(token.confirmationToken))?.status, "minted");
+});
+
 // ---------------------------------------------------------------------------
 // C-003 execute() — U-001 fixed check-sequence, INV-05, INV-08
 // ---------------------------------------------------------------------------
@@ -223,7 +239,9 @@ async function mintValidToken(overrides: Partial<Record<string, unknown>> = {}) 
 test("AC-15 / U-001-B1 / U-001-ORD1: authorize() is evaluated fresh before the token expiry/redemption-state check — an unauthorized caller with an independently-expired token sees FORBIDDEN, never TOKEN_EXPIRED", async () => {
   const { tokens, record } = await mintValidToken();
   const hooks = makeHooks();
-  const deps = makeDeps({ authorize: alwaysDeny("revoked"), tokens });
+  const expiredNow = "2026-07-15T00:10:01.000Z";
+  assert.equal(isRedeemable({ record, now: expiredNow }), false, "the token is independently expired");
+  const deps = makeDeps({ authorize: alwaysDeny("revoked"), tokens, clock: { nowIso: () => expiredNow } });
 
   await assert.rejects(
     execute({
@@ -239,6 +257,7 @@ test("AC-15 / U-001-B1 / U-001-ORD1: authorize() is evaluated fresh before the t
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("U-001-ORD2: the token expiry/redemption-state check completes before the actor-class rule — an already-redeemed token from an actor-class-mismatched caller reports TOKEN_ALREADY_REDEEMED, not FORBIDDEN", async () => {
@@ -260,6 +279,7 @@ test("U-001-ORD2: the token expiry/redemption-state check completes before the a
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("AC-18 / EC-08: a user redeeming a token minted by a different user is rejected with FORBIDDEN/ACTOR_CLASS_MISMATCH", async () => {
@@ -275,6 +295,7 @@ test("AC-18 / EC-08: a user redeeming a token minted by a different user is reje
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("AC-19 / EC-07: an agent redeeming a token whose confirmerPrincipalId is not its current delegatedBy is rejected", async () => {
@@ -294,6 +315,7 @@ test("AC-19 / EC-07: an agent redeeming a token whose confirmerPrincipalId is no
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("AC-20: an agent redeeming a token whose confirmerPrincipalId equals its current delegatedBy succeeds", async () => {
@@ -348,6 +370,7 @@ test("AC-38 / U-001-B2 / U-001-ORD3: actor-class mismatch AND a stale plan toget
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("REQ-11 / AC-35: execute() with a confirmationToken string never minted by this contract returns TOKEN_EXPIRED, indistinguishable from a genuinely expired token", async () => {
@@ -361,6 +384,7 @@ test("REQ-11 / AC-35: execute() with a confirmationToken string never minted by 
       return true;
     }
   );
+  assert.equal(hooks.mutationRuns, 0);
 });
 
 test("AC-22 / REQ-15: execute() re-evaluates authorize() fresh, reflecting a delegator permission change since confirm()-time, never a cached confirm-time result", async () => {
@@ -385,6 +409,7 @@ test("AC-22 / REQ-15: execute() re-evaluates authorize() fresh, reflecting a del
     (err: unknown) => err instanceof ForbiddenError
   );
   assert.equal(authorizeCallCount, 1, "authorize() must be called fresh at execute() time, not skipped/cached from confirm()");
+  assert.equal(hooks.mutationRuns, 0, "authorization rejection must precede mutation");
 });
 
 test("execute() succeeds exactly once for a valid token satisfying every check, and stamps a single mutation run (INV-03 exactly-once)", async () => {
@@ -396,6 +421,41 @@ test("execute() succeeds exactly once for a valid token satisfying every check, 
 
   assert.deepEqual(result, { migrated: true });
   assert.equal(hooks.mutationRuns, 1);
+  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
+  await assert.rejects(
+    execute({ deps, principalId: "u-1", principalKind: "user", hooks, confirmationToken: record.confirmationToken }),
+    TokenAlreadyRedeemedError
+  );
+  assert.equal(hooks.mutationRuns, 1, "replaying the token must not repeat the mutation");
+});
+
+test("concurrent execute() calls with one valid token permit exactly one mutation", async () => {
+  const { tokens, record } = await mintValidToken();
+  const hooks = makeHooks();
+  const deps = makeDeps({ tokens });
+  const attempts = await Promise.allSettled(Array.from({ length: 5 }, () =>
+    execute({ deps, principalId: "u-1", principalKind: "user", hooks, confirmationToken: record.confirmationToken })
+  ));
+  assert.equal(attempts.filter((attempt) => attempt.status === "fulfilled").length, 1);
+  const rejected = attempts.filter((attempt) => attempt.status === "rejected");
+  assert.equal(rejected.length, 4);
+  for (const attempt of rejected) assert.ok(attempt.reason instanceof TokenAlreadyRedeemedError);
+  assert.equal(hooks.mutationRuns, 1);
+  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
+});
+
+test("execute() passes the re-derived verified plan hash and details to the mutation", async () => {
+  const { tokens, record } = await mintValidToken();
+  const verified = { planHash: record.planHash, details: { writes: ["checked-row"] } };
+  let received: unknown;
+  let planCalls = 0;
+  const hooks = makeHooks({
+    async computePlan() { planCalls += 1; return verified; },
+    async executeMutation(value: unknown) { received = value; return { migrated: true }; },
+  });
+  await execute({ deps: makeDeps({ tokens }), principalId: "u-1", principalKind: "user", hooks, confirmationToken: record.confirmationToken });
+  assert.equal(planCalls, 1);
+  assert.deepEqual(received, verified);
 });
 
 // ---------------------------------------------------------------------------

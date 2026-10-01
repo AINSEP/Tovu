@@ -59,25 +59,34 @@ function erroringStreamResponse(reason: unknown, status = 200): Response {
   return new Response(stream, { status });
 }
 
-/** Resolves with `response` after `delayMs`, or rejects with an `AbortError` `DOMException` the
- *  moment `signal` aborts first — models real `fetch()` abort semantics closely enough to test
- *  `stopRun`/`input.signal` cancellation without a live network call. */
-function abortableFetchStub(response: Response, delayMs = 30): typeof fetch {
-  return (async (_url: string, opts: RequestInit) => {
-    const signal = opts.signal as AbortSignal;
-    return new Promise<Response>((resolve, reject) => {
-      if (signal?.aborted) {
-        reject(new DOMException("Aborted", "AbortError"));
-        return;
-      }
-      const timer = setTimeout(() => resolve(response), delayMs);
-      signal?.addEventListener("abort", () => {
-        clearTimeout(timer);
-        reject(new DOMException("Aborted", "AbortError"));
+/** Keep fetch pending until the actual signal supplied by the transport aborts. */
+function abortableFetchStub(): { fetch: typeof fetch; signal: () => AbortSignal } {
+  let capturedSignal: AbortSignal;
+  return {
+    signal: () => capturedSignal,
+    fetch: (async (_url: string, opts: RequestInit) => {
+      capturedSignal = opts.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        const abort = () => reject(new DOMException("Aborted", "AbortError"));
+        if (capturedSignal.aborted) abort();
+        else capturedSignal.addEventListener("abort", abort, { once: true });
       });
-    });
-  }) as typeof fetch;
+    }) as typeof fetch,
+  };
 }
+
+function controlledStreamResponse() {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const stream = new ReadableStream<Uint8Array>({ start(c) { controller = c; } });
+  return {
+    response: new Response(stream, { headers: { "content-type": "text/event-stream" } }),
+    send: (frame: string) => controller.enqueue(new TextEncoder().encode(frame)),
+    close: () => controller.close(),
+  };
+}
+
+// Let the pump finish its pending reads while the response remains open.
+const flushStream = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 function userMessage(content: string): ChatMessage {
   return { id: `msg-${content}`, role: "user", content };
@@ -164,6 +173,7 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(capturedInit?.method, "POST");
       assert.equal((capturedInit?.headers as Record<string, string>)["Content-Type"], "application/json");
       assert.equal(capturedInit && "credentials" in capturedInit, false, "no cookie/session credentials sent");
+      assert.equal(new Headers(capturedInit?.headers).has("Authorization"), false);
       const body = JSON.parse(capturedInit?.body as string) as { message: string; history: unknown[] };
       assert.equal(body.message, "hello there");
       assert.deepEqual(body.history, []);
@@ -192,6 +202,77 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(doneEvents(), events);
     });
 
+    it("preserves split frames, split delimiters, and split UTF-8 bytes", async () => {
+      const textFrame = sseFrame("text", { delta: "Hi 🌍 café" });
+      const encoded = new TextEncoder().encode(textFrame);
+      const emojiStart = Buffer.from(encoded).indexOf(Buffer.from("🌍"));
+      const cuts = [5, emojiStart + 1, emojiStart + 3, encoded.length - 1];
+      globalThis.fetch = (async () => new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          let offset = 0;
+          for (const cut of cuts) {
+            controller.enqueue(encoded.slice(offset, cut));
+            offset = cut;
+          }
+          controller.enqueue(encoded.slice(offset));
+          controller.enqueue(new TextEncoder().encode(sseFrame("client_directive", { type: "highlight_entry", title: "Café" })));
+          controller.enqueue(new TextEncoder().encode(sseFrame("end", { reason: "stop" })));
+          controller.close();
+        },
+      }))) as typeof fetch;
+      const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
+      await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors, []);
+      assert.deepEqual(events, [
+        { kind: "text", text: "Hi 🌍 café" },
+        { kind: "ext", name: "client_directive", data: { type: "highlight_entry", title: "Café" } },
+      ]);
+      assert.equal(doneCount(), 1);
+      assert.deepEqual(doneEvents(), events);
+    });
+
+    it("delivers text while the response is still open, before end or EOF", async () => {
+      const stream = controlledStreamResponse();
+      globalThis.fetch = (async () => stream.response) as typeof fetch;
+      const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
+      await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      try {
+        stream.send(sseFrame("text", { delta: "first" }));
+        await flushStream();
+        assert.deepEqual(events, [{ kind: "text", text: "first" }]);
+        assert.equal(doneCount(), 0);
+        stream.send(sseFrame("end", { reason: "stop" }));
+        await flushStream();
+        assert.equal(doneCount(), 1);
+        assert.deepEqual(doneEvents(), events);
+        assert.deepEqual(errors, []);
+      } finally {
+        stream.close();
+      }
+      await donePromise;
+    });
+
+    it("drains multiple coalesced frames exactly once and in order", async () => {
+      globalThis.fetch = (async () => streamResponse([
+        sseFrame("text", { delta: "one" }) +
+        sseFrame("text", { delta: "two" }) +
+        sseFrame("client_directive", { type: "highlight_entry", title: "Post" }) +
+        sseFrame("end", { reason: "stop" }),
+      ])) as typeof fetch;
+      const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
+      await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(events, [
+        { kind: "text", text: "one" },
+        { kind: "text", text: "two" },
+        { kind: "ext", name: "client_directive", data: { type: "highlight_entry", title: "Post" } },
+      ]);
+      assert.deepEqual(errors, []);
+      assert.equal(doneCount(), 1);
+      assert.deepEqual(doneEvents(), events);
+    });
+
     it("passes client_directive data through unvalidated, whatever shape it is", async () => {
       globalThis.fetch = (async () =>
         streamResponse([sseFrame("client_directive", { anything: [1, 2, 3] }), sseFrame("end", { reason: "stop" })])) as typeof fetch;
@@ -204,15 +285,25 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("surfaces an error frame via onError without ending the run, then still ends on a later end frame", async () => {
-      globalThis.fetch = (async () =>
-        streamResponse([
-          sseFrame("error", { message: "upstream hiccup" }),
-          sseFrame("text", { delta: "still going" }),
-          sseFrame("end", { reason: "stop" }),
-        ])) as typeof fetch;
-
+      const stream = controlledStreamResponse();
+      globalThis.fetch = (async () => stream.response) as typeof fetch;
       const { handlers, events, errors, doneCount, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      try {
+        stream.send(sseFrame("error", { message: "upstream hiccup" }));
+        await flushStream();
+        assert.equal(errors.length, 1);
+        assert.equal(doneCount(), 0, "an error frame must not finish the run");
+        stream.send(sseFrame("text", { delta: "still going" }));
+        await flushStream();
+        assert.deepEqual(events, [{ kind: "text", text: "still going" }]);
+        assert.equal(doneCount(), 0, "text after the error must not finish the run");
+        stream.send(sseFrame("end", { reason: "stop" }));
+        await flushStream();
+        assert.equal(doneCount(), 1, "end finishes the run before EOF");
+      } finally {
+        stream.close();
+      }
       await donePromise;
 
       assert.equal(errors.length, 1);
@@ -241,6 +332,24 @@ describe("createSiteAssistantTransport", () => {
 
       assert.deepEqual(events, [{ kind: "text", text: "partial" }]);
       assert.equal(doneCount(), 1);
+    });
+
+    it("reports malformed JSON once, finishes once, and removes the active run", async () => {
+      let signal!: AbortSignal;
+      globalThis.fetch = (async (_url: string, init: RequestInit) => {
+        signal = init.signal as AbortSignal;
+        return streamResponse(["event: text\ndata: {bad\n\n"]);
+      }) as typeof fetch;
+      const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
+      const { runId } = await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.equal(errors.length, 1);
+      assert.ok(errors[0] instanceof SyntaxError);
+      assert.deepEqual(events, []);
+      assert.equal(doneCount(), 1);
+      assert.deepEqual(doneEvents(), []);
+      await transport.stopRun(runId);
+      assert.equal(signal.aborted, false, "a finished run must no longer be cancellable");
     });
 
     it("skips a keep-alive comment frame (no data: line) without crashing or forwarding it", async () => {
@@ -303,12 +412,15 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("finishes with no onError when input.signal aborts before the response resolves", async () => {
-      globalThis.fetch = abortableFetchStub(streamResponse([sseFrame("end", { reason: "stop" })]), 40);
+      const pending = abortableFetchStub();
+      globalThis.fetch = pending.fetch;
 
       const controller = new AbortController();
       const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
       await transport.startRun(baseInput([userMessage("hi")], controller.signal), handlers);
+      assert.equal(pending.signal().aborted, false);
       controller.abort();
+      assert.equal(pending.signal().aborted, true, "input cancellation must abort fetch");
       await donePromise;
 
       assert.equal(errors.length, 0, "an abort we caused is not a reportable failure");
@@ -318,11 +430,14 @@ describe("createSiteAssistantTransport", () => {
     });
 
     it("finishes with no onError when stopRun aborts an in-flight request", async () => {
-      globalThis.fetch = abortableFetchStub(streamResponse([sseFrame("end", { reason: "stop" })]), 40);
+      const pending = abortableFetchStub();
+      globalThis.fetch = pending.fetch;
 
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       const { runId } = await transport.startRun(baseInput([userMessage("hi")]), handlers);
+      assert.equal(pending.signal().aborted, false);
       await transport.stopRun(runId);
+      assert.equal(pending.signal().aborted, true, "stopRun must abort fetch");
       await donePromise;
 
       assert.equal(errors.length, 0);

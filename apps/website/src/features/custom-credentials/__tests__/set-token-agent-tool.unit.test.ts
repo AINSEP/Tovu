@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
+import type { Express, Request, Response } from "express";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { describeInput } from "#src/assistant/tool-executor-audit";
+import { describeInput, withToolAttemptAudit } from "#src/assistant/tool-executor-audit";
+import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
+import { RUN_PRINCIPAL_HEADER } from "#src/assistant/run-ownership";
+import { createInMemoryToolAttemptAuditSink } from "../../tool-audit/repo.memory.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -221,6 +226,54 @@ test("the durable audit trail records only the model-issued call's key NAMES, ne
   assert.equal(describeInput({ label: "name.com" }), "keys: label");
 });
 
+test("a token submitted through the delivery route never enters the durable tool-attempt records", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registry = createToolRegistry();
+  for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges })) registry.register(registration);
+  const audit = createInMemoryToolAttemptAuditSink();
+  const executor = withToolAttemptAudit(createToolExecutor({ registry }), audit, { workspaceId: WORKSPACE_ID, now: () => NOW });
+  const emitted: unknown[] = [];
+  const pending = executor.execute({ id: PRINCIPAL_ID }, { id: "run-1" }, TOOL_ID, { label: "name.com" }, undefined, async (surface) => void emitted.push(surface));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  assert.deepEqual(audit.events.map((event) => event.phase), ["requested"]);
+
+  // Invoke the registered HTTP handler directly: real route logic, no listening server or network.
+  let route!: (req: Request, res: Response) => Promise<void>;
+  const app = { post: (routePath: string, handler: typeof route) => {
+    assert.equal(routePath, MCP_UI_TOOL_CALLS_PATH);
+    route = handler;
+  } } as unknown as Express;
+  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges });
+  const sentinel = "sentinel-rotation-secret-do-not-audit-20260930";
+  const req = {
+    get: (name: string) => name === RUN_PRINCIPAL_HEADER ? PRINCIPAL_ID : undefined,
+    body: { toolName: TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, token: sentinel } },
+  } as unknown as Request;
+  let statusCode = 0;
+  let responseBody: unknown;
+  const res = {
+    status: (code: number) => { statusCode = code; return res; },
+    json: (body: unknown) => { responseBody = body; return res; },
+  } as unknown as Response;
+  await route(req, res);
+  assert.equal(statusCode, 202);
+  assert.deepEqual(responseBody, { delivered: true });
+  const result = await pending;
+  assert.equal(result.status, "completed");
+  assert.deepEqual(result.output, { saved: true });
+  assert.deepEqual(audit.events.map((event) => event.phase), ["requested", "completed"], "delivery must not create another audited invocation");
+  assert.equal(audit.events[0]!.detail, "keys: label");
+  assert.equal(audit.events[1]!.detail, null);
+  assert.ok(!JSON.stringify(audit.events).includes(sentinel), "durable audit records must never contain the token");
+  assert.ok(!JSON.stringify(audit.events).includes("name.com"), "durable audit records must never contain the label value");
+  const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" });
+  assert.equal(resolved?.connection.token, sentinel, "the delivery must really rotate the saved token");
+});
+
 // ---------------------------------------------------------------------------
 // 3. Fail-closed with no emitSurface — NO fallback second-call path exists for this tool
 // ---------------------------------------------------------------------------
@@ -307,8 +360,13 @@ test("submit: a real token is sealed exactly once, the NEW token decrypts correc
   const surfaceExchanges = createSurfaceExchangeStore();
   const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId, emitted } = await raiseForm(setTokenTool);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { token: "brand-new-secret-token" } });
+  const { pending, ui, exchangeId, emitted } = await raiseForm(setTokenTool);
+  const inputs = [...ui.resource.text.matchAll(/<input\b[^>]*>/g)];
+  assert.equal(inputs.length, 1, "rotation presents one token control");
+  assert.match(inputs[0]![0], /\btype="password"/, "the token control must be masked");
+  const fieldName = inputs[0]![0].match(/\bname="([^"]+)"/)?.[1];
+  assert.ok(fieldName, "the token control must have a submission name");
+  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [fieldName]: "brand-new-secret-token" } });
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;

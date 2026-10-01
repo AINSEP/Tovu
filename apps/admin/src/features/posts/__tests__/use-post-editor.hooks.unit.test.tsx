@@ -478,14 +478,35 @@ describe("usePostEditor — save", () => {
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
-    act(() => result.current.setSlug("new-slug"));
+    act(() => {
+      result.current.editor!.commands.setContent({
+        type: "doc",
+        content: [
+          { type: "title", content: [{ type: "text", text: "Edited title" }] },
+          { type: "paragraph", content: [{ type: "text", text: "Edited body." }] },
+        ],
+      });
+      result.current.setTitle("Edited title");
+      result.current.setSlug("new-slug");
+      result.current.setStatus("published");
+      result.current.setTemplateChoice("article.html");
+      result.current.setOverridesThemePage(true);
+    });
     await waitFor(() => expect(result.current.dirty).toBe(true));
+    const bodyJson = result.current.editor!.getJSON();
+    expect(result.current.editor!.state.doc.textContent).toBe("Edited titleEdited body.");
 
     await act(async () => {
       await result.current.save();
     });
 
     expect(port.post.slug).toBe("new-slug");
+    const persistedFields = {
+      title: "Edited title", slug: "new-slug", status: "published", bodyJson,
+      templateChoice: "article.html", overridesThemePage: true,
+    };
+    expect(port.updatePostCalls).toEqual([{ ...persistedFields, expectedVersion: POST.version }]);
+    expect(port.post).toMatchObject(persistedFields);
     expect(result.current.message).toMatch(/^Saved/);
     expect(result.current.dirty).toBe(false); // re-baselined against the just-saved state
   });
@@ -520,12 +541,9 @@ describe("usePostEditor — save", () => {
   });
 
   /**
-   * Stale-settlement race (2026-09-05 sweep) — neither the Save nor the Publish button in
-   * `PostEditorHeader` (`PostEditor.tsx`) is disabled while a save is in flight, so an operator can
-   * click Save, then Publish, before Save's own request has settled. `save()` had no in-flight guard
-   * at all: whichever of the two `port.updatePost` calls settled LAST won, regardless of which one
-   * the operator actually clicked last. Root cause 1 (no in-flight guard) from the 2026-09-05
-   * stale-settlement sweep.
+   * Stale-settlement race (2026-09-05 sweep). The buttons now disable while saving, but overlapping
+   * calls at the controller boundary still need the generation guard. Model the server's version
+   * check too: a late stale request must not change persisted status while the UI reports published.
    */
   it("a slower Save request that settles AFTER a later Publish click does not overwrite Publish's result", async () => {
     let state: AdminPost = { ...POST, status: "draft" };
@@ -543,12 +561,20 @@ describe("usePostEditor — save", () => {
         };
       },
       updatePost(_target, patch) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           // Each call parks its own resolution instead of settling immediately, so the test
           // controls the ORDER two overlapping `save()` calls settle in, independent of which one
           // was issued first.
           resolvers.push(() => {
-            state = { ...state, ...patch, version: state.version + 1 } as AdminPost;
+            // Model the server's version guard at write time, not an unconditional late write.
+            const { expectedVersion, ...fields } = patch;
+            if (expectedVersion !== undefined && expectedVersion !== state.version) {
+              reject(new ApiError("stale save", 409, "VERSION_CONFLICT", {
+                details: { expectedVersion, currentVersion: state.version },
+              }));
+              return;
+            }
+            state = { ...state, ...fields, version: state.version + 1 } as AdminPost;
             resolve({ post: state });
           });
         });
@@ -577,8 +603,8 @@ describe("usePostEditor — save", () => {
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
-    // Click Save (keeps `status` at "draft"), then click Publish — the exact sequence an impatient
-    // double-click reaches, since neither button disables while the first request is still in flight.
+    // Issue Save (keeps `status` at "draft"), then Publish before either settles.
+    await waitFor(() => expect(result.current.post?.version).toBe(POST.version));
     let saveSettled = false;
     let publishSettled = false;
     act(() => {
@@ -607,6 +633,8 @@ describe("usePostEditor — save", () => {
     // state, regardless of which request happened to settle last over the wire.
     expect(result.current.status).toBe("published");
     expect(result.current.message).toMatch(/^Published/);
+    expect(state.status).toBe("published");
+    expect(state.version).toBe(POST.version + 1);
   });
 
   /**
@@ -731,7 +759,20 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
     await act(async () => {
       await result.current.save();
     });
-    act(() => result.current.setSlug("renamed-twice"));
+    const putAutosave = vi.spyOn(port, "putAutosave");
+    vi.useFakeTimers();
+    try {
+      act(() => result.current.setSlug("renamed-twice"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+      expect(putAutosave).toHaveBeenCalledTimes(1);
+      expect(putAutosave).toHaveBeenCalledWith(POST.id, expect.objectContaining({
+        slug: "renamed-twice", baseVersion: POST.version + 1,
+      }), { keepalive: false });
+      expect(await putAutosave.mock.results[0].value).toEqual({ applied: true });
+      expect((await port.getAutosave(POST.id)).autosave?.slug).toBe("renamed-twice");
+    } finally {
+      vi.useRealTimers();
+    }
     await act(async () => {
       await result.current.save();
     });
@@ -750,6 +791,7 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
 describe("usePostEditor — delete", () => {
   it("removes a POST and navigates to /posts", async () => {
     const port = createFakePostEditorPort({ post: POST });
+    const deletePost = vi.spyOn(port, "deletePost");
     const navigate = fakeNavigate();
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
@@ -759,10 +801,12 @@ describe("usePostEditor — delete", () => {
     });
 
     expect(navigate).toHaveBeenCalledWith("/posts");
+    expect(deletePost).toHaveBeenCalledExactlyOnceWith(POST.id);
   });
 
   it("removes a PAGE and navigates to /pages — kind-aware, not hardcoded to /posts", async () => {
     const port = createFakePostEditorPort({ post: PAGE });
+    const deletePost = vi.spyOn(port, "deletePost");
     const navigate = fakeNavigate();
     const { result } = renderHook(() => usePostEditor("pg1", { port, navigate, t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
@@ -772,6 +816,7 @@ describe("usePostEditor — delete", () => {
     });
 
     expect(navigate).toHaveBeenCalledWith("/pages");
+    expect(deletePost).toHaveBeenCalledExactlyOnceWith(PAGE.id);
   });
 
   it("a failed delete surfaces the error and resets deleting/confirmingDelete without navigating", async () => {
@@ -845,11 +890,17 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
   it("uploadDroppedFile uploads through port.uploadMedia and returns {assetId, alt: file.name}", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
-    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+    const uploadMedia = vi.spyOn(port, "uploadMedia");
+    const bytes = new Uint8Array([0, 1, 127, 128, 255]);
+    const file = new File([bytes], "photo.png", { type: "image/png" });
 
     const result = await uploadDroppedFile(port, file);
 
     expect(result).toEqual({ assetId: "asset-99", alt: "photo.png" });
+    expect(uploadMedia).toHaveBeenCalledExactlyOnceWith({
+      filename: "photo.png", contentType: "image/png", dataBase64: "AAF/gP8=",
+    });
+    expect(Array.from(atob(uploadMedia.mock.calls[0][0].dataBase64), (char) => char.charCodeAt(0))).toEqual(Array.from(bytes));
   });
 
   it("uploadDroppedFile returns null (not a throw) when the upload fails — a failed file must not crash the drop/paste handler", async () => {
@@ -867,6 +918,8 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
     const dropPos = editor.state.doc.content.size; // end of doc — a plausible drop position
+    act(() => editor.commands.setTextSelection(editor.state.doc.firstChild!.nodeSize + 1));
+    expect(editor.state.selection.from).not.toBe(dropPos);
     const file = new File(["bytes"], "photo.png", { type: "image/png" });
 
     handleFileDrop(port, editor, [file], dropPos);
@@ -875,6 +928,8 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
       const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
       const inserted = json.content?.find((node) => node.type === "media");
       expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
+      expect(editor.state.doc.nodeAt(dropPos)?.type.name).toBe("media");
+      expect(editor.state.doc.nodeAt(dropPos)?.attrs.assetId).toBe("asset-99");
     });
     expect(JSON.stringify(editor.getJSON())).not.toContain("data:"); // never base64-inlined
   });
@@ -884,6 +939,16 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     const editor = result.current.editor!;
+    act(() => editor.commands.setContent({
+      type: "doc",
+      content: [
+        { type: "title", content: [{ type: "text", text: POST.title }] },
+        { type: "paragraph", content: [{ type: "text", text: "Before paste" }] },
+        { type: "paragraph", content: [{ type: "text", text: "After paste" }] },
+      ],
+    }));
+    const pastePos = editor.state.doc.child(0).nodeSize + editor.state.doc.child(1).nodeSize;
+    act(() => editor.commands.setTextSelection(pastePos + 1));
     const file = new File(["bytes"], "photo.png", { type: "image/png" });
 
     handleFilePaste(port, editor, [file]);
@@ -892,6 +957,9 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
       const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
       const inserted = json.content?.find((node) => node.type === "media");
       expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
+      expect(editor.state.doc.nodeAt(pastePos)?.type.name).toBe("media");
+      expect(editor.state.doc.child(1).textContent).toBe("Before paste");
+      expect(editor.state.doc.child(3).textContent).toBe("After paste");
     });
   });
 
@@ -934,7 +1002,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       bodyFormat: "doc" as const,
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "recovered" }] }] },
       title: "Recovered title",
-      slug: "hello-world",
+      slug: "recovered-slug",
       baseVersion: POST.version,
       savedAt: "2026-09-06T00:00:00.000Z",
       savedByPrincipalId: "user-local",
@@ -947,6 +1015,12 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     expect(result.current.recoverableDraft).toEqual(seeded);
     // The banner is offered, not applied — the loaded post's own title is still what's shown.
     expect(result.current.title).toBe(POST.title);
+    expect(result.current.slug).toBe(POST.slug);
+    expect(result.current.editor!.getJSON().content).toMatchObject([
+      { type: "title", content: [{ type: "text", text: POST.title }] },
+      ...(POST.bodyJson as { content: unknown[] }).content,
+    ]);
+    expect(result.current.editor!.state.doc.textContent).toBe(`${POST.title}Body.`);
   });
 
   it("restoreRecoveredDraft applies the draft into the editor/title/slug and dismisses the banner, without telling the server", async () => {
@@ -968,6 +1042,11 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
 
     expect(result.current.title).toBe("Recovered title");
     expect(result.current.slug).toBe("recovered-slug");
+    expect(result.current.editor!.getJSON().content).toMatchObject([
+      { type: "title", content: [{ type: "text", text: seeded.title }] },
+      ...seeded.bodyJson.content,
+    ]);
+    expect(result.current.editor!.state.doc.textContent).toBe("Recovered titlerecovered");
     expect(result.current.recoverableDraft).toBeNull();
     expect(port.discardAutosaveCalled).toBe(false);
   });
@@ -1004,11 +1083,15 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
       expect(result.current.editor).not.toBeNull();
 
       act(() => result.current.setTitle("Edited via autosave"));
+      act(() => result.current.editor!.commands.insertContentAt(result.current.editor!.state.doc.content.size - 1, " New body edit."));
+      const bodyJson = result.current.editor!.getJSON();
+      expect(result.current.editor!.state.doc.textContent).toBe("Edited via autosaveBody. New body edit.");
       await act(async () => vi.advanceTimersByTimeAsync(3001));
 
       expect(port.putAutosaveCalls).toHaveLength(1);
-      expect(port.putAutosaveCalls[0]).toMatchObject({
+      expect(port.putAutosaveCalls[0]).toEqual({
         bodyFormat: "doc",
+        bodyJson,
         title: "Edited via autosave",
         slug: POST.slug,
         baseVersion: POST.version,
@@ -1219,14 +1302,17 @@ describe("useWiredPostEditor", () => {
    * this file, and `use-redirects.hooks.unit.test.tsx`, already follows: never let a real request
    * reach the network — jsdom's pinned test origin, `http://localhost:3000/`
    * (`vitest.config.ts`), is this machine's real dev server, and an unstubbed call here would
-   * actually hit it). The assertion is only that mounting and reaching a settled `error` state does
-   * not throw, proving `useWiredPostEditor` wires its two real dependencies correctly, not that a
-   * network call succeeds.
+   * actually hit it). Assert the requested post and method as well as the server's settled error,
+   * so a miswired default port cannot pass merely by rejecting some unrelated request.
    */
   it("composes the real port and real navigate without throwing", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "not found" }), { status: 404 })));
+    const fetchSpy = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ error: "not found" }), { status: 404 }));
+    vi.stubGlobal("fetch", fetchSpy);
     const { result } = renderHook(() => useWiredPostEditor("nonexistent"));
-    await waitFor(() => expect(result.current.error).not.toBeNull());
+    await waitFor(() => expect(result.current.error).toBe("not found"));
+    const postRequest = fetchSpy.mock.calls.find(([url]) => url === "/api/admin/v1/workspaces/workspace-local/posts/nonexistent");
+    expect(postRequest).toBeDefined();
+    expect(postRequest?.[1]?.method ?? "GET").toBe("GET");
   });
 });
 
@@ -1333,6 +1419,10 @@ describe("usePostEditor — optimistic concurrency", () => {
     });
     expect(result.current.saveConflict?.attemptedStatus).toBe("published");
 
+    // The row can advance again while the operator is deciding whether to overwrite.
+    act(() => port.simulateConcurrentSave("Their next revision"));
+    expect(result.current.saveConflict?.currentVersion).toBe(4);
+
     await act(async () => {
       await result.current.saveOverwritingConflict();
     });
@@ -1344,7 +1434,7 @@ describe("usePostEditor — optimistic concurrency", () => {
     expect(result.current.status).toBe("published");
     expect(result.current.message).toMatch(/^Published/);
     // Sent against the version the other operator produced, not the stale basis.
-    expect(port.updatePostCalls.at(-1)?.expectedVersion).toBe(4);
+    expect(port.updatePostCalls.at(-1)?.expectedVersion).toBe(5);
   });
 
   it("saveOverwritingConflict never pulls the other operator's content into the working copy", async () => {

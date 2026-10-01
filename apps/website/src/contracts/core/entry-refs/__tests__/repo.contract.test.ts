@@ -43,14 +43,16 @@ function runSuite(adapterName: string, makeRepo: () => EntryRefsRepoPort) {
     });
     let found = await repo.findBySource({ workspaceId: WS, sourceEntryId: "area-1" });
     assert.deepEqual(found.map((r) => r.targetId), ["widget-1"]);
+    assert.deepEqual(found, [row({ sourceEntryId: "area-1", targetId: "widget-1", fieldPath: "bodyJson.placements[0]" })]);
 
     await repo.replaceForSource({
       workspaceId: WS,
       sourceEntryId: "area-1",
-      refs: [row({ sourceEntryId: "area-1", targetId: "widget-2", fieldPath: "bodyJson.placements[0]" })],
+      refs: [row({ sourceEntryId: "area-1", targetId: "widget-2", sourceKind: "config-field", targetKind: "term", fieldPath: "fields.ext.widget.config.categoryId" })],
     });
     found = await repo.findBySource({ workspaceId: WS, sourceEntryId: "area-1" });
     assert.deepEqual(found.map((r) => r.targetId), ["widget-2"], "the prior ref must be gone — replace is a full swap, not an append");
+    assert.deepEqual(found, [row({ sourceEntryId: "area-1", targetId: "widget-2", sourceKind: "config-field", targetKind: "term", fieldPath: "fields.ext.widget.config.categoryId" })]);
   });
 
   test(`[${adapterName}] replaceForSource with an empty refs array clears the source's rows entirely`, async () => {
@@ -69,17 +71,27 @@ function runSuite(adapterName: string, makeRepo: () => EntryRefsRepoPort) {
       refs: [row({ sourceEntryId: "page-1", targetId: "widget-shared", sourceKind: "widget-embed", fieldPath: "bodyJson.content[3]" })],
     });
 
+    await repo.replaceForSource({ workspaceId: WS, sourceEntryId: "unrelated-target", refs: [row({ sourceEntryId: "unrelated-target", targetId: "widget-other" })] });
+    await repo.replaceForSource({ workspaceId: WS, sourceEntryId: "same-id-asset", refs: [row({ sourceEntryId: "same-id-asset", targetId: "widget-shared", targetKind: "asset" })] });
+
     const refs = await repo.findByTarget({ workspaceId: WS, targetKind: "entry", targetId: "widget-shared" });
     assert.deepEqual(
       refs.map((r) => r.sourceEntryId).sort(),
       ["area-footer", "page-1"]
     );
+    assert.deepEqual(refs.sort((a, b) => a.sourceEntryId.localeCompare(b.sourceEntryId)), [
+      row({ sourceEntryId: "area-footer", targetId: "widget-shared" }),
+      row({ sourceEntryId: "page-1", targetId: "widget-shared", sourceKind: "widget-embed", fieldPath: "bodyJson.content[3]" }),
+    ], "where-used must return the full provenance of only the requested target id and kind");
+    assert.deepEqual(await repo.findByTarget({ workspaceId: WS, targetKind: "asset", targetId: "widget-shared" }), [
+      row({ sourceEntryId: "same-id-asset", targetId: "widget-shared", targetKind: "asset" }),
+    ]);
   });
 
   test(`[${adapterName}] findByTarget/findBySource are scoped per workspace`, async () => {
     const repo = makeRepo();
     await repo.replaceForSource({ workspaceId: WS, sourceEntryId: "area-1", refs: [row({ sourceEntryId: "area-1", targetId: "widget-1" })] });
-    await repo.replaceForSource({ workspaceId: WS2, sourceEntryId: "area-1", refs: [row({ workspaceId: WS2, sourceEntryId: "area-1", targetId: "widget-1" })] });
+    await repo.replaceForSource({ workspaceId: WS2, sourceEntryId: "area-1", refs: [row({ workspaceId: WS2, sourceEntryId: "area-1", targetId: "widget-1", sourceKind: "widget-embed", fieldPath: "bodyJson.content[4]" })] });
 
     assert.equal((await repo.findBySource({ workspaceId: WS, sourceEntryId: "area-1" })).length, 1);
     assert.equal(
@@ -87,6 +99,12 @@ function runSuite(adapterName: string, makeRepo: () => EntryRefsRepoPort) {
       1,
       "a same-id target in a different workspace must not be counted as a reference in this one"
     );
+    const first = row({ sourceEntryId: "area-1", targetId: "widget-1" });
+    const second = row({ workspaceId: WS2, sourceEntryId: "area-1", targetId: "widget-1", sourceKind: "widget-embed", fieldPath: "bodyJson.content[4]" });
+    assert.deepEqual(await repo.findBySource({ workspaceId: WS, sourceEntryId: "area-1" }), [first]);
+    assert.deepEqual(await repo.findBySource({ workspaceId: WS2, sourceEntryId: "area-1" }), [second]);
+    assert.deepEqual(await repo.findByTarget({ workspaceId: WS, targetKind: "entry", targetId: "widget-1" }), [first]);
+    assert.deepEqual(await repo.findByTarget({ workspaceId: WS2, targetKind: "entry", targetId: "widget-1" }), [second]);
   });
 
   test(`[${adapterName}] removeBySource (the source itself was force-purged) drops only that source's rows`, async () => {

@@ -95,6 +95,9 @@ describe("startPlan", () => {
       await result.current.startPlan();
     });
 
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/taxonomy\/terms\/from1\/merge\/plan$/);
+    expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ intoTermId: "into1" });
     expect(result.current.step).toBe("planned");
     expect(result.current.plan).toEqual({ planId: "plan1", planHash: "hash1", overlappingContentCount: 3 });
     expect(result.current.busy).toBe(false);
@@ -163,8 +166,8 @@ describe("doConfirm", () => {
 
 describe("doExecute", () => {
   it("is a no-op with no confirmationToken yet — no fetch, onMerged not called", async () => {
-    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }), { wrapper });
     const onMerged = vi.fn();
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged }), { wrapper });
     await act(async () => {
       await result.current.doExecute();
     });
@@ -197,6 +200,17 @@ describe("doExecute", () => {
     });
 
     expect(onMerged).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    for (const [index, stage, body] of [
+      [0, "plan", { intoTermId: "into1" }],
+      [1, "confirm", { planId: "plan1", planHash: "hash1" }],
+      [2, "execute", { intoTermId: "into1", confirmationToken: "token1" }],
+    ] as const) {
+      const [url, init] = fetchMock.mock.calls[index];
+      expect(url).toMatch(new RegExp(`/taxonomy/terms/from1/merge/${stage}$`));
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(init.body)).toEqual(body);
+    }
     await waitFor(() => expect(result.current.error).toBeNull());
   });
 
@@ -219,7 +233,10 @@ describe("doExecute", () => {
 
 describe("resetting when the term changes mid-wizard", () => {
   it("clears intoTermId/step/plan/confirmationToken/error when a new term id is passed in", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE));
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE))
+      .mockResolvedValueOnce(jsonResponse(CONFIRM_RESPONSE))
+      .mockResolvedValueOnce(jsonResponse({ error: "merge refused" }, 409));
     const { result, rerender } = renderHook(({ term }) => useWiredMergeTermSection({ term, onMerged: vi.fn() }), {
       initialProps: { term: termFixture({ id: "from1" }) },
       wrapper,
@@ -229,6 +246,11 @@ describe("resetting when the term changes mid-wizard", () => {
       await result.current.startPlan();
     });
     expect(result.current.step).toBe("planned");
+    await act(async () => { await result.current.doConfirm(); });
+    expect(result.current.step).toBe("confirmed");
+    expect(result.current.confirmationToken).toBe("token1");
+    await act(async () => { await result.current.doExecute(); });
+    await waitFor(() => expect(result.current.error).toBe("merge refused"));
 
     rerender({ term: termFixture({ id: "from2", name: "Different Term" }) });
 
@@ -241,6 +263,40 @@ describe("resetting when the term changes mid-wizard", () => {
 });
 
 describe("stale settlement across a term switch mid-wizard (no key={term.id} remount)", () => {
+  it.each(["confirm", "execute"] as const)("drops a stale %s settlement after switching terms", async (stage) => {
+    const port = createFakeMergeTermSectionPort();
+    const onMerged = vi.fn();
+    let settle!: () => void;
+    const held = new Promise<void>((resolve) => { settle = resolve; });
+    const method = stage === "confirm" ? "confirmMergeTerm" : "executeMergeTerm";
+    vi.spyOn(port, method).mockImplementation(async () => {
+      await held;
+      return stage === "confirm" ? { confirmationToken: "stale-token" } : { mergedCount: 1 };
+    });
+    const { result, rerender } = renderHook(
+      ({ term }) => useMergeTermSection({ term, onMerged }, port, "en"),
+      { initialProps: { term: termFixture() }, wrapper }
+    );
+    act(() => result.current.setIntoTermId("into1"));
+    await act(async () => { await result.current.startPlan(); });
+    if (stage === "execute") {
+      await act(async () => { await result.current.doConfirm(); });
+    }
+    let pending!: Promise<void>;
+    act(() => { pending = stage === "confirm" ? result.current.doConfirm() : result.current.doExecute(); });
+    await waitFor(() => expect(port[method]).toHaveBeenCalledTimes(1));
+    rerender({ term: termFixture({ id: "from2" }) });
+    act(() => result.current.setIntoTermId("into2"));
+    await act(async () => { settle(); await pending; });
+    expect(result.current.intoTermId).toBe("into2");
+    expect(result.current.step).toBe("idle");
+    expect(result.current.plan).toBeNull();
+    expect(result.current.confirmationToken).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.busy).toBe(false);
+    expect(onMerged).not.toHaveBeenCalled();
+  });
+
   /**
    * `Taxonomy.tsx` mounts `MergeTermSection` (inside `TermDetailPanel`) with no `key={term.id}` —
    * switching the selected term re-renders the SAME hook instance with a new `term` prop rather than
@@ -309,6 +365,9 @@ describe("useMergeTermSection — injected port", () => {
 
   it("runs the full plan/confirm/execute ceremony through the port and calls onMerged", async () => {
     const port = createFakeMergeTermSectionPort();
+    const planSpy = vi.spyOn(port, "planMergeTerm");
+    const confirmSpy = vi.spyOn(port, "confirmMergeTerm");
+    const executeSpy = vi.spyOn(port, "executeMergeTerm");
     const onMerged = vi.fn();
     const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
 
@@ -323,6 +382,9 @@ describe("useMergeTermSection — injected port", () => {
       await result.current.doExecute();
     });
 
+    expect(planSpy).toHaveBeenCalledWith({ fromTermId: "from1", intoTermId: "into1" });
+    expect(confirmSpy).toHaveBeenCalledWith({ fromTermId: "from1", planId: "fake-plan-1", planHash: "fake-hash-1" });
+    expect(executeSpy).toHaveBeenCalledWith({ fromTermId: "from1", intoTermId: "into1", confirmationToken: "fake-confirmation-token" });
     expect(onMerged).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(result.current.error).toBeNull());
   });

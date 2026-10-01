@@ -71,12 +71,14 @@ describe("the Publish dialog's column names are translated in every locale", () 
       // Present in every locale (Indonesian and Portuguese really do say "Item").
       expect(COMMON_I18N[locale]?.Item, locale).toBeTruthy();
       expect(COMMON_I18N[locale]?.Entity, locale).toBeUndefined();
+      expect(t(locale, "Item"), locale).toBe(COMMON_I18N[locale].Item);
     }
   });
 
   it("translates the fold row's 'already up to date' in every locale", () => {
     for (const locale of Object.keys(DASHBOARD_DICT)) {
       expect(DASHBOARD_DICT[locale]["already up to date"], locale).toBeTruthy();
+      expect(DASHBOARD_DICT[locale]["already up to date"], locale).not.toBe("already up to date");
     }
   });
 });

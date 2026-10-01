@@ -21,7 +21,7 @@ import {
   toResolvedFederatedConnections,
 } from "../external-mcp-store.js";
 import { admitRemoteTools } from "../mcp-federation/trust.js";
-import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
 import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
 
 /**
@@ -302,6 +302,9 @@ test("federation connections carry the operator allowlist and Tovu's own shared 
   // Timeouts/caps are Tovu policy, not operator input, so they are not read off the row.
   assert.equal(typeof connection?.config.callTimeoutMs, "number");
   assert.ok((connection?.config.maxTools ?? 0) > 0);
+  for (const field of ["connectTimeoutMs", "callTimeoutMs", "maxResultBytes", "maxTools"] as const) {
+    assert.equal(connection?.config[field], FEDERATED_CONNECTION_DEFAULTS[field], field);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -388,13 +391,63 @@ test("the admission revision changes when the launch target (command) changes", 
   const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(before);
 
-  await saveExternalMcpServer(deps, validInput({ command: "yarn dlx" }));
+  await saveExternalMcpServer(deps, validInput({ command: "yarn dlx", env: undefined }));
   const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(after);
+  assert.deepEqual(after.sealedEnv, before.sealedEnv, "command-only saves must preserve the ciphertext");
   assert.notEqual(externalMcpAdmissionRevision(after), externalMcpAdmissionRevision(before));
   // createdAt is preserved across an update, so the revision change is attributable to the target
   // identity fields alone, not to a side effect on createdAt.
   assert.equal(after.createdAt, before.createdAt);
+});
+
+test("each launch identity field independently changes the admission revision", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(row);
+  for (const change of [
+    { url: "https://other.example.com/mcp" },
+    { args: '["different-package"]' },
+    { transport: "streamable_http" },
+    { authMode: "none" },
+  ]) {
+    assert.notEqual(externalMcpAdmissionRevision({ ...row, ...change }), externalMcpAdmissionRevision(row), JSON.stringify(change));
+  }
+});
+
+test("rotating a dedicated static access token changes the admission revision without touching env", async () => {
+  const { deps, repo } = makeDeps();
+  const input = validInput({ authMode: "static_env", accessTokenEnvName: "API_KEY" });
+  await saveExternalMcpServer(deps, { ...input, accessToken: "old-token" });
+  const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(before);
+  await saveExternalMcpServer(deps, { ...input, env: undefined, accessToken: "new-token" });
+  const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(after);
+  assert.deepEqual(after.sealedEnv, before.sealedEnv);
+  assert.notEqual(after.sealedOAuth?.ciphertext, before.sealedOAuth?.ciphertext);
+  assert.notEqual(externalMcpAdmissionRevision(after), externalMcpAdmissionRevision(before));
+  await saveExternalMcpServer(deps, { ...input, env: undefined, accessToken: undefined, label: "Renamed" });
+  const renamed = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(renamed);
+  assert.deepEqual(renamed.sealedOAuth, after.sealedOAuth);
+  assert.equal(externalMcpAdmissionRevision(renamed), externalMcpAdmissionRevision(after));
+  await saveExternalMcpServer(deps, { ...input, env: undefined, accessToken: "" });
+  const cleared = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(cleared);
+  assert.notEqual(externalMcpAdmissionRevision(cleared), externalMcpAdmissionRevision(after));
+});
+
+test("OAuth token ciphertext changes leave the admission revision unchanged", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(row);
+  assert.ok(row.sealedEnv);
+  const before = { ...row, authMode: "oauth", sealedOAuth: row.sealedEnv };
+  const after = { ...before, sealedOAuth: { ...row.sealedEnv, ciphertext: "refreshed-token-ciphertext" } };
+  assert.equal(externalMcpAdmissionRevision(after), externalMcpAdmissionRevision(before));
 });
 
 test("the admission revision changes when a connection is deleted and re-created under the same id after the clock advances", async () => {
@@ -601,7 +654,9 @@ test("attribution is stamped the first time the write list becomes non-empty", a
 });
 
 test("a save that does not touch the write list (rename) leaves its attribution untouched", async () => {
-  const { deps, repo } = makeDeps();
+  const { deps: baseDeps, repo } = makeDeps();
+  let nowIso = "2026-08-09T00:00:00.000Z";
+  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -612,6 +667,7 @@ test("a save that does not touch the write list (rename) leaves its attribution 
   );
 
   // A DIFFERENT principal renames the connection without touching the write list.
+  nowIso = "2026-08-09T00:01:00.000Z";
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -624,10 +680,13 @@ test("a save that does not touch the write list (rename) leaves its attribution 
 
   const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.equal(record?.writeGrantsUpdatedByPrincipalId, "alice", "an unrelated save must not re-stamp attribution");
+  assert.equal(record?.writeGrantsUpdatedAt, "2026-08-09T00:00:00.000Z");
 });
 
 test("a save that CHANGES the write list re-stamps attribution to the new principal", async () => {
-  const { deps, repo } = makeDeps();
+  const { deps: baseDeps, repo } = makeDeps();
+  let nowIso = "2026-08-09T00:00:00.000Z";
+  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -637,6 +696,7 @@ test("a save that CHANGES the write list re-stamps attribution to the new princi
     }),
   );
 
+  nowIso = "2026-08-09T00:01:00.000Z";
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -648,10 +708,13 @@ test("a save that CHANGES the write list re-stamps attribution to the new princi
 
   const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.equal(record?.writeGrantsUpdatedByPrincipalId, "bob");
+  assert.equal(record?.writeGrantsUpdatedAt, nowIso);
 });
 
 test("re-sending the same write list in a different order is NOT a change — attribution is not re-stamped", async () => {
-  const { deps, repo } = makeDeps();
+  const { deps: baseDeps, repo } = makeDeps();
+  let nowIso = "2026-08-09T00:00:00.000Z";
+  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -661,6 +724,7 @@ test("re-sending the same write list in a different order is NOT a change — at
     }),
   );
 
+  nowIso = "2026-08-09T00:01:00.000Z";
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -672,6 +736,7 @@ test("re-sending the same write list in a different order is NOT a change — at
 
   const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.equal(record?.writeGrantsUpdatedByPrincipalId, "alice", "the same set in a different order is not a change");
+  assert.equal(record?.writeGrantsUpdatedAt, "2026-08-09T00:00:00.000Z");
 });
 
 test("a brand-new server saved with an empty write list gets no attribution at all", async () => {
@@ -789,11 +854,16 @@ test("readEnabledExternalMcpConfigs reports a stored row with an unsupported tra
     updatedAt: "2026-08-09T00:00:00.000Z",
   });
 
+  const unsupported = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "legacy-http" });
+  assert.ok(unsupported);
+  await repo.upsert({ ...unsupported, serverId: "missing-command", transport: "stdio", command: null });
+
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
   assert.equal(configs.length, 0);
-  assert.equal(failures.length, 1);
+  assert.equal(failures.length, 2);
   assert.equal(failures[0]?.serverId, "legacy-http");
-  assert.match(failures[0]?.reason ?? "", /unsupported transport|missing command/);
+  assert.equal(failures.find((failure) => failure.serverId === "legacy-http")?.reason, "unsupported transport 'http'");
+  assert.equal(failures.find((failure) => failure.serverId === "missing-command")?.reason, "no command is configured to launch it");
 });
 
 test("a decrypted env block that is valid JSON but not an object (e.g. an array) degrades to an empty env, not a throw", async () => {

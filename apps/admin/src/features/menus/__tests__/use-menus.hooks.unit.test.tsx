@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMenu } from "@/lib/api";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
+import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
 
 /**
@@ -31,6 +31,7 @@ const MENU: AdminMenu = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("useMenus — injected port (no fetch stub, no api spy)", () => {
@@ -43,9 +44,43 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     expect(listSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps menus unresolved and reports an initial list failure", async () => {
+    const port = createFakeMenusPort();
+    port.listMenus = vi.fn().mockRejectedValue(new Error("list unavailable"));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.error).toBe("list unavailable"));
+    expect(result.current.menus).toBeNull();
+  });
+
+  it("tracks pending trash and preserves the row after a generic failure", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    let rejectTrash!: (error: Error) => void;
+    port.trash = () => new Promise((_resolve, reject) => { rejectTrash = reject; });
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+    expect(result.current.trashing).toBe(false);
+    act(() => result.current.requestTrash(MENU));
+    expect(result.current.trashing).toBe(false);
+    let confirmation!: Promise<void>;
+    act(() => { confirmation = result.current.confirmTrash(); });
+    expect(result.current.trashing).toBe(true);
+    expect(result.current.pendingTrash).toEqual(MENU);
+
+    await act(async () => {
+      rejectTrash(new Error("trash unavailable"));
+      await confirmation;
+    });
+    expect(result.current.error).toBe("trash unavailable");
+    expect(result.current.menus).toEqual([MENU]);
+    expect(result.current.trashing).toBe(false);
+    expect(result.current.pendingTrash).toBeNull();
+  });
+
   it("requestTrash opens the confirm without calling the port; confirmTrash then calls trash exactly once and the row flips to trash once the list re-reads it", async () => {
     const trashSpy = vi.spyOn(api, "trash");
     const port = createFakeMenusPort({ menus: [MENU] });
+    const portTrashSpy = vi.spyOn(port, "trash");
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
@@ -53,6 +88,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
       result.current.requestTrash(MENU);
     });
     expect(result.current.pendingTrash).toEqual(MENU);
+    expect(portTrashSpy).not.toHaveBeenCalled();
     expect(trashSpy).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -61,6 +97,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
 
     await waitFor(() => expect(result.current.menus?.[0]?.status).toBe("trash"));
     expect(result.current.pendingTrash).toBeNull();
+    expect(portTrashSpy).toHaveBeenCalledExactlyOnceWith({ id: MENU.id });
     expect(trashSpy).not.toHaveBeenCalled(); // the injected fake port, never the real `api` client
   });
 
@@ -84,6 +121,9 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
 
   it("a 404 on confirmTrash is quiet (no error banner) and re-reads the list", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
+    port.listMenus = vi.fn()
+      .mockResolvedValueOnce({ menus: [MENU] })
+      .mockResolvedValueOnce({ menus: [] });
     port.trash = vi.fn(() => {
       throw new ApiError("not found", 404, "NOT_FOUND");
     });
@@ -97,6 +137,8 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
       await result.current.confirmTrash();
     });
 
+    await waitFor(() => expect(result.current.menus).toEqual([]));
+    expect(port.listMenus).toHaveBeenCalledTimes(2);
     expect(result.current.error).toBeNull();
     expect(result.current.pendingTrash).toBeNull();
   });
@@ -130,6 +172,24 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     port.listMenus = () => new Promise(() => {});
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     expect(result.current.menus).toBeNull();
+  });
+});
+
+describe("defaultMenusPort", () => {
+  it("forwards create input and items to the real client's POST body", async () => {
+    const items: AdminMenu["items"] = [{ id: "home", label: "Home", target: { kind: "url", href: "/" } }];
+    const created = { ...MENU, items };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ menu: created }), {
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await defaultMenusPort.createMenu({ title: MENU.title, slug: MENU.slug }, { items })).toEqual({ menu: created });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toMatch(/\/workspaces\/[^/]+\/menus$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ title: MENU.title, slug: MENU.slug, items });
   });
 });
 

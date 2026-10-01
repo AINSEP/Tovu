@@ -117,6 +117,8 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     render(<AdminExecutionMode useAdminExecutionModeHook={() => fakeExecutionModeController()} />);
     // No migration prompt (nothing to fake a legacy key with), but the execution form itself renders.
     expect(screen.queryByText(/We found a saved key in this browser/)).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^Local CLI/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /^BYOK/ })).toHaveAttribute("aria-selected", "false");
   });
 
   it("renders exactly one save-confirmation line when a BYOK settings save completes", () => {

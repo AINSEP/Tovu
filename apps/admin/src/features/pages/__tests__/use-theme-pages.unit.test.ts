@@ -34,7 +34,8 @@ describe("useThemePages", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     try {
-      const port = createFakeThemePagesPort({ pageFiles: [ABOUT, PRICING] });
+      const port = createFakeThemePagesPort({ activeThemeId: "storefront", pageFiles: [ABOUT, PRICING] });
+      const detailSpy = vi.spyOn(port, "getThemeDetail");
       const { result } = renderHook(() => useThemePages(port));
       await waitFor(() => expect(result.current.pages).not.toBeNull());
       expect(result.current.pages).toEqual([
@@ -42,6 +43,7 @@ describe("useThemePages", () => {
         { pageId: "pricing", filePath: "render/pages/pricing.html", published: true, resettable: true, collidingContent: null },
       ]);
       expect(result.current.error).toBeNull();
+      expect(detailSpy).toHaveBeenCalledExactlyOnceWith("storefront");
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
@@ -163,17 +165,43 @@ describe("useThemePages", () => {
     expect(result.current.activeThemeId).toBe("basic");
   });
 
-  it("useWiredThemePages composes the real port — same controller shape before the real fetch settles", () => {
-    const { result } = renderHook(() => useWiredThemePages());
-    expect(result.current.pages).toBeNull();
-    expect(result.current.activeThemeId).toBeNull();
-    expect(result.current.error).toBeNull();
-    expect(result.current.savingPageId).toBeNull();
+  it("useWiredThemePages composes the real port and resolves its chained fetches", async () => {
+    const base = "/api/admin/v1/workspaces/workspace-local";
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `${base}/presentation`) {
+        return Promise.resolve(new Response(JSON.stringify({ settings: { activeThemeId: "storefront" } })));
+      }
+      if (url === `${base}/themes/storefront`) {
+        return Promise.resolve(new Response(JSON.stringify({ files: [ABOUT, A_STYLE] })));
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => useWiredThemePages());
+      expect(result.current.pages).toBeNull();
+      expect(result.current.activeThemeId).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.savingPageId).toBeNull();
+
+      await waitFor(() => expect(result.current.pages).toEqual([
+        { pageId: "about", filePath: ABOUT.path, published: false, resettable: true, collidingContent: null },
+      ]));
+      expect(result.current.activeThemeId).toBe("storefront");
+      expect(result.current.error).toBeNull();
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+        `${base}/presentation`, `${base}/themes/storefront`,
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   describe("setPagePublished", () => {
     it("publishes a row and updates it in place, tracking savingPageId only for that row", async () => {
-      const port = createFakeThemePagesPort({ activeThemeId: "basic", pageFiles: [ABOUT, PRICING] });
+      const port = createFakeThemePagesPort({ activeThemeId: "storefront", pageFiles: [ABOUT, PRICING] });
+      const publishSpy = vi.spyOn(port, "setPagePublished");
       const { result } = renderHook(() => useThemePages(port));
       await waitFor(() => expect(result.current.pages).not.toBeNull());
 
@@ -188,6 +216,9 @@ describe("useThemePages", () => {
       expect(result.current.savingPageId).toBeNull();
       expect(result.current.pages?.find((p) => p.pageId === "about")?.published).toBe(true);
       expect(result.current.pages?.find((p) => p.pageId === "pricing")?.published).toBe(true);
+      expect(publishSpy).toHaveBeenCalledExactlyOnceWith("storefront", "about", true);
+      const persisted = await port.getThemeDetail("storefront");
+      expect(persisted.files.find((f) => f.path === ABOUT.path)?.published).toBe(true);
     });
 
     it("is a no-op — no port call, no state change — before activeThemeId has resolved", async () => {

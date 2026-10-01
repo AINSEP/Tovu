@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { EntryRecord, EntryStatus } from "../../entries/index.js";
-import { createCommentsModule } from "../index.js";
+import { createCommentsModule, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";
+import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryCommentRepo } from "../repo.memory.js";
 import { HeuristicSpamCheck } from "../spam.heuristic.js";
 import type { CommentSubmission, SpamVerdict } from "../types.js";
@@ -123,4 +125,90 @@ test("a published entry with no closeAfterDays cap still accepts a public commen
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
   assert.equal(result.ok, true, `a published, open entry must accept the submission: ${JSON.stringify(result)}`);
+});
+
+for (const ageDays of [6, 7, 7 + 1 / 86400, 8]) {
+  test(`a published entry aged ${ageDays} days respects the seven-day closing window`, async () => {
+    const nowIso = "2026-08-29T00:00:00.000Z";
+    const commentRepo = new InMemoryCommentRepo();
+    const publishedAt = new Date(Date.parse(nowIso) - ageDays * 86400_000).toISOString();
+    const commentsModule = createCommentsModule({
+      commentRepo,
+      entryRepo: { findById: async () => makeEntry("published", publishedAt) },
+      outbox: new InMemoryOutbox(),
+      clock: { nowIso: () => nowIso },
+      idGen: { newId: () => "comment-1" },
+      spamCheck: new HeuristicSpamCheck(),
+      settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 },
+      ...commentTrashDoubles(),
+    });
+    const result = await commentsModule.ingressPolicy.submit(makeSubmission());
+    assert.equal(result.ok, ageDays <= 7, JSON.stringify(result));
+    if (!result.ok) assert.equal(result.reason, "entry-closed");
+    assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" })) !== null, ageDays <= 7);
+  });
+}
+
+test("one composed module reads ledger changes live for both ingress and the entry closing window", async () => {
+  const settingsRepo = new InMemorySettingsRepo();
+  const clock = { nowIso: () => "2026-08-29T00:00:00.000Z" };
+  let sequence = 0;
+  const ids = { newId: () => `comments-live-${++sequence}` };
+  const settingsDeps = { settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo([]) };
+  await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
+  const commentsModule = createCommentsModule({
+    commentRepo: new InMemoryCommentRepo(),
+    entryRepo: { findById: async () => makeEntry("published", "2026-08-21T00:00:00.000Z") },
+    outbox: new InMemoryOutbox(), clock, idGen: ids, spamCheck: new HeuristicSpamCheck(),
+    settingsRepo,
+    // The ledger takes precedence over this deliberately conflicting fixed fallback.
+    settings: { ...DEFAULT_COMMENTS_SETTINGS, enabled: false },
+    ...commentTrashDoubles(),
+  });
+  const patch = (values: Parameters<typeof setCommentsSettings>[1]["patch"]) => setCommentsSettings(settingsDeps, {
+    workspaceId: WORKSPACE_ID, callerPrincipalId: "operator", patch: values,
+  });
+  assert.equal((await commentsModule.ingressPolicy.submit(makeSubmission())).ok, true);
+  await patch({ closeAfterDays: 7 });
+  assert.deepEqual(await commentsModule.ingressPolicy.submit(makeSubmission()), { ok: false, reason: "entry-closed" });
+  await patch({ closeAfterDays: null, enabled: false });
+  assert.deepEqual(await commentsModule.ingressPolicy.submit(makeSubmission()), { ok: false, reason: "comments-disabled" });
+  await patch({ enabled: true, requireModeration: false });
+  const accepted = await commentsModule.ingressPolicy.submit(makeSubmission());
+  assert.equal(accepted.ok, true);
+  if (accepted.ok) assert.equal(accepted.comment.status, "approved");
+});
+
+test("the composed writeService forwards removal, restore, and transaction dependencies", async () => {
+  const commentRepo = new InMemoryCommentRepo();
+  const trash = commentTrashDoubles();
+  let transactions = 0;
+  let sequence = 0;
+  const commentsModule = createCommentsModule({
+    commentRepo,
+    entryRepo: { findById: async () => makeEntry("published", null) },
+    outbox: new InMemoryOutbox(),
+    clock: { nowIso: () => "2026-08-29T00:00:00.000Z" },
+    idGen: { newId: () => `composed-comment-${++sequence}` },
+    spamCheck: new HeuristicSpamCheck(),
+    ...trash,
+    runInTransaction: async (fn) => { transactions += 1; return fn(); },
+  });
+  const submitted = await commentsModule.ingressPolicy.submit(makeSubmission());
+  assert.equal(submitted.ok, true);
+  if (!submitted.ok) return;
+  const id = submitted.comment.id;
+  const required = { workspaceId: WORKSPACE_ID, id, actorPrincipalId: "moderator", note: null };
+  assert.deepEqual(await commentsModule.writeService.applyModeration({
+    ...required, expectedVersion: submitted.comment.version, action: "trash", toStatus: "trash",
+  }), { ok: true });
+  assert.deepEqual(trash.removed, [{ workspaceId: WORKSPACE_ID, id, display: { title: "Comment on entry-1", subtitle: "This is a normal comment." } }]);
+  const trashed = await commentRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(trashed?.status, "trash");
+  assert.deepEqual(await commentsModule.writeService.applyModeration({
+    ...required, expectedVersion: trashed!.version, action: "approve", toStatus: "approved",
+  }), { ok: true });
+  assert.deepEqual(trash.forgotten, [{ workspaceId: WORKSPACE_ID, id }]);
+  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id }))?.status, "approved");
+  assert.equal(transactions, 2);
 });

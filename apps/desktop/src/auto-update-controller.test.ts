@@ -12,6 +12,7 @@ import path from "node:path";
 import { createAutoUpdateController } from "./auto-update-controller.ts";
 import type { AutoUpdateControllerDeps } from "./auto-update-controller.ts";
 import { writeInstanceRecord } from "./instance-presence.ts";
+import { PRESENCE_STALE_MS, UPDATE_CHECK_INTERVAL_MS } from "./update-policy.ts";
 
 const SELF = 100;
 
@@ -108,6 +109,25 @@ test("an instance that started later than a live sibling never checks", () => {
   assert.deepEqual(t.calls, []);
 });
 
+test("an older dead sibling cannot suppress this instance's update check", async () => {
+  const t = setup();
+  // Leave a crash record on disk without adding the pid to setup's live set.
+  writeInstanceRecord(t.presenceDir, { pid: 50, startedAt: 0, heartbeatAt: 1_000_000 });
+  t.controller.tick();
+  await flush();
+  assert.deepEqual(t.calls, ["check"]);
+  assert.equal(fs.existsSync(path.join(t.presenceDir, "50.json")), false);
+});
+
+test("an older live sibling with a stale heartbeat cannot suppress this instance's update check", async () => {
+  const t = setup();
+  t.addSibling(50, 0);
+  t.advance(PRESENCE_STALE_MS + 1);
+  t.controller.tick();
+  await flush();
+  assert.deepEqual(t.calls, ["check"]);
+});
+
 test("a failed check is logged, not thrown, and frees the next due check", async () => {
   const logs: string[] = [];
   const t = setup({ log: (message) => logs.push(message) });
@@ -115,6 +135,12 @@ test("a failed check is logged, not thrown, and frees the next due check", async
   t.controller.tick();
   await flush();
   assert.deepEqual(logs, ["auto-update: check failed: offline"]);
+  assert.deepEqual(t.calls, ["check"]);
+  t.updater.checkResult = Promise.resolve(null);
+  t.advance(UPDATE_CHECK_INTERVAL_MS);
+  t.controller.tick();
+  await flush();
+  assert.deepEqual(t.calls, ["check", "check"], "a rejected check must not leave the controller busy forever");
 });
 
 test("a download prompts once per version; Later leaves the install to the quit", async () => {

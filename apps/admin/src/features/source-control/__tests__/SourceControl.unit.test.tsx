@@ -1,8 +1,11 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceControl } from "../SourceControl";
+import { FetchQueryProvider } from "@/lib/fetch-query";
+import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
+import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
 import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/lib/api";
 import { sourceControlProviders, type SourceControlProviderInfo } from "../rules";
@@ -155,6 +158,64 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     expect(save).toHaveBeenCalledWith("github");
   });
 
+  it("typing updates each provider's own token and declared fields before saving", async () => {
+    const user = userEvent.setup();
+    const createCredential = vi.fn(async ({ connection }: { connection: { providerId: AdminSourceControlProviderId } }) => savedCredential({ providerId: connection.providerId }));
+    const port = createFakeSourceControlCredentialsPort({
+      listProviders: async () => ({ providers: [GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], switchedOff: [] }),
+      listCredentials: async () => ({ credentials: [] }),
+      createCredential,
+    });
+    render(
+      <FetchQueryProvider>
+        <SourceControl useSourceControlCredentialsHook={() => useSourceControlCredentials(port, fakeT, "en")} />
+      </FetchQueryProvider>,
+    );
+    const codebergHeading = await screen.findByRole("heading", { name: /Connect Codeberg/ });
+    await user.click(codebergHeading);
+    const codeberg = within(codebergHeading.closest<HTMLElement>(".source-control-row")!);
+    expect(codeberg.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.type(codeberg.getByLabelText("Access token"), "cb-token");
+    expect(codeberg.getByRole("button", { name: "Save" })).toBeEnabled();
+    await user.click(codeberg.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(createCredential).toHaveBeenCalledWith({
+      label: "default", connection: { providerId: "codeberg", token: "cb-token" },
+    }));
+
+    const forgeHeading = screen.getByRole("heading", { name: /Connect Forge/ });
+    await user.click(forgeHeading);
+    const forge = within(forgeHeading.closest<HTMLElement>(".source-control-row")!);
+    expect(forge.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.type(forge.getByLabelText("API token"), "forge-token");
+    expect(forge.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.type(forge.getByLabelText("Username"), "alice");
+    expect(forge.getByRole("button", { name: "Save" })).toBeEnabled();
+    await user.click(forge.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(createCredential).toHaveBeenCalledWith({
+      label: "default", connection: { providerId: "forge", token: "forge-token", username: "alice" },
+    }));
+    expect(createCredential).toHaveBeenCalledTimes(2);
+  });
+
+  it("disables a saving row and shows a failed row's alert", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    renderPage({ save, rowOverrides: {
+      github: { readyToSave: true, saving: true },
+      codeberg: { error: "Could not save Codeberg token." },
+    } });
+    const github = within(screen.getByRole("heading", { name: /Connect GitHub/ }).closest<HTMLElement>(".source-control-row")!);
+    const saving = github.getByRole("button", { name: "Saving…" });
+    expect(saving).toBeDisabled();
+    await user.click(saving);
+    expect(save).not.toHaveBeenCalled();
+    const codebergHeading = screen.getByRole("heading", { name: /Connect Codeberg/ });
+    await user.click(codebergHeading);
+    const codeberg = within(codebergHeading.closest<HTMLElement>(".source-control-row")!);
+    expect(codeberg.getByRole("alert")).toHaveTextContent("Could not save Codeberg token.");
+    expect(github.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("disables Save for a not-ready row (blank token)", () => {
     renderPage();
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
@@ -226,10 +287,18 @@ describe("SourceControl — connected row: the two defects this page must NOT in
     expect(within(details).getByText("Leave blank to keep the current token.")).toBeInTheDocument();
   });
 
-  it("shows no token-liveness or verification indicator anywhere on a connected row", () => {
+  it("shows no token-liveness or verification indicator anywhere on a connected row", async () => {
+    const user = userEvent.setup();
     renderPage({ rowOverrides: { github: { saved: savedCredential() } } });
     const summary = screen.getByText(/token stored, encrypted/).closest("summary")!;
     expect(summary.textContent).not.toMatch(/valid|verified|expired|live/i);
+    await user.click(summary);
+    const row = summary.closest("details")!;
+    expect(row).toHaveAttribute("open");
+    expect(row.textContent).not.toMatch(/valid|verified|expired|live/i);
+    for (const element of row.querySelectorAll("[aria-label], [title], img")) {
+      expect([element.getAttribute("aria-label"), element.getAttribute("title"), element.getAttribute("alt")].join(" ")).not.toMatch(/valid|verified|expired|live/i);
+    }
   });
 
   it("a not-yet-connected row IS a <details>, open by default when it is the first unconnected provider", () => {
@@ -312,7 +381,11 @@ describe("SourceControl — scope guidance: reachable behind its own disclosure,
     await user.click(guidanceSummary);
     expect(guidanceDetails).toHaveAttribute("open");
     expect(within(guidanceDetails).getByText(/fine-grained personal access token/)).toBeInTheDocument();
-    expect(within(guidanceDetails).getByRole("link", { name: "Create a token" })).toBeInTheDocument();
+    const tokenLink = within(guidanceDetails).getByRole("link", { name: "Create a token" });
+    expect(tokenLink).toBeInTheDocument();
+    expect(tokenLink).toHaveAttribute("href", GITHUB_PROVIDER.credential!.tokenPageUrl);
+    expect(tokenLink).toHaveAttribute("target", "_blank");
+    expect(tokenLink).toHaveAttribute("rel", "noreferrer");
   });
 
   it("no longer renders the old per-row subtitle repeated identically on all three rows", () => {
@@ -344,7 +417,14 @@ describe("SourceControl — 'Create access token' cross-link to the Security pag
 
   it("renders once, below the three provider rows", () => {
     renderPage();
-    expect(screen.getByRole("button", { name: "Create access token" })).toBeInTheDocument();
+    const buttons = screen.getAllByRole("button", { name: "Create access token" });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toBeInTheDocument();
+    const rows = document.querySelectorAll(".source-control-row");
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.compareDocumentPosition(buttons[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
   });
 
   it("navigates to the Access Tokens tab on the Security page when clicked", async () => {

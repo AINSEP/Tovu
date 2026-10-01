@@ -72,16 +72,23 @@ describe("useAssistantDaemonRestart — restart()", () => {
     expect(result.current.restartError).toBeNull();
   });
 
-  it("re-checks status after restart() settles, regardless of ok/refused — proving the caller can see live status after the click", async () => {
-    const port = createFakeAssistantDaemonRestartPort({ restartResult: { ok: true } });
+  it.each([true, false])("re-checks and updates status after restart() settles (ok=%s)", async (ok) => {
+    const port = createFakeAssistantDaemonRestartPort({
+      restartResult: ok ? { ok: true } : { ok: false, reason: "shutting down" },
+    });
+    const getReadyz = vi.spyOn(port, "getReadyz")
+      .mockResolvedValueOnce({ ready: false, assistantDaemonKnownFailed: true })
+      .mockResolvedValueOnce({ ready: true });
     const { result } = renderHook(() => useAssistantDaemonRestart({ port }));
-    await waitFor(() => expect(port.readyzCallCount).toBe(1)); // the mount-time check
+    await waitFor(() => expect(result.current.knownFailed).toBe(true));
+    expect(getReadyz).toHaveBeenCalledTimes(1); // the mount-time check
 
     await act(async () => {
       await result.current.restart();
     });
 
-    expect(port.readyzCallCount).toBe(2); // the post-restart follow-up check
+    await waitFor(() => expect(result.current.knownFailed).toBe(false));
+    expect(getReadyz).toHaveBeenCalledTimes(2); // the post-restart follow-up check
   });
 
   it("waits postRestartCheckDelayMs before firing the post-restart re-check — an immediate read would almost certainly re-report the OLD state", async () => {

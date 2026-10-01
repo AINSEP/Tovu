@@ -79,8 +79,12 @@ describe("AdminByokMigrationPrompt", () => {
   });
 
   it("never renders the raw legacy key value anywhere in the prompt", () => {
-    render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-super-secret-value" })} />);
+    const { container } = render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-super-secret-value" })} />);
     expect(screen.queryByText(/sk-super-secret-value/)).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain("sk-super-secret-value");
+    for (const input of container.querySelectorAll("input, textarea")) {
+      expect((input as HTMLInputElement | HTMLTextAreaElement).value).not.toContain("sk-super-secret-value");
+    }
   });
 });
 

@@ -44,8 +44,13 @@ function sha1(data: string): string {
 
 /** The real kit, with global `fetch` stubbed for this test only, `sleep` a no-op, and every
  *  `kit.fetch` call recorded with the timeout it named. */
-function stubKit(t: TestContext, handler: FetchHandler, overrides: Partial<DeployHostKit> = {}): { kit: DeployHostKit; calls: KitCall[] } {
-  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => handler(String(input), init));
+function stubKit(t: TestContext, handler: FetchHandler, overrides: Partial<DeployHostKit> = {}, token = "tok"): { kit: DeployHostKit; calls: KitCall[] } {
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("Authorization"), new URL(url).origin === "https://api.netlify.com" ? `Bearer ${token}` : null);
+    return handler(url, init);
+  });
   const real = createDeployHostKit();
   const calls: KitCall[] = [];
   const kit: DeployHostKit = {
@@ -99,6 +104,9 @@ test("finds an existing site, uploads only required files, polls to ready, and r
       return jsonResponse(200, { id: "deploy_1", state: "preparing", required: [fileHash] });
     }
     if (method === "PUT" && url.includes("/deploys/deploy_1/files/index.html")) {
+      assert.equal(new Headers(init.headers).get("Content-Type"), "text/html");
+      assert.deepEqual(init.body, Buffer.from("<html></html>"));
+      assert.equal(createHash("sha1").update(init.body as Buffer).digest("hex"), fileHash);
       return jsonResponse(200, { id: "f1", path: "/index.html", sha: fileHash, size: 13 });
     }
     if (method === "GET" && url.endsWith("/deploys/deploy_1")) {
@@ -222,7 +230,7 @@ test("throws DeployError with a generic message when a terminal failure state ca
 });
 
 test("throws DeployError with the message field when site lookup fails", async (t) => {
-  const { kit } = stubKit(t, () => jsonResponse(401, { code: 401, message: "Invalid token" }));
+  const { kit } = stubKit(t, () => jsonResponse(401, { code: 401, message: "Invalid token" }), {}, "bad");
   await assert.rejects(publish(kit, { files: [], projectName: "demo" }, "bad"), { message: "Invalid token" });
 });
 
@@ -352,6 +360,21 @@ test("checkReachability probes the URL without any protected-response detection"
   assert.equal(result.reachable, true);
 });
 
+for (const failure of ["503", "network error"]) {
+  test(`checkReachability reports unreachable on ${failure}`, async (t) => {
+    let probes = 0;
+    const { kit } = stubKit(t, (url) => {
+      probes += 1;
+      assert.equal(url, "https://demo.netlify.app/");
+      if (failure === "network error") throw new TypeError("connection refused");
+      return new Response("Unavailable", { status: 503 });
+    });
+    const result = await (await netlifyTarget(kit)).checkReachability("https://demo.netlify.app");
+    assert.equal(result.reachable, false);
+    assert.ok(probes > 0, "must actually probe the public URL");
+  });
+}
+
 test("skips the required-uploads loop entirely when the deploy-creation response omits a `required` array", async (t) => {
   const { kit } = stubKit(t, (url, init) => {
     const method = init.method ?? "GET";
@@ -480,3 +503,22 @@ test("the module accepts any config (Netlify needs no config fields) and serves 
   assert.equal(netlify.validateConfig?.({}), null);
   assert.equal(netlify.basePath?.({}), undefined);
 });
+
+for (const status of [200, 204, 401, 403, 429, 503]) {
+  test(`verifyCredential classifies HTTP ${status} using the authenticated user endpoint`, async (t) => {
+    const { kit, calls } = stubKit(t, (url, init) => {
+      assert.equal(url, "https://api.netlify.com/api/v1/user");
+      assert.equal(init.method ?? "GET", "GET");
+      const response = new Response(null, { status });
+      t.mock.method(response, "json", () => { throw new Error("must not read private identity fields"); });
+      return response;
+    });
+    const result = await (await loadModule()).verifyCredential!({ credential: { token: "tok" }, kit });
+    assert.deepEqual(result, status < 300 ? { ok: true } : {
+      ok: false,
+      reason: status === 401 || status === 403 ? "rejected" : "unreachable",
+      statusCode: status,
+    });
+    assert.deepEqual(calls, [{ method: "GET", url: "https://api.netlify.com/api/v1/user", timeoutMs: kit.timeouts.QUICK }]);
+  });
+}

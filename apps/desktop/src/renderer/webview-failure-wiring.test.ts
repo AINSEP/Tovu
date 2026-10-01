@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -125,6 +126,15 @@ test("the two database options this app cannot provision are DISABLED, with the 
   for (const value of ["supabase", "custom"]) {
     const option = picker.slice(picker.indexOf(`value="${value}"`));
     assert.match(option.slice(0, option.indexOf("/>")), /unavailable/, `the ${value} option must be marked unavailable`);
+    const DatabaseOption = sourceFunction(onboarding, 'DatabaseOption');
+    const DatabasePicker = sourceFunction(onboarding, 'DatabasePicker', { DatabaseOption });
+    const rendered = elements(DatabasePicker({ database: 'sqlite' }));
+    const radio = rendered.find((element) => element.type === 'input' && element.props.value === value);
+    assert.ok(radio, `${value} must have a radio`);
+    assert.equal(radio.props.disabled, true, `${value} must really be disabled`);
+    const card = rendered.find((element) => element.type === 'label' && elements(element).includes(radio));
+    assert.ok(card, `${value} must have an option card`);
+    assert.ok(elements(card).some((element) => element.type === 'small' && /Not available.*provisioner/.test(element.props.children)), `${value} must explain its unavailability`);
   }
   const sqlite = picker.slice(picker.indexOf('value="sqlite"'));
   assert.doesNotMatch(sqlite.slice(0, sqlite.indexOf("/>")), /unavailable/, "SQLite is the one this app really does create");
@@ -134,4 +144,82 @@ test("an unavailable option really disables its radio, not just its styling", ()
   const start = onboarding.indexOf("function DatabaseOption(");
   const body = onboarding.slice(start, onboarding.indexOf("function DatabasePicker(", start));
   assert.match(body, /disabled=\{unavailable\}/, "a control that only LOOKS disabled is still selectable by keyboard");
+  const option = sourceFunction(onboarding, 'DatabaseOption');
+  for (const unavailable of [true, false]) {
+    const radio = elements(option({ value: 'custom', unavailable })).find((element) => element.type === 'input');
+    assert.equal(radio?.props.disabled, unavailable);
+  }
+});
+
+function webviewFixture() {
+  const harness = hookHarness();
+  let nextTimer = 0;
+  const timers = new Map<number, { callback: () => void; delay: number }>();
+  const useFailure = sourceFunction(appHooks, 'useWebviewLoadFailure', { ...harness.bindings,
+    window: {
+      setTimeout(callback: () => void, delay: number) { const id = ++nextTimer; timers.set(id, { callback, delay }); return id; },
+      clearTimeout(id: number) { timers.delete(id); },
+    },
+  });
+  const render = (key = 0) => harness.render(() => useFailure(key));
+  const guest = () => new EventTarget();
+  const fail = (node: EventTarget, isMainFrame = true, errorCode = -2) => {
+    const event = Object.assign(new Event('did-fail-load'), { isMainFrame, errorCode });
+    node.dispatchEvent(event);
+  };
+  return { harness, timers, render, guest, fail };
+}
+
+test('late-mounted and replacement guests get listeners; old guests and timers are cleaned up', () => {
+  const f = webviewFixture();
+  try {
+    assert.equal(f.render().guest, null);
+    assert.equal(f.timers.size, 0);
+    const first = f.guest();
+    f.render().guestRef(first);
+    assert.equal(f.render().guest, first);
+    assert.deepEqual([...f.timers.values()].map((timer) => timer.delay), [8000]);
+    f.fail(first, false);
+    f.fail(first, true, -3);
+    assert.equal(f.render().failed, false, 'subframe failures and cancelled loads are ignored');
+    assert.equal(f.timers.size, 1);
+    const second = f.guest();
+    f.render().guestRef(second);
+    f.render();
+    assert.equal(f.timers.size, 1, 'replacement clears the old timer');
+    f.fail(first);
+    first.dispatchEvent(new Event('did-finish-load'));
+    assert.equal(f.render().failed, false, 'the old failure listener was removed');
+    assert.equal(f.render().loaded, false, 'the old finish listener was removed');
+    f.fail(second);
+    assert.equal(f.render().failed, true, 'the new node must report failure');
+    assert.equal(f.timers.size, 0);
+    f.render().guestRef(null);
+    assert.equal(f.render().failed, true, 'unmount must preserve the recovery panel');
+  } finally { f.harness.cleanup(); }
+});
+
+test('loaded stays false through intermediate events and resets for each navigation', () => {
+  const f = webviewFixture();
+  try {
+    const node = f.guest();
+    f.render().guestRef(node);
+    f.render();
+    for (const name of ['did-start-loading', 'dom-ready', 'did-navigate', 'did-stop-loading']) {
+      node.dispatchEvent(new Event(name));
+      assert.equal(f.render().loaded, false, `${name} cannot finish the load`);
+    }
+    [...f.timers.values()][0]!.callback();
+    assert.equal(f.render().stalled, true);
+    assert.equal(f.render().loaded, false);
+    node.dispatchEvent(new Event('did-finish-load'));
+    assert.equal(f.render().loaded, true);
+    assert.equal(f.render().stalled, false);
+    assert.equal(f.timers.size, 0);
+    assert.equal(f.render(1).loaded, false, 'the next load must show its loading state');
+    assert.equal(f.timers.size, 1, 'a soft navigation re-arms the stall timer');
+    f.fail(node);
+    assert.equal(f.render(1).failed, true);
+    assert.equal(f.render(1).loaded, false);
+  } finally { f.harness.cleanup(); }
 });

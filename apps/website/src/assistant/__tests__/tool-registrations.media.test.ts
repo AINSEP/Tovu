@@ -224,6 +224,8 @@ test("an out-of-vocabulary content type is rejected with the schema attached for
 
   assert.ok(error, "an out-of-allowlist content type must reject");
   assert.match(error.message, /not allowed for upload/);
+  assert.match(error.message, /will not resolve on retry without an input change/);
+  assert.ok(error.message.includes(JSON.stringify(catalogEntry("media_upload_asset").inputSchema)), "the upload schema must travel with this rejection too");
 });
 
 test("base64 that decodes to zero bytes is rejected as an empty upload, with the schema attached for retry", async () => {
@@ -439,6 +441,22 @@ test("workflow: upload, update its metadata, then trash it — list reflects the
   assert.equal(found.version, 3, "the list read must see the final version after the whole chain, not a stale one");
 });
 
+test("media_update_metadata persists each remaining metadata field and rejects an unknown id", async () => {
+  const { deps, mediaRepo } = fakeRouteDeps();
+  const { id } = await seedAsset(deps);
+  const patch = { alt: "Banner description", credit: "Photo by Ada", cssClass: "hero rounded", htmlAttributes: 'loading="lazy"' };
+  for (const [field, value] of Object.entries(patch)) {
+    const result = (await wired("media_update_metadata", deps).handler(executionContext({ mediaId: id, [field]: value }))) as { media: Record<string, unknown> };
+    assert.equal(result.media[field], value);
+    const stored = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+    assert.ok(stored);
+    assert.equal(stored[field as keyof typeof patch], value, `${field} must be saved, not just echoed`);
+  }
+  const before = structuredClone(await mediaRepo.list({ workspaceId: WORKSPACE_ID }));
+  await assert.rejects(() => wired("media_update_metadata", deps).handler(executionContext({ mediaId: "missing-asset", title: "Missing" })), /not found/);
+  assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), before);
+});
+
 // ---------------------------------------------------------------------------
 // 6. Authorization — Media's own inline gate (media-service.ts has none of its own)
 // ---------------------------------------------------------------------------
@@ -505,6 +523,8 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const before = await seedRepo.list({ workspaceId: WORKSPACE_ID });
 
     const { deps, mediaRepo } = fakeRouteDeps({ allow: false });
+    for (const asset of before) await mediaRepo.save(asset);
+    const deniedBefore = structuredClone(await mediaRepo.list({ workspaceId: WORKSPACE_ID }));
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId](id))),
       (error: unknown) => {
@@ -515,7 +535,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
       },
     );
 
-    assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), [], "the permission gate must run ahead of every durable effect");
+    assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), deniedBefore, "the permission gate must run ahead of every durable effect on the existing target");
     assert.equal(before.length, 1, "sanity: the seed really did upload an asset when allowed");
   });
 }

@@ -593,23 +593,51 @@ describe("reattachAgUiRun / fetchAgUiRunStatus / stopAgUiRun", () => {
   test("stopAgUiRun on an in-flight run aborts the controller instead of POSTing a cancel endpoint", async () => {
     const encoder = new TextEncoder();
     let delivered = false;
-    const stream = new ReadableStream<Uint8Array>({
-      pull(controller) {
+    let rejectRead!: (error: Error) => void;
+    const reader = {
+      read: () => {
         if (!delivered) {
           delivered = true;
-          controller.enqueue(encoder.encode(frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" })));
+          return Promise.resolve({
+            done: false,
+            value: encoder.encode(frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" })),
+          });
         }
-        // else: leave it open — an in-flight run with nothing new yet, only abort() ends it.
+        return new Promise<ReadableStreamReadResult<Uint8Array>>((_resolve, reject) => { rejectRead = reject; });
       },
+      // A rejecting cancel() on an errored native stream leaks an unhandled rejection inside
+      // @ag-ui/client; keep this test focused on our abort contract, like the failure test above.
+      cancel: async () => undefined,
+      releaseLock() {},
+    };
+    fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      init.signal!.addEventListener("abort", () => {
+        rejectRead(new DOMException("The operation was aborted", "AbortError"));
+      }, { once: true });
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "text/event-stream" }),
+        body: { getReader: () => reader },
+      } as unknown as Response;
     });
-    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { runId } = await startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers());
+    const h = handlers();
+    const onDone = vi.fn(h.onDone);
+    h.onDone = onDone;
+    const { runId } = await startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, h);
+    const requestSignal = fetchMock.mock.calls[0][1].signal as AbortSignal;
+    expect(requestSignal.aborted).toBe(false);
+    await vi.waitFor(() => expect(rejectRead).toBeDefined());
     fetchMock.mockClear();
     await stopAgUiRun(runId);
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(requestSignal.aborted).toBe(true);
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+    expect(h.done).toEqual([]);
+    expect(h.errors).toEqual([]);
   });
 
   test("stopAgUiRun on an unknown id (already settled/never existed) is a silent no-op", async () => {

@@ -32,20 +32,21 @@ function fakeClock(startIso: string) {
 }
 
 test("createRateLimiter: requests under the max all pass", () => {
+  assert.deepEqual(LOGIN_STRICT, { max: 10, windowSeconds: 60, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
-  for (let i = 0; i < LOGIN_STRICT.max; i++) {
+  for (let i = 0; i < 10; i++) {
     const result = limiter.check("1.2.3.4");
     assert.equal(result.allowed, true, `request ${i + 1} should pass`);
   }
 });
 
 test("createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds", () => {
-  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
-  for (let i = 0; i < LOGIN_STRICT.max; i++) {
+  for (let i = 0; i < 10; i++) {
     assert.equal(limiter.check("1.2.3.4").allowed, true);
   }
 
@@ -58,6 +59,10 @@ test("createRateLimiter: the (max+1)th request in the window is rejected with a 
     eleventh.retryAfterSeconds <= LOGIN_STRICT.windowSeconds,
     "retryAfterSeconds must not exceed the window length"
   );
+  advanceMs(30_000);
+  assert.deepEqual(limiter.check("1.2.3.4"), { allowed: false, retryAfterSeconds: 30 });
+  advanceMs(1);
+  assert.deepEqual(limiter.check("1.2.3.4"), { allowed: false, retryAfterSeconds: 30 }, "fractional seconds round up");
 });
 
 test("createRateLimiter: different IPs have independent counters", () => {
@@ -83,7 +88,7 @@ test("createRateLimiter: the window resets once windowSeconds elapses", () => {
   assert.equal(limiter.check("1.2.3.4").allowed, false);
 
   // Just under the window boundary: still blocked.
-  advanceMs(LOGIN_STRICT.windowSeconds * 1000 - 1);
+  advanceMs(60_000 - 1);
   assert.equal(limiter.check("1.2.3.4").allowed, false);
 
   // At/after the window boundary: a fresh window starts.
@@ -102,12 +107,28 @@ test("createRateLimiter: a profile's burst allowance extends the effective ceili
   assert.equal(limiter.check("k").allowed, false, "4th request exceeds max+burst");
 });
 
-test("resolveClientIp: with no trusted-proxy list configured, always uses the socket peer address", () => {
+test("resolveClientIp: without Express req.ip or a trusted-proxy list, uses the socket peer address", () => {
   const req = {
     socket: { remoteAddress: "203.0.113.9" },
     headers: { "x-forwarded-for": "9.9.9.9" },
   };
   assert.equal(resolveClientIp(req), "203.0.113.9");
+});
+
+test("resolveClientIp: uses Express's resolved client IP when no explicit proxy matches", () => {
+  assert.equal(resolveClientIp({
+    ip: "203.0.113.9", socket: { remoteAddress: "10.0.0.1" }, headers: { "x-forwarded-for": "6.6.6.6" },
+  }), "203.0.113.9");
+});
+
+test("resolveClientIp: handles array forwarded headers, exact mapped-IPv6 peers, and missing addresses", () => {
+  const req = {
+    socket: { remoteAddress: "::ffff:10.0.0.1" },
+    headers: { "x-forwarded-for": [" 9.9.9.9, 10.0.0.1", "8.8.8.8"] },
+  };
+  assert.equal(resolveClientIp(req, ["::ffff:10.0.0.1"]), "9.9.9.9");
+  assert.equal(resolveClientIp(req, ["10.0.0.1"]), "::ffff:10.0.0.1", "explicit trust is an exact address match");
+  assert.equal(resolveClientIp({ socket: {}, headers: {} }), "unknown");
 });
 
 test("resolveClientIp: an untrusted peer's X-Forwarded-For header is never honored", () => {
@@ -143,10 +164,11 @@ test("resolveClientIp: a trusted peer with no forwarded-for header falls back to
  */
 
 test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds", () => {
+  assert.deepEqual(MAGIC_LINK_PER_EMAIL, { max: 5, windowSeconds: 3600, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock });
 
-  for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
+  for (let i = 0; i < 5; i++) {
     assert.equal(limiter.check("jane@example.com").allowed, true, `request ${i + 1} should pass`);
   }
 
@@ -166,7 +188,7 @@ test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
   }
   assert.equal(limiter.check("jane@example.com").allowed, false);
 
-  advanceMs(MAGIC_LINK_PER_EMAIL.windowSeconds * 1000 - 1);
+  advanceMs(3_600_000 - 1);
   assert.equal(limiter.check("jane@example.com").allowed, false);
 
   advanceMs(1);
@@ -174,15 +196,20 @@ test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
 });
 
 test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied", () => {
-  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  assert.deepEqual(MAGIC_LINK_PER_IP, { max: 20, windowSeconds: 3600, burst: 0 });
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock });
 
-  for (let i = 0; i < MAGIC_LINK_PER_IP.max; i++) {
+  for (let i = 0; i < 20; i++) {
     assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
   }
 
   const twentyFirst = limiter.check("203.0.113.9");
   assert.equal(twentyFirst.allowed, false);
+  advanceMs(3_600_000 - 1);
+  assert.equal(limiter.check("203.0.113.9").allowed, false);
+  advanceMs(1);
+  assert.equal(limiter.check("203.0.113.9").allowed, true);
 });
 
 test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied", () => {
@@ -208,10 +235,11 @@ test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one
  */
 
 test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds", () => {
+  assert.deepEqual(SITE_ASSISTANT_PER_IP, { max: 10, windowSeconds: 300, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
 
-  for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
+  for (let i = 0; i < 10; i++) {
     assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
   }
 
@@ -232,7 +260,7 @@ test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets corre
   }
   assert.equal(limiter.check("203.0.113.9").allowed, false);
 
-  advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000 - 1);
+  advanceMs(300_000 - 1);
   assert.equal(limiter.check("203.0.113.9").allowed, false);
 
   advanceMs(1);
@@ -267,16 +295,21 @@ test("SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapse
   }
   assert.equal(limiter.size(), 50, "every distinct key seen so far is tracked");
 
+  advanceMs(150_000);
+  for (let i = 0; i < 10; i++) assert.equal(limiter.check("active").allowed, true);
+  assert.equal(limiter.check("active").allowed, false);
+  assert.equal(limiter.size(), 51);
+
   // Advance past the window boundary. Eviction is sweep-on-write (amortized, not a background
   // timer — see `createRateLimiter`'s doc), so nothing is swept until the next `check()` call.
-  advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000);
-  assert.equal(limiter.size(), 50, "no sweep has run yet — no check() call has happened since the advance");
+  advanceMs(150_000);
+  assert.equal(limiter.size(), 51, "no sweep has run yet — no check() call has happened since the advance");
 
   limiter.check("203.0.113.new");
 
-  // All 50 stale entries are gone; only the key that triggered (and itself survives) the sweep
-  // remains — proof eviction shrank the map, not just that later requests still resolve correctly.
-  assert.equal(limiter.size(), 1, "the sweep evicted every entry whose window had fully expired");
+  // The 50 stale entries are gone; the newer exhausted key and the sweep trigger survive.
+  assert.equal(limiter.size(), 2, "the sweep evicted only entries whose windows had fully expired");
+  assert.deepEqual(limiter.check("active"), { allowed: false, retryAfterSeconds: 150 });
 });
 
 test("SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired", () => {

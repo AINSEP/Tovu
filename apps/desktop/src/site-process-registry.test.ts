@@ -23,6 +23,10 @@ function tempRegistryDir(): string {
   return registryDirPath(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-registry-")));
 }
 
+// The product deliberately proves orphanhood by reparenting to launchd (ppid 1).
+// A Linux subreaper does not satisfy that contract; do not wait for it to become launchd.
+const launchdOnly = { skip: process.platform !== 'darwin' ? 'Orphan reconciliation requires launchd (ppid 1).' : false };
+
 /** An instance id whose owner pid is really gone — a crashed app instance's file name. */
 async function deadInstanceId(): Promise<string> {
   const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" });
@@ -38,7 +42,16 @@ function spawnFakeServeChild(siteDir: string, port: number, { ignoreSigterm = fa
 }
 
 async function waitForExit(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
   await new Promise((resolve) => child.once("exit", resolve));
+}
+
+async function waitForFile(filePath: string): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (!fs.existsSync(filePath) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.ok(fs.existsSync(filePath), `child did not acknowledge ${path.basename(filePath)}`);
 }
 
 /**
@@ -191,12 +204,43 @@ test("terminateOrphan sends SIGTERM and confirms the child actually exited, need
 test("terminateOrphan escalates to SIGKILL when the child ignores SIGTERM, but only after re-confirming identity", async () => {
   const siteDir = "/fake/site/marker-4";
   const port = 4004;
-  const child = spawnFakeServeChild(siteDir, port, { ignoreSigterm: true });
+  const ready = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-sigkill-')), 'ready');
+  const script = `process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(${JSON.stringify(ready)}, 'ready'); setTimeout(() => {}, 60000);`;
+  const child = spawn(process.execPath, ['-e', script, siteDir, '--port', String(port)], { stdio: 'ignore' });
   try {
+    await waitForFile(ready);
     await terminateOrphan({ siteDir, port, pid: child.pid! }, 400);
     assert.equal(isProcessAlive(child.pid!), false);
+    await waitForExit(child);
+    assert.equal(child.signalCode, 'SIGKILL', 'SIGTERM exit cannot stand in for escalation');
   } finally {
     if (isProcessAlive(child.pid!)) child.kill("SIGKILL");
+    await waitForExit(child);
+    fs.rmSync(path.dirname(ready), { recursive: true, force: true });
+  }
+});
+
+test('terminateOrphan refuses SIGKILL when identity changes after SIGTERM', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-identity-change-'));
+  const ready = path.join(dir, 'ready');
+  const changed = path.join(dir, 'changed');
+  const siteDir = '/fake/site/identity-change';
+  const port = 4044;
+  const script = `const fs = require('node:fs'); process.on('SIGTERM', () => { process.title = 'unrelated-worker'; fs.writeFileSync(${JSON.stringify(changed)}, 'changed'); }); fs.writeFileSync(${JSON.stringify(ready)}, 'ready'); setTimeout(() => {}, 60000);`;
+  const child = spawn(process.execPath, ['-e', script, siteDir, '--port', String(port)], { stdio: 'ignore' });
+  const row = { siteDir, port, pid: child.pid! };
+  try {
+    await waitForFile(ready);
+    assert.equal(isServeProcessForSite(readProcessCommand(row.pid) ?? '', row), true, 'identity must initially match');
+    const terminating = terminateOrphan(row, 400);
+    await waitForFile(changed);
+    assert.equal(isServeProcessForSite(readProcessCommand(row.pid) ?? '', row), false, 'SIGTERM changed the observable identity');
+    await terminating;
+    assert.equal(isProcessAlive(row.pid), true, 'unverifiable identity must prevent escalation');
+  } finally {
+    if (isProcessAlive(row.pid)) child.kill('SIGKILL');
+    await waitForExit(child);
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -206,7 +250,7 @@ test("terminateOrphan on an already-gone pid is a safe no-op", async () => {
   await assert.doesNotReject(terminateOrphan({ siteDir: "/gone", port: 1, pid: child.pid! }, 200));
 });
 
-test("reconcileOrphans terminates a live, identity-confirmed orphan and deletes its dead owner's file", async () => {
+test("reconcileOrphans terminates a live, identity-confirmed orphan and deletes its dead owner's file", launchdOnly, async () => {
   const registryDir = tempRegistryDir();
   const siteDir = "/fake/site/marker-5";
   const port = 4005;
@@ -245,7 +289,7 @@ test("readProcessParentPid short-circuits to null on win32 without ever invoking
   assert.equal(readProcessParentPid(process.pid, "win32"), null);
 });
 
-test("isOrphanedProcess is true for a process whose parent has exited", async () => {
+test("isOrphanedProcess is true for a process whose parent has exited", launchdOnly, async () => {
   const pid = await spawnOrphanedServeChild("/fake/site/marker-9", 4009);
   try {
     assert.equal(readProcessParentPid(pid), 1);
@@ -259,22 +303,22 @@ test("isOrphanedProcess is true for a process whose parent has exited", async ()
   }
 });
 
-test("reconcileOrphans leaves an unrelated process alone when a recycled pid no longer matches the row's identity", async () => {
+test("reconcileOrphans leaves an unrelated process alone when a recycled pid no longer matches the row's identity", launchdOnly, async () => {
   const registryDir = tempRegistryDir();
   // A real, alive process whose argv has nothing to do with the persisted row — standing in for the
   // OS having reused the recorded pid for something else entirely since the row was written.
-  const unrelated = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
+  const unrelated = await spawnOrphanedServeChild('/unrelated/site', 4999);
   try {
-    recordSiteOpened(registryDir, { siteDir: "/fake/site/marker-6", port: 4006, workspaceId: "w6", pid: unrelated.pid!, updatedAt: Date.now() }, { instanceId: await deadInstanceId() });
+    assert.equal(isOrphanedProcess(unrelated), true, 'identity mismatch must be the only protection');
+    recordSiteOpened(registryDir, { siteDir: "/fake/site/marker-6", port: 4006, workspaceId: "w6", pid: unrelated, updatedAt: Date.now() }, { instanceId: await deadInstanceId() });
 
     const reconciled = await reconcileOrphans(registryDir);
 
     assert.deepEqual(reconciled, []);
-    assert.equal(isProcessAlive(unrelated.pid!), true, "an unrelated live process must never be killed on a stale row's authority");
+    assert.equal(isProcessAlive(unrelated), true, "an unrelated live process must never be killed on a stale row's authority");
     assert.deepEqual(readRegistry(registryDir).sites, [], "the stale, unverifiable row is still dropped so it is never re-processed");
   } finally {
-    unrelated.kill("SIGKILL");
-    await waitForExit(unrelated);
+    if (isProcessAlive(unrelated)) process.kill(unrelated, 'SIGKILL');
   }
 });
 
@@ -551,23 +595,36 @@ test("a second instance's row written in the middle of this instance's read-modi
   assert.deepEqual(readRegistryFile(instanceFilePath(registryDir, instanceB)), { state: "ok", sites: [ROW_B] });
 });
 
-test("boot-time reconciliation does not drop a row another instance records while it runs", async () => {
+test("boot-time reconciliation does not drop a row another instance records while it runs", launchdOnly, async () => {
   const registryDir = tempRegistryDir();
   const siteDir = "/fake/site/marker-10";
   const port = 4010;
-  // Takes ~400 ms to die after SIGTERM, so `terminateOrphan`'s poll holds reconciliation open.
-  const pid = await spawnOrphanedServeChild(siteDir, port, { script: "process.on('SIGTERM', () => setTimeout(() => process.exit(0), 400)); setTimeout(() => {}, 60000);" });
-  const crashed = await deadInstanceId();
-  recordSiteOpened(registryDir, { siteDir, port, workspaceId: "w10", pid, updatedAt: 1 }, { instanceId: crashed });
+  const barrierDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-reconcile-barrier-'));
+  const ready = path.join(barrierDir, 'ready');
+  const signalled = path.join(barrierDir, 'signalled');
+  const release = path.join(barrierDir, 'release');
+  const script = `const fs = require('node:fs'); process.on('SIGTERM', () => { fs.writeFileSync(${JSON.stringify(signalled)}, 'signalled'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { clearInterval(timer); process.exit(0); } }, 10); }); fs.writeFileSync(${JSON.stringify(ready)}, 'ready'); setTimeout(() => {}, 60000);`;
+  const pid = await spawnOrphanedServeChild(siteDir, port, { script });
+  try {
+    await waitForFile(ready);
+    const crashed = await deadInstanceId();
+    recordSiteOpened(registryDir, { siteDir, port, workspaceId: "w10", pid, updatedAt: 1 }, { instanceId: crashed });
 
-  const reconciling = reconcileOrphans(registryDir, { instanceId: `${process.pid}-0000feed` });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  recordSiteOpened(registryDir, ROW_C, { instanceId: `${process.pid}-cccc0003`, isLiveRow: () => false });
-  const reconciled = await reconciling;
+    const reconciling = reconcileOrphans(registryDir, { instanceId: `${process.pid}-0000feed` });
+    await waitForFile(signalled);
+    assert.equal(isProcessAlive(pid), true, 'the orphan must still be holding reconciliation open');
+    recordSiteOpened(registryDir, ROW_C, { instanceId: `${process.pid}-cccc0003`, isLiveRow: () => false });
+    assert.deepEqual(readRegistryFile(instanceFilePath(registryDir, `${process.pid}-cccc0003`)), { state: 'ok', sites: [ROW_C] });
+    fs.writeFileSync(release, 'release');
+    const reconciled = await reconciling;
 
-  assert.deepEqual(reconciled.map((row) => row.pid), [pid], "the orphan was really reconciled while the other write landed");
-  assert.deepEqual(readRegistry(registryDir), { sites: [ROW_C], unreadable: [] });
-  assert.equal(fs.existsSync(instanceFilePath(registryDir, crashed)), false, "the crashed instance's file is gone");
+    assert.deepEqual(reconciled.map((row) => row.pid), [pid], "the orphan was really reconciled while the other write landed");
+    assert.deepEqual(readRegistry(registryDir), { sites: [ROW_C], unreadable: [] });
+    assert.equal(fs.existsSync(instanceFilePath(registryDir, crashed)), false, "the crashed instance's file is gone");
+  } finally {
+    if (isProcessAlive(pid)) process.kill(pid, 'SIGKILL');
+    fs.rmSync(barrierDir, { recursive: true, force: true });
+  }
 });
 
 test("reconcileOrphans never touches this instance's own file", async () => {
@@ -612,7 +669,7 @@ test("reconcileOrphans moves a dead owner's unreadable file aside, and leaves a 
   ].sort());
 });
 
-test("reconcileOrphans reaps an orphan recorded in the LEGACY shared file, and never rewrites that file", async () => {
+test("reconcileOrphans reaps an orphan recorded in the LEGACY shared file, and never rewrites that file", launchdOnly, async () => {
   const registryDir = tempRegistryDir();
   const siteDir = "/fake/site/marker-11";
   const port = 4011;
@@ -643,12 +700,21 @@ test("reconcileOrphans moves an unreadable LEGACY file aside instead of reading 
   assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [quarantineMessage(legacyPath, aside[0]!)]);
 });
 
-test("reconcileOrphans reports a registry directory it cannot list, and still reconciles the legacy file", async (t) => {
+test("reconcileOrphans reports a registry directory it cannot list, and still reconciles the legacy file", launchdOnly, async (t) => {
   const errors = t.mock.method(console, "error", () => {});
   const registryDir = tempRegistryDir();
   fs.writeFileSync(registryDir, "a file where the directory should be");
-  writeRegistry(legacyRegistryFilePath(registryDir), { sites: [ROW_A] });
+  const siteDir = '/fake/site/unlistable-legacy';
+  const port = 4052;
+  const pid = await spawnOrphanedServeChild(siteDir, port);
+  const row = { siteDir, port, workspaceId: 'legacy', pid, updatedAt: 1 };
+  writeRegistry(legacyRegistryFilePath(registryDir), { sites: [row] });
 
-  assert.deepEqual(await reconcileOrphans(registryDir), []);
-  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [`tovu desktop: could not list ${registryDir}; orphans recorded there are not reconciled this boot.`]);
+  try {
+    assert.deepEqual(await reconcileOrphans(registryDir), [row]);
+    assert.equal(isProcessAlive(pid), false, 'directory-list failure must not bypass legacy orphan termination');
+    assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [`tovu desktop: could not list ${registryDir}; orphans recorded there are not reconciled this boot.`]);
+  } finally {
+    if (isProcessAlive(pid)) process.kill(pid, 'SIGKILL');
+  }
 });

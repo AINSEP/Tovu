@@ -139,6 +139,18 @@ async function raiseForm(createTool: ToolRegistration, input: Record<string, unk
   return { pending, ui, exchangeId, emitted };
 }
 
+/** Read the control associated with the visible label, as a human filling the form would. */
+function formControl(ui: UIResource, label: string) {
+  const labelMatch = ui.resource.text.match(new RegExp(`<label[^>]*for="([^"]+)"[^>]*>${label}<`));
+  assert.ok(labelMatch, `missing form label: ${label}`);
+  const control = [...ui.resource.text.matchAll(/<(?:input|select)\b[^>]*>/g)]
+    .find(([html]) => html.includes(`id="${labelMatch[1]}"`))?.[0];
+  assert.ok(control, `missing control for ${label}`);
+  const name = control.match(/\bname="([^"]+)"/)?.[1];
+  assert.ok(name, `${label} must have a submission name`);
+  return { name, html: control };
+}
+
 async function seedGithub(writeDeps: CustomCredentialWriteDeps, connection: { token: string; username?: string } = { token: "old-secret-token" }) {
   return createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
@@ -243,12 +255,19 @@ test("submit: a new credential is created, sealed exactly once, the token decryp
   const surfaceExchanges = createSurfaceExchangeStore();
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId, emitted } = await raiseForm(createTool);
+  const { pending, ui, exchangeId, emitted } = await raiseForm(createTool);
+  assert.match(formControl(ui, "Token").html, /\btype="password"/, "the token control must be masked");
+  const params = Object.fromEntries([
+    [formControl(ui, "Label").name, "github"],
+    [formControl(ui, "Base URL").name, "https://api.github.com"],
+    [formControl(ui, "Category").name, "source-control"],
+    [formControl(ui, "Token").name, "brand-new-secret-token"],
+  ]);
   const delivered = surfaceExchanges.deliver({
     exchangeId,
     toolId: TOOL_ID,
     principalId: PRINCIPAL_ID,
-    params: { label: "github", baseUrl: "https://api.github.com", category: "source-control", token: "brand-new-secret-token" },
+    params,
   });
   assert.deepEqual(delivered, { ok: true });
 
@@ -436,6 +455,13 @@ test("optional label/baseUrl/category prefill hints on the model-issued call pre
   const { ui, pending, exchangeId } = await raiseForm(createTool, { label: "github", baseUrl: "https://api.github.com", category: "source-control" });
   assert.match(ui.resource.text, /github/);
   assert.match(ui.resource.text, /api\.github\.com/);
+  assert.match(formControl(ui, "Label").html, /\bvalue="github"/);
+  assert.match(formControl(ui, "Base URL").html, /\bvalue="https:\/\/api\.github\.com"/);
+  const categoryName = formControl(ui, "Category").name;
+  const categorySelect = [...ui.resource.text.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)]
+    .find(([html]) => html.includes(`name="${categoryName}"`))?.[0];
+  assert.ok(categorySelect);
+  assert.match(categorySelect, /<option value="source-control" selected>source-control<\/option>/);
 
   surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
   await pending;

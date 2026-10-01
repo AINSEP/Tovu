@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter } from "@jini-ai/core";
+import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations } from "../render-ui-tool.js";
@@ -79,11 +79,46 @@ function surfaceIdFromEmitted(emitted: unknown[]): string {
 test("returns rendered: true when nothing reports a refusal", async () => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const handler = buildHandler(surfaceExchanges);
-  const emitted: unknown[] = [];
+  const emitted: SurfaceEmission[] = [];
+  const components = [{ id: "root", component: "Text", text: "requested text" }];
 
-  const result = await call(handler, { emitSurface: async (surface) => void emitted.push(surface) });
+  const result = await call(handler, { input: { components }, emitSurface: async (surface) => void emitted.push(surface) });
 
   assert.deepEqual(result, { rendered: true, note: "The surface is now visible in the chat. Briefly describe what it shows." });
+  const surfaceId = surfaceIdFromEmitted(emitted);
+  assert.equal(emitted.length, 2);
+  assert.equal(emitted[0]!.channel, "a2ui");
+  assert.equal(emitted[1]!.channel, "a2ui");
+  const created = emitted[0]!.payload as { message: { version: string; createSurface: { surfaceId: string; catalogId: string; dataModel: unknown } } };
+  assert.equal(created.message.version, "v1.0");
+  assert.equal(created.message.createSurface.surfaceId, surfaceId);
+  assert.ok(created.message.createSurface.catalogId);
+  assert.deepEqual(created.message.createSurface.dataModel, {});
+  assert.deepEqual(emitted[1]!.payload, { message: { version: "v1.0", updateComponents: { surfaceId, components } } });
+});
+
+test("a button action during the grace period is not a renderer refusal", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const handler = buildHandler(surfaceExchanges, 1000);
+  const emitted: unknown[] = [];
+  const pending = call(handler, { input: { components: [
+    { id: "root", component: "Button", child: "label", action: { event: { name: "clicked", context: {} } } },
+    { id: "label", component: "Text", text: "Continue" },
+  ] }, emitSurface: async (surface) => {
+    emitted.push(surface);
+    if (emitted.length === 2) {
+      const surfaceId = surfaceIdFromEmitted(emitted);
+      assert.deepEqual(surfaceExchanges.deliver({
+        exchangeId: surfaceId,
+        principalId: "principal-1",
+        channel: "a2ui",
+        params: { message: { version: "v1.0", action: { surfaceId, name: "clicked", sourceComponentId: "root", timestamp: "2026-09-30T00:00:00.000Z", context: {} } } },
+      }), { ok: true });
+    }
+  } });
+
+  assert.deepEqual(await pending, { rendered: true, note: "The surface is now visible in the chat. Briefly describe what it shows." });
+  assert.equal(surfaceExchanges.size(), 0);
 });
 
 test("returns rendered: false with the real reason when the browser relays a catalog-validation refusal — not a silent false success", async () => {

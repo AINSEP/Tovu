@@ -163,8 +163,10 @@ test("theme_trash_file refuses a path that is already inside .trash/", async () 
   await assert.rejects(() => trashFile(deps, { themeId: "plain", path: first.trashedPath }), /already inside the trash/);
 });
 
-test("trashing two different files that once shared a path never collides — each trash op gets its own timestamp folder", async () => {
+test("trashing two different files that once shared a path never collides — each trash op gets its own timestamp folder", async (t) => {
   const { deps, themesDir } = fakeRouteDeps();
+  t.mock.method(Date, "now", () => 1_790_000_000_000);
+  const firstBytes = fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8");
   const firstTrash = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
 
   // A NEW styles.css now occupies the original path — trashing IT must not collide with the first.
@@ -174,6 +176,8 @@ test("trashing two different files that once shared a path never collides — ea
   assert.notEqual(firstTrash.trashedPath, secondTrash.trashedPath);
   assert.equal(existsInTheme(themesDir, firstTrash.trashedPath), true, "the first trashed copy must survive the second trash");
   assert.equal(existsInTheme(themesDir, secondTrash.trashedPath), true);
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", firstTrash.trashedPath), "utf8"), firstBytes);
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", secondTrash.trashedPath), "utf8"), "body{color:blue}");
 });
 
 test("theme_trash_file refuses when authorize() denies, and never touches disk — checked before any dialog is raised", async () => {
@@ -289,6 +293,7 @@ test("theme_restore_trashed_file refuses a trashedPath that does not exist in th
 test("theme_restore_trashed_file refuses when the default (original) destination is already occupied", async () => {
   const { deps, themesDir } = fakeRouteDeps();
   const trashed = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
+  const trashedBytes = fs.readFileSync(path.join(themesDir, "plain", trashed.trashedPath));
   // A new file now sits at the original path.
   fs.writeFileSync(path.join(themesDir, "plain", "styles.css"), "body{color:green}", "utf8");
 
@@ -296,11 +301,15 @@ test("theme_restore_trashed_file refuses when the default (original) destination
     () => wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath })),
     /already exists in this theme/
   );
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8"), "body{color:green}");
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", trashed.trashedPath)), trashedBytes);
 });
 
 test("theme_restore_trashed_file refuses when an explicit restoreTo is already occupied", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, themesDir } = fakeRouteDeps();
   const trashed = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
+  const trashedBytes = fs.readFileSync(path.join(themesDir, "plain", trashed.trashedPath));
+  const destinationBytes = fs.readFileSync(path.join(themesDir, "plain", "tokens.json"));
   await assert.rejects(
     () =>
       wired(deps, "theme_restore_trashed_file").handler(
@@ -308,6 +317,8 @@ test("theme_restore_trashed_file refuses when an explicit restoreTo is already o
       ),
     /already exists in this theme/
   );
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", "tokens.json")), destinationBytes);
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", trashed.trashedPath)), trashedBytes);
 });
 
 test("theme_restore_trashed_file refuses when authorize() denies, and never touches disk", async () => {
@@ -353,12 +364,18 @@ test("theme_rename_file refuses a path already inside .trash/ — restore it fir
 });
 
 test("a trash-then-restore round trip refreshes the live routeDeps.themes entry throughout", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = deps.themes.find((t) => t.manifest.id === "plain");
+  assert.equal(before?.tokens["--ink"], "#000");
+  fs.writeFileSync(path.join(themesDir, "plain", "tokens.json"), '{"--ink":"#123456"}', "utf8");
   const trashed = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
   assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.status, "valid");
+  assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#123456", "trash must reload the live theme data");
 
+  fs.writeFileSync(path.join(themesDir, "plain", "tokens.json"), '{"--ink":"#abcdef"}', "utf8");
   await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath }));
   assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.status, "valid");
+  assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#abcdef", "restore must reload the live theme data");
 });
 
 // ---------------------------------------------------------------------------

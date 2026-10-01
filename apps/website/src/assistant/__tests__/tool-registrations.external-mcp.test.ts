@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpValidationError, openExternalMcpOAuthPayload } from "../external-mcp-store.js";
+import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { externalMcpAgentToolCatalog, type AgentToolDefinition as ExternalMcpAgentToolDefinition, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
@@ -217,15 +220,44 @@ for (const toolId of Object.keys(SIMPLE_TOOL_INPUTS)) {
   });
 
   test(`${toolId}: a denied principal is rejected`, async () => {
-    const { deps } = fakeDeps({ allow: false });
-    await assert.rejects(() => call(tool(externalMcpRegistrations(deps), toolId), { input: SIMPLE_TOOL_INPUTS[toolId] }));
+    const oauthCalls: string[] = [];
+    const oauth: Pick<ExternalMcpOAuthService, "beginConnect" | "pollDeviceAuthorization"> = {
+      beginConnect: async () => { oauthCalls.push("beginConnect"); return { kind: "redirect_required", authorizationUrl: "https://example.test/authorize", expiresAt: NOW }; },
+      pollDeviceAuthorization: async () => { oauthCalls.push("pollDeviceAuthorization"); return { status: "connected" }; },
+    };
+    const { deps } = fakeDeps({ allow: false, externalMcpOAuth: oauth as ExternalMcpOAuthService });
+    await assert.rejects(() => call(tool(externalMcpRegistrations(deps), toolId), { input: SIMPLE_TOOL_INPUTS[toolId] }), (error: unknown) => {
+      assert.ok(error instanceof ForbiddenError);
+      assert.match(error.message, /admin\.integrations\.manage/);
+      return true;
+    });
+    assert.deepEqual(oauthCalls, [], "a denied principal must never reach the wired OAuth service");
   });
 }
 
-test("external_mcp_save: authorize() runs BEFORE any form is raised — a denied principal never opens an exchange", async () => {
-  const { deps } = fakeDeps({ allow: false });
-  const saveTool = tool(externalMcpRegistrations(deps), "external_mcp_save");
-  await assert.rejects(() => call(saveTool, { input: { id: "higgsfield", transport: "streamable_http" } }));
+test("external_mcp_save: authorize() runs BEFORE any form is raised — a denied principal never opens an exchange", async (t) => {
+  const { deps, repo } = fakeDeps({ allow: false });
+  const exchanges = createSurfaceExchangeStore();
+  const emitted: unknown[] = [];
+  const saveTool = tool(new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r])), "external_mcp_save");
+  const opened = t.mock.method(exchanges, "open");
+  await assert.rejects(() => call(saveTool, {
+    input: { id: "higgsfield", transport: "stdio", command: "node" },
+    emitSurface: async (surface) => {
+      emitted.push(surface);
+      // Let an incorrectly authorized form complete so this regression fails promptly.
+      exchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), toolId: "external_mcp_save", principalId: PRINCIPAL_ID,
+        params: { id: "higgsfield", transport: "stdio", command: "node" } });
+    },
+  }), (error: unknown) => {
+    assert.ok(error instanceof ForbiddenError);
+    assert.match(error.message, /admin\.integrations\.manage/);
+    return true;
+  });
+  assert.deepEqual(emitted, []);
+  assert.equal(opened.mock.callCount(), 0, "no exchange may be opened even transiently");
+  assert.equal(exchanges.size(), 0);
+  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE_ID), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -233,38 +265,39 @@ test("external_mcp_save: authorize() runs BEFORE any form is raised — a denied
 // ---------------------------------------------------------------------------
 
 test("external_mcp_list: reflects what is actually stored, never a credential value", async () => {
-  const { deps, repo } = fakeDeps();
-  await repo.upsert({
+  const { deps, repo, sealer } = fakeDeps();
+  const storeDeps = { repo, sealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock };
+  await saveExternalMcpServer(storeDeps, {
     workspaceId: WORKSPACE_ID,
     serverId: "higgsfield",
     label: "Higgsfield",
-    transport: "streamable_http",
-    authMode: "none",
+    transport: "stdio",
     enabled: true,
-    command: null,
-    url: "https://higgsfield.example/mcp",
-    args: null,
-    allowedToolNames: JSON.stringify(["generate_video"]),
-    writeAllowedToolNames: null,
-    writeGrantsUpdatedByPrincipalId: null,
-    writeGrantsUpdatedAt: null,
-    envNames: null,
-    sealedEnv: null,
-    oauthProviderId: null,
-    oauthGrant: null,
-    oauthClientId: null,
-    oauthEndpointsJson: null,
-    oauthScopesJson: null,
-    oauthStatus: null,
-    oauthExpiresAt: null,
-    oauthTokenEnvName: null,
-    oauthRefreshLeaseUntil: null,
-    sealedOAuth: null,
-    aadVersion: 1,
-    oauthAadVersion: 1,
-    createdAt: NOW,
-    updatedAt: NOW,
+    command: "node",
+    args: "",
+    allowedToolNames: "generate_video",
+    writeAllowedToolNames: "",
+    env: "API_KEY=env-secret-not-for-the-model",
+    principalId: PRINCIPAL_ID,
   });
+  await saveExternalMcpServer(storeDeps, {
+    workspaceId: WORKSPACE_ID,
+    serverId: "oauth-server",
+    transport: "streamable_http",
+    authMode: "oauth",
+    enabled: true,
+    url: "https://oauth.example/mcp",
+    command: "",
+    args: "",
+    allowedToolNames: "",
+    writeAllowedToolNames: "",
+    oauth: { grant: "authorization_code", clientId: "public-client-id", clientSecret: "oauth-secret-not-for-the-model" },
+    principalId: PRINCIPAL_ID,
+  });
+  const envRecord = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "higgsfield" });
+  const oauthRecord = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "oauth-server" });
+  assert.ok(envRecord?.sealedEnv);
+  assert.ok(oauthRecord?.sealedOAuth);
 
   const out = (await call(tool(externalMcpRegistrations(deps), "external_mcp_list"), { input: {} })) as {
     servers: Array<{ serverId: string; allowedToolNames: string[] }>;
@@ -273,6 +306,11 @@ test("external_mcp_list: reflects what is actually stored, never a credential va
   assert.ok(found);
   assert.deepEqual(found.allowedToolNames, ["generate_video"]);
   assert.equal(JSON.stringify(out).includes("sealedEnv"), false, "never leaks the stored blob shape");
+  const serialized = JSON.stringify(out);
+  assert.equal(serialized.includes("sealedOAuth"), false);
+  for (const secret of ["env-secret-not-for-the-model", "oauth-secret-not-for-the-model", envRecord.sealedEnv.ciphertext, oauthRecord.sealedOAuth.ciphertext]) {
+    assert.equal(serialized.includes(secret), false, "neither plaintext nor ciphertext may be returned to the model");
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -500,7 +538,7 @@ test("external_mcp_test_connection: a disabled server reports ok:false without d
   assert.deepEqual(out, { ok: false, reason: "this server is disabled" });
 });
 
-test("external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects", async () => {
+test("external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects", async (t) => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
     workspaceId: WORKSPACE_ID,
@@ -534,8 +572,24 @@ test("external_mcp_test_connection: an enabled, resolvable server reports ok:tru
     updatedAt: NOW,
   });
 
-  const out = await call(tool(externalMcpRegistrations(deps), "external_mcp_test_connection"), { input: { id: "ready-one" } });
-  assert.deepEqual(out, { ok: true });
+  await saveExternalMcpServer({ repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+    workspaceId: WORKSPACE_ID, serverId: "ready-stdio", transport: "stdio", command: "node", args: "", allowedToolNames: "", writeAllowedToolNames: "", enabled: true, principalId: PRINCIPAL_ID,
+  });
+  const fetched = t.mock.method(globalThis, "fetch", async () => { throw new Error("a configuration probe must not connect"); });
+  const spawned = t.mock.method(childProcess, "spawn", () => { throw new Error("a configuration probe must not launch a process"); });
+  syncBuiltinESMExports();
+  try {
+    const probe = tool(externalMcpRegistrations(deps), "external_mcp_test_connection");
+    const out = await call(probe, { input: { id: "ready-one" } });
+    assert.deepEqual(out, { ok: true });
+    assert.deepEqual(await call(probe, { input: { id: "ready-stdio" } }), { ok: true });
+    assert.equal(fetched.mock.callCount(), 0);
+    assert.equal(spawned.mock.callCount(), 0);
+  } finally {
+    spawned.mock.restore();
+    fetched.mock.restore();
+    syncBuiltinESMExports();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -673,7 +727,7 @@ test("external_mcp_oauth_poll_device: delegates to the wired OAuth service", asy
 // deleted the stored env vars / client secret.
 
 test("external_mcp_save: re-saving with a blank env field keeps the previously stored env, not wipes it", async () => {
-  const { deps, repo } = fakeDeps();
+  const { deps, repo, sealer } = fakeDeps();
   const exchanges = createSurfaceExchangeStore();
   const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
@@ -699,6 +753,12 @@ test("external_mcp_save: re-saving with a blank env field keeps the previously s
   const record = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "envkeep" });
   assert.equal(record?.envNames, '["API_KEY"]', "a blank env resubmission must not clear the stored env names");
   assert.notEqual(record?.sealedEnv, null, "the sealed env blob must survive a blank resubmission");
+  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE_ID);
+  assert.deepEqual(resolved.failures, []);
+  const config = resolved.configs.find((candidate) => candidate.serverId === "envkeep");
+  assert.ok(config);
+  assert.equal(config.target.kind, "stdio");
+  if (config.target.kind === "stdio") assert.deepEqual(config.target.env, { API_KEY: "abc" });
 });
 
 test("external_mcp_save: re-saving with a blank OAuth client secret field keeps the previously stored secret, not wipes it", async () => {

@@ -609,12 +609,17 @@ describe("useAccessTokens: createToken", () => {
 
   it("creates a new PUBLISH credential and merges it into that provider's rows (mergeCredential's publish branch)", async () => {
     const port = fakePort({ publish: { create: () => Promise.resolve(publishCredential({ id: "new-1", providerId: "netlify", label: "New" })) } });
+    const create = vi.spyOn(port.publish, "create");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const ref = { kind: "publish" as const, providerId: "netlify" };
 
-    act(() => result.current.setAddField(ref, { name: "New", token: "tok" }));
+    act(() => result.current.setAddField(ref, { name: " New ", token: "tok" }));
     await act(() => result.current.createToken(ref));
+
+    expect(create).toHaveBeenCalledExactlyOnceWith({
+      label: "New", connection: { providerId: "netlify", token: "tok" }, isDefault: undefined,
+    });
 
     const group = findGroup(result.current.groups, "publish", "netlify")!;
     expect(group.rows.map((r) => r.row.id)).toContain("new-1");
@@ -623,14 +628,39 @@ describe("useAccessTokens: createToken", () => {
 
   it("creates a new SOURCE-CONTROL credential and merges it into that provider's rows (mergeCredential's source-control branch)", async () => {
     const port = fakePort({ sourceControl: { create: () => Promise.resolve(sourceControlCredential({ id: "sc-new-1", providerId: "gitlab", label: "New" })) } });
+    const create = vi.spyOn(port.sourceControl, "create");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const ref = { kind: "source-control" as const, providerId: "gitlab" };
 
-    act(() => result.current.setAddField(ref, { name: "New", token: "tok" }));
+    act(() => result.current.setAddField(ref, { name: " New ", token: "tok" }));
     await act(() => result.current.createToken(ref));
 
+    expect(create).toHaveBeenCalledExactlyOnceWith({
+      label: "New", connection: { providerId: "gitlab", token: "tok" }, isDefault: undefined,
+    });
+
     expect(findGroup(result.current.groups, "source-control", "gitlab")!.rows.map((r) => r.row.id)).toContain("sc-new-1");
+    expect(findGroup(result.current.groups, "source-control", "gitlab")?.addForm).toMatchObject({ name: "", token: "", saving: false, error: null });
+  });
+
+  it.each([
+    { kind: "publish" as const, providerId: "cloudflare-pages", values: { accountId: " acct-123 " }, connection: { providerId: "cloudflare-pages", token: "tok", accountId: "acct-123" } },
+    { kind: "source-control" as const, providerId: "bitbucket", values: { username: " bb-user " }, connection: { providerId: "bitbucket", token: "tok", username: "bb-user" } },
+  ])("creates a $providerId credential with its required descriptor fields", async ({ kind, providerId, values, connection }) => {
+    const saved = kind === "publish"
+      ? publishCredential({ id: "extra-new", providerId, label: "New" })
+      : sourceControlCredential({ id: "extra-new", providerId, label: "New" });
+    const create = vi.fn().mockResolvedValue(saved);
+    const port = fakePort(kind === "publish" ? { publish: { create } } : { sourceControl: { create } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const ref = { kind, providerId };
+    act(() => result.current.setAddField(ref, { name: " New ", token: "tok", values }));
+    await act(() => result.current.createToken(ref));
+    expect(create).toHaveBeenCalledExactlyOnceWith({ label: "New", connection, isDefault: undefined });
+    expect(findRow(result.current.groups, "extra-new")?.row.name).toBe("New");
+    expect(findGroup(result.current.groups, kind, providerId)?.addForm).toMatchObject({ name: "", token: "", values: {}, saving: false, error: null });
   });
 
   it("a rejected create with a plain Error surfaces the generic save-error message (accessTokenSubmitErrorMessage's generic branch)", async () => {
@@ -720,12 +750,16 @@ describe("useAccessTokens: replaceToken on a PUBLISH/SOURCE-CONTROL row (non-cus
         update: (id) => Promise.resolve(publishCredential({ id, label: "Renamed" })),
       },
     });
+    const update = vi.spyOn(port.publish, "update");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "cred-1")!.row;
 
     act(() => result.current.setExistingField("cred-1", { name: "Renamed", token: "ghp_new" }));
     await act(() => result.current.replaceToken(target));
+
+    expect(update).toHaveBeenCalledExactlyOnceWith("cred-1", { label: "Renamed", connection: { providerId: "github-pages", token: "ghp_new" } });
+    expect(findRow(result.current.groups, "cred-1")?.token).toBe("");
 
     const row = findRow(result.current.groups, "cred-1");
     expect(row?.row.name).toBe("Renamed");
@@ -744,12 +778,16 @@ describe("useAccessTokens: replaceToken on a PUBLISH/SOURCE-CONTROL row (non-cus
         update: (id) => Promise.resolve(publishCredential({ id, label: "Renamed" })),
       },
     });
+    const update = vi.spyOn(port.publish, "update");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "cred-1")!.row;
 
     act(() => result.current.setExistingField("cred-1", { name: "Renamed", token: "tok" }));
     await act(() => result.current.replaceToken(target));
+
+    expect(update).toHaveBeenCalledExactlyOnceWith("cred-1", { label: "Renamed", connection: { providerId: "github-pages", token: "tok" } });
+    expect(findRow(result.current.groups, "cred-1")?.token).toBe("");
 
     expect(findRow(result.current.groups, "cred-1")?.row.name).toBe("Renamed");
     expect(findRow(result.current.groups, "cred-2")?.row.name).toBe("Staging");
@@ -762,6 +800,7 @@ describe("useAccessTokens: replaceToken on a PUBLISH/SOURCE-CONTROL row (non-cus
         update: (id) => Promise.resolve(sourceControlCredential({ id, label: "Renamed" })),
       },
     });
+    const update = vi.spyOn(port.sourceControl, "update");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "sc-1")!.row;
@@ -769,7 +808,24 @@ describe("useAccessTokens: replaceToken on a PUBLISH/SOURCE-CONTROL row (non-cus
     act(() => result.current.setExistingField("sc-1", { name: "Renamed", token: "tok" }));
     await act(() => result.current.replaceToken(target));
 
+    expect(update).toHaveBeenCalledExactlyOnceWith("sc-1", { label: "Renamed", connection: { providerId: "gitlab", token: "tok" } });
+    expect(findRow(result.current.groups, "sc-1")?.token).toBe("");
+
     expect(findRow(result.current.groups, "sc-1")?.row.name).toBe("Renamed");
+  });
+
+  it("rotates a PUBLISH token without sending an unchanged label", async () => {
+    const update = vi.fn().mockResolvedValue(publishCredential());
+    const port = fakePort({ publish: {
+      list: () => Promise.resolve({ credentials: [publishCredential()], executionMode: "self-hosted-cli" }), update,
+    } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findRow(result.current.groups, "cred-1")!.row;
+    act(() => result.current.setExistingField("cred-1", { token: "ghp_rotated" }));
+    await act(() => result.current.replaceToken(target));
+    expect(update).toHaveBeenCalledExactlyOnceWith("cred-1", { connection: { providerId: "github-pages", token: "ghp_rotated" } });
+    expect(findRow(result.current.groups, "cred-1")).toMatchObject({ token: "", saving: false, error: null });
   });
 
   it("a rejected replace surfaces the save-error message on that row (accessTokenSubmitErrorMessage via replaceToken's catch)", async () => {
@@ -910,22 +966,32 @@ describe("useAccessTokens: makeDefault — already-default no-op, and a successf
   });
 
   it("makes a non-default row the default, then re-fetches the store (refetchStore's publish branch)", async () => {
+    let credentials = [publishCredential({ isDefault: false }), publishCredential({ id: "cred-2", label: "Staging", isDefault: true })];
     const port = fakePort({
       publish: {
         list: () =>
           Promise.resolve({
-            credentials: [publishCredential({ isDefault: false }), publishCredential({ id: "cred-2", label: "Staging", isDefault: true })],
+            credentials,
             executionMode: "self-hosted-cli",
           }),
-        update: (id) => Promise.resolve(publishCredential({ id, isDefault: true })),
+        update: async (id, patch) => {
+          credentials = credentials.map((row) => ({ ...row, isDefault: row.id === id ? patch.isDefault ?? row.isDefault : false }));
+          return credentials.find((row) => row.id === id)!;
+        },
       },
     });
+    const update = vi.spyOn(port.publish, "update");
+    const list = vi.spyOn(port.publish, "list");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "cred-1")!.row;
 
     await act(() => result.current.makeDefault(target));
 
+    expect(update).toHaveBeenCalledExactlyOnceWith("cred-1", { isDefault: true, connection: undefined });
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(findRow(result.current.groups, "cred-1")?.row.isDefault).toBe(true);
+    expect(findRow(result.current.groups, "cred-2")?.row.isDefault).toBe(false);
     const row = findRow(result.current.groups, "cred-1");
     expect(row?.saving).toBe(false);
     expect(row?.error).toBe(null);
@@ -955,11 +1021,14 @@ describe("useAccessTokens: makeDefault — already-default no-op, and a successf
         update: (id) => Promise.resolve(publishCredential({ id, isDefault: true })),
       },
     });
+    const update = vi.spyOn(port.publish, "update");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "cred-1")!.row;
 
     await act(() => result.current.makeDefault(target));
+
+    expect(update).toHaveBeenCalledExactlyOnceWith("cred-1", { isDefault: true, connection: undefined });
 
     const row = findRow(result.current.groups, "cred-1");
     expect(row?.error).toBe(null);
@@ -990,11 +1059,14 @@ describe("useAccessTokens: makeDefault — already-default no-op, and a successf
         update: (id) => Promise.resolve(sourceControlCredential({ id, isDefault: true })),
       },
     });
+    const update = vi.spyOn(port.sourceControl, "update");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(findRow(result.current.groups, "sc-1")).toBeDefined());
     const target = findRow(result.current.groups, "sc-1")!.row;
 
     await act(() => result.current.makeDefault(target));
+
+    expect(update).toHaveBeenCalledExactlyOnceWith("sc-1", { isDefault: true, connection: undefined });
 
     const row = findRow(result.current.groups, "sc-1");
     expect(row?.error).toBe(null);
@@ -1070,15 +1142,23 @@ describe("useAccessTokens: createCustomCredential", () => {
 
   it("creates a new custom credential, appends it, resets the form, and returns true", async () => {
     const port = fakePort({ custom: { create: () => Promise.resolve(customCredential({ id: "custom-new", label: "New host" })) } });
+    const create = vi.spyOn(port.custom, "create");
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: "New host", token: "tok", baseUrl: "https://api.example.com" }));
+    act(() => result.current.setCustomAddField({ name: " New host ", category: "hosting", token: "tok", baseUrl: " https://api.example.com ", username: " fly-user ", additionalHosts: " https://api.machines.dev, https://uploads.example.com\nhttps://status.example.com " }));
     let ok: boolean | undefined;
     await act(async () => {
       ok = await result.current.createCustomCredential();
     });
 
+    expect(create).toHaveBeenCalledExactlyOnceWith({
+      label: "New host",
+      category: "hosting",
+      baseUrl: "https://api.example.com",
+      additionalHosts: ["https://api.machines.dev", "https://uploads.example.com", "https://status.example.com"],
+      connection: { token: "tok", username: "fly-user" },
+    });
     expect(ok).toBe(true);
     expect(findRow(result.current.groups, "custom-new")).toBeDefined();
     expect(result.current.customAddForm).toEqual({ name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null });
@@ -1123,6 +1203,23 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
     });
   }
 
+  function pendingInitialPort(overrides: Parameters<typeof createFakeAccessTokensPort>[0] = {}) {
+    function deferred<Value>() {
+      let resolve!: (value: Value) => void;
+      const promise = new Promise<Value>((done) => { resolve = done; });
+      return { promise, resolve };
+    }
+    const publish = deferred<Awaited<ReturnType<ReturnType<typeof fakePort>["publish"]["list"]>>>();
+    const sourceControl = deferred<Awaited<ReturnType<ReturnType<typeof fakePort>["sourceControl"]["list"]>>>();
+    const custom = deferred<Awaited<ReturnType<ReturnType<typeof fakePort>["custom"]["list"]>>>();
+    const port = fakePort({
+      publish: { ...overrides.publish, list: () => publish.promise },
+      sourceControl: { ...overrides.sourceControl, list: () => sourceControl.promise },
+      custom: { ...overrides.custom, list: () => custom.promise },
+    });
+    return { port, publish, sourceControl, custom };
+  }
+
   it("createToken evaluates the addForms-not-yet-created fallback and exits via readyToSave when nothing was ever typed", async () => {
     const create = vi.fn();
     const port = neverResolvingPort({ publish: { create } });
@@ -1136,7 +1233,8 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
 
   it("createToken proceeds through accessTokenNameTaken's rows-not-yet-loaded fallback and mergeCredential's publish-not-yet-seeded fallback", async () => {
     const create = vi.fn().mockResolvedValue(publishCredential({ id: "new-1", providerId: "netlify", label: "New" }));
-    const port = neverResolvingPort({ publish: { create } });
+    const initial = pendingInitialPort({ publish: { create } });
+    const { port } = initial;
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     const ref = { kind: "publish" as const, providerId: "netlify" };
 
@@ -1144,11 +1242,25 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
     await act(() => result.current.createToken(ref));
 
     expect(create).toHaveBeenCalledTimes(1);
+    // Settle the OTHER stores first: only this action's merge can supply the new row.
+    await act(async () => {
+      initial.sourceControl.resolve({ credentials: [] });
+      initial.custom.resolve({ credentials: [] });
+    });
+    await waitFor(() => expect(findRow(result.current.groups, "new-1")?.row.name).toBe("New"));
+    expect(findGroup(result.current.groups, ref.kind, ref.providerId)?.addForm).toMatchObject({ saving: false, error: null, name: "", token: "" });
+    // The initial server read subsequently agrees with the successful create.
+    await act(async () => {
+      initial.publish.resolve({ credentials: [await create.mock.results[0]!.value], executionMode: "self-hosted-cli" });
+    });
+    expect(findRow(result.current.groups, "new-1")?.row.name).toBe("New");
+    expect(result.current.loadError).toBeNull();
   });
 
   it("createToken proceeds the same way for a SOURCE-CONTROL provider (mergeCredential's source-control-not-yet-seeded fallback)", async () => {
     const create = vi.fn().mockResolvedValue(sourceControlCredential({ id: "sc-new-1", providerId: "gitlab", label: "New" }));
-    const port = neverResolvingPort({ sourceControl: { create } });
+    const initial = pendingInitialPort({ sourceControl: { create } });
+    const { port } = initial;
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     const ref = { kind: "source-control" as const, providerId: "gitlab" };
 
@@ -1156,11 +1268,25 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
     await act(() => result.current.createToken(ref));
 
     expect(create).toHaveBeenCalledTimes(1);
+    // Settle the OTHER stores first: only this action's merge can supply the new row.
+    await act(async () => {
+      initial.publish.resolve({ credentials: [], executionMode: "self-hosted-cli" });
+      initial.custom.resolve({ credentials: [] });
+    });
+    await waitFor(() => expect(findRow(result.current.groups, "sc-new-1")?.row.name).toBe("New"));
+    expect(findGroup(result.current.groups, ref.kind, ref.providerId)?.addForm).toMatchObject({ saving: false, error: null, name: "", token: "" });
+    // The initial server read subsequently agrees with the successful create.
+    await act(async () => {
+      initial.sourceControl.resolve({ credentials: [await create.mock.results[0]!.value] });
+    });
+    expect(findRow(result.current.groups, "sc-new-1")?.row.name).toBe("New");
+    expect(result.current.loadError).toBeNull();
   });
 
   it("createCustomCredential proceeds through customCredentialNameTaken's and the custom-store's own not-yet-loaded fallbacks", async () => {
     const create = vi.fn().mockResolvedValue(customCredential({ id: "custom-new", label: "New host" }));
-    const port = neverResolvingPort({ custom: { create } });
+    const initial = pendingInitialPort({ custom: { create } });
+    const { port } = initial;
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
 
     act(() => result.current.setCustomAddField({ name: "New host", token: "tok", baseUrl: "https://api.example.com" }));
@@ -1171,6 +1297,19 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
 
     expect(ok).toBe(true);
     expect(create).toHaveBeenCalledTimes(1);
+    // Settle the OTHER stores first: only this action's merge can supply the new row.
+    await act(async () => {
+      initial.publish.resolve({ credentials: [], executionMode: "self-hosted-cli" });
+      initial.sourceControl.resolve({ credentials: [] });
+    });
+    await waitFor(() => expect(findRow(result.current.groups, "custom-new")?.row.name).toBe("New host"));
+    expect(result.current.customAddForm).toMatchObject({ saving: false, error: null, name: "", token: "" });
+    // The initial server read subsequently agrees with the successful create.
+    await act(async () => {
+      initial.custom.resolve({ credentials: [await create.mock.results[0]!.value] });
+    });
+    expect(findRow(result.current.groups, "custom-new")?.row.name).toBe("New host");
+    expect(result.current.loadError).toBeNull();
   });
 
   it("replaceToken (publish) proceeds through accessTokenNameTaken's rows-not-yet-loaded fallback when a draft already exists for a row this hook has never actually loaded", async () => {

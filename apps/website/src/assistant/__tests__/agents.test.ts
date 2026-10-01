@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
@@ -7,8 +10,21 @@ import { listAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesti
 
 // No test here may spawn a real CLI's model listing: every test runs against a prober that reports
 // "nothing live" unless it installs its own.
-before(() => setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" })));
-after(() => setAgentModelProberForTesting(null));
+let fixtureDir: string;
+const originalClaudeBin = process.env.CLAUDE_BIN;
+before(() => {
+  fixtureDir = mkdtempSync(join(tmpdir(), "tovu-agent-probe-"));
+  const executable = join(fixtureDir, "claude");
+  writeFileSync(executable, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  process.env.CLAUDE_BIN = executable;
+  setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+});
+after(() => {
+  setAgentModelProberForTesting(null);
+  if (originalClaudeBin === undefined) delete process.env.CLAUDE_BIN;
+  else process.env.CLAUDE_BIN = originalClaudeBin;
+  rmSync(fixtureDir, { recursive: true, force: true });
+});
 
 /**
  * @file Regression coverage for `listAssistantAgents()` projecting model/reasoning metadata.
@@ -35,6 +51,10 @@ test("listAssistantAgents projects fallback models and reasoning options for cla
     "expected claude.reasoningOptions to be non-empty",
   );
   assert.equal(claude.modelsSource, "fallback");
+  const def = AGENT_DEFS.find((candidate) => candidate.id === "claude");
+  assert.ok(def);
+  assert.deepEqual(claude.models, def.fallbackModels);
+  assert.deepEqual(claude.reasoningOptions, def.reasoningOptions);
   for (const option of claude.reasoningOptions ?? []) {
     assert.equal(typeof option.id, "string");
     assert.equal(typeof option.label, "string");
@@ -121,15 +141,23 @@ test("listAssistantAgents memoizes — two back-to-back calls reuse the same in-
 });
 
 test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result", async () => {
-  const before = listAssistantAgents();
-  await before;
-
-  const rescanned = rescanAssistantAgents();
-  assert.notStrictEqual(rescanned, before, "expected rescan to start a NEW probe rather than reuse the cached one");
-
-  const after = listAssistantAgents();
-  assert.strictEqual(after, rescanned, "expected the cache to now hold the rescanned probe, not the stale pre-rescan one");
-  await after;
+  let models = [{ id: "before-rescan", label: "Before rescan" }];
+  setAgentModelProberForTesting(async (def) => def.id === "claude"
+    ? { models, source: "live" }
+    : { models: def.fallbackModels, source: "fallback" });
+  try {
+    const before = listAssistantAgents();
+    assert.deepEqual((await before).find((agent) => agent.id === "claude")?.models, models);
+    models = [{ id: "after-rescan", label: "After rescan" }];
+    const rescanned = rescanAssistantAgents();
+    assert.notStrictEqual(rescanned, before, "expected rescan to start a NEW probe rather than reuse the cached one");
+    const after = listAssistantAgents();
+    assert.strictEqual(after, rescanned, "expected the cache to now hold the rescanned probe, not the stale pre-rescan one");
+    assert.deepEqual((await rescanned).find((agent) => agent.id === "claude")?.models, models);
+    assert.deepEqual((await after).find((agent) => agent.id === "claude")?.models, models);
+  } finally {
+    setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
 });
 
 /**
@@ -151,15 +179,27 @@ test("rescanAssistantAgents surfaces the live model list the prober returns for 
     const agents = await rescanAssistantAgents();
     const claude = agents.find((agent) => agent.id === "claude");
     assert.ok(claude, "expected a 'claude' entry in the agent list");
-    if (claude.available) {
-      assert.equal(claude.modelsSource, "live");
-      assert.ok(claude.models?.some((model) => model.id === liveOnly.id), "expected the live-only id in claude.models");
-    }
+    assert.equal(claude.available, true, "the fixture must make Claude available");
+    assert.equal(claude.modelsSource, "live");
+    assert.ok(claude.models?.some((model) => model.id === liveOnly.id), "expected the live-only id in claude.models");
     for (const def of AGENT_DEFS) {
       const installed = Boolean(resolveAgentLaunch(def).launchPath);
       assert.equal(probed.includes(def.id), installed, `def '${def.id}' probed=${probed.includes(def.id)} but installed=${installed}`);
     }
   } finally {
     setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
+});
+
+test("known runtime capabilities retain their memory and tool semantics", async () => {
+  const agents = await listAssistantAgents();
+  for (const [id, carriesOwnMemory, supportsTools] of [
+    ["claude", true, true],
+    ["aider", false, false],
+  ] as const) {
+    const agent = agents.find((candidate) => candidate.id === id);
+    assert.ok(agent, `expected ${id}`);
+    assert.equal(agent.carriesOwnMemory, carriesOwnMemory);
+    assert.equal(agent.supportsTools, supportsTools);
   }
 });

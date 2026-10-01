@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
-import type { PostEditorController } from "../hooks/use-post-editor.hooks";
+import { useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
@@ -187,6 +187,30 @@ afterEach(() => {
   // across tests in file order).
   vi.restoreAllMocks();
 });
+
+// Capture the real controller so formatting assertions inspect the document, not only toolbar state.
+async function renderRealPostEditor() {
+  let ctrl!: PostEditorController;
+  function useHook(postId: string) {
+    ctrl = useWiredPostEditor(postId);
+    return ctrl;
+  }
+  render(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+  await screen.findByTitle("Bold (⌘B)");
+  return ctrl;
+}
+
+function selectBodyText(ctrl: PostEditorController) {
+  const editor = ctrl.editor!;
+  let range!: { from: number; to: number };
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === "paragraph" && node.textContent === "Body text here") {
+      range = { from: pos + 1, to: pos + 1 + node.content.size };
+    }
+  });
+  expect(range).toBeDefined();
+  act(() => { editor.commands.setTextSelection(range); });
+}
 
 describe("Publish", () => {
   it("is offered for a draft post, saves and sets status to published in one request, then disappears", async () => {
@@ -422,13 +446,16 @@ describe("Formatting toolbar — Link button", () => {
   it("applies a link when the prompt returns a URL", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
     const link = await screen.findByTitle("Link");
 
     vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com");
     await user.click(link);
 
     expect(link).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector(".ProseMirror a")).toHaveAttribute("href", "https://example.com");
+    expect(ctrl.editor!.getJSON().content![1].content![0].marks).toContainEqual({ type: "link", attrs: expect.objectContaining({ href: "https://example.com" }) });
   });
 
   it("removes the link on a second click while it is already active", async () => {
@@ -463,29 +490,41 @@ describe("Formatting toolbar — text/background color", () => {
   it("setting a text color shows the clear button; clearing it removes the color and the button", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
     await screen.findByTitle("Bold (⌘B)");
 
     const colorInput = screen.getByLabelText("Text color");
     fireEvent.change(colorInput, { target: { value: "#ff0000" } });
     const clearButton = await screen.findByRole("button", { name: /clear text color/i });
 
+    expect(ctrl.editor!.getAttributes("textStyle").color).toBe("#ff0000");
+    expect(document.querySelector(".ProseMirror p span")).toHaveStyle("color: #ff0000");
+
     await user.click(clearButton);
     expect(screen.queryByRole("button", { name: /clear text color/i })).not.toBeInTheDocument();
+    expect(ctrl.editor!.getAttributes("textStyle").color).toBeFalsy();
+    expect(document.querySelector(".ProseMirror p [style*=\"color\"]")).not.toBeInTheDocument();
   });
 
   it("setting a background color shows the clear button; clearing it removes the color and the button", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
     await screen.findByTitle("Bold (⌘B)");
 
     const colorInput = screen.getByLabelText("Background color");
     fireEvent.change(colorInput, { target: { value: "#00ff00" } });
     const clearButton = await screen.findByRole("button", { name: /clear background color/i });
 
+    expect(ctrl.editor!.getAttributes("textStyle").backgroundColor).toBe("#00ff00");
+    expect(document.querySelector(".ProseMirror p span")).toHaveStyle("background-color: #00ff00");
+
     await user.click(clearButton);
     expect(screen.queryByRole("button", { name: /clear background color/i })).not.toBeInTheDocument();
+    expect(ctrl.editor!.getAttributes("textStyle").backgroundColor).toBeFalsy();
+    expect(document.querySelector(".ProseMirror p [style*=\"background-color\"]")).not.toBeInTheDocument();
   });
 });
 
@@ -546,13 +585,15 @@ describe("Formatting toolbar — insert YouTube video", () => {
   it("inserts a YouTube embed for a recognized URL", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
     await screen.findByTitle("Bold (⌘B)");
 
     vi.spyOn(window, "prompt").mockReturnValueOnce("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     await user.click(screen.getByRole("button", { name: /youtube/i }));
 
     expect(document.querySelector("[data-youtube-video] iframe")).toBeInTheDocument();
+    expect(document.querySelector("[data-youtube-video] iframe")).toHaveAttribute("src", expect.stringContaining("/embed/dQw4w9WgXcQ"));
+    expect(ctrl.editor!.getJSON().content).toContainEqual(expect.objectContaining({ type: "youtube", attrs: expect.objectContaining({ src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }) }));
   });
 
   it("inserts nothing when the URL prompt is cancelled", async () => {
@@ -572,7 +613,7 @@ describe("Formatting toolbar — mention picker", () => {
   it("inserts a mention node for the chosen post, excluding the post being edited from the options", async () => {
     mentionablePostsFixture = [OTHER_MENTIONABLE_POST, { ...DRAFT_POST, workspaceId: "w1" }];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
     await screen.findByTitle("Bold (⌘B)");
 
     const select = screen.getByLabelText("Mention a post") as HTMLSelectElement;
@@ -580,6 +621,11 @@ describe("Formatting toolbar — mention picker", () => {
 
     fireEvent.change(select, { target: { value: "other-post" } });
     expect(document.querySelector('[data-type="mention"]')).toBeInTheDocument();
+    const mention = document.querySelector('[data-type="mention"]');
+    expect(mention).toHaveAttribute("data-id", "other-post");
+    expect(mention).toHaveAttribute("data-label", "Other Post");
+    expect(mention).toHaveTextContent("Other Post");
+    expect(ctrl.editor!.getJSON().content![1].content).toContainEqual(expect.objectContaining({ type: "mention", attrs: expect.objectContaining({ id: "other-post", label: "Other Post" }) }));
   });
 
   it("does nothing when the selected slug matches no mentionable post", async () => {
@@ -630,21 +676,21 @@ describe("Formatting toolbar — divider and table inserts", () => {
 
     await user.click(screen.getByTitle("Insert table"));
     expect(document.querySelector(".ProseMirror table")).toBeInTheDocument();
+    const rows = document.querySelectorAll(".ProseMirror table tr");
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(row.children).toHaveLength(3);
+    expect(rows[0].querySelectorAll("th")).toHaveLength(3);
+    for (const row of Array.from(rows).slice(1)) expect(row.querySelectorAll("td")).toHaveLength(3);
   });
 });
 
 describe("Formatting toolbar — Undo/Redo", () => {
-  // `canRedo`/`canUndo` are read straight off `editor.can()` (`probeToolbar`), already pinned at the
-  // probe level in `PostEditor.toolbar-probes.unit.test.ts` — this only needs to prove the two
-  // buttons are wired to the right commands and reflect real history state, not re-verify a mark's
-  // exact visual round-trip through a collapsed-cursor toggle (confirmed empirically unreliable to
-  // assert on: TipTap's `storedMarks`-based toggle on an empty selection doesn't reliably restore
-  // through `redo()` the way a real text-range mark change does — a `history`-plugin/storedMarks
-  // interaction, not something this component's own click handlers control).
-  it("Undo reverts the toggled mark and enables Redo; clicking Redo does not throw", async () => {
+  // Select actual body text so Undo/Redo exercise a document transaction.
+  it("Undo reverts the toggled mark and enables Redo; Redo restores the document mark", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
 
     const bold = await screen.findByTitle("Bold (⌘B)");
     const redoBtn = screen.getByTitle("Redo (⌘⇧Z)");
@@ -655,9 +701,13 @@ describe("Formatting toolbar — Undo/Redo", () => {
 
     await user.click(screen.getByTitle("Undo (⌘Z)"));
     expect(bold).toHaveAttribute("aria-pressed", "false");
+    expect(document.querySelector(".ProseMirror p strong")).not.toBeInTheDocument();
     expect(redoBtn).not.toBeDisabled(); // the undo just made a redo available
 
     await user.click(redoBtn);
+    expect(bold).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector(".ProseMirror p strong")).toHaveTextContent("Body text here");
+    expect(redoBtn).toBeDisabled();
   });
 });
 
@@ -901,6 +951,35 @@ function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
   return { ctrl, ...utils };
 }
 
+describe("Recovery and version-conflict banners", () => {
+  it("renders the save conflict and wires overwrite and keep-editing independently", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } });
+    expect(screen.getByText(/someone else saved/i)).toHaveTextContent(/version 2/i);
+    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
+    expect(ctrl.dismissSaveConflict).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(ctrl.dismissSaveConflict).toHaveBeenCalledTimes(1);
+    expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the parked draft and wires Restore and Discard independently", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ recoverableDraft: {
+      bodyFormat: "doc", bodyJson: DRAFT_POST.bodyJson, title: "Parked work", slug: "hello-world",
+      baseVersion: 1, savedAt: new Date().toISOString(), savedByPrincipalId: "operator-1",
+    } });
+    expect(screen.getByText(/unsaved changes from/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(ctrl.restoreRecoveredDraft).toHaveBeenCalledTimes(1);
+    expect(ctrl.discardRecoveredDraft).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(ctrl.discardRecoveredDraft).toHaveBeenCalledTimes(1);
+    expect(ctrl.restoreRecoveredDraft).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Edit/Preview toolbar", () => {
   it("marks the active view tab as selected", () => {
     renderPostEditor({ view: "edit" });
@@ -913,6 +992,17 @@ describe("Edit/Preview toolbar", () => {
     const { ctrl } = renderPostEditor({ view: "edit" });
     await user.click(screen.getByRole("tab", { name: "Preview" }));
     expect(ctrl.setView).toHaveBeenCalledWith("preview");
+  });
+
+  it("switches the real controller from the editor body to a preview iframe", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    await renderRealPostEditor();
+    expect(document.querySelector(".ProseMirror")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Preview" }));
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(document.querySelector("iframe")).toBeInTheDocument();
+    expect(document.querySelector(".ProseMirror")).not.toBeInTheDocument();
   });
 
   it("clicking the Edit tab calls setView('edit')", async () => {
@@ -1197,6 +1287,29 @@ describe("Preview fullscreen — Level 1 expand toggle", () => {
     expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
   });
 
+  it("Escape inside the expanded preview iframe calls togglePreviewExpanded, including after a frame load", async () => {
+    const { ctrl, unmount } = renderPostEditor({ view: "preview", status: "draft", previewExpanded: true });
+    const iframe = screen.getByTitle("Post preview") as HTMLIFrameElement;
+    const frameDocument = iframe.contentDocument!;
+    const input = frameDocument.createElement("input");
+    frameDocument.body.append(input);
+    input.focus();
+    expect(document.activeElement).toBe(iframe);
+    expect(frameDocument.activeElement).toBe(input);
+
+    const user = userEvent.setup({ document: frameDocument });
+    await user.keyboard("{Escape}");
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+
+    fireEvent.load(iframe);
+    await user.keyboard("{Escape}");
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(2);
+
+    unmount();
+    await user.keyboard("{Escape}");
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(2);
+  });
+
   // One control, two directions: the ONLY thing distinguishing them is the accessible name (the glyph
   // is `aria-hidden`). Both an operator on a screen reader and an agent reading `page.find_elements`
   // depend on this to know which way the toggle goes, so assert the names are mutually exclusive
@@ -1379,7 +1492,7 @@ describe("Title and slug fields — typing calls setTitle/setSlug", () => {
 
     await user.type(screen.getByLabelText("Post title"), "!");
 
-    expect(ctrl.setTitle).toHaveBeenCalled();
+    expect(ctrl.setTitle).toHaveBeenCalledWith("Hello world!");
   });
 
   it("typing in the slug field calls setSlug with the field's new value", async () => {
@@ -1388,7 +1501,7 @@ describe("Title and slug fields — typing calls setTitle/setSlug", () => {
 
     await user.type(screen.getByLabelText("URL slug"), "x");
 
-    expect(ctrl.setSlug).toHaveBeenCalled();
+    expect(ctrl.setSlug).toHaveBeenCalledWith("hello-worldx");
   });
 });
 

@@ -153,7 +153,8 @@ describe("term list rendering", () => {
   it("indents a hierarchical child term further than its parent via termDepth", () => {
     const parent = term({ id: "p", name: "Parent", parentId: null });
     const child = term({ id: "c", name: "Child", parentId: "p" });
-    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [parent, child] };
+    const grandchild = term({ id: "g", name: "Grandchild", parentId: "c" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [parent, child, grandchild] };
     renderTaxonomy({ taxonomies: [group] });
 
     const list = within(screen.getByRole("list"));
@@ -161,6 +162,7 @@ describe("term list rendering", () => {
     const childRow = list.getByText("Child").closest("li");
     expect(parentRow).not.toHaveStyle({ marginLeft: "1.1rem" });
     expect(childRow).toHaveStyle({ marginLeft: "1.1rem" });
+    expect(list.getByText("Grandchild").closest("li")).toHaveStyle({ marginLeft: "2.2rem" });
   });
 
   it("gives a hierarchical child term an accessible 'subcategory of X' label", () => {
@@ -215,16 +217,28 @@ describe("term selection", () => {
     expect(controller.setSelectedTermId).toHaveBeenCalledWith("t1");
   });
 
-  it("pressing Enter on a row calls setSelectedTermId with that term's id", async () => {
+  it.each([["Enter", "{Enter}"], ["Space", " "]])("Tab reaches a row and %s selects it without the default browser action", async (_name, key) => {
     const user = userEvent.setup();
     const t = term({ id: "t1", name: "Keyboard Row" });
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
     const controller = renderTaxonomy({ taxonomies: [group] });
 
     const row = screen.getByText("Keyboard Row").closest("li") as HTMLElement;
-    row.focus();
-    await user.keyboard("{Enter}");
+    for (let tabs = 0; tabs < 12 && document.activeElement !== row; tabs += 1) {
+      await user.tab();
+    }
+    expect(row).toHaveFocus();
+    const defaultPrevented: boolean[] = [];
+    const observeKey = (event: KeyboardEvent) => defaultPrevented.push(event.defaultPrevented);
+    document.addEventListener("keydown", observeKey);
+    try {
+      await user.keyboard(key);
+    } finally {
+      document.removeEventListener("keydown", observeKey);
+    }
     expect(controller.setSelectedTermId).toHaveBeenCalledWith("t1");
+    expect(controller.setSelectedTermId).toHaveBeenCalledTimes(1);
+    expect(defaultPrevented).toEqual([true]);
   });
 });
 
@@ -286,7 +300,7 @@ describe("merge wizard steps (real useMergeTermSection, mocked fetch) — MergeI
     const a = term({ id: "a", name: "Term A" });
     const b = term({ id: "b", name: "Term B" });
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [a, b] };
-    renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: a } });
+    const controller = renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: a } });
 
     // Idle step (MergeIdleStep): choose a target, Plan merge.
     await user.selectOptions(screen.getByLabelText(/merge into/i), "b");
@@ -311,7 +325,11 @@ describe("merge wizard steps (real useMergeTermSection, mocked fetch) — MergeI
     await user.click(executeButton);
 
     // onMerged fires -> Taxonomy clears selectedTermId and reloads (stubbed setSelectedTermId/load).
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(controller.setSelectedTermId).toHaveBeenCalledWith(null);
+      expect(controller.load).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -364,6 +382,10 @@ describe("new-taxonomy form's collapsed resting state (web-design pass, 2026-08-
     const controller = renderTaxonomy({ taxonomies: [] });
     await user.click(screen.getByRole("button", { name: /^new taxonomy$/i }));
     expect(controller.setFormOpen).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(controller.setFormOpen).mock.calls[0]![0];
+    const next = (previous: boolean) => typeof update === "function" ? update(previous) : update;
+    expect(next(false)).toBe(true);
+    expect(next(true)).toBe(false);
   });
 
   it("renders the form and a 'Cancel' header button once formOpen is true", () => {
@@ -400,6 +422,26 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     await user.click(screen.getByRole("menuitem", { name: "Delete term" }));
 
     expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+  });
+
+  it.each([["Enter", "{Enter}"], ["Space", " "]])("keyboard %s opens a term's RowMenu and chooses its action without selecting the row", async (_name, key) => {
+    const user = userEvent.setup();
+    const t = term({ id: "t1", name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+    const trigger = screen.getByRole("button", { name: /actions for term "breakfast"/i });
+    for (let tabs = 0; tabs < 12 && document.activeElement !== trigger; tabs += 1) {
+      await user.tab();
+    }
+    expect(trigger).toHaveFocus();
+    await user.keyboard(key);
+    expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menuitem", { name: "Delete term" })).toHaveFocus();
+    await user.keyboard(key);
+    expect(controller.requestDeleteTerm).toHaveBeenCalledWith(t);
+    expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("a taxonomy group's RowMenu offers exactly 'Delete taxonomy', which calls requestDeleteTaxonomy with that taxonomy", async () => {
@@ -489,13 +531,30 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(null);
   });
 
-  it("both delete confirm buttons disable while their own busy flag is set (in-flight guard against a double submit)", () => {
+  it.each(["term", "taxonomy"] as const)("the %s delete confirm button disables only for its own busy flag and prevents another submission", async (busy) => {
+    const user = userEvent.setup();
     const t = term({ name: "Breakfast" });
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
-    renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t, deleteTermBusy: true });
+    const controller = renderTaxonomy({
+      taxonomies: [group],
+      pendingDeleteTerm: t,
+      pendingDeleteTaxonomy: group.taxonomy,
+      deleteTermBusy: busy === "term",
+      deleteTaxonomyBusy: busy === "taxonomy",
+    });
 
-    const dialog = screen.getByText('Move "Breakfast" to trash?').closest("dialog")!;
-    expect(within(dialog).getByRole("button", { name: /^move to trash$/i })).toBeDisabled();
+    const termDialog = screen.getByText('Move "Breakfast" to trash?').closest("dialog")!;
+    const taxonomyDialog = screen.getByText('Move "Category" and its terms to trash?').closest("dialog")!;
+    const termConfirm = within(termDialog).getByRole("button", { name: /^move to trash$/i });
+    const taxonomyConfirm = within(taxonomyDialog).getByRole("button", { name: /^move to trash$/i });
+    const busyConfirm = busy === "term" ? termConfirm : taxonomyConfirm;
+    const idleConfirm = busy === "term" ? taxonomyConfirm : termConfirm;
+    expect(busyConfirm).toBeDisabled();
+    expect(idleConfirm).toBeEnabled();
+    await user.click(busyConfirm);
+    await user.click(busyConfirm);
+    expect(controller.confirmDeleteTerm).not.toHaveBeenCalled();
+    expect(controller.confirmDeleteTaxonomy).not.toHaveBeenCalled();
   });
 
   it("shows the blocked-delete reason for the specific term that was refused, naming the remedy — not a silent disabled control", () => {

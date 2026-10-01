@@ -40,6 +40,7 @@ test("the boot token is ALWAYS emitted — the decision it used to encode cannot
 test("the session decision is made AFTER the server is up, through ensureSiteSession", () => {
   const body = startSiteBackendBody();
   assert.match(body, /ensureSiteSession\(/, "main.ts must use the extracted, behaviourally-tested decision");
+  assert.match(body, /await\s+ensureSiteSession\s*\(/, "the cookie must be ready before startSiteBackend resolves and the caller navigates");
   assert.ok(
     body.indexOf("await startTovuServer(") < body.indexOf("ensureSiteSession("),
     "the probe is only meaningful once there is a server to answer it",

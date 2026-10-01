@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { RedirectImportRule } from "@/lib/api";
 import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
 import { useImportRedirectsForm, useWiredImportRedirectsForm } from "../hooks/use-import-redirects-form.hooks";
 
@@ -74,7 +75,8 @@ describe("useImportRedirectsForm — submit", () => {
       created: [{ id: "r1", fromPattern: "/a", toTarget: "/b" }],
       failed: [{ index: 0, code: "DUPLICATE", message: "already exists" }],
     };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(response)));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(response));
+    vi.stubGlobal("fetch", fetchMock);
 
     const { result } = renderHook(() => useWiredImportRedirectsForm({ t: fakeT, locale: fakeLocale }), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
@@ -82,6 +84,11 @@ describe("useImportRedirectsForm — submit", () => {
 
     expect(result.current.result).toEqual(response);
     expect(result.current.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/redirects/import");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ rules: JSON.parse(VALID_RAW) });
   });
 
   it("is importing for the duration of an in-flight submit", async () => {
@@ -156,11 +163,12 @@ describe("useImportRedirectsForm — injected port (no fetch stub)", () => {
   const VALID_RAW = JSON.stringify([{ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 }]);
 
   it("submits through the injected port and surfaces what it returns as `result`", async () => {
+    const onImport = vi.fn((rules: RedirectImportRule[]) => ({
+      created: [],
+      failed: rules.map((_rule: unknown, index: number) => ({ index, code: "DUPLICATE", message: "already exists" })),
+    }));
     const port = createFakeRedirectsPort({
-      onImport: () => ({
-        created: [],
-        failed: [{ index: 0, code: "DUPLICATE", message: "already exists" }],
-      }),
+      onImport,
     });
     const { result } = renderHook(() => useImportRedirectsForm(port, fakeT, fakeLocale), { wrapper });
 
@@ -169,6 +177,7 @@ describe("useImportRedirectsForm — injected port (no fetch stub)", () => {
 
     expect(result.current.result).toEqual({ created: [], failed: [{ index: 0, code: "DUPLICATE", message: "already exists" }] });
     expect(result.current.error).toBeNull();
+    expect(onImport).toHaveBeenCalledExactlyOnceWith(JSON.parse(VALID_RAW));
   });
 
   /**

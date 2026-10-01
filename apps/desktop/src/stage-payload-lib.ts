@@ -17,7 +17,7 @@ import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirS
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
-import { isBundleInput } from "./shell-staleness.ts";
+import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
 /** One `{platform, arch}` a staging run targets, or a prebuild was built for (see {@link prebuildTarget}). */
 interface Target {
@@ -660,4 +660,44 @@ function countFiles(dir: string): number {
     else count += 1;
   }
   return count;
+}
+
+/**
+ * The two SPA builds, staged at their checkout-relative paths so one `path.join` serves both modes.
+ *
+ * `marker` is the exact file the SERVER probes to decide between serving the shell and answering
+ * 503 — `admin-static.ts:92/115` checks `index.html`, and `site-chat-static.ts:37` checks
+ * `site-assistant.js`. Site-chat has NO `index.html` at all: it is a single self-mounting IIFE
+ * bundle loaded by a `<script>` tag, not an app with client-side routing (`app.ts:1336-1338`).
+ * Asserting the wrong marker would have hard-failed staging on a perfectly good build.
+ */
+export const STAGED_SHELLS: (StalenessShell & { sourceDirs?: string[]; sourceFiles?: string[] })[] = [
+  {
+    relative: path.join("apps", "admin", "dist"),
+    marker: "index.html",
+    // NOT `npm run admin:build`. That chains through `check-no-linked-jini.mjs`, which correctly
+    // refuses to build while any @jini-ai/* package is npm-linked -- a guard that exists for
+    // DISTRIBUTABLE builds. Refreshing a shell for a local package run is not that, and the direct
+    // vite invocation is the command that actually works on a linked checkout. Do not suggest
+    // `npm run unlink:jini` here: it swaps the whole tree to published Jini for no benefit.
+    buildWith: "cd apps/admin && npx vite build",
+    sourceDirs: [path.join("apps", "admin", "src")],
+    sourceFiles: [path.join("apps", "admin", "package.json")],
+  },
+  {
+    relative: path.join("apps", "site-chat", "dist"),
+    marker: "site-assistant.js",
+    buildWith: "cd apps/site-chat && npx vite build",
+    sourceDirs: [path.join("apps", "site-chat", "src")],
+    sourceFiles: [path.join("apps", "site-chat", "package.json")],
+  },
+];
+
+/** Copy the runtime files at the same relative paths consumed by the packaged server. */
+export function stagePayloadFiles({ repoRoot, outDir }: { repoRoot: string; outDir: string }): void {
+  cpSync(path.join(repoRoot, "package.json"), path.join(outDir, "package.json"));
+  cpSync(path.join(repoRoot, "dist"), path.join(outDir, "dist"), { recursive: true, dereference: true });
+  for (const shell of STAGED_SHELLS) {
+    cpSync(path.join(repoRoot, shell.relative), path.join(outDir, shell.relative), { recursive: true, dereference: true });
+  }
 }

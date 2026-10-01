@@ -28,6 +28,7 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
+import { resolve } from "node:path";
 import {
   type AuthorizeFn,
   buildDomainRegistrations,
@@ -286,6 +287,20 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
     throw new ThemeFileReadOnlyError(
       `'${relativePath}' is read-only: only framework source extensions can be written inside a compiled theme's build.sourceDir`
     );
+  }
+}
+
+/** Editable manifest metadata must not turn a compiled release's generated files into source. */
+function assertCompiledWriteBoundaryUnchanged(theme: DiscoveredTheme, relativePath: string, content: string): void {
+  if (theme.manifest.build?.source !== "compiled" || resolve(theme.dir, relativePath) !== resolve(theme.dir, "theme.json")) return;
+  let next: { build?: { source?: string; sourceDir?: string } } | null;
+  try {
+    next = JSON.parse(content);
+  } catch {
+    throw new ThemeFileReadOnlyError("a compiled release's write boundary is read-only and requires a valid theme.json");
+  }
+  if (next?.build?.source !== "compiled" || next.build.sourceDir !== theme.manifest.build.sourceDir) {
+    throw new ThemeFileReadOnlyError("build.source and build.sourceDir are read-only for a compiled release; rebuild the complete release instead");
   }
 }
 
@@ -612,6 +627,7 @@ export function buildThemesRegistrations(
         // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
         assertThemeFileWritable(theme, relativePath);
 
+        assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized });
 
         // Re-validate through the SAME `loadTheme()` a boot-time discovery uses — the whole point of
@@ -657,6 +673,7 @@ export function buildThemesRegistrations(
         const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll }, relativePath);
         const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
 
+        assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
@@ -902,7 +919,8 @@ export function buildThemesRegistrations(
           const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
           if (lock) throw new ThemeFileIdentityLockedError(lock.error);
 
-          const trashedPath = trashDestinationFor(relativePath);
+          const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
+          const trashedPath = trashDestinationFor(relativePath, existingPaths);
           // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
           // sits at the theme's ROOT, which is only "editable" for an authored theme (every theme on
           // disk today). For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither

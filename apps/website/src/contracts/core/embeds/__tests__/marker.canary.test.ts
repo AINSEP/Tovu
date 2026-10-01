@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -17,8 +17,17 @@ import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from 
  * amount of consumer-side work is worth doing yet.
  */
 
-const THEMES = path.join(process.cwd(), "content/themes/static");
+const THEMES = path.resolve(import.meta.dirname, "../../../../../../../content/themes/static");
 const read = (rel: string): string => readFileSync(path.join(THEMES, rel), "utf8");
+
+/** Include every HTML file so new templates participate in both migration checks. */
+function themeHtmlFiles(dir = THEMES): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) return themeHtmlFiles(file);
+    return entry.isFile() && entry.name.endsWith(".html") ? [path.relative(THEMES, file)] : [];
+  }).sort();
+}
 
 /**
  * Mirrors `theme.ts`'s own `apiVersion === 2` branch (`loadStaticTierAssets`, lines ~610/629): v1
@@ -40,28 +49,11 @@ function pagePath(themeId: string, page: string): string {
   return `${themeId}/${pagesDir}/${page}.html`;
 }
 
-/** A theme partial's real on-disk path — v2 nests partials under `render/partials/`; v1 keeps them
- * at the theme root alongside `theme.json`. `partial` is the filename stem, no `.html`. */
-function partialPath(themeId: string, partial: string): string {
-  const partialsDir = apiVersionOf(themeId) === 2 ? `${themeId}/render/partials` : themeId;
-  return `${partialsDir}/${partial}.html`;
-}
-
 test("canary: every marker in every migrated theme file parses, with zero rejections", () => {
   // The whole point of the sweep. One unparseable marker anywhere means a broken page in production
   // AND a reference silently missing from the entry_refs index that safe-delete trusts.
-  const files = [
-    pagePath("tovu-theme", "index"),
-    pagePath("tovu-theme", "signin"),
-    pagePath("tovu-theme", "blog-sidebar-template"),
-    pagePath("tovu-theme", "blog-post"),
-    partialPath("tovu-theme", "nav"),
-    partialPath("tovu-theme", "footer"),
-    pagePath("tailark-quartz-libre", "index"),
-    pagePath("tailark-quartz-libre", "blog-post"),
-    pagePath("tailark-dusk", "index"),
-    pagePath("tailark-quartz-dark", "index"),
-  ];
+  const files = themeHtmlFiles();
+  assert.ok(files.length > 10, "the sweep must include more than the old ten canaries");
   const problems: string[] = [];
   let total = 0;
   for (const file of files) {
@@ -84,12 +76,13 @@ test("canary: no theme still carries an attribute from the retired vocabularies"
     "data-slot-variant=",
     "data-nav-current=",
   ];
-  const files = [pagePath("tovu-theme", "index"), partialPath("tovu-theme", "nav"), pagePath("tovu-theme", "signin"), pagePath("tailark-dusk", "index")];
+  const files = themeHtmlFiles();
   for (const file of files) {
     // Comments legitimately mention the old names; only live markup matters, so strip comments first.
     const live = read(file).replace(/<!--[\s\S]*?-->/g, "");
     for (const attr of retired) {
       assert.ok(!live.includes(attr), `${file} still carries a retired attribute: ${attr}`);
+      assert.doesNotMatch(live, new RegExp(`\\s${attr.slice(0, -1)}\\s*=`, "i"), `${file} still carries a retired attribute: ${attr}`);
     }
   }
 });
@@ -159,11 +152,16 @@ test("canary: malformed config is REJECTED, never silently treated as an empty m
     `<div data-embed-config='["type","menu"]'></div>`,
     `<div data-embed-config='{"id":"no-type-key"}'></div>`,
   ];
-  for (const html of cases) {
+  const expectedKinds = ["invalid-json", "not-an-object", "missing-type"];
+  const expectedDescriptions = [/not valid JSON/, /must be a JSON object/, /missing a "type"/];
+  for (const [i, html] of cases.entries()) {
     const { markers, rejected } = scanEmbedMarkers(html);
     assert.equal(markers.length, 0, `should not yield a marker: ${html}`);
     assert.equal(rejected.length, 1, `should report exactly one rejection: ${html}`);
+    assert.equal(rejected[0].problem.kind, expectedKinds[i], "the scanner must retain the actionable rejection reason");
     assert.ok(describeRejection(rejected[0]).length > 20, "a rejection must describe itself well enough to act on");
+    assert.match(describeRejection(rejected[0]), expectedDescriptions[i]);
+    assert.ok(describeRejection(rejected[0]).includes(rejected[0].problem.raw), "the diagnostic must identify the offending config");
   }
 });
 

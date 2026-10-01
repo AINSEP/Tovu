@@ -8,6 +8,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
 
+const folderDrop = vi.hoisted(() => ({ handleDropCapture: vi.fn() }));
+vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
+  useFolderDrop: () => ({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: folderDrop.handleDropCapture }),
+}));
+
 /**
  * @file Proves `App`'s `useChatDock` seam (added 2026-08-12 alongside the rest of `App.hooks.tsx`'s
  * seams — see that file's own header) buys something none of the other App tests can reach today:
@@ -117,6 +122,7 @@ it("a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capt
   expect(handleDockDropCapture).toHaveBeenCalledTimes(1);
   expect(notPrevented).toBe(false);
   await waitFor(() => expect(publishDropCapture).toHaveBeenCalledWith(expect.any(Function)));
+  expect(publishDropCapture).toHaveBeenCalledWith(folderDrop.handleDropCapture);
 });
 
 /** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render

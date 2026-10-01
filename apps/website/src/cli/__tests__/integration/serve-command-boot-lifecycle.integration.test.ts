@@ -159,7 +159,9 @@ function sessionCookieFrom(setCookieHeader: string | null): string {
 test("tovu serve actually runs runBootLifecycle: database-migration-reconciliation, settings, and seo all show 'ready' on the admin module-status route after boot", async () => {
   const { parent, dir } = initFixture();
   const port = await getFreePort();
-  const child = spawnServe([dir, "--port", String(port)]);
+  const username = "boot-lifecycle-owner";
+  const password = "boot-lifecycle-test-password";
+  const child = spawnServe([dir, "--port", String(port)], { TOVU_ADMIN_USER: username, TOVU_ADMIN_PASSWORD: password });
   let stdoutBuf = "";
   child.stdout.on("data", (chunk: Buffer) => {
     stdoutBuf += chunk.toString();

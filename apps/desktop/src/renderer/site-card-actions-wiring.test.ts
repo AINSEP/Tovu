@@ -26,11 +26,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
+import { IN_FLIGHT_STATUS, performPowerAction, powerControl } from './use-site-power.hooks.js';
 
 const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
 const power = fs.readFileSync(path.join(import.meta.dirname, 'use-site-power.hooks.ts'), 'utf8');
 const app = fs.readFileSync(path.join(import.meta.dirname, 'App.tsx'), 'utf8');
+const appHooks = fs.readFileSync(path.join(import.meta.dirname, 'App.hooks.ts'), 'utf8');
 
 /** `SiteCard`'s own body — the tile and the info block, without the components defined after it. */
 function cardBody(): string {
@@ -78,6 +81,9 @@ test('the card body is two columns — the text on the left, the action column a
   }
   const rule = css.slice(css.indexOf('.card__body {'), css.indexOf('}', css.indexOf('.card__body {')));
   assert.match(rule, /flex-direction:\s*row/, 'the body must lay its two columns side by side');
+  for (const override of css.matchAll(/\.card__body\s*\{([^}]*)\}/g)) {
+    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack the body columns');
+  }
   // Without this a long site name refuses to shrink and shoves the ⋮ off the card's right edge.
   const infoRule = css.slice(css.indexOf('.card__info {'), css.indexOf('}', css.indexOf('.card__info {')));
   assert.match(infoRule, /min-width:\s*0/, 'the text column must be allowed to shrink, or a long name pushes the ⋮ out');
@@ -87,6 +93,9 @@ test('the action column stacks ⋮ above Start/Stop, sharing the card\'s right e
   const rule = css.slice(css.indexOf('.card__actions {'), css.indexOf('}', css.indexOf('.card__actions {')));
   assert.match(rule, /flex-direction:\s*column/, 'the ⋮ and Start/Stop stack, they no longer sit side by side');
   assert.match(rule, /align-items:\s*flex-end/, 'both controls share the card\'s right edge, not each other\'s');
+  for (const override of css.matchAll(/\.card__actions\s*\{([^}]*)\}/g)) {
+    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!column\b)[\w-]+/, 'a later or media-query rule must not put Start beside the menu');
+  }
   // The old bottom-pinned row. Left in place it would drag the whole column to the foot of the
   // body, which is exactly the layout the owner asked to move away from.
   assert.doesNotMatch(rule, /margin-top:\s*auto/, 'the column is pinned to the TOP of the body now');
@@ -208,9 +217,30 @@ test('delete still goes through the confirm overlay — a menu entry makes that 
   assert.match(menu, /onRequestDelete/, 'the menu entry must request a confirmation, never delete directly');
   assert.doesNotMatch(menu, /onConfirmDelete|onDelete\(/, 'no path from the menu entry straight to the delete');
   assert.match(grid, /overlay === 'confirm' && \(/);
+  assert.match(grid, /<SiteCard\b[^>]*onRequestDelete=\{requestDelete\}[^>]*onCancelDelete=\{cancelDelete\}[^>]*onConfirmDelete=\{confirmDelete\}/);
+  assert.match(cardBody(), /<CardActions\b[^>]*onRequestDelete=\{onRequestDelete\}/);
+  assert.match(cardBody(), /<CardConfirmOverlay\b[^>]*onCancel=\{onCancelDelete\}[^>]*onConfirm=\{onConfirmDelete\}/);
+  const harness = hookHarness();
+  const useDelete = sourceFunction(appHooks, 'useDeleteConfirmation', harness.bindings);
+  const deleted: string[] = [];
+  const onDelete = async (id: string) => { deleted.push(id); };
+  const render = () => harness.render(() => useDelete(onDelete));
+  render().requestDelete('/sites/a');
+  assert.equal(render().pendingId, '/sites/a');
+  assert.deepEqual(deleted, [], 'requesting confirmation cannot delete');
+  render().cancelDelete();
+  assert.equal(render().pendingId, null);
+  assert.deepEqual(deleted, [], 'Cancel cannot delete');
+  render().requestDelete('/sites/a');
+  const overlay = sourceFunction(grid, 'CardConfirmOverlay');
+  const confirm = elements(overlay({ project: { id: '/sites/a' }, copy: { confirmButtonLabel: 'Delete' },
+    onCancel: render().cancelDelete, onConfirm: render().confirmDelete })).find((element) => element.type === 'button' && element.props.children === 'Delete');
+  assert.ok(confirm);
+  confirm.props.onClick();
+  assert.deepEqual(deleted, ['/sites/a']);
 });
 
-test('the pending mark is cleared on BOTH arms, so a failed start cannot stick on Starting…', () => {
+test('the pending mark is cleared on BOTH arms, so a failed start cannot stick on Starting…', async () => {
   // The one thing this control must never do is remember its own press. There is no renderer here
   // to drive the failure arm, so the clearing is asserted structurally: it must not sit inside the
   // success branch.
@@ -220,6 +250,25 @@ test('the pending mark is cleared on BOTH arms, so a failed start cannot stick o
   const clear = toggle.indexOf('setPending((current) => withoutKey(current, id));');
   assert.notEqual(clear, -1, 'the pending mark must be cleared');
   assert.ok(clear > toggle.indexOf('else setErrors'), 'the clear must follow both arms, not live inside one');
+  const harness = hookHarness();
+  let reject!: (error: Error) => void;
+  const usePower = sourceFunction(power, 'useSitePower', { ...harness.bindings,
+    powerControl, performPowerAction, IN_FLIGHT_STATUS,
+    withoutKey: sourceFunction(power, 'withoutKey'),
+    runnerInventoryBridge: () => ({ startSite: () => new Promise((_resolve, fail) => { reject = fail; }) }),
+  });
+  const project = { id: '/sites/a', status: 'stopped' };
+  const other = { id: '/sites/b', status: 'running' };
+  const render = () => harness.render(() => usePower());
+  const starting = render().toggle(project);
+  assert.equal(render().statusOf(project), 'starting');
+  assert.equal(render().statusOf(other), 'running');
+  assert.equal(powerControl(render().statusOf(project))?.action, null);
+  reject(new Error('port busy'));
+  await starting;
+  assert.equal(render().statusOf(project), 'stopped');
+  assert.equal(render().errorOf(project.id), 'port busy');
+  assert.equal(powerControl(render().statusOf(project))?.action, 'start', 'retry must be available');
 });
 
 test("main's refreshed record reaches the grid, rather than waiting on the 4s poll", () => {
@@ -228,12 +277,28 @@ test("main's refreshed record reaches the grid, rather than waiting on the 4s po
   assert.match(app, /const applySiteRecord = useApplySiteRecord\(setProjects\);/);
   assert.match(app, /<SiteGrid [^>]*onSiteUpdated=\{onSiteUpdated\}/);
   assert.match(grid, /const power = usePower\(onSiteUpdated\);/);
+  for (const [component, callback] of [['MainArea', 'applySiteRecord'], ['MainContent', 'onSiteUpdated'], ['ProjectsBody', 'onSiteUpdated']]) {
+    assert.match(app, new RegExp(`<${component}\\b[^>]*onSiteUpdated=\\{${callback}\\}`), `${component} must forward the actual update callback`);
+  }
+  const harness = hookHarness();
+  const useApply = sourceFunction(appHooks, 'useApplySiteRecord', harness.bindings);
+  const unchanged = { id: '/sites/b', status: 'running', port: 4002 };
+  let projects = [{ id: '/sites/a', status: 'stopped', port: 4001 }, unchanged];
+  const updated = { id: '/sites/a', status: 'running', port: 4321 };
+  useApply((next: any) => { projects = next(projects); })(updated);
+  assert.deepEqual(projects, [updated, unchanged], 'status and port must update before any poll');
 });
 
 // ---- A card whose folder is gone (`SiteRecord.folderMissing`) ----
 
 test('a missing-folder card says so in its body', () => {
   assert.match(cardBody(), /\{project\.folderMissing && <p className="card__missing">Folder moved or deleted<\/p>\}/);
+  const own = cardBody().slice(0, cardBody().indexOf('\nfunction MissingFolderNotice('));
+  assert.match(own, /<MissingFolderNotice\s+project=\{project\}\s+locate=\{locate\}\s*\/>/, 'SiteCard itself must invoke the notice');
+  const notice = sourceFunction(grid, 'MissingFolderNotice');
+  const locate = { errorOf: () => null };
+  assert.ok(elements(notice({ project: { folderMissing: true }, locate })).some((element) => element.props.children === 'Folder moved or deleted'));
+  assert.equal(elements(notice({ project: { folderMissing: false }, locate })).filter((element) => element.type === 'p').length, 0);
 });
 
 test('a missing-folder card offers Locate and Remove in place of Start/Stop', () => {

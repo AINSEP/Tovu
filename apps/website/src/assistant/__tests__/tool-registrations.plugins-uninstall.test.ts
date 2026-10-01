@@ -255,7 +255,15 @@ test("plugins_uninstall: a cancelled confirmation removes nothing and reports ca
 
 test("plugins_uninstall: a denied principal is rejected and nothing is removed", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps({ allow: false, discovery: [SITE_PLUGIN] });
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })));
+  const emitted: unknown[] = [];
+  await assert.rejects(
+    () => wired(deps, "plugins_uninstall").handler({
+      ...executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id }),
+      emitSurface: async (surface) => void emitted.push(surface),
+    }),
+    /is not authorized for 'admin\.plugins\.enable'/,
+  );
+  assert.deepEqual(emitted, [], "authorization must refuse before opening a dialog");
   assert.deepEqual(uninstallCalls, []);
 });
 

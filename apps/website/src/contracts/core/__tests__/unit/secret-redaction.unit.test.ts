@@ -14,36 +14,38 @@ import { redactSecretShapes } from "../../secret-redaction.js";
  */
 
 test("blanks every secret shape, and the secret substring is absent from the output", () => {
-  const secrets: Record<string, string> = {
-    "Stripe live key": ["sk", "live", ""].join("_") + "Ab3".repeat(8),
-    "Stripe test key": ["sk", "test", ""].join("_") + "Cd4".repeat(8),
-    "Stripe restricted key": ["rk", "live", ""].join("_") + "Ef5".repeat(8),
-    "Stripe webhook secret": ["whsec", ""].join("_") + "Gh6".repeat(10),
-    "GitHub classic PAT (ghp_)": "ghp_" + "a1".repeat(18),
-    "GitHub OAuth token (gho_)": "gho_" + "b2".repeat(18),
-    "GitHub server token (ghs_)": "ghs_" + "c3d4".repeat(8),
-    "GitHub fine-grained PAT": "github_pat_" + "x1".repeat(45),
-    "Authorization: Bearer": "Authorization: Bearer " + "tok".repeat(20),
-    "Authorization: Basic": "Authorization: Basic " + "QWxhZGRpbjpvcGVuc2VzYW1l",
-    "x-api-key header": "x-api-key: " + "sekret".repeat(6),
-    "bare Bearer token with a digit": "Use " + "Bearer " + "k3y".repeat(6),
-    "AWS AKIA key": "AKIA" + "Q".repeat(16),
-    "AWS ASIA key": "ASIA" + "Q".repeat(16),
-    JWT: "eyJ" + "a".repeat(10) + "." + "eyJ" + "b".repeat(10) + "." + "c".repeat(10),
-    "Google AIza key": "AIza" + "x".repeat(35),
-    "Anthropic sk-ant- key": "sk-ant-" + "x".repeat(95),
-    "OpenAI sk-proj- key": ["sk", "proj", ""].join("-") + "Ab3".repeat(8),
-    "PEM block, multi-line": [["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "MIIEv...", ["-----END", "PRIVATE", "KEY-----"].join(" ")].join("\n"),
-    "PEM block, truncated (no END)": [["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "MIIEv..."].join("\n"),
-    "password= assignment": "password=" + "Sw0rdFish!".repeat(2),
-    'JSON "client_secret"': '"client_secret":"' + "abc123XYZ".repeat(3) + '"',
-    "?api_key= query param": "?api_key=" + "q1w2e3r4t5".repeat(2),
+  const secrets: Record<string, readonly [input: string, expected: string, payload: string]> = {
+    "Stripe live key": [["sk", "live", ""].join("_") + "Ab3".repeat(8), "[REDACTED:stripe_key]", "Ab3".repeat(8)],
+    "Stripe test key": [["sk", "test", ""].join("_") + "Cd4".repeat(8), "[REDACTED:stripe_key]", "Cd4".repeat(8)],
+    "Stripe restricted key": [["rk", "live", ""].join("_") + "Ef5".repeat(8), "[REDACTED:stripe_key]", "Ef5".repeat(8)],
+    "Stripe webhook secret": [["whsec", ""].join("_") + "Gh6".repeat(10), "[REDACTED:stripe_key]", "Gh6".repeat(10)],
+    "GitHub classic PAT (ghp_)": ["ghp_" + "a1".repeat(18), "[REDACTED:credential]", "a1".repeat(18)],
+    "GitHub OAuth token (gho_)": ["gho_" + "b2".repeat(18), "[REDACTED:credential]", "b2".repeat(18)],
+    "GitHub server token (ghs_)": ["ghs_" + "c3d4".repeat(8), "[REDACTED:github_token]", "c3d4".repeat(8)],
+    "GitHub fine-grained PAT": ["github_pat_" + "x1".repeat(45), "[REDACTED:credential]", "x1".repeat(45)],
+    "Authorization: Bearer": ["Authorization: Bearer " + "tok".repeat(20), "Authorization: Bearer [REDACTED:auth_header]", "tok".repeat(20)],
+    "Authorization: Basic": ["Authorization: Basic " + "QWxhZGRpbjpvcGVuc2VzYW1l", "Authorization: Basic [REDACTED:auth_header]", "QWxhZGRpbjpvcGVuc2VzYW1l"],
+    "x-api-key header": ["x-api-key: " + "sekret".repeat(6), "x-api-key: [REDACTED:auth_header]", "sekret".repeat(6)],
+    "bare Bearer token with a digit": ["Use " + "Bearer " + "k3y".repeat(6), "Use Bearer [REDACTED:bearer_token]", "k3y".repeat(6)],
+    "AWS AKIA key": ["AKIA" + "Q".repeat(16), "[REDACTED:credential]", "Q".repeat(16)],
+    "AWS ASIA key": ["ASIA" + "Q".repeat(16), "[REDACTED:aws_access_key]", "Q".repeat(16)],
+    JWT: ["eyJ" + "a".repeat(10) + "." + "eyJ" + "b".repeat(10) + "." + "c".repeat(10), "[REDACTED:jwt]", "c".repeat(10)],
+    "Google AIza key": ["AIza" + "x".repeat(35), "[REDACTED:credential]", "x".repeat(35)],
+    "Anthropic sk-ant- key": ["sk-ant-" + "x".repeat(95), "[REDACTED:credential]", "x".repeat(95)],
+    "OpenAI sk-proj- key": [["sk", "proj", ""].join("-") + "Ab3".repeat(8), "[REDACTED:openai_key]", "Ab3".repeat(8)],
+    "PEM block, multi-line": [[["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "MIIEv...", ["-----END", "PRIVATE", "KEY-----"].join(" ")].join("\n"), "[REDACTED:private_key]", "MIIEv..."],
+    "PEM block, truncated (no END)": [[["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "MIIEv..."].join("\n"), "[REDACTED:private_key]", "MIIEv..."],
+    "password= assignment": ["password=" + "Sw0rdFish!".repeat(2), "password=[REDACTED:labeled_secret]", "Sw0rdFish!".repeat(2)],
+    'JSON "client_secret"': ['"client_secret":"' + "abc123XYZ".repeat(3) + '"', "\"client_secret\":\"[REDACTED:labeled_secret]\"", "abc123XYZ".repeat(3)],
+    "?api_key= query param": ["?api_key=" + "q1w2e3r4t5".repeat(2), "?api_key=[REDACTED:labeled_secret]", "q1w2e3r4t5".repeat(2)],
   };
 
-  for (const [label, secret] of Object.entries(secrets)) {
+  for (const [label, [secret, expected, payload]] of Object.entries(secrets)) {
     const { text, redactions } = redactSecretShapes(secret);
     assert.ok(redactions >= 1, `${label}: expected at least one redaction`);
     assert.equal(text.includes(secret), false, `${label}: secret substring survived redaction: ${text}`);
+    assert.equal(text, expected, `${label}: the complete value must be replaced`);
+    assert.equal(text.includes(payload), false, `${label}: secret payload survived redaction`);
   }
 });
 

@@ -133,10 +133,10 @@ const ASK_CHOICE_FORGED_ANSWER_MESSAGE =
  * @complexity O(1) amortized per operation; expired entries are swept lazily on mint.
  */
 function createAskChoiceAnswerTicketStore(): {
-  mint(principalId: string): string;
-  redeem(spec: { ticket: string | undefined; principalId: string }): boolean;
+  mint(principalId: string, parsed: ParsedAskChoiceInput): string;
+  redeem(spec: { ticket: string | undefined; principalId: string; params: Record<string, unknown> }): boolean;
 } {
-  const pending = new Map<string, { principalId: string; expiresAtMs: number }>();
+  const pending = new Map<string, { principalId: string; expiresAtMs: number; parsed: ParsedAskChoiceInput }>();
 
   function sweep(nowMs: number): void {
     for (const [key, entry] of pending) {
@@ -145,14 +145,14 @@ function createAskChoiceAnswerTicketStore(): {
   }
 
   return {
-    mint(principalId) {
+    mint(principalId, parsed) {
       const nowMs = Date.now();
       sweep(nowMs);
       const ticket = randomUUID();
-      pending.set(ticket, { principalId, expiresAtMs: nowMs + ASK_CHOICE_TICKET_TTL_MS });
+      pending.set(ticket, { principalId, expiresAtMs: nowMs + ASK_CHOICE_TICKET_TTL_MS, parsed });
       return ticket;
     },
-    redeem({ ticket, principalId }) {
+    redeem({ ticket, principalId, params }) {
       if (ticket === undefined) return false;
       const nowMs = Date.now();
       const entry = pending.get(ticket);
@@ -161,7 +161,7 @@ function createAskChoiceAnswerTicketStore(): {
       // told apart from one that never existed (mirrors `pending-confirmations.ts#redeem`).
       pending.delete(ticket);
       if (entry.expiresAtMs <= nowMs) return false;
-      return entry.principalId === principalId;
+      return entry.principalId === principalId && matchesAskChoiceOptions(entry.parsed, params);
     },
   };
 }
@@ -322,6 +322,20 @@ interface ParsedAskChoiceInput {
   readonly multiSelect?: SelectSpec;
 }
 
+/** A fallback ticket binds the answer to the options in the form that minted it. */
+function matchesAskChoiceOptions(parsed: ParsedAskChoiceInput, params: Record<string, unknown>): boolean {
+  const choice = params["choice"];
+  if (parsed.singleSelect) {
+    if (!parsed.singleSelect.options.some((option) => option.value === choice)) return false;
+  } else if (choice !== undefined) return false;
+
+  const selections = params["selections"];
+  if (selections === undefined) return true;
+  if (!parsed.multiSelect || !Array.isArray(selections)) return false;
+  const offered = new Set(parsed.multiSelect.options.map((option) => option.value));
+  return selections.every((value) => typeof value === "string" && offered.has(value));
+}
+
 /** Reads and requires the model's `title` — the one field with no fallback, since a malformed
  *  value means the call cannot proceed at all. Split out of {@link parseAskChoiceInput} purely to
  *  keep it under the shop complexity ceiling; behavior (including the exact rejection message) is
@@ -407,6 +421,13 @@ function isFallbackAskChoiceAnswer(input: Record<string, unknown>): boolean {
 function describeAskChoiceAnswer(params: Record<string, unknown>): Record<string, unknown> {
   const choice = typeof params["choice"] === "string" ? params["choice"] : undefined;
   const selections = Array.isArray(params["selections"]) ? (params["selections"] as string[]) : undefined;
+  if (choice === undefined && selections === undefined) {
+    return {
+      submitted: false,
+      reason: "no-answer",
+      note: "The administrator did not provide an answer. Do not assume any answer.",
+    };
+  }
   return {
     submitted: true,
     ...(choice === undefined ? {} : { choice }),
@@ -431,8 +452,9 @@ function describeAskChoiceAnswer(params: Record<string, unknown>): Record<string
  * ## Fail-quiet, not fail-closed, on a malformed value
  *
  * A non-string or blank value returns `undefined` and the caller falls through to the ordinary
- * form-answer branch, which reports `submitted: true` with no answer fields — "they responded, they
- * chose nothing". That is the truthful reading, and it is strictly safer than either alternative:
+ * form-answer branch. If that carries neither a choice nor selections, it reports `submitted: false`
+ * so the model is not told an answer arrived. An explicit empty selections array remains a real
+ * answer. This avoids either alternative:
  * `String(value)` would hand the model `"[object Object]"` as the human's words, and throwing would
  * turn a malformed client into a failed agent call the administrator cannot recover from without
  * the whole run dying.
@@ -534,9 +556,8 @@ async function awaitAskChoiceSubmission(input: {
       };
     }
     // Checked before the form-answer branch, not after: a typed answer carries no `choice`/
-    // `selections` at all, so falling through would report `submitted: true` with the administrator's
-    // actual words silently dropped — the model would be told they answered and never learn what
-    // they said.
+    // `selections` at all, so falling through would report no answer with the administrator's
+    // actual words silently dropped.
     return describeTypedAskChoiceAnswer(answer.params) ?? describeAskChoiceAnswer(answer.params);
   } finally {
     signal.removeEventListener("abort", closeOnAbort);
@@ -575,7 +596,7 @@ export function buildAskChoiceRegistrations(
       // redeem a real, outstanding, unconsumed ticket for THIS principal. ----
       if (isFallbackAskChoiceAnswer(input)) {
         const ticket = typeof input[ASK_CHOICE_ANSWER_TICKET_PARAM] === "string" ? input[ASK_CHOICE_ANSWER_TICKET_PARAM] : undefined;
-        if (!answerTickets.redeem({ ticket, principalId: ctx.principal.id })) {
+        if (!answerTickets.redeem({ ticket, principalId: ctx.principal.id, params: input })) {
           throw new ToolInputError(ASK_CHOICE_FORGED_ANSWER_MESSAGE);
         }
         return describeAskChoiceAnswer(input);
@@ -594,7 +615,7 @@ export function buildAskChoiceRegistrations(
 
           // No exchange means the fallback below is about to hand this call's answer to whatever
           // arrives as a second call — mint the ticket that second call must carry.
-          const answerTicket = exchange ? undefined : answerTickets.mint(ctx.principal.id);
+          const answerTicket = exchange ? undefined : answerTickets.mint(ctx.principal.id, parsed);
 
           const ui = buildAskChoiceFormSurface({ principalId: ctx.principal.id, exchange, answerTicket, parsed });
 

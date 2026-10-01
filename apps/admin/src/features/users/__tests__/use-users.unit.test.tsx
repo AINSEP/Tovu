@@ -447,6 +447,10 @@ describe("openResetPassword / confirmResetPassword", () => {
       await result.current.confirmResetPassword();
     });
 
+    const resetCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/users/u1/reset-password"));
+    expect(resetCall).toBeDefined();
+    expect(resetCall![1]?.method).toBe("POST");
+    expect(JSON.parse(resetCall![1]?.body as string)).toEqual({ password: "newpass1" });
     expect(result.current.notice).toContain(USER_A.username);
     expect(result.current.resetPasswordFor).toBeNull();
     expect(result.current.newPassword).toBe("");
@@ -542,6 +546,33 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(port.users[0]!.status).toBe("disabled");
     await waitFor(() => expect(result.current.users![0].status).toBe("disabled"));
+  });
+
+  it("passes the selected principal and draft values to injected mutation ports", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const assign = vi.spyOn(port, "assignRole");
+    const attach = vi.spyOn(port, "attachPolicy");
+    const update = vi.spyOn(port, "updateUser");
+    const reset = vi.spyOn(port, "resetUserPassword");
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    await act(async () => result.current.onAssignRole(USER_B.principalId));
+    expect(assign).toHaveBeenCalledWith({ principalId: USER_B.principalId, roleId: ROLE.id });
+
+    act(() => result.current.setPendingPolicyId(POLICY.id));
+    await act(async () => result.current.onAttachPolicy(USER_B.principalId));
+    expect(attach).toHaveBeenCalledWith({ principalId: USER_B.principalId, policyId: POLICY.id });
+
+    act(() => result.current.setEditEmail("bob+edited@example.com"));
+    await act(async () => result.current.onSaveEmail(USER_B.principalId));
+    expect(update).toHaveBeenCalledWith({ principalId: USER_B.principalId }, { email: "bob+edited@example.com" });
+
+    act(() => result.current.openResetPassword(USER_B));
+    act(() => result.current.setNewPassword("newpass1"));
+    await act(async () => result.current.confirmResetPassword());
+    expect(reset).toHaveBeenCalledWith({ principalId: USER_B.principalId, password: "newpass1" });
   });
 
   it("onAssignRole sets grantError from the injected port's configured failure", async () => {

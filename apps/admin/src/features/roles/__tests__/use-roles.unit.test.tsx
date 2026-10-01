@@ -107,6 +107,9 @@ describe("onCreateRole", () => {
       await result.current.onCreateRole({ preventDefault: () => {} } as unknown as React.FormEvent);
     });
 
+    const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(String(postCall?.[0])).toMatch(/\/roles$/);
+    expect(JSON.parse(postCall![1].body)).toEqual({ name: "New Role" });
     expect(result.current.roleName).toBe("");
     expect(result.current.roleSaving).toBe(false);
     expect(result.current.roleError).toBeNull();
@@ -256,6 +259,7 @@ describe("onSaveRole", () => {
   it("on success, clears editingRoleId and reloads", async () => {
     const { result } = await renderLoaded();
     act(() => result.current.startEditRole(ROLE));
+    act(() => result.current.setEditingRoleName("Renamed"));
 
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ role: { ...ROLE, name: "Renamed" } }))
@@ -267,6 +271,9 @@ describe("onSaveRole", () => {
     });
 
     expect(result.current.editingRoleId).toBeNull();
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(String(patchCall?.[0])).toMatch(/\/roles\/r1$/);
+    expect(JSON.parse(patchCall![1].body)).toEqual({ name: "Renamed" });
     // `waitFor`: the reload triggered by `invalidates: [KEYS.list]` is a separate, un-awaited
     // background refetch — see this file's identical note above.
     await waitFor(() => expect(result.current.roles?.[0].name).toBe("Renamed"));
@@ -334,7 +341,7 @@ describe("onWritePermission", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         policyPermissions: [
-          { id: "pp-new", workspaceId: "w1", policyId: POLICY.id, permission: "content.write" },
+          { id: "pp-new", workspaceId: "w1", policyId: POLICY.id, permission: "content.write", resourceType: "post" },
         ],
       }),
     );
@@ -347,6 +354,10 @@ describe("onWritePermission", () => {
     expect(result.current.resourceTypeInput).toBe("");
     expect(result.current.rowError).toBeNull();
     expect(result.current.permissionRows.map((row) => row.permission)).toEqual(["content.write"]);
+    expect(result.current.permissionRows[0]).toMatchObject({ policyId: POLICY.id, permission: "content.write", resourceType: "post" });
+    const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(String(postCall?.[0])).toMatch(/\/policies\/p1\/permissions$/);
+    expect(JSON.parse(postCall![1].body)).toEqual({ permission: "content.write", resourceType: "post" });
   });
 
   it("sets rowError with the unrecognized-permission copy and keeps the typed input on PERMISSION_UNKNOWN", async () => {
@@ -414,8 +425,82 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     expect(port.roles).toHaveLength(2);
+    expect(port.roles[1]?.name).toBe("New Role");
     await waitFor(() => expect(result.current.roles).toHaveLength(2));
+    expect(result.current.roles?.[1]?.name).toBe("New Role");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onCreatePolicy stores the name and description, clears both fields, and reloads", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
+    act(() => {
+      result.current.setPolicyName("New Policy");
+      result.current.setPolicyDescription("Limits posts");
+    });
+    await act(async () => {
+      await result.current.onCreatePolicy({ preventDefault: () => {} } as unknown as React.FormEvent);
+    });
+    expect(port.policies[1]).toMatchObject({ name: "New Policy", description: "Limits posts" });
+    await waitFor(() => expect(result.current.policies).toEqual(port.policies));
+    expect(result.current.policyName).toBe("");
+    expect(result.current.policyDescription).toBe("");
+    expect(result.current.policySaving).toBe(false);
+    expect(result.current.policyError).toBeNull();
+  });
+
+  it("onCreatePolicy keeps both fields and reports a failed create", async () => {
+    const port = createFakeRolesPort({ policies: [POLICY], createPolicyError: new Error("create denied") });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
+    act(() => {
+      result.current.setPolicyName("New Policy");
+      result.current.setPolicyDescription("Limits posts");
+    });
+    await act(async () => {
+      await result.current.onCreatePolicy({ preventDefault: () => {} } as unknown as React.FormEvent);
+    });
+    await waitFor(() => expect(result.current.policyError).toBe("create denied"));
+    expect(result.current.policyName).toBe("New Policy");
+    expect(result.current.policyDescription).toBe("Limits posts");
+    expect(result.current.policySaving).toBe(false);
+    expect(port.policies).toEqual([POLICY]);
+  });
+
+  it("onSavePolicy persists both edited fields, closes the edit row, and reloads", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
+    act(() => result.current.startEditPolicy(POLICY));
+    act(() => {
+      result.current.setEditingPolicyName("Renamed Policy");
+      result.current.setEditingPolicyDescription("Updated description");
+    });
+    await act(async () => result.current.onSavePolicy(POLICY.id));
+    expect(port.policies).toEqual([{ ...POLICY, name: "Renamed Policy", description: "Updated description" }]);
+    await waitFor(() => expect(result.current.policies).toEqual(port.policies));
+    expect(result.current.editingPolicyId).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.rowError).toBeNull();
+  });
+
+  it("onSavePolicy keeps the edit row and both drafts on failure", async () => {
+    const port = createFakeRolesPort({ policies: [POLICY], updatePolicyError: new Error("update denied") });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
+    act(() => result.current.startEditPolicy(POLICY));
+    act(() => {
+      result.current.setEditingPolicyName("Renamed Policy");
+      result.current.setEditingPolicyDescription("Updated description");
+    });
+    await act(async () => result.current.onSavePolicy(POLICY.id));
+    expect(result.current.rowError).toBe("update denied");
+    expect(result.current.editingPolicyId).toBe(POLICY.id);
+    expect(result.current.editingPolicyName).toBe("Renamed Policy");
+    expect(result.current.editingPolicyDescription).toBe("Updated description");
+    expect(result.current.rowSavingId).toBeNull();
+    expect(port.policies).toEqual([POLICY]);
   });
 
   it("onDeleteRole removes the pending role through the injected port", async () => {

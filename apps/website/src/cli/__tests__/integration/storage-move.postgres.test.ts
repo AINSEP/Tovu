@@ -4,6 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
+import { sql } from "kysely";
+
+import { readCatalog } from "#src/features/database-transfer/pg-store-copy";
+import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
+import type { StorageKernel } from "#src/platform/db/kernel/index";
+import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
+import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { dropDatabase } from "#src/platform/db/migration/pg-fixture";
 import { ValidationError } from "#src/platform/site-dir/errors";
@@ -18,6 +25,15 @@ import { runStorageMoveCommand } from "../../commands/storage-move.js";
  * move with `--storage-env` (the site then reads that variable; nothing is sealed). The move itself
  * is covered in `server/runtime/composition/__tests__/move-site-storage.postgres.test.ts`.
  */
+
+async function counts(kernel: StorageKernel<unknown>): Promise<Record<string, number>> {
+  const result: Record<string, number> = {};
+  for (const table of await readCatalog(kernel)) {
+    const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
+    result[`${table.schema}.${table.name}`] = row.n;
+  }
+  return result;
+}
 
 const DB = "tovu_storage_move_cli_test";
 const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-cli-"));
@@ -54,6 +70,19 @@ test("the program routes `storage move` to the command", async () => {
 
 test("--storage-env moves the site and leaves the connection string in that variable", async () => {
   const site = await initSite({ dir: path.join(parent, "site"), name: "Cli Move", storage: { kind: "pglite" } });
+  const source = openPgliteKernel<unknown>({ dataDir: path.join(site.dir, "pglite") });
+  let sourceCounts: Record<string, number>;
+  let sourcePosts: Array<{ id: string; title: string; slug: string; body_json: string }>;
+  try {
+    // A persisted edit distinguishes a real copy from a target silently re-seeded on open.
+    await source.execute(sql`UPDATE posts SET title = 'CLI move persisted welcome' WHERE slug = 'welcome'`);
+    sourceCounts = await counts(source);
+    sourcePosts = await source.query(sql`SELECT id, title, slug, body_json FROM posts ORDER BY id`);
+    assert.ok(sourcePosts.some((post) => post.slug === "welcome" && post.title === "CLI move persisted welcome"));
+    assert.ok(sourcePosts.some((post) => post.slug === "about" && post.title === "What Is Tovu?"));
+  } finally {
+    await source.close();
+  }
   const lines: string[] = [];
   const result = await runStorageMoveCommand({
     dir: site.dir,
@@ -71,4 +100,19 @@ test("--storage-env moves the site and leaves the connection string in that vari
     `moved site at ${site.dir} to postgres: ${result.tables.length} tables, ${rows} rows`,
     `the PGlite data dir is kept at ${path.join(site.dir, "pglite")}; remove it yourself once the site checks out`,
   ]);
+  const storage = resolveSiteStorage(site.dir);
+  const target = await openSiteStore({
+    storage, dbPath: path.join(site.dir, "content.db"), chatDbPath: path.join(site.dir, "chat.db"), role: "owner",
+  }, { env: { TOVU_MOVE_URL: url } });
+  try {
+    assert.equal(target.storage.kind, "postgres", "reopen through the moved site's metadata");
+    assert.deepEqual(await counts(target.content as unknown as StorageKernel<unknown>), sourceCounts, "every destination table must retain its source row count");
+    assert.deepEqual(await target.content.run((db) => db.selectFrom("posts").select(["id", "title", "slug", "body_json"]).orderBy("id").execute()), sourcePosts);
+    assert.deepEqual(await target.content.run((db) => db.selectFrom("workspaces").select(["id", "slug"]).execute()), [
+      { id: "workspace-local", slug: "local-tovu" },
+    ]);
+  } finally {
+    await target.close();
+  }
+
 });

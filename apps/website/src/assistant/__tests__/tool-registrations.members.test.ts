@@ -11,6 +11,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
@@ -125,6 +126,13 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
   const found = membersRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+function signInUrl(message: unknown): URL {
+  const mail = message as { text?: string };
+  const link = mail.text?.match(/(?:https?:\/\/[^\s]+)?\/auth\/magic\?[^\s]+/);
+  assert.ok(link, "mail must contain a sign-in URL");
+  return new URL(link[0], "https://members.example.test");
 }
 
 // ---------------------------------------------------------------------------
@@ -321,20 +329,43 @@ test("members_request_magic_link: authorize() is checked strictly BEFORE the rat
 });
 
 test("members_request_magic_link: delivers {delivered:true} for a valid email and sends mail", async () => {
-  const { deps, sentMail } = fakeRouteDeps({ seed: [seedMember()] });
+  const { deps, sentMail, magicLinkRepo } = fakeRouteDeps({ seed: [seedMember()] });
   const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
   assert.deepEqual(result, { delivered: true });
   assert.equal(sentMail.length, 1);
+  assert.deepEqual((sentMail[0] as { to: unknown }).to, { email: "member@example.test" });
+  const url = signInUrl(sentMail[0]);
+  assert.equal(url.pathname, "/auth/magic");
+  assert.equal(url.searchParams.has("redirect"), false);
+  const token = url.searchParams.get("token");
+  assert.ok(token, "the link needs a token the member can redeem");
+  const stored = await magicLinkRepo.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: createHash("sha256").update(token).digest("hex") });
+  assert.equal(stored?.memberId, "member-1", "the emailed token must sign in the intended member");
 });
 
+for (const status of ["unknown", "disabled"] as const) {
+  test(`members_request_magic_link: a ${status} email returns the same anti-enumeration result`, async () => {
+    const { deps, sentMail } = fakeRouteDeps({ seed: status === "disabled" ? [seedMember({ status: "disabled" })] : [] });
+    const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
+    assert.deepEqual(result, { delivered: true });
+    assert.equal(sentMail.length, status === "disabled" ? 0 : 1);
+  });
+}
+
 test("members_request_magic_link: a string redirectPath in the input is threaded through to the write service", async () => {
-  const { deps } = fakeRouteDeps({ seed: [seedMember()] });
+  const { deps, sentMail } = fakeRouteDeps({ seed: [seedMember()] });
   // No direct spy seam on requestSignInLink from here -- assert indirectly via the sent mail body,
   // which embeds the redirect query param when redirectPath is honored.
   const result = await wired("members_request_magic_link", deps).handler(
     executionContext({ email: "member@example.test", redirectPath: "/welcome" }),
   );
   assert.deepEqual(result, { delivered: true });
+  assert.equal(sentMail.length, 1);
+  assert.equal(signInUrl(sentMail[0]).searchParams.get("redirect"), "/welcome");
+  const withoutRedirect = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
+  assert.deepEqual(withoutRedirect, { delivered: true });
+  assert.equal(sentMail.length, 2);
+  assert.equal(signInUrl(sentMail[1]).searchParams.has("redirect"), false);
 });
 
 test("members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after", async () => {

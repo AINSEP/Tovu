@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import { ApiError } from "@/lib/api";
+import { t as dashboardT } from "../../dashboard/dashboard-i18n";
 
 import { PublishContentDialog } from "../PublishContentDialog";
 import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
@@ -222,6 +223,26 @@ describe("PublishContentDialog — execute is gated on a confirmed plan", () => 
 
     expect(port.calls.confirmPublish).toHaveLength(1);
     expect(port.calls.executePublish).toHaveLength(0);
+  });
+
+  it("an execute rejection leaves Publishing, shows the error, and allows retry or Cancel", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT, executeError: new Error("Live publish failed") });
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    render(<PublishContentDialog onCancel={onCancel} t={t} port={port} confirmArmDelayMs={NO_ARM_DELAY} />);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+    await user.click(primaryButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Live publish failed");
+    expect(port.calls.executePublish).toHaveLength(1);
+    expect(screen.queryByText("Publishing…")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Published \d+ changes\./)).not.toBeInTheDocument();
+    expect(primaryButton()).toBeEnabled();
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(cancel).toBeEnabled();
+    await user.click(cancel);
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("executes with exactly the token confirm returned, against the planned peer", async () => {
@@ -455,6 +476,19 @@ describe("PublishContentDialog — plain column names (owner 2026-09-26)", () =>
     const headers = [...document.querySelectorAll("thead th")].map((th) => th.textContent?.trim());
     expect(headers.slice(1, 4)).toEqual(["Type", "Item", "What happens"]);
     expect(headers).not.toContain("Entity");
+  });
+
+  it("translates the Item column through the dashboard dictionary in German", async () => {
+    const user = userEvent.setup();
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    render(<PublishContentDialog onCancel={() => {}} t={(key) => dashboardT("de", key)} port={port} confirmArmDelayMs={NO_ARM_DELAY} />);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+
+    expect(screen.getByRole("columnheader", { name: dashboardT("de", "Item") })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Item" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Entity" })).not.toBeInTheDocument();
   });
 });
 
@@ -1023,12 +1057,22 @@ describe("PublishContentDialog — Overwrite on live", () => {
     port.planPublish = async (input) => {
       const base = await createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT }).planPublish(input);
       if (input.overwriteEntityKeys === undefined) return base;
-      return { ...base, details: { ...base.details, rows: base.details.rows.filter((r) => r.entityId !== "post-new") } };
+      return { ...base, planId: "changed-plan", planHash: "changed-hash", details: { ...base.details, rows: base.details.rows.filter((r) => r.entityId !== "post-new") } };
     };
 
     await user.click(overwriteCheckbox("post-clash")!);
     await screen.findByText("tovu.com (production) changed while you were deciding. Check the list again.");
     expect(screen.queryByRole("table")).toBeTruthy();
+    expect(document.querySelector('tr[data-entity-id="post-new"]')).toBeNull();
+    expect(overwriteCheckbox("post-clash")).toBeChecked();
+    expect(rowCheckbox("post-clash")).toBeChecked();
+    expect(primaryButton()).toBeEnabled();
+    expect(primaryButton()).toHaveTextContent("Publish 1 item");
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+    expect(port.calls.confirmPublish).toEqual([{ peerId: "peer-prod", planId: "changed-plan", planHash: "changed-hash" }]);
   });
 
   it("execute carries the plan's own overwriteEntityKeys", async () => {
@@ -1533,35 +1577,54 @@ describe("PublishContentDialog — the confirm is its own control, armed a momen
   });
 
   it("a click that lands as the confirm appears publishes nothing; a later one publishes", async () => {
-    const { port, held, release } = heldPlanPort();
-    const user = userEvent.setup();
-    renderDialog(held, { confirmArmDelayMs: 400 });
-    await waitFor(() => expect(port.calls.listPeers).toBe(1));
-    await user.click(primaryButton());
-    release();
-    await screen.findByRole("table");
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+    try {
+      const { port, held, release } = heldPlanPort();
+      const user = userEvent.setup();
+      renderDialog(held, { confirmArmDelayMs: 400 });
+      await waitFor(() => expect(port.calls.listPeers).toBe(1));
+      await user.click(primaryButton());
+      release();
+      await screen.findByRole("table");
 
-    // What a waiting click does: fires on the first actionable button it finds.
-    await user.click(primaryButton());
-    expect(primaryButton().textContent).toBe("Publish 1 item");
-    expect(port.calls.confirmPublish).toEqual([]);
-    expect(port.calls.executePublish).toEqual([]);
+      // What a waiting click does: fires on the first actionable button it finds.
+      await user.click(primaryButton());
+      expect(primaryButton().textContent).toBe("Publish 1 item");
+      expect(port.calls.confirmPublish).toEqual([]);
+      expect(port.calls.executePublish).toEqual([]);
 
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    await user.click(primaryButton());
-    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
-    expect(port.calls.confirmPublish).toHaveLength(1);
+      clock.mockReturnValue(1399);
+      await user.click(primaryButton());
+      expect(port.calls.confirmPublish).toEqual([]);
+      expect(port.calls.executePublish).toEqual([]);
+      clock.mockReturnValue(1401);
+      await user.click(primaryButton());
+      await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+      expect(port.calls.confirmPublish).toHaveLength(1);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("the delay is on by default", async () => {
-    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
-    const user = userEvent.setup();
-    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} />);
-    await waitFor(() => expect(port.calls.listPeers).toBe(1));
-    await user.click(primaryButton());
-    await screen.findByRole("table");
-    await user.click(primaryButton());
-    expect(port.calls.confirmPublish).toEqual([]);
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+    try {
+      const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+      const user = userEvent.setup();
+      render(<PublishContentDialog onCancel={() => {}} t={t} port={port} />);
+      await waitFor(() => expect(port.calls.listPeers).toBe(1));
+      await user.click(primaryButton());
+      await screen.findByRole("table");
+      clock.mockReturnValue(1399);
+      await user.click(primaryButton());
+      expect(port.calls.confirmPublish).toEqual([]);
+      expect(port.calls.executePublish).toEqual([]);
+      clock.mockReturnValue(1401);
+      await user.click(primaryButton());
+      await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+    } finally {
+      clock.mockRestore();
+    }
   });
 });
 
@@ -1672,7 +1735,9 @@ describe("PublishContentDialog — criteria-driven open (publish-criteria plan �
 
     await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
     const result = onPlanned.mock.calls[0]?.[0] as PublishRequestResult;
-    expect(result.willPublish).toEqual(expect.arrayContaining(["Home", "Main Menu"]));
+    expect(result.willPublish).toEqual(["Home", "Main Menu"]);
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
   });
 });
 

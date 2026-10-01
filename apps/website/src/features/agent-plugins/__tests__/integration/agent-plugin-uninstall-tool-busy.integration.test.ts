@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { mock } from "node:test";
@@ -178,6 +178,14 @@ function busyOutput(pluginId: string) {
   };
 }
 
+async function snapshotTree(root: string): Promise<unknown> {
+  const info = await stat(root);
+  if (!info.isDirectory()) return { mode: info.mode & 0o777, bytes: await readFile(root) };
+  const names = (await readdir(root)).sort();
+  const entries = await Promise.all(names.map(async (name) => ({ name, tree: await snapshotTree(path.join(root, name)) })));
+  return { mode: info.mode & 0o777, entries };
+}
+
 test("t91 R2: a lock already busy before the call still raises the confirmation dialog — preview takes no lock — and only refuses the actual delete on confirm", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-preview");
@@ -211,6 +219,10 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-confirm");
     const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
+    const packageBefore = await snapshotTree(installed.packageRoot);
+    const activationsPath = path.join(workspaceLayout.root, "activations.json");
+    const activationBefore = await readFile(activationsPath);
+    assert.deepEqual(await readdir(workspaceLayout.packages), [installed.archiveDigest]);
     try {
       const { deps } = fakeDeps();
       const surfaceExchanges = createSurfaceExchangeStore();
@@ -230,6 +242,9 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
       const result = await pending;
       assert.deepEqual(result, busyOutput("operator-plugin"));
       assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "a busy delete must leave the package installed, with no staged/quarantined leftovers");
+      assert.deepEqual(await snapshotTree(installed.packageRoot), packageBefore, "all package bytes, entries and permissions must survive rollback");
+      assert.deepEqual(await readFile(activationsPath), activationBefore, "refusal must preserve the activation record byte for byte");
+      assert.deepEqual(await readdir(workspaceLayout.packages), [installed.archiveDigest], "no .uninstalling-* tree may remain");
     } finally {
       behavior = real.withExclusiveFileLock;
     }

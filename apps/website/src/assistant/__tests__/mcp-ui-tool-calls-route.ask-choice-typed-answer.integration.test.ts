@@ -200,6 +200,9 @@ test("a typed answer that is not a string is refused rather than delivered as an
   const executed = await pending;
   const output = executed.output as Record<string, unknown>;
   assert.equal(output["freeText"], undefined, "a non-string typed answer must not be reported as the human's words");
+  assert.equal(executed.status, "completed");
+  assert.equal(output["submitted"], false, "malformed typing must not tell the model an answer was submitted");
+  for (const field of ["choice", "selections", "freeText"]) assert.equal(Object.hasOwn(output, field), false);
 });
 
 test("an empty typed answer is not treated as an answer at all", async (t) => {
@@ -220,7 +223,30 @@ test("an empty typed answer is not treated as an answer at all", async (t) => {
   const executed = await pending;
   const output = executed.output as Record<string, unknown>;
   assert.equal(output["freeText"], undefined, "whitespace is not an answer — the model must not be told one arrived");
+  assert.equal(executed.status, "completed");
+  assert.equal(output["submitted"], false, "whitespace must not tell the model an answer was submitted");
+  for (const field of ["choice", "selections", "freeText"]) assert.equal(Object.hasOwn(output, field), false);
 });
+
+// Exercise the same delivery used by the route without requiring a listening socket, so malformed
+// input cannot be reported as submitted even in environments that prohibit loopback servers.
+for (const [label, typedAnswer] of [["non-string", { not: "a string" }], ["whitespace", "   "]] as const) {
+  test(`a parked ask-choice rejects a ${label} typed answer without inventing a submission`, async () => {
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
+    const { pending, exchangeId } = await openRealDialog(toolExecutor);
+    assert.deepEqual(surfaceExchanges.deliver({
+      exchangeId, toolId: ASK_CHOICE_TOOL_ID, principalId: PRINCIPAL,
+      params: { [SURFACE_TYPED_ANSWER_PARAM]: typedAnswer },
+    }), { ok: true });
+    const executed = await pending;
+    assert.equal(executed.status, "completed");
+    const output = executed.output as Record<string, unknown>;
+    assert.equal(output.submitted, false);
+    for (const field of ["choice", "selections", "freeText"]) assert.equal(Object.hasOwn(output, field), false);
+    assert.equal(surfaceExchanges.size(), 0);
+  });
+}
 
 /**
  * The composer cannot name an exchange. A human typing an answer has never seen an exchange id, and
@@ -289,9 +315,16 @@ test("a typed answer never reaches another human's open question", async (t) => 
   });
 
   assert.equal(res.status, 409);
-  assert.equal(
-    await Promise.race([pending.then(() => "resolved" as const), Promise.resolve("still-parked" as const)]),
-    "still-parked",
-    "another principal's typing must not answer this human's question",
-  );
+  const rightfulAnswer = "keep take14; do not deploy";
+  const rightful = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({ toolName: ASK_CHOICE_TOOL_ID, params: { [SURFACE_TYPED_ANSWER_PARAM]: rightfulAnswer } }),
+  });
+  assert.equal(rightful.status, 202, "the rightful principal's question must still be waiting");
+  const executed = await pending;
+  assert.equal(executed.status, "completed");
+  assert.equal((executed.output as Record<string, unknown>)["submitted"], true);
+  assert.equal((executed.output as Record<string, unknown>)["freeText"], rightfulAnswer);
+  assert.equal(surfaceExchanges.size(), 0, "the answered exchange must be cleaned up");
 });

@@ -183,13 +183,16 @@ export function isTrashedThemePath(relativePath: string): boolean {
  * lossy — stripping `.trash/` from `.trash/styles-1.css` cannot tell whether the true original was
  * `styles.css` (suffixed to avoid a collision) or genuinely `styles-1.css`. Nesting each trash
  * operation under its own timestamp folder instead makes the ORIGINAL path recoverable byte-for-byte
- * with no ambiguity, at the cost of needing no collision detection at all (every operation gets its
- * own folder). Collisions are not merely rare but not a decision this function has to make: this is a
- * single-operator admin tool processing one call at a time, the same accepted-risk class
- * `copyThemeFile`'s own doc already states for an analogous same-millisecond scenario.
+ * with no ambiguity. If the clock repeats a millisecond already present in the trash, advance the
+ * timestamp until an unused folder is found. The caller supplies the current on-disk paths.
  */
-export function trashDestinationFor(relativePath: string): string {
-  return `${TRASH_DIR_NAME}/${Date.now()}/${relativePath}`;
+export function trashDestinationFor(relativePath: string, existingPaths: ReadonlySet<string> = new Set()): string {
+  const usedFolders = new Set(
+    [...existingPaths].filter(isTrashedThemePath).map((existing) => normalizedPathSegments(existing)[1]),
+  );
+  let timestamp = Date.now();
+  while (usedFolders.has(String(timestamp))) timestamp += 1;
+  return `${TRASH_DIR_NAME}/${timestamp}/${relativePath}`;
 }
 
 /**

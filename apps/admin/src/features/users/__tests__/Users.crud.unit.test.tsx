@@ -133,7 +133,7 @@ describe("New user form", () => {
 
     const createCall = fetchMock.mock.calls[3];
     expect(createCall[1]?.method).toBe("POST");
-    expect(JSON.parse(createCall[1]?.body as string)).toMatchObject({ username: "alice", password: "hunter22" });
+    expect(JSON.parse(createCall[1]?.body as string)).toMatchObject({ username: "alice", email: "alice@example.com", password: "hunter22" });
   });
 
   it("shows Creating… and disables submit while the create request is in flight", async () => {
@@ -183,7 +183,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
   it("assigns a role and reloads", async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ users: [{ ...ACTIVE_USER, roleIds: [] }] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({})) // POST assign role
@@ -193,6 +193,8 @@ describe("Manage panel — assign role / attach policy / save email", () => {
     render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
+    const initialRow = screen.getByRole("button", { name: "alice" }).closest("tr") as HTMLElement;
+    expect(within(initialRow).queryByText("Editor")).not.toBeInTheDocument();
     await user.selectOptions(within(panel).getByRole("combobox", { name: /assign role/i }), "r1");
     await user.click(within(panel).getByRole("button", { name: "Assign" }));
 
@@ -200,7 +202,9 @@ describe("Manage panel — assign role / attach policy / save email", () => {
     // `<tr>` in the same `<table>` and its own "Assign role" select also has an "Editor" option.
     const row = screen.getByRole("button", { name: "alice" }).closest("tr") as HTMLElement;
     await within(row).findByText("Editor");
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1/roles");
     expect(fetchMock.mock.calls[3][1]?.method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[3][1]?.body as string)).toEqual({ roleId: "r1" });
   });
 
   it("Assign is disabled until a role is picked", async () => {
@@ -233,6 +237,9 @@ describe("Manage panel — assign role / attach policy / save email", () => {
 
     const row = screen.getByRole("button", { name: "alice" }).closest("tr") as HTMLElement;
     await within(row).findByText("Read-only");
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1/policies");
+    expect(fetchMock.mock.calls[3][1]?.method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[3][1]?.body as string)).toEqual({ policyId: "p1" });
   });
 
   it("shows the grant error inline and keeps the panel open on failure", async () => {
@@ -271,6 +278,9 @@ describe("Manage panel — assign role / attach policy / save email", () => {
     await user.click(within(panel).getByRole("button", { name: "Save email" }));
 
     expect(await screen.findByText("new@example.com")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1");
+    expect(fetchMock.mock.calls[3][1]?.method).toBe("PATCH");
+    expect(JSON.parse(fetchMock.mock.calls[3][1]?.body as string)).toEqual({ email: "new@example.com" });
   });
 });
 

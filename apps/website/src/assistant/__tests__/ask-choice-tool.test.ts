@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Ajv from "ajv";
 
 import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
@@ -262,6 +263,38 @@ test("the fallback's second call still echoes the administrator's selections to 
   });
 });
 
+test("a real fallback ticket refuses choices and selections outside its rendered options", async (t) => {
+  const handler = buildHandler(createSurfaceExchangeStore());
+  for (const answer of [
+    { choice: "never-offered" },
+    { choice: "wait", selections: ["never-offered"] },
+    { selections: ["never-offered"] },
+  ]) {
+    await t.test(JSON.stringify(answer), async () => {
+      const input = {
+        title: MOBILE_CSS_CALL.title,
+        ...("choice" in answer ? { singleSelect: MOBILE_CSS_CALL.singleSelect } : {}),
+        multiSelect: { label: "Extras", options: [{ value: "email", label: "Email" }] },
+      };
+      const ticket = answerTicketFromResult(await call(handler, { input }));
+      await assert.rejects(
+        call(handler, { input: { ...answer, [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } }),
+        /does not match a form that is currently outstanding/,
+      );
+    });
+  }
+});
+
+test("a fallback ticket accepts only the choices and selections offered by its own form", async () => {
+  const handler = buildHandler(createSurfaceExchangeStore());
+  const input = { ...MOBILE_CSS_CALL, multiSelect: { label: "Extras", options: [{ value: "email", label: "Email" }] } };
+  const ticket = answerTicketFromResult(await call(handler, { input }));
+  const result = await call(handler, { input: { choice: "wait", selections: ["email"], [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.equal((result as { submitted: boolean }).submitted, true);
+  assert.equal((result as { choice: string }).choice, "wait");
+  assert.deepEqual((result as { selections: string[] }).selections, ["email"]);
+});
+
 test("a fabricated second call with no ticket at all is refused, never reported as submitted", async () => {
   // This is the forgery the model itself could attempt: no form was ever rendered for this input,
   // so there is nothing to redeem. Before the fix this returned `{ submitted: true, choice:
@@ -351,4 +384,47 @@ test("registers unconditionally, publishing its own catalog schema", () => {
   const registration = registrations.find((r) => r.descriptor.id === ASK_CHOICE_TOOL_ID);
   assert.ok(registration, "the tool must register");
   assert.ok(registration.descriptor.inputSchema, "the tool must publish an inputSchema");
+  const schema = registration.descriptor.inputSchema as {
+    type: string;
+    required: string[];
+    anyOf: Array<{ required: string[] }>;
+    properties: Record<string, {
+      type: string;
+      required: string[];
+      properties: { label: { type: string }; options: {
+        type: string; minItems: number;
+        items: { type: string; required: string[]; properties: Record<string, { type: string }> };
+      } };
+    }>;
+  };
+  assert.equal(schema.type, "object");
+  assert.deepEqual(schema.required, ["title"]);
+  assert.equal(schema.properties.title.type, "string");
+  assert.deepEqual(schema.anyOf, [{ required: ["singleSelect"] }, { required: ["multiSelect"] }]);
+  for (const field of ["singleSelect", "multiSelect"]) {
+    const select = schema.properties[field]!;
+    assert.equal(select.type, "object");
+    assert.deepEqual(select.required, ["label", "options"]);
+    assert.equal(select.properties.label.type, "string");
+    assert.equal(select.properties.options.type, "array");
+    assert.equal(select.properties.options.minItems, 1);
+    const option = select.properties.options.items;
+    assert.equal(option.type, "object");
+    assert.deepEqual(option.required, ["value", "label"]);
+    assert.equal(option.properties.value.type, "string");
+    assert.equal(option.properties.label.type, "string");
+  }
+  const validate = new Ajv().compile(schema);
+  for (const valid of [
+    MOBILE_CSS_CALL,
+    { title: "Extras", multiSelect: MOBILE_CSS_CALL.singleSelect },
+    { ...MOBILE_CSS_CALL, multiSelect: MOBILE_CSS_CALL.singleSelect },
+  ]) assert.equal(validate(valid), true, JSON.stringify(validate.errors));
+  for (const invalid of [
+    { singleSelect: MOBILE_CSS_CALL.singleSelect },
+    { title: "No fields" },
+    { title: "No options", singleSelect: { label: "Pick", options: [] } },
+    { title: "No value", multiSelect: { label: "Pick", options: [{ label: "Missing value" }] } },
+    { title: "Wrong value type", singleSelect: { label: "Pick", options: [{ value: 1, label: "One" }] } },
+  ]) assert.equal(validate(invalid), false, JSON.stringify(invalid));
 });

@@ -14,7 +14,7 @@ import {
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
 } from "../../contracts/core/tool-surface-exchanges.js";
-import { readAgentPluginActivations } from "../../features/agent-plugins/activation.js";
+import { readAgentPluginActivations, setAgentPluginActivation } from "../../features/agent-plugins/activation.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/install.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
@@ -216,11 +216,21 @@ async function answerDialog(
   const first = await Promise.race([dialog, pending.then((result) => JSON.stringify(result), (error: unknown) => String(error))]);
   assert.equal(first, "dialog", "the dialog must be emitted before the call parks");
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(/var PLAN = (.*);/);
+  assert.ok(match, "the emitted button action plan must exist");
+  const plan = JSON.parse(match[1]!) as Record<"confirm" | "cancel", { toolName: string; params: Record<string, unknown> }>;
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  for (const actionId of ["confirm", "cancel"] as const) {
+    assert.equal(plan[actionId].toolName, SET_ENABLED, `${actionId} must call back into this tool`);
+    assert.deepEqual(plan[actionId].params, { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: actionId });
+  }
+  const action = plan[decision];
   const delivery = surfaceExchanges.deliver({
-    exchangeId: exchangeIdFromSurface(emitted[0]),
-    params: { decision },
+    exchangeId: action.params[SURFACE_EXCHANGE_ID_PARAM] as string,
+    params: action.params,
     principalId: PRINCIPAL_ID,
-    toolId: SET_ENABLED,
+    toolId: action.toolName,
   });
   assert.equal(delivery.ok, true, `the human's answer did not reach the parked call: ${JSON.stringify(delivery)}`);
   return { result: await pending, emitted };
@@ -314,6 +324,18 @@ test("plugins_set_enabled: disabling an Agent Plugin needs no confirmation — i
     assert.equal(out.agentPlugin.enabled, false);
     const activations = await readAgentPluginActivations(workspaceRoot);
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, false, "the disable must reach activations.json, not just the response");
+  });
+});
+
+test("plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel", async () => {
+  await withInstalledAgentPlugin(async (workspaceRoot) => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: true, actor: "test-operator" });
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins[AGENT_PLUGIN_ID]?.enabled, true);
+    const { deps } = fakeRouteDeps();
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { agentPlugin: { enabled: boolean } };
+    assert.equal(out.agentPlugin.enabled, false);
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins[AGENT_PLUGIN_ID]?.enabled, false);
   });
 });
 
@@ -468,6 +490,8 @@ test("the confirmation dialog is a real MCP-UI resource naming the plugin, and c
     const html = ui.resource.text ?? "";
     assert.match(html, new RegExp(SET_ENABLED));
     assert.match(html, new RegExp(AGENT_PLUGIN_ID), "a dialog that does not name the plugin is not real consent");
+    const heading = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1];
+    assert.equal(heading, `Enable ${AGENT_PLUGIN_ID}?`, "the visible heading must name the plugin, not just a script payload");
   });
 });
 
@@ -573,6 +597,30 @@ test("plugins_set_enabled: authorize() runs before any confirmation dialog is ra
     /not authorized for/,
   );
 
-  assert.ok(authorizeCalls.length >= 1);
+  assert.equal(authorizeCalls.length, 1);
   assert.equal(emitted.length, 0, "a denied principal must never cause a dialog to be shown");
 });
+
+for (const enabled of [true, false]) {
+  test(`plugins_set_enabled: a denied Agent Plugin ${enabled ? "enable" : "disable"} emits nothing and preserves activations`, async () => {
+    await withInstalledAgentPlugin(async (workspaceRoot) => {
+      await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: !enabled, actor: "test-operator" });
+      const activationsPath = path.join(workspaceRoot, "activations.json");
+      const before = await readFile(activationsPath, "utf8");
+      const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
+      const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+      const emitted: unknown[] = [];
+      await assert.rejects(
+        () => call(tool, { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async (surface) => void emitted.push(surface)),
+        /not authorized for 'admin\.plugins\.enable'/,
+      );
+      assert.equal(authorizeCalls.length, 1);
+      assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
+      assert.equal(authorizeCalls[0].permission, "admin.plugins.enable");
+      assert.equal(authorizeCalls[0].entityType, "agent-plugin");
+      assert.equal(authorizeCalls[0].entityId, AGENT_PLUGIN_ID);
+      assert.equal(emitted.length, 0);
+      assert.equal(await readFile(activationsPath, "utf8"), before, "denial must preserve the existing activation file byte for byte");
+    });
+  });
+}

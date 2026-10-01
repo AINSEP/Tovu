@@ -189,10 +189,28 @@ describe("useWorkspace — onSave", () => {
     await act(async () => view.result.current.onSave(fakeSubmitEvent()));
     expect(view.result.current.saveError).toBe("first failure");
 
-    port.updateWorkspace = async (patch) => ({ workspace: { ...WORKSPACE, ...patch } });
-    await act(async () => view.result.current.onSave(fakeSubmitEvent()));
-
+    let resolveUpdate!: (v: { workspace: AdminWorkspace }) => void;
+    port.updateWorkspace = () => new Promise((resolve) => (resolveUpdate = resolve));
+    let pending!: Promise<void>;
+    act(() => { pending = view.result.current.onSave(fakeSubmitEvent()); });
+    expect(view.result.current.saving).toBe(true);
     expect(view.result.current.saveError).toBeNull();
+    expect(view.result.current.saved).toBe(false);
+    await act(async () => {
+      resolveUpdate({ workspace: WORKSPACE });
+      await pending;
+    });
+    expect(view.result.current.saved).toBe(true);
+
+    // A successful attempt also leaves a flag that must clear before the next response.
+    act(() => { pending = view.result.current.onSave(fakeSubmitEvent()); });
+    expect(view.result.current.saving).toBe(true);
+    expect(view.result.current.saveError).toBeNull();
+    expect(view.result.current.saved).toBe(false);
+    await act(async () => {
+      resolveUpdate({ workspace: WORKSPACE });
+      await pending;
+    });
     expect(view.result.current.saved).toBe(true);
   });
 });
@@ -220,9 +238,7 @@ describe("useWiredWorkspace — composes the real port + real useAdminLocale", (
   });
 
   it("loads via api.getWorkspace and saves via api.updateWorkspace, both through defaultWorkspacePort", async () => {
-    vi.stubGlobal(
-      "fetch",
-      routeFetch([
+    const fetchMock = routeFetch([
         { when: (u) => u.includes("/settings/effective"), respond: () => jsonResponse({ data: [] }) },
         {
           when: (u, init) => u.endsWith("/workspaces/workspace-local") && (!init?.method || init.method === "GET"),
@@ -230,18 +246,25 @@ describe("useWiredWorkspace — composes the real port + real useAdminLocale", (
         },
         {
           when: (u, init) => u.endsWith("/workspaces/workspace-local") && init?.method === "PATCH",
-          respond: () => jsonResponse({ workspace: { ...WORKSPACE, name: "Wired Rename" } }),
+          respond: () => jsonResponse({ workspace: { ...WORKSPACE, name: "Wired Rename", slug: "wired-rename" } }),
         },
-      ]),
-    );
+      ]);
+    vi.stubGlobal("fetch", fetchMock);
 
     const { result } = renderHook(() => useWiredWorkspace());
     await waitFor(() => expect(result.current.workspace).toEqual(WORKSPACE));
 
-    act(() => result.current.setName("Wired Rename"));
+    act(() => {
+      result.current.setName("Wired Rename");
+      result.current.setSlug("wired-rename");
+    });
     await act(async () => result.current.onSave(fakeSubmitEvent()));
 
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(patchCall).toBeDefined();
+    expect(JSON.parse(patchCall![1]?.body as string)).toEqual({ name: "Wired Rename", slug: "wired-rename" });
     expect(result.current.workspace?.name).toBe("Wired Rename");
+    expect(result.current.workspace?.slug).toBe("wired-rename");
     expect(result.current.saved).toBe(true);
   });
 });

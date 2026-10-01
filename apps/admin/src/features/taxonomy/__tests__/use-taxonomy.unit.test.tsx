@@ -1,11 +1,11 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
-import { TAXONOMY_RESOURCE } from "../rules";
+import { KEYS, TAXONOMY_RESOURCE } from "../rules";
 
 /**
  * @file `useTaxonomy` — the top-level "Categories & Tags" screen state, extracted so it is
@@ -280,6 +280,40 @@ describe("delete taxonomy", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ type: "taxonomy", id: "tax1" });
     expect(result.current.pendingDeleteTaxonomy).toBeNull();
     expect(result.current.selectedTermId).toBeNull();
+    await waitFor(() => expect(result.current.taxonomies).toEqual([]));
+  });
+
+  it("deleting another taxonomy preserves the selected term and its detail data", async () => {
+    const otherGroup = { ...GROUP, taxonomy: { ...GROUP.taxonomy, id: "tax2", name: "Other" }, terms: [] };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [GROUP, otherGroup] }))
+      .mockResolvedValueOnce(jsonResponse({ deletedTaxonomyId: "tax2", deletedTermIds: [] }))
+      .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
+    const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP, otherGroup]));
+    act(() => result.current.setSelectedTermId("a"));
+    act(() => result.current.requestDeleteTaxonomy(otherGroup.taxonomy));
+    await act(() => result.current.confirmDeleteTaxonomy());
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+    expect(result.current.pendingDeleteTaxonomy).toBeNull();
+    expect(result.current.selectedTermId).toBe("a");
+    expect(result.current.selected).toEqual({ taxonomy: GROUP, term: TERM_A });
+  });
+
+  it("on a taxonomy 404: closes the dialog, clears its selection, and refetches without an error", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
+      .mockResolvedValueOnce(jsonResponse({ error: "not found" }, 404))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+    const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+    act(() => result.current.setSelectedTermId("a"));
+    act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
+    await act(() => result.current.confirmDeleteTaxonomy());
+    await waitFor(() => expect(result.current.taxonomies).toEqual([]));
+    expect(result.current.pendingDeleteTaxonomy).toBeNull();
+    expect(result.current.selectedTermId).toBeNull();
+    expect(result.current.error).toBeNull();
   });
 
   // Taxonomies have no blocked-delete case at all (`registry.ts` registers a `blocker` for `term`
@@ -423,17 +457,33 @@ describe("useTaxonomy — content refresh bus", () => {
     expect(duringRefresh).not.toContain(0);
   });
 
-  it("stops re-reading once unmounted", async () => {
+  it("unsubscribes on unmount even while another reader of the same query stays mounted", async () => {
     const port = createFakeTaxonomyPort({ groups: [GROUP] });
     const listSpy = vi.spyOn(port, "listTaxonomies");
-    const { result, unmount } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
-    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
-
+    function Subscriber() {
+      useTaxonomy(port, "en", (k) => k);
+      return null;
+    }
+    function Reader() {
+      const query = useFetchQuery({ key: KEYS.list, fetch: () => port.listTaxonomies() });
+      return <span>{query.data?.items.length ?? "loading"}</span>;
+    }
+    function Host({ subscribed }: { subscribed: boolean }) {
+      return <FetchQueryProvider>{subscribed && <Subscriber />}<Reader /></FetchQueryProvider>;
+    }
+    const view = render(<Host subscribed />);
+    await waitFor(() => expect(view.getByText("1")).toBeInTheDocument());
     const callsWhileMounted = listSpy.mock.calls.length;
-    unmount();
-    act(() => publishContentRefresh());
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
+    view.rerender(<Host subscribed={false} />);
+    port.groups.push(NEW_GROUP);
+    await act(async () => publishContentRefresh());
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
+    expect(view.getByText("1")).toBeInTheDocument();
+
+    // A live subscriber must still invalidate the independently mounted reader.
+    view.rerender(<Host subscribed />);
+    await act(async () => publishContentRefresh());
+    await waitFor(() => expect(view.getByText("2")).toBeInTheDocument());
+    expect(listSpy.mock.calls.length).toBeGreaterThan(callsWhileMounted);
   });
 });

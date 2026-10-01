@@ -70,6 +70,46 @@ test.describe("Pages editor", () => {
     expect(sandbox).not.toContain("allow-same-origin");
   });
 
+  test("draft preview POSTs saved and pending HTML into its iframe with the notice above it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/admin/pages");
+    await page.getByRole("button", { name: "New Page" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
+    const editorUrl = page.url();
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const source = page.getByRole("textbox", { name: "Page HTML" });
+    await source.fill("<h1>Saved draft preview</h1>");
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Preview" }).click();
+
+    const iframe = page.locator('iframe[title="Page preview"]');
+    const form = page.locator('form:has(input[name="bodyHtml"])');
+    await expect(form).toHaveAttribute("method", "post");
+    const target = await form.getAttribute("target");
+    expect(target).toBeTruthy();
+    await expect(iframe).toHaveAttribute("name", target!);
+    const preview = page.frameLocator('iframe[title="Page preview"]');
+    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toBeVisible();
+
+    await page.getByRole("tab", { name: "HTML" }).click();
+    await source.fill("<h1>Pending draft preview</h1>");
+    await page.getByRole("tab", { name: "Preview" }).click();
+    await expect(preview.getByRole("heading", { name: "Pending draft preview" })).toBeVisible();
+    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toHaveCount(0);
+    await expect(page).toHaveURL(editorUrl);
+
+    // No scroll to the notice: its initial position must precede the large preview frame.
+    const notice = page.getByText(/previewing your unsaved edits/i);
+    await expect(notice).toBeVisible();
+    await expect(notice).toBeInViewport({ ratio: 1 });
+    await expect.poll(async () => {
+      const noticeBox = await notice.boundingBox();
+      const frameBox = await iframe.boundingBox();
+      return !!noticeBox && !!frameBox && noticeBox.y + noticeBox.height <= frameBox.y;
+    }).toBe(true);
+  });
+
   test("a saved page survives a reload — the HTML is persisted, not just held in component state", async ({ page }) => {
     await page.goto("/admin/pages");
     await page.getByRole("button", { name: "New Page" }).click();

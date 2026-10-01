@@ -278,13 +278,20 @@ async function userReturningResults(harness: Harness): Promise<Array<{ toolId: s
 test("INV-05: no identity tool result contains a password hash, on any path that returns a user", async () => {
   const harness = await buildHarness();
 
-  for (const { toolId, payload } of await userReturningResults(harness)) {
+  const results = await userReturningResults(harness);
+  const owner = await harness.repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: harness.ownerPrincipalId });
+  assert.ok(owner);
+  const principals = (await harness.repos.principals.list({ workspaceId: WORKSPACE_ID })).filter((principal) => principal.kind === "user");
+  const users = await Promise.all(principals.map((principal) => harness.repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: principal.id })));
+  for (const { toolId, payload } of results) {
     const serialized = JSON.stringify(payload);
     assert.equal(/passwordHash/i.test(serialized), false, `${toolId} leaked a passwordHash key`);
-    // The seeded owner's real hash, in case a future view forwards the value under another name.
-    const owner = await harness.repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: harness.ownerPrincipalId });
-    assert.ok(owner);
-    assert.equal(serialized.includes(owner.passwordHash), false, `${toolId} leaked a hash value`);
+    // Check values too: renaming a credential key must not evade the projection contract.
+    for (const user of users) {
+      assert.ok(user, "every seeded human must have a credential row for the hash-leak check");
+      assert.equal(serialized.includes(user.passwordHash), false, `${toolId} leaked ${user.username}'s hash value`);
+    }
+    assert.equal(serialized.includes("pw-valid-1234"), false, `${toolId} leaked the human-typed password`);
   }
 });
 
@@ -379,6 +386,8 @@ test("identity_user_list caps its fan-out and SAYS so, rather than silently retu
   assert.equal(result.users.length, 200, "the cap must actually bound the fan-out");
   assert.equal(result.truncated, true, "a truncated list that does not say so would be read as the complete roster");
   assert.ok((result.totalCount ?? 0) > 200, "the real total must be reported so the caller knows the size of what it did not get");
+  const humans = (await repos.principals.list({ workspaceId: WORKSPACE_ID })).filter((principal) => principal.kind === "user");
+  assert.equal(result.totalCount, humans.length, "the total must equal the complete seeded human roster");
 });
 
 test("an untruncated list carries no truncated/totalCount keys — the signal means something only when it is present", async () => {
@@ -526,7 +535,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
 });
 
 test("the email round-trips: set, changed, then cleared by omitting it", async () => {
-  const { deps, ownerPrincipalId } = await buildHarness();
+  const { deps, repos, ownerPrincipalId } = await buildHarness();
 
   const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "mailer", email: "first@example.test" }))) as {
     user: { principalId: string; email?: string };
@@ -537,11 +546,15 @@ test("the email round-trips: set, changed, then cleared by omitting it", async (
     user: { email?: string };
   };
   assert.equal(changed.user.email, "second@example.test");
+  assert.equal((await repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId }))?.email, "second@example.test");
 
   const cleared = (await wired(deps, "identity_user_update_email").handler(asOwner(ownerPrincipalId, { principalId: user.principalId }))) as {
     user: Record<string, unknown>;
   };
   assert.equal("email" in cleared.user, false, "omitting email clears it, exactly as the tool description tells the model");
+  const stored = await repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId });
+  assert.ok(stored, "clearing the email must retain the user");
+  assert.equal(stored.email, undefined);
 });
 
 test("disable then enable round-trips, and the status change is visible through the list tool", async () => {
@@ -559,6 +572,8 @@ test("disable then enable round-trips, and the status change is visible through 
 
   const enabled = (await wired(deps, "identity_user_enable").handler(asOwner(ownerPrincipalId, { principalId: user.principalId }))) as { user: { status: string } };
   assert.equal(enabled.user.status, "active");
+  const afterEnable = (await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {}))) as { users: Array<{ principalId: string; status: string }> };
+  assert.equal(afterEnable.users.find((candidate) => candidate.principalId === user.principalId)?.status, "active");
 });
 
 test("a custom role can be renamed and then deleted while unassigned, but not once it is in use", async () => {
@@ -598,7 +613,12 @@ test("a duplicate username is refused, so a model cannot quietly create a second
 
   await assert.rejects(
     () => wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "dup" })),
-    /already in use/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /already in use/);
+      assert.equal(error.message.includes("pw-valid-1234"), false, "a create failure must not echo the human-typed password");
+      return true;
+    },
     "the domain compares usernames case-insensitively, and the tool inherits that rather than re-implementing it",
   );
 });

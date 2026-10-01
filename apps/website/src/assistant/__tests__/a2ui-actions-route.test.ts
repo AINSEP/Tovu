@@ -45,11 +45,21 @@ const ACTION_MESSAGE = {
 
 test("rejects a call with no principal header — 401, and nothing is delivered", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
+  t.after(() => exchange.close());
+  const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+  const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
 
-  const res = await postAction(baseUrl, { exchangeId: "ex-1", message: ACTION_MESSAGE });
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message });
 
   assert.equal(res.status, 401);
+  assert.equal(surfaceExchanges.size(), 1, "unauthenticated delivery must leave the exchange open");
+  assert.equal(await Promise.race([answer, Promise.resolve("still-waiting" as const)]), "still-waiting");
+  const authorizedMessage = { ...message, action: { ...message.action, context: { authorized: true } } };
+  const authorized = await postAction(baseUrl, { exchangeId: exchange.id, message: authorizedMessage }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+  assert.equal(authorized.status, 202);
+  assert.deepEqual(await answer, { status: "received", params: { message: authorizedMessage } });
 });
 
 test("rejects a missing or empty exchangeId — 400", async (t) => {
@@ -172,6 +182,42 @@ test("an unknown, expired, or already-closed exchange is 409, not 404 or a silen
 
   assert.equal(res.status, 409);
   assert.equal(((await res.json()) as { code: string }).code, "SURFACE_NOT_PENDING");
+});
+
+test("an actually expired exchange rejects delivery with 409", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
+  t.after(() => exchange.close());
+  assert.deepEqual(await exchange.receive(), { status: "expired" });
+  const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
+
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as { code: string }).code, "SURFACE_NOT_PENDING");
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.deepEqual(await exchange.receive(), { status: "expired" }, "rejected delivery must not buffer an answer");
+});
+
+test("an answered exchange rejects a replay with 409 after the handler closes it", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
+  t.after(() => exchange.close());
+  const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
+  const headers = { [RUN_PRINCIPAL_HEADER]: "principal-1" };
+  const first = await postAction(baseUrl, { exchangeId: exchange.id, message }, headers);
+  assert.equal(first.status, 202);
+  assert.deepEqual(await exchange.receive(), { status: "received", params: { message } });
+  exchange.close();
+
+  const replay = await postAction(baseUrl, { exchangeId: exchange.id, message }, headers);
+
+  assert.equal(replay.status, 409);
+  assert.equal(((await replay.json()) as { code: string }).code, "SURFACE_NOT_PENDING");
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.deepEqual(await exchange.receive(), { status: "abandoned" }, "replay must not buffer a second answer");
 });
 
 test("an action from the wrong principal is refused and leaves the call still waiting", async (t) => {

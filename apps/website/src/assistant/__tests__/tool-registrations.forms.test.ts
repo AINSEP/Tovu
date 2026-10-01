@@ -60,8 +60,9 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
     formDefinitionRepo: {
       findById: (r: { workspaceId: string; id: string }) => { order.push("repo.findById"); return repo.findById(r); },
-      findBySlug: repo.findBySlug.bind(repo),
-      list: repo.list.bind(repo),
+      findBySlug: (r: Parameters<typeof repo.findBySlug>[0]) => { order.push("repo.findBySlug"); return repo.findBySlug(r); },
+      list: (r: Parameters<typeof repo.list>[0]) => { order.push("repo.list"); return repo.list(r); },
+      isSlugTaken: (r: Parameters<typeof repo.isSlugTaken>[0]) => { order.push("repo.isSlugTaken"); return repo.isSlugTaken(r); },
       create: async (record: FormDefinitionRecord) => { order.push("repo.create"); return repo.create(record); },
       update: async (record: FormDefinitionRecord) => { order.push("repo.update"); return repo.update(record); },
     },
@@ -365,7 +366,11 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const { id } = await seedDefinition(seedDeps);
     const before = await seedRepo.findById({ workspaceId: WORKSPACE_ID, id });
 
-    const { deps, repo } = fakeRouteDeps({ allow: false });
+    const { deps, repo, order } = fakeRouteDeps({ allow: false });
+    assert.ok(before, "sanity: the seed really did create a definition when allowed");
+    await repo.create(structuredClone(before));
+    const definitionsBefore = structuredClone(await repo.list({ workspaceId: WORKSPACE_ID }));
+    const changesBefore = structuredClone(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }));
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId](id))),
       (error: unknown) => {
@@ -384,7 +389,10 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
       },
     );
 
-    assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), [], "the permission gate must run ahead of every durable effect");
+    assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), definitionsBefore, "the permission gate must run ahead of every durable effect");
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id }), before);
+    assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), changesBefore);
+    assert.equal(order.some((effect) => ["repo.create", "repo.update", "outbox.enqueue"].includes(effect)), false, "no durable write may occur before the refusal");
     assert.ok(before, "sanity: the seed really did create a definition when allowed");
   });
 
@@ -396,6 +404,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     await wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId](id)));
 
     assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
+    if (toolId === "content_read.form_definition") assert.ok(order.includes("repo.list"), "the definition list read must be observed");
   });
 }
 

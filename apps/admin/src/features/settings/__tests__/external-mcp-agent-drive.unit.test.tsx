@@ -61,11 +61,14 @@ function renderPanel(sources: SourceConfigItem[] = []) {
   // production `FetchQueryProvider` is mounted at the app root; here it has to be explicit. The
   // reads themselves fail in jsdom and the banner degrades to its "could not ask" line, which is
   // exactly the behaviour under test elsewhere and is invisible to the field assertions below.
-  return render(
-    <FetchQueryProvider>
-      <ExternalMcpSettingsPanel dependencies={dependencies} />
-    </FetchQueryProvider>,
-  );
+  return {
+    ...render(
+      <FetchQueryProvider>
+        <ExternalMcpSettingsPanel dependencies={dependencies} />
+      </FetchQueryProvider>,
+    ),
+    dependencies,
+  };
 }
 
 /** Opens the add form and returns a driver over the rendered panel, as the agent bridge would. */
@@ -110,7 +113,11 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
   });
 
   it("page.fill writes the non-secret fields and the values reach React state", async () => {
-    const driver = await openAddForm();
+    const user = userEvent.setup();
+    const { container, dependencies } = renderPanel();
+    await user.click(screen.getByRole("button", { name: "Add server" }));
+    await screen.findByLabelText(/Connection type/);
+    const driver = createDomPageDriver({ root: container, pages: {} });
     await executePageCapability(driver, "page.select_option", {
       handle: "mcp-add-field-transport",
       option: "Hosted server (URL)",
@@ -126,6 +133,14 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
 
     expect((screen.getByLabelText(/^ID/) as HTMLInputElement).value).toBe("higgsfield");
     expect((screen.getByLabelText(/^URL/) as HTMLInputElement).value).toBe("https://mcp.example.com/v1");
+    await executePageCapability(driver, "page.click", { handle: "mcp-add-submit" });
+    await screen.findByTestId("source-config-item-card");
+    const sources = await dependencies.port.fetchSources();
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({
+      id: "higgsfield",
+      fields: { id: "higgsfield", url: "https://mcp.example.com/v1" },
+    });
   });
 
   it("page.fill REFUSES the OAuth client secret even though it carries a handle", async () => {
@@ -363,9 +378,9 @@ describe("the Tools modal is agent-pressable", () => {
     expect(screen.getByRole("checkbox", { name: "edit_image" })).toBeInTheDocument();
   });
 
-  it("page.click toggles a tool's allowlist checkbox through the real driver, and the count updates", async () => {
+  it("page.click toggles and saves tool permissions through the real driver", async () => {
     stubProbeFetch();
-    const { container } = renderPanel([HIGGSFIELD_WITH_TOOLS]);
+    const { container, dependencies } = renderPanel([HIGGSFIELD_WITH_TOOLS]);
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -380,5 +395,16 @@ describe("the Tools modal is agent-pressable", () => {
     expect(screen.getByRole("checkbox", { name: "edit_image" })).not.toBeChecked();
     // generate_image is untouched — this was a per-row toggle, not a reset of the whole draft.
     expect(screen.getByRole("checkbox", { name: "generate_image" })).toBeChecked();
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-generate-image-write" });
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-save" });
+
+    await waitFor(async () => {
+      const sources = await dependencies.port.fetchSources();
+      expect(sources[0]).toMatchObject({
+        id: "higgsfield",
+        fields: { allowedToolNames: "generate_image", writeAllowedToolNames: "" },
+      });
+    });
+    expect(screen.getByRole("button", { name: /Open tool permissions for higgsfield — 1 enabled/ })).toBeInTheDocument();
   });
 });

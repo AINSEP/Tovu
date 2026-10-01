@@ -39,9 +39,11 @@ class FakeEventSource {
 
   close(): void {
     this.closed = true;
+    this.readyState = FakeEventSource.CLOSED;
   }
 
   emit(type: string, data?: string): void {
+    if (this.closed) return;
     for (const handler of this.listeners.get(type) ?? []) handler({ data });
   }
 }
@@ -131,15 +133,24 @@ describe("subscribeToSettingsChanges", () => {
     );
   });
 
-  it("an 'error' event while still connecting/open does not warn — EventSource is expected to retry on its own", () => {
+  it.each([0, 1])("an 'error' event at readyState %s preserves delivery without warning", (readyState) => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    subscribeToSettingsChanges("ws1");
+    const refreshed = vi.fn();
+    const unsubscribe = settingsRefreshBus.subscribeToSettingsRefresh(refreshed);
+    const dispose = subscribeToSettingsChanges("ws1");
     const source = FakeEventSource.instances[0]!;
-    source.readyState = 0; // CONNECTING, not CLOSED
-
-    source.emit("error");
-
-    expect(warnSpy).not.toHaveBeenCalled();
+    source.readyState = readyState;
+    try {
+      source.emit("error");
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(source.closed).toBe(false);
+      source.readyState = 1; // the browser reconnects
+      source.emit("settings-changed", JSON.stringify({ namespaces: ["appearance"] }));
+      expect(refreshed).toHaveBeenCalledExactlyOnceWith(["appearance"]);
+    } finally {
+      unsubscribe();
+      dispose();
+    }
   });
 
   it("the returned disposer closes the connection", () => {

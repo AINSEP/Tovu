@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
@@ -229,11 +230,11 @@ test("behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is A
       // and squatting a system port poisons later runs). Holding it makes the child fail fast with
       // PORT_IN_USE — which is itself the stronger proof, since reaching a bind at all means the
       // value already cleared the 1..65535 range check. Where the OS refuses this process the port
-      // (port 1 is privileged on most POSIX hosts), it refuses the child's identical bind just as
-      // fast, so the child still terminates and the weaker not-VALIDATION assertion still holds.
+      // (port 1 is privileged on most POSIX hosts), require the matching bind error from the child.
       const blocker = net.createServer();
+      let bindError: NodeJS.ErrnoException | undefined;
       const held = await new Promise<boolean>((resolve) => {
-        blocker.once("error", () => resolve(false));
+        blocker.once("error", (error: NodeJS.ErrnoException) => { bindError = error; resolve(false); });
         blocker.listen(boundaryPort, () => resolve(true));
       });
       try {
@@ -243,7 +244,17 @@ test("behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is A
         if (held) {
           assert.equal(result.status, 1, `--port ${boundaryPort}: with the port already held, the child must get past the range check all the way to the bind and report PORT_IN_USE (stderr: ${result.stderr})`);
           assert.match(result.stderr, /^tovu: PORT_IN_USE:/m, `--port ${boundaryPort}`);
+        } else {
+          assert.ok(bindError?.code === "EADDRINUSE" || bindError?.code === "EACCES", `unexpected blocker error: ${bindError}`);
+          if (bindError.code === "EADDRINUSE") {
+            assert.equal(result.status, 1, result.stderr);
+            assert.match(result.stderr, /^tovu: PORT_IN_USE:/m);
+          } else {
+            assert.equal(result.status, 1, result.stderr);
+            assert.match(result.stderr, /listen EACCES/);
+          }
         }
+        assert.match(result.stderr, new RegExp(String(boundaryPort)), "the bind error must identify the requested port");
       } finally {
         if (held) await new Promise<void>((resolve) => blocker.close(() => resolve()));
       }
@@ -401,6 +412,29 @@ test("B1: serve against a site whose content.db has 2 workspace rows succeeds (b
     await waitForHttpReady(port, child);
     const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200, "B1: serving must succeed and reach the original (oldest) workspace's seeded content, not crash");
+    assert.match(await res.text(), /Welcome to Tovu/);
+    await stopGracefully(child);
+
+    // Make the later-inserted workspace older, so rowid/insertion order cannot pass.
+    const db = new Database(dbPath);
+    db.prepare("UPDATE workspaces SET created_at = ? WHERE id = ?").run("2000-01-01T00:00:00.000Z", "ws-added-later");
+    db.prepare("INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "post-later-oldest", "ws-added-later", "Later Inserted Oldest", "later-oldest",
+      JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "later-oldest-body-marker" }] }] }),
+      "published", "2026-09-30T00:00:00.000Z", 1
+    );
+    db.close();
+    const reordered = spawnServe([dir, "--port", String(port)]);
+    try {
+      await waitForHttpReady(port, reordered);
+      const selected = await fetch(`http://127.0.0.1:${port}/later-oldest`, { signal: fetchTimeoutSignal() });
+      assert.equal(selected.status, 200, "the later-inserted but older workspace must be served");
+      assert.match(await selected.text(), /later-oldest-body-marker/);
+      const unselected = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
+      assert.equal(unselected.status, 404);
+    } finally {
+      if (reordered.exitCode === null && !reordered.killed) await stopGracefully(reordered);
+    }
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);
@@ -419,6 +453,11 @@ test("B1: --workspace <id> selects a non-default workspace explicitly", async ()
     "second",
     "2099-01-01T00:00:00.000Z"
   );
+  db.prepare("INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
+    "post-second", "ws-second", "Second Workspace Article", "second-article",
+    JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "second-workspace-body-marker" }] }] }),
+    "published", "2026-09-30T00:00:00.000Z", 1
+  );
   db.close();
 
   const port = await getFreePort();
@@ -426,7 +465,10 @@ test("B1: --workspace <id> selects a non-default workspace explicitly", async ()
   try {
     await waitForHttpReady(port, child);
     const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
-    assert.equal(res.status, 404, "--workspace ws-second must select the new, still-empty workspace, not the original seeded one");
+    assert.equal(res.status, 404, "the original workspace's welcome post must be unavailable");
+    const selected = await fetch(`http://127.0.0.1:${port}/second-article`, { signal: fetchTimeoutSignal() });
+    assert.equal(selected.status, 200, "--workspace ws-second must serve that workspace's content");
+    assert.match(await selected.text(), /second-workspace-body-marker/);
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);
@@ -470,6 +512,13 @@ test("CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than
 
 test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end", async () => {
   const { parent, dir } = initFixture();
+  const marker = `cli-content-body-${randomUUID()}`;
+  const db = new Database(path.join(dir, "content.db"));
+  const row = db.prepare("SELECT body_json FROM posts WHERE slug = ?").get("welcome") as { body_json: string };
+  const document = JSON.parse(row.body_json);
+  document.content.push({ type: "paragraph", content: [{ type: "text", text: marker }] });
+  assert.equal(db.prepare("UPDATE posts SET body_json = ? WHERE slug = ?").run(JSON.stringify(document), "welcome").changes, 1);
+  db.close();
   const port = await getFreePort();
   const child = spawnServe([dir, "--port", String(port)]);
   try {
@@ -477,7 +526,8 @@ test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu ser
     const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200);
     const body = await res.text();
-    assert.match(body, /Welcome to Tovu|welcome/i);
+    assert.match(body, /Welcome to Tovu/);
+    assert.ok(body.includes(marker), "the persisted post body must render through the spawned CLI");
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);
@@ -486,66 +536,82 @@ test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu ser
   }
 });
 
-/**
- * A minimal fake OTLP/HTTP collector: records every POST body it receives and answers 200. Real
- * OTLP collectors expect a protobuf-encoded `ExportTraceServiceRequest`; this deliberately does not
- * decode one — `platform/observability/__tests__/unit/otel.unit.test.ts` already proves the
- * adapter's span shape in isolation. What THIS test needs is proof a real span byte stream left a
- * REAL spawned `tovu serve` process and reached the network — the one thing no in-process test can
- * show, since `createApp()`'s own instrumentation is already proven at the composition-root tier
- * (`server/__tests__/integration/observability-wiring.integration.test.ts`).
- */
-async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: () => number; close: () => Promise<void> }> {
+interface ExportedSpan {
+  name: string;
+  attributes: Array<{ key: string; value: { stringValue?: string; intValue?: number | string } }>;
+}
+
+/** Records and decodes the JSON OTLP/HTTP exports used by OTLPTraceExporter. */
+async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: () => number; spans: () => ExportedSpan[]; close: () => Promise<void> }> {
   let receivedCount = 0;
+  const spans: ExportedSpan[] = [];
   const server = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
-      if (Buffer.concat(chunks).length > 0) receivedCount += 1;
+      const body = Buffer.concat(chunks);
+      if (body.length > 0) {
+        receivedCount += 1;
+        const exported = JSON.parse(body.toString("utf8")) as { resourceSpans: Array<{ scopeSpans: Array<{ spans: ExportedSpan[] }> }> };
+        for (const resource of exported.resourceSpans) {
+          for (const scope of resource.scopeSpans) spans.push(...scope.spans);
+        }
+      }
       res.writeHead(200, { "content-type": "application/json" });
       res.end("{}");
     });
   });
   const port = await getFreePort();
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
-
   return {
     url: `http://127.0.0.1:${port}`,
     receivedCount: () => receivedCount,
+    spans: () => spans,
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
 
-test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint violation, reproduced by deleting the owner user row but leaving its built-in roles behind — the same shape as an interrupted first-boot seed) must not crash the whole serve process via an unhandled rejection on the un-awaited ownerPrincipalId fork", async () => {
+test("an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content", async () => {
   const { parent, dir } = initFixture();
   const dbPath = path.join(dir, "content.db");
+  const identityEnv = { TOVU_ADMIN_USER: "reseed-owner", TOVU_ADMIN_PASSWORD: "reseed-test-password" };
 
   // First boot seeds identity fully (owner user + the 4 built-in roles/policies) and shuts down
   // cleanly — this is the ONE code path allowed to seed identity, so a real boot is required before
   // the corruption step below can mean anything.
   const firstBootPort = await getFreePort();
-  const firstBoot = spawnServe([dir, "--port", String(firstBootPort)]);
+  const firstBoot = spawnServe([dir, "--port", String(firstBootPort)], identityEnv);
   try {
     await waitForHttpReady(firstBootPort, firstBoot);
+    const login = await fetch(`http://127.0.0.1:${firstBootPort}/api/admin/v1/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: identityEnv.TOVU_ADMIN_USER, password: identityEnv.TOVU_ADMIN_PASSWORD }),
+      signal: fetchTimeoutSignal(),
+    });
+    assert.equal(login.status, 200, "the controlled owner must have finished seeding");
   } finally {
     if (firstBoot.exitCode === null && !firstBoot.killed) {
       await stopGracefully(firstBoot);
     }
   }
 
-  // Corrupts the identity state the same way a first-boot seed interrupted partway through would:
-  // the built-in "owner" role row survives (already committed), but the owner user row that would
-  // normally short-circuit `seedIdentity()`'s idempotency check is gone. On the next boot,
-  // `seedIdentity()` sees no owner user, tries to seed a FRESH "owner" role for the same workspace,
-  // and collides with the surviving row on `idx_roles_workspace_name` — verified directly against
-  // this exact fixture shape: `better-sqlite3` raises `SqliteError: UNIQUE constraint failed:
-  // roles.workspace_id, roles.name`.
+  // Built-in rows now resume safely. A same-named non-built-in role is a real
+  // conflict the current seeder refuses to adopt; force that reachable rejection.
   const db = new Database(dbPath);
-  db.prepare("DELETE FROM identity_users WHERE username = ?").run("admin");
-  db.close();
+  try {
+    const roles = db.prepare("SELECT id, name FROM roles WHERE workspace_id = ? ORDER BY name").all("workspace-local");
+    assert.equal(roles.length, 4);
+    assert.equal(db.prepare("DELETE FROM identity_users WHERE username = ?").run(identityEnv.TOVU_ADMIN_USER).changes, 1);
+    const remainingOwner = db.prepare("SELECT count(*) AS n FROM identity_users WHERE username = ?").get(identityEnv.TOVU_ADMIN_USER) as { n: number };
+    assert.equal(remainingOwner.n, 0);
+    assert.deepEqual(db.prepare("SELECT id, name FROM roles WHERE workspace_id = ? ORDER BY name").all("workspace-local"), roles);
+    assert.equal(db.prepare("UPDATE roles SET is_builtin = 0 WHERE workspace_id = ? AND name = ?").run("workspace-local", "owner").changes, 1);
+  } finally {
+    db.close();
+  }
 
   const secondBootPort = await getFreePort();
-  const secondBoot = spawnServe([dir, "--port", String(secondBootPort)]);
+  const secondBoot = spawnServe([dir, "--port", String(secondBootPort)], identityEnv);
   let stderrBuf = "";
   secondBoot.stderr.on("data", (chunk: Buffer) => {
     stderrBuf += chunk.toString();
@@ -558,14 +624,15 @@ test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint
   });
 
   try {
-    // `identityReady` (awaited via `Promise.all` in `serve.ts`) rejects and is caught there — that
-    // half of this bug was already fixed. The un-awaited `ownerPrincipalId` fork off the SAME
-    // rejected `seedResult` (`features/identity/wiring.ts`) is a SEPARATE promise with no handler of
-    // its own anywhere: verified live, pre-fix, that this alone crashes the whole process with an
-    // uncaught `SqliteError` roughly 3-4s after boot on this machine (measured directly, several
-    // runs) — 8s comfortably clears that, scaled by `loadFactor()` like every other timing assertion
-    // in this file so a busier box gets proportionally more room too.
-    await new Promise((resolve) => setTimeout(resolve, 8000 * loadFactor()));
+    const deadline = Date.now() + 20_000 * loadFactor();
+    while (!stderrBuf.includes("seedIdentity: a non-built-in role named 'owner'") && !exited && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.match(stderrBuf, /seedIdentity: a non-built-in role named 'owner'/, "the injected seed failure must actually occur");
+    await waitForHttpReady(secondBootPort, secondBoot);
+    const res = await fetch(`http://127.0.0.1:${secondBootPort}/welcome`, { signal: fetchTimeoutSignal() });
+    assert.equal(res.status, 200, "the second boot must continue serving after the seed rejection");
+    assert.match(await res.text(), /Welcome to Tovu/);
 
     assert.equal(
       exited,
@@ -580,10 +647,17 @@ test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint
 
 test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector", async () => {
   const { parent, dir } = initFixture();
+  const requestPath = `/welcome-otlp-${randomUUID()}`;
+  const db = new Database(path.join(dir, "content.db"));
+  assert.equal(db.prepare("UPDATE posts SET slug = ? WHERE slug = ?").run(requestPath.slice(1), "welcome").changes, 1);
+  db.close();
   const port = await getFreePort();
   const collector = await startFakeOtlpCollector();
   const child = spawnServe([dir, "--port", String(port)], {
     OTEL_EXPORTER_OTLP_ENDPOINT: collector.url,
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: `${collector.url}/v1/traces`,
+    OTEL_EXPORTER_OTLP_COMPRESSION: "none",
+    OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: "none",
     OTEL_SERVICE_NAME: "tovu-serve-cli-test",
     // Forces the batch span processor to flush every 200ms instead of the 5s default, so this test
     // does not need to wait out a real production-sized batching window.
@@ -591,12 +665,15 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   });
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
+    const res = await fetch(`http://127.0.0.1:${port}${requestPath}`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200);
 
     const factor = loadFactor();
     const deadline = Date.now() + 10_000 * factor;
-    while (collector.receivedCount() === 0 && Date.now() < deadline) {
+    const requestedSpan = () => collector.spans().find((span) =>
+      span.attributes.some((attr) => attr.key === "http.target" && attr.value.stringValue === requestPath)
+    );
+    while (!requestedSpan() && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
@@ -604,6 +681,10 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
       collector.receivedCount() > 0,
       `the spawned tovu serve process must export at least one span to the OTLP collector configured via OTEL_EXPORTER_OTLP_ENDPOINT within ${Math.round((10_000 * factor) / 1000)}s`
     );
+    const span = requestedSpan();
+    assert.ok(span, "a readiness or startup span cannot substitute for the uniquely named content request");
+    assert.ok(span.attributes.some((attr) => attr.key === "http.method" && attr.value.stringValue === "GET"));
+    assert.ok(span.attributes.some((attr) => attr.key === "http.status_code" && Number(attr.value.intValue) === 200));
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);
@@ -617,9 +698,8 @@ test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawn
   const { parent, dir } = initFixture();
   const port = await getFreePort();
   const daemonPort = await getFreePort();
-  // Deliberately does NOT set TOVU_AGENT_DAEMON_TOKEN in the child's env — proving `serve.ts`
-  // itself mints one, rather than merely forwarding an operator-supplied value.
-  const child = spawnServe([dir, "--port", String(port)], { JINI_AGENT_DAEMON_PORT: String(daemonPort) });
+  // Explicitly omit any inherited token, so serve.ts must mint one itself.
+  const child = spawnServe([dir, "--port", String(port)], { JINI_AGENT_DAEMON_PORT: String(daemonPort), TOVU_AGENT_DAEMON_TOKEN: undefined });
   try {
     await waitForHttpReady(port, child);
 

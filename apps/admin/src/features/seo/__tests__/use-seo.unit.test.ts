@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSeo } from "../hooks/use-seo.hooks";
+import { useSeoEntrySection } from "../hooks/use-seo-entry-section.hooks";
 import { createFakeSeoPort } from "../hooks/seo-dependencies.hooks";
 import type { SeoSettings } from "@/lib/api";
 
@@ -85,10 +86,33 @@ describe("useSeo — injected port", () => {
     await waitFor(() => expect(result.current.settings).not.toBeNull());
 
     await act(async () => {
-      await result.current.regenerateSitemap();
+      expect(await result.current.regenerateSitemap()).toBe(true);
     });
 
     expect(result.current.notice).toBe("Sitemap regeneration accepted.");
     expect(result.current.error).toBeNull();
+  });
+});
+
+
+describe("SEO selection and modal state", () => {
+  it("opens and closes the sitemap modal", async () => {
+    const port = createFakeSeoPort({ settings: settingsFixture() });
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+    expect(result.current.sitemapModalOpen).toBe(false);
+    act(() => result.current.openSitemapModal());
+    expect(result.current.sitemapModalOpen).toBe(true);
+    act(() => result.current.closeSitemapModal());
+    expect(result.current.sitemapModalOpen).toBe(false);
+  });
+
+  it("changes and clears the selected entry", () => {
+    const { result } = renderHook(() => useSeoEntrySection());
+    expect(result.current.entryId).toBe("");
+    act(() => result.current.setEntryId("p1"));
+    expect(result.current.entryId).toBe("p1");
+    act(() => result.current.setEntryId(""));
+    expect(result.current.entryId).toBe("");
   });
 });

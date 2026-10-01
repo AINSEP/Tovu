@@ -45,6 +45,10 @@ function stubGitHubApi(): { treePaths: () => string[]; refUrls: string[] } {
     vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
+      if (url.startsWith("https://api.github.com/")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer tok");
+        expect(new Headers(init?.headers).get("Accept")).toBe("application/vnd.github+json");
+      }
       if (method === "GET" && url.includes("/git/ref/heads/")) {
         refUrls.push(url);
         return jsonResponse(200, { object: { sha: "parent-sha" } });
@@ -95,6 +99,36 @@ describe("deploy plugin module contract (github-pages)", () => {
     await target.publish({ files: [{ file: "index.html", data: "hi" }], projectName: "demo", responseHeaders: { "X-Frame-Options": "DENY" } });
     expect(api.treePaths()).toEqual(["index.html", ".nojekyll"]);
   });
+
+  for (const status of [200, 401, 403, 429, 503]) {
+    it(`verifyCredential classifies HTTP ${status} with the exact account request`, async () => {
+      const requests: unknown[] = [];
+      const result = await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: {
+        ...kit,
+        fetch: async (url, init, options) => {
+          requests.push({ url, headers: Object.fromEntries(new Headers(init.headers)), timeoutMs: options.timeoutMs });
+          return jsonResponse(status, { login: "octo", email: "private@example.com" });
+        },
+      } });
+      expect(requests).toEqual([{
+        url: "https://api.github.com/user",
+        headers: { authorization: "Bearer tok", accept: "application/vnd.github+json" }, timeoutMs: 15_000,
+      }]);
+      expect(result).toEqual(status === 200 ? { ok: true, accountLabel: "octo" } : {
+        ok: false, reason: status === 401 || status === 403 ? "rejected" : "unreachable", statusCode: status,
+      });
+    });
+  }
+
+  for (const body of [{}, { login: "" }, { login: 42 }, null, "not JSON"]) {
+    it(`verifyCredential accepts a valid response without a usable login: ${JSON.stringify(body)}`, async () => {
+      const result = await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: {
+        ...kit, fetch: async () => typeof body === "string" ? new Response(body) : jsonResponse(200, body),
+      } });
+      expect(result).toEqual({ ok: true, accountLabel: undefined });
+      expect(result.ok && result.accountLabel).toBeUndefined();
+    });
+  }
 
   it("basePath is /<repo>, the prefix a project site serves from", () => {
     expect(loaded.default.basePath?.({ target: "github-pages", owner: "octo", repo: "demo" })).toBe("/demo");
@@ -177,17 +211,27 @@ describe('GitHubPagesDeployTarget.publish', () => {
   it('publishes a brand-new site: no existing branch, no existing Pages config, dedupes identical file content into one blob', async () => {
     const calls: Array<{ method: string; url: string; body?: unknown }> = [];
     let blobCalls = 0;
+    const binary = Buffer.from([0, 255, 128, 13, 10]);
+    const blobs: Array<{ content: string; encoding: string }> = [];
     let buildPollCount = 0;
 
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
+      if (url.startsWith('https://api.github.com/')) {
+        expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer tok');
+        expect(new Headers(init?.headers).get('Accept')).toBe('application/vnd.github+json');
+      }
       calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
 
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) {
         return new Response('', { status: 404 });
       }
       if (method === 'POST' && url.endsWith('/git/blobs')) {
+        const body = JSON.parse(String(init?.body));
+        blobs.push(body);
+        expect(body.encoding).toBe('base64');
+        expect(Buffer.from(body.content, 'base64')).toEqual(blobCalls === 0 ? Buffer.from('<html></html>') : binary);
         blobCalls += 1;
         return jsonResponse(201, { sha: `blob-sha-${blobCalls}` });
       }
@@ -196,6 +240,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
         expect(body.tree).toEqual([
           { path: 'index.html', mode: '100644', type: 'blob', sha: 'blob-sha-1' },
           { path: 'about.html', mode: '100644', type: 'blob', sha: 'blob-sha-1' },
+          { path: 'image.png', mode: '100644', type: 'blob', sha: 'blob-sha-2' },
         ]);
         return jsonResponse(201, { sha: 'tree-sha-1' });
       }
@@ -236,6 +281,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
       files: [
         { file: 'index.html', data: '<html></html>' },
         { file: 'about.html', data: '<html></html>' },
+        { file: 'image.png', data: binary },
       ],
       projectName: 'My Demo Site',
     });
@@ -246,11 +292,22 @@ describe('GitHubPagesDeployTarget.publish', () => {
     expect(result.url).toBe('https://octo.github.io/demo/');
     expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', commitSha: result.deploymentId, branchCreated: true });
 
-    expect(blobCalls).toBe(1); // both files share identical content
+    expect(blobs).toEqual([
+      { content: Buffer.from('<html></html>').toString('base64'), encoding: 'base64' },
+      { content: binary.toString('base64'), encoding: 'base64' },
+    ]);
+    expect(blobs.filter((body) => body.content === Buffer.from('<html></html>').toString('base64')).length).toBe(1); // both text files share identical content
+    expect(blobCalls).toBe(2);
     expect(buildPollCount).toBe(4);
   });
 
   it('bounds every call in the ref -> blob -> tree -> commit -> branch -> pages -> build-poll chain with a timeout signal', async () => {
+    const deadlines: number[] = [];
+    const kit = createDeployHostKit();
+    const bound = loaded.bindGitHubPages({ ...kit, fetch: (url, init, options) => {
+      deadlines.push(options.timeoutMs);
+      return kit.fetch(url, init, options);
+    } });
     const signals: Record<string, AbortSignal | null | undefined> = {};
     let buildPollCount = 0;
 
@@ -296,9 +353,10 @@ describe('GitHubPagesDeployTarget.publish', () => {
     });
     vi.stubGlobal('fetch', fetchSpy);
 
-    const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
+    const target = new bound.GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
     await target.publish({ files: [{ file: 'index.html', data: '<html></html>' }], projectName: 'demo' });
 
+    expect(deadlines).toEqual([15_000, 15_000, 15_000, 15_000, 15_000, 15_000, 30_000, 30_000]);
     expect(buildPollCount).toBeGreaterThan(0);
     for (const [name, signal] of Object.entries(signals)) {
       expect(signal, `${name} should carry a timeout AbortSignal`).toBeInstanceOf(AbortSignal);
@@ -307,6 +365,43 @@ describe('GitHubPagesDeployTarget.publish', () => {
       ['blob', 'buildPoll', 'commit', 'createRef', 'pagesCreate', 'pagesLookup', 'refLookup', 'tree'].sort(),
     );
   });
+
+  for (const [stalledCall, existingBranch] of [
+    ...Array.from({ length: 8 }, (_, index) => [index, false] as const), [4, true] as const,
+  ]) {
+    it(`aborts stalled request ${stalledCall + 1} (${existingBranch ? 'update' : 'create'} branch)`, async () => {
+      let call = 0;
+      let aborted = false;
+      const responses = [
+        () => existingBranch ? jsonResponse(200, { object: { sha: 'parent' } }) : new Response('', { status: 404 }),
+        () => jsonResponse(201, { sha: 'blob' }),
+        () => jsonResponse(201, { sha: 'tree' }),
+        () => jsonResponse(201, { sha: 'commit' }),
+        () => jsonResponse(201, {}),
+        () => new Response('', { status: 404 }),
+        () => jsonResponse(201, { html_url: 'https://octo.github.io/demo/' }),
+        () => jsonResponse(200, { commit: 'commit', status: 'built' }),
+      ];
+      const kit = createDeployHostKit({ timeouts: { QUICK: 15, DEPLOY: 20, UPLOAD: 25 }, fetchFn: async (_url, init) => {
+        const current = call++;
+        if (current !== stalledCall) return responses[current]();
+        return new Promise<Response>((_resolve, reject) => {
+          const watchdog = setTimeout(() => reject(new Error('deadline did not abort')), 1000);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(watchdog);
+            aborted = true;
+            reject(init.signal!.reason);
+          }, { once: true });
+        });
+      } });
+      const { GitHubPagesDeployTarget: Target } = loaded.bindGitHubPages({ ...kit, sleep: async () => undefined });
+      await expect(new Target({ token: 'tok', owner: 'octo', repo: 'demo' }).publish({
+        files: [{ file: 'index.html', data: 'hi' }], projectName: 'demo',
+      })).rejects.toThrow(`fetch timed out after ${stalledCall >= 6 ? 20 : 15}ms:`);
+      expect(aborted).toBe(true);
+      expect(call).toBe(stalledCall + 1);
+    });
+  }
 
   it('bounds the PATCH branch-update call with a timeout signal too', async () => {
     let updateRefSignal: AbortSignal | null | undefined;
@@ -398,6 +493,8 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('uses a caller-supplied branch instead of the gh-pages default', async () => {
+    let refBody: unknown;
+    let pagesBody: unknown;
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
@@ -406,12 +503,14 @@ describe('GitHubPagesDeployTarget.publish', () => {
       if (method === 'POST' && url.endsWith('/git/commits')) return jsonResponse(201, { sha: 'commit-sha' });
       if (method === 'POST' && url.endsWith('/git/refs')) {
         const body = JSON.parse(String(init?.body));
+        refBody = body;
         expect(body.ref).toBe('refs/heads/site');
         return jsonResponse(201, { ref: 'refs/heads/site', object: { sha: 'commit-sha', type: 'commit' } });
       }
       if (method === 'GET' && isPagesSiteUrl(url)) return new Response('', { status: 404 });
       if (method === 'POST' && isPagesSiteUrl(url)) {
         const body = JSON.parse(String(init?.body));
+        pagesBody = body;
         expect(body.source).toEqual({ branch: 'site', path: '/' });
         return jsonResponse(201, { html_url: 'https://octo.github.io/demo/', source: { branch: 'site', path: '/' } });
       }
@@ -421,7 +520,11 @@ describe('GitHubPagesDeployTarget.publish', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo', branch: 'site' });
-    await target.publish({ files: [], projectName: 'demo' });
+    const result = await target.publish({ files: [], projectName: 'demo' });
+    expect(refBody).toEqual({ ref: 'refs/heads/site', sha: 'commit-sha' });
+    expect(pagesBody).toEqual({ source: { branch: 'site', path: '/' }, build_type: 'legacy' });
+    expect(result.status).toBe('ready');
+    expect(result.providerMetadata?.branch).toBe('site');
   });
 
   it('throws DeployError when the Pages build reaches a terminal errored state, surfacing error.message', async () => {
@@ -824,6 +927,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('falls back to "site" in the commit message when projectName is blank/whitespace', async () => {
+    let commitBody: unknown;
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
@@ -831,6 +935,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
       if (method === 'POST' && url.endsWith('/git/trees')) return jsonResponse(201, { sha: 'tree-sha' });
       if (method === 'POST' && url.endsWith('/git/commits')) {
         const body = JSON.parse(String(init?.body));
+        commitBody = body;
         expect(body.message).toBe('Deploy site via @jini-ai/deploy');
         return jsonResponse(201, { sha: 'commit-sha' });
       }
@@ -842,7 +947,9 @@ describe('GitHubPagesDeployTarget.publish', () => {
     });
     vi.stubGlobal('fetch', fetchSpy);
     const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
-    await target.publish({ files: [], projectName: '   ' });
+    const result = await target.publish({ files: [], projectName: '   ' });
+    expect(commitBody).toEqual({ message: 'Deploy site via @jini-ai/deploy', tree: 'tree-sha', parents: [] });
+    expect(result.status).toBe('ready');
   });
 
   it('checkReachability probes the URL without any protected-response detection', async () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { mkdtemp, readdir, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -10,12 +10,14 @@ import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { AgentPluginInstallError } from "../../install.js";
 import { installAgentPluginFromUrl } from "../../install-from-url.js";
-import { resolveAgentPluginLayout } from "../../layout.js";
+import { resolveAgentPluginLayout, type AgentPluginLayout } from "../../layout.js";
+import { AgentPluginFetchError } from "../../fetch-archive.js";
 
 /**
  * @file End-to-end proof of `installAgentPluginFromUrl()`: a real loopback HTTP server serving a real
  * zip, read by the real `yauzl` adapter (the module's own default — never overridden here), landing
- * on a real temp `cwd`. No step is doubled: this is the "URL -> bytes on disk" seam
+ * on a real temp `cwd`. The happy path doubles no step; rejection cases inject HTTP responses.
+ * This is the "URL -> bytes on disk" seam
  * `fetch-archive.ts`'s and `install-from-url.ts`'s own headers describe, proven working together
  * rather than only typechecking together.
  */
@@ -84,6 +86,7 @@ test("installAgentPluginFromUrl downloads a real archive over loopback HTTP and 
       assert.deepEqual(rootEntries, ["plugin.json", "skills"]);
       const skillEntries = await readdir(path.join(expectedRoot, "skills", "ui-ux-design"));
       assert.deepEqual(skillEntries, ["SKILL.md"]);
+      assert.deepEqual(await readFile(path.join(expectedRoot, "skills", "ui-ux-design", "SKILL.md")), Buffer.from(skillMarkdown, "utf8"));
     });
   } finally {
     await forceRemove(cwd);
@@ -154,10 +157,99 @@ test("installAgentPluginFromUrl refuses a pinned digest mismatch with DIGEST_MIS
     // Nothing published: the digest check happens before extraction ever touches the archive
     // reader, so not even the workspace's own `packages/sha256` directory should exist yet, let
     // alone a digest-named directory for the real bytes.
-    const expectedRoot = path.join(cwd, "infra", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256", realDigest);
+    const workspaceLayout = layout.forWorkspace(WORKSPACE_ID);
+    const expectedRoot = path.join(workspaceLayout.packages, realDigest);
     await assert.rejects(() => stat(expectedRoot), (error: unknown) => {
       return (error as NodeJS.ErrnoException).code === "ENOENT";
     });
+    for (const directory of [workspaceLayout.packages, workspaceLayout.staging]) {
+      await assert.rejects(() => stat(directory), (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT");
+    }
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+async function assertNothingPublishedOrStaged(layout: AgentPluginLayout): Promise<void> {
+  const workspace = layout.forWorkspace(WORKSPACE_ID);
+  for (const directory of [workspace.packages, workspace.staging]) {
+    const entries = await readdir(directory).catch((error: NodeJS.ErrnoException) => {
+      assert.equal(error.code, "ENOENT");
+      return [];
+    });
+    assert.deepEqual(entries, [], `${directory} must contain no rejected archive bytes`);
+  }
+}
+
+for (const status of [404, 500]) {
+  test(`installAgentPluginFromUrl refuses HTTP ${status} even when the response contains a valid plugin ZIP`, async () => {
+    const cwd = await mkdtemp(path.join(tmpdir(), "tovu-install-from-url-test-"));
+    try {
+      const zip = await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ name: "error-response-plugin" }) }]);
+      const layout = resolveAgentPluginLayout({ cwd, env: {} });
+      await assert.rejects(
+        () => installAgentPluginFromUrl({ url: "https://plugins.example/plugin.zip", integrity: { kind: "trust-on-first-use" }, layout, workspaceId: WORKSPACE_ID }, {
+          fetch: { fetchImpl: async () => new Response(new Uint8Array(zip), { status }) },
+        }),
+        (error: unknown) => error instanceof AgentPluginFetchError && error.code === "HTTP_ERROR",
+      );
+      await assertNothingPublishedOrStaged(layout);
+    } finally {
+      await forceRemove(cwd);
+    }
+  });
+}
+
+test("installAgentPluginFromUrl enforces the caller's streaming byte cap before publishing a valid ZIP", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-install-from-url-test-"));
+  try {
+    const zip = await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ name: "oversized-plugin" }) }]);
+    assert.ok(zip.byteLength > 64);
+    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    await assert.rejects(
+      () => installAgentPluginFromUrl({ url: "https://plugins.example/plugin.zip", integrity: { kind: "trust-on-first-use" }, layout, workspaceId: WORKSPACE_ID }, {
+        fetch: { maxBytes: 64, fetchImpl: async () => new Response(new Uint8Array(zip)) },
+      }),
+      (error: unknown) => error instanceof AgentPluginFetchError && error.code === "ARCHIVE_TOO_LARGE",
+    );
+    await assertNothingPublishedOrStaged(layout);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("installAgentPluginFromUrl refuses a non-ZIP 200 body without published or staged leftovers", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-install-from-url-test-"));
+  try {
+    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    await assert.rejects(
+      () => installAgentPluginFromUrl({ url: "https://plugins.example/plugin.zip", integrity: { kind: "trust-on-first-use" }, layout, workspaceId: WORKSPACE_ID }, {
+        fetch: { fetchImpl: async () => new Response("<html>not a plugin archive</html>") },
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /end of central directory|not a zip/i);
+        return true;
+      },
+    );
+    await assertNothingPublishedOrStaged(layout);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("installAgentPluginFromUrl refuses a ZIP with no plugin manifest and cleans its extracted files", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-install-from-url-test-"));
+  try {
+    const zip = await buildZipFixture([{ path: "README.md", content: "ordinary ZIP, not a plugin" }]);
+    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    await assert.rejects(
+      () => installAgentPluginFromUrl({ url: "https://plugins.example/plugin.zip", integrity: { kind: "trust-on-first-use" }, layout, workspaceId: WORKSPACE_ID }, {
+        fetch: { fetchImpl: async () => new Response(new Uint8Array(zip)) },
+      }),
+      (error: unknown) => error instanceof AgentPluginInstallError && error.code === "MANIFEST_MISSING",
+    );
+    await assertNothingPublishedOrStaged(layout);
   } finally {
     await forceRemove(cwd);
   }

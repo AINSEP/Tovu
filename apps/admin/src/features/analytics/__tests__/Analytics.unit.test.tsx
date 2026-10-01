@@ -65,6 +65,15 @@ describe("Analytics — empty state", () => {
 });
 
 describe("Analytics — populated table", () => {
+  it("renders the five headers and formats each hit's occurrence time", () => {
+    render(<Analytics useAnalyticsHook={stubHook({ hits: [HIT_WITH_EVENT, HIT_DIRECT_PAGEVIEW] })} />);
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Path", "Referrer", "Device / Browser", "Kind", "Time",
+    ]);
+    expect(screen.getByRole("cell", { name: "2026-08-01 12:00" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "2026-08-01 13:00" })).toBeInTheDocument();
+  });
+
   it("renders referrer as '(direct)' when referrerHost is null, and the real host otherwise", () => {
     render(<Analytics useAnalyticsHook={stubHook({ hits: [HIT_WITH_EVENT, HIT_DIRECT_PAGEVIEW] })} />);
     expect(screen.getByText("google.com")).toBeInTheDocument();

@@ -33,7 +33,7 @@ interface CloudflarePagesBinding {
     checkReachability(url: string): Promise<unknown>;
   };
   cloudflarePagesAssetHash(file: { file: string; data: string | Buffer }): string;
-  chunkCloudflarePagesAssetUploads(files: Array<{ hash: string; data: string | Buffer; contentType?: string }>, options?: { maxFiles?: number; maxBytes?: number }): Array<Array<unknown>>;
+  chunkCloudflarePagesAssetUploads(files: Array<{ hash: string; data: string | Buffer; contentType?: string }>, options?: { maxFiles?: number; maxBytes?: number }): Array<Array<{ hash: string; data: string | Buffer; contentType?: string }>>;
   listCloudflarePagesZones(config: { token: string; accountId: string }): Promise<{ zones: unknown[] }>;
 }
 
@@ -57,6 +57,9 @@ function stubPagesApi(): { deployForm: () => FormData | undefined; checkedHashes
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
+      if (url.startsWith("https://api.cloudflare.com/")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe(url.includes("/pages/assets/") ? "Bearer jwt" : "Bearer tok");
+      }
       if (url.includes("/pages/projects/") && url.endsWith("jini-demo") && (!init?.method || init.method === "GET")) {
         return jsonResponse(200, { success: true, result: { name: "jini-demo" } });
       }
@@ -98,6 +101,27 @@ describe("deploy plugin module contract (cloudflare-pages)", () => {
     await expect(target.publish({ files: [], projectName: "demo" })).rejects.toThrow("Cloudflare account ID is required.");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  for (const status of [200, 401, 403, 429, 503]) {
+    it(`verifyCredential classifies HTTP ${status} and sends the scoped token check`, async () => {
+      const requests: unknown[] = [];
+      const kit = createDeployHostKit();
+      const result = await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: {
+        ...kit,
+        fetch: async (url, init, options) => {
+          requests.push({ url, headers: Object.fromEntries(new Headers(init.headers)), timeoutMs: options.timeoutMs });
+          return new Response("not JSON", { status });
+        },
+      } });
+      expect(requests).toEqual([{
+        url: "https://api.cloudflare.com/client/v4/user/tokens/verify",
+        headers: { authorization: "Bearer tok" }, timeoutMs: 15_000,
+      }]);
+      expect(result).toEqual(status === 200 ? { ok: true } : {
+        ok: false, reason: status === 401 || status === 403 ? "rejected" : "unreachable", statusCode: status,
+      });
+    });
+  }
 
   it("has no config fields and serves from the root", () => {
     expect(loaded.default.validateConfig?.({})).toBeNull();
@@ -162,6 +186,11 @@ describe('cloudflarePagesAssetHash', () => {
     expect(cloudflarePagesAssetHash(file)).toBe(cloudflarePagesAssetHash(file));
   });
 
+  it('changes when bytes change under the same filename', () => {
+    expect(cloudflarePagesAssetHash({ file: 'index.html', data: 'old' }))
+      .not.toBe(cloudflarePagesAssetHash({ file: 'index.html', data: 'new' }));
+  });
+
   it('is a 32-character lowercase hex string', () => {
     const hash = cloudflarePagesAssetHash({ file: 'a.css', data: 'body{}' });
     expect(hash).toMatch(/^[0-9a-f]{32}$/);
@@ -200,10 +229,16 @@ describe('chunkCloudflarePagesAssetUploads', () => {
   it('splits into multiple batches once the byte-size cap is exceeded', () => {
     const bigData = 'x'.repeat(1000);
     const files = Array.from({ length: 5 }, (_, i) => ({ hash: `h${i}`, data: bigData, contentType: 'text/plain' }));
-    // Each file's estimated payload is ~1000*4/3 + overhead; cap tight enough to force 1-per-batch.
-    const chunks = chunkCloudflarePagesAssetUploads(files, { maxBytes: 1500 });
+    // Each estimate is 1336 base64 bytes + 10 MIME bytes + 2 hash bytes + 128 overhead.
+    const chunks = chunkCloudflarePagesAssetUploads(files, { maxBytes: 3000 });
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every((c) => c.length >= 1)).toBe(true);
+    expect(chunks.map((c) => c.length)).toEqual([2, 2, 1]);
+    expect(chunks.flat()).toEqual(files);
+    for (const chunk of chunks) {
+      const payload = chunk.map((file) => ({ key: file.hash, value: Buffer.from(file.data).toString('base64'), metadata: { contentType: file.contentType }, base64: true }));
+      expect(Buffer.byteLength(JSON.stringify(payload)) <= 3000).toBe(true);
+    }
   });
 
   it('gives an over-cap single file its own batch rather than dropping it', () => {
@@ -337,11 +372,23 @@ describe('CloudflarePagesDeployTarget.publish', () => {
 
   it('ensures the project, uploads assets, deploys, and returns the reachable pages.dev URL', async () => {
     const calls: string[] = [];
+    const files = [
+      { file: 'index.html', data: '<html></html>', contentType: 'text/html' },
+      { file: 'about.html', data: '<html>About</html>', contentType: 'text/html' },
+      { file: 'image.png', data: Buffer.from([0, 255, 128, 13, 10]), contentType: 'image/png' },
+    ];
+    const uploaded: Array<{ key: string; value: string; metadata: { contentType: string }; base64: boolean }> = [];
+    let manifest: unknown;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string, init?: RequestInit) => {
         const url = String(input);
         calls.push(`${init?.method ?? 'GET'} ${url}`);
+        if (url.startsWith('https://api.cloudflare.com/')) {
+          expect(new Headers(init?.headers).get('Authorization')).toBe(
+            url.includes('/pages/assets/') ? 'Bearer upload-jwt' : 'Bearer tok',
+          );
+        }
 
         if (url.includes('/pages/projects/') && url.endsWith('jini-demo-site') && (!init?.method || init.method === 'GET')) {
           return jsonResponse(404, { success: false });
@@ -357,12 +404,14 @@ describe('CloudflarePagesDeployTarget.publish', () => {
           return jsonResponse(200, { success: true, result: body.hashes });
         }
         if (url.endsWith('/pages/assets/upload')) {
+          uploaded.push(...JSON.parse(String(init?.body)));
           return jsonResponse(200, { success: true });
         }
         if (url.endsWith('/pages/assets/upsert-hashes')) {
           return jsonResponse(200, { success: true });
         }
         if (url.endsWith('/deployments') && init?.method === 'POST') {
+          manifest = JSON.parse(String((init.body as FormData).get('manifest')));
           return jsonResponse(200, { success: true, result: { id: 'depl_1', url: 'jini-demo-site.pages.dev' } });
         }
         // Reachability HEAD probe against the pages.dev production URL.
@@ -375,10 +424,19 @@ describe('CloudflarePagesDeployTarget.publish', () => {
 
     const target = new CloudflarePagesDeployTarget({ token: 'tok', accountId: 'acct' });
     const result = await target.publish({
-      files: [{ file: 'index.html', data: '<html></html>', contentType: 'text/html' }],
+      files,
       projectName: 'Demo Site!!',
     });
 
+    expect(uploaded).toEqual(files.map((file) => ({
+      key: cloudflarePagesAssetHash(file), value: Buffer.from(file.data).toString('base64'),
+      metadata: { contentType: file.contentType }, base64: true,
+    })));
+    for (let i = 0; i < files.length; i++) {
+      expect(Buffer.from(uploaded[i].value, 'base64')).toEqual(Buffer.from(files[i].data));
+    }
+    expect(new Set(uploaded.map((entry) => entry.key)).size).toBe(files.length);
+    expect(manifest).toEqual(Object.fromEntries(files.map((file) => [`/${file.file}`, cloudflarePagesAssetHash(file)])));
     expect(result.targetId).toBe('cloudflare-pages');
     expect(result.deploymentId).toBe('depl_1');
     expect(result.url).toBe('https://jini-demo-site.pages.dev');
@@ -388,7 +446,47 @@ describe('CloudflarePagesDeployTarget.publish', () => {
     expect(calls.some((c) => c.includes('jini-demo-site'))).toBe(true);
   });
 
+  for (const [stalledCall, timeoutMs] of [15, 20, 15, 15, 25, 15, 20].entries()) {
+    it(`aborts stalled publish request ${stalledCall + 1} using its injected deadline`, async () => {
+      let call = 0;
+      let aborted = false;
+      const responses = [
+        () => jsonResponse(404, { success: false }),
+        () => jsonResponse(200, { success: true, result: { name: 'jini-demo' } }),
+        () => jsonResponse(200, { success: true, result: { jwt: 'jwt' } }),
+        () => jsonResponse(200, { success: true, result: [cloudflarePagesAssetHash({ file: 'index.html', data: 'hi' })] }),
+        () => jsonResponse(200, { success: true }),
+        () => jsonResponse(200, { success: true }),
+        () => jsonResponse(200, { success: true, result: { id: 'd1', url: 'jini-demo.pages.dev' } }),
+      ];
+      const kit = createDeployHostKit({ timeouts: { QUICK: 15, DEPLOY: 20, UPLOAD: 25 }, fetchFn: async (_url, init) => {
+        const current = call++;
+        if (current !== stalledCall) return responses[current]();
+        return new Promise<Response>((_resolve, reject) => {
+          const watchdog = setTimeout(() => reject(new Error('deadline did not abort')), 1000);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(watchdog);
+            aborted = true;
+            reject(init.signal!.reason);
+          }, { once: true });
+        });
+      } });
+      const { CloudflarePagesDeployTarget: Target } = loaded.bindCloudflarePages(kit);
+      await expect(new Target({ token: 'tok', accountId: 'acct' }).publish({
+        files: [{ file: 'index.html', data: 'hi' }], projectName: 'demo',
+      })).rejects.toThrow(`fetch timed out after ${timeoutMs}ms:`);
+      expect(aborted).toBe(true);
+      expect(call).toBe(stalledCall + 1);
+    });
+  }
+
   it('bounds every call in the project-ensure -> upload-token -> asset-upload -> deploy chain with a timeout signal', async () => {
+    const deadlines: number[] = [];
+    const kit = createDeployHostKit();
+    const bound = loaded.bindCloudflarePages({ ...kit, fetch: (url, init, options) => {
+      deadlines.push(options.timeoutMs);
+      return kit.fetch(url, init, options);
+    } });
     const signals: Record<string, AbortSignal | null | undefined> = {};
     vi.stubGlobal(
       'fetch',
@@ -428,12 +526,13 @@ describe('CloudflarePagesDeployTarget.publish', () => {
       }),
     );
 
-    const target = new CloudflarePagesDeployTarget({ token: 'tok', accountId: 'acct' });
+    const target = new bound.CloudflarePagesDeployTarget({ token: 'tok', accountId: 'acct' });
     await target.publish({
       files: [{ file: 'index.html', data: '<html></html>', contentType: 'text/html' }],
       projectName: 'Demo Site!!',
     });
 
+    expect(deadlines).toEqual([15_000, 30_000, 15_000, 15_000, 120_000, 15_000, 30_000]);
     expect(Object.keys(signals).sort()).toEqual(
       ['assetUpload', 'checkMissing', 'createDeployment', 'projectCreate', 'projectLookup', 'uploadToken', 'upsertHashes'].sort(),
     );
@@ -736,10 +835,15 @@ describe('CloudflarePagesDeployTarget.publish — custom domain', () => {
 
   it('sets up a brand-new custom domain end to end: zone validation, CNAME creation, Pages domain creation, and reachability', async () => {
     const calls: string[] = [];
+    let dnsBody: unknown;
+    let domainBody: unknown;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string, init?: RequestInit) => {
         const url = String(input);
+        if (url.startsWith('https://api.cloudflare.com/')) {
+          expect(new Headers(init?.headers).get('Authorization')).toBe(url.includes('/pages/assets/') ? 'Bearer jwt' : 'Bearer tok');
+        }
         const base = baseHandlers(url, init, calls);
         if (base) return base;
         if (url.includes('/zones/zone1') && !url.includes('dns_records')) {
@@ -749,10 +853,12 @@ describe('CloudflarePagesDeployTarget.publish — custom domain', () => {
           return jsonResponse(200, { success: true, result: [] });
         }
         if (url.includes('/zones/zone1/dns_records') && init?.method === 'POST') {
+          dnsBody = JSON.parse(String(init.body));
           return jsonResponse(200, { success: true, result: { id: 'dns-1' } });
         }
         if (url.includes('/domains/demo.example.com')) return jsonResponse(404, { success: false });
         if (url.endsWith('/domains') && init?.method === 'POST') {
+          domainBody = JSON.parse(String(init.body));
           return jsonResponse(200, { success: true, result: { name: 'demo.example.com', status: 'active' } });
         }
         if (url.startsWith('https://demo.example.com')) return new Response('', { status: 200 });
@@ -767,6 +873,11 @@ describe('CloudflarePagesDeployTarget.publish — custom domain', () => {
       metadata: { customDomain: { zoneId: 'zone1', zoneName: 'example.com', domainPrefix: 'demo' } },
     });
 
+    expect(dnsBody).toEqual({
+      type: 'CNAME', name: 'demo.example.com', content: 'jini-demo.pages.dev', proxied: true, ttl: 1,
+      comment: expectedCloudflareDnsMarker('jini-demo', 'jini-demo.pages.dev'),
+    });
+    expect(domainBody).toEqual({ name: 'demo.example.com' });
     expect(result.status).toBe('ready');
     expect(result.providerMetadata?.customDomain).toMatchObject({
       hostname: 'demo.example.com',
@@ -837,6 +948,12 @@ describe('CloudflarePagesDeployTarget.publish — custom domain', () => {
           return jsonResponse(200, { success: true, result: { name: 'example.com', status: 'active', type: 'full' } });
         }
         if (url.includes('/zones/zone1/dns_records')) {
+          const parsed = new URL(url);
+          expect(parsed.pathname).toBe('/client/v4/zones/zone1/dns_records');
+          expect(parsed.searchParams.get('name')).toBe('demo.example.com');
+          expect(parsed.searchParams.get('per_page')).toBe('100');
+          // Include A/AAAA records too: they must be detected as conflicts.
+          expect(parsed.searchParams.has('type')).toBe(false);
           return jsonResponse(200, {
             success: true,
             result: [{ id: 'dns-1', type: 'CNAME', name: 'demo.example.com', content: 'jini-demo.pages.dev', comment: 'existing-marker' }],
@@ -1150,11 +1267,19 @@ describe('listCloudflarePagesZones — pagination', () => {
   });
 
   it('follows multiple pages using total_pages when the API reports it', async () => {
-    let page = 0;
+    const pages: string[] = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => {
-        page += 1;
+      vi.fn(async (input: string) => {
+        const url = new URL(String(input));
+        expect(url.pathname).toBe('/client/v4/zones');
+        expect(url.searchParams.get('account.id')).toBe('acct');
+        expect(url.searchParams.get('status')).toBe('active');
+        expect(url.searchParams.get('type')).toBe('full');
+        expect(url.searchParams.get('per_page')).toBe('100');
+        const page = url.searchParams.get('page');
+        pages.push(page!);
+        expect(['1', '2']).toContain(page);
         return jsonResponse(200, {
           success: true,
           result: [{ id: `z${page}`, name: `zone${page}.com`, status: 'active', type: 'full' }],
@@ -1163,7 +1288,12 @@ describe('listCloudflarePagesZones — pagination', () => {
       }),
     );
     const { zones } = await listCloudflarePagesZones({ token: 'tok', accountId: 'acct' });
+    expect(pages).toEqual(['1', '2']);
     expect(zones.map((z) => z.id)).toEqual(['z1', 'z2']);
+    expect(zones).toEqual([
+      { id: 'z1', name: 'zone1.com', status: 'active', type: 'full' },
+      { id: 'z2', name: 'zone2.com', status: 'active', type: 'full' },
+    ]);
   });
 
   it('throws a DeployError when a page response reports success:false', async () => {

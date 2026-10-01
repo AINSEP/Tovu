@@ -353,9 +353,11 @@ test("theme_reset_file refuses a ../ escape into a sibling theme's folder, leavi
 
 test("theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling", async () => {
   const { deps } = fakeRouteDeps();
+  assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#111");
   await wired(deps, "theme_reset_file").handler(executionContext({ themeId: "plain", path: "tokens.json" }));
   const live = deps.themes.find((t) => t.manifest.id === "plain");
   assert.equal(live?.status, "valid");
+  assert.equal(live?.tokens["--ink"], "#000", "reset must replace the live token data with the stored original");
 });
 
 /**

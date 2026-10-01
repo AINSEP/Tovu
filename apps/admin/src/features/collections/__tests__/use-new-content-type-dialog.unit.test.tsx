@@ -96,9 +96,15 @@ describe("field editing", () => {
   it("removeField removes the matching row", () => {
     const { view } = mount();
     act(() => view.result.current.addField());
+    const firstRowId = view.result.current.fields[0]._rowId;
     const secondRowId = view.result.current.fields[1]._rowId;
+    act(() => view.result.current.updateField(firstRowId, { name: "prep_time", kind: "number", required: true }));
+    act(() => view.result.current.updateField(secondRowId, { name: "instructions", kind: "text" }));
+    const firstRow = view.result.current.fields[0];
     act(() => view.result.current.removeField(secondRowId));
     expect(view.result.current.fields).toHaveLength(1);
+    expect(view.result.current.fields).toEqual([firstRow]);
+    expect(view.result.current.fields[0]._rowId).not.toBe(secondRowId);
   });
 });
 

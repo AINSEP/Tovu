@@ -51,6 +51,18 @@ const FIXTURES: readonly string[] = [
   `<div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div><div data-embed-config='{"type":"widget","id":"w1"}'></div>`,
 ];
 
+// Independently authored expectations keep a dropped projection from passing vacuously.
+const EXPECTED_INDEXED: readonly (readonly string[])[] = [
+  ["widget:widget-1"], [], ["media:asset-1"], ["widget:w1", "media:asset-1"],
+  ["widget:w1"], ["widget:w1"], ["widget:w1"], [],
+  ["widget:w1", "widget:w1", "media:asset-1"], [], ["widget:w1"],
+];
+const EXPECTED_SCANNED: readonly (readonly string[])[] = [
+  ["widget:widget-1"], ["form:form-1"], ["media:asset-1"], ["widget:w1", "media:asset-1"],
+  ["widget:w1"], ["widget:w1"], ["widget:w1"], [],
+  ["widget:w1", "media:asset-1"], [], ["partial:nav", "widget:w1"],
+];
+
 /** The extractor's locator format, `bodyHtml[embed:<type>#<occurrence>]`. Parsed here only to
  * recover the type for comparison — nothing in the product parses `fieldPath`. */
 function fieldPathType(fieldPath: string): string {
@@ -69,6 +81,9 @@ for (const [i, html] of FIXTURES.entries()) {
         .filter((r) => r.id !== null)
         .map((r) => `${r.type}:${r.id}`)
     );
+
+    assert.deepEqual(indexed, EXPECTED_INDEXED[i], `extractor dropped or added a reference in fixture #${i}`);
+    assert.deepEqual([...scanned], EXPECTED_SCANNED[i], `scanner dropped or added a reference in fixture #${i}`);
 
     for (const ref of indexed) {
       assert.ok(scanned.has(ref), `extractor indexed ${ref}, which the scanner never reported — fixture: ${html}`);

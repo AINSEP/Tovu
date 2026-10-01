@@ -295,6 +295,7 @@ describe("startByokRun — request shape and startup failures", () => {
   });
 
   test("a network-level fetch rejection is rethrown as an Error and the abort controller is not leaked", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => "failed-start" });
     fetchMock = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     });
@@ -304,6 +305,12 @@ describe("startByokRun — request shape and startup failures", () => {
     await expect(transport.startRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(
       "Failed to fetch",
     );
+    const signal = fetchMock.mock.calls[0][1].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    await transport.stopRun("byok:failed-start");
+    // A stale map entry would let stopRun abort the failed request's signal.
+    expect(signal.aborted).toBe(false);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   test("a non-Error thrown by fetch is wrapped in an Error, not passed through raw", async () => {
@@ -639,23 +646,34 @@ describe("reattachRun / fetchRunStatus / stopRun — BYOK branches", () => {
   });
 
   test("stopRun on a byok: id aborts the in-flight controller instead of POSTing a cancel endpoint", async () => {
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
-      pull() {
-        // never resolves on its own — only abort() ends it, which is what this test verifies.
-      },
+      start(controller) { streamController = controller; },
     });
-    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      init.signal!.addEventListener("abort", () => {
+        streamController.error(new DOMException("The operation was aborted", "AbortError"));
+      }, { once: true });
+      return new Response(stream, { status: 200 });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const transport = createTovuAssistantTransport({ getExecutionConfig: () => byokConfig() });
 
-    const { runId } = await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, handlers());
+    const h = handlers();
+    const onDone = vi.fn(h.onDone);
+    h.onDone = onDone;
+    const { runId } = await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, h);
+    const requestSignal = fetchMock.mock.calls[0][1].signal as AbortSignal;
+    expect(requestSignal.aborted).toBe(false);
     fetchMock.mockClear();
     await transport.stopRun(runId);
 
     // No new network call — cancellation goes through the abort controller, not a fetch.
     expect(fetchMock).not.toHaveBeenCalled();
-    const [, init] = (fetchMock.mock.calls[0] as [string, RequestInit] | undefined) ?? [undefined, undefined];
-    expect(init?.signal as AbortSignal | undefined).toBeUndefined();
+    expect(requestSignal.aborted).toBe(true);
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalledOnce());
+    expect(h.done).toEqual([]);
+    expect(h.errors).toEqual([]);
   });
 
   test("stopRun on an unknown byok: id (already settled/never existed) is a silent no-op", async () => {
@@ -713,17 +731,25 @@ describe("terminal reason — surfacing max_tool_turns to the human", () => {
   });
 
   test("a malformed 'end' payload still ends the run — a missing notice never costs the turn", async () => {
-    const stream = streamFromChunks([`event: end\ndata: {not json\n\n`]);
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller;
+        controller.enqueue(new TextEncoder().encode(`event: end\ndata: {not json\n\n`));
+        // Deliberately leave the stream open: exhaustion must not be what finishes the turn.
+      },
+    });
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const transport = createTovuAssistantTransport({ getExecutionConfig: () => byokConfig() });
     const h = handlers();
 
     await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, h);
-    await flushMicrotasks();
-    await flushMicrotasks();
-
-    expect(h.done).not.toBeNull();
-    expect(h.errors).toEqual([]);
+    try {
+      await vi.waitFor(() => expect(h.done).not.toBeNull());
+      expect(h.errors).toEqual([]);
+    } finally {
+      streamController.close();
+    }
   });
 });

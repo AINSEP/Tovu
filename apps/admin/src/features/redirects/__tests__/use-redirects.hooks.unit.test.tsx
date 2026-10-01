@@ -172,7 +172,7 @@ describe("useRedirects — error precedence across independent writes", () => {
     await waitFor(() => expect(result.current.error).toBeNull());
   });
 
-  it("firstWriteError's array-order precedence is observable through the hook: a create failure outranks a later toggle failure in the visible banner", async () => {
+  it("clears the earlier create error so a later toggle failure supplies the visible banner", async () => {
     const fetchMock = routeFetch([
       { when: (u) => u.endsWith("/redirects") && !u.includes("hits"), respond: () => jsonResponse({ data: [RULE] }) },
     ]);
@@ -219,6 +219,9 @@ describe("useRedirects — saving / onToggleStatus / onRequestDelete guard", () 
     act(() => result.current.onToggleStatus(RULE));
     await waitFor(() => expect(result.current.saving).toBe(true));
 
+    const callsBefore = fetchMock.mock.calls.length;
+    await act(async () => result.current.onToggleStatus(RULE));
+    expect(fetchMock).toHaveBeenCalledTimes(callsBefore);
     act(() => result.current.onRequestDelete(RULE));
     expect(result.current.pendingDelete).toBeNull(); // guarded — never opened the confirm dialog
 
@@ -258,6 +261,8 @@ describe("useRedirects — delete confirmation", () => {
     });
 
     await waitFor(() => expect(result.current.pendingDelete).toBeNull());
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE");
+    expect(deleteCall?.[0]).toMatch(/\/redirects\/r1$/);
   });
 
   it("confirmDelete clears pendingDelete even when the delete FAILS — the dialog does not get stuck open on a failed confirm", async () => {
@@ -280,30 +285,9 @@ describe("useRedirects — delete confirmation", () => {
     expect(result.current.error?.message).toBe("delete failed");
   });
 
-  /**
-   * FINDING (not a source change — TDD scope forbids it, see this suite's own dispatch): pins a
-   * real defect in `confirmDelete`'s `void removeRule.mutate(rule).finally(() => setPendingDelete
-   * (null))`.
-   *
-   * `mutate()`'s OWN returned promise already has a rejection handler attached internally by
-   * `adapter.tanstack.tsx`'s `call` wrapper (`void promise.catch(() => {})` — see that file's own
-   * doc comment, and `fetch-query.test.tsx`'s "does not raise a process-level unhandledRejection"
-   * test, which this test is deliberately modeled on). But `.finally()` returns a NEW derived
-   * promise that re-throws on rejection, and `confirmDelete` discards THAT promise with a bare
-   * `void` — no `.catch` of its own. Attaching a handler to the original promise does not retroactively
-   * handle a second, later-derived promise chain built on top of it.
-   *
-   * Net effect: every failed delete confirmation raises a process-level `unhandledRejection` in
-   * production, not just under this test runner — the exact class of bug
-   * `fetch-query.test.tsx`'s own regression test exists to prevent for `mutate()` callers who use
-   * the bare fire-and-forget form, reintroduced one layer up by chaining `.finally` onto it.
-   *
-   * This test is EXPECTED TO FAIL against the current source. Do not silence it by adding a local
-   * `.catch` here — that would hide the defect instead of reporting it; the fix belongs in
-   * `use-redirects.hooks.ts`'s `confirmDelete` (e.g. `.catch(() => {}).finally(...)`, or awaiting
-   * the mutate call inside its own try/catch).
-   */
-  it("[FINDING] confirmDelete's failed-delete path does not raise a process-level unhandledRejection", async () => {
+  /** Regression: confirmDelete handles the rejected mutation before chaining finally, so
+   * a failed delete clears the dialog and surfaces its banner without an unhandled rejection. */
+  it("confirmDelete's failed-delete path does not raise a process-level unhandledRejection", async () => {
     const fetchMock = routeFetch([
       { when: (u) => u.endsWith("/redirects") && !u.includes("hits"), respond: () => jsonResponse({ data: [RULE] }) },
     ]);
@@ -329,7 +313,6 @@ describe("useRedirects — delete confirmation", () => {
       // room before checking, matching `fetch-query.test.tsx`'s own timing.
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 100));
     } finally {
       process.off("unhandledRejection", onUnhandledRejection);
     }
@@ -339,6 +322,35 @@ describe("useRedirects — delete confirmation", () => {
 });
 
 describe("useRedirects — injected port (no fetch stub)", () => {
+  it("toggles only the selected rule in both directions and reloads its status", async () => {
+    const second = { ...RULE, id: "r2", fromPattern: "/second" };
+    const port = createFakeRedirectsPort({ redirects: [RULE, second] });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE, second]));
+
+    act(() => result.current.onToggleStatus(second));
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE, { ...second, status: "disabled" }]));
+    expect(port.rules).toEqual([RULE, { ...second, status: "disabled" }]);
+    await waitFor(() => expect(result.current.saving).toBe(false));
+
+    act(() => result.current.onToggleStatus(result.current.redirects![1]!));
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE, second]));
+    expect(port.rules).toEqual([RULE, second]);
+  });
+
+  it("confirmDelete removes only the confirmed second rule and reloads the list", async () => {
+    const second = { ...RULE, id: "r2", fromPattern: "/second" };
+    const port = createFakeRedirectsPort({ redirects: [RULE, second] });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE, second]));
+
+    act(() => result.current.onRequestDelete(second));
+    act(() => result.current.confirmDelete());
+    await waitFor(() => expect(result.current.pendingDelete).toBeNull());
+    expect(port.rules).toEqual([RULE]);
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE]));
+  });
+
   it("reads the list from the injected port rather than the real client", async () => {
     const port = createFakeRedirectsPort({ redirects: [{ ...RULE, id: "seed-1" }] });
     const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });

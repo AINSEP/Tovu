@@ -257,6 +257,7 @@ test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact c
 test("READ-ONLY: the recovery remedy-refusal message on a completed result is byte-for-byte unchanged", async () => {
   const registry = createToolRegistry();
   let reads = 0;
+  let writes = 0;
   registry.register({
     descriptor: { id: "ro_probe_read", readOnly: true, inputSchema: { type: "object", properties: {} } },
     policy: { authorize: () => "allow" },
@@ -268,7 +269,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   registry.register({
     descriptor: { id: "ro_probe_write", inputSchema: { type: "object", properties: {} } },
     policy: { authorize: () => "allow" },
-    handler: () => ({ saved: true }),
+    handler: () => { writes += 1; return { saved: true }; },
   });
   assert.equal(isReadOnlyTool(registry.list().find((d) => d.id === "ro_probe_write")), false, "PREMISE: the remedy must not itself be read-only");
 
@@ -288,9 +289,14 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   assert.ok(refusal, "PREMISE: the remedy must actually be refused for a read-only principal");
   assert.equal(result.status, "completed", "the original read still completed — only the remedy is refused");
   assert.equal(result.error, readOnlyRemedyRefusalMessage(refusal), "the refusal message must be the exact, untouched text — never redacted");
+  assert.equal(result.error,
+    'this call failed and its automatic recovery was NOT attempted: tool "ro_probe_write" is not registered as read-only — this execution was started through a read-only gateway and may run only tools whose registration declares readOnly; call it through execute_delegated_tool instead. The failure reported alongside this message is unchanged — nothing was written. Retry through execute_delegated_tool if the write is intended.',
+  );
   assert.equal(readToolErrorId(result), undefined);
-  assert.equal(reads, 1, "the remedy must never have run");
+  assert.equal(reads, 1, "the original read must not be retried");
+  assert.equal(writes, 0, "the remedy must never have run");
   assert.equal(emitted.length, 0, "no human should be asked to fill in a form whose answer would be refused");
+  assert.equal(surfaceExchanges.size(), 0, "no recovery form exchange should have been opened");
 });
 
 // ---------------------------------------------------------------------------

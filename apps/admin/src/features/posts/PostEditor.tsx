@@ -18,6 +18,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
+import { usePostPreviewIframeEscape } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
@@ -1792,6 +1793,8 @@ function PostPreview({
             templatePreviewUrl={templatePreviewUrl}
             previewFormRef={previewFormRef}
             previewFormTarget={previewFormTarget}
+            expanded={expanded}
+            onCollapse={onToggleExpanded}
             t={t}
           />
         </DevicePreviewFrame>
@@ -1878,6 +1881,8 @@ function PostPreviewFrame({
   templatePreviewUrl,
   previewFormRef,
   previewFormTarget,
+  expanded,
+  onCollapse,
   t,
 }: {
   canShowLiveSite: boolean;
@@ -1890,16 +1895,20 @@ function PostPreviewFrame({
   templatePreviewUrl: string;
   previewFormRef: RefObject<HTMLFormElement | null>;
   previewFormTarget: string;
+  expanded: boolean;
+  onCollapse: () => void;
   t: Translate;
 }) {
+  const iframeRef = usePostPreviewIframeEscape(expanded, onCollapse);
   if (canShowLiveSite) {
     return (
-      <iframe src={siteUrl(`/${slug}`)} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe ref={iframeRef} src={siteUrl(`/${slug}`)} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
     );
   }
   if (canShowTemplatePreview) {
     return (
       <iframe
+        ref={iframeRef}
         src={templatePreviewUrl}
         title={t("Post preview")}
         className="page-preview-iframe"
@@ -1916,7 +1925,7 @@ function PostPreviewFrame({
       <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
         <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
       </form>
-      <iframe name={previewFormTarget} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe ref={iframeRef} name={previewFormTarget} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
     </>
   );
 }

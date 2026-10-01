@@ -8,6 +8,9 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
+import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import type { UIResource } from "../index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -244,12 +247,44 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
 });
 
 test("each themes tool checks exactly the permission its catalog entry declares", async () => {
-  const { deps, authorizeCalls } = fakeRouteDeps();
-  await wired(deps, "theme_read_file").handler(executionContext({ themeId: "plain", path: "tokens.json" }));
+  const { deps, authorizeCalls, themesDir } = fakeRouteDeps();
+  fs.cpSync(path.join(themesDir, "plain"), path.join(themesDir, THEME_CATALOG_DIR, "declarative", "plain"), { recursive: true });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildAssistantToolRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+
+  async function checkPermission(toolId: string, input: Record<string, unknown>) {
+    authorizeCalls.length = 0;
+    const emitted: unknown[] = [];
+    const pending = registrations.get(toolId)!.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+    if (toolId === "theme_trash_file") {
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(emitted.length, 1);
+      const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+      const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+      assert.ok(match);
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId: match[1]!, toolId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }), { ok: true });
+    }
+    const result = await pending;
+    assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]), [
+      [toolId === "content_read.theme" ? "theme.set" : catalogEntry(toolId).authorization.permission, PRINCIPAL_ID, WORKSPACE_ID],
+    ], `${toolId} must request exactly its declared permission for this caller`);
+    return result;
+  }
+  await checkPermission("theme_read_file", { themeId: "plain", path: "tokens.json" });
   assert.equal(authorizeCalls.at(-1)?.permission, "theme.set");
 
-  await wired(deps, "theme_write_file").handler(executionContext({ themeId: "plain", path: "tokens.json", content: "{}" }));
+  await checkPermission("theme_write_file", { themeId: "plain", path: "tokens.json", content: "{}" });
   assert.equal(authorizeCalls.at(-1)?.permission, "theme.edit");
+  await checkPermission("content_read.theme", {});
+  await checkPermission("theme_list_files", { themeId: "plain" });
+  await checkPermission("theme_edit_file", { themeId: "plain", path: "styles.css", oldString: "margin:0", newString: "margin:1px" });
+  await checkPermission("theme_reset_file", { themeId: "plain", path: "tokens.json" });
+  await checkPermission("theme_rename_file", { themeId: "plain", path: "styles.css", name: "main.css" });
+  await checkPermission("theme_copy_file", { themeId: "plain", path: "main.css" });
+  const trashed = await checkPermission("theme_trash_file", { themeId: "plain", path: "main-1.css" }) as { trashedPath: string; trashed: boolean };
+  assert.equal(trashed.trashed, true);
+  await checkPermission("theme_restore_trashed_file", { themeId: "plain", trashedPath: trashed.trashedPath });
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "main-1.css"), "utf8"), "body{margin:1px}");
 });
 
 // ---------------------------------------------------------------------------

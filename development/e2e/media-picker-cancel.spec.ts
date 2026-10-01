@@ -34,6 +34,25 @@ const WORKSPACE_ID = "workspace-local";
 const API_BASE = "/api/admin/v1";
 const SEED_COUNT = 20;
 
+test("Media's Order by label and dropdown share a row with visible spacing", async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
+  const control = page.locator(".media-order-control");
+  await expect(control).toBeVisible();
+
+  // Measure the served page so an unloaded stylesheet or a later override fails this guard.
+  const spacing = await control.evaluate((element) => {
+    const label = element.querySelector("label")!.getBoundingClientRect();
+    const dropdown = element.querySelector("select")!.getBoundingClientRect();
+    return {
+      gap: dropdown.left - label.right,
+      verticalOverlap: Math.min(label.bottom, dropdown.bottom) - Math.max(label.top, dropdown.top),
+    };
+  });
+  expect(spacing.gap).toBeGreaterThan(0);
+  expect(spacing.verticalOverlap).toBeGreaterThan(0);
+});
+
 /** Opens a brand-new post and waits for its editor route — same shape
  *  `post-editor-image-sizing.spec.ts` already uses in this directory (duplicated, not imported,
  *  per that file's own precedent for small per-suite scenario setup). */
