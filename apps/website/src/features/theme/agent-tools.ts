@@ -175,7 +175,26 @@ const READ_FILE_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["themeId", "path"],
-  properties: { themeId: THEME_ID_PROPERTY, path: RELATIVE_PATH_PROPERTY },
+  properties: {
+    themeId: THEME_ID_PROPERTY,
+    path: RELATIVE_PATH_PROPERTY,
+    startLine: {
+      type: "integer", minimum: 1,
+      description: "First line to return (1-based). Defaults to 1 when lineCount is given.",
+    },
+    lineCount: {
+      type: "integer", minimum: 1, maximum: 2000, default: 2000,
+      description: "Maximum lines in a window. Defaults to 2000 when startLine is given. Cannot be combined with find.",
+    },
+    find: {
+      type: "string", maxLength: 200,
+      description: "Case-sensitive plain substring to locate. Returns up to 50 matching lines with context, merging overlapping windows. Cannot be combined with startLine or lineCount.",
+    },
+    context: {
+      type: "integer", minimum: 0, maximum: 20, default: 3,
+      description: "Lines before and after each matching line when find is given. Defaults to 3.",
+    },
+  },
 } as const;
 
 const WRITE_FILE_SCHEMA = {
@@ -324,7 +343,10 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_read_file",
       description:
-        "Reads one file's raw text content from inside a theme's folder. Read-only. The path must stay inside that theme's own folder.",
+        "Reads one file's raw text content from inside a theme's folder. Read-only. The path must stay inside that theme's own folder. " +
+        "For a large file, pass find (to locate a string) or startLine/lineCount (to read a window) instead of reading the whole file. " +
+        "Selected reads also return totalLines, totalBytes and returned (startLine/endLine for a window; matches/truncated for find). " +
+        "The 1 MB read limit still applies to the whole file, even for a selected read.",
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: READ_FILE_SCHEMA,
@@ -340,7 +362,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_edit_file",
       description:
-        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
+        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: EDIT_FILE_SCHEMA,

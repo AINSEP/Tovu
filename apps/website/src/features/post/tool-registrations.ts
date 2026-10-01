@@ -82,6 +82,7 @@ import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import {
+  POST_LIST_FIELDS,
   postAgentToolCatalog,
   type AgentToolDefinition as PostAgentToolDefinition,
 } from "./agent-tools.js";
@@ -500,6 +501,48 @@ export const POST_LIST_MIN_EXCERPT_CHARS = 300;
 /** A listing row without `bodyJson`: see {@link POST_LIST_TEXT_BUDGET}. */
 type PostListRow = Omit<PostToolViewWithPublicUrl, "bodyJson"> & { excerpt: string; bodyChars: number };
 
+type PostListField = (typeof POST_LIST_FIELDS)[number];
+
+/**
+ * Reads optional projection keys from tool input; omitted keys retain the legacy row shape.
+ * @param input - Listing input with an optional fields array.
+ * @returns Supported keys, or undefined when projection was not requested.
+ * @throws {ToolInputError} If fields is not an array of supported names.
+ * @complexity O(f) in requested fields; the allowed vocabulary has a fixed size.
+ */
+function optionalPostListFields(input: Record<string, unknown>): PostListField[] | undefined {
+  const fields = input.fields;
+  if (fields === undefined) return undefined;
+  if (!Array.isArray(fields) || !fields.every((field) => POST_LIST_FIELDS.includes(field))) {
+    throw new ToolInputError("content_post_list: fields must be an array of supported field names.");
+  }
+  return fields as PostListField[];
+}
+
+/**
+ * Matches a loaded post against optional status and a normalized title/slug substring.
+ * @param post - A live record already scoped to the requested workspace and kind.
+ * @param filters - Optional status and lower-case query; omitted criteria match all records.
+ * @returns Whether the record satisfies both supplied criteria.
+ * @complexity O(t + s) time and space in title/slug lengths when query is present; no I/O.
+ */
+function matchesPostListFilters(post: PostRecord, filters: { query?: string; status?: PostStatus }): boolean {
+  if (filters.status !== undefined && post.status !== filters.status) return false;
+  if (filters.query === undefined) return true;
+  return post.title.toLowerCase().includes(filters.query) || post.slug.toLowerCase().includes(filters.query);
+}
+
+/**
+ * Copies only selected listing keys, always retaining id; never mutates the source row.
+ * @param row - The compact row to project.
+ * @param fields - Validated keys (duplicates are harmless).
+ * @returns An id-bearing row with no unrequested keys.
+ * @complexity O(f) time and space in selected fields.
+ */
+function projectPostListRow(row: PostListRow, fields: PostListField[]): Partial<PostListRow> & { id: string } {
+  return { id: row.id, ...Object.fromEntries(fields.map((field) => [field, row[field]])) };
+}
+
 /**
  * Cuts `text` to at most `maxChars` characters, on a word boundary when one is near the end, and
  * appends "…" when anything was cut, so a cut excerpt never reads as the whole body.
@@ -670,6 +713,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       });
     },
 
+    /**
+     * Reads the existing workspace inventory, filters before limit and optionally projects rows.
+     * Permission and selector failures are ToolInputError or the existing permission refusal.
+     * One repository list call; no writes or per-row repository reads. Inventory remains unbounded
+     * at the repository, while the returned rows are capped at MAX_POST_LIST_LIMIT.
+     * @complexity O(n * s + b + f) time and O(n + b + f) space: n loaded rows, s title/slug length,
+     * b returned body text and f requested projection keys across returned rows.
+     */
     content_post_list: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
@@ -677,17 +728,24 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const kind = requirePostKind(input);
       const limit = clampPostListLimit(optionalNumber(input, "limit"));
       const includeBody = optionalBoolean(input, "includeBody") === true;
+      const query = optionalString(input, "query")?.toLowerCase();
+      const status = optionalPostStatus(input);
+      const fields = optionalPostListFields(input);
       const { posts: allPosts } =
         kind === "post"
           ? await listAdminPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } })
           : await listAdminPages({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } });
 
-      const total = allPosts.length;
-      const posts = allPosts.slice(0, limit);
+      // The repository already loads the full workspace. Filter before the output cap so matches
+      // beyond its first page remain reachable and total/hasMore describe the filtered inventory.
+      const filteredPosts = allPosts.filter((post) => matchesPostListFilters(post, { query, status }));
+      const total = filteredPosts.length;
+      const posts = filteredPosts.slice(0, limit);
       return {
-        posts: posts.map((post) =>
-          includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow(routeDeps, post, excerptCharsFor(posts.length)),
-        ),
+        posts: posts.map((post) => {
+          if (fields !== undefined) return projectPostListRow(toPostListRow(routeDeps, post, excerptCharsFor(posts.length)), fields);
+          return includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow(routeDeps, post, excerptCharsFor(posts.length));
+        }),
         total,
         hasMore: total > posts.length,
       };

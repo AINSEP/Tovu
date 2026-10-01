@@ -29,6 +29,8 @@
  * for that theme.
  */
 import { resolve } from "node:path";
+import { statSync } from "node:fs";
+import { ToolInputError } from "@jini-ai/core";
 import {
   type AuthorizeFn,
   buildDomainRegistrations,
@@ -66,6 +68,7 @@ import {
   readThemeFile,
   renameThemeFile,
   resetThemeFileToOriginal,
+  resolveThemeFilePath,
   resolveThemeFileWriteScope,
   resolveThemeOriginalSource,
   themeOriginalResetRefusal,
@@ -519,7 +522,7 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   ["theme_list", "none"],
   // -> listThemeFiles(): readdir under one theme folder, no writes.
   ["theme_list_files", "none"],
-  // -> readThemeFile(): one readFileSync under one theme folder, no writes.
+  // -> readThemeFile(): one readFileSync under one theme folder, plus a stat for selection metadata; no writes.
   ["theme_read_file", "none"],
   // -> writeThemeFile(): mkdir + writeFileSync on disk, then loadTheme() + in-place replacement of
   //    the live routeDeps.themes entry. Durable on both counts.
@@ -543,6 +546,100 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   // -> renameThemeFile() out of .trash/: the mirror-image move. Durable.
   ["theme_restore_trashed_file", "mutates-durable-state"],
 ]);
+
+type ThemeReadSelection =
+  | { mode: "full" }
+  | { mode: "window"; startLine: number; lineCount: number }
+  | { mode: "find"; find: string; context: number };
+
+/**
+ * Reads an optional integer selector from tool input and enforces its published bounds.
+ * @param input - Raw tool input.
+ * @param key - Selector name.
+ * @param minimum - Inclusive lower bound.
+ * @param maximum - Inclusive upper bound (Infinity for an unbounded start line).
+ * @returns The integer, or undefined when omitted.
+ * @throws {ToolInputError} For an invalid type, fraction or out-of-range value.
+ * @complexity O(1).
+ */
+function optionalThemeReadInteger(input: Record<string, unknown>, key: string, minimum: number, maximum: number): number | undefined {
+  const value = input[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) {
+    const range = maximum === Infinity ? `>= ${minimum}` : `from ${minimum} to ${maximum}`;
+    throw new ToolInputError(`theme_read_file: ${key} must be an integer ${range}.`);
+  }
+  return value;
+}
+
+/**
+ * Validates selection options before reading a file, choosing full, window or substring mode.
+ * @param input - Raw input; windows default to line 1/2000 lines, find context to 3.
+ * @returns A mutually exclusive selection with validated limits.
+ * @throws {ToolInputError} For conflicting modes or invalid selectors.
+ * @complexity O(1).
+ */
+function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection {
+  const hasWindow = input.startLine !== undefined || input.lineCount !== undefined;
+  if (input.find !== undefined && hasWindow) {
+    throw new ToolInputError("theme_read_file: pass either find or startLine/lineCount, not both.");
+  }
+  if (input.find !== undefined && (typeof input.find !== "string" || input.find.length > 200)) {
+    throw new ToolInputError("theme_read_file: find must be a string of at most 200 characters.");
+  }
+  const startLine = optionalThemeReadInteger(input, "startLine", 1, Infinity) ?? 1;
+  const lineCount = optionalThemeReadInteger(input, "lineCount", 1, 2000) ?? 2000;
+  const context = optionalThemeReadInteger(input, "context", 0, 20) ?? 3;
+  if (typeof input.find === "string") return { mode: "find", find: input.find, context };
+  if (hasWindow) return { mode: "window", startLine, lineCount };
+  return { mode: "full" };
+}
+
+/**
+ * Finds up to 50 matching lines and merges overlapping or adjacent context intervals.
+ * @param lines - File lines retaining their original terminators.
+ * @param options - Validated substring and context count.
+ * @returns Original text in file order plus capped match count and overflow signal.
+ * @complexity O(b) in file text size; at most 50 intervals, each bounded by 41 lines.
+ */
+function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelection, { mode: "find" }>) {
+  const windows: Array<{ start: number; end: number }> = [];
+  let matches = 0;
+  let truncated = false;
+  for (let index = 0; index < lines.length; index++) {
+    if (!lines[index].includes(options.find)) continue;
+    if (matches === 50) {
+      truncated = true;
+      break;
+    }
+    matches++;
+    const start = Math.max(0, index - options.context);
+    const end = Math.min(lines.length, index + options.context + 1);
+    const previous = windows.at(-1);
+    if (previous && start <= previous.end) previous.end = end;
+    else windows.push({ start, end });
+  }
+  return {
+    content: windows.map(({ start, end }) => lines.slice(start, end).join("")).join(""),
+    returned: { matches, truncated },
+  };
+}
+
+/**
+ * Selects file text without changing LF/CRLF bytes or inventing a line after a final newline.
+ * @param content - Complete decoded file text, already checked against the 1 MB read limit.
+ * @param selection - Validated window or find selection.
+ * @returns Selected content, full-file line count and selection metadata. Empty files have 0 lines.
+ * @complexity O(b) time and space in the bounded file size; substring length is capped at 200.
+ */
+function selectThemeReadContent(content: string, selection: Exclude<ThemeReadSelection, { mode: "full" }>) {
+  const lines = content.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+  if (selection.mode === "find") return { ...findThemeReadWindows(lines, selection), totalLines: lines.length };
+  const start = selection.startLine - 1;
+  const end = Math.min(lines.length, start + selection.lineCount);
+  return { content: lines.slice(start, end).join(""), totalLines: lines.length,
+    returned: { startLine: selection.startLine, endLine: end } };
+}
 
 export function buildThemesRegistrations(
   routeDeps: ThemeToolDeps,
@@ -587,6 +684,12 @@ export function buildThemesRegistrations(
       });
     },
 
+    /**
+     * Reads one contained file, retaining the legacy full response unless selection is requested.
+     * Requires theme read permission, validates selectors, and retains the full-file 1 MB limit.
+     * Selected reads add full-file totals and range/match metadata. No writes.
+     * @complexity O(b) time and space in file size (bounded at MAX_THEME_FILE_BYTES).
+     */
     theme_read_file: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const themeId = requireString(input, "themeId");
@@ -599,9 +702,14 @@ export function buildThemesRegistrations(
       });
 
       return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const selection = themeReadSelection(input);
         const theme = findThemeOrThrow(routeDeps, themeId);
-        const content = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
-        return { themeId, path: relativePath, content };
+        const file = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
+        const content = readThemeFile(file);
+        if (selection.mode === "full") return { themeId, path: relativePath, content };
+        // Use the file's byte size, rather than decoded UTF-8 length (which differs for binary text).
+        const totalBytes = statSync(resolveThemeFilePath(file)).size;
+        return { themeId, path: relativePath, ...selectThemeReadContent(content, selection), totalBytes };
       });
     },
 

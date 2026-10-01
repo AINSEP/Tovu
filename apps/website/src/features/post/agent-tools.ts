@@ -166,6 +166,11 @@ const POST_KIND_SCHEMA = {
     "is fixed at creation and cannot be changed afterward.",
 } as const;
 
+/** Supported compact listing keys, shared with the handler's projection validator. */
+export const POST_LIST_FIELDS = [
+  "id", "kind", "title", "slug", "status", "updatedAt", "version", "publicUrl", "adminUrl", "excerpt", "bodyChars",
+] as const;
+
 const POST_ID_SCHEMA = {
   type: "string",
   minLength: 1,
@@ -766,10 +771,12 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "bodyChars is the full plain-text length. Pass includeBody:true to get every row's full bodyJson instead of excerpt/" +
       "bodyChars, or read one post WITH its id for its bodyJson. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
       "or null for a draft/unpublished row, since it has no live link yet. " +
-      "Mirrors the admin Posts/Pages list screens exactly: kind is required because there is no combined 'list everything' admin " +
-      "screen to mirror, and no status/date filter is available because neither list route exposes one. " +
+      "Uses the admin Posts/Pages lists: kind is required because there is no combined 'list everything' admin " +
+      "screen. Optional query (case-insensitive title or slug substring) and status filters run in this tool over the " +
+      "already-loaded list, not in the admin route; no date filter is available. Pass fields to return only selected keys " +
+      "plus id (always included); fields takes precedence over includeBody. " +
       `Capped at ${DEFAULT_POST_LIST_LIMIT} rows by default (raise with limit, up to ${MAX_POST_LIST_LIMIT}) — the response's ` +
-      "total is the full un-truncated workspace count and hasMore is true whenever posts.length < total, so truncation is " +
+      "total is the filtered count before limit (the full count for this kind when no filters are given) and hasMore is true whenever posts.length < total, so truncation is " +
       "never silent.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
@@ -779,6 +786,20 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       required: ["kind"],
       properties: {
         kind: POST_KIND_SCHEMA,
+        query: {
+          type: "string",
+          description: "Case-insensitive substring of title or slug. Applied over the loaded list before limit; total counts matches.",
+        },
+        status: {
+          type: "string",
+          enum: ["draft", "published"],
+          description: "Filter the loaded list by status before limit. Omit to include both drafts and published entries.",
+        },
+        fields: {
+          type: "array",
+          items: { type: "string", enum: POST_LIST_FIELDS },
+          description: "Return only these keys per row, plus id (always included). An empty array returns ids only. Overrides includeBody.",
+        },
         limit: {
           type: "integer",
           minimum: 1,
