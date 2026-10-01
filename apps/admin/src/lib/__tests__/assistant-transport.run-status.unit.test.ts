@@ -203,8 +203,11 @@ describe("what a dead run writes down (real useConversation, no mocks on the sta
   });
 
   test("a canceled run is persisted as 'succeeded' today and must not silently become 'failed'", async () => {
-    const { assistant } = await runOneTurnEndingWith({ status: "canceled", code: null, signal: "SIGTERM" });
+    const { assistant, messages, isStreaming } = await runOneTurnEndingWith({ status: "canceled", code: null, signal: "SIGTERM" });
     expect(assistant.runStatus).not.toBe("failed");
+    expect(assistant.runStatus).toBe("succeeded");
+    expect(isStreaming).toBe(false);
+    expect(persistableMessages(messages).find((message) => message.id === assistant.id)?.runStatus).toBe("succeeded");
   });
 
   /**
