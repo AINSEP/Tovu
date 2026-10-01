@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 
-import { clearBlankRootKeyEnv, planStart, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
+import { clearBlankRootKeyEnv, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -184,4 +189,104 @@ test("resolveStartHost: TOVU_HOST empty string → still defaults to 127.0.0.1 (
 
 test("resolveStartHost: TOVU_HOST explicitly set → the user's value wins untouched", () => {
   assert.equal(resolveStartHost({ TOVU_HOST: "0.0.0.0" }), "0.0.0.0");
+});
+
+test("IPv6 loopback TOVU_PUBLIC_URL → picks a free port and drops the stale URL", async () => {
+  const calls = [];
+  const result = await planStart({
+    env: { TOVU_PUBLIC_URL: "http://[::1]:3000" },
+    dotenvLoaded: true,
+    isPortFree: async (port) => { calls.push(port); return port !== 3000; },
+  });
+  assert.equal(result.port, 3001);
+  assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
+  assert.deepEqual(calls, [3000, 3001]);
+  assert.equal(result.refuse, undefined);
+});
+
+test("main supplies the imported server with loopback binding and the final env after .env and port planning", () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), "tovu-start-wiring-"));
+  try {
+    mkdirSync(path.join(fixture, "development", "scripts"), { recursive: true });
+    mkdirSync(path.join(fixture, "dist", "src"), { recursive: true });
+    for (const name of ["start.mjs", "load-repo-root-env.mjs"]) {
+      copyFileSync(new URL(`../${name}`, import.meta.url), path.join(fixture, "development", "scripts", name));
+    }
+    writeFileSync(path.join(fixture, "package.json"), '{"type":"module"}');
+    writeFileSync(path.join(fixture, ".env"), "TOVU_INTEGRATIONS_ROOT_KEY=fixture-root-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
+    // Port probes are deterministic. The stub reads the exact env main supplied; no
+    // repository .env or existing compiled server is touched.
+    writeFileSync(path.join(fixture, "runner.mjs"), `
+      import { mock } from "node:test";
+      import { EventEmitter } from "node:events";
+      import { fileURLToPath } from "node:url";
+      mock.module("node:net", { namedExports: {
+        connect: ({port}) => {
+          const socket = new EventEmitter();
+          socket.destroy = () => {};
+          process.nextTick(() => socket.emit(port === 3000 ? "connect" : "error"));
+          return socket;
+        },
+        createServer: () => {
+          const server = new EventEmitter();
+          server.listen = (_options, ready) => ready();
+          server.close = (done) => done();
+          return server;
+        },
+      }});
+      const entry = new URL("./development/scripts/start.mjs", import.meta.url);
+      process.argv[1] = fileURLToPath(entry);
+      await import(entry);
+    `);
+    writeFileSync(path.join(fixture, "dist", "src", "index.js"), `
+        console.log("LAUNCHER_RESULT " + JSON.stringify({
+          host: process.env.TOVU_HOST,
+          port: process.env.PORT,
+          publicUrlPresent: "TOVU_PUBLIC_URL" in process.env,
+          rootKey: process.env.TOVU_INTEGRATIONS_ROOT_KEY,
+          rootKeyNotice: process.env.TOVU_ROOT_KEY_NOTICE,
+          lifecycleLog: process.env.TOVU_DAEMON_LIFECYCLE_LOG,
+        }));
+    `);
+    const env = { ...process.env, TOVU_INTEGRATIONS_ROOT_KEY: "" };
+    for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_ROOT_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG"]) delete env[key];
+    if (env.NODE_V8_COVERAGE) env.NODE_V8_COVERAGE = path.join(fixture, "coverage");
+    const child = spawnSync(process.execPath, ["--experimental-test-module-mocks", "runner.mjs"], {
+      cwd: fixture, env, encoding: "utf8", timeout: 10_000,
+    });
+    assert.equal(child.status, 0, child.stderr);
+    const line = child.stdout.split("\n").find((value) => value.startsWith("LAUNCHER_RESULT "));
+    assert.ok(line, "the compiled server stub must actually be imported");
+    assert.deepEqual(JSON.parse(line.slice("LAUNCHER_RESULT ".length)), {
+      host: "127.0.0.1", port: "3001", publicUrlPresent: false,
+      rootKey: "fixture-root-key", rootKeyNotice: "off", lifecycleLog: "off",
+    });
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+for (const [listenerHost, probeHost] of [["127.0.0.1", "::1"], ["::1", "127.0.0.1"]]) {
+  test(`probePortFree notices an occupied ${listenerHost} port even when probing a bind on ${probeHost}`, async (t) => {
+    const listener = createServer((socket) => socket.destroy());
+    t.after(() => new Promise((resolve) => listener.close(() => resolve())));
+    await new Promise((resolve, reject) => {
+      listener.once("error", reject);
+      listener.listen({ port: 0, host: listenerHost, ipv6Only: true }, resolve);
+    });
+    const port = listener.address().port;
+    assert.equal(await probePortFree(port, probeHost), false);
+    await new Promise((resolve) => listener.close(resolve));
+    assert.equal(await probePortFree(port, probeHost), true, "a released port is usable again");
+  });
+}
+
+test("unparsable TOVU_PUBLIC_URL → refuses auto-pick without probing or changing env", async () => {
+  const result = await planStart({
+    env: { TOVU_PUBLIC_URL: "not a url" },
+    dotenvLoaded: true,
+    isPortFree: () => { throw new Error("must not probe a malformed public URL"); },
+  });
+  assert.deepEqual(result, { port: 3000, envOverrides: {}, envRemovals: [], refuse: "unparsable-public-url" });
 });

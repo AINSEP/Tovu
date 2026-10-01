@@ -42,7 +42,7 @@ const PORT_PROBE_RANGE = 20; // 3000-3019 inclusive
  *  never `tsx`, so it cannot import the TypeScript `isLoopbackHost` in `cli/commands/serve.ts`'s
  *  own `bind-host.ts`). */
 function isLoopbackHostname(hostname) {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
 }
 
 /**
@@ -210,7 +210,7 @@ function isPortReachable(port, host) {
  * @returns {Promise<boolean>}
  * @complexity O(1) — up to two connect attempts plus one bind/close.
  */
-async function probePortFree(port, host) {
+export async function probePortFree(port, host) {
   if (await isPortReachable(port, "127.0.0.1")) return false;
   if (await isPortReachable(port, "::1")) return false;
   return new Promise((resolve) => {

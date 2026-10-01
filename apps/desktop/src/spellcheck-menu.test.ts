@@ -130,9 +130,13 @@ test("misspelled AND editable: suggestions section, a separator, then the edit c
 test("clicking an edit command calls the matching webContents method", () => {
   const handlers = fakeHandlers();
   const template = buildSpellCheckMenuTemplate(params({ isEditable: true, editFlags: EDIT_FLAGS_FULL }), handlers);
-  const paste = template.find((entry) => "label" in entry && entry.label === "Paste");
-  (paste as { click: () => void }).click();
-  assert.deepEqual(handlers.calls, [["paste"]]);
+  for (const [label, method] of [["Cut", "cut"], ["Copy", "copy"], ["Paste", "paste"], ["Select All", "selectAll"]]) {
+    const item = template.find((entry) => "label" in entry && entry.label === label);
+    assert.ok(item && "click" in item && typeof item.click === "function", label);
+    (item as { click: () => void }).click();
+    assert.deepEqual(handlers.calls.at(-1), [method], label);
+  }
+  assert.equal(handlers.calls.length, 4);
 });
 
 /** A `webContents` stand-in that records imperative calls and lets a test fire its own `context-menu`. */
@@ -141,7 +145,8 @@ function fakeWebContents() {
   let fire: ((event: unknown, params: SpellCheckContextMenuParams) => void) | null = null;
   return {
     calls,
-    on: (_event: "context-menu", listener: typeof fire) => {
+    on: (event: "context-menu", listener: typeof fire) => {
+      assert.equal(event, "context-menu");
       fire = listener;
     },
     fireContextMenu: (p: SpellCheckContextMenuParams) => fire?.(undefined, p),
@@ -180,11 +185,32 @@ test("registerSpellCheckContextMenu: a misspelling pops the built menu, and its 
   const webContents = fakeWebContents();
   const menuBuilder = fakeMenuBuilder();
   registerSpellCheckContextMenu(webContents, menuBuilder);
-  webContents.fireContextMenu(params({ misspelledWord: "teh", dictionarySuggestions: ["the"] }));
+  webContents.fireContextMenu(params({ isEditable: true, editFlags: EDIT_FLAGS_FULL, misspelledWord: "teh", dictionarySuggestions: ["the"] }));
   assert.equal(menuBuilder.poppedCount(), 1);
 
   const [template] = menuBuilder.templates;
   const theItem = (template as { label?: string; click?: () => void }[]).find((entry) => entry.label === "the");
   theItem?.click?.();
   assert.deepEqual(webContents.calls, [["replaceMisspelling", "the"]]);
+  for (const [label, expected] of [
+    ["Add to Dictionary", ["addWordToSpellCheckerDictionary", "teh"]],
+    ["Cut", ["cut"]], ["Copy", ["copy"]], ["Paste", ["paste"]], ["Select All", ["selectAll"]],
+  ] as const) {
+    const item = (template as { label?: string; click?: () => void }[]).find((entry) => entry.label === label);
+    assert.equal(typeof item?.click, "function", label);
+    item!.click!();
+    assert.deepEqual(webContents.calls.at(-1), expected, label);
+  }
+  assert.equal(webContents.calls.length, 6);
+
+  // A second guest must add to its own session, never the first guest's dictionary.
+  const otherContents = fakeWebContents();
+  const otherMenu = fakeMenuBuilder();
+  registerSpellCheckContextMenu(otherContents, otherMenu);
+  otherContents.fireContextMenu(params({ misspelledWord: "tovuword", dictionarySuggestions: ["word"] }));
+  const add = (otherMenu.templates[0] as { label?: string; click?: () => void }[]).find((entry) => entry.label === "Add to Dictionary");
+  assert.equal(typeof add?.click, "function");
+  add!.click!();
+  assert.deepEqual(otherContents.calls, [["addWordToSpellCheckerDictionary", "tovuword"]]);
+  assert.equal(webContents.calls.length, 6, "the first guest's session must not receive the second guest's word");
 });
