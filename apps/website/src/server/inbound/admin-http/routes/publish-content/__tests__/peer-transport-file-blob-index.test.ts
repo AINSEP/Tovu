@@ -142,22 +142,41 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
   registerPublishContentContributor(canaryContributor);
 
   let uploadedBody: { dataBase64?: string } | undefined;
+  const calls: Array<{ method: string; url: string }> = [];
+  const remoteBase = "https://tovu.example.com/api/admin/v1/workspaces/remote-ws-9/publish-content";
   const httpClient: HttpClientPort = {
     send: async (request) => {
+      calls.push({ method: request.method, url: request.url });
+      assert.equal(request.headers?.authorization, `Bearer ${API_KEY}`);
       if (request.url.includes("/capabilities")) {
+        assert.equal(request.url, `${remoteBase}/capabilities`);
+        assert.equal(request.method, "GET");
         return { status: 200, headers: {}, bodyText: JSON.stringify({ entityTypes: ["file-index-canary"], features: [] }) };
       }
       if (request.url.includes("/blobs/probe")) {
-        return { status: 200, headers: {}, bodyText: JSON.stringify({ missing: [sha] }) };
+        assert.equal(request.url, `${remoteBase}/blobs/probe`);
+        assert.equal(request.method, "POST");
+        const probe = JSON.parse(String(request.body)) as { shas: string[] };
+        assert.deepEqual(probe.shas, [sha]);
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ missing: probe.shas }) };
       }
       if (request.method === "PUT" && request.url.includes("/blobs/")) {
+        assert.equal(request.url, `${remoteBase}/blobs/${sha}`);
+        assert.equal(request.method, "PUT");
         uploadedBody = JSON.parse(String(request.body ?? "{}")) as { dataBase64?: string };
         return { status: 200, headers: {}, bodyText: "{}" };
       }
       if (request.url.includes("/bundles")) {
+        assert.equal(request.url, `${remoteBase}/bundles`);
+        assert.equal(request.method, "POST");
+        const bundle = JSON.parse(String(request.body)) as { entities: PackedEntity[]; blobManifest: string[] };
+        assert.deepEqual(bundle.entities, [canaryEntity]);
+        assert.deepEqual(bundle.blobManifest, [sha]);
         return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
       }
       if (request.url.includes("/import/plan")) {
+        assert.equal(request.url, `${remoteBase}/import/plan`);
+        assert.equal(request.method, "POST");
         return {
           status: 200,
           headers: {},
@@ -183,6 +202,13 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
   const body = JSON.parse(raw) as { blobsUploaded: string[]; blobsUnavailable: string[] };
   assert.deepEqual(body.blobsUploaded, [sha], "a file-index-only blob must be uploaded, not skipped");
   assert.deepEqual(body.blobsUnavailable, [], "a blob present in the file index must never be reported unavailable");
+  assert.deepEqual(calls, [
+    { method: "GET", url: `${remoteBase}/capabilities` },
+    { method: "POST", url: `${remoteBase}/blobs/probe` },
+    { method: "PUT", url: `${remoteBase}/blobs/${sha}` },
+    { method: "POST", url: `${remoteBase}/bundles` },
+    { method: "POST", url: `${remoteBase}/import/plan` },
+  ]);
   assert.ok(uploadedBody?.dataBase64, "the peer must actually receive a PUT with bytes");
   assert.equal(Buffer.from(uploadedBody!.dataBase64!, "base64").toString("utf8"), content, "the uploaded bytes must be the real file contents");
 });

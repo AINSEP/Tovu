@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDeps } from "../../../../../routes/types.js";
+import { WidgetInstanceNotFoundError } from "#src/features/widgets/errors";
 
-test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
+test("registerAdminWidgetUpdateRoute", async (t) => {
   let updateResult: any = null;
   let updateError: Error | null = null;
   let capturedInput: any = null;
@@ -14,7 +15,7 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
       ...realHttpWidgets,
       mapWidgetErrorToResponse: (err: any, res: any) => {
         errorMapped = err;
-        res.status(500).json({ error: "mapped" });
+        realHttpWidgets.mapWidgetErrorToResponse(err, res);
       },
       toAdminWidgetResponse: (instance: any) => ({ transformed: true, instance }),
     },
@@ -72,7 +73,7 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
   }
 
   // 1. Workspace mismatch or missing returns 404
-  {
+  await t.test("workspace mismatch or missing returns 404", async () => {
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "other-ws", id: "w-1" }, body: {} }, res);
     assert.equal(res.statusCode, 404);
@@ -81,10 +82,10 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
     const resMissing = createMockRes();
     await routeHandler({ params: { id: "w-1" }, body: {} }, resMissing);
     assert.equal(resMissing.statusCode, 404);
-  }
+  });
 
   // 2. Missing body or invalid baseVersion returns 400
-  {
+  await t.test("missing body or invalid baseVersion returns 400", async () => {
     const resNullBody = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1", id: "w-1" } }, resNullBody);
     assert.equal(resNullBody.statusCode, 400);
@@ -97,10 +98,10 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
     const resStringBaseVersion = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1", id: "w-1" }, body: { baseVersion: "1" } }, resStringBaseVersion);
     assert.equal(resStringBaseVersion.statusCode, 400);
-  }
+  });
 
   // 3. Success path with object config
-  {
+  await t.test("success forwards object config", async () => {
     updateResult = { instance: { id: "w-1", version: 2 } };
     updateError = null;
     const res = createMockRes();
@@ -116,10 +117,10 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
     assert.deepEqual(capturedInput.config, { title: "New Widget" });
     assert.equal(capturedInput.baseVersion, 1);
     assert.equal(capturedInput.actor.principalId, "principal-123");
-  }
+  });
 
   // 4. Success path with null/non-object config defaulting to {}
-  {
+  await t.test("null config defaults to an empty object", async () => {
     updateResult = { instance: { id: "w-1", version: 2 } };
     const res = createMockRes();
     await routeHandler(
@@ -131,10 +132,10 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
     );
     assert.equal(res.statusCode, 200);
     assert.deepEqual(capturedInput.config, {});
-  }
+  });
 
   // 5. Error handling path
-  {
+  await t.test("service errors reach the response mapper", async () => {
     updateError = new Error("Conflict or not found");
     errorMapped = null;
     const res = createMockRes();
@@ -147,5 +148,13 @@ test("registerAdminWidgetUpdateRoute: full unit coverage", async (t) => {
     );
     assert.equal(res.statusCode, 500);
     assert.equal(errorMapped?.message, "Conflict or not found");
-  }
+  });
+
+  await t.test("an unknown widget is mapped to the real 404 response", async () => {
+    updateError = new WidgetInstanceNotFoundError("widget instance 'missing-widget' was not found");
+    const res = createMockRes();
+    await routeHandler({ params: { workspaceId: "ws-1", id: "missing-widget" }, body: { baseVersion: 1 } }, res);
+    assert.equal(res.statusCode, 404);
+    assert.deepEqual(res.body, { error: updateError.message, code: "WIDGETS_INSTANCE_NOT_FOUND" });
+  });
 });

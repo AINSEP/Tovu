@@ -46,6 +46,7 @@ test("analytics-ingest: an event beacon with props round-trips through the real 
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "event");
   assert.equal(hits[0].eventName, "cta_clicked");
+  assert.deepEqual(hits[0].eventProps, { cta: "hero" });
 });
 
 test("analytics-ingest: a string referrer is normalized into referrerHost", async (t) => {
@@ -116,6 +117,7 @@ test("analytics-ingest: a literal null eventProps is dropped through the real ap
   const hits = deps.analyticsSink.all();
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "event");
+  assert.equal(hits[0].eventProps, null);
 });
 
 test("analytics-ingest: a caller with no User-Agent/Accept-Language still 204s through the real app and classifies as unknown device", async (t) => {

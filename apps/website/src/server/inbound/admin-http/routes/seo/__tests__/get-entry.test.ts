@@ -4,6 +4,9 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import { InMemoryPostRepo } from "#src/features/post/index";
+import type { VerifiedOrigin } from "#src/features/origin/index";
+import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -71,6 +74,7 @@ test("get-entry: forbidden 403s", async (t) => {
   assert.equal(status, 403);
   assert.equal((json as { code?: string }).code, "FORBIDDEN");
   assert.equal((json as { details?: { reason?: string } }).details?.reason, "no grant");
+  assert.equal((json as { details?: { permission?: string } }).details?.permission, "admin.seo.manage");
 });
 
 test("get-entry: unknown entry 404s (SEO_ENTRY_NOT_FOUND)", async (t) => {
@@ -81,13 +85,31 @@ test("get-entry: unknown entry 404s (SEO_ENTRY_NOT_FOUND)", async (t) => {
 });
 
 test("get-entry: valid entry returns effective SEO meta (200)", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
+  const postRepo = new InMemoryPostRepo([{
+    id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Canary entry", slug: "seo-canary",
+    kind: "post", status: "published", bodyJson: { type: "doc", content: [] },
+    updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
+  }]);
+  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo },
+    { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "Canary description" } });
+  const originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({ scheme: "https", host: "seo.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };
+  const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry });
   const { status, json } = await get(t, app);
   assert.equal(status, 200);
-  const body = json as { data?: { title?: string; canonical?: string } };
+  const body = json as { data: { title: string; canonical: string; description: string; robots: unknown; openGraph: { title: string; url: string }; twitter: { title: string } } };
   assert.ok(body.data, "expected meta data in response");
-  assert.equal(typeof body.data?.title, "string");
-  assert.equal(typeof body.data?.canonical, "string");
+  assert.equal(typeof body.data.title, "string");
+  assert.equal(typeof body.data.canonical, "string");
+  assert.equal(body.data.title, "Canary entry | Canary");
+  assert.equal(body.data.canonical, "https://seo.example.com/seo-canary");
+  assert.equal(body.data.description, "Canary description");
+  assert.deepEqual(body.data.robots, { noindex: false, nofollow: false });
+  assert.equal(body.data.openGraph.title, body.data.title);
+  assert.equal(body.data.openGraph.url, body.data.canonical);
+  assert.equal(body.data.twitter.title, body.data.title);
 });
 
 test("get-entry: unexpected repo error returns 500 (INTERNAL_ERROR)", async (t) => {

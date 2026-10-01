@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createServer } from "node:net";
 
 import { createAgentDaemonOriginResolver } from "../agent-daemon-port.js";
 
@@ -97,5 +98,29 @@ test("ensure() is idempotent — a second call does not re-allocate a different 
     const second = resolver.getPortForSpawnEnv();
 
     assert.equal(first, second, "re-resolving must not hand out a second, different port mid-boot");
+  });
+});
+
+test("two independent resolvers allocate distinct ports that can actually be bound", async () => {
+  await withEnv({ JINI_AGENT_DAEMON_URL: undefined, JINI_AGENT_DAEMON_PORT: undefined }, async () => {
+    const first = createAgentDaemonOriginResolver();
+    const second = createAgentDaemonOriginResolver();
+    const listeners = [createServer(), createServer()];
+    const bind = (index: number, port: string | undefined) => new Promise<void>((resolve, reject) => {
+      assert.ok(port);
+      listeners[index]!.once("error", reject);
+      listeners[index]!.listen(Number(port), "127.0.0.1", resolve);
+    });
+    try {
+      await first.ensure();
+      // Reserve the first port like a running daemon. This also avoids a chance reuse of an
+      // OS-selected port between bind-and-release probes, while detecting a constant fallback.
+      await bind(0, first.getPortForSpawnEnv());
+      await second.ensure();
+      assert.notEqual(first.getPortForSpawnEnv(), second.getPortForSpawnEnv());
+      await bind(1, second.getPortForSpawnEnv());
+    } finally {
+      await Promise.all(listeners.map((listener) => new Promise<void>((resolve) => listener.close(() => resolve()))));
+    }
   });
 });

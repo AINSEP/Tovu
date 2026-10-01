@@ -132,6 +132,39 @@ test("presentation patch: a theme that vanishes from `deps.themes` between valid
   assert.deepEqual(body.activeThemeStaticPageIds, []);
 });
 
+test("presentation patch: switching valid themes persists the new id and refreshes both pickers", async (t) => {
+  const base = createRouteDeps();
+  const fixture = base.themes.find((theme) => theme.status === "valid")!;
+  assert.ok(fixture);
+  const first: DiscoveredTheme = { ...fixture, manifest: { ...fixture.manifest, id: "picker-first", templates: ["old-template"] }, pages: { old: "old page" } };
+  const second: DiscoveredTheme = { ...fixture, manifest: { ...fixture.manifest, id: "picker-second", templates: ["article", "landing"] }, pages: { home: "home page", about: "about page" } };
+  const app = buildApp({ themes: [first, second], presentationRepo: base.presentationRepo });
+  assert.equal((await patch(t, app, { activeThemeId: first.manifest.id })).status, 200);
+  const { status, json } = await patch(t, app, { activeThemeId: second.manifest.id });
+  assert.equal(status, 200);
+  const body = json as { settings: { activeThemeId: string }; activeThemeTemplates: string[]; activeThemeStaticPageIds: string[] };
+  assert.equal(body.settings.activeThemeId, second.manifest.id);
+  assert.deepEqual(body.activeThemeTemplates, ["article", "landing"]);
+  assert.deepEqual(body.activeThemeStaticPageIds, ["home", "about"]);
+  assert.equal((await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID))?.activeThemeId, second.manifest.id);
+});
+
+test("presentation patch: denied theme.set preserves the stored active theme", async (t) => {
+  const base = createRouteDeps();
+  const before = await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID);
+  assert.ok(before);
+  const app = buildApp({ presentationRepo: base.presentationRepo, authorize: async (input) => {
+    assert.equal(input.permission, "theme.set");
+    return { allowed: false, reason: "no_grant" };
+  } });
+  const { status, json } = await patch(t, app, { activeThemeId: NO_THEME_ID });
+  assert.equal(status, 403);
+  const body = json as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "theme.set");
+  assert.deepEqual(await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID), before);
+});
+
 test("presentation patch: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
   const app = buildApp({
@@ -176,11 +209,13 @@ test("presentation patch: workspaceId param can never actually be undefined thro
  */
 
 test("presentation patch: the no-theme sentinel is ACCEPTED — this is the write allowlist", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  const app = buildApp({ presentationRepo: base.presentationRepo });
   const { status, json } = await patch(t, app, { activeThemeId: NO_THEME_ID });
 
   assert.equal(status, 200, "turning the theme off must be a permitted write, not a 400");
   assert.equal((json as { settings?: { activeThemeId?: string } }).settings?.activeThemeId, NO_THEME_ID);
+  assert.equal((await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID))?.activeThemeId, NO_THEME_ID);
 });
 
 test("presentation patch: the sentinel is NOT echoed into availableThemeIds — that list is the picker's catalogue", async (t) => {

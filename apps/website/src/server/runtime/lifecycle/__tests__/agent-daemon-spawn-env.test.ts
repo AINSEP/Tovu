@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { buildDaemonSpawnEnvOverrides } from "../daemon-supervisor.js";
+import { siteThemesDir } from "../../composition/deps.js";
 
 /**
  * @file Regression coverage for the daemon-spawn site-dir defect (2026-08-29 follow-up to the
@@ -57,19 +58,32 @@ test("an independently-set TOVU_THEMES_DIR still wins over the injected TOVU_SIT
   const overrides = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined });
   const childEnv = { ...process.env, TOVU_THEMES_DIR: "/custom/themes-elsewhere", ...overrides };
 
-  // Mirrors `deps.ts`'s own `siteThemesDir()` precedence directly: `TOVU_THEMES_DIR ?? join(siteDir(), "themes")`.
-  const themesDir = childEnv.TOVU_THEMES_DIR ?? `${resolveSiteRoot({ env: childEnv })}/themes`;
-
-  assert.equal(themesDir, "/custom/themes-elsewhere", "an independently-overridden subpath must keep winning outright over the injected site dir");
-  assert.equal(resolveSiteRoot({ env: childEnv }), "/site/A", "the site dir override itself must still be present and correct");
+  const previous = { TOVU_SITE_DIR: process.env.TOVU_SITE_DIR, TOVU_THEMES_DIR: process.env.TOVU_THEMES_DIR };
+  try {
+    process.env.TOVU_SITE_DIR = childEnv.TOVU_SITE_DIR;
+    process.env.TOVU_THEMES_DIR = childEnv.TOVU_THEMES_DIR;
+    assert.equal(siteThemesDir(), "/custom/themes-elsewhere", "the real resolver must honor the independent subpath override");
+    assert.equal(resolveSiteRoot({ env: childEnv }), "/site/A", "the site dir override itself must still be present and correct");
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test("buildDaemonSpawnEnvOverrides never touches TOVU_CONTENT_DB / TOVU_MEDIA_UPLOADS_DIR / TOVU_THEMES_DIR directly", () => {
   const overrides = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: "9999" });
+  assert.equal(overrides.JINI_AGENT_DAEMON_PORT, "9999");
 
   for (const key of ["TOVU_CONTENT_DB", "TOVU_MEDIA_UPLOADS_DIR", "TOVU_THEMES_DIR"] as const) {
     assert.equal(key in overrides, false, `${key} must remain independently overridable — this function must not set it`);
   }
+});
+
+test("an undefined daemon port injects no JINI_AGENT_DAEMON_PORT override", () => {
+  const overrides = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined });
+  assert.equal("JINI_AGENT_DAEMON_PORT" in overrides, false);
 });
 
 test("a PGlite site's owner socket is handed to the daemon as TOVU_PG_SOCKET; other sites get no such var", () => {

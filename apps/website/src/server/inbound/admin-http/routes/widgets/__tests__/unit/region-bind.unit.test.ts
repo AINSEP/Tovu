@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import type { RouteDeps } from "../../../../../routes/types.js";
 
 test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
+  let bindCalls = 0;
+  let capturedInput: any = null;
+  let permissionArgs: any[] = [];
   let bindResult: any = null;
   let bindError: Error | null = null;
   let mockPrincipal: any = { id: "p1" };
@@ -12,7 +15,10 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
   t.mock.module("#src/server/inbound/admin-http/http/widgets", {
     namedExports: {
       ...realHttpWidgets,
-      requireWidgetsPermissionOrRespond: async () => mockPrincipal,
+      requireWidgetsPermissionOrRespond: async (...args: any[]) => {
+        permissionArgs = args;
+        return mockPrincipal;
+      },
       mapWidgetErrorToResponse: (err: any, res: any) => {
         errorMapped = err;
         res.status(500).json({ error: "mapped" });
@@ -25,7 +31,9 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
   t.mock.module("#src/features/widgets/region-area-service", {
     namedExports: {
       ...realRegionArea,
-      bindWidgetArea: async () => {
+      bindWidgetArea: async (args: any) => {
+        bindCalls++;
+        capturedInput = args.input;
         if (bindError) throw bindError;
         return bindResult;
       },
@@ -52,8 +60,10 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
   function createMockRes() {
     return {
       statusCode: 200,
+      statusCalls: 0,
       body: null as any,
       status(code: number) {
+        this.statusCalls++;
         this.statusCode = code;
         return this;
       },
@@ -101,9 +111,14 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
   // 3. Permission denied (requireWidgetsPermissionOrRespond returns null)
   {
     mockPrincipal = null;
+    bindResult = { areaEntry: { id: "should-not-bind" } };
+    const callsBefore = bindCalls;
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
     assert.equal(res.statusCode, 200); // not modified by handler itself
+    assert.equal(res.statusCalls, 0);
+    assert.equal(res.body, null);
+    assert.equal(bindCalls, callsBefore, "denied requests must not call the write service");
   }
 
   // 4. Success path
@@ -112,8 +127,10 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
     bindResult = { areaEntry: { id: "area-1" } };
     bindError = null;
     const res = createMockRes();
-    await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
+    await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "  header " } }, res);
     assert.equal(res.statusCode, 201);
+    assert.deepEqual(permissionArgs, [deps.authorize, "ws-1", "widgets.place", res]);
+    assert.deepEqual(capturedInput, { workspaceId: "ws-1", regionKey: "header" });
     assert.deepEqual(res.body, { transformed: true, entry: { id: "area-1" } });
   }
 

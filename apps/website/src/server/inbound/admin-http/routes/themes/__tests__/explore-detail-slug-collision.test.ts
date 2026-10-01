@@ -104,6 +104,10 @@ interface FileEntry {
 
 test("a published post at a theme page's slug is reported as collidingContent", async (t) => {
   const themesDir = makeThemeWithCandidatePages();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const manifestPath = path.join(themesDir, "static", "collision-fixture", "theme.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  fs.writeFileSync(manifestPath, JSON.stringify({ ...manifest, publishedPages: ["about"] }));
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   const { repo } = countingPostRepo([
     seedPost({ id: "post-about", slug: "about", title: "What Is Tovu?", kind: "post", status: "published" }),
@@ -129,6 +133,14 @@ test("a published post at a theme page's slug is reported as collidingContent", 
     title: "What Is Tovu?",
     kind: "post",
   });
+  assert.equal(about.published, true, "published candidate must be marked published in detail");
+  const pricing = body.files.find((file) => file.path === "pages/pricing.html");
+  assert.ok(pricing);
+  assert.equal(pricing.published, false, "candidate absent from publishedPages stays unpublished");
+  const tokens = body.files.find((file) => file.path === "tokens.json");
+  assert.ok(tokens);
+  assert.equal(tokens.published, null, "non-publishable files have no publish state");
+
 });
 
 test("a draft post at a theme page's slug is NOT reported as a collision", async (t) => {
@@ -178,7 +190,10 @@ test("a trashed (soft-deleted) published post at a theme page's slug is NOT repo
 test("a candidate page with no matching content record reports collidingContent: null", async (t) => {
   const themesDir = makeThemeWithCandidatePages();
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
-  const { repo } = countingPostRepo([]);
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const { repo } = countingPostRepo([
+    seedPost({ id: "unrelated-about", slug: "about", title: "Unrelated published post" }),
+  ]);
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -191,7 +206,10 @@ test("a candidate page with no matching content record reports collidingContent:
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE}`);
   const body = (await res.json()) as { files: FileEntry[] };
+  const about = body.files.find((file) => file.path === "pages/about.html");
+  assert.equal(about?.collidingContent?.id, "unrelated-about", "control: catalogue has a real collision");
   const signin = body.files.find((f) => f.path === "pages/signin.html");
+  assert.ok(signin);
   assert.equal(signin!.collidingContent, null);
 });
 

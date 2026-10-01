@@ -125,6 +125,41 @@ test("the real daemon answers component-catalog search, describe, and a 404 over
   assert.ok(Array.isArray(describeBody.capabilities));
   assert.equal(typeof describeBody.propsSchema, "object");
   assert.ok(describeBody.propsSchema !== null, "propsSchema must be a real JSON-Schema object, not null");
+  // Both data-table providers have this prop contract; an empty schema must not pass.
+  assert.ok(firstHit.id === "native.data-table" || firstHit.id === "shadcn.data-table");
+  const schema = describeBody.propsSchema as {
+    type: string;
+    required: string[];
+    properties: Record<string, Record<string, unknown>>;
+  };
+  assert.equal(schema.type, "object");
+  assert.deepEqual(schema.required, ["columns", "rows"]);
+  assert.deepEqual(schema.properties.columns, {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { key: { type: "string" }, label: { type: "string" } },
+      required: ["key", "label"],
+      additionalProperties: false,
+    },
+    minItems: 1,
+  });
+  assert.equal(schema.properties.rows.type, "array");
+
+  // The tool catalog must be mounted on this real daemon too, not just on a test app.
+  const toolSearchRes = await fetch(`${baseUrl}/api/tools/search?q=form&limit=5`, { headers: authHeaders });
+  assert.equal(toolSearchRes.status, 200);
+  const toolSearch = await toolSearchRes.json() as { hits: Array<{ id: string }> };
+  assert.ok(toolSearch.hits.length > 0);
+  const toolId = toolSearch.hits[0]!.id;
+  const toolDescribeRes = await fetch(`${baseUrl}/api/tools/${encodeURIComponent(toolId)}`, { headers: authHeaders });
+  assert.equal(toolDescribeRes.status, 200);
+  assert.equal((await toolDescribeRes.json() as { id: string }).id, toolId);
+  for (const route of ["/api/components/search?q=table", `/api/components/${firstHit.id}`, "/api/tools/search?q=form", `/api/tools/${toolId}`]) {
+    const unauthenticated = await fetch(`${baseUrl}${route}`);
+    assert.equal(unauthenticated.status, 401, `${route} must require the daemon token`);
+    await unauthenticated.text();
+  }
 
   // 3. A made-up id must 404, not 200 or 500.
   const missingRes = await fetch(`${baseUrl}/api/components/no.such.component.xyz`, { headers: authHeaders });

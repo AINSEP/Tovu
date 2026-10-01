@@ -74,6 +74,37 @@ test("foldPageHead: same-priority collision — the later-registered contributor
   assert.equal((robots[0] as { content: string }).content, "second");
 });
 
+test("foldPageHead: equal contributor priorities preserve registration order for collisions", async () => {
+  registerPageHeadContributor(hook(10, [{ kind: "title", text: "first", priority: 100 }]));
+  registerPageHeadContributor(hook(10, [{ kind: "title", text: "second", priority: 100 }]));
+  assert.deepEqual(await foldPageHead(ctx), [{ kind: "title", text: "second", priority: 100 }]);
+});
+
+test("foldPageHead: contributors receive the page context and execute by priority, independently of element order", async () => {
+  const calls: string[] = [];
+  registerPageHeadContributor({
+    priority: 20,
+    async handle(page) {
+      calls.push("high");
+      return [{ kind: "title", text: page.siteTitle, priority: 100 }];
+    },
+  });
+  registerPageHeadContributor({
+    priority: 10,
+    async handle(page) {
+      calls.push("low");
+      return [{ kind: "link", rel: "canonical", href: page.canonicalUrl, priority: 120 }];
+    },
+  });
+
+  const result = await foldPageHead(ctx);
+  assert.deepEqual(calls, ["low", "high"]);
+  assert.deepEqual(result, [
+    { kind: "title", text: "Example Site", priority: 100 },
+    { kind: "link", rel: "canonical", href: "https://example.com/", priority: 120 },
+  ]);
+});
+
 test("foldPageHead: a throwing contributor's output is dropped; the fold itself never throws and other contributors still render", async () => {
   registerPageHeadContributor(hook(10, [], { throws: true }));
   registerPageHeadContributor(hook(20, [{ kind: "title", text: "Still here", priority: 100 }]));
@@ -92,6 +123,10 @@ test("foldPageHead: different keys are never deduped (e.g. two distinct jsonld @
 
   const result = await foldPageHead(ctx);
   assert.equal(result.length, 2);
+  assert.deepEqual(result, [
+    { kind: "jsonld", data: { "@type": "Article" }, priority: 900 },
+    { kind: "jsonld", data: { "@type": "BreadcrumbList" }, priority: 900 },
+  ]);
 });
 
 test("registerPageHeadContributor: multiple registered contributors both fold", async () => {
@@ -103,12 +138,13 @@ test("registerPageHeadContributor: multiple registered contributors both fold", 
 });
 
 test("serializeHeadElements: renders one case per HeadElement kind, escaped", async () => {
+  const hostileJsonLd = { "@type": "Article", name: '</script><script>alert("breakout")</script>' };
   const html = serializeHeadElements([
     { kind: "title", text: "A & B", priority: 100 },
     { kind: "meta", name: "description", content: '"quoted"', priority: 110 },
     { kind: "link", rel: "canonical", href: "https://example.com/?a=1&b=2", priority: 120 },
     { kind: "og", property: "og:title", content: "<script>", priority: 140 },
-    { kind: "jsonld", data: { "@type": "Article", name: "</script>" }, priority: 900 },
+    { kind: "jsonld", data: hostileJsonLd, priority: 900 },
   ]);
 
   assert.match(html, /<title>A &amp; B<\/title>/);
@@ -121,6 +157,10 @@ test("serializeHeadElements: renders one case per HeadElement kind, escaped", as
   const scriptBodyMatch = /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html);
   assert.ok(scriptBodyMatch);
   assert.ok(!scriptBodyMatch![1]!.includes("</script>"));
+  assert.deepEqual(JSON.parse(scriptBodyMatch[1]!), hostileJsonLd);
+  assert.equal((html.match(/<script\b/gi) ?? []).length, 1);
+  assert.equal((html.match(/<\/script>/gi) ?? []).length, 1);
+  assert.ok(html.includes("\\u003c/script>"));
 });
 
 test("serializeHeadElements: never string-concatenates jsonld — the payload round-trips through JSON.stringify", async () => {
@@ -185,4 +225,18 @@ test("foldPageHead: an RSS alternate link does not collide with an hreflang-free
   );
   const folded = await foldPageHead(ctx);
   assert.equal(folded.length, 3);
+});
+
+test("foldPageHead: alternate languages survive together and serialize their hreflang", async () => {
+  const links: HeadElement[] = [
+    { kind: "link", rel: "alternate", hreflang: "en", href: "/en", priority: 125 },
+    { kind: "link", rel: "alternate", hreflang: "fr", href: "/fr", priority: 125 },
+  ];
+  registerPageHeadContributor(hook(10, links));
+  const folded = await foldPageHead(ctx);
+  assert.deepEqual(folded, links);
+  assert.equal(serializeHeadElements(folded), '<link rel="alternate" href="/en" hreflang="en"/><link rel="alternate" href="/fr" hreflang="fr"/>');
+  assert.equal(serializeHeadElements([
+    { kind: "link", rel: "alternate", hreflang: 'en&"', href: "/en", priority: 125 },
+  ]), '<link rel="alternate" href="/en" hreflang="en&amp;&quot;"/>');
 });

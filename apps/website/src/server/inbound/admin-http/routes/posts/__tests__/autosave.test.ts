@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import type { PostAutosaveSnapshot } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -54,17 +55,23 @@ function autosaveUrl(baseUrl: string, postId: string): string {
 }
 
 test("PUT autosave at the current version applies; GET returns it; DELETE clears it back to null", async (t) => {
-  const { baseUrl, cookie } = await startServer(t);
+  const { baseUrl, cookie, deps } = await startServer(t);
   const post = await createSeedPost(baseUrl, cookie);
+
+  const savedAt = deps.clock.nowIso();
+  deps.clock.nowIso = () => savedAt;
+  const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
+  assert.equal(me.status, 200);
+  const identity = await me.json() as { user: { id: string } };
 
   const put = await fetch(autosaveUrl(baseUrl, post.id), {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       bodyFormat: "doc",
-      title: "Autosave fixture",
+      title: "Recovered title",
       bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
-      slug: "autosave-fixture",
+      slug: "recovered-slug",
       baseVersion: post.version,
     }),
   });
@@ -73,10 +80,15 @@ test("PUT autosave at the current version applies; GET returns it; DELETE clears
 
   const get = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
   assert.equal(get.status, 200);
-  const { autosave } = (await get.json()) as { autosave: { bodyJson: unknown; baseVersion: number } | null };
+  const { autosave } = (await get.json()) as { autosave: PostAutosaveSnapshot | null };
   assert.ok(autosave);
   assert.deepEqual(autosave.bodyJson, { type: "doc", content: [{ type: "paragraph" }] });
   assert.equal(autosave.baseVersion, post.version);
+  assert.deepEqual(autosave, {
+    bodyFormat: "doc", title: "Recovered title", slug: "recovered-slug",
+    bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
+    baseVersion: post.version, savedAt, savedByPrincipalId: identity.user.id,
+  });
 
   const del = await fetch(autosaveUrl(baseUrl, post.id), { method: "DELETE", headers: { cookie } });
   assert.equal(del.status, 200);
@@ -227,7 +239,7 @@ test("PUT autosave rejects a non-finite baseVersion as 400 VALIDATION_ERROR", as
   assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
 });
 
-test("PUT autosave 403s a principal without content.write, matching pages/update-html.ts's own FORBIDDEN shape", async (t) => {
+test("PUT/GET/DELETE autosave 403 a principal without content.write, matching pages/update-html.ts's own FORBIDDEN shape", async (t) => {
   const deps = createRouteDeps();
   const server = createServer(createApp(deps));
   server.listen(0);
@@ -244,28 +256,46 @@ test("PUT autosave 403s a principal without content.write, matching pages/update
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
   const post = await createSeedPost(baseUrl, cookie);
 
+  const snapshot = {
+    bodyFormat: "doc", title: "Parked draft", bodyJson: { type: "doc", content: [] },
+    slug: "parked-draft", baseVersion: post.version,
+  };
+  const seed = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(snapshot),
+  });
+  assert.equal(seed.status, 200);
+  const before = await deps.postRepo.readAutosave({ workspaceId: WS, id: post.id });
+  assert.ok(before);
+
   const realAuthorize = (deps as RouteDeps).authorize;
   (deps as RouteDeps).authorize = async (params) =>
     params.permission === "content.write" ? { allowed: false, reason: "forced denial for this test" } : realAuthorize(params);
 
-  const res = await fetch(autosaveUrl(baseUrl, post.id), {
-    method: "PUT",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ bodyFormat: "doc", title: "Autosave fixture", bodyJson: {}, slug: "autosave-fixture", baseVersion: post.version }),
-  });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "FORBIDDEN");
+  for (const method of ["PUT", "GET", "DELETE"]) {
+    const res = await fetch(autosaveUrl(baseUrl, post.id), {
+      method,
+      headers: { "content-type": "application/json", cookie },
+      ...(method === "PUT" ? { body: JSON.stringify({ ...snapshot, title: "Unauthorized overwrite" }) } : {}),
+    });
+    assert.equal(res.status, 403, method);
+    const body = (await res.json()) as { code: string; details: { permission: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "content.write");
+    assert.deepEqual(await deps.postRepo.readAutosave({ workspaceId: WS, id: post.id }), before, method);
+  }
 });
 
 test("workspace mismatch in the URL 404s before any autosave read/write", async (t) => {
   const { baseUrl, cookie } = await startServer(t);
   const post = await createSeedPost(baseUrl, cookie);
 
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/posts/${post.id}/autosave`, {
-    headers: { cookie },
-  });
-  assert.equal(res.status, 404);
+  for (const method of ["GET", "PUT", "DELETE"]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/posts/${post.id}/autosave`, {
+      method, headers: { "content-type": "application/json", cookie },
+      ...(method === "PUT" ? { body: JSON.stringify({ bodyFormat: "doc", title: "Wrong workspace", bodyJson: {}, slug: post.slug, baseVersion: post.version }) } : {}),
+    });
+    assert.equal(res.status, 404, method);
+  }
 });
 
 test("the URL segment resolves by SLUG, not just id — the admin's own Posts list links to /admin/posts/{slug}", async (t) => {

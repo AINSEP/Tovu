@@ -125,10 +125,11 @@ test("renderBareEntryDocument: a full document with a leading comment and a BOM 
 });
 
 test("renderBareEntryDocument: an embed marker inside a full document still resolves, and nothing else about the document changes", () => {
+  const marker = `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`;
   const full =
-    '<!doctype html><html><head><title>T</title></head><body>' +
-    `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` +
-    "</body></html>";
+    '<!doctype html><html lang="fr" data-author="mine"><head><title>T</title><meta name="author" content="Ada"></head><body class="authored"><p>Before</p>' +
+    marker +
+    "<p>After</p></body></html>";
   const post = htmlPage({ bodyHtml: full });
   const html = renderBareEntryDocument({
     post,
@@ -137,6 +138,7 @@ test("renderBareEntryDocument: an embed marker inside a full document still reso
   });
 
   assert.match(html, /widget-text">Embedded!/);
+  assert.equal(html, full.replace(marker, '<div class="widget widget-text">Embedded!</div>'));
   assert.equal((html.match(/<!doctype html>/gi) ?? []).length, 1, "the passthrough must not add a second doctype");
   assert.equal((html.match(/<title>/g) ?? []).length, 1, "the author's own <title> must be the only one");
 });
@@ -165,4 +167,27 @@ test("renderBareEntryDocument: a doc-format body renders through renderDocNode's
   const html = renderBareEntryDocument({ post, siteTitle: "Acme" });
 
   assert.match(html, /<p>Doc body renders\.<\/p>/);
+});
+
+test("renderBareEntryDocument: doc-format widgets and ref images receive the caller's resolved data", () => {
+  const post = fakePost({
+    bodyJson: {
+      type: "doc",
+      content: [
+        { type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } },
+        { type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "Photo" } },
+      ],
+    },
+  });
+  const html = renderBareEntryDocument({
+    post,
+    siteTitle: "Acme",
+    widgetInlineResolved: new Map([["p1", { componentId: "text", props: { body: "Resolved widget" } }]]),
+    mediaTransformVersions: new Map([["public", 3]]),
+    mediaAssetMetadata: new Map([["asset-1", { width: 800, height: 600, cssClass: "rounded" }]]),
+  });
+
+  assert.ok(html.includes('<div class="widget widget-text">Resolved widget</div>'));
+  assert.ok(html.includes('<img src="/m/asset-1/public.v3/image.jpg" alt="Photo" width="800" height="600" class="rounded" loading="lazy">'));
+  assert.doesNotMatch(html, /widget-placeholder|media-placeholder/);
 });

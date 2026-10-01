@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, type DiscoveredTheme } from "#src/features/theme/index";
 import {
   createCapturingResponse,
   extractRouteHandler,
@@ -92,19 +95,33 @@ test("themes/rescan: authorize denial 403s with the FORBIDDEN envelope naming th
 });
 
 test("themes/rescan: success reports added/removed/total/availableThemeIds/duplicateIds by re-running real discovery", async (t) => {
-  const base = createRouteDeps();
-  const themes: DiscoveredTheme[] = [];
-  const app = buildApp({ themes, themesDir: base.themesDir });
+  const dir = mkdtempSync(path.join(tmpdir(), "rescan-themes-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const writeTheme = (folder: string, id: string) => {
+    mkdirSync(path.join(dir, folder, "render", "pages"), { recursive: true });
+    writeFileSync(path.join(dir, folder, "render", "pages", "index.html"), "<h1>Fixture</h1>");
+    writeFileSync(path.join(dir, folder, "tokens.json"), "{}");
+    writeFileSync(path.join(dir, folder, "theme.json"), JSON.stringify({ apiVersion: 2, id, name: id, version: "0.1.0", tier: "static" }));
+  };
+  writeTheme("static/retained", "retained");
+  writeTheme("static/stale", "stale");
+  const themes: DiscoveredTheme[] = discoverAllBuiltInThemes({ dir, source: "built-in" });
+  rmSync(path.join(dir, "static/stale"), { recursive: true });
+  writeTheme("static/added", "added");
+  writeTheme("retained", "retained");
+  const app = buildApp({ themes, themesDir: dir });
   const { status, json } = await post(t, app);
   assert.equal(status, 200, JSON.stringify(json));
   const body = json as { added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] };
-  // Started empty; a real rescan against the real themes dir discovers at least the built-in themes.
-  assert.ok(body.total > 0, "rescan discovered at least one real theme on disk");
-  assert.ok(body.added.length > 0, "every discovered theme is newly 'added' relative to the empty starting array");
-  assert.deepEqual(body.removed, []);
-  assert.ok(Array.isArray(body.availableThemeIds));
-  assert.ok(Array.isArray(body.duplicateIds));
-  // The route mutates `deps.themes` in place (see `rescanThemes`'s own doc).
+  assert.ok(body.total > 0);
+  assert.ok(body.added.length > 0);
+  assert.deepEqual(body, {
+    added: ["added"], removed: ["stale"], total: 3,
+    availableThemeIds: ["added", "retained", "retained"], duplicateIds: ["retained"],
+  });
+  assert.deepEqual(themes.map((theme) => ({ id: theme.manifest.id, status: theme.status })), [
+    { id: "added", status: "valid" }, { id: "retained", status: "valid" }, { id: "retained", status: "valid" },
+  ]);
   assert.equal(themes.length, body.total);
 });
 

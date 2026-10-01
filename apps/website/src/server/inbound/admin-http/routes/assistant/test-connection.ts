@@ -42,11 +42,15 @@ async function fetchTestConnectionResponse(
   model: string,
   apiVersion: string | undefined
 ) {
+  // The runtime validates only the initial base URL. A provider redirect must not send
+  // this probe (and its credentials) to a destination that never passed that guard.
+  const requestInit: RequestInit = { redirect: "error" };
   const result = await testProviderConnection({
     protocol,
     baseUrl: credential.baseUrl,
     apiKey: credential.apiKey,
     model,
+    requestInit,
     ...(apiVersion ? { apiVersion } : {}),
   });
   return { ok: result.ok, message: renderMessage(result) };

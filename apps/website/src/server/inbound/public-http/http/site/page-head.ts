@@ -51,6 +51,7 @@ export type HeadElement =
       readonly kind: "link";
       readonly rel: string;
       readonly href: string;
+      /** Language of an alternate resource. Part of the dedup key. */
       readonly hreflang?: string;
       /** MIME type, e.g. `application/rss+xml` on a feed's `rel="alternate"`. Part of the dedup key. */
       readonly type?: string;
@@ -148,10 +149,13 @@ function headElementKey(element: HeadElement): HeadElementKey {
       return `meta:${element.name}`;
     case "og":
       return `og:${element.property}`;
-    case "link":
+    case "link": {
       // `type` joins the key only when present, so every existing key is unchanged; it keeps an RSS
       // and an Atom `alternate` from overwriting each other.
-      return element.type === undefined ? `link:${element.rel}` : `link:${element.rel}:${element.type}`;
+      const key = element.type === undefined ? `link:${element.rel}` : `link:${element.rel}:${element.type}`;
+      // Language alternates are distinct resources, even when their rel and MIME type agree.
+      return element.hreflang === undefined ? key : `${key}:hreflang:${element.hreflang}`;
+    }
     case "jsonld": {
       const type = element.data["@type"];
       return `jsonld:${typeof type === "string" ? type : "untyped"}`;

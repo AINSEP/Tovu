@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { renderSite } from "../render.js";
+import { renderSite, type SiteProduct } from "../render.js";
 
 /**
  * @file Certifies what `renderSite` produces when there is DELIBERATELY no theme — state 3 of the
@@ -35,6 +35,8 @@ const POST: PostRecord = {
   version: 1,
 } as unknown as PostRecord;
 
+const PRODUCT: SiteProduct = { id: "p1", slug: "thing", title: "Thing", price: 100 };
+
 async function renderThemeless(route: "home" | "post" | "products" | "product"): Promise<string> {
   return renderSite({
     theme: null,
@@ -42,9 +44,8 @@ async function renderThemeless(route: "home" | "post" | "products" | "product"):
     siteTitle: "Acme",
     posts: [POST],
     ...(route === "post" ? { post: POST } : {}),
-    ...(route === "product"
-      ? { product: { id: "p1", title: "Thing", priceFormatted: "$1.00" } as never, products: [] }
-      : {}),
+    ...(route === "products" ? { products: [PRODUCT] } : {}),
+    ...(route === "product" ? { product: PRODUCT } : {}),
   });
 }
 
@@ -61,8 +62,14 @@ test("a themeless render is still a complete, valid document — not an error an
 test("every styling hook an operator would write CSS against is present", async () => {
   const html = await renderThemeless("home");
 
-  for (const hook of ["site", "site-header", "wordmark", "site-nav", "wrap", "entry-list", "entry", "entry-title", "entry-meta", "site-footer"]) {
-    assert.match(html, new RegExp(`class="[^"]*\\b${hook}\\b`), `missing styling hook: .${hook}`);
+  const elements = [...html.matchAll(/<([a-z][a-z0-9]*)\b[^>]*\bclass="([^"]*)"[^>]*>/g)]
+    .map((match) => ({ tag: match[1], classes: match[2]!.split(/\s+/) }));
+  for (const [hook, tag] of [
+    ["site", "div"], ["site-header", "header"], ["wordmark", "a"], ["site-nav", "nav"],
+    ["wrap", "div"], ["entry-list", "section"], ["entry", "li"], ["entry-title", "h2"],
+    ["entry-meta", "p"], ["site-footer", "footer"],
+  ]) {
+    assert.ok(elements.some((element) => element.tag === tag && element.classes.includes(hook!)), `missing styling hook: ${tag}.${hook}`);
   }
 });
 
@@ -98,6 +105,11 @@ test("every route renders themelessly, not just home — posts, products and pro
     assert.match(html, /^<!doctype html>/, `${route} must still produce a document`);
     assert.match(html, /<footer class="site-footer">/, `${route} must still produce a footer`);
     assert.doesNotMatch(html, /data-theme=/, `${route} must not emit data-theme`);
+    if (route === "products" || route === "product") {
+      assert.match(html, /class="entry-title">Thing<\//, `${route} must render the product title`);
+      assert.match(html, /class="entry-meta">\$1\.00<\/p>/, `${route} must render the price from numeric cents`);
+    }
+    if (route === "products") assert.match(html, /href="\/products\/thing"/, "the listing must link to the product's slug");
   }
 });
 
