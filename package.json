@@ -110,7 +110,7 @@
     "@jini-ai/http-kit": "^0.3.8",
     "@jini-ai/infra": "^0.3.3",
     "@jini-ai/integrations": "^0.3.6",
-    "@jini-ai/mcp": "^0.3.3",
+    "@jini-ai/mcp": "^0.3.4",
     "@jini-ai/sqlite": "^0.3.0",
     "@jini-ai/ui": "^0.3.14",
     "@opentelemetry/api": "^1.9.1",
