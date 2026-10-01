@@ -64,7 +64,19 @@ test("actorId round-trips as undefined (not null) when the change set has no act
   await repo.insert(record({ actorId: undefined }), [item()]);
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
-  assert.equal(found?.changeSet.actorId, undefined);
+    assert.ok(found, "an actorless change set must still exist");
+    assert.equal(found?.changeSet.actorId, undefined);
+    assert.deepEqual(found.changeSet, {
+      idempotencyKey: undefined,
+      intentRef: undefined,
+      revertedAt: undefined,
+      ...record({ actorId: undefined }),
+    });
+    assert.deepEqual(found.items, [{
+      beforeRevisionId: undefined,
+      afterRevisionId: undefined,
+      ...item(),
+    }]);
 });
 
 test("intentRef round-trips its value when present — every other suite's fixtures omit it, so only the null side had ever been reached", async () => {

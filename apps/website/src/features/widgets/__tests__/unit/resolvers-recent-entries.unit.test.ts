@@ -109,6 +109,21 @@ test("REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} c
   assert.deepEqual(titles, ["New Post", "Old Post"], "newest-updated-first, draft excluded entirely");
 });
 
+test("REQ-25: each legacy instance applies its own maxItems below the shared registry cap", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  for (let i = 0; i < 6; i++) {
+    await repo.save(entryRow({ id: `entry-${i}`, type: "post", slug: `post-${i}`, title: `Post ${i}`, updatedAt: `2026-01-01T00:00:0${i}.000Z` }));
+  }
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const results = await resolver.resolveMany([instance("w-three", { maxItems: 3 }), instance("w-one", { maxItems: 1 })], CTX);
+  for (const [id, titles] of [["w-three", ["Post 5", "Post 4", "Post 3"]], ["w-one", ["Post 5"]]] as const) {
+    const result = results.get(id);
+    assert.ok(result?.ok);
+    if (!result.ok) continue;
+    assert.deepEqual(result.ir.children?.map((child) => child.props.title), titles);
+  }
+});
+
 test("D1/D7: every legacy-path item's href is null (entry pages are off) — never a dead entry link", async () => {
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
@@ -214,6 +229,73 @@ test("collection filter: only entries of the named content type are returned, vi
   assert.equal(children.length, 2, "only recipe-type entries, the unrelated post is excluded");
   const cuisines = children.map((c) => (c.props as { fields: Array<{ name: string; value: unknown }> }).fields.find((f) => f.name === "cuisine")?.value);
   assert.deepEqual(new Set(cuisines), new Set(["Italian", "Japanese"]));
+});
+
+test("collection filter: valid where and newest sort return only ordered live published matches with dependency keys", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const rows = [
+    entryRow({ id: "old", type: "recipe", slug: "old", title: "Old Pasta", publishedAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-10T00:00:00.000Z" }),
+    entryRow({ id: "new", type: "recipe", slug: "new", title: "New Pasta", publishedAt: "2026-01-02T00:00:00.000Z" }),
+    entryRow({ id: "draft", type: "recipe", slug: "draft", title: "Draft Pasta", status: "draft", publishedAt: "2026-01-03T00:00:00.000Z" }),
+    entryRow({ id: "trash", type: "recipe", slug: "trash", title: "Trashed Pasta", publishedAt: "2026-01-04T00:00:00.000Z" }),
+    entryRow({ id: "other-type", type: "post", slug: "other-type", title: "Post", publishedAt: "2026-01-05T00:00:00.000Z" }),
+  ];
+  for (const row of rows) {
+    await repo.save({ ...row, fieldsJson: { ext: { site: { cuisine: "Italian" } } } });
+  }
+  await repo.save(entryRow({ id: "ramen", type: "recipe", slug: "ramen", title: "Ramen", publishedAt: "2026-01-06T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Japanese" } } } }));
+  const trashed = await repo.findAnyById({ workspaceId: WORKSPACE_ID, id: "trash" });
+  assert.ok(trashed);
+  await repo.saveAny({ ...trashed, deletedAt: "2026-01-07T00:00:00.000Z" });
+
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: fixedContentTypeLookup({ recipe: [field("cuisine")] }) });
+  // "newest" is the supported published-date descending keyword; "-published" names a custom field.
+  const results = await resolver.resolveMany([instance("w-filtered", { collection: "recipe", maxItems: 10, where: { cuisine: "Italian" }, sort: "newest" })], CTX);
+  const result = results.get("w-filtered");
+  assert.ok(result?.ok);
+  if (!result.ok) return;
+  assert.deepEqual(result.ir.children?.map((child) => child.props.title), ["New Pasta", "Old Pasta"]);
+  assert.deepEqual(result.dependencyKeys, ["new", "old"]);
+});
+
+test("D7: legacy columns clamp to 1..6 and dependency keys match the resolved entries", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const results = await resolver.resolveMany([instance("w-high", { columns: 99 }), instance("w-low", { columns: 0 })], CTX);
+  for (const [id, columns] of [["w-high", 6], ["w-low", 1]] as const) {
+    const result = results.get(id);
+    assert.ok(result?.ok);
+    if (!result.ok) continue;
+    assert.equal(result.ir.props.columns, columns);
+    assert.deepEqual(result.dependencyKeys, ["e-1"]);
+  }
+});
+
+test("collection settings preserve filtering, title order and an explicit field subset", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  for (const row of [
+    entryRow({ id: "zulu", type: "recipe", slug: "zulu", title: "Zulu", updatedAt: "2026-01-03T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Italian", rating: 9, notes: "omit zulu notes" } } } }),
+    entryRow({ id: "alpha", type: "recipe", slug: "alpha", title: "Alpha", updatedAt: "2026-01-01T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Italian", rating: 3, notes: "omit alpha notes" } } } }),
+    entryRow({ id: "ramen", type: "recipe", slug: "ramen", title: "Ramen", updatedAt: "2026-01-04T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Japanese", rating: 7, notes: "omit ramen notes" } } } }),
+  ]) await repo.save(row);
+  const resolver = createRecentEntriesResolver({
+    entryList: repo,
+    contentTypes: fixedContentTypeLookup({ recipe: [field("cuisine"), field("rating", "integer"), field("notes")] }),
+  });
+  const result = (await resolver.resolveMany([
+    instance("selected-fields", { collection: "recipe", maxItems: 2, where: { cuisine: "Italian" }, sort: "title", fields: ["rating"] }),
+  ], CTX)).get("selected-fields");
+  assert.ok(result?.ok);
+  if (!result.ok) return;
+  assert.deepEqual(result.ir.children?.map((child) => ({
+    title: child.props.title,
+    fields: child.props.fields,
+  })), [
+    { title: "Alpha", fields: [{ name: "rating", label: "Rating", kind: "integer", value: 3 }] },
+    { title: "Zulu", fields: [{ name: "rating", label: "Rating", kind: "integer", value: 9 }] },
+  ]);
+  assert.deepEqual(result.dependencyKeys, ["alpha", "zulu"]);
 });
 
 test("collection filter: an unknown content type key resolves as target-disabled, not a crash or an unfiltered list", async () => {

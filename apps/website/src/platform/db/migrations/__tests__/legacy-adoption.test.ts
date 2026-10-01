@@ -127,9 +127,19 @@ describe("0000_legacy_baseline on SQLite", () => {
 
   test("extra tables (plugin data modules) are kept and reported, not refused", async () => {
     const kernel = await partial(78);
-    await kernel.execute(sql`CREATE TABLE p_demo__things (id text PRIMARY KEY)`);
-    const report = await migrateContentDatabase(kernel);
-    assert.ok(report.notes.some((note) => note.includes("p_demo__things")));
+      await kernel.execute(sql`CREATE TABLE p_demo__things (id text PRIMARY KEY)`);
+      await kernel.execute(sql`INSERT INTO p_demo__things (id) VALUES ('plugin-row-a'), ('plugin-row-b')`);
+      const schemaBefore = await kernel.query<{ type: string; name: string; tbl_name: string; sql: string | null }>(
+        sql`SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE tbl_name = 'p_demo__things' ORDER BY type, name`
+      );
+      const rowsBefore = await kernel.query<{ id: string }>(sql`SELECT * FROM p_demo__things ORDER BY id`);
+      assert.deepEqual(rowsBefore, [{ id: "plugin-row-a" }, { id: "plugin-row-b" }]);
+      const report = await migrateContentDatabase(kernel);
+      assert.ok(report.notes.some((note) => note.includes("p_demo__things")));
+      assert.deepEqual(await kernel.query(
+        sql`SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE tbl_name = 'p_demo__things' ORDER BY type, name`
+      ), schemaBefore);
+      assert.deepEqual(await kernel.query(sql`SELECT * FROM p_demo__things ORDER BY id`), rowsBefore);
   });
 
   test("a file-backed database is backed up before adoption", async () => {

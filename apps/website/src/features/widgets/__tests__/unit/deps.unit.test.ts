@@ -27,7 +27,9 @@ function makeRouteDeps(): WidgetsRouteDeps {
     widgetBindingRepo: { marker: "widgetBindingRepo" } as unknown as WidgetsRouteDeps["widgetBindingRepo"],
     postRepo: { marker: "postRepo" } as unknown as WidgetsRouteDeps["postRepo"],
     changeSets: { marker: "changeSets" } as unknown as WidgetsRouteDeps["changeSets"],
-    pluginBeforeSaveHook: { marker: "pluginBeforeSaveHook" } as unknown as WidgetsRouteDeps["pluginBeforeSaveHook"],
+        pluginBeforeSaveHook: { marker: "pluginBeforeSaveHook" } as unknown as WidgetsRouteDeps["pluginBeforeSaveHook"],
+        forgetRemovedPost: (() => {}) as unknown as WidgetsRouteDeps["forgetRemovedPost"],
+        removeWidget: (async () => ({ ok: true })) as unknown as WidgetsRouteDeps["removeWidget"],
   };
 }
 
@@ -42,7 +44,17 @@ test("buildWidgetsDeps: maps every field to its write-path name, by identity, in
   assert.equal(result.authorize, routeDeps.authorize);
   assert.equal(result.outbox, routeDeps.outbox);
   // The one rename in this mapping: `routeDeps.idGen` becomes `result.ids`.
-  assert.equal(result.ids, routeDeps.idGen);
+      assert.equal(result.ids, routeDeps.idGen);
+      assert.equal(result.postRepo, routeDeps.postRepo);
+      assert.equal(result.forgetRemovedPost, routeDeps.forgetRemovedPost);
+      assert.equal(result.changeSets, routeDeps.changeSets);
+      assert.equal(result.beforeSaveHook, routeDeps.pluginBeforeSaveHook);
+      assert.equal(result.remove, routeDeps.removeWidget);
+      assert.deepEqual(Object.keys(result).sort(), [
+        "entryRepo", "contentTypeRepo", "entryRefsRepo", "postRepo",
+        "forgetRemovedPost", "changeSets", "beforeSaveHook", "clock",
+        "ids", "authorize", "outbox", "remove",
+      ].sort());
 });
 
 test("buildWidgetsDeps: does not carry workspaceId or widgetBindingRepo through — those are not part of this shape", () => {

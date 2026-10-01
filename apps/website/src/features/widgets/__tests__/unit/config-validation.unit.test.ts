@@ -108,11 +108,13 @@ test("validateWidgetConfig: an integer above its schema maximum is rejected with
 });
 
 test("validateWidgetConfig: an integer exactly at minimum/maximum is valid (bounds are inclusive)", () => {
-  const result = validateWidgetConfig({
-    schema: { type: "object", properties: { count: { type: "integer", minimum: 1, maximum: 20 } } },
-    config: { count: 1 },
-  });
-  assert.deepEqual(result, { valid: true, fieldErrors: [] });
+  for (const count of [1, 20]) {
+    const result = validateWidgetConfig({
+      schema: { type: "object", properties: { count: { type: "integer", minimum: 1, maximum: 20 } } },
+      config: { count },
+    });
+    assert.deepEqual(result, { valid: true, fieldErrors: [] });
+  }
 });
 
 test("validateWidgetConfig: a non-array value against an array property is rejected", () => {
@@ -177,11 +179,15 @@ test("validateWidgetConfig: nested object -> array -> object recursion composes 
         },
       },
     },
-    config: { items: [{ label: "ok" }, {}] },
+    config: { items: [{ label: "ok" }, {}, { label: 42 }, {}] },
   });
   assert.deepEqual(result, {
     valid: false,
-    fieldErrors: [{ field: "config.items[1].label", reason: "required field is missing" }],
+    fieldErrors: [
+      { field: "config.items[1].label", reason: "required field is missing" },
+      { field: "config.items[2].label", reason: "expected a string" },
+      { field: "config.items[3].label", reason: "required field is missing" },
+    ],
   });
 });
 

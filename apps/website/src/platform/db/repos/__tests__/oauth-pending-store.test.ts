@@ -126,10 +126,58 @@ describeEachDialect(
           .where("state", "=", attacker.state)
           .execute()
       );
-      await assert.rejects(store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }));
+        await assert.rejects(
+          store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }),
+          (error: unknown) => error instanceof Error && !isOAuthError(error) &&
+            error.message === "Unsupported state or unable to authenticate data",
+        );
+        await rejectsInvalidState(store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }));
     });
 
-    test("device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed", async () => {
+      test("device ciphertext is bound independently to workspace and connection", async () => {
+        const fx = makeFx();
+        const otherWorkspace = "ws-oauth-other";
+        await fx.kernel.run((db) => db.insertInto("workspaces").values({
+          id: otherWorkspace, name: otherWorkspace, slug: otherWorkspace, created_at: fx.clock.nowIso(),
+        }).execute());
+        const local = createSqlDeviceAuthorizationStore({ ...fx, workspaceId: WORKSPACE });
+        const foreign = createSqlDeviceAuthorizationStore({ ...fx, workspaceId: otherWorkspace });
+        const authorization = {
+          deviceCode: "victim-device-secret",
+          userCode: "VICT-1234",
+          verificationUri: "https://provider.example.com/device",
+          verificationUriComplete: null,
+          expiresAt: "2026-09-10T12:10:00.000Z",
+          intervalSeconds: 5,
+        };
+        await local.put("victim", authorization);
+        await local.put("attacker", { ...authorization, deviceCode: "local-attacker-secret" });
+        await foreign.put("victim", { ...authorization, deviceCode: "foreign-attacker-secret" });
+        assert.deepEqual(await local.get("victim"), authorization);
+        const victim = await fx.kernel.run((db) => db.selectFrom("oauth_device_authorizations").selectAll()
+          .where("workspace_id", "=", WORKSPACE).where("server_id", "=", "victim").executeTakeFirstOrThrow());
+        const copied = {
+          sealed_key_id: victim.sealed_key_id,
+          sealed_ciphertext: victim.sealed_ciphertext,
+          sealed_nonce: victim.sealed_nonce,
+          sealed_alg: victim.sealed_alg,
+        };
+        for (const [workspaceId, serverId, store] of [
+          [WORKSPACE, "attacker", local],
+          [otherWorkspace, "victim", foreign],
+        ] as const) {
+          await fx.kernel.run((db) => db.updateTable("oauth_device_authorizations").set(copied)
+            .where("workspace_id", "=", workspaceId).where("server_id", "=", serverId).execute());
+          await assert.rejects(
+            store.get(serverId),
+            (error: unknown) => error instanceof Error && !isOAuthError(error) &&
+              error.message === "Unsupported state or unable to authenticate data",
+          );
+        }
+        assert.deepEqual(await local.get("victim"), authorization);
+      });
+
+      test("device store: put/get round-trips, put overwrites the connection's attempt, delete removes it, the code is sealed", async () => {
       const fx = makeFx();
       const store = createSqlDeviceAuthorizationStore({ ...fx, workspaceId: WORKSPACE });
       const first = {

@@ -108,7 +108,21 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
     const second = { ...first, hashAtLastSync: "h2", hashVersion: 2, runId: "r2" };
     await baselines.upsert(second);
     assert.deepEqual(await baselines.findOne(key), second);
-    assert.equal(await baselines.findOne({ ...key, workspaceId: OTHER }), null);
+      assert.equal(await baselines.findOne({ ...key, workspaceId: OTHER }), null);
+      const neighbors = [
+        { ...second, peerPrincipalId: "other-peer", hashAtLastSync: "peer-hash" },
+        { ...second, entityType: "page", hashAtLastSync: "type-hash" },
+        { ...second, entityId: "e2", hashAtLastSync: "entity-hash" },
+        { ...second, workspaceId: OTHER, hashAtLastSync: "workspace-hash" },
+      ];
+      for (const neighbor of neighbors) await baselines.upsert(neighbor);
+      for (const expected of [second, ...neighbors]) {
+        assert.deepEqual(await baselines.findOne(expected), expected);
+      }
+      const third = { ...second, hashAtLastSync: "h3", hashVersion: 3, runId: "r3" };
+      await baselines.upsert(third);
+      assert.deepEqual(await baselines.findOne(key), third);
+      for (const neighbor of neighbors) assert.deepEqual(await baselines.findOne(neighbor), neighbor);
   });
 
   test("bundles: save, scoped findById, deleteExpired is strict and counts", async () => {
@@ -157,7 +171,12 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
     const { seeded, peers } = make();
     await seeded;
     await peers.insert(PEER);
-    await assert.rejects(peers.insert({ ...PEER, id: "peer-dup" }));
+        await assert.rejects(
+          peers.insert({ ...PEER, id: "peer-dup" }),
+          /UNIQUE constraint failed: publish_content_peers.workspace_id, publish_content_peers.label|violates unique constraint "publish_content_peers_workspace_label_unique"/,
+        );
+        assert.deepEqual(await peers.findById({ workspaceId: WS, id: "peer-1" }), PEER);
+        assert.equal(await peers.findById({ workspaceId: WS, id: "peer-dup" }), null);
   });
 
   test("runs: save inserts, a second save updates only the progress columns, scoped read", async () => {

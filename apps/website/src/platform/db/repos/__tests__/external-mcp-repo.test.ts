@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { contentKernel } from "../../content-kernel.js";
+import { openContentDb, openSqliteContentConnection } from "../../sqlite/content-db.js";
 
 import type { ExternalMcpServerRecord } from "#src/assistant/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -97,6 +102,36 @@ function seededRepo(kernel: ContentKernel): SqlExternalMcpServerRepo {
   return new SqlExternalMcpServerRepo({ ...kernel, run: async (fn) => (await seeded, kernel.run(fn)) });
 }
 
+test("independent SQLite connections race for one OAuth lease and persist exactly the winner", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-lease-race-"));
+  let first: ReturnType<typeof openContentDb> | undefined;
+  let second: ReturnType<typeof openSqliteContentConnection> | undefined;
+  try {
+    const file = path.join(dir, "content.db");
+    first = openContentDb(file);
+    first.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE, WORKSPACE, WORKSPACE, NOW);
+    second = openSqliteContentConnection(file);
+    const repos = [new SqlExternalMcpServerRepo(contentKernel(first)), new SqlExternalMcpServerRepo(contentKernel(second))];
+    await repos[0].upsert(makeOAuthRecord());
+    const claims = [
+      { workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER },
+      { workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: "2026-08-21T02:00:00.000Z" },
+    ];
+    const results = await Promise.all(repos.map((repo, index) => repo.tryClaimOAuthRefreshLease(claims[index]!)));
+    assert.equal(results.filter(Boolean).length, 1);
+    assert.equal(results.filter((result) => !result).length, 1);
+    const winner = results.findIndex(Boolean);
+    const expected = makeOAuthRecord({ oauthRefreshLeaseUntil: claims[winner]!.leaseUntil });
+    for (const repo of repos) {
+      assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "oauth-server" }), expected);
+    }
+  } finally {
+    second?.$client.close();
+    first?.$client.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "external_mcp_servers"], make: seededRepo }, (makeRepo) => {
   test("listByWorkspaceId returns an empty array when no rows exist", async () => {
     assert.deepEqual(await makeRepo().listByWorkspaceId(WORKSPACE), []);
@@ -166,6 +201,55 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     assert.equal(rows.length, 2);
     assert.equal(rows.find((row) => row.serverId === "oauth-server")?.sealedEnv, null);
     assert.equal(rows.find((row) => row.serverId === "env-only")?.sealedOAuth, null);
+  });
+
+  test("current env and OAuth lineage survive inserts and updates from legacy rows", async () => {
+    const repo = makeRepo();
+    const currentEnv = makeRecord({ serverId: "current-env", aadVersion: 1 });
+    const currentOAuth = makeOAuthRecord({ serverId: "current-oauth", oauthAadVersion: 1 });
+    for (const record of [currentEnv, currentOAuth]) {
+      await repo.upsert(record);
+      assert.deepEqual(await repo.findByServerId(record), record);
+    }
+    const legacy = makeOAuthRecord({
+      serverId: "legacy-to-current",
+      sealedEnv: makeRecord().sealedEnv,
+      envNames: makeRecord().envNames,
+      aadVersion: 0,
+      oauthAadVersion: 0,
+    });
+    await repo.upsert(legacy);
+    assert.deepEqual(await repo.findByServerId(legacy), legacy);
+    const upgraded = {
+      ...legacy,
+      aadVersion: 1,
+      oauthAadVersion: 1,
+      sealedEnv: { keyId: "env-current", ciphertext: "ZW52LWN1cnJlbnQ=", nonce: "ZW52LW5vbmNl", alg: "aes-256-gcm" },
+      sealedOAuth: { keyId: "oauth-current", ciphertext: "b2F1dGgtY3VycmVudA==", nonce: "b2F1dGgtbm9uY2U=", alg: "aes-256-gcm" },
+      updatedAt: LATER,
+    };
+    await repo.upsert(upgraded);
+    assert.deepEqual(await repo.findByServerId(upgraded), upgraded);
+  });
+
+  test("OAuth lease claims and releases isolate workspace and server and include the expiry boundary", async () => {
+    const repo = makeRepo();
+    const target = makeOAuthRecord();
+    const foreign = makeOAuthRecord({ workspaceId: OTHER_WORKSPACE });
+    const sibling = makeOAuthRecord({ serverId: "oauth-sibling" });
+    for (const record of [target, foreign, sibling]) await repo.upsert(record);
+    const key = { workspaceId: WORKSPACE, serverId: target.serverId };
+    assert.equal(await repo.tryClaimOAuthRefreshLease({ ...key, nowIso: NOW, leaseUntil: LATER }), true);
+    assert.deepEqual(await repo.findByServerId(foreign), foreign);
+    assert.deepEqual(await repo.findByServerId(sibling), sibling);
+    const foreignUntil = "2026-08-21T03:00:00.000Z";
+    assert.equal(await repo.tryClaimOAuthRefreshLease({ workspaceId: OTHER_WORKSPACE, serverId: foreign.serverId, nowIso: NOW, leaseUntil: foreignUntil }), true);
+    assert.equal(await repo.tryClaimOAuthRefreshLease({ ...key, nowIso: LATER, leaseUntil: "2026-08-21T02:00:00.000Z" }), true);
+    assert.deepEqual(await repo.findByServerId(foreign), { ...foreign, oauthRefreshLeaseUntil: foreignUntil });
+    await repo.releaseOAuthRefreshLease(key);
+    assert.deepEqual(await repo.findByServerId(target), target);
+    assert.deepEqual(await repo.findByServerId(foreign), { ...foreign, oauthRefreshLeaseUntil: foreignUntil });
+    assert.deepEqual(await repo.findByServerId(sibling), sibling);
   });
 
   test("tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses", async () => {

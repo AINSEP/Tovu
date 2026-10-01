@@ -132,7 +132,16 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
 
     const found = await store.findByToken(record.confirmationToken);
     assert.equal(found?.status, "expired");
-    assert.equal(await store.count(), 1, "the upsert must not have created a second row");
+              assert.equal(await store.count(), 1, "the upsert must not have created a second row");
+              const now = "2026-08-31T00:00:01.000Z";
+              assert.ok(now < record.expiresAt, "this refusal must depend on status, not TTL");
+              const expired = { ...record, status: "expired" as const };
+              assert.deepEqual(await store.tryRedeem({ token: record.confirmationToken, now }), {
+                redeemed: false,
+                record: expired,
+              });
+              assert.deepEqual(await store.findByToken(record.confirmationToken), expired);
+              assert.equal(await store.count(), 1);
   });
 
   test("count() reflects total records ever saved", async () => {

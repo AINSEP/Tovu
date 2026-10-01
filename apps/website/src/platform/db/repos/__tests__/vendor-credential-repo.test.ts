@@ -95,11 +95,18 @@ describeEachDialect(
     test("update changes the row in place — a second insert-shaped id never appears", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ label: "Old label" }));
-      await repo.update(makeRecord({ label: "New label", tokenTail: "9999", updatedAt: "2026-08-16T01:00:00.000Z" }));
+        const rotated = makeRecord({
+          label: "New label",
+          tokenTail: "9999",
+          sealed: { keyId: "rotation-key", ciphertext: "cm90YXRlZC12ZW5kb3I=", nonce: "cm90YXRlZC1ub25jZQ==", alg: "aes-256-gcm" },
+          updatedAt: "2026-08-16T01:00:00.000Z",
+        });
+        await repo.update(rotated);
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.label, "New label");
-      assert.equal(found?.tokenTail, "9999");
+        assert.equal(found?.tokenTail, "9999");
+        assert.deepEqual(found, rotated);
       assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE })).length, 1);
     });
 
@@ -214,10 +221,17 @@ describeEachDialect(
       assert.deepEqual(found?.sealed, makeRecord().sealed, "updateAccountLabel must not disturb the sealed connection");
     });
 
-    test("updateAccountLabel on a non-existent row is a harmless no-op", async () => {
-      const repo = await makeRepo();
-      await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
-    });
+      test("updateAccountLabel on a non-existent row is a harmless no-op", async () => {
+        const repo = await makeRepo();
+        const rows = [
+          makeRecord({ accountLabel: "first-account", isDefault: true }),
+          makeRecord({ id: "cred-2", label: "Sibling", accountLabel: "second-account" }),
+          makeRecord({ workspaceId: OTHER_WORKSPACE, label: "Foreign", accountLabel: "foreign-account" }),
+        ];
+        for (const row of rows) await repo.insert(row);
+        await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
+        for (const row of rows) assert.deepEqual(await repo.findById(row), row);
+      });
   }
 );
 

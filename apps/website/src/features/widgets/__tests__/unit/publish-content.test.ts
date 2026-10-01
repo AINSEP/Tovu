@@ -11,6 +11,7 @@ import { contributeWidgetAreaPublish, contributeWidgetPublish } from "../../publ
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "../../region-area-service.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { createWidgetInstance } from "../../write-service.js";
+import { parseWidgetAreaPayload } from "../../entry-payload.js";
 
 function instance(name: string) {
   const ports = {
@@ -67,7 +68,9 @@ test("widget + widget-area round trip: widgets first with their ids, the region'
   const binding = await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
   assert.ok(binding, "the destination region is bound");
   const area = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
-  assert.match(JSON.stringify(area?.fieldsJson), new RegExp(placements.map((p) => p.placementId).join(".*")));
+    assert.match(JSON.stringify(area?.fieldsJson), new RegExp(placements.map((p) => p.placementId).join(".*")));
+    assert.ok(area);
+    assert.deepEqual(parseWidgetAreaPayload(area.fieldsJson).doc.placements, placements);
   assert.equal((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.slug, "about");
 });
 

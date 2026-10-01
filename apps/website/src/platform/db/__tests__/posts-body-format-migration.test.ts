@@ -106,6 +106,14 @@ test("0024 migration: a pre-existing row survives with body_format defaulted to 
          VALUES ('legacy-1', 'ws-1', 'Legacy Post', 'legacy-post', ?, 'published', 'post', '2026-01-01T00:00:00.000Z', 1, '{}')`
       )
       .run(JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }));
+    client.prepare(
+      "UPDATE posts SET kind = 'page', seo_ext_json = ?, ext = ?, deleted_at = ? WHERE id = 'legacy-1'"
+    ).run(
+      '{"description":"preserved legacy SEO"}',
+      '{"plugin":{"marker":"preserved extension","count":17}}',
+      "2025-12-31T23:00:00.000Z",
+    );
+    const before = client.prepare("SELECT * FROM posts WHERE id = 'legacy-1'").get() as Record<string, unknown>;
 
     apply0024(db);
 
@@ -120,6 +128,7 @@ test("0024 migration: a pre-existing row survives with body_format defaulted to 
     );
     assert.equal(row.title, "Legacy Post");
     assert.equal(row.version, 1);
+    assert.deepEqual(row, { ...before, body_format: "doc", body_html: null });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -148,6 +157,21 @@ test("0024 migration: row count and the two pre-existing indexes are preserved a
     );
     assert.ok(indexNames.includes("posts_workspace_slug_unique"), "the unique slug index must survive the rebuild");
     assert.ok(indexNames.includes("idx_posts_workspace"), "the workspace index must survive the rebuild");
+    const indexes = client.prepare("PRAGMA index_list('posts')").all() as Array<{ name: string; unique: number }>;
+    assert.equal(indexes.find((index) => index.name === "posts_workspace_slug_unique")?.unique, 1);
+    assert.equal(indexes.find((index) => index.name === "idx_posts_workspace")?.unique, 0);
+    for (const [name, columns] of [
+      ["posts_workspace_slug_unique", ["workspace_id", "slug"]],
+      ["idx_posts_workspace", ["workspace_id"]],
+    ] as const) {
+      const info = client.prepare(`PRAGMA index_info('${name}')`).all() as Array<{ seqno: number; name: string }>;
+      assert.deepEqual(info.sort((a, b) => a.seqno - b.seqno).map((column) => column.name), columns);
+    }
+    assert.throws(() => client.prepare(
+      `INSERT INTO posts (id, workspace_id, title, slug, body_json, status, kind, updated_at, version, ext)
+       SELECT 'duplicate-a', workspace_id, title, slug, body_json, status, kind, updated_at, version, ext
+       FROM posts WHERE id = 'a'`
+    ).run(), /UNIQUE constraint failed: posts.workspace_id, posts.slug/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -184,7 +208,7 @@ test("posts_body_format_shape CHECK: rejects a body_format value that is neither
   const db = openContentDb(":memory:");
   assert.throws(
     () => insertRawPost(db, { body_format: "markdown" }),
-    /CHECK constraint failed/,
+    /CHECK constraint failed: posts_body_format_shape/,
     "an unrecognized body_format must be rejected at the DB level, not just by application code"
   );
 });
@@ -193,7 +217,7 @@ test("posts_body_format_shape CHECK: rejects a 'doc' row that also carries body_
   const db = openContentDb(":memory:");
   assert.throws(
     () => insertRawPost(db, { body_format: "doc", body_html: "<p>x</p>" }),
-    /CHECK constraint failed/
+    /CHECK constraint failed: posts_body_format_shape/
   );
 });
 
@@ -206,7 +230,7 @@ test("posts_body_format_shape CHECK: rejects an 'html' row that still carries bo
         body_html: "<p>x</p>",
         body_json: JSON.stringify({ type: "doc", content: [] }),
       }),
-    /CHECK constraint failed/
+    /CHECK constraint failed: posts_body_format_shape/
   );
 });
 
@@ -214,7 +238,7 @@ test("posts_body_format_shape CHECK: rejects an 'html' row with no body_html at 
   const db = openContentDb(":memory:");
   assert.throws(
     () => insertRawPost(db, { body_format: "html", body_html: null, body_json: null }),
-    /CHECK constraint failed/
+    /CHECK constraint failed: posts_body_format_shape/
   );
 });
 

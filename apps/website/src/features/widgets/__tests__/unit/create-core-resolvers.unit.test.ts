@@ -75,12 +75,39 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
     version: 1,
   });
 
-  const resolvers = createCoreResolvers({
-    entryList,
-    navMenuReadModel: fakeMenuReadModel(null),
-    formDefinitionRepo: new InMemoryFormDefinitionRepo(),
-    contentTypes: noContentTypes(),
-  });
+    const menu: NavMenuEntry = {
+      id: "assembled-menu",
+      workspaceId: "ws-1",
+      slug: "assembled-menu",
+      title: "Injected assembly menu",
+      status: "published",
+      doc: { type: "menu", version: 1, items: [
+        { id: "assembled-item", label: "Assembly docs", target: { kind: "url", href: "https://example.test/assembly" } },
+      ] },
+      locations: [],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      version: 1,
+    };
+    const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+    const fields = [{ id: "assembly-email", label: "Assembly email", type: "email" as const, required: true }];
+    await formDefinitionRepo.create({
+      id: "assembled-form",
+      workspaceId: "ws-1",
+      name: "Injected assembly form",
+      slug: "assembly-contact",
+      fields,
+      notify: { enabled: false, recipients: [] },
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      version: 1,
+    });
+    const resolvers = createCoreResolvers({
+      entryList,
+      navMenuReadModel: fakeMenuReadModel(menu),
+      formDefinitionRepo,
+      contentTypes: noContentTypes(),
+    });
 
   const results = await resolvers["recent-entries"]!.resolveMany(
     [{ id: "w-1", widgetType: "recent-entries", config: {} }],
@@ -89,5 +116,34 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
   const result = results.get("w-1");
   assert.ok(result?.ok, "must resolve against the real entryList it was constructed with");
   if (!result.ok) return;
-  assert.equal(result.ir.children?.length, 1);
-});
+    assert.equal(result.ir.children?.length, 1);
+    assert.equal(result.ir.children?.[0]?.props.title, "Post 1");
+
+    const context = { workspaceId: "ws-1", preview: false };
+    const menuResult = (await resolvers.menu!.resolveMany(
+      [{ id: "menu-widget", widgetType: "menu", config: { menuRef: "assembled-menu" } }],
+      context,
+    )).get("menu-widget");
+    assert.ok(menuResult?.ok);
+    if (!menuResult.ok) return;
+    assert.equal(menuResult.ir.componentId, "menu");
+    assert.equal(menuResult.ir.props.title, "Injected assembly menu");
+    const items = menuResult.ir.props.items as unknown as Array<{ label: string; href: string; available: boolean }>;
+    assert.equal(items.length, 1);
+    assert.equal(items[0].label, "Assembly docs");
+    assert.equal(items[0].href, "https://example.test/assembly");
+    assert.equal(items[0].available, true);
+    assert.deepEqual(menuResult.dependencyKeys, ["assembled-menu"]);
+
+    const formResult = (await resolvers["contact-form"]!.resolveMany(
+      [{ id: "form-widget", widgetType: "contact-form", config: { formDefinitionId: "assembled-form" } }],
+      context,
+    )).get("form-widget");
+    assert.ok(formResult?.ok);
+    if (!formResult.ok) return;
+    assert.equal(formResult.ir.componentId, "contact-form");
+    assert.equal(formResult.ir.props.formDefinitionId, "assembled-form");
+    assert.equal(formResult.ir.props.slug, "assembly-contact");
+    assert.deepEqual(formResult.ir.props.fields, fields);
+    assert.deepEqual(formResult.dependencyKeys, ["assembled-form"]);
+  });

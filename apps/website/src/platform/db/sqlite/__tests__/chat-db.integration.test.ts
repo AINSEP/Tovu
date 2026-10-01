@@ -6,7 +6,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openChatDb } from "../chat-db.js";
+import { openChatDb, openSiteChatDb } from "../chat-db.js";
+import { UnknownAppliedMigrationError } from "../../migrations/index.js";
 
 /**
  * @file Integration tests for the sidecar `chat.db` bootstrap, against a real temp-file SQLite
@@ -29,6 +30,64 @@ function tableNames(db: Database.Database): string[] {
     .all()
     .map((row) => (row as { name: string }).name);
 }
+
+test("openSiteChatDb migrates fresh and legacy files, preserves conversations and refuses unknown history", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "site-chat-bootstrap-"));
+  const seed = (db: Database.Database) => {
+    db.prepare("INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('kept-chat', 'ws-1', 'user', 'user-1', 1, 2)").run();
+    db.prepare("INSERT INTO ai_chat_messages (id, conversation_id, role, content, position, created_at) VALUES ('kept-message', 'kept-chat', 'user', 'preserved message', 0, 1)").run();
+  };
+  try {
+    for (const mode of ["fresh", "legacy"] as const) {
+      const file = path.join(dir, `${mode}.db`);
+      let db: Database.Database | undefined;
+      try {
+        if (mode === "legacy") {
+          db = openChatDb(file);
+          seed(db);
+          db.close();
+          db = undefined;
+        }
+        db = await openSiteChatDb(file);
+        for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "assistant_conversation_tool_approvals", "tovu_chat_migrations"]) {
+          assert.ok(tableNames(db).includes(name), `${mode}: ${name} must exist`);
+        }
+        assert.deepEqual(db.prepare("SELECT id FROM tovu_chat_migrations ORDER BY id").all(), [
+          { id: "0000_chat_baseline" },
+          { id: "0001_sqlite_chat_tables" },
+        ]);
+        if (mode === "fresh") seed(db);
+        const chats = db.prepare("SELECT * FROM ai_chats ORDER BY id").all();
+        const messages = db.prepare("SELECT * FROM ai_chat_messages ORDER BY id").all();
+        assert.equal(chats.length, 1);
+        assert.equal(messages.length, 1);
+        const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all();
+        db.close();
+        db = await openSiteChatDb(file);
+        assert.deepEqual(db.prepare("SELECT * FROM ai_chats ORDER BY id").all(), chats);
+        assert.deepEqual(db.prepare("SELECT * FROM ai_chat_messages ORDER BY id").all(), messages);
+        assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), ledger);
+        db.prepare("INSERT INTO tovu_chat_migrations (id, checksum, applied_at) VALUES (?, ?, ?)").run(
+          "9999_unknown_chat_step", "0".repeat(64), "2026-01-01T00:00:00.000Z",
+        );
+        const invalidLedger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all();
+        db.close();
+        db = undefined;
+        await assert.rejects(() => openSiteChatDb(file), (error: unknown) =>
+          error instanceof UnknownAppliedMigrationError && error.ids.includes("9999_unknown_chat_step")
+        );
+        db = new Database(file, { readonly: true });
+        assert.deepEqual(db.prepare("SELECT * FROM ai_chats ORDER BY id").all(), chats);
+        assert.deepEqual(db.prepare("SELECT * FROM ai_chat_messages ORDER BY id").all(), messages);
+        assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), invalidLedger);
+      } finally {
+        db?.close();
+      }
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("openChatDb creates all three chat tables (ai_chats, ai_chat_messages, assistant_agent_sessions)", () => {
   const { db, tmpDir } = openTempChatDb();

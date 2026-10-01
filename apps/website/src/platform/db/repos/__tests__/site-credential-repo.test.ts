@@ -60,7 +60,45 @@ describeEachDialect("SiteAssistantCredentialRepoPort", { tables: ["site_assistan
     assert.equal(found?.model, "second-model");
   });
 
-  test("clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched", async () => {
+    test("current lineage survives insert and legacy rotation while upsert and clearKey isolate workspaces", async () => {
+      const repo = makeRepo();
+      const legacy = makeRecord({
+        sealed: { keyId: "legacy-key", ciphertext: "bGVnYWN5", nonce: "bGVnYWN5LW5vbmNl", alg: "aes-256-gcm" },
+        masked: "legacy-mask",
+        aadVersion: 0,
+      });
+      const foreign = makeRecord({
+        workspaceId: "workspace-2",
+        model: "foreign-model",
+        baseUrl: "https://foreign.example.test",
+        sealed: { keyId: "foreign-key", ciphertext: "Zm9yZWlnbg==", nonce: "Zm9yZWlnbi1ub25jZQ==", alg: "aes-256-gcm" },
+        masked: "foreign-mask",
+        aadVersion: 1,
+      });
+      await repo.upsert(legacy);
+      await repo.upsert(foreign);
+      assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE), legacy);
+      assert.deepEqual(await repo.findByWorkspaceId("workspace-2"), foreign);
+      const current = {
+        ...legacy,
+        aadVersion: 1,
+        model: "rotated-model",
+        sealed: { keyId: "current-key", ciphertext: "Y3VycmVudA==", nonce: "Y3VycmVudC1ub25jZQ==", alg: "aes-256-gcm" },
+        masked: "current-mask",
+        updatedAt: "2026-08-04T01:00:00.000Z",
+      };
+      await repo.upsert(current);
+      assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE), current);
+      assert.deepEqual(await repo.findByWorkspaceId("workspace-2"), foreign);
+      const clearedAt = "2026-08-04T02:00:00.000Z";
+      await repo.clearKey({ workspaceId: WORKSPACE, updatedAt: clearedAt });
+      assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE), {
+        ...current, sealed: null, masked: null, updatedAt: clearedAt,
+      });
+      assert.deepEqual(await repo.findByWorkspaceId("workspace-2"), foreign);
+    });
+
+    test("clearKey nulls the sealed columns and masked, and leaves provider/baseUrl/model untouched", async () => {
     const repo = makeRepo();
     await repo.upsert(
       makeRecord({

@@ -94,10 +94,16 @@ describeEachDialect(
     test("update changes the row in place — a second insert-shaped id never appears", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ label: "Old label" }));
-      await repo.update(makeRecord({ label: "New label", updatedAt: "2026-08-15T01:00:00.000Z" }));
+        const rotated = makeRecord({
+          label: "New label",
+          sealed: { keyId: "rotation-key", ciphertext: "cm90YXRlZC1zZWNyZXQ=", nonce: "cm90YXRlZC1ub25jZQ==", alg: "aes-256-gcm" },
+          updatedAt: "2026-08-15T01:00:00.000Z",
+        });
+        await repo.update(rotated);
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
-      assert.equal(found?.label, "New label");
+        assert.equal(found?.label, "New label");
+        assert.deepEqual(found, rotated);
       assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE })).length, 1);
     });
 
@@ -213,7 +219,19 @@ describeEachDialect(
       assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, null);
     });
 
-    test("a non-null accountLabel round-trips through insert/update exactly (store.ts's job to populate it — this adapter just moves it)", async () => {
+      test("updateAccountLabel changes only its targeted column and isolates sibling rows", async () => {
+        const repo = await makeRepo();
+        const target = makeRecord({ isDefault: true });
+        const sibling = makeRecord({ id: "cred-2", label: "Sibling", accountLabel: "sibling-account" });
+        const foreign = makeRecord({ workspaceId: OTHER_WORKSPACE, label: "Foreign", accountLabel: "foreign-account", isDefault: true });
+        for (const row of [target, sibling, foreign]) await repo.insert(row);
+        await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: target.id, accountLabel: "verified-account" });
+        assert.deepEqual(await repo.findById(target), { ...target, accountLabel: "verified-account" });
+        assert.deepEqual(await repo.findById(sibling), sibling);
+        assert.deepEqual(await repo.findById(foreign), foreign);
+      });
+
+      test("a non-null accountLabel round-trips through insert/update exactly (store.ts's job to populate it — this adapter just moves it)", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ accountLabel: "leonaburime-ucla" }));
       assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, "leonaburime-ucla");

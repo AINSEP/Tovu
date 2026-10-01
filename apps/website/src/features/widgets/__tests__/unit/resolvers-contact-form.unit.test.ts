@@ -75,7 +75,12 @@ test("REQ-38/EC-05: a formDefinitionId that resolves to no definition at all deg
 
 test("REQ-37: an active definition's successMessage config, when a string, is passed through in the resolved IR props", async () => {
   const repo = new InMemoryFormDefinitionRepo();
-  await repo.create(definition());
+  const fields: FormDefinitionRecord["fields"] = [
+    { id: "email", label: "Reply address", type: "email", required: true, maxLength: 120 },
+    { id: "message", label: "Your message", type: "textarea", required: true, maxLength: 900, className: "message-input" },
+    { id: "consent", label: "Contact me", type: "checkbox", required: false },
+  ];
+  await repo.create(definition({ fields, version: 1 }));
   const resolver = createContactFormResolver({ formDefinitionRepo: repo });
 
   const results = await resolver.resolveMany(
@@ -87,6 +92,10 @@ test("REQ-37: an active definition's successMessage config, when a string, is pa
   assert.ok(result?.ok);
   if (!result.ok) return;
   assert.equal(result.ir.props.successMessage, "Thanks!");
+  assert.deepEqual(result.ir.props.fields, fields);
+  assert.equal(result.ir.props.formDefinitionId, "form-1");
+  assert.equal(result.ir.props.slug, "contact");
+  assert.deepEqual(result.dependencyKeys, ["form-1"]);
 });
 
 test("REQ-37: an active definition with no successMessage config resolves successMessage: null, not undefined", async () => {

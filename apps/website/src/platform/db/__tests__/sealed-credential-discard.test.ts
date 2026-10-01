@@ -34,7 +34,7 @@ async function insertRow(kernel: ContentKernel, table: string, row: Record<strin
 }
 
 async function sealedQuad(sealer: Sealer, keyring: InMemoryKeyring, aad: string, prefix = "") {
-  const sealed = await sealer.seal({ plaintext: "secret", key: await keyring.activeKey(), aad });
+  const sealed = await sealer.seal({ plaintext: `secret:${aad}`, key: await keyring.activeKey(), aad });
   return { [`${prefix}sealed_key_id`]: sealed.keyId, [`${prefix}sealed_ciphertext`]: sealed.ciphertext, [`${prefix}sealed_nonce`]: sealed.nonce, [`${prefix}sealed_alg`]: sealed.alg };
 }
 
@@ -62,12 +62,126 @@ async function seed(kernel: ContentKernel, right: { sealer: Sealer; keyring: InM
   });
 }
 
+async function credentialRows(kernel: ContentKernel): Promise<Record<string, Array<Record<string, unknown>>>> {
+  const keys: Record<string, string> = {
+    custom_credential_sets: "id",
+    media_provider_credentials: "provider_id",
+    external_mcp_servers: "server_id",
+  };
+  const result: Record<string, Array<Record<string, unknown>>> = {};
+  for (const table of TABLES) {
+    result[table] = await kernel.query<Record<string, unknown>>(
+      sql`SELECT * FROM ${sql.id(table)} ORDER BY ${sql.id(keys[table]!)}`
+    );
+  }
+  return result;
+}
+
+async function openStored(sealer: Sealer, row: Record<string, unknown>, aad: string, prefix = ""): Promise<string> {
+  return sealer.open({
+    sealed: {
+      keyId: row[`${prefix}sealed_key_id`] as string,
+      ciphertext: row[`${prefix}sealed_ciphertext`] as string,
+      nonce: row[`${prefix}sealed_nonce`] as string,
+      alg: row[`${prefix}sealed_alg`] as string,
+    },
+    aad,
+  });
+}
+
 function keyPair(): { sealer: Sealer; keyring: InMemoryKeyring } {
   const keyring = new InMemoryKeyring();
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 
 for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
+  test(`unknown or throwing AAD selection and incomplete sealed siblings count as unreadable [${each.name}]`, async () => {
+    const kernel = each.make();
+    const right = keyPair();
+    await seed(kernel, right, keyPair());
+    await kernel.execute(sql`CREATE TABLE p_discard_test__incomplete (id text PRIMARY KEY, sealed_ciphertext text)`);
+    try {
+      await kernel.execute(sql`INSERT INTO p_discard_test__incomplete (id, sealed_ciphertext) VALUES ('incomplete', 'opaque')`);
+      let openCalls = 0;
+      const sealer = { open: async () => { openCalls += 1; return "unexpected"; } };
+      const unknown = SEALED_COLUMN_DESCRIPTORS.map((descriptor) => ({
+        ...descriptor, aadFor: () => ({ kind: "unrecognized-aad-version" as const }),
+      }));
+      assert.deepEqual(await countSealedCredentialsOpening({ kernel, sealer, descriptors: unknown }), { sealed: 7, opens: 0 });
+      const throwing = SEALED_COLUMN_DESCRIPTORS.map((descriptor) => ({
+        ...descriptor, aadFor: () => { throw new Error("descriptor failure"); },
+      }));
+      assert.deepEqual(await countSealedCredentialsOpening({ kernel, sealer, descriptors: throwing }), { sealed: 7, opens: 0 });
+      assert.equal(openCalls, 0);
+    } finally {
+      await kernel.execute(sql`DROP TABLE p_discard_test__incomplete`);
+    }
+  });
+
+  test(`a later credential write failure rolls back every earlier discard or reseal [${each.name}]`, async () => {
+    for (const action of ["discard", "reseal"] as const) {
+      const kernel = each.make();
+      const right = keyPair();
+      const previous = keyPair();
+      await seed(kernel, right, previous);
+      const before = await credentialRows(kernel);
+      let writes = 0;
+      const failing: ContentKernel = {
+        ...kernel,
+        execute: async (statement) => {
+          writes += 1;
+          if (writes === 2) throw new Error("injected second credential write");
+          return kernel.execute(statement);
+        },
+      };
+      const common = { kernel: failing, descriptors: SEALED_COLUMN_DESCRIPTORS, sealer: right.sealer };
+      const mutation = action === "discard"
+        ? discardSealedCredentialsNotOpening(common)
+        : resealCredentialsOpeningUnder({ ...common, key: await right.keyring.activeKey(), previous: previous.sealer });
+      await assert.rejects(mutation, /injected second credential write/);
+      assert.equal(writes, 2);
+      assert.deepEqual(await credentialRows(kernel), before);
+    }
+  });
+
+  test(`a credential replaced after the snapshot survives both stale mutation paths [${each.name}]`, async () => {
+    for (const action of ["discard", "reseal"] as const) {
+      const kernel = each.make();
+      const right = keyPair();
+      const previous = keyPair();
+      await seed(kernel, right, previous);
+      const aad = buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID });
+      const replacement = await sealedQuad(right.sealer, right.keyring, aad);
+      let changed = false;
+      const sealer = {
+        seal: right.sealer.seal.bind(right.sealer),
+        open: async (input: Parameters<Sealer["open"]>[0]) => {
+          if (!changed && input.aad === aad) {
+            changed = true;
+            await kernel.execute(sql`UPDATE custom_credential_sets
+              SET sealed_key_id = ${replacement.sealed_key_id},
+                  sealed_ciphertext = ${replacement.sealed_ciphertext},
+                  sealed_nonce = ${replacement.sealed_nonce},
+                  sealed_alg = ${replacement.sealed_alg}
+              WHERE id = 'custom-wrong' AND workspace_id = ${WS}`);
+          }
+          return right.sealer.open(input);
+        },
+      };
+      const common = { kernel, descriptors: SEALED_COLUMN_DESCRIPTORS, sealer };
+      if (action === "discard") {
+        await discardSealedCredentialsNotOpening(common);
+      } else {
+        await resealCredentialsOpeningUnder({ ...common, key: await right.keyring.activeKey(), previous: previous.sealer });
+      }
+      assert.equal(changed, true);
+      const [row] = await kernel.query<Record<string, unknown>>(sql`SELECT * FROM custom_credential_sets WHERE id = 'custom-wrong' AND workspace_id = ${WS}`);
+      assert.ok(row);
+      for (const [column, value] of Object.entries(replacement)) assert.equal(row[column], value);
+      assert.equal(await openStored(right.sealer, row, aad), `secret:${aad}`);
+    }
+  });
+
   test(`countSealedCredentialsOpening counts every sealed value and how many open under the given sealer [${each.name}]`, async () => {
     const kernel = each.make();
     const right = keyPair();
@@ -117,6 +231,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       ...(await sealedQuad(other.sealer, other.keyring, strandedAad)),
     });
     const [strandedBefore] = await kernel.query<{ sealed_ciphertext: string }>(sql`SELECT sealed_ciphertext FROM custom_credential_sets WHERE id = 'custom-other'`);
+    const beforeRows = await credentialRows(kernel);
 
     const result = await resealCredentialsOpeningUnder({
       kernel, descriptors: SEALED_COLUMN_DESCRIPTORS, sealer: right.sealer, key: await right.keyring.activeKey(), previous: previous.sealer,
@@ -131,7 +246,32 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       sealed: { keyId: moved!.sealed_key_id, ciphertext: moved!.sealed_ciphertext, nonce: moved!.sealed_nonce, alg: moved!.sealed_alg },
       aad: buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID }),
     });
-    assert.equal(plaintext, "secret", "the same secret, under the same AAD, now under the new key");
+    assert.equal(plaintext, `secret:${buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID })}`, "the same secret, under the same AAD, now under the new key");
+    const afterRows = await credentialRows(kernel);
+    for (const row of afterRows.custom_credential_sets!) {
+      const id = row.id as UUID;
+      const aad = buildCustomCredentialAad({ workspaceId: WS as UUID, id });
+      assert.equal(await openStored(id === "custom-other" ? other.sealer : right.sealer, row, aad), `secret:${aad}`);
+      if (id !== "custom-wrong") {
+        assert.deepEqual(row, beforeRows.custom_credential_sets!.find((before) => before.id === id));
+      }
+    }
+    for (const row of afterRows.media_provider_credentials!) {
+      const providerId = row.provider_id as string;
+      const aad = buildMediaProviderCredentialAad({ workspaceId: WS as UUID, providerId });
+      assert.equal(await openStored(right.sealer, row, aad), `secret:${aad}`);
+      if (providerId === "fal") {
+        assert.deepEqual(row, beforeRows.media_provider_credentials!.find((before) => before.provider_id === providerId));
+      }
+    }
+    const server = afterRows.external_mcp_servers![0]!;
+    const envAad = buildExternalMcpEnvAad({ workspaceId: WS, serverId: "linear" });
+    const oauthAad = buildExternalMcpOAuthAad({ workspaceId: WS, serverId: "linear" });
+    assert.equal(await openStored(right.sealer, server, envAad), `secret:${envAad}`);
+    assert.equal(await openStored(right.sealer, server, oauthAad, "oauth_"), `secret:${oauthAad}`);
+    for (const column of ["sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg"]) {
+      assert.equal(server[column], beforeRows.external_mcp_servers![0]![column]);
+    }
     const [strandedAfter] = await kernel.query<{ sealed_ciphertext: string }>(sql`SELECT sealed_ciphertext FROM custom_credential_sets WHERE id = 'custom-other'`);
     assert.equal(strandedAfter!.sealed_ciphertext, strandedBefore!.sealed_ciphertext, "a value neither key opens is left as it was");
   });
