@@ -871,3 +871,61 @@ test("updatePost sets templateChoice and overridesThemePage when the caller prov
   assert.equal(result.post.templateChoice, "blog-post.html");
   assert.equal(result.post.overridesThemePage, true);
 });
+
+test("getAdminPostByIdOrSlug prefers the slug holder when another row has the same id", async () => {
+  const slugHolder = { ...seedPost, id: "slug-holder", slug: "post-1" };
+  const repo = new InMemoryPostRepo([seedPost, slugHolder]);
+  const { post } = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug: "post-1" } });
+  assert.equal(post.id, "slug-holder");
+});
+
+test("getAdminPostByIdOrSlug rejects trashed matches by either handle, including a trashed slug colliding with a live id", async () => {
+  const trashed = { ...seedPost, deletedAt: "2026-08-11T00:00:00.000Z" };
+  const repo = new InMemoryPostRepo([trashed]);
+  for (const idOrSlug of [trashed.id, trashed.slug]) {
+    await assert.rejects(() => getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug } }), PostNotFoundError);
+  }
+  const collisionRepo = new InMemoryPostRepo([seedPost, { ...trashed, id: "trashed-slug-holder", slug: "post-1" }]);
+  await assert.rejects(() => getAdminPostByIdOrSlug({ deps: { repo: collisionRepo }, input: { workspaceId: "workspace-1", idOrSlug: "post-1" } }), PostNotFoundError);
+});
+
+test("rejecting create/update hooks leave rows, revisions, slugs and events untouched", async () => {
+  const repo = new InMemoryPostRepo();
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+  await createPost({ deps: { repo, clock }, input: { workspaceId: "workspace-1", id: "post-1", title: "Existing", slug: "existing", status: "draft" } });
+  const before = await repo.list({ workspaceId: "workspace-1" });
+  const revisions = await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-1" });
+  const events: unknown[] = [];
+  const outbox: OutboxPort = { ...noopOutbox, enqueue: async (event) => { events.push(event); } };
+  const rejection = new Error("plugin rejected save");
+  const beforeSaveHook: BeforeSaveHookPort = async () => { throw rejection; };
+  const deps = { repo, clock, outbox, beforeSaveHook };
+  await assert.rejects(() => createPost({ deps, input: { workspaceId: "workspace-1", id: "post-new", title: "Rejected", slug: "new-slug", status: "published" } }), (error) => error === rejection);
+  assert.deepEqual(await repo.list({ workspaceId: "workspace-1" }), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-new" }), []);
+  assert.equal(await repo.findBySlug({ workspaceId: "workspace-1", slug: "new-slug" }), null);
+  assert.deepEqual(events, []);
+  await assert.rejects(() => updatePost({ deps, input: { workspaceId: "workspace-1", id: "post-1", title: "Rejected update", slug: "updated-slug", bodyJson: { type: "doc", content: [] }, status: "published" } }), (error) => error === rejection);
+  assert.deepEqual(await repo.list({ workspaceId: "workspace-1" }), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-1" }), revisions);
+  assert.equal(await repo.findBySlug({ workspaceId: "workspace-1", slug: "updated-slug" }), null);
+  assert.deepEqual(events, []);
+});
+
+test("updatePost preserves omitted template/theme choices and honors explicit null and false", async () => {
+  const repo = new InMemoryPostRepo([{ ...seedPost, templateChoice: "x", overridesThemePage: true }]);
+  const deps = { repo, clock: { nowIso: () => "2026-04-06T01:00:00.000Z" }, outbox: noopOutbox };
+  const input = { workspaceId: "workspace-1", id: "post-1", title: "Edited", slug: "hello-world", bodyJson: { type: "doc", content: [] }, status: "published" as const };
+  const kept = await updatePost({ deps, input });
+  assert.equal(kept.post.templateChoice, "x");
+  assert.equal(kept.post.overridesThemePage, true);
+  const stored = await repo.findById({ workspaceId: "workspace-1", id: "post-1" });
+  assert.equal(stored?.templateChoice, "x");
+  assert.equal(stored?.overridesThemePage, true);
+  const cleared = await updatePost({ deps, input: { ...input, templateChoice: null, overridesThemePage: false } });
+  assert.equal(cleared.post.templateChoice, null);
+  assert.equal(cleared.post.overridesThemePage, false);
+  assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "post-1" }))?.templateChoice, null);
+  const unset = await updatePost({ deps, input: { ...input, overridesThemePage: null } });
+  assert.equal(unset.post.overridesThemePage, null);
+});

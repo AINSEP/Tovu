@@ -6,8 +6,10 @@ import type { Insertable, Updateable } from "kysely";
 import type { ClockPort } from "@jini-ai/cms/core";
 import type { PostsTable } from "#src/platform/db/content-database.generated";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { postRepoFor } from "#src/features/post/repo";
+import { buildPagesRegistrations } from "../tool-registrations.js";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
-import { PageConcurrentEditError, PageNotFoundError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — certification of the Pages html document store, including CIC-1's
@@ -69,7 +71,7 @@ async function readRow(db: ContentKernel, id: string): Promise<{ bodyHtml: strin
   return { bodyHtml: row.body_html, version: row.version, bodyFormat: row.body_format };
 }
 
-describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (kernel) => kernel }, (makeKernel) => {
+describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revisions"], make: (kernel) => kernel }, (makeKernel) => {
   // ---------------------------------------------------------------------------
   // read()
   // ---------------------------------------------------------------------------
@@ -79,7 +81,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (ker
     await insertHtmlPage(db, { id: "page-1", html: "<section data-agent-element=\"hero\">Hi</section>" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
+    assert.equal(store.capturedVersion(), null);
     const html = await store.read();
+    assert.equal(store.capturedVersion(), 1);
     assert.equal(html, "<section data-agent-element=\"hero\">Hi</section>");
   });
 
@@ -115,8 +119,11 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (ker
     await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>", version: 5 });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
+    assert.equal(store.capturedVersion(), null);
     await store.read();
+    assert.equal(store.capturedVersion(), 5);
     await store.write("<p>new</p>");
+    assert.equal(store.capturedVersion(), 6);
 
     const row = (await readRow(db, "page-1"));
     assert.equal(row.bodyHtml, "<p>new</p>");
@@ -295,7 +302,11 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (ker
     await insertPost(db, { id: "page-3", title: "New page", slug: "new-page-3", kind: "page" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { kernel: db, clock });
 
+    assert.equal(store.capturedVersion(), null);
     await store.ensureHtmlFormat(CANVAS_SERIALIZED_MARKER);
+    assert.equal(store.capturedVersion(), 2);
+    await store.ensureHtmlFormat("<p>ignored</p>");
+    assert.equal(store.capturedVersion(), 2);
 
     assert.equal((await readRow(db, "page-3")).bodyHtml, READABLE_MARKER);
   });
@@ -378,4 +389,37 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (ker
 
     await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
   });
+  test("ensureHtmlFormat() refuses a post and leaves its doc body and revision ledger unchanged", async () => {
+    const db = makeKernel();
+    await insertPost(db, { id: "post-guard", kind: "post", body_json: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Keep me"}]}]}' });
+    const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow());
+    const repo = postRepoFor(db);
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-guard" }, { kernel: db, clock, revisions: repo });
+    await assert.rejects(store.ensureHtmlFormat("<p>replacement</p>"), PageKindMismatchError);
+    assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow()), before);
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-guard" }), []);
+    assert.equal(store.capturedVersion(), null);
+  });
+
+  test("pages_write_region accepts the version captured by a SQL-backed read and persists the edit", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "sql-tool", html: '<section data-agent-element="hero" data-agent-role="region"><p>old</p></section>', version: 5 });
+    const registrations = buildPagesRegistrations({
+      workspaceId: WS,
+      authorize: async () => ({ allowed: true }),
+      postRepo: postRepoFor(db),
+      pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore(scope, { kernel: db, clock }),
+    });
+    const call = (name: string, input: Record<string, unknown>) => {
+      const entry = registrations.find((entry) => entry.descriptor.id === name)!;
+      return entry.handler({ principal: { id: "admin", kind: "user" }, signal: new AbortController().signal, input } as never);
+    };
+    const read = await call("pages_read_html", { id: "sql-tool" }) as { version: number };
+    assert.equal(read.version, 5);
+    const result = await call("pages_write_region", { id: "sql-tool", handle: "hero", html: "<p>new</p>", expectedVersion: read.version }) as { written: boolean; version: number };
+    assert.equal(result.written, true);
+    assert.equal(result.version, 6);
+    assert.deepEqual(await readRow(db, "sql-tool"), { bodyHtml: '<section data-agent-element="hero" data-agent-role="region"><p>new</p></section>', version: 6, bodyFormat: "html" });
+  });
+
 });

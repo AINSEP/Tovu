@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverPlugins } from "../../discovery.js";
+import { loadPlugin } from "../../loader.js";
+import { discoverPlugins, siteEntryPath } from "../../discovery.js";
 import { buildAc11FixtureInstallDir, WORD_COUNT_BUILT_IN } from "../fixtures/ac11-fixture.js";
 
 /**
@@ -67,32 +69,40 @@ test("EC-09/AC-16: legacy mode (no install dir) discovers built-ins only; word-c
 test("AC-09/EC-08: when two installed versions of one site plugin id exist, only the latest by semver is included, the other stays dormant", async () => {
   const { installDir, builtIns } = await buildAc11FixtureInstallDir();
   try {
-    // Add a second, OLDER installed version of valid-site-plugin alongside the existing 1.0.0.
-    const olderDir = path.join(installDir, "valid-site-plugin", "0.9.0", "server");
-    await mkdir(olderDir, { recursive: true });
-    await writeFile(
-      path.join(installDir, "valid-site-plugin", "0.9.0", "tovu.plugin.json"),
-      JSON.stringify({
-        id: "valid-site-plugin",
-        name: "Valid Site Plugin",
-        version: "0.9.0",
-        sdkRange: "^1.0.0",
-        engine: 1,
-        tier: "tier-3",
-        capabilities: ["content.read"],
-        hooks: [],
-        fields: [],
-        integrity: {},
-      }),
-      "utf8"
-    );
-    await writeFile(path.join(olderDir, "index.mjs"), "export default {};\n", "utf8");
+    for (const version of ["0.9.0", "1.9.0", "1.10.0-rc.1", "1.10.0"]) {
+      const versionDir = path.join(installDir, "valid-site-plugin", version);
+      await mkdir(path.join(versionDir, "server"), { recursive: true });
+      const entry = `export default { definition: { setup(sdk) { sdk.content.extend("marker", "${version}"); } } };\n`;
+      await writeFile(path.join(versionDir, "tovu.plugin.json"), JSON.stringify({
+        id: "valid-site-plugin", name: "Valid Site Plugin", version,
+        sdkRange: "^0.1.0 || ^0.2.0", engine: 1, tier: "tier-3",
+        capabilities: ["content.extend"], hooks: [],
+        fields: [{ path: "ext.valid-site-plugin.marker", type: "string", queryable: false }],
+        integrity: { "server/index.mjs": `sha256-${createHash("sha256").update(entry).digest("hex")}` },
+      }), "utf8");
+      await writeFile(path.join(versionDir, "server", "index.mjs"), entry, "utf8");
+    }
 
     const records = await discoverPlugins({ installDir, builtIns });
     const matches = records.filter((r) => r.id === "valid-site-plugin");
 
     assert.equal(matches.length, 1, "only one record per plugin id — the older dormant install must not appear as a second row");
-    assert.equal(matches[0].version, "1.0.0", "the latest installed version by semver must win");
+    assert.equal(matches[0].version, "1.10.0", "semver must beat lexical ordering and prefer a release over its prerelease");
+    assert.equal(matches[0].status, "valid");
+    assert.equal(matches[0].manifest?.version, "1.10.0");
+    const writes: [string, string | number | boolean][] = [];
+    const loaded = await loadPlugin({
+      record: matches[0],
+      manifest: matches[0].manifest!,
+      entryPath: siteEntryPath(installDir, matches[0].id, matches[0].version),
+      coreDeps: {
+        getCurrentEntry: () => assert.fail("this setup only writes a marker"),
+        writeExtField: (field, value) => { writes.push([field, value]); },
+        attachFilter: () => assert.fail("this fixture has no filter"),
+      },
+    });
+    assert.equal(loaded.loaded, true);
+    assert.deepEqual(writes, [["marker", "1.10.0"]], "the winning version's actual server entry must be loaded");
   } finally {
     await rm(installDir, { recursive: true, force: true });
   }
@@ -101,53 +111,37 @@ test("AC-09/EC-08: when two installed versions of one site plugin id exist, only
 test("DUP-01: two site plugins with case-insensitively matching ids are BOTH marked ID_DUPLICATE", async () => {
   const { installDir, builtIns } = await buildAc11FixtureInstallDir();
   try {
-    // Rename-collide: plant a second folder whose manifest id case-insensitively matches
-    // valid-site-plugin's id (folder name itself must match its own manifest id, EC-01, so this
-    // uses a different folder name with the SAME id value, differently cased).
-    const dupDir = path.join(installDir, "valid-site-plugin-dup", "1.0.0", "server");
-    await mkdir(dupDir, { recursive: true });
-    await writeFile(
-      path.join(installDir, "valid-site-plugin-dup", "1.0.0", "tovu.plugin.json"),
-      JSON.stringify({
-        id: "Valid-Site-Plugin", // case-insensitive match against "valid-site-plugin"
-        name: "Duplicate",
-        version: "1.0.0",
-        sdkRange: "^1.0.0",
-        engine: 1,
-        tier: "tier-3",
-        capabilities: [],
-        hooks: [],
-        fields: [],
-        integrity: {},
-      }),
-      "utf8"
-    );
-    await writeFile(path.join(dupDir, "index.mjs"), "export default {};\n", "utf8");
-    // EC-01 requires id === folder name; give the duplicate its own matching folder name too.
-    await mkdir(path.join(installDir, "Valid-Site-Plugin", "1.0.0", "server"), { recursive: true });
-    await writeFile(
-      path.join(installDir, "Valid-Site-Plugin", "1.0.0", "tovu.plugin.json"),
-      JSON.stringify({
-        id: "Valid-Site-Plugin",
-        name: "Duplicate",
-        version: "1.0.0",
-        sdkRange: "^1.0.0",
-        engine: 1,
-        tier: "tier-3",
-        capabilities: [],
-        hooks: [],
-        fields: [],
-        integrity: {},
-      }),
-      "utf8"
-    );
-    await writeFile(path.join(installDir, "Valid-Site-Plugin", "1.0.0", "server", "index.mjs"), "export default {};\n", "utf8");
-    await rm(dupDir, { recursive: true, force: true }); // remove the mismatched-folder attempt above; keep only the matching one
+    // Distinct physical folder names work on both case-sensitive and case-insensitive disks.
+    // The duplicate also violates EC-01; DUP-01 must still annotate both colliding records.
+    const duplicateId = "Valid-Site-Plugin";
+    const duplicateFolder = "duplicate-site-plugin";
+    const versionDir = path.join(installDir, duplicateFolder, "1.0.0");
+    await mkdir(path.join(versionDir, "server"), { recursive: true });
+    await writeFile(path.join(versionDir, "tovu.plugin.json"), JSON.stringify({
+      id: duplicateId, name: "Duplicate", version: "1.0.0", sdkRange: "^1.0.0",
+      engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [], integrity: {},
+    }), "utf8");
+    await writeFile(path.join(versionDir, "server", "index.mjs"), "export default {};\n", "utf8");
 
     const records = await discoverPlugins({ installDir, builtIns });
     const collisions = records.filter((r) => r.id.toLowerCase() === "valid-site-plugin");
 
-    assert.ok(collisions.length >= 2, "both case-insensitively-colliding site records must be present, not merged/deduped silently");
+    assert.deepEqual(
+      collisions.map(({ id, version, source }) => ({ id, version, source })).sort((a, b) => a.id.localeCompare(b.id)),
+      [
+        { id: "valid-site-plugin", version: "1.0.0", source: "site" },
+        { id: "Valid-Site-Plugin", version: "1.0.0", source: "site" },
+      ].sort((a, b) => a.id.localeCompare(b.id))
+    );
+    assert.deepEqual(
+      records.filter((record) => record.errors.some((error) => error.code === "ID_DUPLICATE")).map((record) => record.id).sort(),
+      ["valid-site-plugin", "Valid-Site-Plugin"].sort()
+    );
+    const duplicate = collisions.find((record) => record.id === duplicateId)!;
+    assert.equal(duplicate.name, "Duplicate");
+    assert.ok(duplicate.errors.some((error) => error.code === "ID_FOLDER_MISMATCH" && error.message.includes(duplicateFolder)));
+    assert.equal(records.find((record) => record.id === "word-count")?.status, "valid");
+    assert.deepEqual(records.find((record) => record.id === "invalid-site-plugin")?.errors.map((error) => error.code), ["HOOK_UNKNOWN"]);
     for (const record of collisions) {
       assert.ok(
         record.errors.some((e) => e.code === "ID_DUPLICATE"),

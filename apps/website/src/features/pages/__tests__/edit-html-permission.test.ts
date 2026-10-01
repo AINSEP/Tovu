@@ -445,3 +445,21 @@ test("pages_write_html still serves an admin, so the gate narrows the capability
   const row = await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" });
   assert.equal(row?.bodyHtml, html);
 });
+
+test("pages_write_region refuses an editor through the real identity chain and persists an admin edit", async () => {
+  const { chain, postRepo, storeCalls, call } = await toolHarness();
+  const html = '<section data-agent-element="hero" data-agent-role="region"><h1>Original</h1></section>';
+  await call("pages_write_html", chain.principals.admin, { id: "page-1", html });
+  const before = await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" });
+  storeCalls.length = 0;
+  assert.equal((await chain.can(chain.principals.editor, CONTENT_WRITE)).allowed, true);
+  await assert.rejects(
+    call("pages_write_region", chain.principals.editor, { id: "page-1", handle: "hero", html: "<script>attack()</script>" }),
+    { message: "PAGES_FORBIDDEN: principal 'principal-editor' is not authorized for 'pages.edit_html' (no_grant)" }
+  );
+  assert.deepEqual(storeCalls, []);
+  assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" }), before);
+  const result = await call("pages_write_region", chain.principals.admin, { id: "page-1", handle: "hero", html: "<h1>Admin edit</h1>" }) as { written: boolean };
+  assert.equal(result.written, true);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" }))?.bodyHtml, '<section data-agent-element="hero" data-agent-role="region"><h1>Admin edit</h1></section>');
+});

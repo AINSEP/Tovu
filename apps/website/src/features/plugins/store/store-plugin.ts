@@ -30,7 +30,7 @@ export interface Product {
 
 export type CheckoutResult =
   | { ok: true; orderId: string; remainingStock: number; retries: number }
-  | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
+  | { ok: false; reason: "not-found" | "out-of-stock" | "conflict" | "invalid-quantity"; retries: number };
 
 export interface StoreApi {
   listProducts(): Promise<Product[]>;
@@ -150,6 +150,7 @@ export async function activateStore(
   }
 
   async function checkout(productId: string, qty: number): Promise<CheckoutResult> {
+    if (!Number.isSafeInteger(qty) || qty <= 0) return { ok: false, reason: "invalid-quantity", retries: 0 };
     const maxAttempts = 5;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const outcome = await attemptCheckout(productId, qty, attempt);

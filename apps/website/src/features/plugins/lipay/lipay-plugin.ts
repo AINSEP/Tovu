@@ -823,6 +823,36 @@ export async function activateLipay(
     return { kind: "raced", row: raced };
   }
 
+  /** Reserve refundable money before calling the provider. Pending rows count against the
+   * balance under the payment lock, so distinct in-flight keys cannot spend the same money. */
+  function reserveRefund(
+    refundId: string,
+    input: RefundRequest,
+    amount: Money,
+    createdAt: number
+  ): Promise<Awaited<ReturnType<typeof insertPendingRefund>> | { kind: "refused"; error: PaymentError }> {
+    return kernel.transaction(async () => {
+      await paymentLock(input.paymentId);
+      const existing = await selectRefundByKey(input.workspaceId, input.idempotencyKey);
+      if (existing) return { kind: "raced", row: existing };
+      const current = await readPayment(input.paymentId);
+      if (!current) throw new Error(`lipay: payment ${input.paymentId} vanished before refund reservation`);
+      const statusError = validateRefundStatus(current);
+      if (statusError) return { kind: "refused", error: statusError };
+      const pending = await tables((db) => db.selectFrom(REFUNDS)
+        .select((eb) => eb.fn.sum<number>("amount_minor").as("reserved"))
+        .where("workspace_id", "=", input.workspaceId)
+        .where("payment_id", "=", input.paymentId)
+        .where("status", "=", "pending")
+        .executeTakeFirstOrThrow());
+      const remaining = current.amount.minorUnits - current.amountRefundedMinor - Number(pending.reserved ?? 0);
+      if (amount.minorUnits > remaining) {
+        return { kind: "refused", error: error("INVALID_REQUEST", `refund of ${amount.minorUnits} exceeds the ${remaining} still refundable on payment ${input.paymentId}`) };
+      }
+      return insertPendingRefund(refundId, input, amount, createdAt);
+    });
+  }
+
   /**
    * Everything from "the refund row now exists" onward: call the provider, mark the row on
    * failure, or move the refund row and the payment's refunded total together on success. Split
@@ -840,7 +870,8 @@ export async function activateLipay(
   }): Promise<RefundResult> {
     const { refundId, input, amount, payment, provider, resolvedCredentials, createdAt } = args;
 
-    const insertOutcome = await insertPendingRefund(refundId, input, amount, createdAt);
+    const insertOutcome = await reserveRefund(refundId, input, amount, createdAt);
+    if (insertOutcome.kind === "refused") return { ok: false, error: insertOutcome.error };
     if (insertOutcome.kind === "raced") {
       return { ok: true, refund: toRefundRecord(insertOutcome.row), payment, replayed: true };
     }

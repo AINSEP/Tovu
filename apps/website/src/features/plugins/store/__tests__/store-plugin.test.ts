@@ -12,7 +12,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { activateStore, SEED_PRODUCTS } from "../store-plugin.js";
+import { contentKernel } from "../../../../platform/db/content-kernel.js";
+import { activateStore, bootstrapStore, SEED_PRODUCTS } from "../store-plugin.js";
 
 function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-store-"));
@@ -61,17 +62,42 @@ test("store: activation declares p_store__products (via the never-brick seam) an
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("store: bootstrap uses the supplied file-backed content kernel and snapshot path", async () => {
+  const { db, dbPath, dir } = tempDb();
+  try {
+    db.exec("CREATE TABLE boot_marker (value TEXT); INSERT INTO boot_marker VALUES ('supplied-kernel')");
+    const store = await bootstrapStore({ kernel: contentKernel(db), dbPath });
+    assert.deepEqual(await store.listProducts(), [...SEED_PRODUCTS].sort((a, b) => a.title.localeCompare(b.title)));
+    const rows = db.prepare("SELECT table_name, snapshot_path FROM _plugin_migrations WHERE plugin_id = 'store' ORDER BY table_name").all() as { table_name: string; snapshot_path: string }[];
+    assert.deepEqual(rows.map(row => row.table_name), ["p_store__orders", "p_store__products"]);
+    for (const row of rows) {
+      assert.ok(row.snapshot_path.startsWith(`${dbPath}.snapshot-store-`), "snapshot metadata belongs to the supplied database");
+    }
+    assert.deepEqual(db.prepare("SELECT value FROM boot_marker").get(), { value: "supplied-kernel" });
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM p_store__products").get() as { n: number }).n, SEED_PRODUCTS.length);
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("store: activation is idempotent — a second boot does not double-seed", async () => {
   const { db, dbPath, dir } = tempDb();
-  await activateStore({ db, dbPath });
+  const store1 = await activateStore({ db, dbPath });
+  assert.ok((await store1.checkout("prod-candle", 2)).ok);
+  db.prepare("UPDATE p_store__products SET title = ?, price = ? WHERE id = ?").run("Edited Candle", 1750, "prod-candle");
+  const modified = await store1.listProducts();
   const store2 = await activateStore({ db, dbPath }); // simulate a restart
   assert.equal((await store2.listProducts()).length, SEED_PRODUCTS.length, "still one set of products");
+  assert.deepEqual(await store2.listProducts(), modified, "purchased stock, OCC version, edited title and price survive reactivation");
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("store: checkout decrements stock (OCC) and records an order", async () => {
+test("store: checkout decrements stock (OCC) and records an order", async (t) => {
+  const now = 1780000000123;
+  t.mock.method(Date, "now", () => now);
   const { db, dbPath, dir } = tempDb();
   const store = await activateStore({ db, dbPath });
 
@@ -82,6 +108,8 @@ test("store: checkout decrements stock (OCC) and records an order", async () => 
   if (result.ok) {
     assert.equal(result.remainingStock, before.stock - 2);
     assert.ok(result.orderId.startsWith("ord-"));
+    const order = db.prepare("SELECT * FROM p_store__orders WHERE id = ?").get(result.orderId);
+    assert.deepEqual(order, { id: result.orderId, product_id: "prod-candle", qty: 2, total: 2400, at: now });
   }
   const after = (await store.listProducts()).find((p) => p.id === "prod-candle")!;
   assert.equal(after.stock, before.stock - 2, "stock decremented");
@@ -114,4 +142,21 @@ test("store: checkout refuses out-of-stock and unknown products (no order, no de
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("store: invalid quantities are refused without stock, version, or order changes", async () => {
+  const { db, dbPath, dir } = tempDb();
+  try {
+    const store = await activateStore({ db, dbPath });
+    const before = await store.listProducts();
+    for (const qty of [0, -1, 0.5, NaN, Infinity, -Infinity]) {
+      const result = await store.checkout("prod-candle", qty);
+      assert.deepEqual(result, { ok: false, reason: "invalid-quantity", retries: 0 }, `quantity ${qty} is refused`);
+      assert.deepEqual(await store.listProducts(), before);
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM p_store__orders").get() as { n: number }).n, 0);
+    }
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

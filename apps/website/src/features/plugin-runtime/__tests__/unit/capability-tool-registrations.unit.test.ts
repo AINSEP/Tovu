@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
+import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import type { PluginActivationRecord } from "../../activation.js";
 import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
 import type { PluginDiscoveryRecord } from "../../discovery.js";
@@ -32,27 +33,6 @@ import {
 
 const WORKSPACE = "ws-1";
 const PRINCIPAL_ID = "principal-1";
-
-const WORD_COUNT_MANIFEST: PluginManifest = {
-  id: "word-count",
-  name: "Word Count",
-  version: "1.0.0",
-  sdkRange: "^0.1.0 || ^0.2.0",
-  engine: 1,
-  tier: "tier-3",
-  capabilities: ["content.read", "content.extend", "hooks.attach"],
-  hooks: ["content.entry.beforeSave"],
-  fields: [
-    {
-      path: "ext.word-count.count",
-      type: "integer",
-      queryable: false,
-      description:
-        "This post's word count and estimated reading time — computed and stored automatically every time the post is saved while this plugin is enabled.",
-    },
-  ],
-  integrity: {},
-};
 
 /** A second, distinct plugin fixture (field carries NO manifest description) — proves the generic
  *  fallback description path, and that two enabled plugins mint two non-colliding tool ids. */
@@ -190,6 +170,7 @@ test("a field with no manifest-authored description falls back to a non-empty ge
   assert.ok(field);
   assert.ok(field.description.length > 0);
   assert.ok(field.description.includes("read-time"), "the fallback must still name the plugin/field, even if weaker prose");
+  assert.equal(field.description, "The 'Read Time' plugin's 'ext.read-time.minutes' value (integer), written whenever a post is saved while this plugin is enabled.");
 });
 
 // ---------------------------------------------------------------------------
@@ -207,8 +188,16 @@ const WORD_COUNT_SOURCE: PluginCapabilityToolSource = {
   fields: [{ path: "ext.word-count.count", fieldKey: "count", type: "integer", description: "word count and reading time" }],
 };
 
-test("the built registration is read-only, content.read-gated, and requires a postId", () => {
-  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps());
+test("the built registration is read-only, content.read-gated, and requires a postId", async () => {
+  const requests: unknown[] = [];
+  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({
+    postRepo: new InMemoryPostRepo([post()]),
+    authorize: async (request) => {
+      requests.push(request);
+      assert.deepEqual(request, { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE, entityType: "post", entityId: "post-1" });
+      return { allowed: true } as never;
+    },
+  }));
   assert.ok(registration);
   assert.equal(registration.descriptor.id, "plugin_capability_word_count");
   assert.equal(pluginCapabilityToolDerivedRisk([WORD_COUNT_SOURCE]).get("plugin_capability_word_count"), "none");
@@ -216,10 +205,18 @@ test("the built registration is read-only, content.read-gated, and requires a po
   const schema = registration.descriptor.inputSchema as Record<string, unknown>;
   assert.deepEqual(schema.required, ["postId"]);
   assert.equal(schema.additionalProperties, false);
+  assert.equal(registration.descriptor.readOnly, true);
+  await registration.handler(toolContext({ postId: "post-1" }));
+  assert.equal(requests.length, 1);
 });
 
-test("the tool description contains the real user vocabulary this fix targets", () => {
-  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps());
+test("the tool description contains the real user vocabulary this fix targets", async () => {
+  const sources = await loadEnabledPluginCapabilityToolSources({
+    workspaceId: WORKSPACE,
+    discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
+    pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
+  });
+  const [registration] = buildPluginCapabilityToolRegistrations(sources, deps());
   const description = registration?.descriptor.description ?? "";
   for (const term of ["word count", "reading time", "content metrics", "post"]) {
     assert.ok(description.toLowerCase().includes(term), `description must contain '${term}': ${description}`);
@@ -227,14 +224,24 @@ test("the tool description contains the real user vocabulary this fix targets", 
 });
 
 test("the handler refuses a caller the authorizer denies", async () => {
+  const requests: unknown[] = [];
   const registrations = buildPluginCapabilityToolRegistrations(
     [WORD_COUNT_SOURCE],
-    deps({ authorize: async () => ({ allowed: false, reason: "nope" }) as never }),
+    deps({
+      postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
+      authorize: async (request) => {
+        requests.push(request);
+        return { allowed: false, reason: "nope" } as never;
+      },
+    }),
   );
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
 
-  await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })));
+  await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })), {
+    message: "principal 'principal-1' is not authorized for 'content.read' (nope)",
+  });
+  assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE, entityType: "post", entityId: "post-1" }]);
 });
 
 test("reading an existing post that already carries the plugin's stored field returns the real value", async () => {
@@ -248,6 +255,24 @@ test("reading an existing post that already carries the plugin's stored field re
   assert.equal(result.pluginId, "word-count");
   assert.deepEqual(result.fields, { count: 42 });
   assert.equal("note" in result, false, "a post that HAS the field must carry no 'not computed yet' note");
+});
+
+test("stored falsy computed values are returned without a not-computed note", async () => {
+  const source: PluginCapabilityToolSource = {
+    ...WORD_COUNT_SOURCE,
+    fields: [
+      ...WORD_COUNT_SOURCE.fields,
+      { path: "ext.word-count.flag", fieldKey: "flag", type: "boolean", description: "computed flag" },
+      { path: "ext.word-count.label", fieldKey: "label", type: "string", description: "computed label" },
+    ],
+  };
+  const fields = { count: 0, flag: false, label: "" };
+  const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": fields } })]);
+  const [registration] = buildPluginCapabilityToolRegistrations([source], deps({ postRepo }));
+  assert.ok(registration);
+  const result = await registration.handler(toolContext({ postId: "post-1" })) as Record<string, unknown>;
+  assert.deepEqual(result.fields, fields);
+  assert.equal("note" in result, false);
 });
 
 test("reading a post that has never been saved since the plugin was enabled returns null + an explanatory note, not an error", async () => {

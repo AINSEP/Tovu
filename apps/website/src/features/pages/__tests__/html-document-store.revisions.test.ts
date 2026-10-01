@@ -4,7 +4,7 @@ import { test } from "node:test";
 import type { ClockPort } from "@jini-ai/cms/core";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 
 /**
  * @file S1 (fix plan 2026-09-24 row 14) — certification that `PagesHtmlDocumentStore.write`/
@@ -35,7 +35,7 @@ async function insertPage(db: ContentKernel, spec: { id: string; html?: string }
         id: spec.id,
         workspace_id: WS,
         title: "About",
-        slug: "about",
+        slug: `slug-${spec.id}`,
         body_json: spec.html === undefined ? JSON.stringify(ORIGINAL_DOC) : null,
         body_format: spec.html === undefined ? "doc" : "html",
         body_html: spec.html ?? null,
@@ -102,4 +102,70 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     assert.equal(row.body_html, '<section data-region="a">x</section>');
     assert.equal(row.version, 3);
   });
+  test("a failed revision append rolls back the page update and ledger for writes and conversions", async () => {
+    const { db, repo } = harness();
+    for (const operation of ["write", "convert"] as const) {
+      const id = `rollback-${operation}`;
+      await insertPage(db, { id, ...(operation === "write" ? { html: "<p>original</p>" } : {}) });
+      const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow());
+      const append = repo.appendRevision.bind(repo);
+      const failure = new Error("ledger append failed");
+      const revisions = {
+        findById: repo.findById.bind(repo),
+        listRevisions: repo.listRevisions.bind(repo),
+        transaction: repo.transaction.bind(repo),
+        appendRevision: async (input: Parameters<typeof repo.appendRevision>[0]) => {
+          await append(input);
+          if (input.seq === 2) throw failure; // after the UPDATE and a real ledger insert
+        },
+      };
+      const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+      if (operation === "write") await store.read();
+      await assert.rejects(
+        operation === "write" ? store.write("<p>new</p>") : store.ensureHtmlFormat("<p>converted</p>"),
+        (err) => err === failure
+      );
+      assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), before);
+      assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
+    }
+  });
+
+  test("a rejected stale write leaves the winning page and revision ledger unchanged", async () => {
+    const { db, repo } = harness();
+    await insertPage(db, { id: "stale-write", html: "<p>base</p>" });
+    const scope = { workspaceId: WS, postId: "stale-write" };
+    const deps = { kernel: db, clock, revisions: repo };
+    const winner = new SqlPagesHtmlDocumentStore(scope, deps);
+    const stale = new SqlPagesHtmlDocumentStore(scope, deps);
+    await winner.read();
+    await stale.read();
+    await winner.write("<p>winner</p>");
+    const before = await repo.listRevisions(scope);
+    await assert.rejects(stale.write("<p>loser</p>"), PageConcurrentEditError);
+    assert.deepEqual(await repo.listRevisions(scope), before);
+    assert.equal(await winner.read(), "<p>winner</p>");
+  });
+
+  test("a conversion CAS failure rolls back its pre-conversion snapshot and preserves the winning edit", async () => {
+    const { db, repo } = harness();
+    const id = "stale-conversion";
+    await insertPage(db, { id });
+    let winningRow: unknown;
+    const revisions = {
+      findById: repo.findById.bind(repo),
+      listRevisions: repo.listRevisions.bind(repo),
+      appendRevision: repo.appendRevision.bind(repo),
+      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+        // Another writer commits after ensureHtmlFormat's SELECT, before its transaction.
+        await db.run((q) => q.updateTable("posts").set({ version: 2, title: "winning edit" }).where("id", "=", id).execute());
+        winningRow = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow());
+        return repo.transaction(fn);
+      },
+    };
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+    await assert.rejects(store.ensureHtmlFormat("<p>loser</p>"), PageConcurrentEditError);
+    assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), winningRow);
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
+  });
+
 });

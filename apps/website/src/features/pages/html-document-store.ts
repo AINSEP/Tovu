@@ -367,20 +367,18 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
         { version: row.version }
       );
 
-      // The POST-conversion snapshot — the row's first ever html-format state. Only on the row this
-      // UPDATE actually matched; a 0-row result below throws before any append lands (and, inside
-      // `revisions.transaction()`, rolls the pre-conversion append above back too).
-      if (changes > 0) await this.appendRevision(nextVersion, updatedAt);
-      return changes;
+      // Reject inside the transaction so the pre-conversion snapshot rolls back with a stale CAS.
+      if (changes === 0) {
+        throw new PageConcurrentEditError(
+          `page '${this.scope.postId}' was edited elsewhere while it was being converted to HTML — retry`
+        );
+      }
+
+      // The POST-conversion snapshot — the row's first ever html-format state.
+      await this.appendRevision(nextVersion, updatedAt);
     };
 
-    const changes = this.deps.revisions ? await this.deps.revisions.transaction(runConversion) : await runConversion();
-
-    if (changes === 0) {
-      throw new PageConcurrentEditError(
-        `page '${this.scope.postId}' was edited elsewhere while it was being converted to HTML — retry`
-      );
-    }
+    await (this.deps.revisions ? this.deps.revisions.transaction(runConversion) : runConversion());
 
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);

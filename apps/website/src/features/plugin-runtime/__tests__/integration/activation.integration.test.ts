@@ -15,6 +15,7 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { PluginHookFailedError } from "../../hook-registry.js";
+import { InMemoryPostRepo, createPost } from "#src/features/post/index";
 import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
 
 /**
@@ -47,38 +48,51 @@ function clock(iso = "2026-07-28T00:00:00.000Z") {
 }
 
 test("BR-05 step (1): enabling/disabling a plugin id absent from discovery is PluginNotFoundError", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const callbacks: string[] = [];
   await assert.rejects(
     () =>
       setPluginEnabled({
-        deps: { clock: clock(), repo: new InMemoryPluginActivationRepo(), discovery: [] },
+        deps: { clock: clock(), repo, discovery: [], onEnabled: async () => { callbacks.push("enabled"); }, onDisabled: () => { callbacks.push("disabled"); } },
         input: { workspaceId: WORKSPACE, pluginId: "nonexistent", enabled: true },
       }),
     PluginNotFoundError
   );
+  assert.equal(await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "nonexistent" }), null);
+  assert.deepEqual(await repo.listAll(), []);
+  assert.deepEqual(callbacks, []);
 });
 
 test("BR-05 step (2)/AC-04: enabling a plugin whose discovered status is 'invalid' is PluginInvalidError, no activation row written", async () => {
   const repo = new InMemoryPluginActivationRepo();
+  const callbacks: string[] = [];
   await assert.rejects(
     () =>
       setPluginEnabled({
-        deps: { clock: clock(), repo, discovery: discoveryOf("invalid") },
+        deps: { clock: clock(), repo, discovery: discoveryOf("invalid"), onEnabled: async () => { callbacks.push("enabled"); }, onDisabled: () => { callbacks.push("disabled"); } },
         input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
       }),
     PluginInvalidError
   );
+  assert.equal(await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }), null);
+  assert.deepEqual(await repo.listAll(), []);
+  assert.deepEqual(callbacks, []);
 });
 
 test("BR-05 step (2)/AC-04: enabling a plugin whose discovered status is 'incompatible' is PluginIncompatibleError", async () => {
   const repo = new InMemoryPluginActivationRepo();
+  const callbacks: string[] = [];
   await assert.rejects(
     () =>
       setPluginEnabled({
-        deps: { clock: clock(), repo, discovery: discoveryOf("incompatible") },
+        deps: { clock: clock(), repo, discovery: discoveryOf("incompatible"), onEnabled: async () => { callbacks.push("enabled"); }, onDisabled: () => { callbacks.push("disabled"); } },
         input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
       }),
     PluginIncompatibleError
   );
+  assert.equal(await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }), null);
+  assert.deepEqual(await repo.listAll(), []);
+  assert.deepEqual(callbacks, []);
 });
 
 test("BR-05: disabling has NO validity precondition — a plugin that is 'invalid' but currently enabled can still be disabled", async () => {
@@ -216,7 +230,7 @@ test("REQ-07: a compensation failure never masks the original enable side-effect
   );
 });
 
-test("REQ-07/AC-02: a successful disable upserts enabled:false and invokes onDisabled (the unload side effect); ext data is never touched by this module (INV-03 — no ext dependency exists here at all)", async () => {
+test("REQ-07/AC-02: a successful disable upserts enabled:false and invokes onDisabled (the unload side effect)", async () => {
   const repo = new InMemoryPluginActivationRepo();
   await repo.save({ pluginId: "word-count", workspaceId: WORKSPACE, version: "1.0.0", enabled: true, updatedAt: "2026-07-28T00:00:00.000Z" });
   let onDisabledCalledWith: string | null = null;
@@ -235,6 +249,8 @@ test("REQ-07/AC-02: a successful disable upserts enabled:false and invokes onDis
 
   assert.equal(activation.enabled, false);
   assert.equal(onDisabledCalledWith, "word-count");
+  assert.equal(activation.updatedAt, "2026-07-28T02:00:00.000Z");
+  assert.deepEqual(await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }), activation);
 });
 
 test("REQ-07: a failed disable side effect restores the prior activation and rethrows the original error", async () => {
@@ -340,7 +356,7 @@ test("REQ-07 (AC-13 state-symmetry half): disable is the exact structural invers
   const repo = new InMemoryPluginActivationRepo();
 
   const { activation: enabled } = await setPluginEnabled({
-    deps: { clock: clock("2026-07-28T00:00:00.000Z"), repo, discovery: discoveryOf("valid") },
+    deps: { clock: clock("2026-07-28T00:00:00.000Z"), repo, discovery: discoveryOf("valid").map((record) => ({ ...record, version: "0.9.0" })) },
     input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
   });
 
@@ -353,6 +369,11 @@ test("REQ-07 (AC-13 state-symmetry half): disable is the exact structural invers
   assert.equal(disabled.pluginId, enabled.pluginId);
   assert.equal(disabled.workspaceId, enabled.workspaceId);
   assert.equal(disabled.enabled, false);
+  assert.equal(enabled.version, "0.9.0");
+  assert.equal(disabled.version, "0.9.0");
+  assert.equal(disabled.updatedAt, "2026-07-28T01:00:00.000Z");
+  assert.deepEqual(await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }), disabled);
+
 });
 
 test("state.spec.md §5: getActivation returns null for a plugin that has never been enabled (treated as disabled, not an error)", async () => {
@@ -805,4 +826,96 @@ test("resolveLoadTarget defense in depth: onPluginEnabled called directly for a 
   } finally {
     await rm(installDir, { recursive: true, force: true });
   }
+});
+
+function markerSource(id: string): PluginRuntimeSource {
+  return {
+    source: "built-in",
+    entryPath: `built-in:${id}`,
+    manifest: {
+      id, name: id, version: "1.0.0", sdkRange: "^0.1.0 || ^0.2.0", engine: 1, tier: "tier-3",
+      capabilities: ["hooks.attach"], hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE],
+      fields: [{ path: `ext.${id}.seen`, type: "boolean", queryable: false }], integrity: {},
+    },
+    importModule: async () => ({ default: definePlugin({ setup(sdk) {
+      sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async () => ({ seen: true }));
+    } }) }),
+  };
+}
+
+test("disabling through the real runtime callback stops the filter contributing to subsequent persisted content saves", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const source = markerSource("disable-marker");
+  const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [source] });
+  const deps = { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled };
+  const postRepo = new InMemoryPostRepo([]);
+  const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: id } });
+  await setPluginEnabled({ deps, input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true } });
+  await save("before-disable");
+  assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "before-disable" }))?.ext, { "disable-marker": { seen: true } });
+  await setPluginEnabled({ deps, input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: false } });
+  await save("after-disable");
+  const afterDisable = await postRepo.findById({ workspaceId: WORKSPACE, id: "after-disable" });
+  assert.ok(afterDisable);
+  assert.equal(afterDisable.ext, undefined, "a disabled filter contributes no extension fields");
+});
+
+test("runtime SDK content reads and extension writes are isolated across overlapping persisted saves", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  let releaseFirst!: () => void;
+  let markFirstEntered!: () => void;
+  const firstEntered = new Promise<void>((resolve) => { markFirstEntered = resolve; });
+  const secondFinished = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const source = markerSource("sdk-marker");
+  const sdkSource: PluginRuntimeSource = {
+    ...source,
+    manifest: { ...source.manifest, capabilities: ["hooks.attach", "content.read", "content.extend"], fields: [
+      { path: "ext.sdk-marker.title", type: "string", queryable: false },
+      { path: "ext.sdk-marker.firstOnly", type: "boolean", queryable: false },
+    ] },
+    importModule: async () => ({ default: definePlugin({ setup(sdk) {
+      sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async () => {
+        const entry = sdk.content.read();
+        if (entry.id === "first") {
+          sdk.content.extend("firstOnly", true);
+          markFirstEntered();
+          await secondFinished;
+        } else {
+          await firstEntered;
+          sdk.content.extend("title", sdk.content.read().title);
+          releaseFirst();
+          return {};
+        }
+        // Read again after the other invocation has run, exercising AsyncLocalStorage restoration.
+        sdk.content.extend("title", sdk.content.read().title);
+        return {};
+      });
+    } }) }),
+  };
+  const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [sdkSource] });
+  await runtime.onPluginEnabled(sdkSource.manifest.id);
+  const postRepo = new InMemoryPostRepo([]);
+  const save = (id: string, title: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title } });
+  await Promise.all([save("first", "First title"), save("second", "Second title")]);
+  assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "first" }))?.ext, { "sdk-marker": { firstOnly: true, title: "First title" } });
+  assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "second" }))?.ext, { "sdk-marker": { title: "Second title" } });
+});
+
+test("boot replay skips disabled, quarantined, invalid, and other-workspace plugins while attaching valid enabled rows", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const sources = ["enabled-marker", "disabled-marker", "quarantined-marker", "invalid-marker", "foreign-marker"].map(markerSource);
+  for (const source of sources) {
+    const id = source.manifest.id;
+    await repo.save({
+      workspaceId: id === "foreign-marker" ? "other-workspace" : WORKSPACE, pluginId: id,
+      version: "1.0.0", enabled: id !== "disabled-marker" && id !== "quarantined-marker", updatedAt: clock().nowIso(),
+      ...(id === "quarantined-marker" ? { quarantinedAt: clock().nowIso(), quarantineReason: "failure", quarantineFailureCount: 3 } : {}),
+    });
+  }
+  sources[3] = { ...sources[3]!, manifest: { ...sources[3]!.manifest, hooks: ["unknown.hook" as typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE] } };
+  const before = await repo.listAll();
+  const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources });
+  await runtime.attachEnabledPluginsAtBoot();
+  assert.deepEqual(await runtime.beforeSaveHook({ id: "entry", workspaceId: WORKSPACE, title: "Entry", slug: "entry", status: "draft", bodyJson: {}, ext: {} }), { "enabled-marker": { seen: true } });
+  assert.deepEqual(await repo.listAll(), before);
 });

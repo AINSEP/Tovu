@@ -8,7 +8,6 @@
  * behind it, so it holds only if this chokepoint holds.
  */
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
 
 import { InMemoryPaymentCredentials } from "../credentials.js";
@@ -323,6 +322,27 @@ test("charge: workspace scoping — another workspace cannot read the payment", 
   cleanup(db, dir);
 });
 
+test("charge: payment history is newest-first, workspace-scoped, and honors explicit limits", async () => {
+  const { api, db, dir, clock } = await makeLipay({ responses: [chargeOk("ch_1"), chargeOk("ch_2"), chargeOk("ch_other"), chargeOk("ch_3")] });
+  try {
+    const expected = [];
+    for (const [key, workspaceId] of [["old", WORKSPACE_ID], ["middle", WORKSPACE_ID], ["other", "workspace-2"], ["new", WORKSPACE_ID]]) {
+      clock.advance(1000);
+      const result = await api.charge({ workspaceId, providerId: "lipay", amount: USD(2500), idempotencyKey: key });
+      assert.ok(result.ok);
+      if (workspaceId === WORKSPACE_ID) expected.unshift(result.payment);
+    }
+    assert.deepEqual(await api.listPayments({ workspaceId: WORKSPACE_ID }), expected);
+    assert.deepEqual(await api.listPayments({ workspaceId: WORKSPACE_ID }, { limit: 2 }), expected.slice(0, 2));
+    assert.deepEqual(await api.listPayments({ workspaceId: WORKSPACE_ID }, { limit: 1 }), expected.slice(0, 1));
+    const other = await api.listPayments({ workspaceId: "workspace-2" });
+    assert.deepEqual(other.map(row => row.idempotencyKey), ["other"]);
+    assert.equal(other[0].workspaceId, "workspace-2");
+  } finally {
+    cleanup(db, dir);
+  }
+});
+
 async function succeededPayment(responses: readonly unknown[]) {
   const harness = await makeLipay({ responses: responses as never });
   const created = await harness.api.charge({
@@ -336,7 +356,7 @@ async function succeededPayment(responses: readonly unknown[]) {
 }
 
 test("refund: a partial refund moves the payment to partially_refunded and accumulates the total", async () => {
-  const { api, db, dir, payment } = await succeededPayment([chargeOk("ch_1", "succeeded"), refundOk("re_1"), refundOk("re_2")]);
+  const { api, db, dir, payment, http } = await succeededPayment([chargeOk("ch_1", "succeeded"), refundOk("re_1"), refundOk("re_2")]);
   assert.equal(payment.status, "succeeded");
 
   const first = await api.refund({
@@ -355,6 +375,15 @@ test("refund: a partial refund moves the payment to partially_refunded and accum
     assert.equal(first.refund.providerRef, "re_1");
   }
 
+  assert.equal(http.calls.length, 2);
+  const call = http.calls[1];
+  assert.equal(call.method, "POST");
+  assert.equal(call.url, "https://lipay.test/v1/charges/ch_1/refunds");
+  assert.equal(call.headers.authorization, `Bearer ${SECRET_KEY}`);
+  assert.equal(call.headers["idempotency-key"], "refund-1");
+  assert.equal(call.headers["content-type"], "application/json");
+  assert.deepEqual(JSON.parse(call.body ?? "{}"), { amount: 400, currency: "USD", reason: "partial return" });
+
   const second = await api.refund({
     workspaceId: WORKSPACE_ID,
     paymentId: payment.id,
@@ -369,6 +398,17 @@ test("refund: a partial refund moves the payment to partially_refunded and accum
   }
 
   cleanup(db, dir);
+});
+
+test("refund: the charge reference is encoded as one URL segment", async () => {
+  const { api, db, dir, payment, http } = await succeededPayment([chargeOk("ch/a ?#", "succeeded"), refundOk("re_1")]);
+  try {
+    const result = await api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "encoded-refund", amount: USD(100) });
+    assert.ok(result.ok);
+    assert.equal(http.calls[1].url, "https://lipay.test/v1/charges/ch%2Fa%20%3F%23/refunds");
+  } finally {
+    cleanup(db, dir);
+  }
 });
 
 test("refund: partial refunds that individually pass but together exceed the payment are rejected", async () => {
@@ -1159,28 +1199,48 @@ test("refund: a second partial refund that doesn't complete the payment still mo
   cleanup(db, dir);
 });
 
-test("refund: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async () => {
+test("refund: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async (t) => {
   const { api, db, dir, payment } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
-  db.close();
+  const failure = new Error("injected INSERT I/O failure");
+  const prepare = db.prepare.bind(db);
+  let insertAttempts = 0;
+  t.mock.method(db, "prepare", (sql: string) => {
+    if (/^insert into "p_lipay__refunds"/i.test(sql)) {
+      insertAttempts += 1;
+      throw failure;
+    }
+    return prepare(sql);
+  });
 
   await assert.rejects(
     () => api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "r1", amount: USD(400) }),
-    (err: unknown) => err instanceof TypeError && /database connection is not open/.test((err as Error).message)
+    (err: unknown) => err === failure
   );
 
-  fs.rmSync(dir, { recursive: true, force: true });
+  assert.equal(insertAttempts, 1, "reads remain operational and the INSERT is reached");
+  cleanup(db, dir);
 });
 
-test("charge: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async () => {
+test("charge: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async (t) => {
   const { api, db, dir } = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
-  db.close();
+  const failure = new Error("injected INSERT I/O failure");
+  const prepare = db.prepare.bind(db);
+  let insertAttempts = 0;
+  t.mock.method(db, "prepare", (sql: string) => {
+    if (/^insert into "p_lipay__payments"/i.test(sql)) {
+      insertAttempts += 1;
+      throw failure;
+    }
+    return prepare(sql);
+  });
 
   await assert.rejects(
     () => api.charge({ workspaceId: WORKSPACE_ID, providerId: "lipay", amount: USD(2500), idempotencyKey: "order-1" }),
-    (err: unknown) => err instanceof TypeError && /database connection is not open/.test((err as Error).message)
+    (err: unknown) => err === failure
   );
 
-  fs.rmSync(dir, { recursive: true, force: true });
+  assert.equal(insertAttempts, 1, "reads remain operational and the INSERT is reached");
+  cleanup(db, dir);
 });
 
 test("refund: a provider that was unregistered since the charge was made is a typed PROVIDER_NOT_REGISTERED, not a crash", async () => {
@@ -1281,3 +1341,45 @@ test("refund: two concurrent refunds racing the same idempotency key resolve to 
 
   cleanup(db, dir);
 });
+
+for (const [firstAmount, secondAmount, accepted] of [[700, 700, 1], [400, 300, 2]]) {
+  test(`refund: distinct in-flight keys reserve the remaining balance (${firstAmount}+${secondAmount})`, async (t) => {
+    const { api, db, dir, payment, http } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    let firstEntered!: () => void;
+    const firstInFlight = new Promise<void>(resolve => { firstEntered = resolve; });
+    let secondEntered!: () => void;
+    const secondInFlight = new Promise<void>(resolve => { secondEntered = resolve; });
+    const send = t.mock.method(http, "send", async (request) => {
+      const key = request.headers["idempotency-key"];
+      if (key === "in-flight-1") firstEntered();
+      else secondEntered();
+      await held;
+      return refundOk(key === "in-flight-1" ? "re_1" : "re_2");
+    });
+    try {
+      const first = api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "in-flight-1", amount: USD(firstAmount) });
+      await firstInFlight;
+      const second = api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "in-flight-2", amount: USD(secondAmount) });
+      // The second attempt must either be rejected while the first is held or enter the provider;
+      // both paths are observed without a timer or a scheduling guess.
+      await Promise.race([second.then(() => undefined), secondInFlight]);
+      release();
+      const results = await Promise.all([first, second]);
+      assert.equal(results.filter(result => result.ok).length, accepted);
+      if (accepted === 1) {
+        const rejected = results.find(result => !result.ok);
+        assert.ok(rejected && !rejected.ok);
+        assert.equal(rejected.error.code, "INVALID_REQUEST");
+      }
+      assert.equal(send.mock.calls.length, accepted, "only reserved refunds reach the provider");
+      const total = accepted === 1 ? firstAmount : firstAmount + secondAmount;
+      assert.equal((await api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.amountRefundedMinor, total);
+      assert.equal(refundRows(db).length, accepted);
+    } finally {
+      release();
+      cleanup(db, dir);
+    }
+  });
+}

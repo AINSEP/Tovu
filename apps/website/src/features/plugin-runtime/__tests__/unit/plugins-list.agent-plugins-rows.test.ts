@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import path from "node:path";
+import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/layout.js";
 import { mock, test } from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
@@ -28,7 +30,7 @@ const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-su
 
 type Deps = Parameters<typeof buildPluginsRegistrations>[0];
 
-function fakeDeps(): Deps {
+function fakeDeps(overrides: Partial<Deps> = {}): Deps {
   return {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: "ws-tools",
@@ -44,11 +46,12 @@ function fakeDeps(): Deps {
     externalMcpServerRepo: {} as never,
     siteAssistantSecretSealer: {} as never,
     siteAssistantSecretKeyring: {} as never,
+    ...overrides,
   } as unknown as Deps;
 }
 
-async function callPluginsList(): Promise<{ plugins: unknown[]; agentPlugins: unknown[] }> {
-  const registration = buildPluginsRegistrations(fakeDeps(), { surfaceExchanges: createSurfaceExchangeStore() }).find(
+async function callPluginsList(deps = fakeDeps()): Promise<{ plugins: unknown[]; agentPlugins: unknown[] }> {
+  const registration = buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
     (r) => r.descriptor.id === "plugins_list",
   );
   assert.ok(registration);
@@ -56,17 +59,41 @@ async function callPluginsList(): Promise<{ plugins: unknown[]; agentPlugins: un
   return (await registration.handler(ctx as unknown as ToolExecutionContext)) as { plugins: unknown[]; agentPlugins: unknown[] };
 }
 
+const RUNTIME_ROW = {
+  id: "word-count", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3",
+  status: "valid", enabled: true, quarantine: null, errors: [],
+};
+
+function runtimeDeps(): Deps {
+  return fakeDeps({
+    discoverPlugins: async () => [{
+      id: "word-count", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3",
+      status: "valid", errors: [], sourceDir: "/abs/host/path/runtime/word-count",
+    }],
+    pluginActivationRepo: new InMemoryPluginActivationRepo([{
+      pluginId: "word-count", workspaceId: "ws-tools", version: "1.0.0", enabled: true,
+      updatedAt: "2026-09-24T00:00:00.000Z",
+    }]),
+  });
+}
+
 test("an installed Agent Plugin's row is exactly pluginId/version/archiveDigest/skill names — no absolute paths", async () => {
-  listBehavior = async () => [
-    {
-      pluginId: "ui-ux-design",
-      archiveDigest: "a".repeat(64),
-      packageRoot: "/abs/host/path/packages/sha256/aaaa",
-      files: ["/abs/host/path/packages/sha256/aaaa/plugin.json"],
-      skills: [{ name: "web-compliance", skillPath: "/abs/host/path/skills/web-compliance/SKILL.md" }],
-    },
-  ];
-  const result = await callPluginsList();
+  const directories: string[] = [];
+  listBehavior = async (dir) => {
+    directories.push(dir);
+    return [
+      {
+        pluginId: "ui-ux-design",
+        archiveDigest: "a".repeat(64),
+        packageRoot: "/abs/host/path/packages/sha256/aaaa",
+        files: ["/abs/host/path/packages/sha256/aaaa/plugin.json"],
+        skills: [{ name: "web-compliance", skillPath: "/abs/host/path/skills/web-compliance/SKILL.md" }],
+      },
+    ];
+  };
+  const result = await callPluginsList(runtimeDeps());
+  assert.deepEqual(directories, [path.join(resolveAgentPluginLayout().root, "ws", "ws-tools", "packages", "sha256")]);
+  assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, [
     { pluginId: "ui-ux-design", version: null, archiveDigest: "a".repeat(64), skills: ["web-compliance"] },
   ]);
@@ -77,7 +104,7 @@ test("a failing Agent Plugin read degrades to agentPlugins: [] and still reports
   listBehavior = async () => {
     throw new Error("EACCES: permission denied, scandir '/abs/host/path'");
   };
-  const result = await callPluginsList();
-  assert.deepEqual(result.plugins, []);
+  const result = await callPluginsList(runtimeDeps());
+  assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, []);
 });
