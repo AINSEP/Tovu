@@ -17,16 +17,19 @@ function instance(overrides: Partial<WidgetInstanceView> & Pick<WidgetInstanceVi
   return { widgetType: "menu", config: {}, ...overrides };
 }
 
-function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
+function fakeMenuReadModel(...menus: Array<NavMenuEntry | null>): NavMenuReadModel {
+  const rows = menus.filter((menu): menu is NavMenuEntry => menu !== null);
+  const byId = new Map(rows.map((menu) => [JSON.stringify([menu.workspaceId, menu.id]), menu]));
+  const bySlug = new Map(rows.map((menu) => [JSON.stringify([menu.workspaceId, menu.slug]), menu]));
   return {
-    async getMenu() {
-      return menu;
+    async getMenu({ workspaceId, menuId }) {
+      return byId.get(JSON.stringify([workspaceId, menuId])) ?? null;
     },
-    async getMenuBySlug() {
-      return menu;
+    async getMenuBySlug({ workspaceId, slug }) {
+      return bySlug.get(JSON.stringify([workspaceId, slug])) ?? null;
     },
-    async listMenus() {
-      return menu ? [menu] : [];
+    async listMenus({ workspaceId }) {
+      return rows.filter((menu) => menu.workspaceId === workspaceId);
     },
     async resolveForLocation() {
       return null;
@@ -53,7 +56,9 @@ test("REQ-09: a url-kind nav target resolves to a real href/available, not a raw
     version: 1,
   };
 
-  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(menu) });
+  const otherMenu: NavMenuEntry = { ...menu, id: "menu-other", slug: "other-menu", title: "Other menu", doc: { type: "menu", version: 1, items: [] } };
+  const foreignMenu: NavMenuEntry = { ...menu, id: "menu-foreign", workspaceId: "ws-other" };
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(otherMenu, foreignMenu, menu) });
   const results = await resolver.resolveMany([instance({ id: "w-1", config: { menuRef: "menu-1" } })], CTX);
 
   const result = results.get("w-1");
@@ -63,6 +68,17 @@ test("REQ-09: a url-kind nav target resolves to a real href/available, not a raw
   assert.equal(items.length, 1);
   assert.equal(items[0].href, "https://example.com/docs", "a url-kind target must resolve to its real href, not a raw NavTarget object");
   assert.equal(items[0].available, true);
+  assert.equal(result.ir.props.title, "Footer");
+  assert.deepEqual(result.dependencyKeys, ["menu-1"]);
+
+  const otherResults = await resolver.resolveMany([
+    instance({ id: "w-other", config: { menuRef: "menu-other" } }),
+    instance({ id: "w-foreign", config: { menuRef: "menu-foreign" } }),
+  ], CTX);
+  assert.deepEqual(otherResults.get("w-other"), {
+    ok: true, ir: { componentId: "menu", props: { title: "Other menu", items: [] } }, dependencyKeys: ["menu-other"],
+  });
+  assert.deepEqual(otherResults.get("w-foreign"), { ok: false, reason: "target-disabled" });
 });
 
 test("REQ-09: an entryRef target resolves to available:false honestly (src/platform/routing not built yet), never throws", async () => {

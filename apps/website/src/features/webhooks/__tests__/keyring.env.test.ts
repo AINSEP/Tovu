@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -42,6 +43,14 @@ test("env-var override supplies the root key", async () => {
       version: 1,
     });
     assert.equal(secret.length, 32);
+    // RFC 5869 vector calculated independently with Python hashlib/hmac, not this keyring.
+    assert.equal(Buffer.from(secret).toString("hex"), "8f60aeee05219cf2d5d3f6126a4118c165d5be0d584e0701777ee1abf17ab88d");
+    await withTempDir(async (dir) => {
+      const keyFilePath = join(dir, "root-key.hex");
+      writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
+      const fileKeyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VECTOR", keyFilePath, allowFileAutoGenerate: false });
+      assert.deepEqual(await fileKeyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }), secret);
+    });
   } finally {
     if (original === undefined) delete process.env[ENV_VAR];
     else process.env[ENV_VAR] = original;
@@ -103,6 +112,11 @@ test("HKDF determinism: same input yields same output; different inputs diverge"
       subscriptionId: "sub-2",
       version: 1,
     });
+    const differentWorkspace = await keyring.deriveSigningSecret({
+      workspaceId: "ws-2",
+      subscriptionId: "sub-1",
+      version: 1,
+    });
     const differentPurpose = await keyring.derive({
       workspaceId: "ws-1",
       purpose: "analytics-salt",
@@ -112,7 +126,30 @@ test("HKDF determinism: same input yields same output; different inputs diverge"
     assert.deepEqual(base, sameAgain);
     assert.notDeepEqual(base, differentVersion);
     assert.notDeepEqual(base, differentSubscription);
+    assert.notDeepEqual(base, differentWorkspace);
     assert.notDeepEqual(base, differentPurpose);
+    const genericInput = { workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" };
+    const genericBase = await keyring.derive(genericInput);
+    for (const changed of [{ workspaceId: "ws-2" }, { purpose: "analytics-salt" }, { info: "v2" }]) {
+      assert.notDeepEqual(genericBase, await keyring.derive({ ...genericInput, ...changed }));
+    }
+  });
+});
+
+test("HKDF known answers preserve signing and secret-sealer key compatibility", async () => {
+  // Independently calculated RFC 5869 SHA-256 outputs for root bytes 0xaa repeated 32 times,
+  // salt 'tovu-integrations-root-key-hkdf-v1', and the two deployed info-string layouts.
+  const keyring = new FixedRootKeyKeyring("aa".repeat(32));
+  const signing = await keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 });
+  assert.equal(Buffer.from(signing).toString("hex"), "8f60aeee05219cf2d5d3f6126a4118c165d5be0d584e0701777ee1abf17ab88d");
+  const input = { workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" };
+  const expected = "14d4c938fdcabf1565bfabc9548975ab030e2494577dae057b35df76eb6abef8";
+  assert.equal(Buffer.from(await keyring.derive(input)).toString("hex"), expected);
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "root-key.hex");
+    writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
+    const installed = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFilePath }] });
+    assert.equal(Buffer.from(await installed.derive(input)).toString("hex"), expected);
   });
 });
 
@@ -253,8 +290,14 @@ test("generateFileRootKey writes a fresh 32-byte key and returns its hex/fingerp
     assert.equal(result.hex.length, 64, "32 bytes, hex-encoded, is 64 characters");
     assert.match(result.hex, /^[0-9a-f]{64}$/);
     assert.equal(result.fingerprint.length, 12);
+    assert.equal(result.fingerprint, createHash("sha256").update(Buffer.from(result.hex, "hex")).digest("hex").slice(0, 12));
     assert.equal(readFileSync(keyFilePath, "utf8").trim(), result.hex);
   });
+});
+
+test("fingerprintRootKeyHex preserves the SHA-256 stamp of decoded root-key bytes", () => {
+  // SHA-256(32 bytes of 0xaa) starts with e0e77a507412; pin the persisted site-meta contract.
+  assert.equal(fingerprintRootKeyHex("aa".repeat(32)), "e0e77a507412");
 });
 
 test("generateFileRootKey throws RootKeyFileAlreadyExistsError, and never overwrites, when a file is already there", async () => {
@@ -575,7 +618,7 @@ test("sources: the first source with material wins, later sources are never even
     const neverReadFile = join(dir, "should-not-be-touched.hex");
     const winningHex = "11".repeat(32);
     writeFileSync(winningFile, winningHex, { mode: 0o600 });
-    // deliberately no file at neverReadFile
+    writeFileSync(neverReadFile, "22".repeat(32), { mode: 0o600 });
 
     const sources: SiteKeySource[] = [
       { kind: "per-site-file", path: winningFile },
@@ -584,6 +627,13 @@ test("sources: the first source with material wins, later sources are never even
     const keyring = new EnvOrFileKeyring({ sources });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
+    const expected = "22f293b610dd25130ea441230963e6424f87329c43727b05ff2b580c92e9d2d2";
+    assert.equal(Buffer.from(secret).toString("hex"), expected);
+    // A directory at the later file path throws on read, proving successful resolution stops.
+    rmSync(neverReadFile);
+    mkdirSync(neverReadFile);
+    const shortCircuit = new EnvOrFileKeyring({ sources });
+    assert.equal(Buffer.from(await shortCircuit.derive({ workspaceId: "ws-1", purpose: "p", info: "i" })).toString("hex"), expected);
   });
 });
 
@@ -595,6 +645,7 @@ test("sources: an env-kind source reads the named env var", async () => {
     const keyring = new EnvOrFileKeyring({ sources });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
+    assert.equal(Buffer.from(secret).toString("hex"), "509fde11f34c8b9cd5d4fbc7ca46ef234d8e0ac5d8937428ef2c776b7725ac96");
   } finally {
     delete process.env[envVarName];
   }

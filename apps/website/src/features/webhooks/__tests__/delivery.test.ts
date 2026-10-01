@@ -13,7 +13,7 @@ import {
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
 } from "../repo.memory.js";
-import { createFixedSecretSigner } from "../signing.js";
+import { createFixedSecretSigner, verifySignature } from "../signing.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
 import type { WebhookBeforeDispatchHook } from "../types.js";
 
@@ -125,7 +125,7 @@ test("processDueDeliveries signs, POSTs, and marks a successful attempt delivere
   const secret = Buffer.from("shared-secret");
   const { subscription, signer } = await seedActiveSubscription(rig, secret);
 
-  await enqueueDelivery({
+  const { enqueued } = await enqueueDelivery({
     deps: {
       subscriptionRepo: rig.subscriptionRepo,
       deliveryRepo: rig.deliveryRepo,
@@ -163,6 +163,22 @@ test("processDueDeliveries signs, POSTs, and marks a successful attempt delivere
   assert.equal(httpClient.calls.length, 1);
   assert.equal(httpClient.calls[0].request.url, subscription.targetUrl);
   assert.match(httpClient.calls[0].request.headers["tovu-signature"], /^t=\d+,v1=[0-9a-f]{64}$/);
+  const request = httpClient.calls[0].request;
+  assert.equal(request.method, "POST");
+  assert.equal(request.timeoutMs, 10_000);
+  assert.equal(request.headers["content-type"], "application/json");
+  assert.equal(request.headers["tovu-delivery-id"], enqueued[0].id);
+  assert.equal(request.headers["tovu-event-id"], "event-1");
+  assert.ok(request.body);
+  assert.deepEqual(JSON.parse(request.body), {
+    deliveryId: enqueued[0].id,
+    eventId: "event-1",
+    topic: "post.published",
+    workspaceId: "workspace-1",
+    occurredAt: "2026-07-10T00:00:00.000Z",
+    data: { id: "post-1" },
+  });
+  assert.equal(verifySignature({ secret, rawBody: request.body, header: request.headers["tovu-signature"], toleranceSeconds: 300 }), true);
 
   const deliveries = await rig.deliveryRepo.listBySubscription({
     workspaceId: "workspace-1",
@@ -199,7 +215,7 @@ test("a non-2xx response schedules a backoff retry rather than dead-lettering im
 
   const httpClient = new RecordingHttpClient({ responses: [{ status: 500, headers: {}, bodyText: "boom" }] });
 
-  const result = await processDueDeliveries({
+  const worker = {
     deps: {
       deliveryRepo: rig.deliveryRepo,
       subscriptionRepo: rig.subscriptionRepo,
@@ -208,7 +224,9 @@ test("a non-2xx response schedules a backoff retry rather than dead-lettering im
       signer,
       clock: rig.clock,
     },
-  });
+  };
+  const firstAttemptAt = rig.clock.nowIso();
+  const result = await processDueDeliveries(worker, { random: () => 0 });
 
   assert.equal(result.delivered, 0);
   assert.equal(result.failed, 1);
@@ -223,7 +241,62 @@ test("a non-2xx response schedules a backoff retry rather than dead-lettering im
   assert.equal(deliveries[0].attempts, 1);
   assert.equal(deliveries[0].lastResponseStatus, 500);
   assert.ok(deliveries[0].nextAttemptAt > "2026-07-10T00:00:00.000Z");
+  assert.equal(deliveries[0].nextAttemptAt, new Date(Date.parse(firstAttemptAt) + 150_000).toISOString());
+  rig.advanceHours(1);
+  const secondAttemptAt = rig.clock.nowIso();
+  const secondResult = await processDueDeliveries(worker, { random: () => 0 });
+  assert.equal(secondResult.failed, 1);
+  const retried = await rig.deliveryRepo.findById({ workspaceId: "workspace-1", id: deliveries[0].id });
+  assert.equal(retried?.attempts, 2);
+  assert.equal(retried?.nextAttemptAt, new Date(Date.parse(secondAttemptAt) + 300_000).toISOString());
 });
+
+for (const status of [199, 204, 299, 301, 302, 404]) {
+  test(`HTTP ${status} is ${status >= 200 && status < 300 ? "delivered" : "retried"}`, async () => {
+    const rig = makeRig();
+    const { signer } = await seedActiveSubscription(rig, Buffer.from("shared-secret"));
+    const { enqueued } = await enqueueDelivery({
+      deps: { subscriptionRepo: rig.subscriptionRepo, deliveryRepo: rig.deliveryRepo, envelopeStore: rig.envelopeStore, idGenerator: rig.idGenerator, clock: rig.clock },
+      input: { event: { id: "event-1", name: "post.published", workspaceId: "workspace-1", occurredAt: rig.clock.nowIso(), payload: { id: "post-1" } } },
+    });
+    const httpClient = new RecordingHttpClient({ responses: [{ status, headers: {}, bodyText: "" }] });
+    const result = await processDueDeliveries({
+      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, clock: rig.clock },
+    });
+    const successful = status >= 200 && status < 300;
+    assert.deepEqual(result, { delivered: successful ? 1 : 0, failed: successful ? 0 : 1, dead: 0, processed: 1 });
+    const row = await rig.deliveryRepo.findById({ workspaceId: "workspace-1", id: enqueued[0].id });
+    assert.equal(row?.status, successful ? "delivered" : "pending");
+    assert.equal(row?.lastResponseStatus, status);
+    assert.equal(row?.attempts, 1);
+    if (!successful) assert.match(row?.lastError ?? "", new RegExp(`non-2xx response: ${status}`));
+  });
+}
+
+for (const message of ["connection reset", "request timed out"]) {
+  test(`transport failure (${message}) schedules a retry with no response status`, async () => {
+    const rig = makeRig();
+    const { signer } = await seedActiveSubscription(rig, Buffer.from("shared-secret"));
+    const { enqueued } = await enqueueDelivery({
+      deps: { subscriptionRepo: rig.subscriptionRepo, deliveryRepo: rig.deliveryRepo, envelopeStore: rig.envelopeStore, idGenerator: rig.idGenerator, clock: rig.clock },
+      input: { event: { id: "event-1", name: "post.published", workspaceId: "workspace-1", occurredAt: rig.clock.nowIso(), payload: { id: "post-1" } } },
+    });
+    const httpClient = new RecordingHttpClient({ responses: [() => { throw new Error(message); }] });
+    const result = await processDueDeliveries({
+      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, clock: rig.clock },
+    }, { random: () => 0 });
+    assert.equal(result.failed, 1);
+    assert.equal(result.delivered, 0);
+    assert.equal(result.dead, 0);
+    assert.equal(httpClient.calls.length, 1);
+    const row = await rig.deliveryRepo.findById({ workspaceId: "workspace-1", id: enqueued[0].id });
+    assert.equal(row?.status, "pending");
+    assert.equal(row?.attempts, 1);
+    assert.equal(row?.lastResponseStatus, null);
+    assert.equal(row?.lastError, message);
+    assert.equal(row?.nextAttemptAt, new Date(Date.parse(rig.clock.nowIso()) + 150_000).toISOString());
+  });
+}
 
 test("repeated failures exhaust maxAttempts and transition the delivery to dead", async () => {
   const rig = makeRig();
@@ -466,6 +539,9 @@ test("hooks run in priority order and a later hook sees an earlier hook's redact
   assert.deepEqual(seenBySecondHook, ["[redacted]"]);
   assert.match(httpClient.calls[0].request.body ?? "", /\[redacted\]/);
   assert.doesNotMatch(httpClient.calls[0].request.body ?? "", /user@example\.com/);
+  const request = httpClient.calls[0].request;
+  assert.ok(request.body);
+  assert.equal(verifySignature({ secret, rawBody: request.body, header: request.headers["tovu-signature"], toleranceSeconds: 300 }), true);
 });
 
 test("computeBackoffMs stays within [half, full] of the exponential step and respects the cap", () => {
@@ -473,6 +549,12 @@ test("computeBackoffMs stays within [half, full] of the exponential step and res
   const upper = computeBackoffMs(1, { random: () => 1 });
   assert.equal(lower, 150_000); // half of 5 minutes
   assert.equal(upper, 300_000); // full 5 minutes
+  // Pin the intervening exponential steps as well as the first and capped steps.
+  const fullSteps = [600_000, 1_200_000, 2_400_000, 4_800_000, 9_600_000, 19_200_000, 21_600_000];
+  for (const [index, fullStep] of fullSteps.entries()) {
+    assert.equal(computeBackoffMs(index + 2, { random: () => 0 }), fullStep / 2);
+    assert.equal(computeBackoffMs(index + 2, { random: () => 1 }), fullStep);
+  }
 
   // At high attempt counts the step is capped at 6 hours regardless of the exponent.
   const cappedLower = computeBackoffMs(20, { random: () => 0 });

@@ -47,7 +47,7 @@ test("a tampered ciphertext fails auth-tag verification rather than opening to g
   tamperedBytes[0] = tamperedBytes[0] ^ 0xff;
   const tampered = { ...sealed, ciphertext: tamperedBytes.toString("base64") };
 
-  await assert.rejects(() => sealer.open({ sealed: tampered }));
+  await assert.rejects(() => sealer.open({ sealed: tampered }), /unable to authenticate data/);
 });
 
 test("a tampered nonce also fails — GCM authenticates against the exact IV used to seal", async () => {
@@ -59,15 +59,22 @@ test("a tampered nonce also fails — GCM authenticates against the exact IV use
   tamperedIv[0] = tamperedIv[0] ^ 0xff;
   const tampered = { ...sealed, nonce: tamperedIv.toString("base64") };
 
-  await assert.rejects(() => sealer.open({ sealed: tampered }));
+  await assert.rejects(() => sealer.open({ sealed: tampered }), /unable to authenticate data/);
 });
 
 test("an unsupported alg is rejected before any key derivation", async () => {
-  const sealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const keyring = new InMemoryKeyring();
+  let deriveCalls = 0;
+  keyring.derive = async () => {
+    deriveCalls += 1;
+    throw new Error("derive must not be reached for an unsupported algorithm");
+  };
+  const sealer = new AesGcmSecretSealer(keyring);
   await assert.rejects(
     () => sealer.open({ sealed: { keyId: "v1", ciphertext: "AAAA", nonce: "AAAA", alg: "xchacha20poly1305" } }),
     /cannot open alg/
   );
+  assert.equal(deriveCalls, 0);
 });
 
 /**
@@ -121,13 +128,43 @@ test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails
 });
 
 test("open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key", async () => {
-  // Two sealers sharing one keyring: seal under the keyring's key today, then confirm a fresh
-  // sealer instance (same underlying root key) still opens it correctly purely from `sealed.keyId`
-  // — proving the derivation is a pure function of the stored keyId, not of sealer/process state.
-  const keyring = new InMemoryKeyring("v7");
+  const generations = { v7: new InMemoryKeyring("v7"), v8: new InMemoryKeyring("v8") };
+  let activeKeyId: keyof typeof generations = "v7";
+  const keyring = {
+    activeKey: async () => ({ keyId: activeKeyId }),
+    deriveSigningSecret: generations.v7.deriveSigningSecret.bind(generations.v7),
+    derive: async (input: { workspaceId: string; purpose: string; info: string }) => {
+      const generation = generations[input.info as keyof typeof generations];
+      if (!generation) throw new Error(`unknown key generation: ${input.info}`);
+      return generation.derive(input);
+    },
+  };
   const sealerA = new AesGcmSecretSealer(keyring);
   const sealed = await sealerA.seal({ plaintext: "rotation-safe-value", key: await keyring.activeKey() });
 
+  activeKeyId = "v8";
   const sealerB = new AesGcmSecretSealer(keyring);
   assert.equal(await sealerB.open({ sealed }), "rotation-safe-value");
+  await assert.rejects(() => sealerB.open({ sealed: { ...sealed, keyId: "v8" } }), /unable to authenticate data/);
+  await assert.rejects(() => sealerB.open({ sealed: { ...sealed, keyId: "unknown" } }), /unknown key generation/);
+});
+
+for (const aad of [undefined, "workspace-1:empty-verifier"]) {
+  test(`empty plaintext round-trips with aad=${String(aad)}`, async () => {
+    const keyring = new InMemoryKeyring();
+    const sealer = new AesGcmSecretSealer(keyring);
+    const sealed = await sealer.seal({ plaintext: "", key: await keyring.activeKey(), aad });
+    assert.equal(Buffer.from(sealed.ciphertext, "base64").length, 16);
+    assert.equal(await sealer.open({ sealed, aad }), "");
+  });
+}
+
+test("ciphertext shorter than a complete authentication tag is rejected", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: "", key: await keyring.activeKey() });
+  await assert.rejects(
+    () => sealer.open({ sealed: { ...sealed, ciphertext: Buffer.alloc(15).toString("base64") } }),
+    /ciphertext too short to contain an auth tag/
+  );
 });

@@ -136,3 +136,19 @@ test("every Integrations tool surfaces a denial with the permission named — th
     );
   }
 });
+
+test("an unlisted repository error stays redacted through the delegated transport", async () => {
+  const deps = makeRouteDeps();
+  deps.webhookSubscriptionRepo.listByWorkspace = async () => {
+    throw new Error("SQL failure in /private/operator/content.db: SELECT secret FROM credentials");
+  };
+  const harness = await buildHarness(deps);
+  const result = await call(harness, "webhooks_list_subscriptions", {});
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.ok("requestId" in result.error);
+  assert.match(String(result.error.requestId), /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
+  assert.deepEqual(result.error, {
+    code: "INTERNAL_ERROR", message: "an internal error occurred", requestId: result.error.requestId,
+  });
+});

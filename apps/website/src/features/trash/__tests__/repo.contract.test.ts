@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryTrashRepo } from "../repo.memory.js";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlTrashRepo } from "../repo.js";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
@@ -90,6 +93,9 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
     for (let n = 1; n <= 5; n += 1) {
       await repo.insert(item({ id: `t${n}`, entityId: `post-${n}`, trashedAt: `2026-09-0${n}T00:00:00.000Z` }));
     }
+    for (const id of ["t2a", "t2c", "t2b", "t2d"]) {
+      await repo.insert(item({ id, entityId: `post-${id}`, trashedAt: "2026-09-02T00:00:00.000Z" }));
+    }
 
     const seen: string[] = [];
     let cursor: string | null = null;
@@ -101,10 +107,12 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
         cursor,
       });
       seen.push(...page.items.map((i) => i.id));
+      assert.ok(page.items.length <= 2);
+      assert.ok(seen.length <= 9, "pagination must terminate without repeating rows");
       cursor = page.nextCursor;
     } while (cursor);
 
-    assert.deepEqual(seen, ["t5", "t4", "t3", "t2", "t1"]);
+    assert.deepEqual(seen, ["t5", "t4", "t3", "t2d", "t2c", "t2b", "t2a", "t2", "t1"]);
   });
 
   test(`[${adapterName}] claimDue takes only due, unleased rows — and a second claimer gets nothing`, async () => {
@@ -143,6 +151,18 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
     assert.deepEqual(reclaimed.map((c) => c.id), ["due"]);
   });
 
+  test(`[${adapterName}] claimDue includes the exact expiry boundary and respects the batch limit`, async () => {
+    const repo = makeRepo();
+    const now = "2026-09-02T00:00:00.000Z";
+    await repo.insert(item({ id: "earlier", entityId: "post-earlier", purgeAfter: "2026-09-01T00:00:00.000Z" }));
+    await repo.insert(item({ id: "boundary", entityId: "post-boundary", purgeAfter: now }));
+    await repo.insert(item({ id: "later", entityId: "post-later", purgeAfter: "2026-09-02T00:00:00.001Z" }));
+    const args = { now, leaseOwner: "a", leaseUntil: "2026-09-02T00:05:00.000Z", limit: 1 };
+    assert.deepEqual((await repo.claimDue(args)).map((row) => row.id), ["earlier"]);
+    assert.deepEqual((await repo.claimDue(args)).map((row) => row.id), ["boundary"]);
+    assert.deepEqual(await repo.claimDue(args), []);
+  });
+
   test(`[${adapterName}] releaseLease hands a stood-down row back to the next pass`, async () => {
     const repo = makeRepo();
     await repo.insert(item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }));
@@ -164,6 +184,49 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
     assert.notEqual(await repo.findByEntity({ workspaceId: WS2, entityType: "post", entityId: "post-2" }), null);
   });
 }
+
+test("overlapping claims on independent SQLite connections lease disjoint batches", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "trash-overlap-"));
+  const file = path.join(root, "content.db");
+  const db = openContentDb(file);
+  const a = (db as unknown as { $client: Database.Database }).$client;
+  const b = new Database(file);
+  t.after(() => { b.close(); a.close(); fs.rmSync(root, { recursive: true, force: true }); });
+  seedWorkspaces(a);
+  const kernelA = contentKernel(a);
+  const kernelB = contentKernel(b);
+  let selected!: () => void;
+  let release!: () => void;
+  const firstSelected = new Promise<void>((resolve) => { selected = resolve; });
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let pause = true;
+  const heldKernel: ContentKernel = {
+    ...kernelA,
+    run: (async (fn) => {
+      const result = await kernelA.run(fn);
+      if (pause && Array.isArray(result) && result.length > 0 && "entity_version" in result[0]) {
+        pause = false;
+        selected();
+        await held;
+      }
+      return result;
+    }) as ContentKernel["run"],
+  };
+  const firstRepo = new SqlTrashRepo(heldKernel);
+  const secondRepo = new SqlTrashRepo(kernelB);
+  for (let n = 1; n <= 4; n += 1) {
+    await firstRepo.insert(item({ id: `due-${n}`, entityId: `post-${n}`, purgeAfter: `2026-09-0${n}T00:00:00.000Z` }));
+  }
+  const args = { now: "2026-09-05T00:00:00.000Z", leaseUntil: "2026-09-05T00:05:00.000Z", limit: 2 };
+  const first = firstRepo.claimDue({ ...args, leaseOwner: "a" });
+  await firstSelected;
+  const second = secondRepo.claimDue({ ...args, leaseOwner: "b" });
+  release();
+  const [left, right] = await Promise.all([first, second]);
+  assert.deepEqual(left.map((row) => row.id), ["due-1", "due-2"]);
+  assert.deepEqual(right.map((row) => row.id), ["due-3", "due-4"]);
+  assert.equal(new Set([...left, ...right].map((row) => row.id)).size, 4);
+});
 
 runSuite("InMemoryTrashRepo", () => new InMemoryTrashRepo());
 runSuite("SqliteTrashRepo", () => {

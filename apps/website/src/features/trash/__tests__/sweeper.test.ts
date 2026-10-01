@@ -281,12 +281,41 @@ test("the claim spans every workspace in the file, and each row is purged in its
   const h = harness();
   await trashOne(h, "post-1", WS);
   await trashOne(h, "post-2", OTHER_WS);
+  const key = (workspaceId: string, entityId: string) => `${workspaceId}:${entityId}`;
+  const rows = new Map([
+    [key(WS, "post-1"), { version: 2, hidden: true }],
+    [key(OTHER_WS, "post-2"), { version: 2, hidden: true }],
+    [key(OTHER_WS, "post-1"), { version: 2, hidden: false }],
+    [key(WS, "post-2"), { version: 2, hidden: false }],
+  ]);
+  const calls: Parameters<TrashAdapter["purge"]>[0][] = [];
+  h.adapters.set(ENTITY, {
+    ...h.domain.adapter,
+    async purge(required) {
+      calls.push(required);
+      h.domain.purgeCalls.push(required.entityId);
+      const id = key(required.workspaceId, required.entityId);
+      const row = rows.get(id);
+      if (!row) return "already-gone";
+      if (!row.hidden || row.version !== required.expectedVersion) return "version-changed";
+      rows.delete(id);
+      return "purged";
+    },
+  });
 
   const report = await h.sweep(sweepArgs(DUE));
 
   assert.equal(report.purged, 2);
   assert.deepEqual(h.repo.all(), []);
   assert.deepEqual(h.domain.purgeCalls.sort(), ["post-1", "post-2"]);
+  assert.deepEqual(calls, [
+    { workspaceId: WS, entityId: "post-1", expectedVersion: 2 },
+    { workspaceId: OTHER_WS, entityId: "post-2", expectedVersion: 2 },
+  ]);
+  assert.deepEqual([...rows], [
+    [key(OTHER_WS, "post-1"), { version: 2, hidden: false }],
+    [key(WS, "post-2"), { version: 2, hidden: false }],
+  ], "live counterparts in the other workspace survive");
 });
 
 test("one row's failure never aborts the rest of the batch", async () => {
@@ -369,8 +398,8 @@ test("a sweep that throws goes to onError and the loop carries on", async () => 
   assert.match((errors[0] as Error).message, /database is locked/);
 });
 
-test("a full batch sweeps again immediately instead of waiting out the interval", async () => {
-  const done = deferred<void>();
+test("a full batch sweeps again immediately instead of waiting out the interval", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   let calls = 0;
   const sweeper = startTrashSweeper(
     {
@@ -378,7 +407,6 @@ test("a full batch sweeps again immediately instead of waiting out the interval"
       sweep: async () => {
         calls += 1;
         if (calls >= 2) {
-          done.resolve();
           return EMPTY_REPORT;
         }
         return { claimed: 3, purged: 3, results: [] };
@@ -390,19 +418,28 @@ test("a full batch sweeps again immediately instead of waiting out the interval"
     { intervalMs: 60_000, batchSize: 3 }
   );
 
-  await done.promise;
+  t.mock.timers.tick(0);
+  // Let the async pass finish and schedule its next timer without advancing the idle interval.
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1);
+  t.mock.timers.tick(0);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(calls, 2);
   await sweeper.stop();
 
   assert.equal(calls, 2);
 });
 
-test("stop() is idempotent and waits for a sweep already in flight", async () => {
+test("stop() is idempotent and waits for a sweep already in flight", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const started = deferred<void>();
   const release = deferred<void>();
   let settled = false;
+  let calls = 0;
   const sweeper = startTrashSweeper(
     {
       sweep: async () => {
+        calls += 1;
         started.resolve();
         await release.promise;
         settled = true;
@@ -413,13 +450,23 @@ test("stop() is idempotent and waits for a sweep already in flight", async () =>
     { intervalMs: 1 }
   );
 
+  t.mock.timers.tick(0);
   await started.promise;
   const stopping = sweeper.stop();
+  let stopped = false;
+  void stopping.then(() => { stopped = true; });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(stopped, false, "stop must remain pending while the sweep is held");
   release.resolve();
   await stopping;
   await sweeper.stop();
 
   assert.equal(settled, true, "stop() must not resolve before the in-flight sweep has settled");
+  assert.equal(stopped, true);
+  assert.equal(calls, 1);
+  t.mock.timers.tick(10);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1, "an in-flight sweep must not reschedule after stop");
 });
 
 // ---------------------------------------------------------------------------
@@ -495,4 +542,52 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
 
   const stillIndexed = await repo.findByIds({ workspaceId: REAL_WS, ids: ["trash-overdue-1"] });
   assert.deepEqual(stillIndexed, [], "a purged row's index entry must be dropped too");
+});
+
+test("a thrown adapter error rolls back its purge, leaves the batch leased, and reaches onError", async (t) => {
+  const db = openContentDb(":memory:");
+  const client = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
+  t.after(() => client.close());
+  client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(REAL_WS, REAL_WS, REAL_WS, REAL_AT);
+  for (const id of ["menu-throw", "menu-later"]) {
+    client.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES (?, ?, ?, ?, 'published', '{}', '{}', ?, 1)")
+      .run(id, REAL_WS, id, id, REAL_AT);
+  }
+  const adapter = createTableTrashAdapter({ entry: buildTrashRegistry().get("menu")!, db: createSqliteTrashDb({ db }) });
+  const failure = new Error("purge failed after deletion");
+  const calls: string[] = [];
+  const adapters = new Map<string, TrashAdapter>([["menu", {
+    ...adapter,
+    async purge(required) {
+      calls.push(required.entityId);
+      const result = await adapter.purge(required);
+      if (required.entityId === "menu-throw") throw failure;
+      return result;
+    },
+  }]]);
+  const repo = new SqliteTrashRepo(client);
+  const transaction = createContentDbTransactionRunner(client);
+  let seq = 0;
+  const trash = createTrashService({ repo, adapters, transaction, idGen: { next: () => `error-trash-${++seq}` } });
+  for (const [entityId, at] of [["menu-throw", REAL_AT], ["menu-later", "2026-07-02T00:00:00.000Z"]]) {
+    assert.deepEqual(await trash.trash({ workspaceId: REAL_WS, entityType: "menu", entityId: entityId!, at: at!, expectedVersion: 1, display: { title: entityId! }, actor: ACTOR }), { ok: true, version: 2, priorMarker: "published" });
+  }
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const reported = deferred<unknown>();
+  const sweeper = startTrashSweeper({ sweep: createTrashSweep({ repo, adapters, transaction }), clock: clockAt(REAL_DUE) }, {
+    intervalMs: 60_000, leaseMs: 60_000, leaseOwner: "error-sweeper", onError: (error) => reported.resolve(error),
+  });
+  t.mock.timers.tick(0);
+  assert.equal(await reported.promise, failure);
+  await sweeper.stop();
+  assert.deepEqual(calls, ["menu-throw"], "exceptions abort the pass; later claims wait for lease expiry");
+  assert.deepEqual(client.prepare("SELECT id, status, version FROM menus ORDER BY id").all(), [
+    { id: "menu-later", status: "trash", version: 2 },
+    { id: "menu-throw", status: "trash", version: 2 },
+  ], "the first row's delete rolls back and the later row remains untouched");
+  assert.deepEqual(client.prepare("SELECT id, purge_lease_owner FROM trashed_items ORDER BY id").all(), [
+    { id: "error-trash-1", purge_lease_owner: "error-sweeper" },
+    { id: "error-trash-2", purge_lease_owner: "error-sweeper" },
+  ]);
+  assert.deepEqual(await repo.claimDue({ now: REAL_DUE, leaseOwner: "retry", leaseUntil: "2026-10-01T00:01:00.000Z", limit: 10 }), []);
 });

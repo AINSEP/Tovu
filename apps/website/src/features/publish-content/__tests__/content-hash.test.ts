@@ -183,3 +183,16 @@ test("contentHash output is pinned for a fixed fixture — a change here means t
   });
   assert.equal(contentHash("post", pinned), "b0eac00a251d3a8b6973e539141998515aecfc13a8fee165c3d572070b612309");
 });
+
+test("canonicalize preserves array order while sorting object keys inside array elements", () => {
+  const paragraphs = [
+    { type: "paragraph", content: [{ type: "text", text: "first" }] },
+    { type: "paragraph", content: [{ type: "text", text: "second" }] },
+  ];
+  const state = { bodyJson: { type: "doc", content: paragraphs }, termIds: ["a", "b"] };
+  const equivalent = { termIds: ["a", "b"], bodyJson: { content: paragraphs.map(({ type, content }) => ({ content, type })), type: "doc" } };
+  assert.equal(contentHash("post", state), contentHash("post", equivalent));
+  assert.deepEqual(JSON.parse(canonicalize("post", state)).state.bodyJson.content, paragraphs);
+  assert.notEqual(contentHash("post", state), contentHash("post", { ...state, termIds: ["b", "a"] }));
+  assert.notEqual(contentHash("post", state), contentHash("post", { ...state, bodyJson: { type: "doc", content: [...paragraphs].reverse() } }));
+});

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
+import { buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
 import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index.js";
 import { resolvePageWidgets } from "../../resolver-service.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
@@ -39,16 +39,29 @@ function countingResolver(result: WidgetResolveResult): { resolver: WidgetResolv
   };
 }
 
-test("AC-16/REQ-24: resolving 5 instances of the same type via resolveWidgetType invokes the registered resolver's resolveMany exactly once, not 5 times", async () => {
+function replaceRecentEntriesResolver(t: import("node:test").TestContext, resolver: WidgetResolver): void {
+  const hadResolver = Object.hasOwn(CORE_RESOLVERS, "recent-entries");
+  const original = CORE_RESOLVERS["recent-entries"];
+  t.after(() => {
+    if (hadResolver) {
+      // @ts-expect-error — restore the readonly map's existing test-double seam.
+      CORE_RESOLVERS["recent-entries"] = original;
+    } else {
+      // @ts-expect-error — restore absence as well as values.
+      delete CORE_RESOLVERS["recent-entries"];
+    }
+  });
+  // @ts-expect-error — readonly at the type level; deliberately mutable at runtime.
+  CORE_RESOLVERS["recent-entries"] = resolver;
+}
+
+test("AC-16/REQ-24: resolving 5 instances of the same type via resolveWidgetType invokes the registered resolver's resolveMany exactly once, not 5 times", async (t) => {
   const { resolver, callCount } = countingResolver({
     ok: true,
     ir: { componentId: "recent-entries", props: {} },
     dependencyKeys: [],
   });
-  // @ts-expect-error — CORE_RESOLVERS is a frozen closed map in the real implementation; tests
-  // exercise it through resolveWidgetType, not by mutating it directly once implemented. This
-  // stub-era assignment is scaffolding only.
-  CORE_RESOLVERS["recent-entries"] = resolver;
+  replaceRecentEntriesResolver(t, resolver);
 
   const instances = Array.from({ length: 5 }, (_, i) => instance({ id: `w-${i}`, widgetType: "recent-entries" }));
   const results = await resolveWidgetType({ typeKey: "recent-entries", instances, context: CTX });
@@ -57,7 +70,7 @@ test("AC-16/REQ-24: resolving 5 instances of the same type via resolveWidgetType
   assert.equal(results.size, 5);
 });
 
-test("AC-17/REQ-25: an instance configured above the type's registered clamp is capped at the registered value in the resolved result — defense-in-depth at the orchestration layer, independent of the resolver's own discipline (Round-2 external-audit fix, 2026-07-21, Opus 4.8 finding WIDGETS-R2-L1: this assertion was previously a no-op stub)", async () => {
+test("AC-17/REQ-25: an instance configured above the type's registered clamp is capped at the registered value in the resolved result — defense-in-depth at the orchestration layer, independent of the resolver's own discipline (Round-2 external-audit fix, 2026-07-21, Opus 4.8 finding WIDGETS-R2-L1: this assertion was previously a no-op stub)", async (t) => {
   // A rogue resolver that deliberately ignores REQ-25's clamp itself — proves clampResolveResult
   // (resolvers/index.ts) enforces the registered maxItems (20) regardless, not just the resolver's
   // own well-behaved implementation (recent-entries.ts already clamps correctly; this test would not
@@ -76,8 +89,7 @@ test("AC-17/REQ-25: an instance configured above the type's registered clamp is 
       );
     },
   };
-  // @ts-expect-error — see the identical scaffolding note on the AC-16 test above.
-  CORE_RESOLVERS["recent-entries"] = rogueResolver;
+  replaceRecentEntriesResolver(t, rogueResolver);
 
   const results = await resolveWidgetType({
     typeKey: "recent-entries",
@@ -92,14 +104,13 @@ test("AC-17/REQ-25: an instance configured above the type's registered clamp is 
   }
 });
 
-test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidgetType never throws, it returns a typed failure", async () => {
+test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidgetType never throws, it returns a typed failure", async (t) => {
   const throwingResolver: WidgetResolver = {
     async resolveMany() {
       throw new Error("simulated resolver crash");
     },
   };
-  // @ts-expect-error — stub-era scaffolding, see note above.
-  CORE_RESOLVERS["recent-entries"] = throwingResolver;
+  replaceRecentEntriesResolver(t, throwingResolver);
 
   const results = await resolveWidgetType({
     typeKey: "recent-entries",
@@ -131,24 +142,44 @@ test("REQ-27: an unknown widget type resolves to a typed unknown-type failure, n
 });
 
 test("AC-16/REQ-23: resolvePageWidgets assembles resolved IR for every declared region on a page", async () => {
-  // Call-site note (Programmer stage): `resolvePageWidgets` needs real repo access to do its job
-  // for real (region -> widget_area -> placements, page -> inline embeds), so — unlike
-  // `resolveWidgetType` above, which stays a pure dispatch call with no injected deps — this one
-  // stub-era signature grew a `{ deps, input }` split, mirroring `write-service.ts`'s/
-  // `region-area-service.ts`'s identical restructuring. No area/page data is seeded here (this
-  // test only asserts the per-region key structure), so both repos are fresh, empty adapters.
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const entryRepo = new InMemoryEntryRepo();
+  const at = "2026-07-21T00:00:00.000Z";
+  // Save in a different order from the placements to prove the area controls ordering.
+  for (const id of ["second", "disabled", "first"]) {
+    await entryRepo.save({
+      id, workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE, slug: id,
+      status: "published", title: id, bodyJson: null,
+      fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: "text", config: { text: id }, status: "active" }),
+      publishedAt: at, createdAt: at, updatedAt: at, version: 1,
+    });
+  }
+  await entryRepo.save({
+    id: "footer-area", workspaceId: WORKSPACE_ID, type: WIDGET_AREA_CONTENT_TYPE,
+    slug: "widget-area-footer", status: "published", title: "Footer", bodyJson: null,
+    fieldsJson: buildWidgetAreaFieldsJson({
+      regionKey: "footer",
+      doc: { schemaVersion: 1, placements: [
+        { placementId: "p1", widgetEntryId: "first", enabled: true },
+        { placementId: "p2", widgetEntryId: "disabled", enabled: false },
+        { placementId: "p3", widgetEntryId: "second", enabled: true },
+      ] },
+    }),
+    publishedAt: at, createdAt: at, updatedAt: at, version: 1,
+  });
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, regionKey: "footer", areaEntryId: "footer-area", updatedAt: at });
   const { regions } = await resolvePageWidgets({
-    deps: { bindingRepo: new InMemoryWidgetRegionBindingRepo(), entryRepo: new InMemoryEntryRepo() },
-    input: {
-      workspaceId: WORKSPACE_ID,
-      // No `pageBodyJson` — this test only asserts per-region key structure, not inline-embed
-      // resolution (see the dedicated 2026-08-05-fix test below for that).
-      resolvedRegions: ["footer", "sidebar"],
-    },
+    deps: { bindingRepo, entryRepo },
+    input: { workspaceId: WORKSPACE_ID, resolvedRegions: ["footer", "sidebar"] },
   });
 
   assert.ok("footer" in regions);
   assert.ok("sidebar" in regions);
+  assert.deepEqual(regions.footer, [
+    { componentId: "text", props: { text: "first" } },
+    { componentId: "text", props: { text: "second" } },
+  ]);
+  assert.deepEqual(regions.sidebar, []);
 });
 
 test("2026-08-05 fix: a widgetEmbed node in a real page's pageBodyJson resolves to the widget's real IR, not the REQ-28 placeholder forever (the pageEntryId->EntryRepoPort.findById path this replaces could never reach a PostRecord's bodyJson)", async () => {

@@ -17,6 +17,7 @@ import {
   normalizeMode,
   resolveTreeRelativePath,
   THEME_FILE_TREE_ALLOWED_EXTENSIONS,
+  wrapTreePolicyReason,
   type FileTreeFileInput,
 } from "../file-tree-policy.js";
 
@@ -48,30 +49,30 @@ test("no kind's resolved root can ever equal a site-root file name", () => {
 
 // (c) Each deny name/extension blocks a tree.
 test("checkTreePath blocks every deny-listed segment, name and extension", () => {
-  const cases: readonly string[] = [
-    "theme.json/.git/x",
-    "vendor/node_modules/x.js",
-    ".publish-staging/x",
-    ".publish-previous/x",
-    ".env",
-    ".env.production",
-    ".npmrc",
-    ".netrc",
-    ".mcp.foo.json",
-    ".fs-custom-root.json",
-    "nested/.fs-custom-root.json",
-    "id_rsa",
-    "id_rsa.bak",
-    "id_ed25519",
-    "secrets.pem",
-    "keys/site.key",
-    "data.db",
-    "data.sqlite",
-    "data.db-wal",
-    "data.db-shm",
+  const cases: readonly [string, string][] = [
+    ["theme.json/.git/x", "contains a '.git' segment, which is never published"],
+    ["vendor/node_modules/x.js", "contains a 'node_modules' segment, which is never published"],
+    [".publish-staging/x", "contains a '.publish-staging' segment, which is never published"],
+    [".publish-previous/x", "contains a '.publish-previous' segment, which is never published"],
+    [".env", "looks like an environment file"],
+    [".env.production", "looks like an environment file"],
+    [".npmrc", "is a package-manager credential file"],
+    [".netrc", "is a package-manager credential file"],
+    [".mcp.foo.json", "is an MCP server configuration file, which can hold secrets"],
+    [".fs-custom-root.json", "holds a local filesystem path, never portable across machines"],
+    ["nested/.fs-custom-root.json", "holds a local filesystem path, never portable across machines"],
+    ["id_rsa", "looks like a private SSH key"],
+    ["id_rsa.bak", "looks like a private SSH key"],
+    ["id_ed25519", "looks like a private SSH key"],
+    ["secrets.pem", "has a '.pem' extension, which is never published"],
+    ["keys/site.key", "has a '.key' extension, which is never published"],
+    ["data.db", "has a '.db' extension, which is never published"],
+    ["data.sqlite", "has a '.sqlite' extension, which is never published"],
+    ["data.db-wal", "has a '.db-wal' extension, which is never published"],
+    ["data.db-shm", "has a '.db-shm' extension, which is never published"],
   ];
-  for (const relPath of cases) {
-    assert.ok(checkTreePath(relPath) !== null, `expected "${relPath}" to be blocked`);
+  for (const [relPath, reason] of cases) {
+    assert.equal(checkTreePath(relPath), `"${relPath}" ${reason}`);
   }
 });
 
@@ -285,14 +286,39 @@ test("checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blo
   assert.equal(checkMcpJsonSecretPlaceholders("not json"), null);
 });
 
-test("THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme", () => {
+test("MCP headers must be empty or placeholders, never literal credentials", () => {
+  assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify({ headers: { Authorization: "${TOKEN}", Empty: "" } })), null);
+  assert.equal(
+    checkMcpJsonSecretPlaceholders(JSON.stringify({ headers: { Authorization: "Bearer literal-token" } })),
+    "has a key written into mcp.json (headers.Authorization); move it to live's settings"
+  );
+});
+
+test("NUL paths and sealed storage-secret filenames are refused", () => {
+  assert.equal(checkTreePath("a\0b.json"), '"a\0b.json" contains a NUL byte');
+  for (const name of [".storage-secret.json", "nested/.storage-secret.json", ".storage-secret.json.bak"]) {
+    assert.equal(checkTreePath(name), `"${name}" is a site's sealed database connection string`);
+  }
+});
+
+test("wrapTreePolicyReason prefixes ordinary reasons and preserves final reasons", () => {
+  assert.equal(wrapTreePolicyReason("Theme: static/basic", '".env" looks like an environment file'),
+    'Theme: static/basic was not published: ".env" looks like an environment file');
+  const finalReason = "Can't publish: contains a video file (hero.mp4)";
+  assert.equal(wrapTreePolicyReason("Theme: static/basic", finalReason), finalReason);
+});
+
+test("THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme", (t) => {
   const themeDir = path.resolve(import.meta.dirname, "../../../../../../sites/tovu-dev/themes/static/tovu-theme");
   let files: string[];
   try {
     files = listFilesRecursive(themeDir);
-  } catch {
-    return; // No local site checked out in this environment — nothing to pin against.
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    t.skip("local static/tovu-theme fixture is unavailable");
+    return;
   }
+  assert.ok(files.length > 0, "the local theme must contain files to check");
   for (const file of files) {
     const ext = file.includes(".") ? file.slice(file.lastIndexOf(".") + 1).toLowerCase() : "";
     assert.ok(

@@ -149,7 +149,7 @@ test("writing a NEW file inside a compiled theme's sourceDir, with an extension 
 });
 
 test("writing a compiled theme's own theme.json is still allowed", async () => {
-  const { deps } = fakeDeps();
+  const { deps, themesDir } = fakeDeps();
   const updated = JSON.stringify({
     id: "compiled",
     name: "Renamed",
@@ -166,9 +166,35 @@ test("writing a compiled theme's own theme.json is still allowed", async () => {
 
   const result = (await writeFileHandler(deps)(
     executionContext({ themeId: "compiled", path: "theme.json", content: updated })
-  )) as { status: string };
+  )) as { status: string; theme: { name: string; version: string } };
 
   assert.equal(result.status, "valid", "renaming via theme.json must still succeed for a compiled theme");
+  assert.equal(fs.readFileSync(path.join(themesDir, "compiled", "theme.json"), "utf8"), updated);
+  assert.equal(result.theme.name, "Renamed");
+  assert.equal(result.theme.version, "1.0.1");
+  const live = deps.themes.find((t) => t.manifest.id === "compiled");
+  assert.equal(live?.manifest.name, "Renamed");
+  assert.equal(live?.manifest.version, "1.0.1");
+});
+
+test("a compiled manifest cannot redefine its write boundary and unlock generated output", async () => {
+  for (const replacement of [undefined, { source: "authored" }, { source: "compiled", sourceDir: "pages" }]) {
+    const { deps, themesDir } = fakeDeps();
+    const target = path.join(themesDir, "compiled", "theme.json");
+    const before = fs.readFileSync(target, "utf8");
+    const manifest = JSON.parse(before);
+    manifest.build = replacement;
+    await assert.rejects(
+      () => writeFileHandler(deps)(executionContext({ themeId: "compiled", path: "theme.json", content: JSON.stringify(manifest) })),
+      /read-only/
+    );
+    assert.equal(fs.readFileSync(target, "utf8"), before);
+    await assert.rejects(
+      () => writeFileHandler(deps)(executionContext({ themeId: "compiled", path: "css/styles.css", content: "HACKED" })),
+      /read-only/
+    );
+    assert.equal(fs.readFileSync(path.join(themesDir, "compiled", "css/styles.css"), "utf8"), "body{margin:0}");
+  }
 });
 
 test("an authored theme's write behavior is completely unaffected — every path stays writable", async () => {

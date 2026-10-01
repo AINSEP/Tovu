@@ -29,6 +29,21 @@ test("AC-16: disclosure lists counts only for posts/pages + plugin-table categor
 
   assert.equal(result.partial, true);
   assert.deepEqual(Object.keys(result.counts).sort(), ["pages", "plugin-tables", "posts"]);
+  assert.deepEqual(result.counts, { posts: 12, pages: 3, "plugin-tables": 1 });
+  assert.equal(result.watermarkBaselineAvailable, true);
+});
+
+test("AC-16: a covered category absent from usable source counts defaults to zero", async () => {
+  const watermarkSource = {
+    getBaseline: async () => ({ available: true as const, watermarkAtCapture: 1000, currentWatermark: 1050 }),
+    getCategoryCounts: async () => ({ posts: 12 }),
+  };
+  const result = await computeDisclosure({
+    deps: { watermarkSource, coveredCategories: COVERED_CATEGORIES },
+    input: { restorePointId: "rp-missing-counts" },
+  });
+  assert.deepEqual(result.counts, { posts: 12, pages: 0, "plugin-tables": 0 });
+  assert.equal(result.watermarkBaselineAvailable, true);
 });
 
 test("AC-17: a Collections `entries` category is never present in the disclosure output, even if the caller-supplied count source has data for it", async () => {

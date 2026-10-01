@@ -7,6 +7,7 @@ import { PublishContentApplyRowError } from "../apply-errors.js";
 import { contentHash } from "../content-hash.js";
 import {
   addressHeldByOther,
+  addressHeldInTrash,
   changedSincePlan,
   notWired,
   trashedAtDestination,
@@ -228,7 +229,8 @@ test("missing ports: pack yields nothing, inspect is null, precheck refuses, app
   assert.equal(reason, notWired("item", "missing", "item port"));
 
   await assert.rejects(() =>
-    handler.apply({ entity: packedEntity("missing", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" })
+    handler.apply({ entity: packedEntity("missing", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" }),
+    /requires PublishContentDeps\.ports\.item/
   );
 });
 
@@ -242,6 +244,13 @@ test("precheck refuses when the address is held by a different id", async () => 
 
   const reason = await handler.precheck(packedEntity("incoming", { slug: "taken", title: "Incoming" }));
   assert.equal(reason, addressHeldByOther("item", "slug", "taken", "holder"));
+});
+
+test("precheck identifies an address held by a trashed row", async () => {
+  const repo = new FakeItemRepo([{ id: "holder", workspaceId: WORKSPACE_ID, slug: "taken", title: "Holder", note: "", status: "trashed", version: 1 }]);
+  const handler = buildHandler(baseConfig(), makeDeps({ repo }));
+  assert.equal(await handler.precheck(packedEntity("incoming", { slug: "taken", title: "Incoming" })),
+    addressHeldInTrash("item", "slug", "taken", "holder"));
 });
 
 test("precheck refuses when the destination row is trashed", async () => {
@@ -513,6 +522,70 @@ test("with undo, the change set records write's version and the (async) summary,
   assert.equal(inserted[0]!.record.id, result.changeSetId);
   assert.equal((result as { blobWritten?: boolean }).blobWritten, true);
 });
+
+test("type-specific permissions, references and extension methods reach the handler", async () => {
+  const repo = new FakeItemRepo();
+  const entity = packedEntity("incoming", { slug: "taken", title: "Incoming" });
+  const target = { entityType: "item", entityId: "holder", entityLabel: "Holder", hash: "holder-hash" };
+  const skipped = [{ entityType: "item", id: "blocked", label: "Blocked", reason: "cannot publish" }];
+  const references = [{ entityType: "related", key: "related-1" }];
+  const extensions = {
+    planRetire: async () => target,
+    retire: async () => ({ changeSetId: "retired-1", undo: async () => {} }),
+    verifyApplied: async () => ["missing blob"],
+    listSkipped: async () => skipped,
+  };
+  const handler = buildHandler(baseConfig({ alsoAuthorizes: ["items.create"], references: () => references,
+    extend: () => extensions }), makeDeps({ repo }));
+  assert.deepEqual(handler.alsoAuthorizes, ["items.create"]);
+  assert.deepEqual(handler.references!(entity), references);
+  assert.deepEqual(await handler.planRetire!(entity), target);
+  assert.equal((await handler.retire!({ target, principalId: "op-1", idempotencyKey: "retire" })).changeSetId, "retired-1");
+  assert.deepEqual(await handler.verifyApplied!({ entities: [entity] }), ["missing blob"]);
+  assert.deepEqual(await handler.listSkipped!(), skipped);
+});
+
+test("the change set distinguishes create from update", async () => {
+  const repo = new FakeItemRepo();
+  const inserted: Array<{ record: ChangeSetRecord; items: ChangeSetItemRecord[] }> = [];
+  const handler = buildHandler(baseConfig({ undo: { restore: async () => {}, remove: async () => {} } }),
+    makeDeps({ repo }, { changeSets: workingChangeSets(inserted) }));
+  await handler.apply({ entity: packedEntity("x", { slug: "x", title: "Created" }),
+    expectedVersion: undefined, principalId: "op-1", idempotencyKey: "create" });
+  await handler.apply({ entity: packedEntity("x", { slug: "x", title: "Updated" }),
+    expectedVersion: 1, principalId: "op-1", idempotencyKey: "update" });
+  assert.deepEqual(inserted.map((c) => c.items[0]!.operation), ["create", "update"]);
+  assert.equal((await repo.find(WORKSPACE_ID, "x"))?.title, "Updated");
+});
+
+for (const operation of ["create", "update"] as const) {
+  test(`${operation} rollback compensates side effects in reverse order before undoing the row`, async () => {
+    const prior: Row = { id: "x", workspaceId: WORKSPACE_ID, slug: "x", title: "Old", note: "", status: "active", version: 1 };
+    const repo = new FakeItemRepo(operation === "update" ? [prior] : []);
+    const order: string[] = [];
+    let association = "original";
+    const write = baseConfig().write;
+    const handler = buildHandler(baseConfig({
+      write: async (ctx) => {
+        await write(ctx);
+        association = "first";
+        ctx.onRollback(async () => { assert.equal(association, "first"); association = "original"; order.push("first"); });
+        association = "second";
+        ctx.onRollback(async () => { assert.equal(association, "second"); association = "first"; order.push("second"); });
+      },
+      undo: {
+        restore: async (ctx, row) => { order.push("restore"); assert.equal(association, "original"); ctx.ports.repo.put(row); },
+        remove: async (ctx) => { order.push("remove"); assert.equal(association, "original"); ctx.ports.repo.remove(ctx.id); },
+      },
+    }), makeDeps({ repo }, { changeSets: throwingChangeSets() }));
+    await assert.rejects(() => handler.apply({ entity: packedEntity("x", { slug: "x", title: "New" }),
+      expectedVersion: operation === "update" ? 1 : undefined, principalId: "op-1", idempotencyKey: "rollback" }),
+      /boom: change-set insert failed/);
+    assert.deepEqual(order, ["second", "first", operation === "update" ? "restore" : "remove"]);
+    assert.equal(association, "original");
+    assert.deepEqual(await repo.find(WORKSPACE_ID, "x"), operation === "update" ? prior : null);
+  });
+}
 
 test("with undo, apply refuses to run when authorize or outbox is not wired, before writing anything", async () => {
   for (const missing of ["authorize", "outbox"] as const) {

@@ -94,7 +94,33 @@ test("updateSubscription overwrites label/targetUrl/topics and bumps updatedAt",
   assert.deepEqual(updated.topics, ["post.*"]);
   assert.equal(updated.updatedAt, "2026-07-10T01:00:00.000Z");
   assert.equal(updated.createdAt, created.createdAt);
+  assert.deepEqual(await repo.findById({ workspaceId: created.workspaceId, id: created.id }), updated);
 });
+
+for (const invalid of [
+  { name: "non-HTTPS target", patch: { targetUrl: "http://example.com/hooks" }, allowed: true },
+  { name: "disallowed target", patch: { targetUrl: "https://internal.example/hooks" }, allowed: false },
+  { name: "blank label", patch: { label: "   " }, allowed: true },
+  { name: "empty topics", patch: { topics: ["   ", ""] }, allowed: true },
+]) {
+  test(`updateSubscription rejects ${invalid.name} and preserves the stored row`, async () => {
+    const deps = makeDeps();
+    const { subscription: created } = await createSubscription({ deps, input: baseInput });
+    const before = structuredClone(created);
+    await assert.rejects(
+      () => updateSubscription({
+        deps: { ...deps, isAllowedTarget: async () => invalid.allowed },
+        input: {
+          workspaceId: created.workspaceId, id: created.id,
+          label: "Renamed", targetUrl: "https://example.com/v2", topics: ["post.*"],
+          ...invalid.patch,
+        },
+      }),
+      WebhookSubscriptionValidationError
+    );
+    assert.deepEqual(await deps.repo.findById({ workspaceId: created.workspaceId, id: created.id }), before);
+  });
+}
 
 test("updateSubscription on an unknown id throws WebhookSubscriptionNotFoundError", async () => {
   const deps = makeDeps();

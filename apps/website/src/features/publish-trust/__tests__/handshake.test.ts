@@ -143,15 +143,60 @@ test("the happy path: a source that never received a secret authenticates end to
   );
   assert.ok(session.ok, session.ok ? "" : session.reason);
   assert.equal(session.payload.sourceInstallationId, SOURCE_INSTALL);
+  assert.deepEqual(verified.verified.capabilities, [...CAPABILITIES]);
+  assert.deepEqual(session.payload.capabilities, verified.verified.capabilities);
   // Stable identity, which is what baselines key on — not the rotating credential.
   assert.equal(session.payload.sourceInstallationId, SOURCE_INSTALL);
 });
 
-test("PROOF 1 — an UNSIGNED request is refused", async () => {
+test("a valid signature under an expired grant is refused", async () => {
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
+  const result = await verifyChallengeResponse({ store, clock }, {
+    grant: { ...grant, notAfter: "2020-01-01T00:00:00.000Z" },
+    targetInstallationId: TARGET_INSTALL, response,
+  });
+  assert.deepEqual(result, { ok: false, reason: "the publishing grant has expired or been revoked" });
+});
 
+test("changing a signed read request to apply invalidates the signature", async () => {
+  const clock = movableClock();
+  const key = await sourceKey();
+  const grant = await grantFor(key.publicKeyB64u); // Both are granted: signature binding must refuse it.
+  const store = new InMemoryPublishChallengeStore(clock);
+  const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
+  const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
+    capabilities: ["publish_content.read"], signatureB64u: "" };
+  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
+  const result = await verifyChallengeResponse({ store, clock }, { grant,
+    targetInstallationId: TARGET_INSTALL, response: { ...response, capabilities: ["publish_content.apply"] } });
+  assert.deepEqual(result, { ok: false, reason: "signature verification failed" });
+});
+
+test("a read-only handshake mints a read-only session", async () => {
+  const clock = movableClock();
+  const key = await sourceKey();
+  const grant = { ...await grantFor(key.publicKeyB64u), capabilities: ["publish_content.read"] as const };
+  const store = new InMemoryPublishChallengeStore(clock);
+  const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
+  const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
+    capabilities: ["publish_content.read"], signatureB64u: "" };
+  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
+  const verified = await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response });
+  assert.ok(verified.ok);
+  assert.deepEqual(verified.verified.capabilities, ["publish_content.read"]);
+  const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
+  const { token } = await mintPublishSession(deps, verified.verified);
+  const session = await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL });
+  assert.ok(session.ok);
+  assert.deepEqual(session.payload.capabilities, verified.verified.capabilities);
+  assert.equal(session.payload.capabilities.includes("publish_content.apply"), false);
+});
+
+test("PROOF 1 — an UNSIGNED request is refused", async () => {
+  const clock = movableClock();
   for (const missing of ["", undefined, null]) {
+    const { store, grant, response } = await handshake({ clock });
     const result = await verifyChallengeResponse(
       { store, clock },
       {
@@ -161,8 +206,7 @@ test("PROOF 1 — an UNSIGNED request is refused", async () => {
       }
     );
     assert.equal(result.ok, false);
-    // Each attempt also burns its nonce, so a caller cannot probe with the same one.
-    if (missing === "") assert.match(result.ok ? "" : result.reason, /no signature|already used/);
+    assert.deepEqual(result, { ok: false, reason: "the response carries no signature" });
   }
 });
 
@@ -226,6 +270,20 @@ test("an EXPIRED nonce is refused", async () => {
   );
   assert.equal(result.ok, false);
   assert.match(result.ok ? "" : result.reason, /expired/);
+});
+
+test("issuing a later challenge sweeps unanswered expired nonces and preserves live ones", async () => {
+  const clock = movableClock();
+  const store = new InMemoryPublishChallengeStore(clock);
+  const deps = { store, clock, idGen, targetInstallationId: TARGET_INSTALL };
+  const old = await issuePublishChallenge(deps);
+  clock.advance(CHALLENGE_TTL_MS - 1);
+  const live = await issuePublishChallenge(deps);
+  clock.advance(1);
+  const latest = await issuePublishChallenge(deps);
+  assert.equal(await store.takeOnce(old.nonce), null);
+  assert.deepEqual(await store.takeOnce(live.nonce), live);
+  assert.deepEqual(await store.takeOnce(latest.nonce), latest);
 });
 
 test("PROOF 4 — an EXPIRED session is refused", async () => {

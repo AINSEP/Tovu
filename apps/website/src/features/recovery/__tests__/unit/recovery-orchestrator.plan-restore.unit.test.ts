@@ -33,18 +33,19 @@ test("U-003-B1/ORD1: planRestore calls getCapabilities() fresh and delegates to 
   const dbOps = {
     getCapabilities: async () => {
       capabilitiesCallCount++;
-      return { costClass: "cheap" as const, restorePointKind: "file-snapshot" as const };
+      return { costClass: "expensive" as const, restorePointKind: "file-snapshot" as const };
     },
   };
   const gateway = fakeGateway();
 
   const result = await planRestore({
     deps: { dbOps, gateway },
-    input: { principalId: "user-1", principalKind: "user", restorePointId: "rp-1" },
+    input: { principalId: "agent-1", principalKind: "agent", restorePointId: "rp-selected" },
   });
 
   assert.equal(capabilitiesCallCount, 1, "getCapabilities must be called fresh at plan-call time");
   assert.equal(gateway.calls.length, 1, "the gateway's plan() must be delegated to when costClass is not unavailable");
+  assert.deepEqual(gateway.calls[0], { principalId: "agent-1", principalKind: "agent", restorePointId: "rp-selected", costClass: "expensive" });
   assert.equal(result.ok, true);
 });
 
@@ -90,6 +91,12 @@ test("AC-13: a successful plan() preview includes the target schema version+tag,
     assert.equal(value.details.targetSchemaVersion, "12");
     assert.equal(value.details.quiesceIntegrity, "chokepoint-only");
     assert.ok(value.details.costDiskEstimate.length > 0);
+    assert.deepEqual(value.details, {
+      targetSchemaVersion: "12",
+      targetSchemaTag: "2026-07-10",
+      quiesceIntegrity: "chokepoint-only",
+      costDiskEstimate: "~40MB",
+    });
   }
 });
 

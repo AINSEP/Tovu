@@ -167,4 +167,14 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     assert.deepEqual(purged, ["m-1"]);
     assert.equal(await media.purge({ workspaceId: WS, entityId: "m-1", expectedVersion: 2 }), "already-gone");
   });
+
+  test("media: unhide restores persisted active status and advances the version", async () => {
+    const kernel = make();
+    await seedMedia(kernel, "m-restore");
+    const media = createMediaTrashAdapter({ db: kernel, purgeAsset: async () => assert.fail("restore must not purge") });
+    assert.deepEqual(await media.hide({ workspaceId: WS, entityId: "m-restore", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
+    assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "trashed", version: 2 });
+    assert.deepEqual(await media.unhide({ workspaceId: WS, entityId: "m-restore", at: AT, expectedVersion: 2 }), { ok: true, version: 3 });
+    assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "active", version: 3 });
+  });
 });

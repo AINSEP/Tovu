@@ -16,13 +16,13 @@ import { executeRestore } from "../../recovery-orchestrator.js";
  * (restore doesn't clear PENDING_MIGRATION), EC-04 (actor-class redemption rejection).
  */
 
-function fakeGateway(executeResult: unknown = { restoreRunId: "run-1", state: "QUIESCING" }) {
+function fakeGateway(executeResult: unknown = { restoreRunId: "run-1", state: "QUIESCING" }, tokenOwner = "user-1") {
   const executeCalls: unknown[] = [];
   return {
     executeCalls,
     execute: async (input: { confirmationToken: string; confirmerPrincipalId?: string }) => {
       executeCalls.push(input);
-      if (input.confirmationToken === "token-for-other-actor") {
+      if (input.confirmerPrincipalId !== tokenOwner) {
         return { ok: false, error: { code: "FORBIDDEN" } };
       }
       return { ok: true, value: executeResult };
@@ -42,6 +42,8 @@ test("U-001-ORD1: executeRestore acquires the shared operation lock BEFORE calli
 
   assert.equal(result.ok, true);
   assert.equal(gateway.executeCalls.length, 1, "the gateway's execute() must have been reached after the lock was acquired");
+  assert.deepEqual(gateway.executeCalls[0], { confirmationToken: "token-1", confirmerPrincipalId: "user-1" });
+  if (result.ok) assert.equal(result.value.databaseTimelineDeepLink, undefined);
 
   // The lock must have been released after a completed attempt, so a fresh acquire now succeeds
   // (proves executeRestore does not leak the lock on the happy path).
@@ -83,6 +85,7 @@ test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the
   if (result.ok) {
     const value = result.value as { databaseTimelineDeepLink?: unknown };
     assert.ok(value.databaseTimelineDeepLink, "REQ-16 requires a deep-link back to Database Timeline on RESTORED completion");
+    assert.deepEqual(value.databaseTimelineDeepLink, { v: 1, siteId, intent: "view" });
   }
 });
 
@@ -123,4 +126,68 @@ test("EC-04: an agent redeeming a token whose confirmer does not match its own d
 
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "FORBIDDEN");
+  assert.deepEqual(gateway.executeCalls[0], {
+    confirmationToken: "token-for-other-actor",
+    confirmerPrincipalId: "user-not-the-confirmer",
+  });
+  const postAttempt = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });
+  assert.equal(postAttempt.ok, true, "a rejected redemption must release the site's lock");
+  if (postAttempt.ok) await releaseOperationLock({ deps: { clock }, input: { siteId, handle: postAttempt.value } });
+});
+
+test("EC-04: an agent can redeem a token owned by its delegator", async () => {
+  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const gateway = fakeGateway();
+  const result = await executeRestore({
+    deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock },
+    input: { principalId: "agent-1", principalKind: "agent", delegatedByPrincipalId: "user-1", confirmationToken: "token-1", siteId: "site-execute-agent-match" },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(gateway.executeCalls[0], { confirmationToken: "token-1", confirmerPrincipalId: "user-1" });
+});
+
+test("U-001-ORD1: a pending restore holds the shared lock until gateway execution settles", async () => {
+  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const siteId = "site-execute-pending";
+  let enterGateway!: () => void;
+  const entered = new Promise<void>((resolve) => { enterGateway = resolve; });
+  let finishGateway!: () => void;
+  const pending = new Promise<void>((resolve) => { finishGateway = resolve; });
+  const gateway = {
+    execute: async () => {
+      enterGateway();
+      await pending;
+      return { ok: true as const, value: { restoreRunId: "run-pending", state: "QUIESCING" } };
+    },
+  };
+  const restore = executeRestore({
+    deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock },
+    input: { principalId: "user-1", principalKind: "user", confirmationToken: "token-1", siteId },
+  });
+  await entered;
+  try {
+    const competing = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });
+    if (competing.ok) await releaseOperationLock({ deps: { clock }, input: { siteId, handle: competing.value } });
+    assert.equal(competing.ok, false, "migration must be blocked while the restore gateway is pending");
+  } finally {
+    finishGateway();
+    await restore;
+  }
+  const postAttempt = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });
+  assert.equal(postAttempt.ok, true);
+  if (postAttempt.ok) await releaseOperationLock({ deps: { clock }, input: { siteId, handle: postAttempt.value } });
+});
+
+test("U-001: a throwing gateway releases the shared operation lock", async () => {
+  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const siteId = "site-execute-throw";
+  const failure = new Error("restore gateway failed");
+  const gateway = { execute: async () => { throw failure; } };
+  await assert.rejects(executeRestore({
+    deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock },
+    input: { principalId: "user-1", principalKind: "user", confirmationToken: "token-1", siteId },
+  }), (error) => error === failure);
+  const postAttempt = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });
+  assert.equal(postAttempt.ok, true, "exception unwinding must release the site's lock");
+  if (postAttempt.ok) await releaseOperationLock({ deps: { clock }, input: { siteId, handle: postAttempt.value } });
 });

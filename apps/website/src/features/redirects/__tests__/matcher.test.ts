@@ -116,6 +116,20 @@ test("wildcard matches only when exact and prefix both miss", () => {
   if (result.matched) assert.equal(result.matchType, "wildcard");
 });
 
+test("among overlapping wildcard rules, the more specific fromPattern wins", () => {
+  const rules = [
+    rule({ id: "broad", matchType: "wildcard", fromPattern: "/blog/*", toTarget: "/broad/$1", priority: 10 }),
+    rule({ id: "specific", matchType: "wildcard", fromPattern: "/blog/hello-*", toTarget: "/specific/$1", priority: 0 }),
+  ];
+  assert.deepEqual(match({ request: req("/blog/hello-world"), rules }), {
+    matched: true,
+    redirectId: "specific",
+    location: "/specific/world",
+    statusCode: 301,
+    matchType: "wildcard",
+  });
+});
+
 test("among two prefix rules, the longer fromPattern wins", () => {
   const rules = [
     rule({ id: "short", matchType: "prefix", fromPattern: "/a", toTarget: "/short-target" }),
@@ -177,6 +191,13 @@ test("wildcard interpolates a single capture into the target", () => {
   if (result.matched) assert.equal(result.location, "/articles/hello-world");
 });
 
+test("a single-segment wildcard rejects nested paths and empty captures", () => {
+  const rules = [rule({ id: "wc", matchType: "wildcard", fromPattern: "/blog/*", toTarget: "/articles/$1" })];
+  for (const path of ["/blog/hello-world/extra", "/blog/", "/blog"]) {
+    assert.deepEqual(match({ request: req(path), rules }), { matched: false }, path);
+  }
+});
+
 test("wildcard interpolates multiple captures in order", () => {
   const rules = [
     rule({ id: "wc", matchType: "wildcard", fromPattern: "/cat/*/item/*", toTarget: "/products/$1/$2" }),
@@ -209,3 +230,16 @@ test("a prefix rule does not match a sibling path that merely shares a string pr
   const result = match({ request: req("/oldish"), rules });
   assert.deepEqual(result, { matched: false });
 });
+
+for (const statusCode of [302, 307, 308] as const) {
+  test(`match preserves the selected rule's ${statusCode} status code`, () => {
+    const selected = rule({ id: `status-${statusCode}`, matchType: "exact", fromPattern: "/temporary", toTarget: "/destination", statusCode });
+    assert.deepEqual(match({ request: req("/temporary"), rules: [selected] }), {
+      matched: true,
+      redirectId: selected.id,
+      location: "/destination",
+      statusCode,
+      matchType: "exact",
+    });
+  });
+}

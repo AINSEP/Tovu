@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveThemeFileWriteScope } from "../theme-files.js";
+import { isGeneratedThemePath, isSourceDirGeneratedConflict, resolveThemeFileWriteScope } from "../theme-files.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — `resolveThemeFileWriteScope`'s pure policy: an authored theme is
@@ -63,4 +63,22 @@ test("a compiled theme declaring no sourceDir has no editable region beyond them
   );
   const scope = resolveThemeFileWriteScope({ manifest: COMPILED_NO_SOURCE_DIR, relativePath: "src/Header.tsx" });
   assert.equal(scope.kind, "generated-readonly");
+});
+
+test("parent and dot segments are resolved before classifying compiled source versus generated output", () => {
+  for (const relativePath of ["src/../pages/index.html", "./pages/index.html", "src//../css/styles.css", "src/../css/theme.css", "src\\..\\pages\\index.html"]) {
+    assert.equal(resolveThemeFileWriteScope({ manifest: COMPILED, relativePath }).kind, "generated-readonly", relativePath);
+  }
+  for (const relativePath of ["pages/../src/Header.tsx", "./src/components/../Header.tsx"]) {
+    assert.deepEqual(resolveThemeFileWriteScope({ manifest: COMPILED, relativePath }), { kind: "editable" }, relativePath);
+  }
+});
+
+test("shared generated-path predicates collapse parent, dot and repeated separator spellings", () => {
+  for (const relativePath of ["src/../preview/dark/index.html", "./preview/dark/index.html", "src//../preview/dark/index.html", "src/../index.html"]) {
+    assert.equal(isGeneratedThemePath(relativePath), true, relativePath);
+  }
+  assert.equal(isGeneratedThemePath("preview/../src/Header.tsx"), false);
+  assert.equal(isSourceDirGeneratedConflict("src/../preview"), true);
+  assert.equal(isSourceDirGeneratedConflict("preview/../src"), false);
 });

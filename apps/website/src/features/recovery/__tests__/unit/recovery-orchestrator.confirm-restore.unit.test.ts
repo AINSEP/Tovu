@@ -24,18 +24,19 @@ import { confirmRestore } from "../../recovery-orchestrator.js";
  */
 
 function fakeGateway() {
-  const mintedPlanIds = new Set<string>();
+  const mintedPlanIds = new Map<string, string>();
   const confirmCalls: unknown[] = [];
   return {
     confirmCalls,
     plan: async () => {
       const planId = `plan-${mintedPlanIds.size + 1}`;
-      mintedPlanIds.add(planId);
-      return { ok: true, value: { planId, planHash: "sha256:" + "c".repeat(64) } };
+      const planHash = "sha256:" + "c".repeat(64);
+      mintedPlanIds.set(planId, planHash);
+      return { ok: true, value: { planId, planHash } };
     },
     confirm: async (input: { planId: string; planHash: string }) => {
       confirmCalls.push(input);
-      if (!mintedPlanIds.has(input.planId)) {
+      if (!mintedPlanIds.has(input.planId) || mintedPlanIds.get(input.planId) !== input.planHash) {
         return { ok: false, error: { code: "PLAN_STALE" } };
       }
       return { ok: true, value: { confirmationToken: "token-1" } };
@@ -105,6 +106,19 @@ test("U-002-B1/ORD1: confirmRestore forwards to gateway.confirm() only when disc
 
   assert.equal(gateway.confirmCalls.length, 1);
   assert.equal(result.ok, true);
+  assert.deepEqual(gateway.confirmCalls[0], { planId: plan.value.planId, planHash: plan.value.planHash });
+  assert.deepEqual(result, { ok: true, value: { confirmationToken: "token-1" } });
+});
+
+test("confirmRestore preserves the gateway's rejection of a mismatched plan hash", async () => {
+  const gateway = fakeGateway();
+  const plan = await gateway.plan();
+  const result = await confirmRestore({
+    deps: { gateway },
+    input: { principalId: "user-1", principalKind: "user", planId: plan.value.planId, planHash: "sha256:" + "d".repeat(64), disclosureAcknowledged: true },
+  });
+  assert.deepEqual(gateway.confirmCalls[0], { planId: plan.value.planId, planHash: "sha256:" + "d".repeat(64) });
+  assert.deepEqual(result, { ok: false, error: { code: "PLAN_STALE" } });
 });
 
 test("U-002-B1 (adversarial): disclosureAcknowledged===true but planId was NEVER minted by this server's own planRestore — Recovery must not bypass the gateway's own provenance rejection", async () => {

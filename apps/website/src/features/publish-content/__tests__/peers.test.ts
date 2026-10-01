@@ -130,8 +130,13 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
     label: "staging",
     baseUrl: "https://staging.example.com",
     remoteWorkspaceId: "remote-ws-8",
-    apiKey: API_KEY,
+    apiKey: "tovu_live_staging_distinct",
   });
+
+  const firstResolved = await resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-1" });
+  const secondResolved = await resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-2" });
+  assert.equal(firstResolved.apiKey, API_KEY);
+  assert.equal(secondResolved.apiKey, "tovu_live_staging_distinct");
 
   const first = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(first?.sealed);
@@ -139,6 +144,13 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
   await assert.rejects(
     () => deps.sealer.open({ sealed: first.sealed!, aad: buildPublishContentPeerAad({ workspaceId: WORKSPACE, id: "peer-2" }) }),
     (err: unknown) => err instanceof Error
+  );
+  const second = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-2" });
+  assert.ok(second);
+  await deps.repo.update({ ...second, sealed: first.sealed });
+  await assert.rejects(
+    () => resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-2" }),
+    PublishContentPeerSecretStoreUnconfiguredError
   );
 });
 
@@ -240,6 +252,15 @@ test("update and resolve refuse an unknown peer; delete is idempotent", async ()
     (err: unknown) => err instanceof PublishContentPeerNotFoundError
   );
   await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE, id: "nope" });
+  await createDefaultPeer(deps);
+  await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE, id: "peer-1" });
+  assert.deepEqual(await listPublishContentPeers(deps, { workspaceId: WORKSPACE }), []);
+  assert.equal(await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" }), null);
+  await assert.rejects(
+    () => resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-1" }),
+    PublishContentPeerNotFoundError
+  );
+  await deletePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "peer-1" });
 });
 
 test("a peer row with no sealed credential refuses at resolve rather than pushing unauthenticated", async () => {

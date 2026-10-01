@@ -6,6 +6,23 @@ import test from "node:test";
 
 import { migrateThemeToV2 } from "../migrate-theme.js";
 
+function snapshotTree(dir: string): Record<string, string | null> {
+  const entries: Record<string, string | null> = {};
+  function walk(relative: string): void {
+    for (const entry of fs.readdirSync(path.join(dir, relative), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const name = path.join(relative, entry.name);
+      if (entry.isDirectory()) {
+        entries[name] = null;
+        walk(name);
+      } else {
+        entries[name] = fs.readFileSync(path.join(dir, name)).toString("hex");
+      }
+    }
+  }
+  walk("");
+  return entries;
+}
+
 function makeDeclarativeThemeDir(
   options: { extraRootFile?: string; skipEntry?: boolean } = {}
 ): string {
@@ -28,6 +45,10 @@ function makeDeclarativeThemeDir(
 
 test("migrateThemeToV2 migrates a v1 declarative theme in place, with a v1 backup kept alongside", () => {
   const dir = makeDeclarativeThemeDir();
+  fs.writeFileSync(path.join(dir, "tokens.light.json"), '{"--bg":"#fff"}\n');
+  fs.writeFileSync(path.join(dir, "tokens.dark.json"), '{"--bg":"#222"}\n');
+  fs.writeFileSync(path.join(dir, "NOTICE.md"), "Theme attribution — original author\n");
+  const before = snapshotTree(dir);
   const result = migrateThemeToV2({ themeDir: dir, id: "t" });
 
   assert.equal(result.status, "migrated");
@@ -50,17 +71,34 @@ test("migrateThemeToV2 migrates a v1 declarative theme in place, with a v1 backu
   // The backup is the untouched v1 original.
   assert.ok(fs.existsSync(path.join(result.backupDir!, "styles.css")));
   assert.ok(fs.existsSync(path.join(result.backupDir!, "templates/home.json")));
+  assert.deepEqual(snapshotTree(result.backupDir!), before, "the backup preserves every original byte");
+  for (const [from, to] of [
+    ["styles.css", "css/theme.css"],
+    ["templates/home.json", "render/pages/home.json"],
+    ["templates/entry.json", "render/pages/entry.json"],
+    ["tokens.json", "tokens.json"],
+    ["tokens.light.json", "tokens.light.json"],
+    ["tokens.dark.json", "tokens.dark.json"],
+    ["NOTICE.md", "NOTICE.md"],
+  ]) {
+    assert.equal(fs.readFileSync(path.join(dir, to!)).toString("hex"), before[from!], `${from} retains its bytes at ${to}`);
+  }
 });
 
 test("migrateThemeToV2 is idempotent — running it again on an already-migrated theme is a no-op", () => {
-  const dir = makeDeclarativeThemeDir();
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migrate-idempotent-"));
+  const dir = path.join(parent, "theme");
+  fs.renameSync(makeDeclarativeThemeDir(), dir);
   migrateThemeToV2({ themeDir: dir, id: "t" });
+  const before = snapshotTree(parent);
   const second = migrateThemeToV2({ themeDir: dir, id: "t" });
   assert.equal(second.status, "already-migrated");
+  assert.deepEqual(snapshotTree(parent), before, "a second migration changes neither files nor sibling artifacts");
 });
 
 test("migrateThemeToV2 dryRun stages the v2 output without touching the real theme directory", () => {
   const dir = makeDeclarativeThemeDir();
+  const before = snapshotTree(dir);
   const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
 
   assert.equal(result.status, "staged-dry-run");
@@ -71,10 +109,12 @@ test("migrateThemeToV2 dryRun stages the v2 output without touching the real the
   assert.ok(fs.existsSync(path.join(dir, "styles.css")));
   assert.ok(fs.existsSync(path.join(dir, "templates/home.json")));
   assert.ok(!fs.existsSync(path.join(dir, "css")));
+  assert.deepEqual(snapshotTree(dir), before);
 });
 
 test("migrateThemeToV2 refuses (fails) rather than silently dropping an unrecognized root-level file, real dir untouched", () => {
   const dir = makeDeclarativeThemeDir({ extraRootFile: "README.md" });
+  const before = snapshotTree(dir);
   const result = migrateThemeToV2({ themeDir: dir, id: "t" });
 
   assert.equal(result.status, "failed");
@@ -83,6 +123,7 @@ test("migrateThemeToV2 refuses (fails) rather than silently dropping an unrecogn
   assert.ok(fs.existsSync(path.join(dir, "README.md")));
   assert.ok(fs.existsSync(path.join(dir, "styles.css")));
   assert.ok(!fs.existsSync(path.join(dir, "css")));
+  assert.deepEqual(snapshotTree(dir), before);
 });
 
 function makeTemplatedThemeDir(): string {
@@ -123,7 +164,8 @@ test("migrateThemeToV2 rewrites a moved page's own hardcoded /theme-assets/<id>/
   const dir = makeTemplatedThemeDir();
   const id = "t"; // matches makeTemplatedThemeDir()'s own manifest id
   fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "assets", "hero.jpg"), "fake-jpg-bytes", "utf8");
+  const image = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x80, 0xc0, 0xfe, 0xff, 0xd9]);
+  fs.writeFileSync(path.join(dir, "assets", "hero.jpg"), image);
   fs.writeFileSync(
     path.join(dir, "templates", "home.liquid"),
     `<section style="background-image:url('/theme-assets/${id}/assets/hero.jpg')">{{ site.title }}</section>`,
@@ -134,12 +176,14 @@ test("migrateThemeToV2 rewrites a moved page's own hardcoded /theme-assets/<id>/
 
   assert.equal(result.status, "migrated", `expected migrated, got ${result.status}: ${JSON.stringify(result.validation ?? result.reason)}`);
   assert.ok(fs.existsSync(path.join(dir, "assets/images/hero.jpg")));
+  assert.deepEqual(fs.readFileSync(path.join(dir, "assets/images/hero.jpg")), image);
   const rewritten = fs.readFileSync(path.join(dir, "render/pages/home.liquid"), "utf8");
   assert.equal(rewritten, `<section style="background-image:url('/theme-assets/${id}/assets/images/hero.jpg')">{{ site.title }}</section>`);
 });
 
 test("migrateThemeToV2 fails verification (missing required entry.json) and leaves the real directory untouched", () => {
   const dir = makeDeclarativeThemeDir({ skipEntry: true });
+  const before = snapshotTree(dir);
   const result = migrateThemeToV2({ themeDir: dir, id: "t" });
 
   assert.equal(result.status, "failed");
@@ -150,6 +194,7 @@ test("migrateThemeToV2 fails verification (missing required entry.json) and leav
   // Real directory untouched — migration never promoted a broken staged theme into place.
   assert.ok(fs.existsSync(path.join(dir, "styles.css")));
   assert.ok(!fs.existsSync(path.join(dir, "css")));
+  assert.deepEqual(snapshotTree(dir), before);
   // The broken staged output is left behind for inspection, not silently deleted.
   assert.ok(result.outputDir && fs.existsSync(result.outputDir));
 });

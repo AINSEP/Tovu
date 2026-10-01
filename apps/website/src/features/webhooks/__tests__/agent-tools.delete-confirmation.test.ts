@@ -6,7 +6,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
-import { createSubscription } from "../subscriptions.js";
+import { createSubscription, pauseSubscription } from "../subscriptions.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
 
 /**
@@ -86,9 +86,9 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
   return registration.handler(ctx);
 }
 
-async function raiseDialog(deleteTool: ToolRegistration, subscriptionId: string) {
+async function raiseDialog(deleteTool: ToolRegistration, subscriptionId: string, signal?: AbortSignal) {
   const emitted: unknown[] = [];
-  const pending = call(deleteTool, { input: { subscriptionId }, emitSurface: async (s) => void emitted.push(s) });
+  const pending = call(deleteTool, { input: { subscriptionId }, signal, emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
@@ -96,6 +96,21 @@ async function raiseDialog(deleteTool: ToolRegistration, subscriptionId: string)
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");
   return { pending, ui, exchangeId: match[1]! };
+}
+
+function buttonCall(ui: UIResource, action: "confirm" | "cancel") {
+  // Read the frame's actual dispatch plan, so swapping button decisions cannot go unnoticed.
+  const label = action === "confirm" ? "Delete subscription" : "Cancel";
+  assert.match(ui.resource.text, new RegExp(`<button\\b[^>]*data-mcpui-action="${action}"[^>]*>${label}</button>`));
+  const match = ui.resource.text.match(/var PLAN = (.+);/);
+  assert.ok(match, "the confirmation surface must declare its button dispatch plan");
+  const plan = JSON.parse(match[1]!) as Record<string, { toolName: string; params: Record<string, unknown> }>;
+  const button = plan[action];
+  assert.ok(button, `expected a ${action} button tool call`);
+  assert.equal(button.toolName, DELETE_TOOL_ID);
+  assert.equal(button.params.decision, action);
+  assert.equal(typeof button.params[SURFACE_EXCHANGE_ID_PARAM], "string");
+  return { exchangeId: button.params[SURFACE_EXCHANGE_ID_PARAM] as string, toolId: button.toolName, principalId: PRINCIPAL_ID, params: button.params };
 }
 
 // ---------------------------------------------------------------------------
@@ -126,21 +141,32 @@ test("the call stays open after the dialog is shown, and nothing is deleted whil
   await pending;
 });
 
-test("the dialog names the label, target URL, and current status, and warns there is no un-delete", async () => {
-  const deps = makeDeps();
-  const subscription = await seedSubscription(deps, { label: "Payments webhook", targetUrl: "https://example.test/hooks/payments" });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+for (const status of ["active", "paused"] as const) {
+  test(`the dialog names the label, target URL, and current status (${status}), and warns there is no un-delete`, async () => {
+    const deps = makeDeps();
+    const subscription = await seedSubscription(deps, { label: "Payments webhook", targetUrl: "https://example.test/hooks/payments" });
+    if (status === "paused") {
+      await pauseSubscription({
+        deps: { clock: deps.clock, repo: deps.webhookSubscriptionRepo, idGenerator: deps.idGen, isAllowedTarget: async () => true },
+        input: { workspaceId: WORKSPACE_ID, id: subscription.id },
+      });
+    }
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
-  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
+    const { ui, exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
 
-  assert.match(ui.resource.text, /Payments webhook/);
-  assert.match(ui.resource.text, /example\.test\/hooks\/payments/);
-  assert.match(ui.resource.text, /no un-delete/i);
+    assert.match(ui.resource.text, /Payments webhook/);
+    assert.match(ui.resource.text, /example\.test\/hooks\/payments/);
+    assert.match(ui.resource.text, /no un-delete/i);
+    assert.match(ui.resource.text, /<dt>Label<\/dt>\s*<dd>Payments webhook<\/dd>/);
+    assert.match(ui.resource.text, /<dt>Target URL<\/dt>\s*<dd>https:\/\/example\.test\/hooks\/payments<\/dd>/);
+    assert.match(ui.resource.text, new RegExp(`<dt>Current status</dt>\\s*<dd>${status}</dd>`));
 
-  surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
+    surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+    await pending;
+  });
+}
 
 // ---------------------------------------------------------------------------
 // 2. Confirm / cancel / fail-closed decision
@@ -152,8 +178,8 @@ test("confirm: the human's click disables the subscription and the SAME call rep
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { ui, pending } = await raiseDialog(deleteTool, subscription.id);
+  const delivered = surfaceExchanges.deliver(buttonCall(ui, "confirm"));
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { deleted: boolean; cancelled: boolean; subscription: { status: string; disabledAt: string | null } };
@@ -173,8 +199,8 @@ test("cancel: nothing is deleted, and the SAME call reports the cancellation", a
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
-  surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  const { ui, pending } = await raiseDialog(deleteTool, subscription.id);
+  assert.deepEqual(surfaceExchanges.deliver(buttonCall(ui, "cancel")), { ok: true });
 
   const result = (await pending) as { deleted: boolean; cancelled: boolean; subscription: { status: string } };
   assert.equal(result.deleted, false);
@@ -216,6 +242,28 @@ test("an unanswered dialog expires and reports 'expired', not a hang or a throw"
   assert.equal(result.cancelled, false);
   assert.equal(result.reason, "expired");
   assert.match(result.note, /did not respond/);
+});
+
+test("aborting a pending run abandons the dialog and rejects a late confirmation", async (t) => {
+  const deps = makeDeps();
+  const subscription = await seedSubscription(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+  const controller = new AbortController();
+  const { ui, pending } = await raiseDialog(deleteTool, subscription.id, controller.signal);
+  // Bound a missing-listener regression without waiting for the exchange's long idle timeout.
+  t.after(() => surfaceExchanges.deliver(buttonCall(ui, "cancel")));
+  assert.equal(surfaceExchanges.size(), 1);
+  controller.abort();
+  assert.equal(surfaceExchanges.size(), 0);
+  const result = await pending as { deleted: boolean; cancelled: boolean; reason: string; note: string };
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "abandoned");
+  assert.match(result.note, /run ended/);
+  assert.deepEqual(surfaceExchanges.deliver(buttonCall(ui, "confirm")), { ok: false, reason: "unknown-or-closed" });
+  const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.equal(row?.status, "active");
 });
 
 // ---------------------------------------------------------------------------

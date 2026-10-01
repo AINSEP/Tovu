@@ -121,7 +121,7 @@ export class AesGcmSecretSealer implements SecretSealerPort {
     const aesKey = await this.deriveAesKey({ keyId: input.sealed.keyId });
     const iv = Buffer.from(input.sealed.nonce, "base64");
     const combined = Buffer.from(input.sealed.ciphertext, "base64");
-    if (combined.length <= AUTH_TAG_LENGTH_BYTES) {
+    if (combined.length < AUTH_TAG_LENGTH_BYTES) {
       throw new Error("AesGcmSecretSealer: ciphertext too short to contain an auth tag");
     }
     const authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH_BYTES);
