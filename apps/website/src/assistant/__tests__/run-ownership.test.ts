@@ -309,7 +309,7 @@ test("the production daemon mounts ownership before run routes and records the d
   const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
   // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
   const statements = parsed.statements.map(text);
-  const gate = statements.indexOf('app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH], runScopedCallers: runCredentials }));');
+  const gate = statements.indexOf('app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));');
   const routes = statements.indexOf('registerRunRoutes(app, { lifecycle, onStarted }, adapter);');

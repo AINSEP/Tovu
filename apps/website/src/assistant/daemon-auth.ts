@@ -3,6 +3,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+import type { RunScopedCaller } from "./run-scoped-credential.js";
 
 /**
  * @file Tovu's own bearer gate for the standalone agent daemon
@@ -23,8 +24,7 @@ import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
  * remote attacker"), so reusing it would be a no-op. {@link requireAgentDaemonToken} therefore has
  * NO peer-address exemption of any kind: a request from `127.0.0.1` is gated exactly like any
  * other. The only exemptions it supports are explicit, exact-match request paths the mount site
- * opts into — see {@link DELEGATED_TOOL_CALLS_PATH} for the single one Tovu uses and why it is
- * unavoidable.
+ * opts into. Tovu no longer exempts delegated calls: its bridges now receive their own bearer.
  *
  * Fail-closed contract (the whole point of this module):
  * - token env var unset/empty -> **503**, never a silent pass-through. A misconfigured daemon
@@ -32,8 +32,8 @@ import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
  * - missing / malformed / wrong token -> **401**.
  * - exact match -> `next()`.
  * - a live run's own credential (`run-scoped-credential.ts`, when the mount site opts in) -> `next()`
- *   on the bridge's own routes only, with the principal header overwritten server-side; **403**
- *   anywhere else.
+ *   on the bridge's own routes only, with the principal header overwritten server-side; **404**
+ *   for another run, **403** for a mismatched delegated runId or any other route.
  *
  * How it relates to the project:
  * `src/index.ts`'s `main()` calls {@link ensureAgentDaemonToken} as its first statement, so the
@@ -90,27 +90,16 @@ export function ensureAgentDaemonToken(env: NodeJS.ProcessEnv = process.env): st
 }
 
 /**
- * `POST /api/delegated-tool-calls` (`@jini-ai/http-kit`'s `registerDelegatedToolRoutes`). The ONE
- * route the bearer gate cannot cover, for a structural reason worth stating in full.
+ * `POST /api/delegated-tool-calls` (`@jini-ai/http-kit`'s `registerDelegatedToolRoutes`).
+ * No longer exempt: Tovu's `mcp-injection.ts` supplies a per-run credential, delivered by
+ * `@jini-ai/daemon` as `JINI_DAEMON_TOKEN` for both Claude and Codex CLI runs. The current
+ * `@jini-ai/mcp` serve/delegated-tool pipeline sends that bearer on every callback. Tovu's proxy
+ * does not expose this route (and sends its boot token on forwarded routes); BYOK calls its
+ * in-process executor directly (`byok-tool-surface.ts`), so needs no daemon credential.
  *
- * Its only legitimate caller is not Tovu's proxy but the `jini-mcp` stdio server that the run's own
- * spawned coding-agent CLI launches as an MCP subprocess. `@jini-ai/daemon` writes that
- * subprocess's `.mcp.json` entry with exactly two env vars — `JINI_RUN_ID` and `JINI_DAEMON_URL`
- * (`agent-executor.ts`'s `McpJsonServerEntry`) — and `@jini-ai/mcp`'s `delegated-tool.ts` posts to
- * this route with no `Authorization` header at all and no env var from which it could read one.
- * Verified in both packages' sources. Tovu cannot hand it a token without changing Jini, which is
- * a separate, published dependency.
- *
- * The route is not ungated, though — it carries its own, pre-existing capability check that the
- * other routes lack: the request body must name a `runId` that `agent-daemon-server.ts`'s
- * `resolvePrincipal` currently tracks, and it throws rather than fabricating a principal for an
- * unknown one. Run ids are `randomUUID()` (`@jini-ai/daemon`'s `run-lifecycle.ts`) — 122 bits of
- * entropy — and an id only resolves while that run is actually in flight. So reaching this route
- * requires already knowing an unguessable, short-lived secret, which is a materially different
- * position from the pre-fix state where every route was open to any local process.
- *
- * The clean upstream fix is for `jini-mcp` to forward a daemon token; until then this exemption is
- * declared here rather than hidden, so it shows up in review instead of being discovered later.
+ * Authentication runs before JSON parsing. A second gate mounted on this POST after parsing
+ * sets `validateDelegatedRunId`, binding the body to the credential's run before tool execution.
+ * The existing live-run principal lookup remains a final liveness check inside the route.
  */
 export const DELEGATED_TOOL_CALLS_PATH = "/api/delegated-tool-calls";
 
@@ -136,9 +125,9 @@ export function isRunScopedRoute(method: string, path: string): boolean {
   return RUN_SCOPED_ROUTES.some((route) => route.method === method && route.path.test(path));
 }
 
-/** Resolves a run-scoped bearer to the principal of the live run it was minted for (`run-scoped-credential.ts`). */
+/** Resolves a run-scoped bearer to the live run and principal it was minted for (`run-scoped-credential.ts`). */
 export interface RunScopedCallerResolver {
-  resolvePrincipal(token: string): string | undefined;
+  resolveCaller(token: string): RunScopedCaller | undefined;
 }
 
 export interface AgentDaemonTokenGateOptions {
@@ -148,7 +137,8 @@ export interface AgentDaemonTokenGateOptions {
    * Exact request paths this gate does not apply to. Defaults to none — the middleware is a
    * gate-everything primitive, and each exemption must be opted into explicitly at the mount site
    * with a stated reason. Matched by exact equality, never by prefix, so a longer path that merely
-   * starts with an exempt one stays gated.
+   * starts with an exempt one stays gated. Applies only without an Authorization header:
+   * presenting a credential always opts into validation, even on an exempt path.
    */
   exemptPaths?: readonly string[];
   /**
@@ -158,6 +148,8 @@ export interface AgentDaemonTokenGateOptions {
    * ownership checks downstream never see a caller-chosen value. Omitted = proxy token only.
    */
   runScopedCallers?: RunScopedCallerResolver;
+  /** Mount a second gate on the delegated POST after express.json() to require body.runId === the credential's runId. */
+  validateDelegatedRunId?: boolean;
 }
 
 /**
@@ -177,7 +169,7 @@ export function requireAgentDaemonToken(options: AgentDaemonTokenGateOptions = {
   const exempt = new Set(options.exemptPaths ?? []);
 
   return function requireAgentDaemonTokenMiddleware(req: Request, res: Response, next: NextFunction): void {
-    if (exempt.has(req.path)) {
+    if (exempt.has(req.path) && req.get("authorization") === undefined) {
       next();
       return;
     }
@@ -199,24 +191,49 @@ export function requireAgentDaemonToken(options: AgentDaemonTokenGateOptions = {
       return;
     }
 
-    const runPrincipal = presented ? options.runScopedCallers?.resolvePrincipal(presented[1]) : undefined;
-    if (runPrincipal === undefined) {
+    const caller = presented ? options.runScopedCallers?.resolveCaller(presented[1]) : undefined;
+    if (caller === undefined) {
       res.status(401).json({
         error: `Authorization: Bearer <${AGENT_DAEMON_TOKEN_ENV_VAR}> is required`,
         code: "UNAUTHENTICATED",
       });
       return;
     }
-    admitRunScopedCaller(req, res, next, runPrincipal);
+    admitRunScopedCaller(req, res, next, caller, options.validateDelegatedRunId === true);
   };
 }
 
-/** A resolved run credential: route allowlist first, then the server-derived principal replaces whatever header the caller sent. */
-function admitRunScopedCaller(req: Request, res: Response, next: NextFunction, principalId: string): void {
+/**
+ * Binds a resolved credential to its own run, then applies the route allowlist and replaces the
+ * caller's principal header. Other run targets use http-kit's exact not-found body without a lookup.
+ * URL decoding matches Express path parameters; malformed encodings receive HTTP 400.
+ * @complexity O(path length); O(1) additional space apart from decoded strings.
+ */
+function admitRunScopedCaller(req: Request, res: Response, next: NextFunction, caller: RunScopedCaller, validateDelegatedRunId: boolean): void {
+  const runPath = /^\/api\/runs\/([^/]+)(?:\/|$)/i.exec(req.path);
+  if (runPath !== null) {
+    let targetRunId: string;
+    try {
+      targetRunId = decodeURIComponent(runPath[1]!);
+    } catch (error) {
+      if (!(error instanceof URIError)) throw error;
+      res.status(400).json({ error: { code: "BAD_REQUEST", message: "runId is not valid URL encoding" } });
+      return;
+    }
+    if (targetRunId !== caller.runId) {
+      const message = /\/events\/?$/i.test(req.path) ? "run was not found" : `run "${targetRunId}" was not found`;
+      res.status(404).json({ error: { code: "NOT_FOUND", message } });
+      return;
+    }
+  }
   if (!isRunScopedRoute(req.method, req.path)) {
     res.status(403).json({ error: `a run-scoped credential cannot call ${req.method} ${req.path}`, code: "FORBIDDEN" });
     return;
   }
-  req.headers[RUN_PRINCIPAL_HEADER] = principalId;
+  if (validateDelegatedRunId && req.body?.runId !== caller.runId) {
+    res.status(403).json({ error: "a run-scoped credential requires body.runId to match its own run", code: "FORBIDDEN" });
+    return;
+  }
+  req.headers[RUN_PRINCIPAL_HEADER] = caller.principalId;
   next();
 }

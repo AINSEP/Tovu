@@ -49,12 +49,10 @@
  * it. Deliberately NOT `@jini-ai/http-kit`'s `registerApiBearerAuthMiddleware` — see
  * `daemon-auth.ts`'s header for why its loopback short-circuit makes it a no-op here.
  *
- * One route is exempt by necessity, not by preference: `/api/delegated-tool-calls`, which is
- * called by this run's own `jini-mcp` MCP subprocess rather than by Tovu's proxy. That subprocess
- * receives only `JINI_RUN_ID`/`JINI_DAEMON_URL` from `@jini-ai/daemon` and sends no
- * `Authorization` header, so a bearer requirement there would simply break tool execution. It
- * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
- * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
+ * `/api/delegated-tool-calls` also requires a bearer: the Claude/Codex `jini-mcp` subprocess
+ * receives its per-run `JINI_DAEMON_TOKEN` through `mcp-injection.ts` and forwards it on callbacks.
+ * After JSON parsing, a second gate binds body.runId to that credential's run. BYOK executes
+ * in process and the proxy does not expose this route; no credential-less exemption is needed.
  */
 import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
@@ -1110,17 +1108,15 @@ const resolvePrincipal = (request: DelegatedToolExecuteRequest): Principal => {
 };
 
 const app = express();
+
 // FIRST, and before `express.json()` — an unauthenticated caller's body is never parsed. See this
-// file's module doc and `daemon-auth.ts` for the fail-closed contract. The single exempt path is
-// `/api/delegated-tool-calls`, whose only legitimate caller is this run's own spawned `jini-mcp`
-// subprocess — a process `@jini-ai/daemon` hands `JINI_RUN_ID`/`JINI_DAEMON_URL` and nothing else,
-// and which sends no `Authorization` header. Gating it would break tool execution outright; it is
-// instead covered by `resolvePrincipal`'s fail-closed live-`runId` check below. Full rationale and
-// residual-risk statement: `daemon-auth.ts`'s `DELEGATED_TOOL_CALLS_PATH`.
+// file's module doc and `daemon-auth.ts` for the fail-closed contract. No exemptions: the spawned
+// bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
+// the proxy does not expose the delegated route (`daemon-auth.ts`'s DELEGATED_TOOL_CALLS_PATH).
 // `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
 // bridge's routes and stands for that run's principal, never one the caller asserts
 // (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
-app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH], runScopedCallers: runCredentials }));
+app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
 // (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
@@ -1130,6 +1126,10 @@ app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH], runS
 // caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
 // unauthenticated attack surface, only a larger authenticated one.
 app.use(express.json({ limit: "6mb" }));
+// Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
+// closed. Run credentials must match body.runId before any delegated handler or tool can execute;
+// proxy credentials retain their existing authority.
+app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));
 const adapter: AdapterContext = { resolvedPortRef: { current: port } };
 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate

@@ -17,13 +17,13 @@ import { createHash, randomBytes } from "node:crypto";
  *
  * What a run credential is:
  * 32 random bytes minted per run, valid only while the run that minted it is live. The daemon
- * resolves it server-side to *that run's* principal ({@link RunScopedCredentials.resolvePrincipal});
+ * resolves it server-side to *that run's* id and principal ({@link RunScopedCredentials.resolveCaller});
  * the gate then overwrites `x-tovu-principal-id` with that value, so the ownership checks downstream
- * see a principal the caller cannot choose. Which routes such a caller may reach at all is decided
- * by the gate (`daemon-auth.ts`'s `isRunScopedRoute`), not here.
+ * see a principal the caller cannot choose. The gate also binds run-addressed routes and delegated
+ * request bodies to that run id, before applying its route allowlist.
  *
  * Liveness, not just revocation:
- * `resolvePrincipal` asks the host for the run's *live* principal on every call, so a credential
+ * `resolveCaller` asks the host for the run's *live* principal on every call, so a credential
  * stops working the moment its run is no longer tracked, even if {@link RunScopedCredentials.revoke}
  * never runs (the host's terminal hook is best-effort). `revoke` only keeps the map from growing.
  *
@@ -31,9 +31,17 @@ import { createHash, randomBytes } from "node:crypto";
  * presented value rather than the secret itself.
  */
 
+/** Server-derived identity of one live run's bridge, never taken from caller headers or bodies. */
+export interface RunScopedCaller {
+  readonly runId: string;
+  readonly principalId: string;
+}
+
 export interface RunScopedCredentials {
   /** Mints (or returns the already-minted) credential for a live run. Throws for a run that is not live. */
   mint(runId: string): string;
+  /** The live run and principal this token was minted for; undefined for unknown, revoked or ended runs. */
+  resolveCaller(token: string): RunScopedCaller | undefined;
   /** The principal of the live run this token was minted for; `undefined` for an unknown, revoked, or no-longer-live one. */
   resolvePrincipal(token: string): string | undefined;
   /** Forgets a run's credential. Safe for a run that never minted one. */
@@ -60,6 +68,13 @@ export function createRunScopedCredentials(deps: RunScopedCredentialDeps): RunSc
   const runIdByDigest = new Map<string, string>();
   const tokenByRunId = new Map<string, string>();
 
+  function resolveCaller(token: string): RunScopedCaller | undefined {
+    const runId = runIdByDigest.get(digest(token));
+    if (runId === undefined) return undefined;
+    const principalId = deps.principalOfLiveRun(runId);
+    return principalId === undefined ? undefined : { runId, principalId };
+  }
+
   return {
     mint(runId) {
       if (deps.principalOfLiveRun(runId) === undefined) {
@@ -72,10 +87,8 @@ export function createRunScopedCredentials(deps: RunScopedCredentialDeps): RunSc
       runIdByDigest.set(digest(token), runId);
       return token;
     },
-    resolvePrincipal(token) {
-      const runId = runIdByDigest.get(digest(token));
-      return runId === undefined ? undefined : deps.principalOfLiveRun(runId);
-    },
+    resolveCaller,
+    resolvePrincipal: (token) => resolveCaller(token)?.principalId,
     revoke(runId) {
       const token = tokenByRunId.get(runId);
       if (token === undefined) return;

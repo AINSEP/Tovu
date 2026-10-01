@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
+import ts from "typescript";
 
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 
-import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
-import { registerRunRoutes, type AdapterContext, type RunStartHandler } from "@jini-ai/http-kit";
+import { createToolRegistry } from "@jini-ai/core";
+import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
+import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type AdapterContext, type RunStartHandler } from "@jini-ai/http-kit";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-auth.js";
 import {
@@ -300,4 +304,281 @@ test("each run gets its own 256-bit token, and minting twice for one run returns
   assert.equal(credentials.mint("run-1"), first);
   assert.equal(credentials.resolvePrincipal(first), ALICE);
   assert.equal(credentials.resolvePrincipal("f".repeat(64)), undefined);
+});
+
+/**
+ * Socket-free boundary tests: real credential store, ownership gate, lifecycle and http-kit
+ * handlers. Only Express request/response transport is faked; denied requests never execute
+ * a route. A sibling owned by ALICE distinguishes run isolation from principal isolation (F4.4).
+ */
+async function scopeHarness({ exempt = false } = {}) {
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const owners = createRunOwnerRegistry();
+  const live = new Map<string, string>();
+  const credentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => live.get(runId) });
+  async function start(principalId: string) {
+    const { run } = await lifecycle.start({ contextRef: contextRefFor(principalId, "scope-test") });
+    live.set(run.id, principalId);
+    owners.record(run.id, principalId);
+    return run.id;
+  }
+  const own = await start(ALICE);
+  const sibling = await start(ALICE);
+  const other = await start(BOB);
+  const token = credentials.mint(own);
+  const cancellations: string[] = [];
+  const unsubscribe = [own, sibling, other].map((id) => lifecycle.onCancelRequested(id, () => cancellations.push(id)));
+  const executions: { runId: string; principalId: string }[] = [];
+  const registry = createToolRegistry();
+  registry.register({
+    descriptor: { id: "scope_probe" },
+    policy: { authorize: () => "allow" },
+    handler: ({ run, principal }) => {
+      const effect = { runId: run.id, principalId: principal.id };
+      executions.push(effect);
+      return effect;
+    },
+  });
+  const toolExecutor = createToolExecutor({ registry });
+  const gateOptions = {
+    env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: PROXY_TOKEN },
+    runScopedCallers: credentials,
+    ...(exempt ? { exemptPaths: [DELEGATED_TOOL_CALLS_PATH] } : {}),
+  };
+  const authenticate = requireAgentDaemonToken(gateOptions);
+  // Mounted after express.json in production; authentication itself remains before parsing.
+  const bindDelegatedRun = requireAgentDaemonToken({ ...gateOptions, validateDelegatedRunId: true });
+
+  async function request(method: string, path: string, options: { body?: unknown; headers?: Record<string, string> } = {}) {
+    const headers = { ...asBridge(token), ...options.headers };
+    const match = /^\/api\/runs\/([^/]+)/.exec(path);
+    const req = {
+      method, path, headers,
+      params: {},
+      get: (name: string) => headers[name.toLowerCase()],
+    } as unknown as Request;
+    const answer = { status: 200, body: undefined as unknown, headers };
+    const res = {
+      status(code: number) { answer.status = code; return this; },
+      json(body: unknown) { answer.body = body; return this; },
+    } as unknown as Response;
+    async function passes(middleware: (req: Request, res: Response, next: NextFunction) => unknown) {
+      let advances = 0;
+      await middleware(req, res, ((error?: unknown) => {
+        assert.equal(error, undefined);
+        advances += 1;
+      }) as NextFunction);
+      assert.equal(advances === 0 || advances === 1, true, "a gate advances at most once");
+      return advances === 1;
+    }
+    if (!await passes(authenticate)) return answer;
+    // Express decodes route parameters only after the global bearer middleware.
+    req.params = match ? { runId: decodeURIComponent(match[1]!) } : {};
+    req.body = options.body; // The JSON parser's seam: the bearer gate must run first.
+    if (path === DELEGATED_TOOL_CALLS_PATH) {
+      if (!await passes(bindDelegatedRun)) return answer;
+      const parsed = delegatedToolExecuteRoute.parse({ body: req.body, params: {}, query: {} });
+      if (!parsed.ok) {
+        answer.status = 400;
+        answer.body = { error: parsed.error };
+        return answer;
+      }
+      const result = await delegatedToolExecuteRoute.handle(parsed.value, {
+        lifecycle, toolExecutor,
+        resolvePrincipal: ({ runId }) => {
+          const id = live.get(runId);
+          assert.notEqual(id, undefined, "the route must resolve a live run");
+          return { id: id! };
+        },
+      });
+      assert.equal(result.ok, true, "an admitted probe must execute successfully");
+      assert.equal(result.ok && result.value.result !== undefined, true);
+      answer.body = result.ok ? result.value : undefined;
+      return answer;
+    }
+    if (!await passes(requireRunOwnership(owners, lifecycle))) return answer;
+    const runId = String(req.params.runId);
+    const result = method === "POST"
+      ? await runCancelRoute.handle({ runId }, { lifecycle })
+      : await runStatusRoute.handle(runId, { lifecycle });
+    answer.status = result.ok ? 200 : 404;
+    answer.body = result.ok ? result.value : { error: result.error };
+    return answer;
+  }
+  return { own, sibling, other, token, credentials, lifecycle, live, executions, cancellations, request,
+    close: () => unsubscribe.forEach((stop) => stop()) };
+}
+
+test("SCOPE: own run reads and cancels, ignoring a forged principal header", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const headers = { [RUN_PRINCIPAL_HEADER]: BOB };
+  const read = await h.request("GET", `/api/runs/${h.own}`, { headers });
+  assert.equal(read.status, 200);
+  assert.equal((read.body as { run: { id: string } }).run.id, h.own);
+  assert.equal(read.headers[RUN_PRINCIPAL_HEADER], ALICE);
+  const cancel = await h.request("POST", `/api/runs/${h.own}/cancel`, { headers });
+  assert.equal(cancel.status, 200);
+  assert.deepEqual(h.cancellations, [h.own]);
+  assert.equal((await h.lifecycle.get(h.sibling))?.state, "running");
+});
+
+for (const target of ["sibling", "other", "nonexistent"] as const) {
+  test(`SCOPE: ${target} run reads and cancels return the exact nonexistent-run body`, async (t) => {
+    const h = await scopeHarness();
+    t.after(h.close);
+    const id = target === "nonexistent" ? "run-absent" : h[target];
+    for (const [method, suffix] of [["GET", ""], ["POST", "/cancel"]]) {
+      const answer = await h.request(method!, `/api/runs/${id}${suffix}`, { headers: { [RUN_PRINCIPAL_HEADER]: BOB } });
+      assert.deepEqual({ status: answer.status, body: answer.body }, {
+        status: 404, body: { error: { code: "NOT_FOUND", message: `run "${id}" was not found` } },
+      });
+    }
+    assert.deepEqual(h.cancellations, []);
+    assert.equal((await h.lifecycle.get(h.sibling))?.state, "running");
+    assert.equal((await h.lifecycle.get(h.other))?.state, "running");
+  });
+}
+
+test("SCOPE: other run-addressed routes hide siblings before the route allowlist", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  for (const [suffix, message] of [["/events", "run was not found"], ["/future-route", `run "${h.sibling}" was not found`]]) {
+    const answer = await h.request("GET", `/api/runs/${h.sibling}${suffix}`);
+    assert.deepEqual({ status: answer.status, body: answer.body }, {
+      status: 404, body: { error: { code: "NOT_FOUND", message } },
+    });
+  }
+  const ownEvents = await h.request("GET", `/api/runs/${h.own}/events`);
+  assert.deepEqual({ status: ownEvents.status, body: ownEvents.body }, {
+    status: 403, body: { error: `a run-scoped credential cannot call GET /api/runs/${h.own}/events`, code: "FORBIDDEN" },
+  });
+});
+
+test("SCOPE: URL decoding uses the same target run identity as Express", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const encodeFirst = (id: string) => `%${id.charCodeAt(0).toString(16)}${id.slice(1)}`;
+  const own = await h.request("GET", `/api/runs/${encodeFirst(h.own)}`);
+  assert.equal(own.status, 200);
+  const sibling = await h.request("GET", `/api/runs/${encodeFirst(h.sibling)}`);
+  assert.deepEqual({ status: sibling.status, body: sibling.body }, {
+    status: 404, body: { error: { code: "NOT_FOUND", message: `run "${h.sibling}" was not found` } },
+  });
+});
+
+test("SCOPE: mixed-case run paths still hide sibling identities", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  for (const [suffix, message] of [["", `run "${h.sibling}" was not found`], ["/EVENTS", "run was not found"], ["/events/", "run was not found"]]) {
+    const answer = await h.request("GET", `/API/RUNS/${h.sibling}${suffix}`);
+    assert.deepEqual({ status: answer.status, body: answer.body }, {
+      status: 404, body: { error: { code: "NOT_FOUND", message } },
+    });
+  }
+});
+
+test("SCOPE: malformed encoded run ids fail closed before route parameter decoding", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const answer = await h.request("GET", "/api/runs/%ZZ");
+  assert.deepEqual({ status: answer.status, body: answer.body }, {
+    status: 400, body: { error: { code: "BAD_REQUEST", message: "runId is not valid URL encoding" } },
+  });
+  assert.deepEqual(h.cancellations, []);
+});
+
+test("SCOPE: delegated matching runId executes as the credential's principal", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const answer = await h.request("POST", DELEGATED_TOOL_CALLS_PATH, {
+    body: { runId: h.own, toolId: "scope_probe", toolUseId: "tu-own", input: {} },
+    headers: { [RUN_PRINCIPAL_HEADER]: BOB },
+  });
+  assert.equal(answer.status, 200);
+  assert.deepEqual(Object.keys(answer.body as object), ["result"]);
+  const result = (answer.body as { result: { executionId: string; status: string; output: unknown; truncated: boolean } }).result;
+  assert.deepEqual(Object.keys(result).sort(), ["executionId", "output", "status", "truncated"]);
+  assert.match(result.executionId, /^[0-9a-f-]{36}$/);
+  assert.equal(result.status, "completed");
+  assert.equal(result.truncated, false);
+  assert.deepEqual(result.output, { runId: h.own, principalId: ALICE });
+  assert.equal(answer.headers[RUN_PRINCIPAL_HEADER], ALICE);
+  assert.deepEqual(h.executions, [{ runId: h.own, principalId: ALICE }]);
+});
+
+for (const exempt of [false, true]) {
+  test(`SCOPE: delegated mismatches are 403 with no effects (exemptPaths=${exempt})`, async (t) => {
+    const h = await scopeHarness({ exempt });
+    t.after(h.close);
+    for (const runId of [h.sibling, h.other, "run-absent"]) {
+      const answer = await h.request("POST", DELEGATED_TOOL_CALLS_PATH, {
+        body: { runId, toolId: "scope_probe", toolUseId: "tu-denied", input: {} },
+        headers: { [RUN_PRINCIPAL_HEADER]: BOB },
+      });
+      assert.deepEqual({ status: answer.status, body: answer.body }, {
+        status: 403, body: { error: "a run-scoped credential requires body.runId to match its own run", code: "FORBIDDEN" },
+      });
+    }
+    assert.deepEqual(h.executions, []);
+  });
+}
+
+test("SCOPE: delegated calls require a credential, including forged, expired and revoked ones", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const body = { runId: h.own, toolId: "scope_probe", toolUseId: "tu-denied", input: {} };
+  for (const authorization of ["", "Basic forged", "Bearer forged"]) {
+    const answer = await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body, headers: { authorization, [RUN_PRINCIPAL_HEADER]: ALICE } });
+    assert.deepEqual({ status: answer.status, body: answer.body }, {
+      status: 401, body: { error: "Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN> is required", code: "UNAUTHENTICATED" },
+    });
+  }
+  h.live.delete(h.own);
+  assert.equal((await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body })).status, 401);
+  h.live.set(h.own, ALICE);
+  h.credentials.revoke(h.own);
+  assert.equal((await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body })).status, 401);
+  assert.deepEqual(h.executions, []);
+});
+
+test("SCOPE: missing or non-string delegated runId fails closed", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  for (const body of [undefined, null, {}, [], { runId: 42 }, { runId: [h.own] }]) {
+    const answer = await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body });
+    assert.deepEqual({ status: answer.status, body: answer.body }, {
+      status: 403, body: { error: "a run-scoped credential requires body.runId to match its own run", code: "FORBIDDEN" },
+    });
+  }
+  assert.deepEqual(h.executions, []);
+});
+
+test("SCOPE: proxy credentials retain sibling-run access and delegated execution", async (t) => {
+  const h = await scopeHarness();
+  t.after(h.close);
+  const headers = { authorization: `Bearer ${PROXY_TOKEN}`, [RUN_PRINCIPAL_HEADER]: ALICE };
+  assert.equal((await h.request("GET", `/api/runs/${h.sibling}`, { headers })).status, 200);
+  assert.equal((await h.request("POST", `/api/runs/${h.sibling}/cancel`, { headers })).status, 200);
+  assert.deepEqual(h.cancellations, [h.sibling]);
+  const answer = await h.request("POST", DELEGATED_TOOL_CALLS_PATH, {
+    headers, body: { runId: h.other, toolId: "scope_probe", toolUseId: "tu-proxy", input: {} },
+  });
+  assert.equal(answer.status, 200);
+  assert.deepEqual((answer.body as { result: { output: unknown } }).result.output, { runId: h.other, principalId: BOB });
+  assert.deepEqual(h.executions, [{ runId: h.other, principalId: BOB }]);
+});
+
+test("SCOPE: production closes the exemption and binds delegated runId after parsing, before routes", () => {
+  const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-server.ts", import.meta.url), "utf8");
+  const parsed = ts.createSourceFile("agent-daemon-server.ts", source, ts.ScriptTarget.Latest, true);
+  const printer = ts.createPrinter({ removeComments: true });
+  const statements = parsed.statements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
+  const auth = statements.indexOf("app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));");
+  const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
+  const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));");
+  const route = statements.indexOf("registerDelegatedToolRoutes(app, delegatedToolRouteDeps, adapter);");
+  assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
+  assert.equal(auth < json && json < binding && binding < route, true,
+    "delegated run binding must execute after JSON parsing and before the real delegated route");
 });
