@@ -4871,6 +4871,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-provider-name .status, .card-head .status {
   display: inline-flex; align-items: center; align-self: flex-start; width: fit-content;
 }
+.deployment-fact .status {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* A completed export/publish run's own failure detail (`failedRoutes`/`failedAssets`) — the ONE
    path in this file, the counts in `.deployment-facts` above only say how many failed. Sits below

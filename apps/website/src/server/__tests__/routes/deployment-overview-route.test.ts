@@ -143,7 +143,7 @@ async function fetchOverview(
   deps: RouteDeps,
   t: Parameters<typeof bootAuthenticated>[1],
   afterLogin: () => Promise<void> = async () => {}
-): Promise<{ defaultOwnerPasswordUnsafe: boolean }> {
+): Promise<{ defaultOwnerPasswordUnsafe: boolean; envVars: Array<{ name: string; set: boolean }> }> {
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await afterLogin();
@@ -165,6 +165,10 @@ test("deployment-overview: an owner still on the default password is unsafe even
 
   const body = await fetchOverview(deps, t);
   assert.equal(body.defaultOwnerPasswordUnsafe, true);
+  assert.deepEqual(body.envVars.find(({ name }) => name === "TOVU_ADMIN_PASSWORD"), {
+    name: "TOVU_ADMIN_PASSWORD",
+    set: true,
+  });
 });
 
 test("deployment-overview: an owner whose stored password is no longer the default is safe even with TOVU_ADMIN_PASSWORD unset", async (t) => {
