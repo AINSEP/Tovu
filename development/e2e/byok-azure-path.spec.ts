@@ -42,7 +42,7 @@ import { byokModelTextInput } from "./byok-model-field.js";
  * server — see above), but the same effect fires for every other protocol too, where a typed
  * `baseUrl` edit with an already-saved API key present WOULD spam the real provider on every
  * keystroke. That's a real, separately-reportable finding beyond this file's Azure scope;
- * `describe` block 4 pins the current (over-eager) behavior as KNOWN-BAD, not fixed.
+ * `describe` block 4 asserts settled discovery once per edit as an expected failure until fixed.
  *
  * Runs against this file's own hermetic two-server harness (`../playwright.admin.config.ts`),
  * never a shared dev server. One login per `test()` for the `request`-fixture blocks
@@ -246,17 +246,22 @@ test.describe("the real operator path in the browser: exact messages shown, in o
   });
 });
 
-test.describe("no debounce on the model-discovery refetch effect — most visible on Azure's blank default baseUrl (KNOWN-BAD, not fixed here)", () => {
-  test("typing a baseUrl character by character fires far more than one discovery request — no settle/debounce", async ({
+test.describe("model discovery settles Base URL edits (known gap)", () => {
+  test("typing a baseUrl character by character sends one settled discovery request", async ({
     page,
   }) => {
     let modelsCallCount = 0;
+    let lastBaseUrl: string | undefined;
+    let lastApiKey: string | undefined;
     // Intercepted, not real: this test is about counting HOW OFTEN the effect fires, not what
     // it returns — a real server round-trip per keystroke would make this test slow and, for
     // any protocol other than azure, would be spamming a real provider. See this file's header
     // for why the same effect is NOT harmless outside azure's special case.
     await page.route("**/assistant/execution/models", async (route) => {
       modelsCallCount++;
+      const data = route.request().postDataJSON() as { baseUrl?: string; apiKey?: string };
+      lastBaseUrl = data.baseUrl;
+      lastApiKey = data.apiKey;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -268,19 +273,20 @@ test.describe("no debounce on the model-discovery refetch effect — most visibl
     await gotoByok(page);
 
     await page.getByRole("tab", { name: "Azure OpenAI" }).click();
+    // A typed test key makes discovery eligible even if a prior test saved a key for another endpoint.
+    await page.locator('.jini-byok-card .jini-field-input-row input').fill("fake-azure-discovery-key-NOT-REAL");
     await expect.poll(() => modelsCallCount, "the immediate fire on preset select").toBeGreaterThanOrEqual(1);
+    await expect.poll(() => lastBaseUrl).toBe("");
+    await expect.poll(() => lastApiKey).toBe("fake-azure-discovery-key-NOT-REAL");
     const afterSelect = modelsCallCount;
 
     const TYPED = "https://my-resource.openai.azure.com"; // 38 characters
     await page.locator('label:has-text("Base URL") input').pressSequentially(TYPED, { delay: 15 });
 
-    // Not asserting an exact per-keystroke count (React's own scheduling can coalesce a few
-    // rapid updates) — the point this pins is the ABSENCE of debouncing: a debounced/settled
-    // implementation would fire once (or a small constant number of times) regardless of
-    // string length. Fired-once would fail this bound; the measured live behavior was 36
-        // requests for this exact 38-character string.
-    await expect
-      .poll(() => modelsCallCount - afterSelect, { timeout: 10_000 })
-      .toBeGreaterThan(TYPED.length / 2);
+    // First prove discovery reached the finished URL. A blocked probe or broken harness must fail
+    // normally; only the known over-eager request count is an expected failure.
+    await expect.poll(() => lastBaseUrl, { timeout: 10_000 }).toBe(TYPED);
+    test.fail(true, "ExecutionTab discovers on each baseUrl change without debouncing.");
+    expect(modelsCallCount - afterSelect).toBe(1);
   });
 });

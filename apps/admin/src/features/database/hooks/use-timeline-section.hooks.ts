@@ -149,6 +149,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   const [morePages, setMorePages] = useState<AdminLedgerRow[]>([]);
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
   const [moreError, setMoreError] = useState<string | null>(null);
 
   // Guards `loadMore` against the same class of race `useFetchQuery` closes for page 1: an append
@@ -157,6 +158,8 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   const filtersRef = useRef(appliedFilters);
   useEffect(() => {
     filtersRef.current = appliedFilters;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
     setMorePages([]);
     setMoreError(null);
   }, [appliedFilters]);
@@ -171,9 +174,11 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   }
 
   async function loadMore() {
-    if (!moreCursor) return;
+    if (!moreCursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     const filtersAtCall = appliedFilters;
     setLoadingMore(true);
+    setMoreError(null);
     try {
       const r = await fetchTimelinePage(filtersAtCall, moreCursor);
       if (filtersAtCall !== filtersRef.current) return; // stale — filters changed while this was in flight
@@ -183,7 +188,10 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
       if (filtersAtCall !== filtersRef.current) return;
       setMoreError(describeApiError(e, t(locale, "failed to load the Database Timeline")));
     } finally {
-      if (filtersAtCall === filtersRef.current) setLoadingMore(false);
+      if (filtersAtCall === filtersRef.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }
 

@@ -54,6 +54,20 @@ const ENTRY: AdminEntry = {
   version: 2,
 };
 
+const ENTRY_WITH_BODY: AdminEntry = {
+  ...ENTRY,
+  bodyJson: {
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Ingredients" }] },
+      { type: "paragraph", content: [
+        { type: "text", text: "Keep ", marks: [{ type: "bold" }] },
+        { type: "text", text: "this recipe's body." },
+      ] },
+    ],
+  },
+};
+
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
@@ -131,11 +145,12 @@ describe("initial load — new entry (entryId null)", () => {
 
 describe("initial load — editing (entryId set)", () => {
   it("finds the matching entry, seeds title/slug/extFields from it", async () => {
-    const { result } = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
-    expect(result.current.entry).toEqual(ENTRY);
+    const { result } = await mountLoaded({ entryId: "e1", entries: [ENTRY_WITH_BODY] });
+    expect(result.current.entry).toEqual(ENTRY_WITH_BODY);
     expect(result.current.title).toBe("My Recipe");
     expect(result.current.slug).toBe("my-recipe");
     expect(result.current.extFields).toEqual({ notes: "hello" });
+    expect(result.current.editor?.getJSON()).toEqual(ENTRY_WITH_BODY.bodyJson);
   });
 
   it("seeds an empty extFields object when the entry's fieldsJson has no ext.site", async () => {
@@ -255,10 +270,10 @@ describe("save — new entry", () => {
 
 describe("save — existing entry", () => {
   it("PUTs { expectedVersion, title, fieldsJson, bodyJson } to /entries/{id}, sets entry + message, and does NOT navigate", async () => {
-    const view = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
+    const view = await mountLoaded({ entryId: "e1", entries: [ENTRY_WITH_BODY] });
     act(() => view.result.current.setTitle("Updated Title"));
 
-    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, title: "Updated Title", version: 3 } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY_WITH_BODY, title: "Updated Title", version: 3 } }));
     await act(async () => {
       await view.result.current.save();
     });
@@ -270,6 +285,7 @@ describe("save — existing entry", () => {
     expect(body.expectedVersion).toBe(2);
     expect(body.title).toBe("Updated Title");
     expect(body.bodyJson).toBeDefined();
+    expect(body.bodyJson).toEqual(ENTRY_WITH_BODY.bodyJson);
 
     expect(view.result.current.entry?.version).toBe(3);
     expect(view.result.current.message).toBe("Saved · version 3");
@@ -311,9 +327,9 @@ describe("toggleLifecycle", () => {
   });
 
   it("publish PUTs the current edits to /entries/{id} first, then POSTs { op, expectedVersion } to /entries/{id}/lifecycle with the SAVE's new version", async () => {
-    const view = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 3 } })); // the save (PUT)
-    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 4 } })); // the lifecycle call
+    const view = await mountLoaded({ entryId: "e1", entries: [ENTRY_WITH_BODY] });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY_WITH_BODY, version: 3 } })); // the save (PUT)
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY_WITH_BODY, status: "published", version: 4 } })); // the lifecycle call
 
     await act(async () => {
       await view.result.current.toggleLifecycle("publish");
@@ -325,6 +341,7 @@ describe("toggleLifecycle", () => {
     expect(String(saveCall[0])).not.toContain("/lifecycle");
     expect((saveCall[1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse(String((saveCall[1] as RequestInit).body)).expectedVersion).toBe(2);
+    expect(JSON.parse(String((saveCall[1] as RequestInit).body)).bodyJson).toEqual(ENTRY_WITH_BODY.bodyJson);
 
     const lifecycleCall = calls.at(-1)!;
     expect(String(lifecycleCall[0])).toContain("/entries/e1/lifecycle");

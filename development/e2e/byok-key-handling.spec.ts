@@ -523,39 +523,14 @@ test.describe("byok key-handling edge cases", () => {
 });
 
 /**
- * MSG-1 addition (routed from the team lead, sourced from `ADS-memory/reports/findings/
- * 2026-08-04-byok-discovery-keystroke-key-leak.md`): `ExecutionTab.tsx`'s model-discovery
- * `useEffect` (`Jini/packages/ui/src/features/execution/react/components/ExecutionTab.tsx:110-114`)
- * has `config.byok.baseUrl` as a dependency, no debounce, and passes the WHOLE `config.byok` —
- * including `apiKey` — to `loadModels` on every fire. `apiKey` itself is not a dep, so typing the
- * KEY doesn't refire discovery, but the key is read fresh at fire time. Net effect: once a key is
- * saved, every edit to Base URL re-sends that real key to whatever URL the field holds at that
- * instant — including values the operator never intended to finish on. Composed with the SSRF
- * guard's documented loopback carve-out (`byok-ssrf-guard.spec.ts`: allowed at ANY port, by
- * design), a half-typed `http://localhost:NNNN` walks real local ports with the key attached.
+ * MSG-1: discovery currently runs on each Base URL edit and passes the typed draft key.
+ * `fillApiKeyAndAwaitCommit` does NOT save that key: saved server credentials are now pinned to
+ * their recorded endpoint, while a caller-supplied key still follows the draft URL.
  *
- * PINNED AS KNOWN-BAD, NOT FIXED, on the team lead's explicit instruction: the fix lives in
- * `ExecutionTab.tsx` in the Jini repo (debounce the effect, drop `apiKey` from the discovery
- * payload, or require an explicit "discover" action are the candidate shapes), and picking one is
- * an owner decision, not this audit's call.
- *
- * **Judgment call on `test.fail()` vs. a plain green pin** (the team lead's own carve-out: use
- * per-test judgment, say so if `test.fail()` is wrong for a given case). Every `expect` in the
- * first two tests below already asserts the CURRENT, observed (bad) behavior as a VALUE —
- * "N requests fired", "this field equals the real key" — not the desired/fixed behavior the way
- * `byok-state-races.spec.ts`'s two `test.fail()` pins do. That already gives the identical
- * self-invalidating property `test.fail()` exists to provide: today, with the bug present, these
- * tests PASS (green, reusable, no chronic red to get numb to); the moment a fix lands — a
- * debounce, or `apiKey` dropped from the discovery payload — the counts/values these tests assert
- * stop matching reality and the tests FAIL, which is exactly the "come re-evaluate this pin"
- * signal. Wrapping an already-passing value-assertion in `test.fail()` would invert that: it would
- * make the suite report the CORRECT/fixed behavior as an "unexpected pass" failure, which is
- * backwards. `test.fail()` is the right tool for a test that asserts the DESIRED behavior and
- * currently fails (that's what makes `byok-state-races.spec.ts`'s two pins genuine `test.fail()`
- * candidates); it is not the right tool for a test that already asserts the CURRENT behavior and
- * currently passes. The third test below (redaction) asserts a PROTECTIVE mechanism holds, not a
- * bug — plain green, no pin semantics needed. The fourth (no cancellation) is the same
- * current-value-pin shape as the first two.
+ * Cases 1, 2 and 4 assert the desired behavior and mark only their final safety assertion as an
+ * expected failure. Login, form readiness and the final endpoint's successful request remain
+ * ordinary failures. A fix produces an unexpected pass so these annotations must be removed.
+ * The redaction case asserts an existing protection and stays an ordinary passing test.
  */
 /**
  * **Every browser test in this file pins its provider tab explicitly, and that is load-bearing.**
@@ -579,8 +554,8 @@ test.describe("byok key-handling edge cases", () => {
  * provider it was actually written for — every canary in this battery is `sk-ant-…` — and restores
  * `e2e-test-architecture`'s "tests must pass in any order" property.
  */
-test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API key to every intermediate host (MSG-1)", () => {
-  test("mechanism: typing into Base URL re-sends the real saved API key on every intermediate keystroke value, not just the one the operator finishes on", async ({
+test.describe("Base URL edits settle before sending a draft API key (MSG-1 known gap)", () => {
+  test("typing into Base URL sends the draft API key only to the finished endpoint", async ({
     page,
   }) => {
     test.slow();
@@ -608,25 +583,19 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
     await baseUrlInput.fill("");
     const finalUrl = "http://ab.cd.ef.example";
     await baseUrlInput.pressSequentially(finalUrl, { delay: 80 });
-    // Let every request this fired actually get sent (not just committed to React state).
-    await page.waitForTimeout(1_000);
-
-    // KNOWN-BAD #1: no debounce — more than one request fired for one typed string.
-    expect(captured.length).toBeGreaterThan(1);
-    // KNOWN-BAD #2: EVERY one of them — including the ones for a value the operator never
-    // intended to finish on — carried the real key.
-    for (const call of captured) {
-      expect(call.apiKey).toBe(canaryKey);
-    }
-    // KNOWN-BAD #3: at least one captured value is a genuine strict prefix of the final string —
-    // the literal "https://a, https://ap, https://api, ..." shape MSG-1 describes.
+    // Prove the final edit reached discovery before marking the known gap. A broken setup must
+    // fail normally, rather than satisfy test.fail by never issuing a request.
+    await expect.poll(() => captured.some((call) => call.baseUrl === finalUrl && call.apiKey === canaryKey)).toBe(true);
     const hasGenuinePrefix = captured.some(
       (c) => c.baseUrl.length > 0 && c.baseUrl !== finalUrl && finalUrl.startsWith(c.baseUrl),
     );
-    expect(hasGenuinePrefix).toBe(true);
+    test.fail(true, "ExecutionTab sends discovery for intermediate Base URL edits.");
+    expect(captured).toHaveLength(1);
+    expect(hasGenuinePrefix).toBe(false);
+    expect(captured[0]).toEqual({ baseUrl: finalUrl, apiKey: canaryKey });
   });
 
-  test("composed with the loopback SSRF carve-out: a real, unintended local listener on a PREFIX port receives the live key mid-edit", async ({
+  test("a prefix-port listener receives no draft key while editing toward the final endpoint", async ({
     page,
   }) => {
     test.slow();
@@ -667,22 +636,14 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
 
       const baseUrlInput = page.locator('label:has-text("Base URL") input');
 
-      // KNOWN-BAD: the prefix-port listener — never the operator's intended endpoint, just a value
-      // the field held for a moment — genuinely receives the real key over the wire (Anthropic's
-      // header shape: `x-api-key`, `providerModelsHeaders` in `model-catalog.ts`).
-      //
-      // Polling the RECEIVED KEY rather than a hit COUNT is deliberate and load-bearing. A count is
-      // satisfied by any request at all — including this file's own `assertPortIsDialable` preflight
-      // — so it can go non-zero without the leak having happened. The header value can only become
-      // `canaryKey` if the product actually shipped the live key to a host the operator never meant
-      // to contact, which IS the property this test exists to pin. It is also the assertion that
-      // flips the moment MSG-1 is fixed (debounce, or `apiKey` dropped from the discovery payload),
-      // which is the "come re-evaluate this pin" signal the describe block's header describes.
+      // Two edits in succession: neither an already-completed prefix request nor its key can
+      // be recalled by cancelling a later request. Discovery must wait for the edit to settle.
       await baseUrlInput.fill(`http://localhost:${PREFIX_PORT}`);
-      await expect.poll(() => deputyPrefix.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
-
       await baseUrlInput.fill(`http://localhost:${FINAL_PORT}`);
       await expect.poll(() => deputyFinal.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+
+      test.fail(true, "Discovery sends the draft key to an intermediate prefix endpoint.");
+      expect(deputyPrefix.lastHeaders()?.["x-api-key"]).not.toBe(canaryKey);
     } finally {
       await deputyPrefix.close();
       await deputyFinal.close();
@@ -723,7 +684,7 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
     }
   });
 
-  test("open question 2 (MSG-1): no cancellation — every fired discovery request races to completion, none are aborted by a newer edit", async ({
+  test("rapid Base URL edits contact only the final endpoint", async ({
     page,
   }) => {
     test.slow();
@@ -747,19 +708,16 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
       await fillApiKeyAndAwaitCommit(page, "sk-ant-RACE-CANARY");
 
       const baseUrlInput = page.locator('label:has-text("Base URL") input');
-      // Three distinct edits in quick succession — only the last is the field's final value, but
-      // `useExecutionTab.ts`'s `modelDiscoveryTicket` only decides which RESPONSE gets rendered;
-      // it never calls `.abort()` on an earlier in-flight request, and nothing in
-      // `list-models.ts` wires the Tovu-server-side fetch to the client request's lifecycle
-      // either. So all three should complete server-side regardless of the client having moved on.
+      // These listeners answer immediately, so this verifies coalescing rapid edits, rather
+      // than cancellation of an outstanding request (which this harness does not hold open).
       await baseUrlInput.fill("http://localhost:6200");
       await baseUrlInput.fill("http://localhost:6201");
       await baseUrlInput.fill("http://localhost:6202");
-
-      // ANSWER: no cancellation — all three land, not just the final one.
-      await expect.poll(() => deputyA.hits()).toBeGreaterThanOrEqual(1);
-      await expect.poll(() => deputyB.hits()).toBeGreaterThanOrEqual(1);
       await expect.poll(() => deputyC.hits()).toBeGreaterThanOrEqual(1);
+
+      test.fail(true, "Discovery runs for every rapid endpoint edit instead of only the final one.");
+      expect(deputyA.hits()).toBe(0);
+      expect(deputyB.hits()).toBe(0);
     } finally {
       await deputyA.close();
       await deputyB.close();

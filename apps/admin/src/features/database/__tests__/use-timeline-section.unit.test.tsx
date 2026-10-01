@@ -157,6 +157,56 @@ describe("applyFilters", () => {
 });
 
 describe("loadMore", () => {
+  it("discards an old filter's page and releases its loading lock without unlocking a newer request", async () => {
+    const getDatabaseTimeline = vi.fn().mockResolvedValueOnce({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
+    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline } }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    let resolveOld!: (page: { items: AdminLedgerRow[]; nextCursor: string | null }) => void;
+    getDatabaseTimeline.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
+    act(() => { void result.current.loadMore(); });
+    expect(result.current.loadingMore).toBe(true);
+
+    const filteredRow = { ...ROW_WITH_RESTORE_POINT, id: "filtered" };
+    getDatabaseTimeline.mockResolvedValueOnce({ items: [filteredRow], nextCursor: "filtered-c2" });
+    act(() => { result.current.setKind("core.backup"); });
+    act(() => { result.current.applyFilters({ preventDefault: vi.fn() } as unknown as React.FormEvent); });
+    await waitFor(() => expect(result.current.rows).toEqual([filteredRow]));
+    expect(result.current.loadingMore).toBe(false);
+    expect(result.current.nextCursor).toBe("filtered-c2");
+
+    let resolveNew!: typeof resolveOld;
+    getDatabaseTimeline.mockImplementationOnce(() => new Promise((resolve) => { resolveNew = resolve; }));
+    act(() => { void result.current.loadMore(); });
+    await act(async () => { resolveOld({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: "stale-c3" }); });
+    expect(result.current.rows).toEqual([filteredRow]);
+    expect(result.current.nextCursor).toBe("filtered-c2");
+    expect(result.current.loadingMore).toBe(true);
+
+    await act(async () => { resolveNew({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }); });
+    expect(getDatabaseTimeline.mock.calls.at(-1)?.[0]).toMatchObject({ kind: "core.backup", cursor: "filtered-c2" });
+    expect(result.current.rows).toEqual([filteredRow, ROW_WITHOUT_RESTORE_POINT]);
+    expect(result.current.loadingMore).toBe(false);
+  });
+
+  it("sends only one page request for two same-tick loadMore calls", async () => {
+    const getDatabaseTimeline = vi.fn().mockResolvedValueOnce({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
+    const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline } }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    let resolvePage!: (page: { items: AdminLedgerRow[]; nextCursor: string | null }) => void;
+    const pendingPage = new Promise<{ items: AdminLedgerRow[]; nextCursor: string | null }>((resolve) => { resolvePage = resolve; });
+    getDatabaseTimeline.mockReturnValue(pendingPage);
+    act(() => {
+      void result.current.loadMore();
+      void result.current.loadMore();
+    });
+    await act(async () => { resolvePage({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }); });
+    expect(getDatabaseTimeline).toHaveBeenCalledTimes(2); // initial page + one continuation
+    expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT, ROW_WITHOUT_RESTORE_POINT]);
+    expect(result.current.loadingMore).toBe(false);
+  });
+
   it("sends the current nextCursor and APPENDS the new page to existing rows", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" }));
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
@@ -232,6 +282,19 @@ describe("loadMore", () => {
     expect(result.current.loadingMore).toBe(false);
     expect(result.current.error).toBe("boom");
     expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT]);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }));
+    await act(async () => {
+      result.current.loadMore();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toContain("cursor=c2");
+    expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT, ROW_WITHOUT_RESTORE_POINT]);
+    expect(result.current.nextCursor).toBeNull();
+    expect(result.current.loadingMore).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 });
 
