@@ -103,7 +103,8 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
 
 describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
   it("is translated in every locale, not left in English", () => {
-    for (const locale of ["es", "de", "fr", "ja", "ar", "zh-CN"]) {
+    for (const locale of Object.keys(PAGE_EDITOR_DICT)) {
+      expect(t(locale, PAGE_EXTERNAL_CHANGE_MESSAGE), locale).toBeTruthy();
       expect(t(locale, PAGE_EXTERNAL_CHANGE_MESSAGE), locale).not.toBe(PAGE_EXTERNAL_CHANGE_MESSAGE);
     }
   });

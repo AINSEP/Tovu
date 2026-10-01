@@ -10,6 +10,7 @@ import {
   resolveSiteKeyId,
   siteKeyFilePathFrom,
   siteKeySources,
+  siteKeySourcesForSiteDir,
 } from "../site-key-sources.js";
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "../keyring.env.js";
 
@@ -21,6 +22,24 @@ import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "../keyring.env.js";
 
 const HOME = "/home/owner";
 const CWD = "/workspace/Tovu";
+
+test("site-aware source composition uses the metadata key id and caller mode, environment and paths", (t) => {
+  const siteDir = mkdtempSync(join(tmpdir(), "tovu-site-aware-key-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  writeFileSync(join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "site-xyz", siteKeyId: "key-distinct" }));
+  const env = { [SITE_KEY_ENV_VAR_NAME]: "a".repeat(64) };
+  const local = siteKeySourcesForSiteDir({ siteDir, mode: "local", env, home: HOME, cwd: CWD });
+  assert.deepEqual(local, [
+    { kind: "per-site-file", path: join(HOME, ".tovu", "site-keys", "key-distinct.hex") },
+    { kind: "env", envVarName: "TOVU_SITE_KEY" },
+    { kind: "legacy-shared-file", path: join(HOME, ".tovu", "integrations-root-key.hex") },
+  ]);
+  assert.equal(siteKeyFilePathFrom(local, "/fallback.hex"), join(HOME, ".tovu", "site-keys", "key-distinct.hex"));
+  assert.deepEqual(siteKeySourcesForSiteDir({ siteDir, mode: "production", env, home: HOME, cwd: CWD }), [
+    { kind: "env", envVarName: "TOVU_SITE_KEY" },
+    { kind: "legacy-volume-file", path: join(CWD, "sites", ".tovu", "integrations-root-key.hex") },
+  ]);
+});
 
 test("local mode with a siteKeyId: [per-site file, env, legacy shared file], in that order", () => {
   const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });

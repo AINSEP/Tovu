@@ -72,3 +72,14 @@ test("without hardDelete the same adapter still stands down rather than claiming
   assert.equal(outcome, "version-changed", "no row removal means no purge — never a false 'purged'");
   assert.ok(await postRepo.findById({ workspaceId: WS, id: "post-1" }), "and the row is untouched");
 });
+
+test("hide then unhide restores the stored payload and marker with a fresh timestamp and version", async () => {
+  const original = { ...seed(), bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this body" }] }] } };
+  const postRepo = new InMemoryPostRepo([original]);
+  const adapter = adapterOver(postRepo, { withHardDelete: true });
+  assert.deepEqual(await adapter.hide({ workspaceId: WS, entityId: original.id, at: AT, expectedVersion: 3 }), { ok: true, version: 4 });
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: original.id }), { ...original, deletedAt: AT, updatedAt: AT, version: 4 });
+  const restoredAt = "2026-09-21T12:00:00.000Z";
+  assert.deepEqual(await adapter.unhide({ workspaceId: WS, entityId: original.id, at: restoredAt, expectedVersion: 4 }), { ok: true, version: 5 });
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: original.id }), { ...original, deletedAt: null, updatedAt: restoredAt, version: 5 });
+});

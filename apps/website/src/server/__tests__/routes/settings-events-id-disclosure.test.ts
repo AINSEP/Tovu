@@ -53,6 +53,30 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
+/** Keep real timer handles for cleanup, but release polling and reauthorization explicitly. */
+function controlIntervals(t: test.TestContext): Map<number, () => void> {
+  const callbacks = new Map<number, () => void>();
+  const original = globalThis.setInterval;
+  t.mock.method(globalThis, "setInterval", (callback: () => void, delay: number) => {
+    const handle = original(() => {}, 2_147_483_647);
+    callbacks.set(delay, callback);
+    t.after(() => clearInterval(handle));
+    return handle;
+  });
+  return callbacks;
+}
+
+async function awaitConnected(body: ReadableStream<Uint8Array>): Promise<void> {
+  const reader = body.getReader();
+  try {
+    const first = await reader.read();
+    assert.equal(first.done, false);
+    assert.match(new TextDecoder().decode(first.value), /^: connected/);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** A revision row appended straight to the ledger — the feed polls the ledger, so how the row got there is irrelevant. */
 function revision(required: { settingId: string; workspaceId: string | null }) {
   return {
@@ -124,6 +148,7 @@ test("the emitted id is this workspace's own revision seq, not the global ledger
     updatedAt: NOW,
   });
 
+  const intervals = controlIntervals(t);
   const controller = new AbortController();
   t.after(() => controller.abort());
   const stream = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/events`, {
@@ -135,7 +160,7 @@ test("the emitted id is this workspace's own revision seq, not the global ledger
 
   // Connect first so the cursor starts at the head, THEN write — otherwise the
   // write is already behind the cursor and nothing is ever emitted.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await awaitConnected(stream.body);
 
   const ownSeq = await deps.settingsRepo.appendRevision(
     revision({ settingId: "setting-feed", workspaceId: deps.workspaceId })
@@ -150,6 +175,8 @@ test("the emitted id is this workspace's own revision seq, not the global ledger
   const globalHead = await deps.settingsRepo.maxRevisionSeq();
   assert.ok(globalHead > ownSeq, "the neighbour's writes must have pushed the global head past ours");
 
+  assert.ok(intervals.has(1_000));
+  intervals.get(1_000)!();
   const emittedId = await readFirstChangeFrameId(stream.body, 8_000);
 
   assert.equal(
@@ -158,4 +185,41 @@ test("the emitted id is this workspace's own revision seq, not the global ledger
     `the frame id must be this workspace's own revision seq (${ownSeq}), not the global head (${globalHead})`
   );
   assert.notEqual(emittedId, globalHead, "emitting the global head would publish platform-wide write position");
+});
+
+test("settings events: periodic reauthorization keeps allowed streams open and closes revoked streams", { timeout: 8_000 }, async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.settingsReady;
+  let allowed = true;
+  let checks = 0;
+  deps.authorize = async () => { checks += 1; return { allowed, reason: allowed ? "granted" : "revoked" }; };
+  const intervals = controlIntervals(t);
+  const controller = new AbortController();
+  t.after(() => controller.abort());
+  const stream = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/events`, { headers: { cookie }, signal: controller.signal });
+  assert.equal(stream.status, 200);
+  assert.ok(stream.body);
+  await awaitConnected(stream.body);
+  assert.equal(checks, 1);
+  assert.ok(intervals.has(30_000));
+  intervals.get(30_000)!();
+  intervals.get(25_000)!();
+  const reader = stream.body.getReader();
+  try {
+    const keepalive = await reader.read();
+    assert.equal(keepalive.done, false, "an allowed stream stays open");
+    assert.match(new TextDecoder().decode(keepalive.value), /: keepalive/);
+    assert.equal(checks, 2);
+    allowed = false;
+    intervals.get(30_000)!();
+    assert.deepEqual(await reader.read(), { value: undefined, done: true });
+    assert.equal(checks, 3);
+    await deps.settingsRepo.appendRevision(revision({ settingId: "after-revocation", workspaceId: deps.workspaceId }));
+    intervals.get(1_000)!();
+    intervals.get(25_000)!();
+    assert.deepEqual(await reader.read(), { value: undefined, done: true }, "no frames after revocation");
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
 });

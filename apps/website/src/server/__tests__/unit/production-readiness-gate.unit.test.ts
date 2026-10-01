@@ -72,6 +72,12 @@ test("behavior.spec.md §2.1: multiple simultaneous failures are all aggregated,
   if (!result.ok) {
     // 2 undurable capabilities + 2 unsafe defaults = 4 distinct failures, not 1.
     assert.ok(result.failures.length >= 4, `expected >=4 aggregated failures, got ${result.failures.length}`);
+    assert.deepEqual(result.failures.map((failure) => ({ code: failure.code, details: failure.details })), [
+      { code: "PRODUCTION_BOOT_UNSAFE_DEFAULT", details: { checkName: "dev-secret-placeholder" } },
+      { code: "PRODUCTION_BOOT_UNSAFE_DEFAULT", details: { checkName: "localhost-egress-allowance" } },
+      { code: "PRODUCTION_CAPABILITY_NOT_DURABLE", details: { capabilityName: "undurable-1", missingRequirement: "durable-adapter" } },
+      { code: "PRODUCTION_CAPABILITY_NOT_DURABLE", details: { capabilityName: "undurable-2", missingRequirement: "durable-adapter" } },
+    ]);
   }
 });
 
@@ -275,4 +281,22 @@ test("2026-09-09 fix: aggregates alongside other unsafe defaults and undurable c
     assert.ok(result.failures.some((f) => f.details.checkName === "dev-secret-placeholder"));
     assert.ok(result.failures.some((f) => f.details.checkName === "missing-integrations-root-key"));
   }
+});
+
+test("production refuses an always-enabled analytics stub as its sole unsafe default", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production", inventory: [entry()],
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: true, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.deepEqual(result.failures.map(({ code, details }) => ({ code, details })), [
+    { code: "PRODUCTION_BOOT_UNSAFE_DEFAULT", details: { checkName: "always-enabled-analytics-stub" } },
+  ]);
+});
+
+test("production route guards consult classified inventory entries and keep their classifications", () => {
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "store", mode: "production" }), { register: false, classification: "experimental" });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "recovery", mode: "production" }), { register: false, classification: "experimental" });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "posts", mode: "production" }), { register: true });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "store", mode: "local" }), { register: true });
 });

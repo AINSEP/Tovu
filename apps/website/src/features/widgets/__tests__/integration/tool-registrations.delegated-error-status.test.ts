@@ -11,6 +11,7 @@ import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
+import { parseWidgetAreaPayload } from "../../entry-payload.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 
@@ -109,6 +110,56 @@ test("widgets_insert_embed against a real post host succeeds end to end (golden 
   assert.equal(output.entryId, post.id);
   assert.equal(output.entryVersion, 2);
   assert.equal(typeof output.placementId, "string");
+  assert.ok(output.placementId.length > 0);
+  const persisted = await routeDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+  assert.ok(persisted);
+  assert.deepEqual(persisted.bodyJson, {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [] },
+      { type: "widgetEmbed", attrs: { placementId: output.placementId, widgetEntryId: widgetId } },
+    ],
+  });
+});
+
+test("removing a missing placement on a valid host returns the intact BAD_REQUEST and preserves the post", async () => {
+  const routeDeps = makeRouteDeps();
+  const post = await seedPost(routeDeps);
+  const before = structuredClone(post);
+  const harness = await buildHarness(routeDeps);
+  const result = await call(harness, "widgets_remove_embed", { hostEntryId: post.id, baseVersion: post.version, placementId: "missing-placement" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected missing placement rejection");
+  assert.deepEqual(result.error, {
+    code: "BAD_REQUEST",
+    message: `WIDGETS_EMBED_PLACEMENT_NOT_FOUND: no widget embed with placementId 'missing-placement' was found in host '${post.id}'`,
+  });
+  assert.deepEqual(await routeDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id }), before);
+});
+
+test("a stale region write returns an intact BAD_REQUEST conflict and keeps the winning placements", async () => {
+  const routeDeps = makeRouteDeps();
+  const harness = await buildHarness(routeDeps);
+  const widgetId = await createWidget(harness);
+  const bound = await call(harness, "widgets_bind_region", { regionKey: "footer" });
+  assert.equal(bound.ok, true);
+  if (!bound.ok) throw new Error("expected region binding");
+  const area = (bound.value.result.output as { area: { id: string; version: number } }).area;
+  const placements = [{ placementId: "winning-placement", widgetEntryId: widgetId, enabled: false }];
+  const winner = await call(harness, "widgets_set_region_placements", { regionKey: "footer", baseVersion: area.version, placements });
+  assert.equal(winner.ok, true);
+  const before = structuredClone(await routeDeps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: area.id }));
+  assert.ok(before);
+  assert.equal(before.version, area.version + 1);
+  assert.deepEqual(parseWidgetAreaPayload(before.fieldsJson).doc.placements, placements);
+  const result = await call(harness, "widgets_set_region_placements", { regionKey: "footer", baseVersion: area.version, placements: [] });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected region conflict");
+  assert.deepEqual(result.error, {
+    code: "BAD_REQUEST",
+    message: `WIDGETS_AREA_CONFLICT: expected version ${area.version} for entry '${area.id}', found ${area.version + 1}. Nothing was written. Call content_read.widget_region to get the current baseVersion (${area.version + 1}) and resend.`,
+  });
+  assert.deepEqual(await routeDeps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: area.id }), before);
 });
 
 test("widgets_insert_embed against an unknown host is BAD_REQUEST with the host-not-found message, not a redacted 500", async () => {

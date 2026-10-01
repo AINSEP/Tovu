@@ -523,5 +523,61 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
   // (REQ-4's privacy property), so this is the only place it is observable at all.
   const continuationJson = JSON.stringify(continuationRequestBody);
   const refusalCount = (continuationJson.match(/no published entry with that slug/g) ?? []).length;
+  assert.ok(continuationRequestBody);
+  const contents = (continuationRequestBody as { contents?: Array<{ parts?: Array<{ functionResponse?: unknown }> }> }).contents;
+  assert.ok(contents);
+  const responses = contents.flatMap((turn) => turn.parts ?? []).flatMap((part) => part.functionResponse ? [part.functionResponse] : []);
+  assert.deepEqual(responses, ["call_0", "call_1", "call_2"].map((id) => ({
+    id, name: "highlight_entry", response: {
+      content: JSON.stringify({ error: "no published entry with that slug — it may be unpublished, trashed, or not exist" }), isError: false,
+    },
+  })));
+
   assert.equal(refusalCount, 3, `expected all 3 crafted slugs to be refused and reported back to the model as tool errors, got ${refusalCount} in:\n${continuationJson}`);
+});
+
+test("site assistant cancels a pending upstream stream when the visitor disconnects", { timeout: 8_000 }, async (t) => {
+  const deps = createRouteDeps();
+  await deps.siteTitleReady;
+  await setPublicAssistantSettings({
+    settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set,
+    clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo,
+  }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+  const { createServer } = await import("node:http");
+  const { once } = await import("node:events");
+  let accepted!: () => void;
+  let cancelled!: () => void;
+  const providerStarted = new Promise<void>((resolve) => { accepted = resolve; });
+  const providerCancelled = new Promise<void>((resolve) => { cancelled = resolve; });
+  const provider = createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      res.on("close", cancelled);
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.write(": provider pending\n\n");
+      accepted();
+    });
+  });
+  t.after(() => {
+    provider.closeAllConnections();
+    return new Promise<void>((resolve) => provider.close(() => resolve()));
+  });
+  provider.listen(0);
+  await once(provider, "listening");
+  const address = provider.address();
+  assert.ok(address && typeof address !== "string");
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes(app);
+  const baseUrl = await startTestServer(app, t);
+  const controller = new AbortController();
+  t.after(() => controller.abort());
+  const response = await fetch(`${baseUrl}/api/site-assistant/chat`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "pending question" }), signal: controller.signal,
+  });
+  assert.equal(response.status, 200);
+  await providerStarted;
+  controller.abort();
+  await providerCancelled;
+  // Normal completion is exercised by the streamed-text control in this same file.
 });

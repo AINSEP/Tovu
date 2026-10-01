@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Workspace } from "../Workspace";
@@ -70,11 +71,27 @@ describe("rename form", () => {
   it("Save becomes enabled once the draft name diverges, and typing routes through setName", async () => {
     const user = userEvent.setup();
     const setName = vi.fn();
-    render(<Workspace useWorkspaceHook={() => baseController({ name: "New Name", setName })} />);
-
+    const setSlug = vi.fn();
+    function useStatefulWorkspace(): WorkspaceController {
+      const [name, updateName] = useState(WORKSPACE.name);
+      const [slug, updateSlug] = useState(WORKSPACE.slug);
+      return baseController({ name, slug,
+        setName: (value) => { setName(value); updateName(value); },
+        setSlug: (value) => { setSlug(value); updateSlug(value); },
+      });
+    }
+    render(<Workspace useWorkspaceHook={useStatefulWorkspace} />);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await user.clear(screen.getByLabelText("Name"));
+    await user.type(screen.getByLabelText("Name"), "New Name!");
+    expect(setName).toHaveBeenLastCalledWith("New Name!");
+    expect(screen.getByLabelText("Name")).toHaveValue("New Name!");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
-    await user.type(screen.getByLabelText("Name"), "!");
-    expect(setName).toHaveBeenCalled();
+    await user.clear(screen.getByLabelText("Slug"));
+    await user.type(screen.getByLabelText("Slug"), "new-slug");
+    expect(setSlug).toHaveBeenLastCalledWith("new-slug");
+    expect(screen.getByLabelText("Slug")).toHaveValue("new-slug");
+    expect(setName).toHaveBeenLastCalledWith("New Name!");
   });
 
   it("submitting the form calls onSave", async () => {

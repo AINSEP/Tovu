@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { SITES_RESOURCE } from "../rules";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
@@ -380,5 +382,23 @@ describe("useSites — two activations back to back persist the one the screen r
     expect(persisted).toBe("beta");
     expect(maxInFlight).toBe(1);
     expect(activateSite.mock.calls.map(([name]) => name)).toEqual(["alpha", "beta"]);
+  });
+});
+
+
+describe("useSites — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("adopts a server-side site change after a sites refresh", async () => {
+    let snapshot = snapshotFixture();
+    const port = createFakeSitesPort(async () => snapshot);
+    const { result, unmount } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.sites.map((site) => site.name)).toEqual(["alpha", "beta"]));
+    snapshot = snapshotFixture({ sites: [{ ...snapshot.sites[0]!, name: "gamma", displayName: "Gamma" }] });
+    expect(result.current.sites.map((site) => site.name)).toEqual(["alpha", "beta"]);
+    act(() => publishContentRefresh([SITES_RESOURCE]));
+    await waitFor(() => expect(result.current.sites.map((site) => site.name)).toEqual(["gamma"]));
+    expect(result.current.sites[0]?.displayName).toBe("Gamma");
+    unmount();
   });
 });

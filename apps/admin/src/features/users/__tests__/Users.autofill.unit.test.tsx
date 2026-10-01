@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("Users — New user form autofill guard", () => {
-  it("marks the password field new-password so Chrome cannot silently offer the admin's own saved login", async () => {
+  it("sets the New user password autocomplete attribute to new-password", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ users: [] }))

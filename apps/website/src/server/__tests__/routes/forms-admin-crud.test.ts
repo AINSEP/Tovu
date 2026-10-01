@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
 import { registerAdminFormsGetRoute } from "../../inbound/admin-http/routes/forms/get-by-id.js";
@@ -42,7 +42,10 @@ test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-
     body: JSON.stringify({
       name: "Contact",
       slug: "contact",
-      fields: [{ id: "name", label: "Name", type: "text", required: true }],
+      fields: [
+        { id: "name", label: "Name", type: "text", required: true },
+        { id: "email", label: "Email", type: "email", required: false },
+      ],
       notify: { enabled: true, recipients: ["ops@example.com"] },
     }),
   });
@@ -62,11 +65,28 @@ test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-
   });
   assert.equal(getRes.status, 200);
   const fetched = (await getRes.json()) as {
-    data: { name: string; slug: string; notify: { enabled: boolean; recipients: string[] } };
+    data: { name: string; slug: string; fields: unknown[]; notify: { enabled: boolean; recipients: string[] } };
   };
   assert.equal(fetched.data.name, "Contact");
   assert.equal(fetched.data.slug, "contact");
   assert.deepEqual(fetched.data.notify, { enabled: true, recipients: ["ops@example.com"] });
+  assert.deepEqual(fetched.data.fields, [
+    { id: "name", label: "Name", type: "text", required: true },
+    { id: "email", label: "Email", type: "email", required: false },
+  ]);
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Contact updated", notify: { enabled: false, recipients: ["new@example.com", "alerts@example.com"] } }),
+  });
+  assert.equal(updateRes.status, 200);
+  const reread = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}`, { headers: { cookie } });
+  assert.equal(reread.status, 200);
+  const after = (await reread.json()) as { data: { name: string; fields: unknown[]; notify: unknown } };
+  assert.equal(after.data.name, "Contact updated");
+  assert.deepEqual(after.data.notify, { enabled: false, recipients: ["new@example.com", "alerts@example.com"] });
+  assert.deepEqual(after.data.fields, fetched.data.fields);
+
 });
 
 test("admin forms routes: reusing a create Idempotency-Key returns DUPLICATE_COMMAND", async (t) => {
@@ -186,7 +206,7 @@ test("admin forms routes: AC-05 — disabling a definition is reflected on GET (
 });
 
 test("admin forms routes: AC-06 — no delete route exists for definitions (only status toggles)", async (t) => {
-  const { app } = buildTestApp();
+  const app = createApp(createRouteDeps());
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const createRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, {
@@ -204,8 +224,12 @@ test("admin forms routes: AC-06 — no delete route exists for definitions (only
     method: "DELETE",
     headers: { cookie },
   });
-  // No DELETE handler is registered for this path — Express responds 404 (route not found).
   assert.equal(deleteRes.status, 404);
+  const reread = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${created.data.id}`, { headers: { cookie } });
+  assert.equal(reread.status, 200);
+  const remaining = (await reread.json()) as { data: { id: string; name: string } };
+  assert.equal(remaining.data.id, created.data.id);
+  assert.equal(remaining.data.name, "Contact");
 });
 
 test("admin forms routes: behavior.spec.md §1.1 — a PUT body containing slug never changes the stored slug", async (t) => {

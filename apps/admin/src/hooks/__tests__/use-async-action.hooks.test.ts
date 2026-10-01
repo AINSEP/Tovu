@@ -51,15 +51,28 @@ describe("useAsyncAction — run, success", () => {
     const { result } = renderHook(() => useAsyncAction());
     const order: string[] = [];
 
-    await act(async () => {
-      await result.current.run(async () => {
+    const gate = deferred<void>();
+    let settled = false;
+    let savingAtEffect: boolean | undefined;
+    let runPromise!: Promise<void>;
+    act(() => {
+      runPromise = result.current.run(async () => {
+        await gate.promise;
+        savingAtEffect = result.current.saving;
         order.push("action");
       }, () => "fallback");
+      void runPromise.then(() => { settled = true; });
     });
-
-    // `finally` (saving -> false) necessarily runs after the awaited action body completes; this
-    // assertion is really about `action` itself being awaited to completion (not fire-and-forget)
-    // before `run` resolves, which is what lets a caller safely chain `await run(...); doNext()`.
+    try {
+      await act(async () => { await Promise.resolve(); });
+      expect(result.current.saving).toBe(true);
+      expect(settled).toBe(false);
+      expect(order).toEqual([]);
+    } finally {
+      await act(async () => { gate.resolve(); await runPromise; });
+    }
+    expect(savingAtEffect).toBe(true);
+    expect(settled).toBe(true);
     expect(order).toEqual(["action"]);
     expect(result.current.saving).toBe(false);
   });

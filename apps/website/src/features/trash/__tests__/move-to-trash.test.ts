@@ -91,7 +91,9 @@ test("an unregistered kind is refused before any read or authorize call", async 
   const h = harness();
   const outcome = await moveToTrash(
     { workspaceId: WS, entityType: "gizmo", entityId: "g-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
+    { registry: h.registry, trash: h.trash, db: new Proxy(createSqliteTrashDb({ db: h.db }), {
+      get() { throw new Error("unknown kinds must not read the database"); },
+    }), authorize: async () => { throw new Error("unknown kinds must not authorize"); }, clock: { nowIso: () => AT } }
   );
   assert.deepEqual(outcome, { ok: false, reason: "unknown-type" });
 });
@@ -101,11 +103,16 @@ test("a principal without the kind's own permission is forbidden, and the row is
   seedForm(h, "form-1");
   h.granted.clear();
 
-  const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
-  );
-  assert.deepEqual(outcome, { ok: false, reason: "forbidden", permission: "admin.forms.manage" });
+  const unreadableDb = new Proxy(createSqliteTrashDb({ db: h.db }), {
+    get() { throw new Error("denied requests must not read the database"); },
+  });
+  for (const entityId of ["form-1", "does-not-exist"]) {
+    const outcome = await moveToTrash(
+      { workspaceId: WS, entityType: "form", entityId, actor: { principalId: "p-1" } },
+      { registry: h.registry, trash: h.trash, db: unreadableDb, authorize: h.authorize, clock: { nowIso: () => AT } }
+    );
+    assert.deepEqual(outcome, { ok: false, reason: "forbidden", permission: "admin.forms.manage" });
+  }
 
   const row = h.db.$client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get("form-1") as { deleted_at: string | null };
   assert.equal(row.deleted_at, null, "a forbidden call must never trash the row");
@@ -146,6 +153,19 @@ test("a live, permitted row is trashed through the real service, with its own di
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 10 });
   assert.equal(page.items[0]?.displayTitle, "Form form-1");
   assert.equal(page.items[0]?.displaySubtitle, "slug-form-1");
+});
+
+test("a stale confirmation version leaves the newer row and the Trash index unchanged", async () => {
+  const h = harness();
+  seedForm(h, "form-1", { version: 2 });
+  const before = h.db.$client.prepare("SELECT * FROM form_definitions WHERE id = ?").get("form-1");
+  const outcome = await moveToTrash(
+    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" }, expectedVersion: 1 },
+    { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
+  );
+  assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
+  assert.deepEqual(h.db.$client.prepare("SELECT * FROM form_definitions WHERE id = ?").get("form-1"), before);
+  assert.deepEqual(await h.trash.list({ workspaceId: WS, now: AT, limit: 10 }), { items: [], nextCursor: null });
 });
 
 test("a not-found race from TrashPort.trash itself surfaces as not-found, not thrown", async () => {

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
 import { PROVIDERS_DICT, t } from "../providers-i18n";
 import { COMMON_I18N } from "../../../lib/i18n-common";
 
@@ -50,19 +52,27 @@ describe("PROVIDERS_DICT: cross-locale key parity", () => {
     }
   });
 
-  // Spot-check every key Providers.tsx actually calls t() with, so "added to
-  // source, added to zero locales" would fail here instead of silently rendering English everywhere.
-  const CALL_SITE_KEYS = [
-    "Integrations",
-    "Add-Ons",
-    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.",
-    "External MCP",
-  ];
+  // Parse actual calls, excluding comments and strings that only look like calls.
+  const CALL_SITE_KEYS = new Set<string>();
+  for (const file of ["Providers.tsx", "AlwaysAllowPanel.tsx"]) {
+    const source = readFileSync(`src/features/providers/${file}`, "utf8");
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
+        const key = node.arguments[file === "Providers.tsx" ? 1 : 0];
+        expect(key && ts.isStringLiteralLike(key), `${file}: translation key must be auditable`).toBe(true);
+        if (key && ts.isStringLiteralLike(key)) CALL_SITE_KEYS.add(key.text);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+  }
+  expect(CALL_SITE_KEYS.has("Always allow")).toBe(true);
 
   it("covers every copy string Providers.tsx calls t() with, in every locale", () => {
     for (const locale of locales) {
       for (const key of CALL_SITE_KEYS) {
-        expect(PROVIDERS_DICT[locale][key], `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+        expect(PROVIDERS_DICT[locale][key] ?? COMMON_I18N[locale]?.[key], `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
       }
     }
   });

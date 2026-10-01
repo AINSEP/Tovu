@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
@@ -167,11 +167,13 @@ function renderPanelWithSources(sources: SourceConfigItem[]) {
     sources,
     createSource: (input) => ({ id: input.fields.id?.trim() || "new-server", fields: input.fields }),
   });
-  return render(
+  const removeSource = vi.spyOn(dependencies.port, "removeSource");
+  const rendered = render(
     <FetchQueryProvider>
       <ExternalMcpSettingsPanel dependencies={dependencies} />
     </FetchQueryProvider>,
   );
+  return { ...rendered, removeSource };
 }
 
 const HIGGSFIELD: SourceConfigItem = { id: "higgsfield", fields: { id: "higgsfield", command: "npx" } };
@@ -205,7 +207,7 @@ describe("ExternalMcpSettingsPanel — Remove asks for confirmation before delet
 
   it("Confirm deletes exactly once", async () => {
     const user = userEvent.setup();
-    renderPanelWithSources([HIGGSFIELD]);
+    const { removeSource } = renderPanelWithSources([HIGGSFIELD]);
     await screen.findAllByTestId("source-config-item-card");
 
     await user.click(screen.getByRole("button", { name: "Remove" }));
@@ -215,6 +217,7 @@ describe("ExternalMcpSettingsPanel — Remove asks for confirmation before delet
     // The fake port's own removeSource resolves via a Promise (not synchronously), so the row's
     // removal is awaited rather than asserted immediately.
     await waitFor(() => expect(screen.queryAllByTestId("source-config-item-card")).toHaveLength(0));
+    expect(removeSource).toHaveBeenCalledExactlyOnceWith("higgsfield");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -255,6 +258,12 @@ describe("ExternalMcpSettingsPanel — the Remove-confirm and Tools dialogs trap
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
+    const firstControl = within(screen.getByRole("dialog")).getAllByRole("button")[0]!;
+    firstControl.focus();
+    const ordinaryTab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    firstControl.dispatchEvent(ordinaryTab);
+    expect(ordinaryTab.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(firstControl);
     const { event, first } = tabFromLastFocusableInDialog();
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(first);

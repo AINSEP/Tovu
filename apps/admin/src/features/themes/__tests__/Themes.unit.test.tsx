@@ -166,7 +166,7 @@ describe("theme grid", () => {
     render(<Themes useThemesHook={() => baseController({ themes: ["signal", "some-unknown-theme"] })} />);
     expect(screen.getByText(/bright product-blog/i)).toBeInTheDocument();
     const unknownCard = screen.getByText("some-unknown-theme").closest(".theme-card") as HTMLElement;
-    expect(unknownCard.querySelector("p")).toHaveTextContent("");
+    expect(unknownCard.querySelector("p")).toBeEmptyDOMElement();
   });
 
   it("styles Activate with the admin's primary-action class, not the muted theme-card default (owner feedback: match PostEditor's Save button)", () => {
@@ -182,6 +182,8 @@ describe("View site link", () => {
     const link = screen.getByRole("link", { name: /view site/i });
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(link).toHaveAttribute("href", "/");
+    expect(new URL((link as HTMLAnchorElement).href).pathname).toBe("/");
   });
 });
 
@@ -252,8 +254,10 @@ describe("tier tabs", () => {
         useThemesHook={() => baseController({ themeTiers: { column: "static" } })}
       />,
     );
+    const historyLength = window.history.length;
     await user.click(screen.getByRole("tab", { name: /^Static/ }));
     expect(window.location.search).toBe("?tab=static");
+    expect(window.history.length).toBe(historyLength);
   });
 
   it("opens directly on the tab named by the tabId prop, showing that tier's cards", () => {
@@ -560,7 +564,11 @@ describe("no theme (state 3 — the operator handles styling themselves)", () =>
   it("offers a way back: every theme card still shows Activate, and none claims to be Active", () => {
     render(<Themes useThemesHook={themeOff} />);
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Activate/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Activate/i })).toHaveLength(3);
+    for (const themeId of ["tovu-official", "column", "signal"]) {
+      const card = screen.getByText(themeId).closest(".theme-card") as HTMLElement;
+      expect(within(card).getByRole("button", { name: `Activate ${themeId}` })).toBeEnabled();
+    }
   });
 
   it("labels the turn-off control 'Turning off…' and disables it while turning the theme off is in flight", () => {

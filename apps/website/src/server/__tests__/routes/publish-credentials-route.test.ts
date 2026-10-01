@@ -5,7 +5,7 @@ import express from "express";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
+import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
 import {
@@ -308,7 +308,17 @@ test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a la
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
-  stubVerificationFetch(t, baseUrl, 401);
+  const original = globalThis.fetch;
+  const requests: Array<{ url: string; authorization: string | null }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    const authorization = new Headers(init?.headers).get("authorization");
+    requests.push({ url: String(input), authorization });
+    if (String(input) !== "https://api.netlify.com/api/v1/user") return new Response("", { status: 404 });
+    if (authorization === "Bearer rotated-token") return Response.json({ full_name: "Rotated account" });
+    return new Response("", { status: 401 });
+  }) as typeof fetch;
+  t.after(() => { globalThis.fetch = original; });
 
   const created = await fetch(base, {
     method: "POST",
@@ -316,7 +326,8 @@ test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a la
     body: JSON.stringify({ label: "Rotating", connection: { providerId: "netlify", token: "old-token" } }),
   });
   assert.equal(created.status, 201, await created.clone().text());
-  const { credential } = await created.json();
+  const { credential, verification: initialVerification } = await created.json();
+  assert.equal(initialVerification.status, "invalid");
 
   // Rotate the token via PUT's `connection` field, no label change — the mirror image of the
   // existing "label only" PUT test, which asserts `renameVerification` is `undefined`. A changed
@@ -330,7 +341,13 @@ test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a la
   const { credential: rotated, verification } = await updated.json();
   assert.equal(rotated.id, credential.id);
   assert.notEqual(verification, undefined);
-  assert.equal(verification.status, "invalid");
+  assert.equal(verification.status, "valid");
+  assert.deepEqual(requests, [
+    { url: "https://api.netlify.com/api/v1/user", authorization: "Bearer old-token" },
+    { url: "https://api.netlify.com/api/v1/user", authorization: "Bearer rotated-token" },
+  ]);
+  const saved = await resolveForPublish({ repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: deps.workspaceId, id: credential.id });
+  assert.deepEqual(saved?.connection, { providerId: "netlify", token: "rotated-token" });
   // The new token must never leak onto the wire, same guarantee every other verify response asserts.
   assert.equal(JSON.stringify(verification).includes("rotated-token"), false);
 });

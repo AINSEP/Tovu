@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { discoverAllBuiltInThemes, MARKETPLACE_CATALOG_DIR, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -156,8 +156,10 @@ test("marketplace download: a fixture that fails install-profile validation is r
   assert.ok(!fs.existsSync(path.join(themesRoot, "static", "broken")), "the editable copy must never be written for a refused fixture");
 });
 
-test("marketplace list: the colliding fixture is flagged as already taken locally", async (t) => {
+test("marketplace list: the colliding fixture is flagged as already taken locally while a fresh id is available", async (t) => {
   const themesRoot = makeThemesRoot();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  writeMinimalStaticTheme(path.join(themesRoot, MARKETPLACE_CATALOG_DIR, "static", "fresh"), "fresh", "Fresh");
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -169,6 +171,10 @@ test("marketplace list: the colliding fixture is flagged as already taken locall
   assert.ok(basic, "the marketplace fixture must be listed");
   assert.equal(basic!.tier, "static");
   assert.equal(basic!.idTaken, true);
+  const fresh = body.themes.find((theme) => theme.id === "fresh");
+  assert.ok(fresh);
+  assert.equal(fresh.tier, "static");
+  assert.equal(fresh.idTaken, false);
 });
 
 test("marketplace download: an unknown marketplace theme is a 404", async (t) => {
@@ -205,4 +211,21 @@ test("marketplace download: requires an authenticated admin session", async (t) 
   const response = await fetch(downloadUrl(baseUrl, deps.workspaceId, "basic"), { method: "POST" });
 
   assert.equal(response.status, 401);
+});
+
+test("marketplace download: a signed-in principal without theme.set cannot install files", async (t) => {
+  const themesRoot = makeThemesRoot();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  const deps = testDeps(themesRoot);
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl);
+  const before = fs.readdirSync(themesRoot, { recursive: true }).sort();
+  const themesBefore = deps.themes.map((theme) => theme.manifest.id).sort();
+  const response = await fetch(downloadUrl(baseUrl, deps.workspaceId, "basic"), { method: "POST", headers: { cookie } });
+  assert.equal(response.status, 403);
+  const body = (await response.json()) as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "theme.set");
+  assert.deepEqual(fs.readdirSync(themesRoot, { recursive: true }).sort(), before);
+  assert.deepEqual(deps.themes.map((theme) => theme.manifest.id).sort(), themesBefore);
 });

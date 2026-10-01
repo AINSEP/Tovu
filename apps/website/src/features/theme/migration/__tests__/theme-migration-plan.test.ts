@@ -26,6 +26,11 @@ test("planV2Migration (declarative) moves styles.css to css/theme.css and templa
   assert.equal(moveMap["styles.css"], "css/theme.css");
   assert.equal(moveMap["templates/home.json"], "render/pages/home.json");
   assert.equal(moveMap["templates/entry.json"], "render/pages/entry.json");
+  assert.deepEqual(plan.moves, [
+    { from: "styles.css", to: "css/theme.css" },
+    { from: "templates/entry.json", to: "render/pages/entry.json" },
+    { from: "templates/home.json", to: "render/pages/home.json" },
+  ]);
 });
 
 test("planV2Migration (declarative) flags an unrecognized root-level file rather than silently dropping it", () => {
@@ -65,6 +70,10 @@ test("planV2Migration (templated) moves templates/*.liquid to render/pages/, wit
   assert.equal(moveMap["templates/home.liquid"], "render/pages/home.liquid");
   assert.equal(moveMap["templates/entry.liquid"], "render/pages/entry.liquid");
   assert.equal(moveMap["styles.css"], undefined, "no css/ move when the theme has no root styles.css");
+  assert.deepEqual(plan.moves, [
+    { from: "templates/entry.liquid", to: "render/pages/entry.liquid" },
+    { from: "templates/home.liquid", to: "render/pages/home.liquid" },
+  ]);
 });
 
 test("planV2Migration (templated) moves a root styles.css to css/theme.css when present", () => {
@@ -106,6 +115,24 @@ test("planV2Migration (templated) nests a flat root assets/ folder under assets/
 // static tier
 // ---------------------------------------------------------------------------
 
+test("planV2Migration (handlebars) recognizes both template extensions and preserves their destinations", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-plan-handlebars-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "h", tier: "handlebars", engine: 1 }));
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}");
+  fs.writeFileSync(path.join(dir, "styles.css"), "body{color:blue}");
+  fs.mkdirSync(path.join(dir, "templates"));
+  fs.writeFileSync(path.join(dir, "templates/home.hbs"), "{{site.title}}");
+  fs.writeFileSync(path.join(dir, "templates/entry.handlebars"), "{{post.title}}");
+  const plan = planV2Migration({ themeDir: dir, tier: "handlebars" });
+  assert.deepEqual(plan.unrecognized, []);
+  assert.deepEqual(plan.moves, [
+    { from: "styles.css", to: "css/theme.css" },
+    { from: "templates/entry.handlebars", to: "render/pages/entry.handlebars" },
+    { from: "templates/home.hbs", to: "render/pages/home.hbs" },
+  ]);
+});
+
 function makeStaticThemeDir(options: { withImages?: boolean } = {}): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-plan-static-"));
   fs.writeFileSync(
@@ -141,6 +168,14 @@ test("planV2Migration (static) moves css/styles.css, js/** (preserving vendor/ n
   assert.equal(moveMap["pages/index.html"], "render/pages/index.html");
   assert.equal(moveMap["nav.html"], "render/partials/nav.html");
   assert.equal(moveMap["footer.html"], "render/partials/footer.html");
+  assert.deepEqual(plan.moves.slice().sort((a, b) => a.from.localeCompare(b.from)), [
+    { from: "css/styles.css", to: "css/theme.css" },
+    { from: "footer.html", to: "render/partials/footer.html" },
+    { from: "js/nav-toggle.js", to: "scripts/nav-toggle.js" },
+    { from: "js/vendor/motion.js", to: "scripts/vendor/motion.js" },
+    { from: "nav.html", to: "render/partials/nav.html" },
+    { from: "pages/index.html", to: "render/pages/index.html" },
+  ]);
 });
 
 test("planV2Migration (static) moves images/* to assets/images/* and reports the matching rewrite rule when the theme ships images/ (fuel's real shape)", () => {

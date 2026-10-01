@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resetThemeFileToOriginal, themeOriginalResetRefusal } from "../theme-files.js";
+import { resetThemeFileToOriginal, resolveThemeOriginalSource, themeOriginalResetRefusal } from "../theme-files.js";
+import { THEME_CATALOG_DIR } from "../theme.js";
 
 /**
  * @file Design C go/no-go probe (`ADS-memory/.local-artifacts/agent-reports/2026-09-16-w4-theme-
@@ -95,16 +96,24 @@ test("(b) a theme with no site-level original (basic-2 shape) becomes resettable
 
   // The package slot, resolved independently: same theme id/tier, a completely separate directory
   // tree the site has no knowledge of and never wrote into.
-  const packageOriginalsRoot = makePackageOriginalsRoot();
+  const packageThemesRoot = makePackageOriginalsRoot();
+  const packageOriginalsRoot = path.join(packageThemesRoot, THEME_CATALOG_DIR);
   const packageOriginalDir = path.join(packageOriginalsRoot, "static", "basic-2");
   const canonicalManifest = Buffer.from(JSON.stringify({ id: "basic-2", tier: "static", version: "0.1.0" }));
   write(packageOriginalDir, "theme.json", canonicalManifest);
 
+  const source = resolveThemeOriginalSource({
+    manifest: { id: "basic-2", tier: "static" },
+    siteThemesRoot,
+    packageThemesRoot,
+  });
+  assert.deepEqual(source, { source: "package", originalDir: packageOriginalDir, originalsRoot: packageOriginalsRoot });
+
   const result = resetThemeFileToOriginal({
     themeDir,
     themesRoot: siteThemesRoot,
-    originalDir: packageOriginalDir,
-    originalsRoot: packageOriginalsRoot,
+    originalDir: source!.originalDir,
+    originalsRoot: source!.originalsRoot,
     relativePath: "theme.json",
   });
 

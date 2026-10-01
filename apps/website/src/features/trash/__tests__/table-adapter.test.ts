@@ -10,6 +10,7 @@ import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry, type TrashEntry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
+import { readLiveSnapshot } from "../entry-sql.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../ports.js";
 
@@ -283,6 +284,42 @@ test("purge at a stale version reports version-changed and leaves the submission
   assert.equal(outcome, "version-changed");
   assert.notEqual(readFormRow(h.client, "form-1"), undefined, "the definition must survive");
   assert.equal(submissionCount(h.client, "form-1"), 1, "submissions must not be touched");
+});
+
+test("hide, unhide, purge and snapshot reads cannot reach a foreign workspace's form", async () => {
+  const h = harness();
+  const otherWorkspace = "workspace-2";
+  h.client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(otherWorkspace, otherWorkspace, otherWorkspace, AT);
+  seedForm(h.client, "foreign-form");
+  seedSubmission(h.client, "foreign-submission", "foreign-form");
+  const registry = buildTrashRegistry();
+  const db = createSqliteTrashDb({ db: h.db });
+  assert.equal(await readLiveSnapshot({ entry: registry.get("form")!, workspaceId: otherWorkspace, entityId: "foreign-form" }, { kernel: db, registry }), null);
+  const before = readFormRow(h.client, "foreign-form");
+  assert.ok(before);
+  assert.deepEqual(await h.formAdapter.hide({ workspaceId: otherWorkspace, entityId: "foreign-form", at: AT, expectedVersion: 1 }), { ok: false, reason: "not-found" });
+  assert.deepEqual(readFormRow(h.client, "foreign-form"), before);
+  assert.deepEqual(await h.formAdapter.hide({ workspaceId: WS, entityId: "foreign-form", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
+  const hidden = readFormRow(h.client, "foreign-form");
+  assert.deepEqual(await h.formAdapter.unhide({ workspaceId: otherWorkspace, entityId: "foreign-form", at: AT, expectedVersion: 2 }), { ok: false, reason: "not-found" });
+  assert.equal(await h.formAdapter.purge({ workspaceId: otherWorkspace, entityId: "foreign-form", expectedVersion: 2 }), "already-gone");
+  assert.deepEqual(readFormRow(h.client, "foreign-form"), hidden);
+  assert.equal(submissionCount(h.client, "foreign-form"), 1);
+});
+
+test("a purge raced after its initial read preserves the parent and every child row", async () => {
+  const h = harness();
+  seedForm(h.client, "form-1", { deletedAt: AT, version: 3 });
+  seedSubmission(h.client, "sub-1", "form-1");
+  seedSubmission(h.client, "sub-2", "form-1");
+  const children = h.client.prepare("SELECT * FROM form_submissions ORDER BY id").all();
+  const racing = createTableTrashAdapter({
+    entry: buildTrashRegistry().get("form")!,
+    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare("UPDATE form_definitions SET version = version + 1 WHERE id = 'form-1'").run()),
+  });
+  assert.equal(await racing.purge({ workspaceId: WS, entityId: "form-1", expectedVersion: 3 }), "version-changed");
+  assert.ok(readFormRow(h.client, "form-1"));
+  assert.deepEqual(h.client.prepare("SELECT * FROM form_submissions ORDER BY id").all(), children);
 });
 
 // ---------------------------------------------------------------------------

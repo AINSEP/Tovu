@@ -143,3 +143,24 @@ test("toExecutionTabAgent still carries the model list and its provenance alongs
   assert.equal(projected.modelsSource, "live");
   assert.ok(projected.reasoningInModelId);
 });
+
+test("toExecutionTabAgent preserves the entire available agent catalog and sign-in guidance", () => {
+  const projected = toExecutionTabAgent(buildAgent({
+    id: "codex", name: "Codex", available: true, version: "1.2.3", path: "/usr/local/bin/codex",
+    authStatus: "ok", authMessage: "Signed in", modelsSource: "live",
+    models: [{ id: "model-pro", label: "Model Pro", reasoning: [{ id: "high", label: "High" }] }],
+    reasoningOptions: [{ id: "high", label: "High" }], reasoningInModelId: { levels: [{ id: "high", label: "High" }] },
+  }));
+  assert.deepEqual(projected, {
+    id: "codex", label: "Codex", installed: true, version: "1.2.3", path: "/usr/local/bin/codex",
+    authStatus: "ok", authMessage: "Signed in", modelsSource: "live",
+    models: [{ id: "model-pro", label: "Model Pro", reasoning: [{ id: "high", label: "High" }] }],
+    reasoningOptions: [{ id: "high", label: "High" }], reasoningInModelId: { levels: [{ id: "high", label: "High" }] },
+  });
+});
+
+test("toExecutionTabAgent reports an unavailable agent and preserves missing-auth guidance", () => {
+  assert.deepEqual(toExecutionTabAgent(buildAgent({
+    id: "claude", name: "Claude Code", available: false, authStatus: "missing", authMessage: "Run claude login",
+  })), { id: "claude", label: "Claude Code", installed: false, modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login" });
+});

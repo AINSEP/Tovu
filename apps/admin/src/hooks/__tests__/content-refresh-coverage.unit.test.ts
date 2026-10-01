@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 
 /**
  * @file The guard against a fourth occurrence of the staleness bug this pass fixed a fifth time
@@ -25,7 +26,7 @@ import { describe, expect, it } from "vitest";
  * second hook's subscription line could be deleted by an unrelated refactor (an import cleanup, a
  * lint-driven removal of an apparently-unused `useCallback`) and nothing would fail except a human
  * noticing a stale screen in production, which is the exact failure mode that shipped this bug twice
- * already. A textual `toMatch` against the hook's own source is a weak signal on its own — it cannot
+ * already. A syntax-tree call check against the hook's own source is a weak signal on its own — it cannot
  * prove the subscription is wired CORRECTLY, only that the call did not vanish — but it is a real,
  * cheap, always-run tripwire for the specific regression this pass is most likely to suffer, and each
  * hook already carries its OWN behavioral `describe("... — content refresh bus", ...)` suite (see
@@ -79,13 +80,19 @@ const WIRED_HOOKS: readonly string[] = [
   "features/pages/hooks/use-page-editor.hooks.ts",
 ];
 
-/** Matches a call to either the shared hook, or `subscribeToContentRefresh` directly — taxonomy
- *  predates the shared hook and still calls the bus function by hand; see its own file header. */
-const SUBSCRIBES_TO_CONTENT_REFRESH = /useContentRefreshSubscription\s*\(|subscribeToContentRefresh\s*\(/;
+/** Parse real calls, so commented-out subscriptions cannot satisfy the guard. */
+const SUBSCRIPTION_NAMES = new Set(["useContentRefreshSubscription", "subscribeToContentRefresh"]);
 
 describe("content-refresh coverage (staleness-bug guard)", () => {
-  it.each(WIRED_HOOKS)("%s subscribes to the content-refresh bus", (relativePath) => {
+  it.each(WIRED_HOOKS)("%s contains an executable content-refresh subscription call", (relativePath) => {
     const source = readFileSync(path.join(ADMIN_SRC, relativePath), "utf8");
-    expect(source).toMatch(SUBSCRIBES_TO_CONTENT_REFRESH);
+    const tree = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
+    const calls: ts.CallExpression[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && SUBSCRIPTION_NAMES.has(node.expression.text)) calls.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+    expect(calls.length).toBeGreaterThan(0);
   });
 });

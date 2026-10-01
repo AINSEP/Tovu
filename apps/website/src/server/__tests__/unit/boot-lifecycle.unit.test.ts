@@ -171,3 +171,51 @@ test("a critical module's prepare() failure rolls back an earlier module that on
   assert.deepEqual(earlierPreparedOnly.calls, ["prepare", "stop"]);
   assert.equal(failing.calls.includes("stop"), false);
 });
+
+test("rollback waits for each asynchronous resource release before starting the next stop or returning", async () => {
+  const order: string[] = [];
+  let releaseOne!: () => void;
+  let releaseTwo!: () => void;
+  const oneHeld = new Promise<void>((resolve) => { releaseOne = resolve; });
+  const twoHeld = new Promise<void>((resolve) => { releaseTwo = resolve; });
+  let twoStarted!: () => void;
+  const twoStarting = new Promise<void>((resolve) => { twoStarted = resolve; });
+  const one = fakeModule({ name: "one", stop: async () => { order.push("one.start"); await oneHeld; order.push("one.released"); } });
+  const two = fakeModule({ name: "two", stop: async () => { order.push("two.start"); twoStarted(); await twoHeld; order.push("two.released"); } });
+  const failing = fakeModule({ name: "failing", start: async () => { throw new Error("critical start failed"); } });
+  let settled = false;
+  const boot = runBootLifecycle([one, two, failing]).then((result) => { settled = true; return result; });
+  try {
+    await twoStarting;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, "boot cannot settle while two still owns its resource");
+    assert.deepEqual(order, ["two.start"]);
+    releaseTwo();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, "boot cannot settle while one still owns its resource");
+    assert.deepEqual(order, ["two.start", "two.released", "one.start"]);
+    releaseOne();
+    const result = await boot;
+    assert.equal(result.ok, false);
+    assert.deepEqual(order, ["two.start", "two.released", "one.start", "one.released"]);
+    assert.equal(failing.calls.includes("stop"), false);
+  } finally {
+    releaseTwo();
+    releaseOne();
+    await boot;
+  }
+});
+
+test("rollback continues after a stop rejects and preserves the original critical prepare failure", async () => {
+  const order: string[] = [];
+  const earlier = fakeModule({ name: "earlier", stop: async () => { order.push("earlier.released"); } });
+  const later = fakeModule({ name: "later", stop: async () => { order.push("later.stop"); throw new Error("cleanup failed"); } });
+  const failing = fakeModule({ name: "failing", prepare: async () => { throw new Error("original critical failure"); } });
+  const result = await runBootLifecycle([earlier, later, failing]);
+  assert.deepEqual(order, ["later.stop", "earlier.released"]);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.modules.map(({ name, lifecycle }) => ({ name, lifecycle })), [{
+    name: "failing", lifecycle: { status: "failed", reasonCode: "original critical failure", remediationHint: "check the boot log for the underlying error and retry after fixing it" },
+  }]);
+  assert.deepEqual(failing.calls, []);
+});

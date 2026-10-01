@@ -57,6 +57,31 @@ describe("useHitCountCell", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("keeps two redirect requests and cached results separate under one provider", async () => {
+    const stats = {
+      r1: { redirectId: "r1", workspaceId: "ws1", hitCount: 7, lastHitAt: null },
+      r2: { redirectId: "r2", workspaceId: "ws1", hitCount: 19, lastHitAt: "2026-08-02T00:00:00.000Z" },
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      const match = String(url).match(/\/redirects\/(r[12])\/hits$/);
+      if (!match) throw new Error(`unexpected request ${url}`);
+      return jsonResponse({ data: stats[match[1] as keyof typeof stats] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => ({
+      first: useWiredHitCountCell({ redirectId: "r1", t: fakeT }),
+      second: useWiredHitCountCell({ redirectId: "r2", t: fakeT }),
+    }), { wrapper });
+    act(() => result.current.first.request());
+    await waitFor(() => expect(result.current.first.data?.data).toEqual(stats.r1));
+    expect(result.current.second.data).toBeUndefined();
+    act(() => result.current.second.request());
+    await waitFor(() => expect(result.current.second.data?.data).toEqual(stats.r2));
+    expect(result.current.first.data?.data).toEqual(stats.r1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.map(([url]) => String(url).split("/redirects/")[1])).toEqual(["r1/hits", "r2/hits"]);
+  });
+
   it("resolves data even for a rule with zero recorded hits — the caller must branch on data being present, not on hitCount's truthiness", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({ data: { redirectId: "r1", workspaceId: "ws1", hitCount: 0, lastHitAt: null } }),

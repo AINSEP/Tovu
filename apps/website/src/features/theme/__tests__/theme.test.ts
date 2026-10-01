@@ -71,13 +71,17 @@ test("a disallowed filter in entry.liquid fails the theme as invalid, naming the
 });
 
 test("the live themes/dispatch demonstrator theme loads as valid end-to-end", () => {
-  const dispatchDir = path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch");
+  const dispatchDir = path.resolve(import.meta.dirname, "../../../../../../development/fixtures/theme-archive/dispatch");
   const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.errors, []);
   assert.equal(theme.manifest.tier, "templated");
   assert.ok(theme.liquidTemplates.home);
   assert.ok(theme.liquidTemplates.entry);
+  assert.deepEqual(theme.liquidTemplates, {
+    home: fs.readFileSync(path.join(dispatchDir, "templates/home.liquid"), "utf8"),
+    entry: fs.readFileSync(path.join(dispatchDir, "templates/entry.liquid"), "utf8"),
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -98,6 +102,10 @@ test("a clean handlebars theme (only allowed helpers/expressions) loads as valid
   assert.deepEqual(theme.errors, []);
   assert.ok(theme.handlebarsTemplates.home);
   assert.ok(theme.handlebarsTemplates.entry);
+  assert.deepEqual(theme.handlebarsTemplates, {
+    home: "{{#each posts}}{{title}}{{/each}}",
+    entry: "{{post.title}}{{{post.content}}}",
+  });
 });
 
 test("the .handlebars extension is accepted alongside .hbs and maps to the same template ids", () => {
@@ -110,6 +118,7 @@ test("the .handlebars extension is accepted alongside .hbs and maps to the same 
   assert.equal(theme.status, "valid", `expected valid, got: ${JSON.stringify(theme.errors)}`);
   assert.ok(theme.handlebarsTemplates.home);
   assert.ok(theme.handlebarsTemplates.entry);
+  assert.deepEqual(theme.handlebarsTemplates, { home: "{{site.title}}", entry: "{{post.title}}" });
 });
 
 test("a disallowed partial in home.hbs fails the theme as invalid, naming the file and the partial", () => {
@@ -190,6 +199,7 @@ test("one bad .hbs file never breaks discovery of the rest of the theme (REQ-10 
   assert.ok(theme.handlebarsTemplates.home);
   assert.ok(theme.handlebarsTemplates.entry);
   assert.equal(theme.handlebarsTemplates.products, undefined);
+  assert.deepEqual(theme.handlebarsTemplates, { home: "{{site.title}}", entry: "{{post.title}}" });
 });
 
 test("loadTheme records the folder it loaded from, so a theme id never has to be re-resolved to a path", () => {
@@ -237,7 +247,7 @@ test("a theme.json with no regions field leaves manifest.regions undefined (back
 });
 
 test("the live themes/dispatch demonstrator theme (no regions declared yet) still loads as valid with manifest.regions undefined", () => {
-  const dispatchDir = path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch");
+  const dispatchDir = path.resolve(import.meta.dirname, "../../../../../../development/fixtures/theme-archive/dispatch");
   const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.regions, undefined);

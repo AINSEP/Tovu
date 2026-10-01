@@ -254,14 +254,11 @@ test("site assistant: a stored GOOGLE credential still reaches Gemini (no regres
   const body = await res.text();
 
   assert.equal(stub.requests.length, 1, `expected exactly one provider call, got ${stub.requests.length}`);
-  assert.ok(
-    stub.requests[0]?.url.includes(GOOGLE_PATH_FRAGMENT),
-    `a workspace configured for google must post to a ${GOOGLE_PATH_FRAGMENT} target; got ${stub.requests[0]?.url}`,
-  );
-  assert.ok(
-    stub.requests[0]?.url.includes("gemini-flash-latest"),
-    `the stored model must reach the wire; got ${stub.requests[0]?.url}`,
-  );
+  const target = new URL(stub.requests[0]!.url, stub.baseUrl);
+  assert.equal(stub.requests[0]!.method, "POST");
+  assert.equal(target.pathname, "/v1beta/models/gemini-flash-latest:streamGenerateContent");
+  assert.deepEqual([...target.searchParams], [["alt", "sse"]]);
+  assert.equal(stub.requests[0]!.headers["x-goog-api-key"], FAKE_KEY);
   assert.equal(sseTextOf(body), "Hello from Gemini.");
 });
 
@@ -458,9 +455,9 @@ test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the
   await enablePublicAssistant(deps);
   const storedEndpoint = await recordingStub(t, googleReply("Hello from the stored endpoint."));
   const envEndpoint = await recordingStub(t, googleReply("this must never be produced"));
-  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "google", baseUrl: storedEndpoint.baseUrl });
+  await storeSiteCredential(deps, { apiKey: "workspace-stored-key", provider: "google", baseUrl: storedEndpoint.baseUrl });
 
-  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "operator-env-key", TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();
   app.use(express.json());
   createSiteAssistantModule(deps, testEnv).registerRoutes(app);
@@ -469,6 +466,7 @@ test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the
   const raw = await drainedBody(await postChat(siteUrl));
 
   assert.equal(storedEndpoint.requests.length, 1, "a stored key must still dial its own stored endpoint");
+  assert.equal(storedEndpoint.requests[0]!.headers["x-goog-api-key"], "workspace-stored-key");
   assert.equal(envEndpoint.requests.length, 0, "the env endpoint must not be reached when a stored key is in play");
   assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
   assert.equal(sseTextOf(raw.text), "Hello from the stored endpoint.");

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,11 +152,12 @@ describe("restore points list", () => {
 
   it("renders timestamp, trigger, and cost-class columns", () => {
     renderRecovery({ points: [POINT] });
-    expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
-    expect(screen.getByText("manual")).toBeInTheDocument();
+    const pointRow = screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" }).closest("tr")!;
+    expect(within(pointRow).getByText("2026-08-01 12:34")).toBeInTheDocument();
+    expect(within(pointRow).getByText("manual")).toBeInTheDocument();
     // Real cost-class badge text, not the raw `"cheap"` enum value — see the "loaded — header and
     // cost class" describe block above for the same fix on the top status bar.
-    expect(screen.getAllByText("Fast restore").length).toBeGreaterThan(0);
+    expect(within(pointRow).getByText("Fast restore")).toBeInTheDocument();
   });
 
   it("renders a 'Restore…' button for a restorable point", () => {
@@ -443,7 +444,7 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
 
     await waitFor(() => expect(screen.getByText("run1")).toBeInTheDocument());
     expect(screen.getByText("succeeded")).toBeInTheDocument();
-    expect(screen.queryByRole("alert", { name: /restart/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Restart the server now/)).not.toBeInTheDocument();
   });
 
   it("shows the restart-required warning when the response sets restartRequired:true", async () => {

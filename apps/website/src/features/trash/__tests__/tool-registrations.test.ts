@@ -52,6 +52,8 @@ interface Harness {
    *  elsewhere in this file) never has to grow a field just to observe this. */
   restoreActors: (TrashActor | undefined)[];
   authorizeCalls: { permission: string; entityType?: string }[];
+  listCalls: Parameters<TrashPort["list"]>[0][];
+  userListCalls: { workspaceId: string }[];
 }
 
 /** Minimal `UserRepoPort` double — only `list` is ever called from `tool-registrations.ts`'s
@@ -101,6 +103,8 @@ function harness(
   const restoreCalls: { entityType: string; entityId: string }[] = [];
   const restoreActors: (TrashActor | undefined)[] = [];
   const authorizeCalls: { permission: string; entityType?: string }[] = [];
+  const listCalls: Parameters<TrashPort["list"]>[0][] = [];
+  const userListCalls: { workspaceId: string }[] = [];
 
   const trash: TrashPort = {
     async trash() {
@@ -111,7 +115,8 @@ function harness(
       restoreActors.push(required.actor);
       return optional.outcome ?? "restored";
     },
-    async list() {
+    async list(required) {
+      listCalls.push(required);
       return { items, nextCursor: "cursor-2" };
     },
     async purgeSelected(): Promise<PurgeReport> {
@@ -123,7 +128,13 @@ function harness(
     workspaceId: WS,
     clock: { nowIso: () => NOW },
     trash,
-    userRepo: fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),
+    userRepo: {
+      ...fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),
+      async list(required) {
+        userListCalls.push(required);
+        return fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]).list(required);
+      },
+    },
     authorize: async (params) => {
       authorizeCalls.push({ permission: params.permission, entityType: params.entityType });
       return granted.has(params.permission)
@@ -140,6 +151,8 @@ function harness(
     restoreCalls,
     restoreActors,
     authorizeCalls,
+    listCalls,
+    userListCalls,
   };
 }
 
@@ -173,6 +186,19 @@ test("a listed row carries the snapshot, the resolved actor username and the day
     },
   ]);
   assert.equal(result.nextCursor, "cursor-2");
+});
+
+test("list forwards the workspace, clock, cursor, limit and requested kind filter", async () => {
+  const h = harness();
+  await list(h, { cursor: "after-row-17", limit: 7, entityTypes: ["post", "media"] });
+  assert.deepEqual(h.listCalls, [{ workspaceId: WS, now: NOW, cursor: "after-row-17", limit: 7, entityTypes: ["post", "media"] }]);
+});
+
+test("content.write without content.read cannot list deleted titles or reach either repository", async () => {
+  const h = harness({ granted: ["content.write"] });
+  await assert.rejects(() => list(h), /content\.read/);
+  assert.deepEqual(h.listCalls, []);
+  assert.deepEqual(h.userListCalls, []);
 });
 
 test("a row deleted by a plugin names the plugin's human grantor, not the raw principal id", async () => {
@@ -241,6 +267,9 @@ test("the permission checked per kind is the one that kind's own delete tool req
       `restoring a ${entityType} must check '${permission}', the gate its delete tool checks`
     );
     assert.deepEqual(h.restoreCalls, [{ entityType, entityId: "e-1" }]);
+    const denied = harness({ granted: ["content.read", "content.write", "comments.moderate", "media.delete", "admin.redirects.manage", "admin.forms.manage"].filter((grant) => grant !== permission) });
+    await assert.rejects(() => restore(denied, { entityType, entityId: "e-1" }), (error: unknown) => error instanceof Error && error.message.includes(permission));
+    assert.deepEqual(denied.restoreCalls, []);
   }
 });
 
@@ -308,6 +337,9 @@ test("both enums are exactly the bespoke permission-map kinds plus every registr
     .properties.entityTypes.items.enum;
   assert.deepEqual([...restoreEnum].sort(), expected);
   assert.deepEqual([...listEnum].sort(), expected);
+  const supported = ["comment", "form", "form_submission", "media", "menu", "plugin", "post", "redirect", "taxonomy", "term", "user", "widget"];
+  assert.deepEqual([...restoreEnum].sort(), supported);
+  assert.deepEqual([...listEnum].sort(), supported);
 });
 
 test("restoring each registry kind checks that kind's own registry permission, and is refused without it", async () => {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import * as fsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -70,6 +71,40 @@ test("a second hide reports that the directory is already in Trash", async (t) =
     code: "ALREADY_IN_TRASH",
     count: 1,
   });
+});
+
+test("hide rolls back the first directory when moving the second directory fails", async (t) => {
+  const { liveParent, parkedDir } = await harness(t);
+  for (const name of ["first", "second"]) {
+    await mkdir(join(liveParent, name));
+    await writeFile(join(liveParent, name, "plugin.json"), name);
+  }
+  const failure = new Error("second rename failed");
+  let failedSecond = false;
+  t.mock.module("node:fs/promises", {
+    namedExports: {
+      ...fsPromises,
+      rename: async (from: string, to: string) => {
+        if (from === join(liveParent, "second") && !failedSecond) {
+          failedSecond = true;
+          assert.equal(await readFile(join(parkedDir, "first", "plugin.json"), "utf8"), "first");
+          throw failure;
+        }
+        return fsPromises.rename(from, to);
+      },
+    },
+  });
+  const { createDirectoryTrashAdapter: createAdapter } = await import("../adapters/directory.js?second-move-failure");
+  const adapter = createAdapter({
+    entityType: ENTITY,
+    locate: () => ({ liveParent, liveNames: ["first", "second"], parkedDir }),
+  });
+  await assert.rejects(adapter.hide(markerArgs()), (error) => error === failure);
+  assert.equal(failedSecond, true);
+  for (const name of ["first", "second"]) {
+    assert.equal(await readFile(join(liveParent, name, "plugin.json"), "utf8"), name);
+  }
+  assert.equal(await pathExists(parkedDir), false);
 });
 
 test("hide reports not-found when there is no live directory", async (t) => {

@@ -46,8 +46,8 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
   const postRepo = new InMemoryPostRepo([postRecord()]);
 
   const html =
-    `<main data-embed-config='{"type":"content","id":"entity-1","header":true}'></main>` +
-    `<main data-embed-config='{"type":"content","id":"entity-1","header":false}'></main>`;
+    `<section id="with-header"><main data-embed-config='{"type":"content","id":"entity-1","header":true}'></main></section>` +
+    `<section id="without-header"><main data-embed-config='{"type":"content","id":"entity-1","header":false}'></main></section>`;
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, postRepo },
@@ -55,6 +55,14 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
   });
 
   const output = renderHtmlPageBody(html, resolved);
+  const withHeader = output.match(/<section id="with-header">([\s\S]*?)<\/section>/)?.[1];
+  const withoutHeader = output.match(/<section id="without-header">([\s\S]*?)<\/section>/)?.[1];
+  assert.ok(withHeader);
+  assert.ok(withoutHeader);
+  assert.equal((withHeader.match(/post-detail-header/g) ?? []).length, 1);
+  assert.equal((withoutHeader.match(/post-detail-header/g) ?? []).length, 0);
+  assert.match(withHeader, /A published entity/);
+  assert.match(withoutHeader, /body/);
 
   const headerCount = (output.match(/post-detail-header/g) ?? []).length;
   assert.equal(

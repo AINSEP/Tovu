@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
 import { TRASH_DICT } from "../trash-i18n";
 import { COMMON_I18N } from "../../../lib/i18n-common";
 
@@ -106,6 +108,40 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       for (const key of CALL_SITE_KEYS) {
         expect(TRASH_DICT[locale][key], `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+        // Full instructions cannot legitimately be identical English loan words.
+        if (key.length > 15) expect(TRASH_DICT[locale][key], `${locale}, ${key}`).not.toBe(key);
+      }
+    }
+  });
+
+  it("covers executable translation calls in the component, rules and hook, including shared fallback keys", () => {
+    const used = new Set<string>();
+    for (const file of ["Trash.tsx", "rules.ts", "hooks/use-trash.hooks.ts"]) {
+      const source = readFileSync(`src/features/trash/${file}`, "utf8");
+      const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith("tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      const visit = (node: ts.Node): void => {
+        // entityTypeLabel translates values from its local 'known' map.
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "known" &&
+            node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+          for (const property of node.initializer.properties) {
+            expect(ts.isPropertyAssignment(property) && ts.isStringLiteralLike(property.initializer)).toBe(true);
+            if (ts.isPropertyAssignment(property) && ts.isStringLiteralLike(property.initializer)) used.add(property.initializer.text);
+          }
+        }
+        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
+          const key = node.arguments[1];
+          if (key && ts.isStringLiteralLike(key)) used.add(key.text);
+          else expect(key && ts.isIdentifier(key) && key.text === "label", `${file}: unresolved translation key`).toBe(true);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(tree);
+    }
+    expect(used.has("Delete permanently")).toBe(true);
+    expect(used.has("Post")).toBe(true);
+    for (const locale of locales) {
+      for (const key of used) {
+        expect(TRASH_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key], `${locale}: missing ${key}`).toBeTruthy();
       }
     }
   });

@@ -45,12 +45,12 @@ import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "../../types.js";
 const WORKSPACE_ID = "ws-html-embeds";
 const NOW = "2026-08-05T00:00:00.000Z";
 
-function seedWidget(entryRepo: InMemoryEntryRepo, id: string, payload: Record<string, unknown>, workspaceId: string = WORKSPACE_ID): Promise<void> {
+function seedWidget(entryRepo: InMemoryEntryRepo, id: string, payload: Record<string, unknown>, workspaceId: string = WORKSPACE_ID, slug: string = id): Promise<void> {
   return entryRepo.save({
     id,
     workspaceId,
     type: WIDGET_CONTENT_TYPE,
-    slug: id,
+    slug,
     status: "published",
     title: "A widget",
     bodyJson: null,
@@ -66,8 +66,8 @@ function seedWidget(entryRepo: InMemoryEntryRepo, id: string, payload: Record<st
   });
 }
 
-function seedTextWidget(entryRepo: InMemoryEntryRepo, id: string, body: string): Promise<void> {
-  return seedWidget(entryRepo, id, { widgetType: "text", config: { body } });
+function seedTextWidget(entryRepo: InMemoryEntryRepo, id: string, body: string, slug: string = id): Promise<void> {
+  return seedWidget(entryRepo, id, { widgetType: "text", config: { body } }, WORKSPACE_ID, slug);
 }
 
 /**
@@ -75,8 +75,8 @@ function seedTextWidget(entryRepo: InMemoryEntryRepo, id: string, body: string):
  * `config.formDefinitionId` names the Forms definition. This is what a `{"type":"widget"}` marker
  * points at when a page embeds a form.
  */
-function seedContactFormWidget(entryRepo: InMemoryEntryRepo, id: string, formDefinitionId: string): Promise<void> {
-  return seedWidget(entryRepo, id, { widgetType: "contact-form", config: { formDefinitionId } });
+function seedContactFormWidget(entryRepo: InMemoryEntryRepo, id: string, formDefinitionId: string, slug: string = id): Promise<void> {
+  return seedWidget(entryRepo, id, { widgetType: "contact-form", config: { formDefinitionId } }, WORKSPACE_ID, slug);
 }
 
 function mediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
@@ -363,28 +363,26 @@ test('resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and re
 
 test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
+  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo },
-    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"cf-widget-1"}'></div>` },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"contact-widget"}'></div>` },
   });
 
-  // seedWidget stores the entry under `slug: id` (see this file's fixture helper) — so the marker's
-  // slug and the seeded widget's id are literally the same string here, which is realistic: an
-  // author picks a memorable slug when they CREATE the widget, they don't reuse its opaque id as one.
-  const ir = resolved.get("widget")?.get("cf-widget-1");
+  const ir = resolved.get("widget")?.get("contact-widget");
   assert.ok(ir, "resolved under the SLUG the marker carried, not the widget's underlying id");
   assert.equal(ir?.componentId, "contact-form");
   assert.equal(ir?.props.slug, "contact-us");
+  assert.equal(resolved.get("widget")?.has("cf-widget-1"), false);
 });
 
 test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
+  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
@@ -393,11 +391,12 @@ test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a
     deps: { entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
-      html: `<div class="live-example"><div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;cf-widget-1&quot;}"></div></div>`,
+      html: `<div class="live-example"><div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-widget&quot;}"></div></div>`,
     },
   });
 
-  assert.equal(resolved.get("widget")?.get("cf-widget-1")?.componentId, "contact-form");
+  assert.equal(resolved.get("widget")?.get("contact-widget")?.componentId, "contact-form");
+  assert.equal(resolved.get("widget")?.has("cf-widget-1"), false);
 });
 
 test('resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)', async () => {
@@ -460,8 +459,8 @@ test('resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-s
 
 test('resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  await seedTextWidget(entryRepo, "widget-a", "A body");
-  await seedTextWidget(entryRepo, "widget-b", "B body");
+  await seedTextWidget(entryRepo, "opaque-a", "A body", "widget-a");
+  await seedTextWidget(entryRepo, "opaque-b", "B body", "widget-b");
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo },
@@ -474,6 +473,8 @@ test('resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same pa
   });
 
   assert.equal(resolved.get("widget")?.size, 2);
+  assert.equal(resolved.get("widget")?.has("opaque-a"), false);
+  assert.equal(resolved.get("widget")?.has("opaque-b"), false);
   assert.deepEqual(resolved.get("widget")?.get("widget-a"), { componentId: "text", props: { body: "A body" } });
   assert.deepEqual(resolved.get("widget")?.get("widget-b"), { componentId: "text", props: { body: "B body" } });
 });
@@ -1364,4 +1365,24 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widget
 
   const html = renderWidgetIr(resolved.get("post")!.get("entity-1")!);
   assert.ok(html.endsWith(EXPECTED_INLINE_WIDGET_BODY), `unexpected post body render: ${html}`);
+});
+
+
+test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, "opaque-widget", "slug body", "valid-widget");
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ id: "opaque-media", slug: "valid-media" })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+  const postRepo = new InMemoryPostRepo([postRecord({ workspaceId: WORKSPACE_ID, slug: "valid-content" })]);
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID, html:
+      `<div data-embed-config='{"type":"widget","id":"missing-widget","slug":"valid-widget"}'></div>` +
+      `<div data-embed-config='{"type":"media","id":"missing-media","slug":"valid-media"}'></div>` +
+      `<div data-embed-config='{"type":"content","id":"missing-content","slug":"valid-content"}'></div>`,
+    },
+  });
+  for (const type of ["widget", "media", "content"]) {
+    assert.equal(resolved.get(type)?.size, 0, `${type}: neither the missing id nor its competing slug resolves`);
+  }
 });

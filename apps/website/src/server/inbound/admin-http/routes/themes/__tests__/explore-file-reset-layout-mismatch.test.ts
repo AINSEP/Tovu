@@ -81,13 +81,22 @@ function makeThemesRoot(): string {
   return root;
 }
 
-async function startApp(t: test.TestContext): Promise<{ baseUrl: string; themesDir: string }> {
+async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ baseUrl: string; themesDir: string }> {
   const themesDir = makeThemesRoot();
+  const packageThemesDir = packageCatalog ? fs.mkdtempSync(path.join(os.tmpdir(), "tovu-reset-package-")) : undefined;
+  if (packageThemesDir) {
+    fs.renameSync(path.join(themesDir, THEME_CATALOG_DIR), path.join(packageThemesDir, THEME_CATALOG_DIR));
+    writeV1Theme(path.join(themesDir, "static", "reverse-drifted"), v1Manifest("reverse-drifted"), "#111");
+    writeV2Theme(path.join(packageThemesDir, THEME_CATALOG_DIR, "static", "reverse-drifted"), v2Manifest("reverse-drifted"), "#000");
+    t.after(() => fs.rmSync(packageThemesDir, { recursive: true, force: true }));
+  }
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
+    packageThemesDir,
     postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
   const app = express();
@@ -117,6 +126,26 @@ async function postReset(
 function readLive(themesDir: string, themeId: string, relativePath: string): string {
   return fs.readFileSync(path.join(themesDir, "static", themeId, relativePath), "utf8");
 }
+
+test("reset resolves an absent site original through the package catalog", async (t) => {
+  const { baseUrl, themesDir } = await startApp(t, true);
+  assert.equal(fs.existsSync(path.join(themesDir, THEME_CATALOG_DIR)), false);
+  const { status, body } = await postReset(baseUrl, "aligned", "theme.json");
+  assert.equal(status, 200, JSON.stringify(body));
+  assert.equal(body.wasModified, true);
+  assert.equal(readLive(themesDir, "aligned", "theme.json"), v2Manifest("aligned"));
+});
+
+test("reset refuses mismatched package originals in both layout directions without touching live bytes", async (t) => {
+  const { baseUrl, themesDir } = await startApp(t, true);
+  for (const id of ["drifted", "reverse-drifted"]) {
+    const before = readLive(themesDir, id, "theme.json");
+    const { status, body } = await postReset(baseUrl, id, "theme.json");
+    assert.equal(status, 409, JSON.stringify(body));
+    assert.deepEqual(body, { error: MISMATCH_ERROR, code: "ORIGINAL_LAYOUT_MISMATCH" });
+    assert.equal(readLive(themesDir, id, "theme.json"), before);
+  }
+});
 
 test("reset: theme.json on a v2 theme whose original is v1 is refused 409 ORIGINAL_LAYOUT_MISMATCH, and the live manifest keeps apiVersion 2", async (t) => {
   const { baseUrl, themesDir } = await startApp(t);

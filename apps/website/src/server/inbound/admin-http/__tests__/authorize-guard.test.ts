@@ -115,3 +115,23 @@ test("authorizeOrRespond: the denial reason is interpolated into the error messa
     details: { permission: "widget.manage", reason: "" },
   });
 });
+
+test("authorizeOrRespond: publishing grants allow only their capabilities regardless of ambient RBAC", async () => {
+  const context = { sourceInstallationId: "source-installation", capabilities: ["publish_content.import"], entityTypes: ["post"], generation: 2 };
+  const allowed = createCapturingResponse();
+  allowed.res.locals.publishTrust = context;
+  let ambientCalls = 0;
+  const ambientDeny: RouteDeps["authorize"] = async () => { ambientCalls += 1; return { allowed: false, reason: "no_grant" }; };
+  assert.equal(await authorizeOrRespond(allowed.res, ambientDeny, { ...PARAMS_BASE, permission: "publish_content.import" }), true);
+  assert.equal(allowed.capture.jsonBody, undefined);
+  const denied = createCapturingResponse();
+  denied.res.locals.publishTrust = context;
+  const ambientAllow: RouteDeps["authorize"] = async () => { ambientCalls += 1; return { allowed: true, reason: "wildcard" }; };
+  assert.equal(await authorizeOrRespond(denied.res, ambientAllow, { ...PARAMS_BASE, permission: "content.write" }), false);
+  assert.equal(denied.capture.statusCode, 403);
+  assert.deepEqual(denied.capture.jsonBody, {
+    error: "principal 'principal-1' is not authorized for 'content.write' ('content.write' is outside this publishing grant)",
+    code: "FORBIDDEN", details: { permission: "content.write", reason: "'content.write' is outside this publishing grant" },
+  });
+  assert.equal(ambientCalls, 0, "publishing authority cannot inherit ambient grants");
+});

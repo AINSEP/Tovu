@@ -116,6 +116,7 @@ describe("useMergedSecretsOrder — the owner's literal regression case", () => 
     const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
 
     const labels = result.current.map((e) => e.info.label);
+    expect(labels).toEqual(["Higgsfield", "Media provider keys"]);
     expect(labels.indexOf("Higgsfield")).toBeLessThan(labels.indexOf("Media provider keys"));
   });
 });
@@ -131,6 +132,7 @@ describe("useMergedSecretsOrder — genuinely cross-tier, not 'Tier 2 always aft
     const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
 
     const labels = result.current.map((e) => e.info.label);
+    expect(labels).toEqual(["Site assistant model key", "Vercel"]);
     expect(labels.indexOf("Site assistant model key")).toBeLessThan(labels.indexOf("Vercel"));
   });
 
@@ -140,6 +142,7 @@ describe("useMergedSecretsOrder — genuinely cross-tier, not 'Tier 2 always aft
     const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
 
     const labels = result.current.map((e) => e.info.label);
+    expect(labels).toEqual(["GitHub Pages", "Admin AI Assistant key (BYOK)"]);
     expect(labels.indexOf("GitHub Pages")).toBeLessThan(labels.indexOf("Admin AI Assistant key (BYOK)"));
   });
 });
@@ -222,8 +225,14 @@ describe("useMergedSecretsOrder — search narrows both tiers and keeps the merg
 });
 
 describe("useMergedSecretsOrder — still loading", () => {
-  it("returns an empty list when either controller's groups is still undefined", () => {
+  it("returns an empty list while both controllers' groups are undefined", () => {
     const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens(undefined), makeOtherCredentials(undefined), ""));
     expect(result.current).toEqual([]);
+  });
+  it.each(["access", "other"])("keeps the loaded controller visible while %s groups are loading", (loading) => {
+    const access = loading === "access" ? undefined : [providerGroup("publish", "vercel")];
+    const other = loading === "other" ? undefined : [otherGroup("site-assistant")];
+    const { result } = renderHook(() => useMergedSecretsOrder(makeAccessTokens(access), makeOtherCredentials(other), ""));
+    expect(result.current.map((entry) => entry.info.label)).toEqual(loading === "access" ? ["Site assistant model key"] : ["Vercel"]);
   });
 });

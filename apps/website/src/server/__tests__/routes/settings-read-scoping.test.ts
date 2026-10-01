@@ -468,3 +468,23 @@ test("F2 control: the owner's `*` wildcard still covers the cross-principal read
   assert.equal(res.status, 200);
   assert.equal(((await res.json()) as { user: unknown }).user, "owner-readable-user-layer-value");
 });
+
+test("GET_EFFECTIVE without principalId resolves the caller's own user override before workspace and default", async (t) => {
+  const { app, deps } = await buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  await registerProbeDefinition(baseUrl, ownerCookie, deps);
+  const settingId = await probeSettingId(deps);
+  const self = await loginWithPermissions(deps, baseUrl, ["settings.read"]);
+  await deps.settingsRepo.saveWorkspaceValue({
+    settingId, scope: "workspace", workspaceId: deps.workspaceId, principalId: null, valueJson: "workspace-value",
+    state: "set", defVersion: 1, seq: 2, updatedBy: "seed", updatedAt: deps.clock.nowIso(), originPluginId: null,
+  });
+  await deps.settingsRepo.saveUserValue({
+    settingId, scope: "user", workspaceId: deps.workspaceId, principalId: self.principalId, valueJson: "caller-value",
+    state: "set", defVersion: 1, seq: 3, updatedBy: "seed", updatedAt: deps.clock.nowIso(), originPluginId: null,
+  });
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/effective?namespace=site.audit`, { headers: { cookie: self.cookie } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { data: [{ key: "leakProbe", value: "caller-value", sourceLayer: "user", defVersion: 1 }] });
+});

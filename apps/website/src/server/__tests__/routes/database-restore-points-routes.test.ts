@@ -27,7 +27,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 }
 
 test("database restore-points routes: create -> list golden path, persists the real captured watermark (REQ-22/AC-26/AC-27)", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
+  deps.dbOps.captureRestorePoint = async () => ({ artifactRef: "/snapshots/known.db", watermarkAtCapture: 73 });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const createRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
@@ -42,12 +43,13 @@ test("database restore-points routes: create -> list golden path, persists the r
 
   const listRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
   assert.equal(listRes.status, 200);
-  const listed = (await listRes.json()) as { items: Array<{ id: string; watermarkAtCapture: number | null; trigger: string }> };
+  const listed = (await listRes.json()) as { items: Array<{ id: string; watermarkAtCapture: number | null; artifactRef: string; trigger: string }> };
   assert.equal(listed.items.length, 1);
   assert.equal(listed.items[0].id, created.restorePoint.id);
   assert.equal(listed.items[0].trigger, "manual");
   // The route persists the real `dbOps.captureRestorePoint()` result, not a fabricated value.
-  assert.equal(typeof listed.items[0].watermarkAtCapture, "number");
+  assert.equal(listed.items[0].watermarkAtCapture, 73);
+  assert.equal(listed.items[0].artifactRef, "/snapshots/known.db");
 });
 
 test("database restore-points routes: an empty site lists zero restore points, not an error", async (t) => {
@@ -80,6 +82,12 @@ test("database restore-points routes: GET is 403 for a caller without database.r
 
 test("database restore-points routes: POST is 403 for a caller without backup.create", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
+  let captureCalls = 0;
+  const capture = deps.dbOps.captureRestorePoint.bind(deps.dbOps);
+  deps.dbOps.captureRestorePoint = async (input) => {
+    captureCalls += 1;
+    return capture(input);
+  };
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -97,6 +105,8 @@ test("database restore-points routes: POST is 403 for a caller without backup.cr
   const body = (await res.json()) as { code?: string; details?: { permission?: string } };
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details?.permission, "backup.create");
+  assert.equal(captureCalls, 0);
+  assert.deepEqual(await deps.restorePointsRepo.list(), []);
 });
 
 test("database restore-points routes: GET 500s with the thrown message when the repo explodes", async (t) => {
@@ -135,19 +145,32 @@ test("database restore-points routes: GET 500s with a generic message when a non
 });
 
 test("database restore-points routes: POST defaults trigger to 'manual' and mints its own idempotencyKey when the body omits both", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
+  let captureCalls = 0;
+  const capture = deps.dbOps.captureRestorePoint.bind(deps.dbOps);
+  deps.dbOps.captureRestorePoint = async (input) => {
+    captureCalls += 1;
+    return capture(input);
+  };
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({}),
-  });
-  assert.equal(res.status, 201);
-
+  const ids: string[] = [];
+  for (let n = 0; n < 2; n += 1) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 201);
+    const created = (await res.json()) as { restorePoint: { id: string } };
+    ids.push(created.restorePoint.id);
+  }
+  assert.notEqual(ids[0], ids[1]);
+  assert.equal(captureCalls, 2);
   const listRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
-  const listed = (await listRes.json()) as { items: Array<{ trigger: string }> };
-  assert.equal(listed.items[0].trigger, "manual");
+  assert.equal(listRes.status, 200);
+  const listed = (await listRes.json()) as { items: Array<{ id: string; trigger: string }> };
+  assert.deepEqual(listed.items.map((item) => item.id).sort(), [...ids].sort());
+  assert.deepEqual(listed.items.map((item) => item.trigger), ["manual", "manual"]);
 });
 
 test("database restore-points routes: POST accepts a caller-supplied idempotencyKey and persists it", async (t) => {

@@ -249,9 +249,9 @@ describe("updatedColumnSortLabel", () => {
 });
 
 describe("comparePostsByTitle / comparePostsBySlug", () => {
-  const a = post({ id: "p-a", title: "Alpha", slug: "alpha" });
+  const a = post({ id: "p-a", title: "Alpha", slug: "charlie" });
   const b = post({ id: "p-b", title: "Bravo", slug: "bravo" });
-  const c = post({ id: "p-c", title: "Charlie", slug: "charlie" });
+  const c = post({ id: "p-c", title: "Charlie", slug: "alpha" });
 
   for (const [name, fn] of [
     ["comparePostsByTitle", comparePostsByTitle],
@@ -260,12 +260,12 @@ describe("comparePostsByTitle / comparePostsBySlug", () => {
     describe(name, () => {
       it("sorts A-to-Z ascending", () => {
         const result = [c, a, b].sort(fn);
-        expect(result.map((p) => p.id)).toEqual(["p-a", "p-b", "p-c"]);
+        expect(result.map((p) => p.id)).toEqual(name === "comparePostsBySlug" ? ["p-c", "p-b", "p-a"] : ["p-a", "p-b", "p-c"]);
       });
 
       it("negating it sorts Z-to-A", () => {
         const result = [c, a, b].sort((x, y) => -fn(x, y));
-        expect(result.map((p) => p.id)).toEqual(["p-c", "p-b", "p-a"]);
+        expect(result.map((p) => p.id)).toEqual(name === "comparePostsBySlug" ? ["p-a", "p-b", "p-c"] : ["p-c", "p-b", "p-a"]);
       });
     });
   }
@@ -480,16 +480,20 @@ describe("handleImageDrop", () => {
     expect(imageCreate).toHaveBeenCalledWith({ src: "https://example.com/pic.png" });
     expect(tr.insert).toHaveBeenCalledWith(3, expect.anything());
     expect(view.dispatch).toHaveBeenCalledTimes(1);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
   });
 
   it("falls back to text/plain for the URL when text/uri-list is empty", () => {
-    const { imageCreate } = fakeView();
-    const view2 = fakeView({ posAtCoordsResult: { pos: 0 } }).view;
+    const { view: view2, imageCreate, tr, insertedNodes } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ plainTextData: "http://example.com/img.jpg" });
 
     const result = handleImageDrop(view2 as never, event, false);
     expect(result).toBe(true);
-    void imageCreate;
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(imageCreate).toHaveBeenCalledWith({ src: "http://example.com/img.jpg" });
+    expect(insertedNodes).toEqual([{ pos: 0, node: { type: "image", attrs: { src: "http://example.com/img.jpg" } } }]);
+    expect(view2.dispatch).toHaveBeenCalledTimes(1);
+    expect(view2.dispatch).toHaveBeenCalledWith(tr);
   });
 
   it("prefers text/uri-list over text/plain when both are present", () => {

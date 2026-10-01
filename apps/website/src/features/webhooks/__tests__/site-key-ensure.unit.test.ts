@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fsNative from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { randomBytes } from "node:crypto";
 import Database from "better-sqlite3";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -686,6 +688,34 @@ test("installSiteKey (production): no env key → the durable-volume file is wri
   const volumeFile = path.join(siteDir, "sites", ".tovu", "integrations-root-key.hex");
   assert.deepEqual(result, { outcome: "installed", keyFilePath: volumeFile, fingerprint: fingerprintRootKeyHex(hex) });
   assert.equal(readFileSync(volumeFile, "utf8"), hex);
+});
+
+test("installSiteKey refuses a different concurrent publication winner without changing the metadata stamp", async (t) => {
+  const stamp = "old-fingerprint";
+  writeSiteMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: stamp });
+  const before = readFileSync(path.join(siteDir, ".site-meta.json"), "utf8");
+  const target = path.join(home, ".tovu", "site-keys", "site-1.hex");
+  const winnerHex = "b".repeat(64);
+  let raced = false;
+  const realLink = fsNative.linkSync;
+  const mockedLink = t.mock.method(fsNative, "linkSync", (from: fsNative.PathLike, to: fsNative.PathLike) => {
+    if (to === target) {
+      raced = true;
+      fsNative.writeFileSync(target, winnerHex, { flag: "wx", mode: 0o600 });
+    }
+    return realLink(from, to);
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    mockedLink.mock.restore();
+    syncBuiltinESMExports();
+  });
+  assert.throws(() => installSiteKey({ siteDir, hex: "a".repeat(64), mode: "local", env: bareEnv(), home }), {
+    message: "installSiteKey: another process wrote a different key at the same moment; nothing was stamped",
+  });
+  assert.equal(raced, true);
+  assert.equal(readFileSync(target, "utf8"), winnerHex);
+  assert.equal(readFileSync(path.join(siteDir, ".site-meta.json"), "utf8"), before);
 });
 
 test("installSiteKey: a malformed key is refused before anything is written", () => {

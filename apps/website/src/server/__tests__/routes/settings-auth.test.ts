@@ -148,6 +148,7 @@ test("SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permiss
     valueJson: "paper",
   };
 
+  const beforeDenied = await deps.settingsRepo.maxRevisionSeq();
   const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie: bareCookie },
@@ -157,6 +158,8 @@ test("SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permiss
   const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
   assert.equal(deniedBody.code, "FORBIDDEN");
   assert.equal(deniedBody.details.permission, "settings.global.write");
+
+  assert.equal(await deps.settingsRepo.maxRevisionSeq(), beforeDenied, "denied writes must append no revision");
 
   const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "PUT",
@@ -176,6 +179,12 @@ test("SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permi
 
   const body = { namespace: "core.presentation", key: "activeThemeId", scope: "global" };
 
+  const seeded = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ ...body, valueJson: "paper" }),
+  });
+  assert.equal(seeded.status, 200);
+  const beforeDenied = await deps.settingsRepo.maxRevisionSeq();
   const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "DELETE",
     headers: { "content-type": "application/json", cookie: bareCookie },
@@ -183,6 +192,8 @@ test("SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permi
   });
   assert.equal(denied.status, 403);
   assert.equal(((await denied.json()) as { code: string }).code, "FORBIDDEN");
+
+  assert.equal(await deps.settingsRepo.maxRevisionSeq(), beforeDenied, "denied writes must append no revision");
 
   const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "DELETE",
@@ -369,4 +380,59 @@ test("SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.defi
   const coreDef = allowedBody.data.find((d) => d.namespace === "core.presentation" && d.key === "activeThemeId");
   assert.ok(coreDef, "the platform core.presentation.activeThemeId definition is listed alongside site defs");
   assert.equal(coreDef?.ownerKind, "core");
+});
+
+test("SETTINGS_RESET: clears exactly its namespace overrides, restores defaults, and preserves another namespace", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings`;
+  const definitions = [
+    { ownerKind: "site", namespace: "site.resetprobe", key: "first", schemaJson: { type: "string" }, defaultJson: "default-first", scopes: 2 },
+    { ownerKind: "site", namespace: "site.resetprobe", key: "second", schemaJson: { type: "string" }, defaultJson: "default-second", scopes: 2 },
+    { ownerKind: "site", namespace: "site.keepprobe", key: "other", schemaJson: { type: "string" }, defaultJson: "default-other", scopes: 2 },
+  ];
+  const registered = await fetch(`${base}/definitions`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ definitions }),
+  });
+  assert.equal(registered.status, 200);
+  for (const { namespace, key } of definitions) {
+    const seeded = await fetch(`${base}/value`, {
+      method: "PUT", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ namespace, key, scope: "workspace", valueJson: `override-${key}` }),
+    });
+    assert.equal(seeded.status, 200);
+  }
+  const read = async (namespace: string) => {
+    const res = await fetch(`${base}/effective?namespace=${namespace}`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    return ((await res.json()) as { data: Array<{ key: string; value: string; sourceLayer: string }> }).data
+      .map(({ key, value, sourceLayer }) => ({ key, value, sourceLayer })).sort((a, b) => a.key.localeCompare(b.key));
+  };
+  assert.deepEqual(await read("site.resetprobe"), [
+    { key: "first", value: "override-first", sourceLayer: "workspace" },
+    { key: "second", value: "override-second", sourceLayer: "workspace" },
+  ]);
+  const before = await deps.settingsRepo.maxRevisionSeq();
+  const reset = await fetch(`${base}/reset`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ namespace: "site.resetprobe", scope: "workspace" }),
+  });
+  assert.equal(reset.status, 200);
+  const result = (await reset.json()) as { clearedCount: number; revisionSeqs: number[] };
+  assert.equal(result.clearedCount, 2);
+  assert.equal(result.revisionSeqs.length, 2);
+  const revisions = await deps.settingsRepo.listRevisionsSince({ sinceSeq: before, workspaceId: deps.workspaceId, limit: 100 });
+  assert.deepEqual(revisions.map((r) => r.seq).sort((a, b) => a - b), [...result.revisionSeqs].sort((a, b) => a - b));
+  const clearedKeys = await Promise.all(revisions.map(async (r) => {
+    assert.equal(r.op, "clear");
+    const definition = await deps.settingsRepo.findDefinitionBySettingId({ settingId: r.settingId });
+    return `${definition?.namespace}.${definition?.key}`;
+  }));
+  assert.deepEqual(clearedKeys.sort(), ["site.resetprobe.first", "site.resetprobe.second"]);
+  assert.deepEqual(await read("site.resetprobe"), [
+    { key: "first", value: "default-first", sourceLayer: "default" },
+    { key: "second", value: "default-second", sourceLayer: "default" },
+  ]);
+  assert.deepEqual(await read("site.keepprobe"), [{ key: "other", value: "override-other", sourceLayer: "workspace" }]);
 });

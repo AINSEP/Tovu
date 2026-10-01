@@ -331,12 +331,12 @@ describe("accessTokensCountText", () => {
 
 describe("mediaProviderLabel", () => {
   it("resolves a known catalog id to its human label", () => {
-    // The catalog is real vendor data (`@jini-ai/integrations/media-providers/catalog`) — assert
-    // shape (a non-empty, different-from-the-id string) rather than pinning one vendor's exact
-    // copy, which would break the moment that catalog's own wording changes for unrelated reasons.
+    // Pin the display contract; a raw-id fallback must not masquerade as a catalog hit.
     const knownId = "grok";
     const label = mediaProviderLabel(knownId);
     expect(label.length).toBeGreaterThan(0);
+    expect(label).toBe("xAI Grok Imagine");
+    expect(label).not.toBe(knownId);
   });
 
   it("falls back to the raw id for a provider the catalog no longer lists", () => {
@@ -348,7 +348,7 @@ describe("accessTokenRowsForProvider", () => {
   it("filters to exactly one kind+providerId pair, ignoring the same providerId under a different kind", () => {
     const rows: AccessTokenRow[] = [
       ...buildAccessTokenRows("publish", [rawSummary({ id: "a", providerId: "github-pages" })], PROVIDERS),
-      ...buildAccessTokenRows("source-control", [rawSummary({ id: "b", providerId: "github" })], PROVIDERS),
+      ...buildAccessTokenRows("source-control", [rawSummary({ id: "b", providerId: "github-pages" })], PROVIDERS),
     ];
     const result = accessTokenRowsForProvider(rows, { kind: "publish", providerId: "github-pages" });
     expect(result.map((r) => r.id)).toEqual(["a"]);

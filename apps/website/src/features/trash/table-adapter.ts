@@ -303,6 +303,25 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         if (isMarkerValueLive(entry.marker, row.marker)) return "version-changed"; // never purge a live row
         if (entry.versionColumn && expectedVersion !== null && row.version !== expectedVersion) return "version-changed";
 
+        // A domain writer does not take Trash's advisory lock. Claim the exact pre-image with a
+        // no-op UPDATE before touching children: it both checks the read and holds the database's
+        // row write lock through the cascades and parent delete, without bumping any domain fields.
+        const claimed = await run((db) =>
+          loose(db).updateTable(entry.table).set({ [entry.marker.column]: row.marker }).where((eb) => {
+            const guards = [
+              entryWhere(eb, { entry, workspaceId, entityId }),
+              eb(qualified(entry.table, entry.marker.column), "=", row.marker),
+            ];
+            if (entry.versionColumn && row.version !== null && row.version !== undefined) {
+              guards.push(eb(qualified(entry.table, entry.versionColumn), "=", row.version));
+            }
+            return eb.and(guards);
+          }).executeTakeFirst()
+        );
+        if (affected(claimed.numUpdatedRows) === 0) {
+          return (await readMarkerRow(workspaceId, entityId)) ? "version-changed" : "already-gone";
+        }
+
         for (const cascade of entry.purgeFirst ?? []) {
           await runCascade(workspaceId, entityId, cascade);
         }

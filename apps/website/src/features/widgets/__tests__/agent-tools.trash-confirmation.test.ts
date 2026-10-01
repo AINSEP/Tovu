@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getEventListeners } from "node:events";
 import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
@@ -122,6 +123,7 @@ async function raiseDialog(trashTool: ToolRegistration, widgetInstanceId: string
 test("the call stays open after the dialog is shown, and nothing is trashed while it is pending", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
@@ -136,11 +138,14 @@ test("the call stays open after the dialog is shown, and nothing is trashed whil
     "the agent's call must not return before the human answers",
   );
 
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
+
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });
 
-test("the dialog names the title, widget type, and current status, so consent is informed", async () => {
+test("the dialog labels the title and slug used to identify the widget", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps, { title: "Sidebar CTA" });
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -151,6 +156,9 @@ test("the dialog names the title, widget type, and current status, so consent is
   assert.match(ui.resource.text, /Sidebar CTA/);
   assert.match(ui.resource.text, /text/);
   assert.match(ui.resource.text, /moved to the trash/i);
+  const details = ui.resource.text.match(/<dl class="mcpui-details">([\s\S]*?)<\/dl>/);
+  assert.ok(details);
+  assert.deepEqual([...details[1]!.matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)<\/dd>/g)].map((match) => [match[1], match[2]]), [["Title", instance.title], ["Slug", instance.slug]]);
 
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
@@ -160,14 +168,23 @@ test("the dialog names the title, widget type, and current status, so consent is
 // 2. Confirm / cancel / fail-closed decision
 // ---------------------------------------------------------------------------
 
-test("confirm: the human's click trashes the widget instance and the SAME call reports it to the agent", async () => {
+test("confirm: the emitted Trash widget action trashes the instance and the SAME call reports it to the agent", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(trashTool, instance.id);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { ui, exchangeId, pending } = await raiseDialog(trashTool, instance.id);
+  const buttons = [...ui.resource.text.matchAll(/<button\b([^>]*)>\s*Trash widget\s*<\/button>/g)];
+  assert.equal(buttons.length, 1);
+  const actionId = buttons[0]![1]!.match(/data-mcpui-action="([^"]+)"/)?.[1];
+  assert.ok(actionId);
+  const plan = ui.resource.text.match(/var PLAN = (.+);/);
+  assert.ok(plan, "the emitted button must have an action plan");
+  const action = JSON.parse(plan[1]!)[actionId] as { toolName: string; params: Record<string, unknown> };
+  assert.equal(action.toolName, TRASH_TOOL_ID);
+  assert.deepEqual(action.params, { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" });
+  const delivered = surfaceExchanges.deliver({ exchangeId: action.params[SURFACE_EXCHANGE_ID_PARAM] as string, toolId: action.toolName, principalId: PRINCIPAL_ID, params: action.params });
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { trashed: boolean; cancelled: boolean; title: string };
@@ -185,6 +202,7 @@ test("confirm: the human's click trashes the widget instance and the SAME call r
 test("cancel: nothing is trashed, and the SAME call reports the cancellation", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
@@ -195,11 +213,13 @@ test("cancel: nothing is trashed, and the SAME call reports the cancellation", a
   assert.equal(result.trashed, false);
   assert.equal(result.cancelled, true);
   assert.equal(result.title, instance.title);
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });
 
 test("an answer with no 'decision' field at all is NOT confirm — nothing is trashed (fail-closed)", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
@@ -209,11 +229,13 @@ test("an answer with no 'decision' field at all is NOT confirm — nothing is tr
   const result = (await pending) as { trashed: boolean; cancelled: boolean };
   assert.equal(result.trashed, false);
   assert.equal(result.cancelled, true);
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });
 
 test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
   const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
@@ -228,6 +250,7 @@ test("an unanswered dialog expires and reports 'expired', not a hang or a throw"
   assert.equal(result.cancelled, false);
   assert.equal(result.reason, "expired");
   assert.match(result.note, /did not respond/);
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });
 
 // ---------------------------------------------------------------------------
@@ -237,11 +260,13 @@ test("an unanswered dialog expires and reports 'expired', not a hang or a throw"
 test("with no emitSurface, the trash is refused outright — there is no fallback second call", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { widgetInstanceId: instance.id } }), /no interactive confirmation channel/);
   assert.equal(surfaceExchanges.size(), 0, "no emit seam means no exchange was ever opened");
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });
 
 test("widgets.read is checked before any dialog is raised, and a denied principal never sees one", async () => {
@@ -291,4 +316,50 @@ test("widgets.delete is still checked at confirm time, even though the pre-dialo
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
   await pending;
   assert.ok(authorizeCalls.some((c) => c.permission === "widgets.delete"), "the confirmed write must check widgets.delete");
+});
+
+test("aborting a parked confirmation closes the exchange, removes its abort listener and preserves the widget", { timeout: 2000 }, async (t) => {
+  const deps = makeDeps();
+  const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const controller = new AbortController();
+  const added = t.mock.method(controller.signal, "addEventListener");
+  const removed = t.mock.method(controller.signal, "removeEventListener");
+  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
+  let emitted!: () => void;
+  const shown = new Promise<void>((resolve) => { emitted = resolve; });
+  const pending = call(trashTool, { input: { widgetInstanceId: instance.id }, signal: controller.signal, emitSurface: async () => emitted() });
+  await shown;
+  assert.equal(surfaceExchanges.size(), 1);
+  assert.equal(added.mock.callCount(), 1);
+  assert.equal(added.mock.calls[0]!.arguments[0], "abort");
+  assert.equal(getEventListeners(controller.signal, "abort").length, 1);
+  controller.abort();
+  const result = await pending as { trashed: boolean; cancelled: boolean; reason: string };
+  assert.equal(result.trashed, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "abandoned");
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.equal(removed.mock.calls.filter((call) => call.arguments[0] === "abort").length, 1);
+  assert.deepEqual(removed.mock.calls[0]!.arguments, ["abort", added.mock.calls[0]!.arguments[1]]);
+  assert.deepEqual(getEventListeners(controller.signal, "abort"), []);
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
+});
+
+test("denying widgets.delete at confirmation leaves the widget unchanged", async () => {
+  const deps = makeDeps();
+  const instance = await seedWidgetInstance(deps);
+  const before = structuredClone(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }));
+  deps.authorize = async ({ permission }) => permission === "widgets.delete"
+    ? { allowed: false, reason: "insufficient_permission" }
+    : { allowed: true, reason: "matched" };
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
+  const { exchangeId, pending } = await raiseDialog(trashTool, instance.id);
+  const rejected = assert.rejects(pending, (error: unknown) => error instanceof ToolInputError && error.message.startsWith("WIDGETS_FORBIDDEN:"));
+  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await rejected;
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), before);
 });

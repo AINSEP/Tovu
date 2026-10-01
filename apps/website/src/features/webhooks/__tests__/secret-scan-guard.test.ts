@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -70,6 +70,19 @@ test("a real-length GitHub classic PAT (exactly 36 chars after ghp_) is flagged"
 
 test("a GitHub fine-grained PAT-shaped fixture shorter than 80 chars is not flagged", () => {
   assert.deepEqual(scanTextForSecrets(`github_pat_${"x".repeat(32)}`), []); // this repo's real fixture length
+});
+
+test("remaining vendor formats are detected at their minimum length and reject one character less", () => {
+  for (const [prefix, length, patternName] of [
+    ["sk-", 40, "generic sk- secret key (OpenAI-shaped)"],
+    ["gho_", 36, "GitHub OAuth token (gho_)"],
+    ["github_pat_", 80, "GitHub fine-grained PAT"],
+    ["fm2_", 20, "Fastmail app password (fm2_)"],
+  ] as const) {
+    const value = prefix + "x".repeat(length);
+    assert.deepEqual(scanTextForSecrets(`token="${value}"`), [{ patternName, index: 7, value }]);
+    assert.deepEqual(scanTextForSecrets(prefix + "x".repeat(length - 1)), [], patternName);
+  }
 });
 
 test("an npm access token of the real length is flagged", () => {
@@ -189,4 +202,50 @@ test("HISTORY SCANNING: a secret committed then removed in a later commit is sti
   } finally {
     fs.rmSync(tmpRepo, { recursive: true, force: true });
   }
+});
+
+test("the real CLI succeeds on a clean repository and rejects text, binary and history-only leaks", (t) => {
+  const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "secret-scan-cli-")));
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  // Preserve the CLI's root-relative layout; copy today's source verbatim, with no test rewrite.
+  const script = path.join(repoRoot, "apps/website/src/features/webhooks/secret-scan-guard.ts");
+  const patterns = path.join(repoRoot, "apps/website/src/contracts/core/secret-patterns.ts");
+  fs.mkdirSync(path.dirname(script), { recursive: true });
+  fs.mkdirSync(path.dirname(patterns), { recursive: true });
+  fs.copyFileSync(path.resolve(import.meta.dirname, "../secret-scan-guard.ts"), script);
+  fs.copyFileSync(path.resolve(import.meta.dirname, "../../../contracts/core/secret-patterns.ts"), patterns);
+  fs.writeFileSync(path.join(repoRoot, "package.json"), '{"type":"module"}');
+  const allowlisted = path.join(repoRoot, "apps/admin/.certs.disabled/localhost-key.pem");
+  fs.mkdirSync(path.dirname(allowlisted), { recursive: true });
+  fs.writeFileSync(allowlisted, ["-----BEGIN", "PRIVATE", "KEY-----"].join(" "));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+  git("init", "-q");
+  git("config", "user.email", "test@example.com");
+  git("config", "user.name", "Test");
+  const commit = () => {
+    git("add", ".");
+    git("commit", "-q", "-m", "fixture");
+  };
+  const run = () => spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), script], { cwd: repoRoot, encoding: "utf8", timeout: 30_000 });
+  commit();
+  const clean = run();
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.match(clean.stdout, /OK: no credential-shaped string/);
+  const secret = "ghp_" + "a".repeat(36);
+  fs.writeFileSync(path.join(repoRoot, "leak.txt"), `ordinary text\ntoken="${secret}"\n`);
+  fs.writeFileSync(path.join(repoRoot, "leak.db"), Buffer.concat([Buffer.from([0]), Buffer.from(secret)]));
+  commit();
+  const leaking = run();
+  assert.equal(leaking.status, 1, leaking.stderr);
+  assert.ok(leaking.stderr.includes("leak.txt:2 [GitHub personal access token (classic, ghp_)]"));
+  assert.ok(leaking.stderr.includes("leak.db:binary [GitHub personal access token (classic, ghp_)]"));
+  assert.equal(leaking.stderr.includes("localhost-key.pem"), false, "the reviewed exact allowlist pair is accepted");
+  fs.writeFileSync(path.join(repoRoot, "leak.txt"), "removed");
+  fs.writeFileSync(path.join(repoRoot, "leak.db"), "removed");
+  commit();
+  const historical = run();
+  assert.equal(historical.status, 1, historical.stderr);
+  assert.match(historical.stderr, /found in git history/);
+  assert.equal(historical.stderr.includes("found in tracked files"), false);
+  assert.ok(historical.stderr.includes("leak.txt:2 [GitHub personal access token (classic, ghp_)]"));
 });

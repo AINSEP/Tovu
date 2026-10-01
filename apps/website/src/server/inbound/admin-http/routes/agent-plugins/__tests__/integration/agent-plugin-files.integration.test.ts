@@ -9,7 +9,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { setAgentPluginActivation } from "#src/features/agent-plugins/activation";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
@@ -72,10 +72,9 @@ async function withSwitchedOffPlugin<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function buildTestApp(): express.Express {
+function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   // One `createRouteDeps()` for both the auth stack and the route — see
   // `agent-plugins-http.integration.test.ts`'s `buildTestApp` for why a second call 403s.
-  const baseDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, baseDeps);
@@ -102,7 +101,8 @@ test("AGENT_PLUGIN_FILES: a switched-off plugin's installed files are listed wit
     assert.equal(body.truncated, false);
     assert.equal(body.limits.maxFiles, 200);
     assert.match(byPath.get("plugin.json")?.content ?? "", /"name":"supabase"/);
-    assert.match(byPath.get(`skills/${PLUGIN_ID}/SKILL.md`)?.content ?? "", /# Supabase/);
+    assert.deepEqual([...byPath.keys()].sort(), ["plugin.json", `skills/${PLUGIN_ID}/SKILL.md`]);
+    assert.equal(byPath.get(`skills/${PLUGIN_ID}/SKILL.md`)?.content, `---\nname: ${PLUGIN_ID}\n---\n# Supabase\nReal skill body.`);
     assert.ok(
       body.files.every((file) => !path.isAbsolute(file.relativePath)),
       "no absolute server path reaches the response",
@@ -140,5 +140,20 @@ test("AGENT_PLUGIN_FILES: no session is 401, and an unknown workspace id is 404"
 
     const otherWorkspace = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
     assert.equal(otherWorkspace.status, 404);
+  });
+});
+
+test("AGENT_PLUGIN_FILES: a signed-in principal without admin.plugins.read cannot read package content", async (t) => {
+  await withSwitchedOffPlugin(async () => {
+    const deps = createRouteDeps();
+    const { baseUrl } = await bootAuthenticated(buildTestApp(deps), t);
+    const cookie = await loginAsBarePrincipal(deps, baseUrl);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
+    assert.equal(response.status, 403);
+    const body = await response.json();
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "admin.plugins.read");
+    assert.equal(body.files, undefined);
+    assert.equal(JSON.stringify(body).includes("Real skill body."), false);
   });
 });

@@ -169,3 +169,24 @@ test("an update rollback never touches the Trash index — the write it undoes w
   assert.equal(noop, null, "nothing has moved past the trashed state, so there is nothing to compensate");
   assert.deepEqual(await indexRow(h), before, "the index row must survive — the post is still trashed");
 });
+
+test("compensating a landed update of an independently trashed post preserves its existing index", async () => {
+  const h = harness();
+  await seedTrashedPost(h);
+  const prior = (await h.postRepo.findById({ workspaceId: WS, id: "post-1" }))!;
+  const before = await indexRow(h);
+  assert.ok(prior.deletedAt);
+  assert.ok(before);
+  await h.postRepo.save({ ...prior, title: "Landed update", version: prior.version + 1 });
+  assert.equal((await h.postRepo.findById({ workspaceId: WS, id: prior.id }))?.title, "Landed update");
+  const restored = await restorePostForward({
+    deps: { repo: h.postRepo, clock, outbox: h.outbox, forgetRemoved: h.forgetRemovedPost },
+    input: { prior },
+  });
+  assert.ok(restored);
+  const current = await h.postRepo.findById({ workspaceId: WS, id: prior.id });
+  assert.equal(current?.title, prior.title);
+  assert.equal(current?.version, prior.version + 2);
+  assert.equal(current?.deletedAt, prior.deletedAt);
+  assert.deepEqual(await indexRow(h), before);
+});

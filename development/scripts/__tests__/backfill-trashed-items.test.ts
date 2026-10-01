@@ -23,6 +23,7 @@ const EXPECTED_PURGE_AFTER = "2026-11-19T00:00:00.000Z";
 const LONG_AGO = "2026-01-01T00:00:00.000Z";
 
 interface Row {
+  workspace_id: string;
   entity_type: string;
   entity_id: string;
   trashed_at: string;
@@ -42,39 +43,39 @@ function openMigratedDb(): Database.Database {
   return client;
 }
 
-function seedPost(client: Database.Database, id: string, deletedAt: string | null, title = `Title ${id}`): void {
+function seedPost(client: Database.Database, id: string, deletedAt: string | null, title = `Title ${id}`, workspaceId = WORKSPACE_ID): void {
   client
     .prepare(
       `INSERT INTO posts (id, workspace_id, title, slug, body_json, status, kind, body_format, updated_at, version, ext, deleted_at, created_at)
        VALUES (?, ?, ?, ?, ?, 'draft', 'post', 'doc', ?, 4, '{}', ?, ?)`
     )
-    .run(id, WORKSPACE_ID, title, `slug-${id}`, "{not even json", LONG_AGO, deletedAt, LONG_AGO);
+    .run(id, workspaceId, title, `slug-${id}`, "{not even json", LONG_AGO, deletedAt, LONG_AGO);
 }
 
-function seedMedia(client: Database.Database, id: string, status: string): void {
+function seedMedia(client: Database.Database, id: string, status: string, workspaceId = WORKSPACE_ID): void {
   client
     .prepare(
       `INSERT INTO media (id, workspace_id, title, alt, caption, credit, source_sha256, status, created_at, updated_at, version, slug)
        VALUES (?, ?, ?, '', '', '', 'sha-${id}', ?, ?, ?, 7, ?)`
     )
-    .run(id, WORKSPACE_ID, `Asset ${id}`, status, LONG_AGO, LONG_AGO, `media-${id}`);
+    .run(id, workspaceId, `Asset ${id}`, status, LONG_AGO, LONG_AGO, `media-${id}`);
 }
 
-function seedRedirect(client: Database.Database, id: string, status: string, tombstonedLatest: boolean | null): void {
+function seedRedirect(client: Database.Database, id: string, status: string, tombstonedLatest: boolean | null, workspaceId = WORKSPACE_ID): void {
   client
     .prepare(
       `INSERT INTO redirects (id, workspace_id, match_type, from_pattern, to_target, status_code, status, override, priority, source, created_by_principal, created_at, updated_at, version)
        VALUES (?, ?, 'exact', ?, ?, 301, ?, 0, 0, 'manual', 'actor', ?, ?, 2)`
     )
-    .run(id, WORKSPACE_ID, `/from-${id}`, `/to-${id}`, status, LONG_AGO, LONG_AGO);
+    .run(id, workspaceId, `/from-${id}`, `/to-${id}`, status, LONG_AGO, LONG_AGO);
   if (tombstonedLatest === null) return;
   const insertRevision = client.prepare(
     `INSERT INTO redirect_revisions (redirect_id, workspace_id, seq, state_json, tombstoned, actor_id, recorded_at)
      VALUES (?, ?, ?, '{}', ?, 'actor', ?)`
   );
   // seq 1 is always a live revision, so the discriminator is genuinely "the LATEST one", not "any".
-  insertRevision.run(id, WORKSPACE_ID, 1, 0, LONG_AGO);
-  insertRevision.run(id, WORKSPACE_ID, 2, tombstonedLatest ? 1 : 0, LONG_AGO);
+  insertRevision.run(id, workspaceId, 1, 0, LONG_AGO);
+  insertRevision.run(id, workspaceId, 2, tombstonedLatest ? 1 : 0, LONG_AGO);
 }
 
 function createCommentsTable(client: Database.Database): void {
@@ -88,13 +89,13 @@ function createCommentsTable(client: Database.Database): void {
   );
 }
 
-function seedComment(client: Database.Database, id: string, status: string, bodyText: string): void {
+function seedComment(client: Database.Database, id: string, status: string, bodyText: string, workspaceId = WORKSPACE_ID): void {
   client
     .prepare(
       `INSERT INTO "p_comments__comments" (id, workspace_id, entry_id, thread_root_id, depth, status, author_name, body_text, created_at, updated_at, version)
        VALUES (?, ?, 'entry-9', ?, 0, ?, 'Visitor', ?, ?, ?, 3)`
     )
-    .run(id, WORKSPACE_ID, id, status, bodyText, LONG_AGO, LONG_AGO);
+    .run(id, workspaceId, id, status, bodyText, LONG_AGO, LONG_AGO);
 }
 
 function listIndexed(client: Database.Database): Row[] {
@@ -116,7 +117,7 @@ test("backfill indexes every pre-existing marker, from columns only, with no pay
   seedMedia(client, "media-trashed", "trashed");
   seedMedia(client, "media-live", "active");
   createCommentsTable(client);
-  seedComment(client, "comment-trashed", "trash", "x".repeat(200));
+  seedComment(client, "comment-trashed", "trash", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".repeat(4));
   seedComment(client, "comment-approved", "approved", "fine");
 
   const applied = backfillTrashedItems({ client, now: NOW, apply: true });
@@ -144,6 +145,7 @@ test("backfill indexes every pre-existing marker, from columns only, with no pay
   const comment = indexed.find((row) => row.entity_type === "comment")!;
   assert.equal(comment.display_title, "Comment on entry-9");
   assert.equal(comment.display_subtitle?.length, 120, "the comment excerpt must be capped at 120 characters");
+  assert.equal(comment.display_subtitle, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv");
 });
 
 test("purge_after starts at the BACKFILL time, not retroactively from the original marker", () => {
@@ -164,6 +166,8 @@ test("a redirect an operator merely switched OFF is not swept into the Trash", (
   const client = openMigratedDb();
   seedRedirect(client, "redirect-deleted", "disabled", true);
   seedRedirect(client, "redirect-switched-off", "disabled", false);
+  // Previously deleted, then restored: an old tombstone must not determine membership.
+  client.prepare("UPDATE redirect_revisions SET tombstoned = 1 WHERE redirect_id = ? AND seq = 1").run("redirect-switched-off");
   seedRedirect(client, "redirect-never-revised", "disabled", null);
   seedRedirect(client, "redirect-live", "active", false);
 
@@ -225,4 +229,29 @@ test("a database with no comments plugin installed is skipped, not failed", () =
   assert.equal(rowsByType(applied, "comment").skipped, true);
   assert.equal(rowsByType(applied, "comment").rows, 0);
   assert.equal(rowsByType(applied, "post").rows, 1, "the other domains still run");
+});
+
+
+test("backfill preserves each domain's workspace ownership across two workspaces", (t) => {
+  const client = openMigratedDb();
+  t.after(() => client.close());
+  client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)")
+    .run("ws-second", "Second", "second", LONG_AGO);
+  createCommentsTable(client);
+  for (const workspaceId of [WORKSPACE_ID, "ws-second"]) {
+    seedPost(client, `post-${workspaceId}`, LONG_AGO, "Post", workspaceId);
+    seedMedia(client, `media-${workspaceId}`, "trashed", workspaceId);
+    seedRedirect(client, `redirect-${workspaceId}`, "disabled", true, workspaceId);
+    seedComment(client, `comment-${workspaceId}`, "trash", "Comment", workspaceId);
+  }
+  backfillTrashedItems({ client, now: NOW, apply: true });
+  const indexed = listIndexed(client);
+  assert.equal(indexed.length, 8);
+  for (const workspaceId of [WORKSPACE_ID, "ws-second"]) {
+    for (const entityType of ["post", "media", "redirect", "comment"]) {
+      const row = indexed.find((item) => item.entity_type === entityType && item.entity_id === `${entityType}-${workspaceId}`);
+      assert.ok(row);
+      assert.equal(row.workspace_id, workspaceId);
+    }
+  }
 });

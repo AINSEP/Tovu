@@ -323,9 +323,15 @@ describe("AgentPlugins", () => {
   it("keeps a tab button keyboard reachable", async () => {
     renderAgentPlugins();
     const tab = screen.getByRole("button", { name: "Downloaded" });
-    tab.focus();
-    await userEvent.keyboard("{Enter}");
+    const user = userEvent.setup();
+    screen.getByRole("button", { name: "Installed" }).focus();
+    await user.tab();
     expect(tab).toHaveFocus();
+    expect(tab).toHaveAttribute("aria-pressed", "false");
+    await user.keyboard("{Enter}");
+    expect(tab).toHaveFocus();
+    expect(tab).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Every package downloaded to this workspace.")).toBeInTheDocument();
   });
 
   it("Installed's row keeps the switch, with no Remove action", async () => {

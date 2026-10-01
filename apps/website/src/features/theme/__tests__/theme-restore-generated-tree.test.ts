@@ -35,6 +35,17 @@ test("restores every generated file from the catalog, leaving sourceDir and them
 
   fs.writeFileSync(path.join(live, "pages", "index.html"), "LIVE (edited by mistake)", "utf8");
   fs.writeFileSync(path.join(catalog, "pages", "index.html"), "CATALOG original", "utf8");
+  const extraGenerated = {
+    "pages/about.html": "CATALOG about",
+    "css/styles.css": "body{color:blue}",
+    "scripts/nested/main.js": "console.log('catalog')",
+    "tokens.json": '{"--ink":"#123"}',
+  };
+  for (const [relativePath, content] of Object.entries(extraGenerated)) {
+    for (const dir of [live, catalog]) fs.mkdirSync(path.dirname(path.join(dir, relativePath)), { recursive: true });
+    fs.writeFileSync(path.join(live, relativePath), "LIVE edited", "utf8");
+    fs.writeFileSync(path.join(catalog, relativePath), content, "utf8");
+  }
   fs.writeFileSync(path.join(live, "theme.json"), '{"live":"json"}', "utf8");
   fs.writeFileSync(path.join(catalog, "theme.json"), '{"catalog":"json"}', "utf8");
   fs.writeFileSync(path.join(live, "src", "Header.tsx"), "LIVE source edit", "utf8");
@@ -42,7 +53,12 @@ test("restores every generated file from the catalog, leaving sourceDir and them
 
   const result = restoreBuiltThemeGeneratedTree({ themeDir: live, themesRoot, manifest: MANIFEST });
 
-  assert.deepEqual(result.restoredFiles, ["pages/index.html"]);
+  assert.deepEqual(result.restoredFiles.slice().sort(), ["css/styles.css", "pages/about.html", "pages/index.html", "scripts/nested/main.js", "tokens.json"]);
+  assert.deepEqual(fs.readdirSync(live, { recursive: true }).filter((name) => fs.statSync(path.join(live, name.toString())).isFile()).sort(),
+    ["css/styles.css", "pages/about.html", "pages/index.html", "scripts/nested/main.js", "src/Header.tsx", "theme.json", "tokens.json"]);
+  for (const [relativePath, content] of Object.entries(extraGenerated)) {
+    assert.equal(fs.readFileSync(path.join(live, relativePath), "utf8"), content);
+  }
   assert.equal(fs.readFileSync(path.join(live, "pages", "index.html"), "utf8"), "CATALOG original");
   // theme.json is never touched by this operation -- it always resets per-file, unchanged.
   assert.equal(fs.readFileSync(path.join(live, "theme.json"), "utf8"), '{"live":"json"}');

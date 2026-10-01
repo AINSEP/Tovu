@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { api, onUnauthenticated } from "../api";
 
 /**
  * @file Characterization tests for `request()`'s two branches that no existing suite exercised
@@ -88,7 +88,13 @@ test("a literal JSON null error body is treated as a body with no code/error fie
 test("a literal JSON null 401 body does not notify unauthenticated listeners — no code to match", async () => {
   stubFetch(async () => new Response("null", { status: 401, headers: { "Content-Type": "application/json" } }));
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
-
-  expect((error as Error).message).toBe("request failed (401)");
+  const listener = vi.fn();
+  const unsubscribe = onUnauthenticated(listener);
+  try {
+    const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+    expect((error as Error).message).toBe("request failed (401)");
+    expect(listener).not.toHaveBeenCalled();
+  } finally {
+    unsubscribe();
+  }
 });

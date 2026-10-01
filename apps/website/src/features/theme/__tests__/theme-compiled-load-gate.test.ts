@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme.js";
+import { discoverThemes, loadTheme } from "../theme.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — the install-time gate `loadTheme()` runs for a `build.source:
@@ -252,8 +252,10 @@ test("one theme failing the compiled gate does not prevent discovery of its sibl
   writeCompiledTheme(root, "good-compiled");
   writeCompiledTheme(root, "bad-compiled", { pageHtml: "<!doctype html><html><head></head><body>x</body></html>" });
 
-  const good = loadTheme({ themeDir: path.join(root, "good-compiled"), id: "good-compiled", source: "site" });
-  const bad = loadTheme({ themeDir: path.join(root, "bad-compiled"), id: "bad-compiled", source: "site" });
+  const themes = discoverThemes({ dir: root, source: "site" });
+  assert.deepEqual(themes.map((theme) => theme.manifest.id), ["bad-compiled", "good-compiled"]);
+  const good = themes.find((theme) => theme.manifest.id === "good-compiled")!;
+  const bad = themes.find((theme) => theme.manifest.id === "bad-compiled")!;
 
   assert.equal(good.status, "valid");
   assert.equal(bad.status, "invalid");

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
+import { bootAuthenticated, loginAsBarePrincipal as loginWithoutGrants } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -97,7 +98,7 @@ test("source-control-credentials: GET starts with an empty list", async (t) => {
   assert.deepEqual(body.credentials, []);
 });
 
-test("source-control-credentials: full CRUD round trip — create, list, update (blank connection keeps the secret), delete", async (t) => {
+test("source-control-credentials: full CRUD round trip — create, list, update (omitted connection keeps the secret, blank is rejected), delete", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -136,6 +137,16 @@ test("source-control-credentials: full CRUD round trip — create, list, update 
   const { credential: renamed } = await updated.json();
   assert.equal(renamed.label, "renamed");
   assert.equal(renamed.id, credential.id);
+  const resolve = () => resolveDefaultForSourceControl({ repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: "github" });
+  assert.deepEqual((await resolve())?.connection, { providerId: "github", token: "ghp_secret_token" });
+  const blank = await fetch(`${base}/${credential.id}`, {
+    method: "PUT", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ connection: { providerId: "github", token: "" } }),
+  });
+  assert.equal(blank.status, 400);
+  assert.equal((await blank.json()).error, "VALIDATION");
+  assert.deepEqual((await resolve())?.connection, { providerId: "github", token: "ghp_secret_token" });
+
 
   const del = await fetch(`${base}/${credential.id}`, { method: "DELETE", headers: { cookie } });
   assert.equal(del.status, 204);
@@ -246,4 +257,36 @@ test("source-control providers: lists the github plugin's host with its declared
   const bare = await loginAsBarePrincipal(deps, baseUrl);
   assert.equal((await fetch(url, { headers: { cookie: bare } })).status, 403);
   assert.equal((await fetch(url.replace(deps.workspaceId, "not-the-real-workspace"), { headers: { cookie } })).status, 404);
+});
+
+test("source-control-credentials: credential-only permission allows every verb and publish-only permission denies every verb", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const cookies: string[] = [];
+  for (const [username, permission] of [["credential-only", "source-control.credentials.write"], ["publish-only", "system.publish"]]) {
+    cookies.push(await loginWithoutGrants(deps, baseUrl, { username }));
+    const policyId = `source-control-test-${username}`;
+    await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyPermissionRepo.save({ id: `${policyId}-permission`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
+    await deps.principalPolicyRepo.save({ id: `${policyId}-link`, workspaceId: deps.workspaceId, principalId: `bare-${username}`, policyId });
+  }
+  const [credentialCookie, publishCookie] = cookies;
+  const created = await fetch(base, { method: "POST", headers: { cookie: credentialCookie, "content-type": "application/json" }, body: JSON.stringify({ label: "permission-probe", connection: { providerId: "github", token: "permission-secret" } }) });
+  assert.equal(created.status, 201);
+  const { credential } = await created.json();
+  const before = await deps.sourceControlCredentialSetRepo.findById({ workspaceId: deps.workspaceId, id: credential.id });
+  for (const [method, path, body] of [["GET", base, undefined], ["POST", base, { label: "denied", connection: { providerId: "github", token: "denied-secret" } }], ["PUT", `${base}/${credential.id}`, { label: "denied" }], ["DELETE", `${base}/${credential.id}`, undefined]] as const) {
+    const denied = await fetch(path, { method, headers: { cookie: publishCookie, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    assert.equal(denied.status, 403, method);
+  }
+  assert.deepEqual(await deps.sourceControlCredentialSetRepo.findById({ workspaceId: deps.workspaceId, id: credential.id }), before);
+  const listed = await fetch(base, { headers: { cookie: credentialCookie } });
+  assert.equal(listed.status, 200);
+  assert.deepEqual((await listed.json()).credentials.map((row: { id: string }) => row.id), [credential.id]);
+  const updated = await fetch(`${base}/${credential.id}`, { method: "PUT", headers: { cookie: credentialCookie, "content-type": "application/json" }, body: JSON.stringify({ label: "allowed-rename" }) });
+  assert.equal(updated.status, 200);
+  assert.equal((await deps.sourceControlCredentialSetRepo.findById({ workspaceId: deps.workspaceId, id: credential.id }))?.label, "allowed-rename");
+  assert.equal((await fetch(`${base}/${credential.id}`, { method: "DELETE", headers: { cookie: credentialCookie } })).status, 204);
+  assert.equal(await deps.sourceControlCredentialSetRepo.findById({ workspaceId: deps.workspaceId, id: credential.id }), null);
 });

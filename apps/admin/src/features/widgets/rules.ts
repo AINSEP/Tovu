@@ -103,6 +103,9 @@ export function movePlacement<T>(items: T[], index: number, direction: -1 | 1): 
   return next;
 }
 
+// Distinguishes draft keys created in the same millisecond without randomUUID.
+let draftPlacementSequence = 0;
+
 /**
  * The locally-drafted placement `WidgetRegionEditor` appends when an operator picks a widget from
  * `WidgetAddControl`, before a Save round trip assigns it a server-known identity. `placementId`
@@ -114,7 +117,7 @@ export function movePlacement<T>(items: T[], index: number, direction: -1 | 1): 
  */
 export function buildDraftPlacement(widgetInstanceId: string): AdminWidgetPlacement {
   return {
-    placementId: globalThis.crypto?.randomUUID?.() ?? `p-${Date.now()}`,
+    placementId: globalThis.crypto?.randomUUID?.() ?? `p-${Date.now()}-${++draftPlacementSequence}`,
     widgetEntryId: widgetInstanceId,
     enabled: true,
     widgetTitle: null,

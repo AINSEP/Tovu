@@ -176,6 +176,22 @@ test("resolveTemplateBranchChoice: a bare Page (templateChoice \"\") is ineligib
   );
 });
 
+test("resolveTemplateBranchChoice preserves shell fallback and explicit template choices", () => {
+  const theme = makeTheme();
+  for (const bodyFormat of ["doc", "html"] as const) {
+    assert.deepEqual(
+      resolveTemplateBranchChoice({ theme, post: { kind: "page", bodyFormat, templateChoice: null } }),
+      { kind: "page-shell", templateChoice: "page-shell.html" }
+    );
+    for (const kind of ["page", "post"] as const) {
+      assert.deepEqual(
+        resolveTemplateBranchChoice({ theme, post: { kind, bodyFormat, templateChoice: "blog-post.html" } }),
+        { kind: "as-chosen" }
+      );
+    }
+  }
+});
+
 test("a doc-format Page resolves the shell too — a Page is BORN doc-format and must not need a save first", () => {
   // INVERTED 2026-09-16 (owner: "it shouldnt need to be saved to render correctly"). This test used
   // to assert `undefined` here, on the reasoning that `isPageTemplateChoiceEligible` already owns the

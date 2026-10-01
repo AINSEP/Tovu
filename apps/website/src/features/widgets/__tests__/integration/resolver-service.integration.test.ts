@@ -141,6 +141,25 @@ test("REQ-27: an unknown widget type resolves to a typed unknown-type failure, n
   }
 });
 
+test("a hung batch times out at 500ms and returns a typed timeout for every instance", { timeout: 2000 }, async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  replaceRecentEntriesResolver(t, { resolveMany: () => new Promise(() => undefined) });
+  let settled = false;
+  const pending = resolveWidgetType({
+    typeKey: "recent-entries",
+    instances: [instance({ id: "hung-a", widgetType: "recent-entries" }), instance({ id: "hung-b", widgetType: "recent-entries" })],
+    context: CTX,
+  }).then((result) => { settled = true; return result; });
+  t.mock.timers.tick(499);
+  await Promise.resolve();
+  assert.equal(settled, false);
+  t.mock.timers.tick(1);
+  assert.deepEqual(Array.from(await pending), [
+    ["hung-a", { ok: false, reason: "timeout" }],
+    ["hung-b", { ok: false, reason: "timeout" }],
+  ]);
+});
+
 test("AC-16/REQ-23: resolvePageWidgets assembles resolved IR for every declared region on a page", async () => {
   const bindingRepo = new InMemoryWidgetRegionBindingRepo();
   const entryRepo = new InMemoryEntryRepo();

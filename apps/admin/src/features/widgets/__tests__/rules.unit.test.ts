@@ -21,6 +21,7 @@ describe("widgetTypeLabel", () => {
     // "text" is one of the five closed v1 types (WIDGET_TYPE_OPTIONS) per widgets/rules.ts's own
     // header comment.
     expect(widgetTypeLabel("text", "en")).not.toBe("text");
+    expect(widgetTypeLabel("text", "en")).toBe("Text");
   });
 
   it("falls back to the raw stored value for an unknown type rather than rendering blank", () => {
@@ -141,10 +142,15 @@ describe("buildDraftPlacement", () => {
 
   it("falls back to a Date.now()-based id when crypto.randomUUID is unavailable", () => {
     vi.stubGlobal("crypto", { ...globalThis.crypto, randomUUID: undefined });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1720000000000);
     try {
       const placement = buildDraftPlacement("widget-1");
+      const second = buildDraftPlacement("widget-2");
       expect(placement.placementId.startsWith("p-")).toBe(true);
+      expect(placement.placementId).toMatch(/^p-1720000000000-\d+$/);
+      expect(second.placementId).not.toBe(placement.placementId);
     } finally {
+      clock.mockRestore();
       vi.unstubAllGlobals();
     }
   });

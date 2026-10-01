@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, api, type AdminWidget } from "@/lib/api";
 import { navigate } from "@/lib/router";
 import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
-import { staleVersionMessage, useWidgetInstanceEditor, useWiredWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
+import { useWidgetInstanceEditor, useWiredWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
 
 /**
  * @file Characterization tests for `useWidgetInstanceEditor` — first direct test file for this
@@ -223,7 +223,7 @@ describe("save — update (existing widget)", () => {
 
   it("calls api.updateWidget with id/baseVersion/title/config, updates widget+config, and sets a version message", async () => {
     const view = await mountLoaded();
-    const updateWidget = vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, version: 3, config: { body: "edited" } } });
+    const updateWidget = vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, version: 3, config: { body: "server normalized" } } });
     act(() => view.result.current.setConfig({ body: "edited" }));
 
     await act(async () => {
@@ -232,7 +232,7 @@ describe("save — update (existing widget)", () => {
 
     expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, title: "Hero banner", config: { body: "edited" } });
     expect(view.result.current.widget?.version).toBe(3);
-    expect(view.result.current.config).toEqual({ body: "edited" });
+    expect(view.result.current.config).toEqual({ body: "server normalized" });
     expect(view.result.current.message).toBe("Saved · version 3");
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -277,7 +277,7 @@ describe("save — update (existing widget)", () => {
       await view.result.current.save();
     });
 
-    expect(view.result.current.error).toBe(staleVersionMessage("en"));
+    expect(view.result.current.error).toBe("This widget changed since you loaded it, refresh and try again.");
     expect(view.result.current.fieldErrors).toEqual([]);
   });
 

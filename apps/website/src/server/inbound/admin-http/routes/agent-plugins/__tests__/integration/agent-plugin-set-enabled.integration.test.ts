@@ -10,7 +10,7 @@ import express from "express";
 import { saveExternalMcpServer } from "#src/assistant/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { readAgentPluginActivations, setAgentPluginActivation } from "#src/features/agent-plugins/activation";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
@@ -423,5 +423,44 @@ test("AGENT_PLUGIN_SET_ENABLED: a workspace id that does not match the route's o
       body: JSON.stringify({ enabled: true }),
     });
     assert.equal(response.status, 404);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: a signed-in principal without enable permission changes neither activation nor MCP records", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("enable-denied-fixture", "seed-enable-denied", { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "enable-denied-fixture", enabled: false, actor: "test" });
+    const { app, baseDeps } = buildTestApp();
+    const { baseUrl } = await bootAuthenticated(app, t);
+    const cookie = await loginAsBarePrincipal(baseDeps, baseUrl);
+    const before = await readAgentPluginActivations(workspaceRoot);
+    const mcpBefore = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const res = await patch(baseUrl, cookie, "enable-denied-fixture", { enabled: true });
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "admin.plugins.enable");
+    assert.deepEqual(await readAgentPluginActivations(workspaceRoot), before);
+    assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), mcpBefore);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: an MCP-store failure preserves the successful activation without a partial MCP row", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("mcp-failure-fixture", "seed-mcp-failure", { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "mcp-failure-fixture", enabled: false, actor: "test" });
+    const { app, baseDeps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const before = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    let attempts = 0;
+    t.mock.method(baseDeps.externalMcpServerRepo, "findByServerId", async () => { attempts += 1; throw new Error("MCP store unavailable"); });
+    const res = await patch(baseUrl, cookie, "mcp-failure-fixture", { enabled: true });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).agentPlugin.enabled, true);
+    assert.equal(attempts, 1, "the declared server must reach the failing provisioning boundary");
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins["mcp-failure-fixture"]?.enabled, true);
+    assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), before);
   });
 });
