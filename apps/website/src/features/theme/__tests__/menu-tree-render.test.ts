@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { parse, type DefaultTreeAdapterTypes } from "parse5";
 
-import { renderStaticPage, type StaticMenuItem } from "../static-render.js";
+import { renderStaticPage, renderStaticPartial, scanMenuEmbedIds, type StaticMenuItem } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -21,6 +22,17 @@ import type { DiscoveredTheme } from "../theme.js";
  * certify. Every fixture below uses the CURRENT single-attribute spelling, the same
  * `theme-slot-honors-current-page.test.ts` and `theme-pages-render.canary.test.ts` already use.
  */
+
+function findElement(node: DefaultTreeAdapterTypes.Node, tag: string): DefaultTreeAdapterTypes.Element | undefined {
+  if ("tagName" in node && node.tagName === tag) return node;
+  if ("childNodes" in node) {
+    for (const child of node.childNodes) {
+      const found = findElement(child, tag);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
 
 const HEADER_ID = "menu-header-nav";
 
@@ -84,6 +96,21 @@ test("the tree variant emits nested <ul>/<li> with depth classes", () => {
   assert.ok(html?.includes('<ul class="menu-list depth-1">'));
   assert.ok(html?.includes('<a href="#tokens">Tokens</a>'));
   assert.match(html ?? "", /class="menu-item depth-0 has-children"/);
+  assert.ok(html);
+  const nav = findElement(parse(html), "nav");
+  assert.ok(nav);
+  const root = findElement(nav, "ul");
+  assert.ok(root);
+  const parents = root.childNodes.filter((node): node is DefaultTreeAdapterTypes.Element => "tagName" in node && node.tagName === "li");
+  assert.equal(parents.length, 1);
+  const parent = parents[0];
+  assert.equal(findElement(parent, "a")?.attrs.find(({ name }) => name === "href")?.value, "#themes");
+  const submenu = parent.childNodes.find((node): node is DefaultTreeAdapterTypes.Element => "tagName" in node && node.tagName === "ul");
+  assert.ok(submenu, "the child list belongs directly to the Themes item");
+  assert.equal(submenu.attrs.find(({ name }) => name === "class")?.value, "menu-list depth-1");
+  const child = findElement(submenu, "li");
+  assert.ok(child);
+  assert.equal(findElement(child, "a")?.attrs.find(({ name }) => name === "href")?.value, "#tokens");
 });
 
 test("isCurrent and isActive become distinct class hooks", () => {
@@ -393,4 +420,29 @@ test("a marker with syntactically invalid data-embed-config degrades to its auth
     html = renderStaticPage({ theme, pageId: "index", menus: { [HEADER_ID]: items({ label: "X", href: "/x" }) } });
   });
   assert.ok(html?.includes("FALLBACK"), "an unparseable marker is left exactly as authored, not blanked or crashed");
+});
+
+test("menu ids are discovered from pages and partials before supplying render data", () => {
+  const theme = treeTheme();
+  theme.partials.footer = `<nav data-embed-config='{"type":"menu","id":"footer-nav"}'></nav>`;
+  theme.pages.other = `<nav data-embed-config='{"type":"menu","id":"${HEADER_ID}"}'></nav>`;
+  assert.deepEqual(scanMenuEmbedIds(theme).slice().sort(), ["footer-nav", HEADER_ID].sort());
+  const data: Record<string, StaticMenuItem[]> = {
+    [HEADER_ID]: items({ label: "Docs", href: "/docs" }),
+    "footer-nav": items({ label: "Footer", href: "/footer" }),
+  };
+  const menus = Object.fromEntries(scanMenuEmbedIds(theme).map((id) => [id, data[id]]));
+  const html = renderStaticPage({ theme, pageId: "index", menus });
+  assert.ok(html?.includes('<a href="/docs">Docs</a>'));
+});
+
+test("partial preview wraps and renders the requested partial and returns null for a missing id", () => {
+  const theme = treeTheme();
+  theme.partials.preview = "<header>Preview content</header>";
+  const html = renderStaticPartial({ theme, partialId: "preview" });
+  assert.ok(html);
+  const header = findElement(parse(html), "header");
+  assert.ok(header);
+  assert.deepEqual(header.childNodes.map((node) => "value" in node ? node.value : ""), ["Preview content"]);
+  assert.equal(renderStaticPartial({ theme, partialId: "missing" }), null);
 });

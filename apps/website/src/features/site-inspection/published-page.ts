@@ -372,7 +372,7 @@ export async function readBoundedBody(
       if (done) break;
       if (!value) continue;
       const remaining = maxBytes - total;
-      if (value.byteLength >= remaining) {
+      if (value.byteLength > remaining) {
         chunks.push(value.subarray(0, remaining));
         total += remaining;
         truncated = true;

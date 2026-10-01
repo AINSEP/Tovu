@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Server } from "node:http";
 
 import express, { type Express } from "express";
 
@@ -35,6 +36,12 @@ function makeFakeSiteApp(): Express {
   });
   app.get("/big", (_req, res) => {
     res.status(200).type("text/plain").send("z".repeat(50_000));
+  });
+  app.get("/over-hard-cap", (_req, res) => {
+    res.type("text/plain").send("abcdef".repeat(200_000));
+  });
+  app.get("/administer-survey", (_req, res) => {
+    res.type("html").send("<h1>Survey</h1>");
   });
   app.get("/echo", (req, res) => {
     res.status(200).type("text/plain").send(`query=${String(req.query.q ?? "")}`);
@@ -148,10 +155,21 @@ test("toCookieShapes: keeps the cookie name and attributes and drops the value",
 });
 
 test("readBoundedBody: stops at the cap and reports it, rather than buffering the whole response", async () => {
-  const response = new Response("y".repeat(10_000));
-  const read = await readBoundedBody(response, 100);
-  assert.equal(read.bodyBytes, 100);
-  assert.equal(read.body.length, 100);
+  const chunks = ["alpha", "-beta-gamma", "unread-tail"];
+  let pulls = 0;
+  let cancellations = 0;
+  const response = new Response(new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.enqueue(new TextEncoder().encode(chunks[pulls++]));
+    },
+    cancel() { cancellations += 1; },
+  }, { highWaterMark: 0 }));
+  const read = await readBoundedBody(response, 10);
+  assert.equal(read.bodyBytes, 10);
+  assert.equal(read.body.length, 10);
+  assert.equal(read.body, "alpha-beta");
+  assert.equal(pulls, 2);
+  assert.equal(cancellations, 1);
   assert.equal(read.truncated, true);
 });
 
@@ -170,11 +188,11 @@ test("fetchPublishedPage: returns the live status, headers and body of a real ro
   assert.equal(result.status, 200);
   assert.equal(result.ok, true);
   assert.equal(result.path, "/");
-  assert.match(result.body, /home/);
+  assert.equal(result.body, "<!doctype html><html><body>home</body></html>");
   assert.equal(result.headers["content-security-policy"], "default-src 'self'");
   assert.match(result.headers["content-type"] ?? "", /text\/html/);
   assert.equal(result.truncated, false);
-  assert.ok(result.bodyBytes > 0);
+  assert.equal(result.bodyBytes, 45);
 });
 
 test("fetchPublishedPage: reports cookie SHAPES and never a cookie value, in headers or anywhere else", async () => {
@@ -216,6 +234,7 @@ test("fetchPublishedPage: a redirect is reported, never followed", async () => {
 test("fetchPublishedPage: caps the body at maxBytes and flags the truncation", async () => {
   const result = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: 1_000 });
   assert.equal(result.bodyBytes, 1_000);
+  assert.equal(result.body, "z".repeat(1_000));
   assert.equal(result.truncated, true);
 
   const defaulted = await fetchPublishedPage(DEPS, { path: "/big" });
@@ -225,8 +244,10 @@ test("fetchPublishedPage: caps the body at maxBytes and flags the truncation", a
 });
 
 test("fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted for nonsense", async () => {
-  const huge = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: MAX_MAX_BODY_BYTES * 10 });
-  assert.equal(huge.bodyBytes, 50_000);
+  const huge = await fetchPublishedPage(DEPS, { path: "/over-hard-cap" }, { maxBytes: MAX_MAX_BODY_BYTES * 10 });
+  assert.equal(huge.bodyBytes, 1_000_000);
+  assert.equal(huge.body, "abcdef".repeat(200_000).slice(0, 1_000_000));
+  assert.equal(huge.truncated, true);
 
   const negative = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: -1 });
   assert.equal(negative.bodyBytes, 50_000);
@@ -281,16 +302,35 @@ test("fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on
 
 test("fetchPublishedPage: a published page whose slug merely starts with 'admin' still fetches", async () => {
   const ok = await fetchPublishedPage(DEPS, { path: "/administer-survey" });
-  assert.equal(typeof ok.status, "number");
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body, "<h1>Survey</h1>");
 });
 
-test("fetchPublishedPage: tears the ephemeral server down on both the success and the rejection path", async () => {
-  // A leaked listening socket would keep this process (and any `node:test` run) alive. Booting many
-  // times in a row is the cheapest observable proof that each one really closed: a leak shows up as
-  // exhausted handles or a hanging test run, not as a wrong assertion.
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const ok = await fetchPublishedPage(DEPS, { path: "/" });
-    assert.equal(ok.status, 200);
-    await assert.rejects(() => fetchPublishedPage(DEPS, { path: "//evil.example" }), PublishedPagePathError);
+test("fetchPublishedPage: closes the server after success, validation rejection and a stalled render timeout", async (t) => {
+  const closed: Server[] = [];
+  const originalClose = Server.prototype.close;
+  t.mock.method(Server.prototype, "close", function (this: Server, callback?: (error?: Error) => void) {
+    return originalClose.call(this, (error?: Error) => {
+      closed.push(this);
+      callback?.(error);
+    });
+  });
+  const ok = await fetchPublishedPage(DEPS, { path: "/" });
+  assert.equal(ok.status, 200);
+  await assert.rejects(() => fetchPublishedPage(DEPS, { path: "//evil.example" }), PublishedPagePathError);
+  let reached = false;
+  const stalled = { createSiteApp: () => {
+    const app = express();
+    app.get("/stalled", (_req, _res) => { reached = true; });
+    return app;
+  } };
+  await assert.rejects(() => fetchPublishedPage(stalled, { path: "/stalled" }, { timeoutMs: 500 }),
+    { name: "PublishedPageTimeoutError", message: "rendering '/stalled' exceeded 500ms" });
+  assert.equal(reached, true);
+  assert.equal(closed.length, 3);
+  assert.equal(new Set(closed).size, 3);
+  for (const server of closed) {
+    assert.equal(server.listening, false);
+    assert.equal(await new Promise<number>((resolve, reject) => server.getConnections((err, count) => err ? reject(err) : resolve(count))), 0);
   }
 });

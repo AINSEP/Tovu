@@ -205,6 +205,9 @@ test("the handler lists bundled references/scripts/assets files by absolute path
       "references/postmortem-template.md": "# Postmortem Template\n\nSection one.\n",
       "references/slo-sli-framework.md": "# SLO/SLI\n",
       "scripts/collect-logs.sh": "#!/bin/sh\necho hi\n",
+      "references/nested/guide.md": "NESTED_REFERENCE_CANARY",
+      "scripts/nested/check.sh": "NESTED_SCRIPT_CANARY",
+      "assets/nested/icon.svg": "ASSET_CANARY",
     });
 
     const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
@@ -216,12 +219,24 @@ test("the handler lists bundled references/scripts/assets files by absolute path
 
     const paths = result.bundledFiles.map((f) => f.path).sort();
     assert.deepEqual(paths, [
+      path.join(skillDir, "assets", "nested", "icon.svg"),
+      path.join(skillDir, "references", "nested", "guide.md"),
       path.join(skillDir, "references", "postmortem-template.md"),
       path.join(skillDir, "references", "slo-sli-framework.md"),
       path.join(skillDir, "scripts", "collect-logs.sh"),
+      path.join(skillDir, "scripts", "nested", "check.sh"),
     ]);
     assert.equal(result.bundledFiles.find((f) => f.path.endsWith("postmortem-template.md"))?.kind, "references");
     assert.equal(result.bundledFiles.find((f) => f.path.endsWith("collect-logs.sh"))?.kind, "scripts");
+    assert.deepEqual(result.bundledFiles.map(({ kind, path: absolutePath }) => ({ kind, path: path.relative(skillDir, absolutePath) })).sort((a, b) => a.path.localeCompare(b.path)), [
+      { kind: "assets", path: "assets/nested/icon.svg" },
+      { kind: "references", path: "references/nested/guide.md" },
+      { kind: "references", path: "references/postmortem-template.md" },
+      { kind: "references", path: "references/slo-sli-framework.md" },
+      { kind: "scripts", path: "scripts/collect-logs.sh" },
+      { kind: "scripts", path: "scripts/nested/check.sh" },
+    ]);
+    assert.doesNotMatch(JSON.stringify(result), /NESTED_REFERENCE_CANARY|NESTED_SCRIPT_CANARY|ASSET_CANARY/);
     // Content itself must never appear in the handler output — only the path.
     assert.doesNotMatch(JSON.stringify(result), /Section one\./);
   });
@@ -293,5 +308,29 @@ test("an empty (never-installed) workspace produces zero sources and an empty re
     const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
     assert.deepEqual(sources, []);
     assert.deepEqual(buildSkillToolRegistrations(sources), []);
+  });
+});
+
+for (const [name, scalar, expected] of [
+  ["folded", ">", "First line. Second line."],
+  ["literal", "|", "First line. Second line."],
+] as const) {
+  test(`real skill loader resolves ${name} YAML descriptions for registration`, async () => {
+    await withSkillsDir(async (skillsDir) => {
+      await writeSkill(skillsDir, WORKSPACE_A, name, { "SKILL.md": `---\nname: ${name}\ndescription: ${scalar}\n  First line.\n  Second line.\n---\n# Body\n` });
+      const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+      const registry = createToolRegistry();
+      for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
+      assert.deepEqual(registry.list().map(({ id, description }) => ({ id, description })), [{ id: `skill_${name}`, description: expected }]);
+    });
+  });
+}
+
+test("different skill names that sanitize to the same tool id refuse loudly", async () => {
+  await withSkillsDir(async (skillsDir) => {
+    await writeSkill(skillsDir, WORKSPACE_A, "folder-a", { "SKILL.md": "---\nname: a-b\ndescription: Hyphen.\n---\n" });
+    await writeSkill(skillsDir, WORKSPACE_A, "folder-b", { "SKILL.md": "---\nname: a_b\ndescription: Underscore.\n---\n" });
+    await assert.rejects(() => loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }),
+      /folder-a.*folder-b.*same tool id 'skill_a_b'/);
   });
 });

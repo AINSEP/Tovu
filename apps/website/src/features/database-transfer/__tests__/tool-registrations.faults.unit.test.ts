@@ -59,6 +59,18 @@ test("every registration refuses denied permission before snapshots, forms, plan
 });
 
 for (const id of ["database_transfer_run", "database_transfer_set_destination"]) {
+  test(`${id}: an already-aborted execution emits nothing and abandons without a write`, async () => {
+    const h = harness();
+    const controller = new AbortController();
+    controller.abort();
+    const emitted: unknown[] = [];
+    const result = await call(h.tools.get(id)!, id === "database_transfer_run" ? { planId: h.plan.planId } : {}, controller.signal, async (surface) => { emitted.push(surface); });
+    assert.deepEqual(result, id === "database_transfer_run" ? { copied: false, cancelled: false, reason: "abandoned" } : { saved: false, reason: "abandoned" });
+    assert.deepEqual(emitted, []);
+    assert.equal(h.surfaces.size(), 0);
+    assert.equal(h.targetCalls(), 0);
+    assert.equal(await h.destinations.get("ws"), null);
+  });
   test(`${id}: abort after opening abandons the exchange without a write`, async () => {
     const h = harness();
     const controller = new AbortController();

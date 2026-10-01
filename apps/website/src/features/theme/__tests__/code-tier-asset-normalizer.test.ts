@@ -198,11 +198,12 @@ test("end-to-end: normalizing a REAL Angular build's index.html produces output 
 test("normalizeBuildOutputDirectory physically moves css/js files on disk and rewrites the page file in place", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-normalizer-fs-"));
   fs.writeFileSync(path.join(root, "styles.css"), "body{margin:0}", "utf8");
+  fs.writeFileSync(path.join(root, "secondary.css"), "h2{color:teal}", "utf8");
   fs.writeFileSync(path.join(root, "main.js"), "console.log(1)", "utf8");
   fs.writeFileSync(path.join(root, "favicon.ico"), "not-a-real-icon", "utf8");
   fs.writeFileSync(
     path.join(root, "index.html"),
-    '<head><link rel="stylesheet" href="styles.css"></head><body><script src="main.js" type="module"></script></body>',
+    '<head><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="secondary.css" media="screen"></head><body><script src="main.js" type="module"></script></body>',
     "utf8"
   );
 
@@ -217,6 +218,7 @@ test("normalizeBuildOutputDirectory physically moves css/js files on disk and re
     [...result.plan.relocations].sort((a, b) => a.from.localeCompare(b.from)),
     [
       { from: "main.js", to: "js/main.js" },
+      { from: "secondary.css", to: "css/secondary.css" },
       { from: "styles.css", to: "css/styles.css" },
     ]
   );
@@ -233,6 +235,9 @@ test("normalizeBuildOutputDirectory physically moves css/js files on disk and re
   const rewrittenIndex = fs.readFileSync(path.join(root, "index.html"), "utf8");
   assert.ok(rewrittenIndex.includes(TOKEN_STYLESHEET_SENTINEL));
   assert.ok(rewrittenIndex.includes('<script src="../js/main.js" type="module"></script>'));
+  assert.ok(!fs.existsSync(path.join(root, "secondary.css")));
+  assert.ok(rewrittenIndex.includes('<link rel="stylesheet" href="../css/secondary.css" media="screen">'));
+  assert.equal(fs.readFileSync(path.join(root, "css", "secondary.css"), "utf8"), "h2{color:teal}");
 });
 
 test("normalizeBuildOutputDirectory does not treat a same-named subdirectory as a file to relocate", () => {

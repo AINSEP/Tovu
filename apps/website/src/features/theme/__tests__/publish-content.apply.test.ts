@@ -17,6 +17,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryBlobStore } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
 import { entityKey, planImport } from "#src/features/publish-content/planner";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
@@ -127,14 +128,16 @@ async function makeFixture(options: { sourceFiles?: Record<string, string>; dest
 
 /** Packs the source's `static/basic` and puts every file's bytes where the blob PUT leg would. */
 async function packAndStage(fixture: Fixture, options: { skipSha?: string } = {}): Promise<PackedEntity> {
-  const { entities } = await packThemeFilesEntities({ themesDir: fixture.sourceThemes });
+  const fileBlobIndex = createFileBlobIndex();
+  const { entities } = await packThemeFilesEntities({ themesDir: fixture.sourceThemes, fileBlobIndex });
   const entity = entities.find((e) => e.id === "static/basic");
   assert.ok(entity, "the source basic theme must pack");
-  const files = entity.state.files as Array<{ path: string; sha256: string }>;
-  for (const file of files) {
-    if (file.sha256 === options.skipSha) continue;
-    const bytes = await readFile(path.join(fixture.sourceThemes, "static/basic", file.path));
-    await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: file.sha256, bytes });
+  for (const sha256 of entity.requiredBlobs ?? []) {
+    if (sha256 === options.skipSha) continue;
+    const indexed = fileBlobIndex.get(sha256);
+    assert.ok(indexed, "every transported digest must be indexed");
+    const bytes = await readFile(indexed.absPath);
+    await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes });
   }
   return entity;
 }

@@ -203,6 +203,9 @@ describe("SiteAssistantHeader", () => {
   });
 
   it("removes its Escape listener on unmount — a later Escape after unmount touches nothing", async (t) => {
+    // JSDOM lazily installs its own keydown observer on the first selector query (F7.2).
+    // Initialize it before spying so these exact counts measure the component's listener.
+    container.querySelector("button");
     const added = t.mock.method(window, "addEventListener");
     const removed = t.mock.method(window, "removeEventListener");
     let resetCount = 0;

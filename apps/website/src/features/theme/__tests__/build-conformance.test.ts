@@ -362,3 +362,64 @@ test("a v1-shaped page (css/styles.css, ../js/) fails the gate under apiVersion:
   const rules = issues.map((i) => i.rule).sort();
   assert.deepEqual(rules, ["asset-path", "stylesheet-sentinel"]);
 });
+
+for (const [label, inner] of [
+  ["script", "<script>visible only to JavaScript</script>"],
+  ["style", "<style>.cart{display:block}</style>"],
+  ["comment", "<!-- hidden cart -->"],
+  ["nbsp", "&nbsp;"],
+  ["numeric nbsp", "&#160;"],
+] as const) {
+  test(`island containing only ${label} is rejected, nested visible text is accepted`, (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-island-invisible-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const issues = checkBuiltThemeConformance({ themeId: "t", themeDir: root,
+      pages: { index: `<html><head>${SENTINEL}</head><body><section data-tovu-island="cart">${inner}</section></body></html>` },
+      partials: { visible: '<section data-tovu-island="cart"><span><b>1 item</b></span></section>' }, artifactHashes: {} });
+    assert.deepEqual(issues.map(({ page, rule }) => ({ page, rule })), [{ page: "index", rule: "island-content" }]);
+  });
+}
+
+test("generated inventory stops at the 2000-file cap", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-inventory-count-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (let n = 0; n < 2001; n++) fs.writeFileSync(path.join(root, `asset-${n}.js`), "x");
+  const issues = checkBuiltThemeConformance({ themeId: "t", themeDir: root, pages: {}, partials: {}, artifactHashes: {} });
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.match(issues[0].message, /2000-file inventory cap/);
+});
+
+test("generated inventory stops beyond the 12-level depth cap", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-inventory-depth-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const deep = path.join(root, ...Array.from({ length: 13 }, () => "nested"));
+  fs.mkdirSync(deep, { recursive: true });
+  fs.writeFileSync(path.join(deep, "unvisited.js"), "x");
+  const issues = checkBuiltThemeConformance({ themeId: "t", themeDir: root, pages: {}, partials: {}, artifactHashes: {} });
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.match(issues[0].message, /12-level depth cap/);
+});
+
+test("hash verification stops at the cumulative 64MiB cap, independently of the per-file cap", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-inventory-total-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const chunk = Buffer.alloc(16 * 1024 * 1024, "a");
+  const digest = sha256(chunk);
+  const artifactHashes: Record<string, string> = {};
+  for (let n = 0; n < 4; n++) {
+    const name = `chunk-${n}.js`;
+    fs.writeFileSync(path.join(root, name), chunk);
+    artifactHashes[name] = digest;
+  }
+  fs.writeFileSync(path.join(root, "over.js"), "b");
+  artifactHashes["over.js"] = sha256("b");
+  fs.writeFileSync(path.join(root, "after.js"), "later");
+  artifactHashes["after.js"] = sha256("wrong bytes");
+  const issues = checkBuiltThemeConformance({ themeId: "t", themeDir: root, pages: {}, partials: {}, artifactHashes });
+  assert.equal(issues.length, 1, "entries after the cap must not be hashed");
+  assert.equal(issues[0].page, "over.js");
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.match(issues[0].message, /total verified size exceeds the 67108864-byte cap/);
+});

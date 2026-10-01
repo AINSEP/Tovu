@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo, PostNotFoundError } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
+import { loadTheme } from "#src/features/theme/index";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "#src/features/origin/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMarketingPageOrOverride } from "../pages.js";
@@ -626,6 +628,33 @@ test("GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA targ
     (await signupRes.text()).includes("Create your account"),
     "must render its own real content, not a fallback"
   );
+});
+
+test("the shipped basic-2 nav CTA reaches its real page after publication and stays unpublished by default", async (t) => {
+  const theme = loadTheme({ themeDir: path.resolve("content/themes/static/basic-2"), id: "basic-2", source: "built-in" });
+  assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
+  assert.equal(theme.manifest.publishedPages, undefined, "shipped generic pages require an operator's publication decision");
+  assert.ok(theme.pages.signup, "the shipped CTA must have a real authored destination");
+  const unpublished = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo([]) });
+  t.after(() => closeServer(unpublished.server));
+  const home = await fetch(unpublished.baseUrl);
+  assert.equal(home.status, 200);
+  const nav = /<div\b[^>]*\bclass=["']nav-actions["'][^>]*>[\s\S]*?<\/div>/i.exec(await home.text());
+  assert.ok(nav, "the real home page must render its navigation actions");
+  const cta = /<a\b(?=[^>]*\bclass=["'][^"']*\bbtn-solid\b)[^>]*\bhref=["']([^"']+)["']/i.exec(nav[0]);
+  assert.ok(cta, "the rendered primary nav CTA must carry its destination");
+  const target = new URL(cta[1]!, unpublished.baseUrl);
+  assert.equal(target.origin, unpublished.baseUrl);
+  assert.match(target.pathname, /^\/signup(?:\.html)?$/);
+  assert.equal((await fetch(target)).status, 404, "generic signup is off until explicitly published");
+
+  const published = await startServer({ themes: [{ ...theme, manifest: { ...theme.manifest, publishedPages: ["signup"] } }], postRepo: new InMemoryPostRepo([]) });
+  t.after(() => closeServer(published.server));
+  const response = await fetch(new URL(target.pathname, published.baseUrl));
+  assert.equal(response.status, 200, "publishing the shipped CTA destination must make that same URL reachable");
+  const html = await response.text();
+  assert.match(html, /Create your account/, "the response must render the signup page");
+  assert.match(html, /<input\b[^>]*type=["']password["'][^>]*id=["']password["']/, "the response must render its real signup form");
 });
 
 // ---------------------------------------------------------------------------

@@ -374,10 +374,18 @@ test("site profile: settings reports exactly the inventory-safe allowlist, in al
   const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["settings"] });
   const rows = profile.sections.settings?.data ?? [];
 
-  assert.deepEqual(
-    rows.map((row) => `${row.namespace}.${row.key}`),
-    INVENTORY_SAFE_SETTINGS.map((entry) => `${entry.namespace}.${entry.key}`),
-  );
+  assert.deepEqual(rows.map((row) => `${row.namespace}.${row.key}`), [
+    "core.presentation.activeThemeId", "site.seo.title_template", "site.seo.default_description",
+    "site.seo.default_og_image", "site.seo.twitter_site", "site.seo.default_robots_noindex",
+    "site.seo.default_robots_nofollow", "site.seo.sitemap_enabled", "site.seo.robots_rules",
+  ]);
+  const valuedDeps = { ...makeDeps(), readSetting: async ({ namespace, key }: { namespace: string; key: string }) => `${namespace}:${key}` };
+  const valued = await buildSiteProfile(valuedDeps, { principalId: PRINCIPAL_ID }, { sections: ["settings"] });
+  assert.deepEqual(valued.sections.settings?.data, [
+    { namespace: "core.presentation", key: "activeThemeId", configured: true, value: "core.presentation:activeThemeId" },
+    ...["title_template", "default_description", "default_og_image", "twitter_site", "default_robots_noindex", "default_robots_nofollow", "sitemap_enabled", "robots_rules"]
+      .map((key) => ({ namespace: "site.seo", key, configured: true, value: `site.seo:${key}` })),
+  ]);
   assert.deepEqual(rows[0], { namespace: "core.presentation", key: "activeThemeId", configured: true, value: "basic" });
   // An unresolved definition is reported as unconfigured rather than omitted.
   assert.equal(rows[1]?.configured, false);
@@ -410,6 +418,21 @@ test("site profile: no canary planted on a dropped domain field survives seriali
 test("site profile: the DTOs expose exactly the declared fields, so a new upstream field cannot appear silently", async () => {
   const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
 
+  assert.deepEqual(profile.sections.pages?.data?.items, [
+    { id: "p1", title: "Home", slug: "home", kind: "page", status: "published", bodyFormat: "json", updatedAt: "2026-01-01T00:00:00.000Z" },
+    { id: "p2", title: "First post", slug: "first-post", kind: "post", status: "draft", bodyFormat: "json", updatedAt: "2026-01-02T00:00:00.000Z" },
+  ]);
+  assert.deepEqual(profile.sections.theme?.data?.installed, [
+    { id: "basic", name: "Basic", version: "1.0.0", tier: "static", source: "built-in", status: "valid", errorCount: 0 },
+    { id: "broken", name: "Broken", version: "0.1.0", tier: "declarative", source: "site", status: "invalid", errorCount: 1 },
+  ]);
+  assert.deepEqual(profile.sections.plugins?.data, [
+    { id: "word-count", name: "Word Count", version: "1.2.0", source: "built-in", tier: "tier-1", status: "valid", enabled: true },
+    { id: "off", name: "Off", version: "0.0.1", source: "site", tier: null, status: "valid", enabled: false },
+  ]);
+  assert.deepEqual(profile.sections.contentTypes?.data, [
+    { key: "recipe", label: "Recipe", status: "active", version: 3, fieldCount: 1 },
+  ]);
   assert.deepEqual(Object.keys(profile).sort(), ["capturedAt", "completeness", "schemaVersion", "sections"]);
   assert.deepEqual(Object.keys(profile.sections.pages?.data?.items[0] ?? {}).sort(), [
     "bodyFormat",

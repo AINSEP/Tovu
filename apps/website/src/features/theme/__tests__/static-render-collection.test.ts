@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-render.js";
 
 import { collectionMarkerKey, renderStaticPage, splitCollectionMarkerInner } from "../static-render.js";
 import { markersOfType, COLLECTION_MARKER_TYPE } from "#src/contracts/core/embeds/marker";
@@ -131,6 +132,10 @@ test("renderStaticPage: the entry-list style is injected exactly once even with 
 
   const styleTagOccurrences = rendered?.split("<style data-tovu-entry-list>").length ?? 0;
   assert.equal(styleTagOccurrences, 2, "the style tag must appear exactly once (one split -> two segments)");
+  assert.ok(rendered);
+  assert.ok(rendered.includes(ENTRY_LIST_DEFAULT_STYLE));
+  assert.ok(rendered.indexOf(ENTRY_LIST_DEFAULT_STYLE) < rendered.indexOf("</head>"));
+  assert.ok(rendered.includes("display:grid;gap:1rem;grid-template-columns:repeat(var(--entry-list-columns,3),minmax(0,1fr))"));
 });
 
 test("renderStaticPage: no style is injected when no collection marker resolves to entry-list markup", () => {

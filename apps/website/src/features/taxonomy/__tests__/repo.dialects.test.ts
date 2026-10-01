@@ -105,7 +105,7 @@ describeEachDialect<Bundle>(
       const repo = makeRepo();
       await repo.insert(taxonomy("t1"));
       await repo.insert(taxonomy("dead", { status: "trash", name: "kept" }));
-      const changed = taxonomy("t1", { name: "Renamed", hierarchical: true, version: 2 });
+      const changed = taxonomy("t1", { name: "Renamed", hierarchical: true, version: 2, updatedAt: "2026-09-29T00:00:00.000Z" });
       await repo.update(changed);
       assert.deepEqual(await repo.findByIdFull("t1"), changed);
       await repo.update(taxonomy("dead", { name: "revived", status: "active" }));
@@ -144,11 +144,13 @@ describeEachDialect<Bundle>(
       await assert.rejects(
         repo.transaction(async () => {
           await repo.insert(taxonomy("c"));
+          await repo.transaction(async () => { await repo.insert(taxonomy("inner")); });
           throw new Error("boom");
         }),
         /boom/
       );
       assert.equal(await repo.findAnyById("c"), null);
+      assert.equal(await repo.findAnyById("inner"), null);
       assert.equal((await repo.list()).length, 2);
     });
   }
@@ -242,7 +244,7 @@ describeEachDialect<Bundle>(
       await repo.insert(term("a", "tx"));
       await repo.insert(term("own", "tx", { status: "trash", name: "kept" }));
       await repo.insert(term("under", "dead-tx", { name: "kept" }));
-      const changed = term("a", "tx", { name: "Renamed", parentId: "p", version: 2 });
+      const changed = term("a", "tx", { name: "Renamed", parentId: "p", version: 2, updatedAt: "2026-09-29T00:00:00.000Z" });
       await repo.update(changed);
       assert.deepEqual(await repo.findByIdFull("a"), changed);
       await repo.update(term("own", "tx", { name: "revived", status: "active" }));
@@ -322,6 +324,9 @@ describeEachDialect<Bundle>(
       assert.deepEqual(await repo.upsert(first), first);
       await repo.upsert(assign("p1", "a", "2026-09-28T02:00:00.000Z"));
       assert.equal(await repo.countByTerm({ termId: "a" }), 1);
+      const stored = await ctx.kernel.run((db) => db.selectFrom("entry_terms").select("added_at")
+        .where("workspace_id", "=", WS).where("content_type", "=", "post").where("content_id", "=", "p1").where("term_id", "=", "a").executeTakeFirst());
+      assert.equal(stored?.added_at, "2026-09-28T02:00:00.000Z");
       await repo.upsert(assign("p1", "b"));
       await repo.upsert(assign("p1", "a", T0, "page"));
       assert.equal(await repo.countByTerm({ termId: "a" }), 2);
@@ -361,14 +366,25 @@ describeEachDialect<Bundle>(
       const repo = makeRepo();
       const other = entryTermRepoFor(ctx.kernel, OTHER);
       await seedTerms();
-      await repo.upsert(assign("p1", "a"));
-      await repo.upsert(assign("p2", "a"));
-      await repo.upsert(assign("p2", "b"));
+      await repo.upsert(assign("p1", "a", "2026-09-28T01:00:00.000Z"));
+      await repo.upsert(assign("p2", "a", "2026-09-28T02:00:00.000Z"));
+      await repo.upsert(assign("p2", "b", "2026-09-28T03:00:00.000Z"));
+      await repo.upsert(assign("p1", "a", "2026-09-28T04:00:00.000Z", "page"));
+      await repo.upsert(assign("page-only", "a", "2026-09-28T05:00:00.000Z", "page"));
       await other.upsert(assign("p1", "a"));
-      assert.deepEqual(await repo.repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 2 });
+      assert.deepEqual(await repo.repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 4 });
       assert.equal(await repo.countByTerm({ termId: "a" }), 0);
-      assert.equal(await repo.countByTerm({ termId: "b" }), 2);
+      assert.equal(await repo.countByTerm({ termId: "b" }), 4);
       assert.equal(await other.countByTerm({ termId: "a" }), 1);
+      const rows = await ctx.kernel.run((db) => db.selectFrom("entry_terms")
+        .select(["workspace_id", "content_type", "content_id", "term_id", "added_at"]).execute());
+      assert.deepEqual(rows.map((row) => [row.workspace_id, row.content_type, row.content_id, row.term_id, row.added_at]).sort(), [
+        [OTHER, "post", "p1", "a", T0],
+        [WS, "page", "p1", "b", "2026-09-28T04:00:00.000Z"],
+        [WS, "page", "page-only", "b", "2026-09-28T05:00:00.000Z"],
+        [WS, "post", "p1", "b", "2026-09-28T01:00:00.000Z"],
+        [WS, "post", "p2", "b", "2026-09-28T02:00:00.000Z"],
+      ].sort());
       assert.deepEqual(await repo.repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 0 });
     });
 

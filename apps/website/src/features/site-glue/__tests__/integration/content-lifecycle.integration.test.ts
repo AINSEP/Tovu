@@ -118,3 +118,27 @@ test("ADR-057 Decision 3: a glue module's filter composes AFTER a built-in and a
   await hookRegistry.runBeforeSave(draft());
   assert.deepEqual(callOrder, ["a-built-in", "z-site", "glue-module"]);
 });
+
+for (const [label, patch, error] of [
+  ["null", null, /non-object ext patch/],
+  ["array", [], /non-object ext patch/],
+  ["primitive", "invalid", /non-object ext patch/],
+  ["undeclared field", { greeted: "ok", extra: true }, /FIELD_PATH_INVALID/],
+  ["wrong declared type", { greeted: 7 }, /FIELD_TYPE_MISMATCH/],
+] as const) {
+  test(`glue before-save rejects ${label} without returning a partial merge`, async () => {
+    const registry = createHookRegistry();
+    registry.attach("good", "built-in", async () => ({ marker: "before" }), [
+      { path: "ext.good.marker", type: "string" },
+    ]);
+    attachGlueContentLifecycle({
+      moduleId: "invalid-glue",
+      filter: async () => patch as never,
+      declaredFields: [{ path: "greeted", type: "string" }],
+      hostPort: makeRealHostPort(registry),
+    });
+    const input = draft();
+    await assert.rejects(() => registry.runBeforeSave(input), error);
+    assert.deepEqual(input.ext, {});
+  });
+}

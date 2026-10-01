@@ -58,6 +58,7 @@ test("resolveDefaultForSourceControl decrypts the provider's default connection,
   await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "github", token: "ghp_real_secret" } });
   const second = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Work", connection: { providerId: "github", token: "ghp_work_secret" }, isDefault: true });
 
+  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Newest", connection: { providerId: "github", token: "ghp_newest_non_default" } });
   const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" });
   assert.ok(resolved);
   assert.equal(resolved.id, second.id);

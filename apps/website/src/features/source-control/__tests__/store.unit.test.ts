@@ -11,6 +11,7 @@ import {
   createSourceControlCredential,
   deleteSourceControlCredential,
   describeCredential,
+  resolveDefaultForSourceControl,
   isUniqueLabelViolation,
   listSourceControlCredentials,
   SourceControlCredentialDuplicateLabelError,
@@ -93,6 +94,14 @@ function fetchReturningJson(status: number, body: unknown): typeof fetch {
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
 }
 
+function fetchIdentity(expectedToken: string, login: string): typeof fetch {
+  return (async (url: string | URL | Request, init?: RequestInit) => {
+    const valid = String(url) === "https://api.github.com/user" &&
+      new Headers(init?.headers).get("authorization") === `Bearer ${expectedToken}`;
+    return Response.json(valid ? { login } : { message: "Bad request" }, { status: valid ? 200 : 401 });
+  }) as typeof fetch;
+}
+
 test("createSourceControlCredential seals the connection and returns a summary with NO secret material", async () => {
   const deps = makeDeps();
   const summary = await createSourceControlCredential(deps, {
@@ -106,6 +115,11 @@ test("createSourceControlCredential seals the connection and returns a summary w
   assert.equal(summary.configured, true);
   assert.equal(summary.createdAt, NOW);
   assert.equal(JSON.stringify(summary).includes("ghp_secret_value"), false);
+  const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: summary.id });
+  assert.ok(stored);
+  assert.equal(JSON.stringify(stored).includes("ghp_secret_value"), false);
+  assert.ok(stored.sealed.ciphertext.length > 0);
+  assert.ok(stored.sealed.nonce.length > 0);
 });
 
 test("bitbucket requires both token and username — missing username is a validation error", async () => {
@@ -188,24 +202,24 @@ test("isDefault group invariant: setting a new default clears the previous one, 
 });
 
 test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
-  const deps = makeDeps();
-  const first = await createSourceControlCredential(deps, {
-    workspaceId: WORKSPACE,
-    label: "one",
-    connection: { providerId: "github", token: "t1" },
-  });
-  const second = await createSourceControlCredential(deps, {
-    workspaceId: WORKSPACE,
-    label: "two",
-    connection: { providerId: "github", token: "t2" },
-  });
-  // `second` is not default yet (first auto-defaulted). Delete the default and confirm promotion.
+  let now = NOW;
+  const deps = makeDeps({ clock: { nowIso: () => now } });
+  const first = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "one", connection: { providerId: "github", token: "t1" } });
+  now = "2026-08-16T00:00:00.000Z";
+  const second = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "two", connection: { providerId: "github", token: "t2" } });
+  now = "2026-08-17T00:00:00.000Z";
+  const third = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "three", connection: { providerId: "github", token: "t3" } });
+  const otherProvider = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "gitlab", connection: { providerId: "gitlab", token: "gl" } });
+  const otherWorkspace = await createSourceControlCredential(deps, { workspaceId: "ws-2", label: "other", connection: { providerId: "github", token: "other" } });
+  now = "2026-08-18T00:00:00.000Z";
+  await updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: second.id, label: "recently-updated" });
   await deleteSourceControlCredential(deps, { workspaceId: WORKSPACE, id: first.id });
-
   const list = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
-  assert.equal(list.length, 1);
-  assert.equal(list[0]!.id, second.id);
-  assert.equal(list[0]!.isDefault, true, "the only remaining row must be promoted to default");
+  assert.equal(list.length, 3);
+  assert.deepEqual(list.filter((row) => row.providerId === "github" && row.isDefault).map((row) => row.id), [second.id]);
+  assert.equal(list.find((row) => row.id === third.id)?.isDefault, false);
+  assert.equal(list.find((row) => row.id === otherProvider.id)?.isDefault, true);
+  assert.equal((await describeCredential(deps, { workspaceId: "ws-2", id: otherWorkspace.id }))?.isDefault, true);
 });
 
 test("updateSourceControlCredential with connection OMITTED leaves the stored secret untouched (label-only rename)", async () => {
@@ -308,7 +322,7 @@ test("a blank label is rejected", async () => {
 // ---------------------------------------------------------------------------
 
 test("createSourceControlCredential populates accountLabel from a successful GitHub identity probe", async () => {
-  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "leonaburime-ucla" }) });
+  const deps = makeDeps({ fetchFn: fetchIdentity("ghp_real_token", "leonaburime-ucla") });
   const summary = await createSourceControlCredential(deps, {
     workspaceId: WORKSPACE,
     label: "default",
@@ -360,17 +374,24 @@ test("updateSourceControlCredential with connection OMITTED preserves a previous
 });
 
 test("updateSourceControlCredential with a NEW connection re-probes and can change the account label (a new token may belong to a different account)", async () => {
-  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "old-account" }) });
+  const deps = makeDeps({ fetchFn: fetchIdentity("t1", "old-account") });
   const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t1" } });
   assert.equal(created.accountLabel, "old-account");
 
-  deps.fetchFn = fetchReturningJson(200, { login: "new-account" });
+  deps.fetchFn = fetchIdentity("t2", "new-account");
   const updated = await updateSourceControlCredential(deps, {
     workspaceId: WORKSPACE,
     id: created.id,
     connection: { providerId: "github", token: "t2" },
   });
   assert.equal(updated.accountLabel, "new-account", "a new connection must re-probe rather than carry the old account label forward");
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.connection,
+    { providerId: "github", token: "t2" });
+  await updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+    connection: { providerId: "bitbucket", token: "bb-new", username: "paired-new" } });
+  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }), null);
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "bitbucket" }))?.connection,
+    { providerId: "bitbucket", token: "bb-new", username: "paired-new" });
 });
 
 test("updateSourceControlCredential with a NEW connection resets accountLabel to null when the re-probe fails — a stale label must not survive a token change", async () => {
@@ -585,4 +606,17 @@ test("createSourceControlCredential with no plugin providing the host saves with
   const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github", token: "ghp_fake" } });
   assert.equal(created.accountLabel, null);
   assert.equal(calls, 0);
+});
+
+test("credential CRUD and default resolution isolate workspaces and leave the owner's row untouched", async () => {
+  const deps = makeDeps();
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "owner", connection: { providerId: "github", token: "owner-secret" } });
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+  await assert.rejects(() => updateSourceControlCredential(deps, { workspaceId: "ws-2", id: created.id, label: "attacker" }), SourceControlCredentialNotFoundError);
+  await deleteSourceControlCredential(deps, { workspaceId: "ws-2", id: created.id });
+  assert.equal(await describeCredential(deps, { workspaceId: "ws-2", id: created.id }), null);
+  assert.deepEqual(await listSourceControlCredentials(deps, { workspaceId: "ws-2" }), []);
+  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: "ws-2", providerId: "github" }), null);
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.connection, { providerId: "github", token: "owner-secret" });
 });

@@ -353,6 +353,7 @@ async function handleRun(deps: DatabaseTransferToolDeps, surfaces: AssistantSurf
   if (!ctx.emitSurface) {
     throw new ToolInputError(`${DATABASE_TRANSFER_RUN_TOOL_ID}: this execution context has no interactive confirmation channel (no emitSurface), so a copy cannot be confirmed here. Nothing was copied.`);
   }
+  if (ctx.signal.aborted) return { copied: false, cancelled: false, reason: "abandoned" };
   const taken = (deps.databaseTransferPlanStore ?? DEFAULT_PLAN_STORE).take({ planId, principalId: ctx.principal.id, workspaceId: deps.workspaceId });
   if (!taken.ok) return { copied: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
 
@@ -403,6 +404,7 @@ async function handleSetDestination(deps: DatabaseTransferToolDeps, surfaces: As
   if (!ctx.emitSurface) {
     throw new ToolInputError(`${SET_DESTINATION_TOOL_ID}: this execution context has no interactive form channel (no emitSurface), so the human cannot type the address here. Nothing was saved.`);
   }
+  if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
   const exchange = surfaces.surfaceExchanges.open({ toolId: SET_DESTINATION_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
   const closeOnAbort = () => exchange.close();
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });

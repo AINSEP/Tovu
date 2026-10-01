@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { parse, type DefaultTreeAdapterTypes } from "parse5";
 
 import { markersOfType } from "#src/contracts/core/embeds/marker";
 import {
@@ -12,6 +13,7 @@ import {
   MarketplaceThemeError,
   MARKETPLACE_CATALOG_DIR,
   renderStaticPage,
+  readThemeLineageFile,
   type DiscoveredTheme,
 } from "../index.js";
 
@@ -80,6 +82,25 @@ function writeV2StaticFixture(
   fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify(manifest), "utf8");
 }
 
+function findElement(node: DefaultTreeAdapterTypes.Node, tag: string): DefaultTreeAdapterTypes.Element | undefined {
+  if ("tagName" in node && node.tagName === tag) return node;
+  if ("childNodes" in node) {
+    for (const child of node.childNodes) {
+      const found = findElement(child, tag);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function assertHero(html: string): void {
+  const body = findElement(parse(html), "body");
+  assert.ok(body);
+  const sections = body.childNodes.filter((node): node is DefaultTreeAdapterTypes.Element => "tagName" in node && node.tagName === "section");
+  assert.equal(sections.length, 1);
+  assert.deepEqual(sections[0].childNodes.map((node) => "value" in node ? node.value : ""), ["Real hero content, spliced from render/partials/hero.html"]);
+}
+
 test("install refuses a marketplace theme declaring 'partials' (unimplemented) before any file is copied", () => {
   const themesRoot = tmpThemesRoot();
   writeV2StaticFixture(themesRoot, "unresolved-partial-theme", { useSlots: false });
@@ -119,4 +140,28 @@ test("install accepts a marketplace theme declaring 'slots' (the real, implement
   assert.ok(html);
   assert.match(html!, /Real hero content, spliced from render\/partials\/hero\.html/, `partial must be resolved, got: ${html}`);
   assert.equal(markersOfType(html!, "partial").length, 0, "no unresolved partial marker should remain");
+  assertHero(html!);
+});
+
+test("a colliding marketplace install rewrites both suffixed manifests, retains lineage and renders", (t) => {
+  const themesRoot = tmpThemesRoot();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  writeV2StaticFixture(themesRoot, "resolved-partial-theme", { useSlots: true });
+  const themes = discoverAllBuiltInThemes({ dir: themesRoot, source: "built-in" });
+  downloadMarketplaceTheme({ themesRoot, themes, marketplaceId: "resolved-partial-theme" });
+  const result = downloadMarketplaceTheme({ themesRoot, themes, marketplaceId: "resolved-partial-theme" });
+  assert.equal(result.suffixed, true);
+  assert.equal(result.assignedId, "resolved-partial-theme-1");
+  for (const relative of ["static/resolved-partial-theme-1", "__original-themes__/static/resolved-partial-theme-1"]) {
+    assert.equal(JSON.parse(fs.readFileSync(path.join(themesRoot, relative, "theme.json"), "utf8")).id, "resolved-partial-theme-1");
+  }
+  assert.deepEqual(result.lineage, { from: "marketplace", tier: "static", version: "0.1.0",
+    catalog: "__original-themes__/static/resolved-partial-theme-1", marketplaceId: "resolved-partial-theme", name: "Contract Test Theme" });
+  const installed = findTheme({ themes, id: "resolved-partial-theme-1" });
+  assert.ok(installed);
+  assert.equal(installed.status, "valid");
+  assert.deepEqual(readThemeLineageFile({ themeDir: installed.dir }), result.lineage);
+  const html = renderStaticPage({ theme: installed, pageId: "index" });
+  assert.ok(html);
+  assertHero(html);
 });

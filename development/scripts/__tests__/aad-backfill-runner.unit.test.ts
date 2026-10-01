@@ -239,7 +239,7 @@ test("runAadBackfill: a normal write reporting exactly one row still succeeds", 
 
 test("every backfill-*-aad.ts script writes under a CAS predicate and reports its row count", async () => {
   // The chokepoint above can only abort on a count somebody actually gives it. This is the other
-  // half, checked across all six consumers at once: a fix that landed in one arm and left five
+  // half, checked across all current consumers at once: a fix that landed in one arm and left
   // siblings on the old shape is this repo's most common defect, and the runner exists precisely so
   // that cannot happen silently.
   const fs = await import("node:fs");
@@ -249,7 +249,7 @@ test("every backfill-*-aad.ts script writes under a CAS predicate and reports it
     .readdirSync(scriptsDir)
     .filter((name) => name.startsWith("backfill-") && name.endsWith("-aad.ts"));
 
-  assert.equal(scripts.length, 6, `expected the six backfill-*-aad.ts scripts, found ${scripts.join(", ")}`);
+  assert.deepEqual(scripts.sort(), ["backfill-execution-credential-aad.ts", "backfill-external-mcp-aad.ts", "backfill-media-provider-credential-aad.ts", "backfill-site-assistant-credential-aad.ts"]);
 
   for (const name of scripts) {
     const source = fs.readFileSync(path.join(scriptsDir, name), "utf8");

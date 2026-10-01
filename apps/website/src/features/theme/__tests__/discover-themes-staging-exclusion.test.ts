@@ -31,8 +31,8 @@ test("discoverThemes: excludes .tovu-migrate-staging-* siblings, even though the
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discover-staging-"));
   try {
     writeThemeJson(path.join(dir, "basic"), "basic");
-    writeThemeJson(path.join(dir, `${MIGRATION_STAGING_DIR_PREFIX}basic-14cece79e115`), "basic");
-    writeThemeJson(path.join(dir, `${MIGRATION_STAGING_DIR_PREFIX}basic-44b2198fd799`), "basic");
+    writeThemeJson(path.join(dir, `.tovu-migrate-staging-basic-14cece79e115`), "basic");
+    writeThemeJson(path.join(dir, `.tovu-migrate-staging-basic-44b2198fd799`), "basic");
 
     const themes = discoverThemes({ dir, source: "built-in" });
 
@@ -52,7 +52,7 @@ test("discoverThemes: a staging-prefixed directory that fails to parse is still 
     // No theme.json at all inside the staging dir — if exclusion ever regressed to rely on
     // loadTheme() erroring rather than filtering the name up front, this would still show up as an
     // "invalid" discovered theme rather than being absent from the list entirely.
-    fs.mkdirSync(path.join(dir, `${MIGRATION_STAGING_DIR_PREFIX}basic-000000000000`), { recursive: true });
+    fs.mkdirSync(path.join(dir, `.tovu-migrate-staging-basic-000000000000`), { recursive: true });
     writeThemeJson(path.join(dir, "basic"), "basic");
 
     const themes = discoverThemes({ dir, source: "built-in" });
@@ -69,8 +69,8 @@ test("discoverAllBuiltInThemes: staging siblings under an engine subfolder (the 
     assert.ok(ENGINE_SUBFOLDERS.includes("static"), "test assumes 'static' is a real engine subfolder");
     const staticDir = path.join(dir, "static");
     writeThemeJson(path.join(staticDir, "basic"), "basic");
-    writeThemeJson(path.join(staticDir, `${MIGRATION_STAGING_DIR_PREFIX}basic-14cece79e115`), "basic");
-    writeThemeJson(path.join(staticDir, `${MIGRATION_STAGING_DIR_PREFIX}basic-44b2198fd799`), "basic");
+    writeThemeJson(path.join(staticDir, `.tovu-migrate-staging-basic-14cece79e115`), "basic");
+    writeThemeJson(path.join(staticDir, `.tovu-migrate-staging-basic-44b2198fd799`), "basic");
 
     const themes = discoverAllBuiltInThemes({ dir, source: "built-in" });
 
@@ -82,4 +82,8 @@ test("discoverAllBuiltInThemes: staging siblings under an engine subfolder (the 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("migration staging prefix keeps its persisted historical spelling", () => {
+  assert.equal(MIGRATION_STAGING_DIR_PREFIX, ".tovu-migrate-staging-");
 });
