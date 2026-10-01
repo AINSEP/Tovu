@@ -195,10 +195,15 @@ interface MediaPreviewProps {
   t: (key: string) => string;
 }
 
-/** Resolves whether an asset previews as an image, a video, or neither — see this file's header
+/** (2026-09-30, owner ask) For the `"image"` stage the expand button now fills the whole preview
+ * (`media-card-expand-fill`, wrapping the `<img>`) so clicking the picture opens
+ * the lightbox; the corner glyph stays inside it as the visual cue. The `"video"` stage keeps the
+ * small corner button so the native controls remain clickable (see the paragraph below).
+ *
+ * Resolves whether an asset previews as an image, a video, or neither — see this file's header
  * comment for why this is a client-side fallback chain rather than a server content-type read.
  *
- * `onExpand`, when passed, overlays a small "view larger" icon button on the preview that calls it
+ * `onExpand`, when passed, opens the lightbox: a whole-picture button for images, a small corner icon button for video
  * (used by the grid card to open `MediaLightbox`; omitted when `MediaLightbox` itself reuses this
  * same component to render its own enlarged content, so the lightbox never grows a nested trigger
  * for itself). Deliberately NOT a click handler on the whole preview box: the `"video"` stage below
@@ -249,19 +254,10 @@ function MediaPreview(props: MediaPreviewProps) {
     );
   }
 
-  const expandButton = props.onExpand ? (
-    <button
-      type="button"
-      className="media-card-expand"
-      aria-label={`View "${props.item.title}" larger`}
-      onClick={props.onExpand}
-      {...(props.agentExpandHandle
-        ? agentHandle(props.agentExpandHandle, { role: "button", label: "Open this asset larger in the lightbox" })
-        : {})}
-    >
-      <ExpandIcon />
-    </button>
-  ) : null;
+  const expandHandle = props.agentExpandHandle
+    ? agentHandle(props.agentExpandHandle, { role: "button", label: "Open this asset larger in the lightbox" })
+    : {};
+  const expandLabel = `View "${props.item.title}" larger`;
 
   if (stage === "video") {
     return (
@@ -275,22 +271,36 @@ function MediaPreview(props: MediaPreviewProps) {
           onError={handleVideoError}
         />
         {editButton}
-        {expandButton}
+        {props.onExpand ? (
+          <button type="button" className="media-card-expand" aria-label={expandLabel} onClick={props.onExpand} {...expandHandle}>
+            <ExpandIcon />
+          </button>
+        ) : null}
       </>
     );
   }
 
+  const image = <img className="media-card-media" src={src} alt={altText} loading="lazy" onError={handleImageError} />;
+
+  // Image stage: the picture itself sits INSIDE the expand button (an `<img>` is legal button
+  // content), so a click anywhere on it opens the lightbox and Enter/Space work on the button.
   return (
     <>
-      <img
-        className="media-card-media"
-        src={src}
-        alt={altText}
-        loading="lazy"
-        onError={handleImageError}
-      />
+      {props.onExpand ? (
+        <button
+          type="button"
+          className="media-card-expand media-card-expand-fill"
+          aria-label={expandLabel}
+          onClick={props.onExpand}
+          {...expandHandle}
+        >
+          {image}
+          <ExpandIcon />
+        </button>
+      ) : (
+        image
+      )}
       {editButton}
-      {expandButton}
     </>
   );
 }

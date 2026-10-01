@@ -90,6 +90,30 @@
   border: none;
   border-radius: var(--r-sm);
 }
+/* Image stage: the button covers the whole preview (click the picture to open the lightbox); the
+   glyph stays pinned top-right as the cue. The edit button sits above it via z-index. */
+.media-card-expand-fill {
+  inset: 0;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border-radius: 0;
+  cursor: zoom-in;
+  display: block;
+}
+.media-card-expand-fill > svg {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  box-sizing: content-box;
+  padding: 7.5px;
+  background: oklch(0% 0 0 / 0.55);
+  border-radius: var(--r-sm);
+}
+.media-card-expand-fill:hover { background: transparent; }
+.media-card-expand-fill:hover > svg { background: oklch(0% 0 0 / 0.72); }
 .media-card-expand:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
 .media-card-expand svg { width: 15px; height: 15px; }
 
@@ -100,6 +124,7 @@
    card's native `<video controls>` bar (bottom of the frame) never sits under either one. */
 .media-card-edit {
   position: absolute;
+  z-index: 1;
   top: var(--space-2);
   left: var(--space-2);
   width: 30px;
