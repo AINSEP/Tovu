@@ -9,6 +9,7 @@ import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/repo.memory";
+import { loadBundledAuthSchemes } from "#src/features/custom-credentials/__tests__/bundled-auth-schemes.fixture";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/store";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -101,6 +102,7 @@ async function buildHarness(): Promise<Harness> {
     siteAssistantSecretKeyring: keyring,
     idGen,
     customCredentialsHttpClient: new UnauthorizedHttpClient(),
+    loadAuthSchemes: loadBundledAuthSchemes,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
 
@@ -153,13 +155,16 @@ function answerAnyRecoverySurface(harness: Harness, emitted: readonly unknown[],
   });
 }
 
-/** Starts a `custom_credential_verify` call and yields once, so any recovery surface the loop raises
- *  has actually been emitted before the test inspects or answers it. */
+/** Starts a `custom_credential_verify` call and waits until the loop either raises a recovery surface
+ *  or settles without one, so the test inspects or answers it at a deterministic point. (A fixed
+ *  `setImmediate` yield raced `verifyCustomCredential`'s own awaits — scheme loading, 7bc2d95e8.) */
 async function startVerify(harness: Harness, principal: Principal) {
   const emitted: unknown[] = [];
-  const emitSurface: SurfaceEmitter = async (surface) => void emitted.push(surface);
+  let surfaceRaised!: () => void;
+  const firstSurface = new Promise<void>((resolve) => { surfaceRaised = resolve; });
+  const emitSurface: SurfaceEmitter = async (surface) => { emitted.push(surface); surfaceRaised(); };
   const pending = harness.executor.execute(principal, RUN, VERIFY_TOOL_ID, { label: LABEL }, undefined, emitSurface);
-  await new Promise((resolve) => setImmediate(resolve));
+  await Promise.race([firstSurface, pending]);
   return { pending, emitted };
 }
 
