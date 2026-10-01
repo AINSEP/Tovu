@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget } from "../types.js";
+import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget, SlugChangeCapture } from "../types.js";
 import {
   entryPublicPath,
   getNamedRoute,
@@ -176,6 +176,17 @@ test("urlFor passes an absolute url target through as-is", async () => {
   });
 });
 
+for (const href of ["https://external.example/path", "//cdn.example/x"]) {
+  test(`urlFor preserves ${href} even with an originOverride`, async () => {
+    const result = await urlFor({
+      deps: { postRepo: new InMemoryPostRepo([]) },
+      target: { kind: "url", href },
+      ctx: { ...ctx, originOverride: "https://example.com/" },
+    });
+    assert.deepEqual(result, { path: href, canonicalUrl: href });
+  });
+}
+
 test("urlFor rejects a javascript: scheme url target", async () => {
   const repo = new InMemoryPostRepo([]);
   const target: RouteTarget = { kind: "url", href: "javascript:alert(1)" };
@@ -193,6 +204,17 @@ test("urlFor rejects a data: scheme url target", async () => {
 
   assert.equal(result, null);
 });
+
+for (const href of [
+  "JavaScript:alert(1)", "JAVASCRIPT:alert(1)", " javascript:alert(1)", "\tJavaScript:alert(1)",
+  "DaTa:text/html,<script>1</script>", "DATA:text/html,<script>1</script>",
+  " data:text/html,<script>1</script>", "\tDaTa:text/html,<script>1</script>",
+]) {
+  test(`urlFor rejects unsafe schemes after case and whitespace normalization: ${JSON.stringify(href)}`, async () => {
+    const result = await urlFor({ deps: { postRepo: new InMemoryPostRepo([]) }, target: { kind: "url", href }, ctx });
+    assert.equal(result, null);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // urlFor — route (named-route registry)
@@ -430,22 +452,29 @@ test("registerSlugChangeCapture binds the implementation getSlugChangeCapture re
   resetRoutingRegistrationsForTests();
   const calls: unknown[] = [];
 
-  registerSlugChangeCapture({
+  const impl: SlugChangeCapture = {
     onSlugChange: async (input) => {
       calls.push(input);
     },
-  });
+  };
+  registerSlugChangeCapture(impl);
 
   const capture = getSlugChangeCapture();
   assert.ok(capture);
-  await capture!.onSlugChange({
+  assert.equal(capture, impl);
+  const input = {
     workspaceId: "workspace-1",
     entryId: "post-1",
     oldPath: "/old",
     newPath: "/new",
     actor: "user-1",
     changeSetId: "cs-1",
-  });
+  };
+  await capture.onSlugChange(input);
 
   assert.equal(calls.length, 1);
+  assert.deepEqual(calls, [input]);
+  const replacement: SlugChangeCapture = { onSlugChange: async (next) => { calls.push(next); } };
+  registerSlugChangeCapture(replacement);
+  assert.equal(getSlugChangeCapture(), replacement);
 });

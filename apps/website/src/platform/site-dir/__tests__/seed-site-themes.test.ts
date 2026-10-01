@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -146,6 +148,42 @@ test("leaves no staging directory behind after a successful seed", () => {
     readdirSync(siteRoot).filter((entry) => entry !== "themes"),
     []
   );
+});
+
+test("a mid-copy failure leaves themes absent, and a retry copies the complete stock tree", (t) => {
+  const stockDir = makeStockTree();
+  const siteRoot = makeEmptySiteRoot();
+  const siteThemesDir = join(siteRoot, "themes");
+  const originalCopy = fs.cpSync;
+  const failure = new Error("stock copy interrupted after the first theme");
+  let partialCopyObserved = false;
+  const copyMock = t.mock.method(fs, "cpSync", (from: string | URL, to: string | URL) => {
+    assert.equal(from, stockDir);
+    originalCopy(join(stockDir, "static"), join(String(to), "static"), { recursive: true });
+    assert.equal(readFileSync(join(String(to), "static", "basic", "css", "theme.css"), "utf8"), "body{color:stock}");
+    partialCopyObserved = true;
+    throw failure;
+  });
+  // The source uses node:fs's named cpSync export; keep that binding in sync with the mock.
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir }), (error) => error === failure);
+    assert.equal(partialCopyObserved, true);
+    assert.equal(existsSync(siteThemesDir), false, "an interrupted copy must not publish partial themes");
+  } finally {
+    copyMock.mock.restore();
+    syncBuiltinESMExports();
+  }
+
+  assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
+  assert.equal(existsSync(join(siteRoot, ".themes-seed-staging")), false);
+  const stockEntries = readdirSync(stockDir, { recursive: true }).sort();
+  assert.deepEqual(readdirSync(siteThemesDir, { recursive: true }).sort(), stockEntries);
+  for (const relative of stockEntries) {
+    if (fs.statSync(join(stockDir, String(relative))).isFile()) {
+      assert.deepEqual(readFileSync(join(siteThemesDir, String(relative))), readFileSync(join(stockDir, String(relative))));
+    }
+  }
 });
 
 test("a leftover staging directory from an interrupted boot does not block the next seed", () => {

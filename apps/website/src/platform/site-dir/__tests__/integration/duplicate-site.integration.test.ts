@@ -61,6 +61,20 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
   try {
     const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
     seedSourceExtras(source.dir);
+    const sourceConfigPath = path.join(source.dir, "config.json");
+    const sourceConfig = JSON.stringify({ name: "Original Client Site", domain: "example.com", port: 8080 });
+    fs.writeFileSync(sourceConfigPath, sourceConfig);
+    const themeAssets = {
+      "static/basic/templates/partials/audit.html": "<aside>owner-edited nested template</aside>",
+      "static/basic/css/audit.css": "body{color:rebeccapurple}",
+      "__original-themes__/static/basic/templates/partials/audit.html": "<aside>original reset template</aside>",
+      "__original-themes__/static/basic/css/audit.css": "body{color:black}",
+    };
+    for (const [relative, bytes] of Object.entries(themeAssets)) {
+      const file = path.join(source.dir, "themes", relative);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, bytes);
+    }
 
     const targetDir = path.join(parent, "client-b");
     const result = await duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
@@ -75,6 +89,7 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     assert.equal(config.name, "Client B Copy");
     assert.equal(config.domain, null, "a duplicate must not silently inherit the source's custom domain");
     assert.equal(config.port, null, "a duplicate must not silently inherit the source's fixed port");
+    assert.equal(fs.readFileSync(sourceConfigPath, "utf8"), sourceConfig, "the source's configured domain and port must remain untouched");
 
     // The known upload really made it across, with its real bytes.
     assert.equal(
@@ -88,6 +103,13 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     const targetThemes = fs.readdirSync(path.join(targetDir, "themes")).sort();
     assert.ok(sourceThemes.length > 0, "test precondition: the starter template seeds themes/");
     assert.deepEqual(targetThemes, sourceThemes, "themes/ must be a full copy, not left empty");
+    for (const relative of Object.keys(themeAssets)) {
+      assert.deepEqual(
+        fs.readFileSync(path.join(targetDir, "themes", relative)),
+        fs.readFileSync(path.join(source.dir, "themes", relative)),
+        `${relative} must survive byte-for-byte, including original-theme reset backups`,
+      );
+    }
 
     // The content database: real content present, chat history NOT present.
     const copyDb = new Database(path.join(targetDir, "content.db"), { readonly: true });
@@ -247,6 +269,31 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
       aad: "row-1",
     });
     assert.equal(decrypted, plaintext, "the duplicate must be able to decrypt the source's own sealed row byte-for-byte");
+
+    // A duplicate's siteId now differs from siteKeyId: deriving a key from siteId breaks this generation.
+    const secondDir = path.join(parent, "copy-of-copy");
+    const second = await duplicateSite({ sourceDir: targetDir, targetDir: secondDir, name: "Copy of Copy" });
+    const secondMeta = JSON.parse(fs.readFileSync(path.join(secondDir, ".site-meta.json"), "utf8"));
+    assert.equal(secondMeta.siteKeyId, source.siteId);
+    assert.notEqual(second.siteId, result.siteId);
+    const secondEnsure = await ensureSiteKeyForBoot({ siteDir: secondDir, mode: "local", env, home, findSiteKeyDependentData });
+    assert.equal(secondEnsure?.action, "noop");
+    assert.equal(secondEnsure?.fingerprint, mintResult?.fingerprint);
+    const secondKeyring = new EnvOrFileKeyring({
+      allowFileFallback: true,
+      allowFileAutoGenerate: false,
+      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: secondMeta.siteKeyId }),
+    });
+    const secondDb = new Database(path.join(secondDir, "content.db"), { readonly: true });
+    try {
+      const row = secondDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as NonNullable<typeof copiedRow>;
+      assert.deepEqual(row, copiedRow);
+      assert.equal(await new AesGcmSecretSealer(secondKeyring).open({
+        sealed: { keyId: row.key_id, ciphertext: row.sealed_ciphertext, nonce: row.nonce, alg: row.alg }, aad: "row-1",
+      }), plaintext, "a second-generation duplicate must still decrypt the original credential");
+    } finally {
+      secondDb.close();
+    }
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
     fs.rmSync(home, { recursive: true, force: true });
@@ -497,33 +544,45 @@ test("every directory the site layout calls portable is carried across, not just
   }
 });
 
-test("a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target", async () => {
+test("a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target", async (t) => {
   const parent = mkTempParent();
-  // Restored before the tree is torn down — `fs.rmSync` cannot remove what it cannot read either.
-  const unreadable = path.join(parent, "source", "uploads", "locked.bin");
   try {
     const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     fs.writeFileSync(path.join(source.dir, "uploads", "hello.txt"), "known upload bytes");
-
-    // One portable entry that cannot be copied: `fs.cpSync` raises EACCES on this file, so the
-    // copy loop throws PART WAY THROUGH — after the target directory itself, and after whichever
-    // portable entries `readdirSync` happened to yield first, have already landed there.
-    fs.writeFileSync(unreadable, "unreadable bytes");
-    fs.chmodSync(unreadable, 0o000);
 
     // The operator's OWN pre-existing empty directory — the case `init-site.ts`'s cleanup contract
     // singles out, and the one where a surviving partial copy is hardest to notice.
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
-
-    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }), InternalError);
+    const originalCopy = fs.cpSync;
+    const copyFailure = new Error("injected failure after copying an upload");
+    let partialCopyObserved = false;
+    const copyMock = t.mock.method(fs, "cpSync", (from: string | URL, to: string | URL, options?: fs.CopySyncOptions) => {
+      if (from === path.join(source.dir, "uploads")) {
+        fs.mkdirSync(to, { recursive: true });
+        originalCopy(path.join(source.dir, "uploads", "hello.txt"), path.join(String(to), "hello.txt"));
+        assert.equal(fs.readFileSync(path.join(targetDir, "uploads", "hello.txt"), "utf8"), "known upload bytes");
+        partialCopyObserved = true;
+        throw copyFailure;
+      }
+      return originalCopy(from, to, options);
+    });
+    try {
+      await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }), (error) => {
+        assert.ok(error instanceof InternalError);
+        assert.match(error.message, /injected failure after copying an upload/);
+        return true;
+      });
+    } finally {
+      copyMock.mock.restore();
+    }
+    assert.equal(partialCopyObserved, true, "a real partial copy must exist before the failure");
     assert.equal(
       fs.existsSync(targetDir),
       false,
       "a failed duplicate must leave nothing behind — INV-02 admits no partial install dir"
     );
   } finally {
-    if (fs.existsSync(unreadable)) fs.chmodSync(unreadable, 0o644);
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });

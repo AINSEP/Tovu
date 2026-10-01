@@ -54,6 +54,27 @@ test("findSiteKeyDependentData: SQLite site — content.db with sealed rows is d
   assert.equal(await findSiteKeyDependentData(withData), true);
 });
 
+test("findSiteKeyDependentData: SQLite site — an existing database with no sealed values is clean", async (t) => {
+  const dir = siteWithMeta(t, { storage: { kind: "sqlite" } });
+  const db = new Database(join(dir, "content.db"));
+  try {
+    db.exec("CREATE TABLE external_mcp_servers (id INTEGER PRIMARY KEY, oauth_sealed_ciphertext TEXT)");
+    assert.equal(await findSiteKeyDependentData(dir), false, "an empty sealed table must not block fresh-key creation");
+    db.exec("INSERT INTO external_mcp_servers (oauth_sealed_ciphertext) VALUES (NULL)");
+    assert.equal(await findSiteKeyDependentData(dir), false);
+    db.exec("INSERT INTO external_mcp_servers (oauth_sealed_ciphertext) VALUES ('oauth-cipher-bytes')");
+    assert.equal(await findSiteKeyDependentData(dir), true, "prefixed sealed columns count without any webhook rows");
+  } finally {
+    db.close();
+  }
+});
+
+test("findSiteKeyDependentData: SQLite site — corrupt content.db fails closed", async (t) => {
+  const dir = siteWithMeta(t, { storage: { kind: "sqlite" } });
+  writeFileSync(join(dir, "content.db"), "this is not a SQLite database");
+  assert.equal(await findSiteKeyDependentData(dir), true);
+});
+
 test("findSiteKeyDependentData: a .storage-secret.json is key-dependent data on its own", async (t) => {
   const dir = siteWithMeta(t, { storage: { kind: "postgres", secretRef: "site" } });
   writeFileSync(join(dir, ".storage-secret.json"), "{}");
@@ -81,6 +102,20 @@ test("findSiteKeyDependentData: PGlite site — sealed rows in pglite/ count; an
   await kernel.execute(sql`CREATE TABLE webhook_subscriptions (id serial PRIMARY KEY)`);
   await kernel.close();
   assert.equal(await findSiteKeyDependentData(clean), false);
+});
+
+test("findSiteKeyDependentData: PGlite site — oauth_sealed_ciphertext alone requires the original key", async (t) => {
+  const dir = siteWithMeta(t, { storage: { kind: "pglite" } });
+  const dataDir = join(dir, "pglite");
+  const kernel = openPgliteKernel<unknown>({ dataDir });
+  try {
+    await kernel.execute(sql`CREATE TABLE external_mcp_servers (id serial PRIMARY KEY, oauth_sealed_ciphertext text)`);
+    await kernel.execute(sql`INSERT INTO external_mcp_servers (oauth_sealed_ciphertext) VALUES ('oauth-cipher-bytes')`);
+  } finally {
+    await kernel.close();
+  }
+  assert.equal(await findSiteKeyDependentData(dir), true);
+  assert.equal(existsSync(join(dataDir, OWNER_LOCK_FILE)), false);
 });
 
 test("findSiteKeyDependentData: PGlite site owned by another live process fails closed without opening it", async (t) => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
-import type { MailerPort, OutboundEmail, MailerSendOptions } from "../../ports.js";
+import type { MailerPort, OutboundEmail, MailerSendOptions, MailerSendResult } from "../../ports.js";
 
 /**
  * @file SPEC-022 C-005 / CIC U-001 — the purpose-scoped mailer seam gate
@@ -25,16 +25,29 @@ const FAKE_EMAIL: OutboundEmail = {
   text: "test body",
 };
 
-function fakeInnerMailer(): { mailer: MailerPort; sends: MailerSendOptions[] } {
+const SUCCESS: MailerSendResult = { ok: true, providerMessageId: "msg-1", acceptedAt: "2026-09-30T00:00:00Z" };
+
+function fakeInnerMailer(result: MailerSendResult = SUCCESS) {
   const sends: MailerSendOptions[] = [];
+  const messages: OutboundEmail[] = [];
+  const batches: { messages: readonly OutboundEmail[]; options: MailerSendOptions }[] = [];
+  const capabilities = {
+    driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false,
+    maxBatchSize: 10, supportsAttachments: true,
+  };
   const mailer: MailerPort = {
-    async send(_message, options) {
-      sends.push(options);
-      return { delivered: true } as never;
+    async send(message, options) {
+      messages.push(structuredClone(message));
+      sends.push(structuredClone(options));
+      return result;
     },
-    capabilities: () => ({ supportsBatch: false }) as never,
-  } as unknown as MailerPort;
-  return { mailer, sends };
+    async sendBatch(messages, options) {
+      batches.push(structuredClone({ messages, options }));
+      return messages.map(() => result);
+    },
+    capabilities: () => capabilities,
+  };
+  return { mailer, sends, messages, batches, capabilities };
 }
 
 test("U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notification lane (fail closed), not interactive", async () => {
@@ -72,17 +85,22 @@ test("U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notif
   assert.equal(sends.length, 1, "once a durable path is ready, the same (still-unrecognized) lane value proceeds — proving the gate discriminates on readiness, not just on recognizing the value");
 });
 
-test("AC-16: pre-fix collision — members and forms both resolve to the SAME lane today (the defect this spec fixes)", () => {
-  // This test intentionally documents the historical defect this whole unit exists to close.
-  // It is not testing wrapMailerWithPurposeGate directly — it is a regression guard on
-  // mail/ports.ts's MailerSendOptions type: once REQ-09's vocabulary split lands, this
-  // exact object shape (bare `purpose: "transactional"` with no other discriminator) must
-  // no longer type-check as a valid MailerSendOptions for either call site — see
-  // U-001-B2 (closed-union typing). This test is deliberately a compile-time expectation,
-  // not a runtime assertion; the TDD/Programmer stage must confirm via `tsc` that
-  // `{ purpose: "transactional" }` alone (the pre-fix shape) is rejected without the new
-  // discriminating field once REQ-09 ships.
-  assert.ok(true, "compile-time guard — see comment; enforced by tsc, not runtime assertion");
+test("AC-16: a legacy transactional send without a lane defaults to notification", async () => {
+  const { mailer, sends } = fakeInnerMailer();
+  let durableReady = false;
+  const gated = wrapMailerWithPurposeGate({
+    inner: mailer, mode: "production",
+    durableOutboxReady: (capability) => capability === "forms" && durableReady,
+  });
+  const options: MailerSendOptions = {
+    idempotencyKey: "legacy-1", workspaceId: "ws-1",
+    sourceContext: { module: "forms" }, purpose: "transactional",
+  };
+  await assert.rejects(() => gated.send(FAKE_EMAIL, options), /capability "forms"/);
+  assert.equal(sends.length, 0);
+  durableReady = true;
+  await gated.send(FAKE_EMAIL, options);
+  assert.deepEqual(sends, [options]);
 });
 
 test("AC-17: post-fix vocabulary split resolves members (interactive) and forms (notification) to distinct lanes", async () => {
@@ -140,17 +158,25 @@ test("AC-19: interactive-lane send proceeds under the same conditions (no durabl
   assert.equal(sends.length, 1, "interactive lane must never be gated on durable-outbox readiness");
 });
 
-test("AC-20: notification-lane send proceeds once a durable path is registered and ready", async () => {
+test("AC-20: notification-lane readiness is scoped to the sending capability", async () => {
   const { mailer, sends } = fakeInnerMailer();
-  const gated = wrapMailerWithPurposeGate({ inner: mailer, mode: "production", durableOutboxReady: () => true });
-
-  await gated.send(FAKE_EMAIL, {
-    idempotencyKey: "k1",
-    workspaceId: "ws-1",
-    sourceContext: { module: "forms" },
-    lane: "notification",
-  } as MailerSendOptions);
+  const checked: string[] = [];
+  const gated = wrapMailerWithPurposeGate({
+    inner: mailer, mode: "production",
+    durableOutboxReady: (capability) => { checked.push(capability); return capability === "forms"; },
+  });
+  const options: MailerSendOptions = {
+    idempotencyKey: "k1", workspaceId: "ws-1",
+    sourceContext: { module: "forms" }, lane: "notification",
+  };
+  await gated.send(FAKE_EMAIL, options);
   assert.equal(sends.length, 1);
+  await assert.rejects(
+    () => gated.send(FAKE_EMAIL, { ...options, sourceContext: { module: "members" } }),
+    /MAILER_SEND_REFUSED_NO_DURABLE_PATH:.*capability "members"/,
+  );
+  assert.deepEqual(checked, ["forms", "members"]);
+  assert.equal(sends.length, 1, "another capability's durable path cannot permit this send");
 });
 
 test("U-001-B3/INV-06: local mode never refuses, regardless of lane or durable-path readiness", async () => {
@@ -186,4 +212,57 @@ test("U-001-ORD1: mode is resolved once and cached, not re-read from process.env
     if (originalEnv === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = originalEnv;
   }
+});
+
+test("permitted sends forward the complete message, options and successful or failed delivery result", async () => {
+  const message: OutboundEmail = {
+    ...FAKE_EMAIL, to: { email: "recipient@example.com", name: "Recipient" },
+    from: { email: "sender@example.com", name: "Sender" },
+    replyTo: { email: "reply@example.com" }, html: "<p>body</p>",
+    headers: { "List-Unsubscribe": "<https://example.com/unsubscribe>" },
+    attachments: [{ filename: "a.txt", contentType: "text/plain", contentBase64: "YQ==" }],
+  };
+  const failure: MailerSendResult = { ok: false, retryable: true, errorCode: "UNAVAILABLE", message: "try later" };
+  for (const mode of ["production", "local"] as const) {
+    for (const result of [SUCCESS, failure]) {
+      const { mailer, sends, messages } = fakeInnerMailer(result);
+      const gated = wrapMailerWithPurposeGate({ inner: mailer, mode, durableOutboxReady: () => false });
+      const options: MailerSendOptions = {
+        idempotencyKey: "forward-1", workspaceId: "ws-1", timeoutMs: 1234,
+        sourceContext: { module: "members", ref: "member-1" }, purpose: "transactional",
+        lane: mode === "production" ? "interactive" : "notification",
+      };
+      const expectedMessage = structuredClone(message);
+      const expectedOptions = structuredClone(options);
+      const expectedResult = structuredClone(result);
+      assert.deepEqual(await gated.send(message, options), expectedResult);
+      assert.deepEqual(messages, [expectedMessage]);
+      assert.deepEqual(sends, [expectedOptions]);
+    }
+  }
+});
+
+test("sendBatch gates notification delivery and forwards permitted batches and capabilities", async () => {
+  const { mailer, sends, batches, capabilities } = fakeInnerMailer();
+  let durableReady = false;
+  const gated = wrapMailerWithPurposeGate({
+    inner: mailer, mode: "production",
+    durableOutboxReady: (capability) => capability === "forms" && durableReady,
+  });
+  const messages = [FAKE_EMAIL, { ...FAKE_EMAIL, to: { email: "second@example.com" } }];
+  const options: MailerSendOptions = {
+    idempotencyKey: "batch-1", workspaceId: "ws-1",
+    sourceContext: { module: "forms" }, lane: "notification",
+  };
+  assert.deepEqual(gated.capabilities(), capabilities);
+  await assert.rejects(() => gated.sendBatch(messages, options), /capability "forms"/);
+  assert.equal(batches.length, 0);
+  assert.equal(sends.length, 0, "refused batches must not deliver individually either");
+
+  const interactive = { ...options, lane: "interactive" as const };
+  assert.deepEqual(await gated.sendBatch(messages, interactive), [SUCCESS, SUCCESS]);
+  durableReady = true;
+  assert.deepEqual(await gated.sendBatch(messages, options), [SUCCESS, SUCCESS]);
+  assert.deepEqual(batches, [{ messages, options: interactive }, { messages, options }]);
+  assert.equal(sends.length, 0, "permitted batches use the inner batch method");
 });

@@ -24,9 +24,12 @@ function tokens(overrides: Partial<OAuthTokenSet> = {}): OAuthTokenSet {
 interface PortDouble {
   readonly port: TokenRefreshPort;
   refreshCalls: number;
+  refreshInputs: { key: string; refreshToken: string }[];
   persisted: OAuthTokenSet[];
   needsReauth: { key: string; reason: string }[];
   leaseAcquisitions: number;
+  leaseReleases: string[];
+  leaseHeld: boolean;
   stored: OAuthTokenSet | null;
 }
 
@@ -38,9 +41,12 @@ function makePort(options: {
 } = {}): PortDouble {
   const state: PortDouble = {
     refreshCalls: 0,
+    refreshInputs: [],
     persisted: [],
     needsReauth: [],
     leaseAcquisitions: 0,
+    leaseReleases: [],
+    leaseHeld: false,
     stored: options.initial === undefined ? tokens() : options.initial,
     port: undefined as unknown as TokenRefreshPort,
   };
@@ -49,8 +55,9 @@ function makePort(options: {
     async load() {
       return state.stored;
     },
-    async refresh(_key, refreshToken) {
+    async refresh(key, refreshToken) {
       state.refreshCalls += 1;
+      state.refreshInputs.push({ key, refreshToken });
       if (options.refresh) return options.refresh(refreshToken);
       return tokens({ accessToken: "at-rotated", refreshToken: "rt-rotated", expiresAt: "2026-08-25T13:00:00.000Z" });
     },
@@ -66,9 +73,15 @@ function makePort(options: {
   if (options.withLease !== false) {
     port.tryAcquireRefreshLease = async () => {
       state.leaseAcquisitions += 1;
-      return options.leaseGranted ?? true;
+      if (options.leaseGranted === false || state.leaseHeld) return false;
+      state.leaseHeld = true;
+      return true;
     };
-    port.releaseRefreshLease = async () => undefined;
+    port.releaseRefreshLease = async (key) => {
+      state.leaseReleases.push(key);
+      assert.equal(state.leaseHeld, true, "only the lease owner may release it");
+      state.leaseHeld = false;
+    };
   }
 
   state.port = port;
@@ -92,6 +105,15 @@ test("a token inside the refresh skew is refreshed proactively, before it actual
 
   assert.equal(await refresher.getAccessToken(KEY), "at-rotated");
   assert.equal(double.refreshCalls, 1);
+  assert.deepEqual(double.refreshInputs, [{ key: KEY, refreshToken: "rt-current" }]);
+  assert.deepEqual(double.persisted, [tokens({ accessToken: "at-rotated", refreshToken: "rt-rotated", expiresAt: "2026-08-25T13:00:00.000Z" })]);
+  assert.deepEqual(double.leaseReleases, [KEY]);
+  assert.equal(double.leaseHeld, false);
+  clock.advance(60 * 60 * 1000);
+  assert.equal(await refresher.getAccessToken(KEY), "at-rotated");
+  assert.equal(double.leaseAcquisitions, 2, "a later refresh can reacquire the released lease");
+  assert.deepEqual(double.leaseReleases, [KEY, KEY]);
+  assert.deepEqual(double.refreshInputs[1], { key: KEY, refreshToken: "rt-rotated" });
 });
 
 test("concurrent callers collapse onto ONE refresh — the rotating token is redeemed once", async () => {
@@ -121,7 +143,11 @@ test("concurrent callers collapse onto ONE refresh — the rotating token is red
   assert.deepEqual(results, ["at-rotated", "at-rotated", "at-rotated"]);
   assert.equal(double.refreshCalls, 1, "a rotating single-use refresh token must be redeemed exactly once");
   assert.equal(double.persisted.length, 1);
+  assert.deepEqual(double.persisted[0], tokens({ accessToken: "at-rotated", refreshToken: "rt-rotated", expiresAt: "2026-08-25T13:00:00.000Z" }));
   assert.equal(refresher.inFlightCount(), 0);
+  assert.equal(await refresher.getAccessToken(KEY), "at-rotated");
+  assert.equal(double.refreshCalls, 1, "the next caller reads the persisted rotation without another refresh");
+  assert.deepEqual(double.leaseReleases, [KEY]);
 });
 
 test("the in-flight entry is cleared after a failure, so a later call can try again", async () => {
@@ -138,27 +164,72 @@ test("the in-flight entry is cleared after a failure, so a later call can try ag
 
   await assertOAuthRejects(() => refresher.getAccessToken(KEY), "OAUTH_PROVIDER_UNREACHABLE");
   assert.equal(refresher.inFlightCount(), 0);
+  assert.deepEqual(double.leaseReleases, [KEY]);
+  assert.equal(double.leaseHeld, false);
   assert.equal(await refresher.getAccessToken(KEY), "at-rotated");
+  assert.equal(double.leaseAcquisitions, 2);
+  assert.deepEqual(double.leaseReleases, [KEY, KEY]);
 });
 
 test("the rotated token is persisted BEFORE it is handed out", async () => {
   const clock = createTestClock("2026-08-25T12:04:00.000Z");
   const order: string[] = [];
+  let finishPersist!: () => void;
+  const gate = new Promise<void>((resolve) => { finishPersist = resolve; });
+  let enteredPersist!: () => void;
+  const entered = new Promise<void>((resolve) => { enteredPersist = resolve; });
   const double = makePort();
   const wrapped: TokenRefreshPort = {
     ...double.port,
     persist: async (key, next) => {
       order.push("persist");
+      enteredPersist();
+      await gate;
       await double.port.persist(key, next);
     },
   };
   const refresher = createTokenRefresher({ clock, port: wrapped });
 
-  const accessToken = await refresher.getAccessToken(KEY);
-  order.push("returned");
+  let settled = false;
+  const pending = refresher.getAccessToken(KEY).then((accessToken) => {
+    settled = true;
+    order.push("returned");
+    return accessToken;
+  });
+  await entered;
+  await new Promise((resolve) => setImmediate(resolve));
+  try {
+    assert.equal(settled, false, "the caller must wait for persistence to finish");
+    assert.deepEqual(double.persisted, []);
+    assert.equal(double.leaseHeld, true, "the lease covers the durable write too");
+  } finally {
+    finishPersist();
+  }
+  const accessToken = await pending;
 
   assert.deepEqual(order, ["persist", "returned"]);
   assert.equal(accessToken, "at-rotated");
+});
+
+test("a rejected persistence never hands out the rotated token and releases the lease", async () => {
+  const clock = createTestClock("2026-08-25T12:04:00.000Z");
+  const double = makePort();
+  const failure = new Error("durable token write failed");
+  let failPersist!: (error: Error) => void;
+  const gate = new Promise<void>((_resolve, reject) => { failPersist = reject; });
+  let enteredPersist!: () => void;
+  const entered = new Promise<void>((resolve) => { enteredPersist = resolve; });
+  const refresher = createTokenRefresher({
+    clock,
+    port: { ...double.port, persist: async () => { enteredPersist(); await gate; } },
+  });
+  const rejected = assert.rejects(refresher.getAccessToken(KEY), (error) => error === failure);
+  await entered;
+  failPersist(failure);
+  await rejected;
+  assert.deepEqual(double.persisted, []);
+  assert.deepEqual(double.leaseReleases, [KEY]);
+  assert.equal(double.leaseHeld, false);
 });
 
 test("a provider answering invalid_grant transitions the connection to needs_reauth and stops", async () => {
@@ -293,6 +364,7 @@ test("losing the cross-process lease means re-reading, NOT refreshing behind the
   assert.equal(await refresher.getAccessToken(KEY), "at-from-other-process");
   assert.equal(double.refreshCalls, 0, "the loser of the lease must never redeem the refresh token");
   assert.equal(double.leaseAcquisitions, 1);
+  assert.deepEqual(double.leaseReleases, [], "a lease loser must not release another process's lease");
 });
 
 test("a lease holder that never publishes leaves the loser on its still-valid token rather than racing", async () => {

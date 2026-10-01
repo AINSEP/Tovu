@@ -6,10 +6,13 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { openContentDb, openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
+import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
+import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
+import { applyLegacyEntries, readFrozenChain } from "#src/platform/db/migrations/legacy-sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
-import { bootSiteDir } from "../../boot-site-dir.js";
+import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
 
 /**
  * @file SPEC-003 C-008 (`bootSiteDir`) — TDD certification, integration tier.
@@ -18,24 +21,10 @@ import { bootSiteDir } from "../../boot-site-dir.js";
  * EC-05, EC-07, EC-09, and CIC U-002 (Schema guard comparison + atomic stamp write) Binding
  * constraints U-002-B1/B2/B3 and Required Ordering U-002-ORD1/ORD2.
  *
- * `bootSiteDir` does not exist yet — expected to fail to compile/run until Programmer implements
- * `src/platform/site-dir/boot-site-dir.ts` (tasks.md T016). Correct TDD state.
- *
- * Fixtures below build the on-disk install dir directly with the EXISTING, already-real
- * `openContentDb` (not `initSite`, which is a separate not-yet-implemented unit under test
- * elsewhere) — `openContentDb` always migrates its target db to the runtime's CURRENT latest
- * schema when opened (Drizzle's `migrate()` is unconditional and idempotent), so an "older site"
- * fixture is modeled the same way ADR-PIPE-003's own Data Consistency scorecard describes real
- * crash-safety: the STAMP FILE can legitimately claim an older version than a db that is, in
- * fact, already fully current — `migrate()` on such a db is a safe no-op, exactly mirroring a
- * real "site was migrated once already, boot again" scenario.
+ * Fixtures use `openContentDb` for the current frozen schema. The migration round-trip case
+ * replaces that database with a genuinely partial legacy chain; the stamp-write failure case
+ * starts at the frozen head and verifies runner adoption finishes before the metadata write.
  */
-
-const IS_ROOT = typeof process.getuid === "function" && process.getuid() === 0;
-const SKIP_PERMISSION_TESTS = process.platform === "win32" || IS_ROOT;
-const SKIP_REASON = process.platform === "win32"
-  ? "POSIX chmod fault injection is not portable to win32"
-  : "running as root bypasses POSIX permission checks, making this fault injection a false pass";
 
 function mkTempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-boot-site-dir-"));
@@ -188,17 +177,44 @@ test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+
   assert.ok(runtime.index > 0, "fixture assumption: at least 2 bundled migrations exist");
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index - 1, schemaTag: "an-older-tag" } });
   try {
+    // Replace the current-schema fixture with the actual frozen chain minus its final entry.
+    const dbPath = path.join(dir, "content.db");
+    fs.rmSync(dbPath);
+    const older = openSqliteContentConnection(dbPath);
+    try {
+      const kernel = sqliteKernel<unknown>(older);
+      await kernel.transaction(() => applyLegacyEntries(kernel, readFrozenChain().slice(0, -1)));
+      older.insert(workspaces).values({ id: "ws-fixture", name: "Fixture", slug: "fixture", createdAt: "2026-01-01T00:00:00.000Z" }).run();
+      assert.equal(older.$client.prepare("SELECT name FROM sqlite_schema WHERE name = 'external_mcp_tool_approvals'").get(), undefined);
+    } finally {
+      older.$client.close();
+    }
     const first = await bootSiteDir({ dir });
     assert.equal(first.workspaceId, "ws-fixture");
+    assert.ok(first.db);
+    assert.ok(first.db.$client.prepare("SELECT name FROM sqlite_schema WHERE name = 'external_mcp_tool_approvals'").get(), "boot must physically apply the missing schema");
+    assert.deepEqual(first.db.$client.prepare("SELECT id, name, slug, created_at FROM workspaces WHERE id = 'ws-fixture'").get(), {
+      id: "ws-fixture", name: "Fixture", slug: "fixture", created_at: "2026-01-01T00:00:00.000Z",
+    });
+    assert.deepEqual(first.db.$client.prepare("SELECT id FROM tovu_migrations ORDER BY id").all(), CONTENT_MIGRATIONS.map(({ id }) => ({ id })));
+    await closeSiteDirBoot(first);
 
-    const metaAfterFirst = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
+    const metaPath = path.join(dir, ".site-meta.json");
+    const metaAfterFirst = JSON.parse(fs.readFileSync(metaPath, "utf8"));
     assert.equal(metaAfterFirst.schemaVersion, runtime.index, "BR-06: schemaVersion must be bumped to the runtime's after a successful migration");
     assert.equal(metaAfterFirst.schemaTag, runtime.tag, "BR-06: schemaTag must be bumped together with schemaVersion, not left stale");
 
     // INV-05/AC-07 round trip: re-serving the now-current site with the same runtime must not
     // falsely trip SiteNewerThanRuntimeError.
+    // Give the stamp a recognizable old mtime so even an identical-byte rewrite is observable.
+    fs.utimesSync(metaPath, new Date("2020-01-01T00:00:00Z"), new Date("2020-01-01T00:00:00Z"));
+    const stampBefore = fs.statSync(metaPath);
     const second = await bootSiteDir({ dir });
     assert.equal(second.workspaceId, "ws-fixture");
+    await closeSiteDirBoot(second);
+    const stampAfter = fs.statSync(metaPath);
+    assert.equal(stampAfter.mtimeMs, stampBefore.mtimeMs, "an already-current boot must not rewrite the metadata");
+    assert.equal(stampAfter.ino, stampBefore.ino);
     const metaAfterSecond = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
     assert.equal(metaAfterSecond.schemaVersion, runtime.index);
     assert.equal(metaAfterSecond.schemaTag, runtime.tag);
@@ -268,29 +284,45 @@ test("EC-05: content.db locked by another process -> SiteCorruptError-class fail
   }
 });
 
-test("U-002-B2/U-002-ORD1: when the .site-meta.json stamp write is blocked (dir made read-only after migrate()-worthy content already exists), the OLD stamp survives byte-for-byte unchanged — never a torn write — and a later retry completes cleanly with both fields bumped together", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
+test("U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration preserves the OLD stamp byte-for-byte, and a retry bumps both fields together", async (t) => {
   const runtime = runtimeSchemaVersion();
   assert.ok(runtime.index > 0);
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index - 1, schemaTag: "an-older-tag" } });
   const metaPath = path.join(dir, ".site-meta.json");
   const originalMetaText = fs.readFileSync(metaPath, "utf8");
 
-  fs.chmodSync(dir, 0o555); // blocks creating the temp file the atomic rename needs; content.db's OWN bytes remain writable (its permission bits are untouched by the dir's mode)
+  const writeFailure = Object.assign(new Error("blocked metadata temp-file write"), { code: "EACCES" });
+  const originalWrite = fs.writeFileSync;
+  let blockedWrites = 0;
+  const writeMock = t.mock.method(fs, "writeFileSync", (file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+    if (typeof file === "string" && path.dirname(file) === dir && path.basename(file).startsWith("..site-meta.json.") && file.endsWith(".tmp")) {
+      blockedWrites += 1;
+      const migrated = new Database(path.join(dir, "content.db"), { readonly: true });
+      try {
+        assert.deepEqual(migrated.prepare("SELECT id FROM tovu_migrations ORDER BY id").all(), CONTENT_MIGRATIONS.map(({ id }) => ({ id })), "all migrations must finish before the stamp write is attempted");
+        assert.equal(fs.readFileSync(metaPath, "utf8"), originalMetaText);
+      } finally {
+        migrated.close();
+      }
+      throw writeFailure;
+    }
+    return originalWrite(file, data, options);
+  });
   try {
-    await assert.rejects(() => bootSiteDir({ dir }), "the stamp write must fail when the containing directory cannot accept a new temp-file entry");
-    fs.chmodSync(dir, 0o755); // restore before reading, in case the impl left a lingering handle
+    await assert.rejects(() => bootSiteDir({ dir }), (error) => error === writeFailure);
+    assert.equal(blockedWrites, 1, "the failure must come specifically from the metadata write");
     const metaAfterFailedAttempt = fs.readFileSync(metaPath, "utf8");
     assert.equal(metaAfterFailedAttempt, originalMetaText, "U-002-ORD1: the stamp must be left completely unchanged (old version) — never partially bumped");
   } finally {
-    fs.chmodSync(dir, 0o755);
+    writeMock.mock.restore();
   }
 
-  // Retry now that the dir is writable — Drizzle's migrate() is idempotent (ADR-015's
-  // __drizzle_migrations journal), so re-running bootSiteDir must succeed cleanly and bump both
-  // fields together this time.
+  // Retry after removing the write failure: the runner is idempotent, and both stamp fields
+  // must advance together now that the metadata write can finish.
   try {
     const result = await bootSiteDir({ dir });
     assert.equal(result.workspaceId, "ws-fixture");
+    await closeSiteDirBoot(result);
     const metaAfterRetry = JSON.parse(fs.readFileSync(metaPath, "utf8"));
     assert.equal(metaAfterRetry.schemaVersion, runtime.index);
     assert.equal(metaAfterRetry.schemaTag, runtime.tag);

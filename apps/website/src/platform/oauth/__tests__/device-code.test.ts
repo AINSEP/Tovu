@@ -53,6 +53,46 @@ test("Google's pre-RFC `verification_url` spelling is accepted rather than repor
   assert.equal(started.verificationUri, "https://auth.example.com/activate");
 });
 
+for (const field of ["device_code", "user_code"] as const) {
+  for (const value of [undefined, "", null, 42]) {
+    test(`begin refuses ${field}=${String(value)} instead of returning an unusable authorization`, async () => {
+      const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, [field]: value } }]);
+      const error = await assertOAuthRejects(
+        () => beginDeviceAuthorization({ provider: TEST_PROVIDER, clock: createTestClock(), fetchFn: http.fetchFn }, { client: TEST_CLIENT }),
+        "OAUTH_MALFORMED_RESPONSE",
+      );
+      assert.equal(error.message, `the device authorization response is missing '${field}'`);
+    });
+  }
+}
+
+for (const [expiresIn, expiresAt] of [
+  [999999, "2026-08-25T12:30:00.000Z"],
+  [1, "2026-08-25T12:00:30.000Z"],
+] as const) {
+  test(`begin clamps expires_in=${expiresIn} to a bounded local deadline`, async () => {
+    const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, expires_in: expiresIn } }]);
+    const started = await beginDeviceAuthorization(
+      { provider: TEST_PROVIDER, clock: createTestClock(), fetchFn: http.fetchFn }, { client: TEST_CLIENT },
+    );
+    assert.equal(started.expiresAt, expiresAt);
+  });
+}
+
+for (const completeUri of [
+  "javascript:alert(1)",
+  "http://auth.example.com/activate?user_code=WDJB-MJHT",
+  "https://user:secret@auth.example.com/activate?user_code=WDJB-MJHT",
+]) {
+  test(`begin refuses an unsafe prefilled verification link: ${completeUri}`, async () => {
+    const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, verification_uri_complete: completeUri } }]);
+    await assertOAuthRejects(
+      () => beginDeviceAuthorization({ provider: TEST_PROVIDER, clock: createTestClock(), fetchFn: http.fetchFn }, { client: TEST_CLIENT }),
+      "OAUTH_UNSAFE_ENDPOINT",
+    );
+  });
+}
+
 test("a javascript: verification URI is refused — it would be rendered to an operator as a link", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, verification_uri: "javascript:alert(1)", verification_uri_complete: null } }]);
