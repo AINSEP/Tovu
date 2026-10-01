@@ -35,12 +35,35 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth.js";
 
 const require = createRequire(import.meta.url);
 
-export function resolveMcpJsonInjection(daemonUrl: string): McpJsonInjectionOptions {
+/** The process facts that decide how the bridge is launched; injectable so both runtimes are testable. */
+export interface BridgeRuntime {
+  readonly execPath: string;
+  /** `process.versions.electron`: set whenever this process is the Electron binary, even as Node. */
+  readonly electronVersion: string | undefined;
+  readonly env: Readonly<Record<string, string | undefined>>;
+}
+
+const currentRuntime = (): BridgeRuntime => ({
+  execPath: process.execPath,
+  electronVersion: process.versions.electron,
+  env: process.env,
+});
+
+export function resolveMcpJsonInjection(
+  daemonUrl: string,
+  runtime: BridgeRuntime = currentRuntime(),
+): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");
   const script = join(dirname(entryPoint), "bin", "serve.js");
+  // Inside the desktop app `execPath` is the Tovu Electron binary, which boots as a GUI app unless
+  // ELECTRON_RUN_AS_NODE is set: the bridge then never speaks MCP, Claude times it out, and the run
+  // has zero Tovu tools (2026-10-01). Jini's agent env allowlist strips this process's own copy
+  // before the CLI spawns the bridge, so it has to travel on the bridge entry itself.
+  const underElectron = runtime.electronVersion !== undefined || runtime.env.ELECTRON_RUN_AS_NODE !== undefined;
   return {
-    command: process.execPath,
+    command: runtime.execPath,
     args: [script],
+    ...(underElectron ? { env: { ELECTRON_RUN_AS_NODE: "1" } } : {}),
     daemonUrl,
     credential: () => {
       const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
