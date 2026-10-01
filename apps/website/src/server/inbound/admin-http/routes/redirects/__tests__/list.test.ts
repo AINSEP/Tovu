@@ -3,6 +3,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import type { RedirectRecord } from "#src/features/redirects/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -15,6 +16,11 @@ import type { RedirectRouteDeps } from "#src/server/inbound/admin-http/http/redi
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/redirects`;
 const URL_BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`;
+
+const rules: RedirectRecord[] = [
+  { id: "redirect-one", workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-one", toTarget: "/new-one", statusCode: 301, status: "active", override: false, priority: 7, source: "manual", createdByPrincipal: "owner", createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-02T00:00:00.000Z", version: 2 },
+  { id: "redirect-two", workspaceId: WORKSPACE_ID, matchType: "prefix", fromPattern: "/legacy/", toTarget: "https://example.com/current/", statusCode: 302, status: "disabled", override: true, priority: 11, source: "import", sourceEntryId: "post-2", fromPathAtCapture: "/legacy/", toPathAtCapture: "/current/", createdByPrincipal: "editor", createdByPluginId: "importer", createdAt: "2026-09-03T00:00:00.000Z", updatedAt: "2026-09-04T00:00:00.000Z", version: 3 },
+];
 
 function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): { app: express.Express; deps: RedirectRouteDeps } {
   const base = createRouteDeps();
@@ -67,13 +73,18 @@ test("LIST_REDIRECTS route: 403 when principal is not authorized", async (t) => 
 });
 
 test("LIST_REDIRECTS route: 200 success without filters", async (t) => {
-  const { app } = buildApp();
+  let capturedQuery: unknown;
+  const { app } = buildApp({ redirectRepo: {
+    list: async (query: unknown) => { capturedQuery = query; return rules; },
+  } as RedirectRouteDeps["redirectRepo"] });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(res.status, 200);
   const body = (await res.json()) as { data: unknown[] };
   assert.ok(Array.isArray(body.data));
+  assert.deepEqual(body.data, [{ ...rules[0], sourceEntryId: null, fromPathAtCapture: null, toPathAtCapture: null, createdByPluginId: null }, rules[1]]);
+  assert.deepEqual(capturedQuery, { workspaceId: WORKSPACE_ID, status: undefined, source: undefined, matchType: undefined });
 });
 
 test("LIST_REDIRECTS route: 200 success with status, source, and matchType filters", async (t) => {
@@ -81,7 +92,7 @@ test("LIST_REDIRECTS route: 200 success with status, source, and matchType filte
   const mockRepo = {
     list: async (query: unknown) => {
       capturedQuery = query;
-      return [];
+      return [rules[0]];
     },
   };
   const { app } = buildApp({
@@ -92,7 +103,7 @@ test("LIST_REDIRECTS route: 200 success with status, source, and matchType filte
   const res = await fetch(`${baseUrl}${URL_BASE}?status=active&source=manual&matchType=exact`);
   assert.equal(res.status, 200);
   const body = (await res.json()) as { data: unknown[] };
-  assert.deepEqual(body.data, []);
+  assert.deepEqual(body.data, [{ ...rules[0], sourceEntryId: null, fromPathAtCapture: null, toPathAtCapture: null, createdByPluginId: null }]);
   assert.deepEqual(capturedQuery, {
     workspaceId: WORKSPACE_ID,
     status: "active",
