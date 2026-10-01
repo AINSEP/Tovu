@@ -50,10 +50,17 @@ describe("the toolRegistrations registration loop", () => {
   test("the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array", () => {
     assert.match(
       registrationLoopSource,
-      /for \(const registration of withPageNavigateErrorRewrap\(frontendControl\.toolRegistrations\)\)/,
+      /for \(const registration of withPageNavigateErrorRewrap\(withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)\)\)/,
       "the registration loop must wrap frontendControl.toolRegistrations in withPageNavigateErrorRewrap(...) " +
         "before iterating — registering the bare array again would silently drop the page.navigate error rewrap",
     );
+  });
+
+  // The read-only gateway refused page.find_elements and admin.capture_screenshot until this
+  // wrapper marked them; a correct wrapper the loop never calls would leave that refusal in place.
+  test("the loop marks the read-only frontend capabilities before registering", () => {
+    assert.match(registrationLoopSource, /withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)/);
+    assert.match(DAEMON_ENTRY_SOURCE, /^\s+withReadOnlyFrontendCapabilities,$/m, "expected withReadOnlyFrontendCapabilities in the agent-daemon-port import list");
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {

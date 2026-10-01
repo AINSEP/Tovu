@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import type { ToolExecutionContext } from "@jini-ai/core";
+import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import type { PendingAttachmentSummary } from "@jini-ai/http-kit";
 
 import {
@@ -101,4 +101,12 @@ describe("buildListPendingChatAttachmentsTool", () => {
 
     await assert.rejects(registration.handler(executionContext()), /attachment store is not ready/);
   });
+});
+
+// It only filters an in-memory map (`listPendingForOwner` in `@jini-ai/http-kit`'s attachments.ts),
+// so the read-only gateway may run it. Before this flag, `execute_readonly_delegated_tool` refused it
+// (chat 94b1063a, 2026-09-07).
+test("is registered read-only, so the read-only delegated-tool gateway accepts it", () => {
+  const registration = buildListPendingChatAttachmentsTool({ getStore: () => fakeStore([]) });
+  assert.equal(isReadOnlyTool(registration.descriptor), true);
 });

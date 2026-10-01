@@ -94,6 +94,7 @@
  * upstream and does not depend on this host's confirmation-transport gap at all.
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
+import type { ToolRegistration } from "@jini-ai/core";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
 import { PUBLISH_CONTENT_CAPABILITY } from "../features/publish-content/ui/criteria.js";
 
@@ -169,3 +170,29 @@ export const FRONTEND_CONTROL_CAPABILITIES: readonly CapabilityDef[] = [
   ...CHAT_CAPABILITIES.filter((capability) => capability.requiresConfirmation !== true),
   ...TOVU_FRONTEND_CAPABILITIES,
 ];
+
+/**
+ * Frontend capabilities that only read, so `execute_readonly_delegated_tool` may run them.
+ * `createFrontendCapabilityRegistrations` (`@jini-ai/daemon`) does not project `risk` onto the
+ * descriptor, so without this every frontend verb is refused there.
+ *
+ * Named one by one rather than taken from `risk: 'read'`: `page.highlight` and `page.scroll_to` are
+ * `risk: 'read'` too, but they change what the person sees. `page.find_elements` queries the DOM
+ * (`dom-page-driver.ts`'s `findElements`); `admin.capture_screenshot` rasterizes a copy of the page
+ * (`apps/admin/src/lib/agent-screenshot.ts`). Neither writes anything.
+ */
+export const READ_ONLY_FRONTEND_CAPABILITY_IDS: ReadonlySet<string> = new Set(["page.find_elements", "admin.capture_screenshot"]);
+
+/**
+ * Marks the {@link READ_ONLY_FRONTEND_CAPABILITY_IDS} registrations `readOnly: true`. Every other
+ * registration, and every handler and policy, is returned unchanged.
+ *
+ * @complexity O(n) in the registration count.
+ */
+export function withReadOnlyFrontendCapabilities(registrations: readonly ToolRegistration[]): readonly ToolRegistration[] {
+  return registrations.map((registration) =>
+    READ_ONLY_FRONTEND_CAPABILITY_IDS.has(registration.descriptor.id)
+      ? { ...registration, descriptor: { ...registration.descriptor, readOnly: true } }
+      : registration,
+  );
+}

@@ -140,6 +140,7 @@ import {
   requireAgentDaemonToken,
   AGENT_DAEMON_EXIT_CODE,
   FRONTEND_CONTROL_CAPABILITIES,
+  withReadOnlyFrontendCapabilities,
   withFederatedRefusalDiagnosis,
   createLiveToolCatalogQuery,
   createDeviceAuthorizationStore,
@@ -526,7 +527,9 @@ const frontendControl = createFrontendControl({
 // `page-executor.ts:414`) cannot be misread as this codebase's own, unrelated
 // `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
 // full rationale. Every other registration passes through unchanged.
-for (const registration of withPageNavigateErrorRewrap(frontendControl.toolRegistrations)) {
+// `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
+// so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
+for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations))) {
   registry.register(lostFrontendBindings.wrap(registration));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`

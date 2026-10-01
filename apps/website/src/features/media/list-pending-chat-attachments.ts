@@ -102,6 +102,9 @@ export function buildListPendingChatAttachmentsTool(deps: {
         "attachments the current user uploaded, and not yet claimed by any run, are returned; an " +
         "empty list means there is nothing pending.",
       inputSchema: INPUT_SCHEMA,
+      // `listPendingForOwner` only filters the store's in-memory records; it claims, prunes and
+      // deletes nothing, so the read-only delegated-tool gateway may run this.
+      readOnly: true,
     },
     handler,
     // Pass-through `allow`, same reasoning as `media_promote_chat_attachment`'s own registration:

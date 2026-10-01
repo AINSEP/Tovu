@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { isReadOnlyTool } from "@jini-ai/core";
 import { createFrontendControl } from "@jini-ai/http-kit";
 
-import { FRONTEND_CONTROL_CAPABILITIES } from "../frontend-control-capabilities.js";
+import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "../frontend-control-capabilities.js";
 
 /**
  * @file Pins the one invariant `agent-daemon-server.ts`'s `createFrontendControl` call depends on:
@@ -152,4 +153,35 @@ test("createFrontendControl registers exactly the seven chat.* verbs as callable
     [],
     "no registered tool descriptor may require confirmation with no confirmation transport wired",
   );
+});
+
+// The read-only delegated-tool gateway refused both of these (chats a502d76e, 0466a823, ce5f1e2e,
+// e9b7746a) because `createFrontendCapabilityRegistrations` projects no read-only flag from `risk`.
+// Only these two are marked: page.highlight and page.scroll_to are also `risk: 'read'` but change
+// what the person sees, and every write verb must stay refused.
+test("only page.find_elements and admin.capture_screenshot are registered read-only", () => {
+  const frontendControl = createFrontendControl({
+    capabilities: FRONTEND_CONTROL_CAPABILITIES,
+    resolveBindToken: () => undefined,
+  });
+  const readOnlyIds = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations)
+    .filter((registration) => isReadOnlyTool(registration.descriptor))
+    .map((registration) => registration.descriptor.id)
+    .sort();
+  assert.deepEqual(readOnlyIds, ["admin.capture_screenshot", "page.find_elements"]);
+});
+
+test("marking read-only keeps each registration's handler and policy", () => {
+  const frontendControl = createFrontendControl({
+    capabilities: FRONTEND_CONTROL_CAPABILITIES,
+    resolveBindToken: () => undefined,
+  });
+  const marked = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations);
+  assert.equal(marked.length, frontendControl.toolRegistrations.length);
+  marked.forEach((registration, i) => {
+    const original = frontendControl.toolRegistrations[i]!;
+    assert.equal(registration.handler, original.handler);
+    assert.equal(registration.policy, original.policy);
+    assert.deepEqual({ ...registration.descriptor, readOnly: undefined }, { ...original.descriptor, readOnly: undefined });
+  });
 });
