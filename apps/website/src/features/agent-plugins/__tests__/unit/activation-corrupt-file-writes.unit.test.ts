@@ -475,26 +475,40 @@ test("T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not 
   }
 });
 
-test("T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released", async () => {
+test("T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released", { timeout: 5000 }, async (t) => {
   const root = await freshRoot();
+  let writePromise: Promise<void> | undefined;
   try {
-    await writeFile(path.join(root, "activations.json"), '{"schemaVersion":1,"plugins":{}}\n', "utf8");
-    // Our OWN pid, so the default liveness probe reports it alive — a genuinely live holder, not a
-    // dead one that would be broken immediately.
+    const initial = '{"schemaVersion":1,"plugins":{}}\n';
+    await writeFile(path.join(root, "activations.json"), initial, "utf8");
     await plantLock(root, process.pid);
-
-    const writePromise = setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" });
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const raceResult = await Promise.race([writePromise.then(() => "resolved"), Promise.resolve("pending")]);
-    assert.equal(raceResult, "pending", "the write must still be pending while a live foreign lock is held");
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "active", "no record may exist yet");
+    const planted = await readFile(lockPathFor(root), "utf8");
+    const realKill = process.kill.bind(process);
+    let attempts = 0;
+    let observed!: () => void;
+    const retried = new Promise<void>((resolve) => { observed = resolve; });
+    t.mock.method(process, "kill", (pid: number, signal?: NodeJS.Signals | number) => {
+      const result = realKill(pid, signal);
+      if (pid === process.pid && signal === 0 && ++attempts === 2) observed();
+      return result;
+    });
+    let settled = false;
+    writePromise = setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" }).then(() => { settled = true; });
+    const stage = await Promise.race([retried.then(() => "retry"), writePromise.then(() => "published")]);
+    assert.equal(stage, "retry", "the writer must encounter the live lock and retry before publishing");
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false);
+    assert.equal(await readFile(lockPathFor(root), "utf8"), planted, "the live holder must not be stolen");
+    assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), initial);
+    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "active");
 
     await unlink(lockPathFor(root));
-
     await writePromise;
     assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+    await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
   } finally {
+    await unlink(lockPathFor(root)).catch(() => undefined);
+    await writePromise?.catch(() => undefined);
     await forceRemove(root);
   }
 });

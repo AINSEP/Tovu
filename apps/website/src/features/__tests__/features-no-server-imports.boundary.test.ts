@@ -16,7 +16,7 @@
  * The dependency runs the other way by design — `server/` composes `features/` (443 edges), and
  * `features/` composes nothing of `server/` (0).
  *
- * Method: scan every production `.ts`/`.tsx` under `src/features/`, extract every import specifier,
+ * Method: scan every production TypeScript/JavaScript file under `src/features/`, extract every import specifier,
  * and resolve it. A specifier is a violation when it names the `express` package, resolves inside
  * `src/server/`, or names `apps/admin`. `__tests__/` is excluded, on exactly the reasoning
  * `.dependency-cruiser.mjs` already applies to every one of its own boundary rules: an integration
@@ -35,20 +35,33 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import os from "node:os";
+import ts from "typescript";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../..");
 const FEATURES_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "features");
 const SERVER_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server");
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
+const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 
-/**
- * Every import specifier, whatever the syntax. Matches `from "x"`, `import("x")` and `require("x")`
- * so `import`, `export ... from`, `import type`, dynamic import and CJS require are all covered by
- * one pattern rather than four that could drift apart.
- */
-const SPECIFIER_PATTERN = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)(["'])([^"']+)\1/g;
+/** Use the language parser so side-effect imports count and comments do not. */
+function importSpecifiers(source: string): string[] {
+  const file = ts.createSourceFile("boundary.ts", source, ts.ScriptTarget.Latest, true);
+  const specifiers: string[] = [];
+  function visit(node: ts.Node): void {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      specifiers.push(node.moduleSpecifier.text);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression && ts.isStringLiteral(node.moduleReference.expression)) {
+      specifiers.push(node.moduleReference.expression.text);
+    } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require")) && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
+      specifiers.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return specifiers;
+}
 
 /** `express` and `express/lib/...`, but not a package that merely starts with those letters. */
 const EXPRESS_PACKAGE = /^express(?:\/|$)/;
@@ -98,9 +111,9 @@ test("no production file under src/features/ imports src/server/, Express, or th
   const offenders: string[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.matchAll(SPECIFIER_PATTERN)) {
-      const reason = violationReason(file, match[2]);
-      if (reason) offenders.push(`${path.relative(REPO_ROOT, file)} ${reason}: "${match[2]}"`);
+    for (const specifier of importSpecifiers(source)) {
+      const reason = violationReason(file, specifier);
+      if (reason) offenders.push(`${path.relative(REPO_ROOT, file)} ${reason}: "${specifier}"`);
     }
   }
 
@@ -109,4 +122,34 @@ test("no production file under src/features/ imports src/server/, Express, or th
     [],
     `src/features/INFO.md: features must not import server/framework code. Offending edges:\n  ${offenders.join("\n  ")}`,
   );
+});
+
+test("the boundary scanner sees bare, static, re-export, dynamic and require imports", () => {
+  const specifiers = importSpecifiers(`
+    import "express";
+    import "#src/server/app";
+    import type { Express } from "express/lib/types";
+    export { boot } from "../../server/boot.js";
+    const app = import("#src/server/lazy");
+    const admin = require("apps/admin/widget");
+    // import "express/comment";
+    const text = 'import "express/string"';
+  `);
+  assert.deepEqual(specifiers, ["express", "#src/server/app", "express/lib/types", "../../server/boot.js", "#src/server/lazy", "apps/admin/widget"]);
+  const fromFile = path.join(FEATURES_ROOT, "example", "index.ts");
+  assert.ok(specifiers.every((specifier) => violationReason(fromFile, specifier) !== null));
+});
+
+test("the collector scans JavaScript and module extensions while excluding test fixtures", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "feature-boundary-"));
+  try {
+    for (const name of ["a.js", "b.mts", "c.cts", "d.mjs", "e.cjs", "f.jsx", "g.ts", "h.tsx", "ignored.json"]) fs.writeFileSync(path.join(root, name), "");
+    fs.mkdirSync(path.join(root, "__tests__"));
+    fs.writeFileSync(path.join(root, "__tests__", "test.ts"), "");
+    const files: string[] = [];
+    collectProductionFiles(root, files);
+    assert.deepEqual(files.map((file) => path.basename(file)).sort(), ["a.js", "b.mts", "c.cts", "d.mjs", "e.cjs", "f.jsx", "g.ts", "h.tsx"]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -42,6 +42,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "./ports.js";
+import { CommentsSettingsValidationError } from "./errors.js";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
 import type {
   CommentsSettings,
@@ -288,7 +289,10 @@ export function buildCommentsRegistrations(
           principals: routeDeps.principalRepo,
         },
         { workspaceId: routeDeps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
-      );
+      ).catch((error: unknown) => {
+        if (error instanceof CommentsSettingsValidationError) throw new ToolInputError(error.message);
+        throw error;
+      });
       return { settings };
     },
 

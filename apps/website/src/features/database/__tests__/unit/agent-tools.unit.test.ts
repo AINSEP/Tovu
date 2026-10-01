@@ -24,6 +24,17 @@ test("AC-24 / REQ-20: every read tool in the catalog requires only 'database.rea
   const readTools = catalog.filter((t) => t.sideEffects === "none");
 
   assert.ok(readTools.length >= 5, "REQ-20 names five free-read tools");
+  assert.deepEqual(catalog.map((tool) => [tool.name, tool.authorization.permission, tool.sideEffects]).sort((a, b) => a[0]!.localeCompare(b[0]!)), [
+    ["backup_create_restore_point", "backup.create", "mutates-durable-state"],
+    ["database_execute_migrate_forward", "database.migrate", "mutates-durable-state"],
+    ["database_get_health", "database.read", "none"],
+    ["database_get_restore_guidance", "database.read", "none"],
+    ["database_get_schema_state", "database.read", "none"],
+    ["database_list_pending_migrations", "database.read", "none"],
+    ["database_list_restore_points", "database.read", "none"],
+    ["database_plan_migrate_forward", "database.read", "none"],
+    ["database_query_timeline", "database.read", "none"],
+  ]);
   for (const tool of readTools) {
     assert.equal(tool.authorization.permission, "database.read");
   }
@@ -49,6 +60,11 @@ test("AC-28 / REQ-23: an agent seeking to trigger a restore only finds a guidanc
   const catalog = getDatabaseAgentToolCatalog();
   const guidanceTool = catalog.find((t) => /restore.guidance/i.test(t.name));
 
+  assert.deepEqual(catalog.filter((tool) => /restore/i.test(tool.name)).map((tool) => [tool.name, tool.sideEffects]), [
+    ["database_list_restore_points", "none"],
+    ["backup_create_restore_point", "mutates-durable-state"],
+    ["database_get_restore_guidance", "none"],
+  ]);
   assert.ok(guidanceTool, "a guidance tool must exist for the rollback hand-off");
   assert.equal(guidanceTool?.sideEffects, "none", "the guidance tool must never itself mutate state or execute a restore");
 });

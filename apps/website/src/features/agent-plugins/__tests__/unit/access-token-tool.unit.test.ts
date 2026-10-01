@@ -4,7 +4,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs, saveExternalMcpServer, type UIResource } from "#src/assistant/index";
 import { isMcpUiToolCallAllowed } from "#src/assistant/mcp-ui-tool-calls";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "#src/contracts/core/tool-surface-exchanges";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
@@ -55,7 +55,7 @@ class FakeVendorApi implements HttpClientPort {
 }
 
 async function setup(
-  options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string; allowedToolNames?: string; pluginOffByOperator?: boolean; switchOnFails?: boolean } = {},
+  options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string; allowedToolNames?: string; pluginOffByOperator?: boolean; switchOnFails?: boolean; permissionDenied?: boolean } = {},
 ) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
@@ -84,7 +84,7 @@ async function setup(
   const servers = options.servers === undefined ? SUPABASE_SERVERS : options.servers;
   const deps: AgentPluginAccessTokenToolDeps = {
     workspaceId: WORKSPACE,
-    authorize: (async () => ({ allowed: true, reason: "matched" })) as unknown as AgentPluginAccessTokenToolDeps["authorize"],
+    authorize: (async () => ({ allowed: !options.permissionDenied, reason: options.permissionDenied ? "no_grant" : "matched" })) as unknown as AgentPluginAccessTokenToolDeps["authorize"],
     clock,
     externalMcpServerRepo: repo,
     siteAssistantSecretSealer: sealer,
@@ -110,22 +110,22 @@ async function setup(
 
 type Env = Awaited<ReturnType<typeof setup>>;
 
-function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter } = {}) {
+function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter; signal?: AbortSignal } = {}) {
   assert.ok(registration, "tool must be wired");
   const ctx: ToolExecutionContext = {
     executionId: "exec-1",
     principal: { id: PRINCIPAL },
     run: { id: "run-1" },
     input: options.input ?? { pluginId: "supabase" },
-    signal: new AbortController().signal,
+    signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
   return registration.handler(ctx);
 }
 
-async function raise(tools: Map<string, ToolRegistration>) {
+async function raise(tools: Map<string, ToolRegistration>, signal?: AbortSignal) {
   const emitted: unknown[] = [];
-  const pending = call(tools.get(SET_TOKEN), { emitSurface: async (surface) => void emitted.push(surface) });
+  const pending = call(tools.get(SET_TOKEN), { emitSurface: async (surface) => void emitted.push(surface), signal });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
@@ -181,7 +181,7 @@ test("with no emitSurface the token tool fails closed with no exchange and no ne
   assert.equal(env.http.requests.length, 0);
 });
 
-test("the form names the plugin and links its declared tokens page, exactly as the Supabase form did", async () => {
+test("the form names the plugin and displays its declared tokens page in the help text", async () => {
   const env = await setup();
   const { html, pending, exchangeId } = await raise(env.tools);
   assert.match(html, /Connect Supabase with an access token/);
@@ -297,3 +297,66 @@ test("a failure switching on after the save still reports the token as saved, wi
   assert.equal((await env.readRow())?.authMode, "static_env");
   assert.equal(result.next, "Token saved, but Supabase could not be switched on automatically. Save the token again to retry.");
 });
+
+test("permission denial raises no form, opens no exchange and leaves the token row unchanged", async () => {
+  const env = await setup({ permissionDenied: true });
+  const before = await env.readRow();
+  const emitted: unknown[] = [];
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async (s) => void emitted.push(s) }), /no_grant/);
+  assert.deepEqual(emitted, []);
+  assert.equal(env.surfaceExchanges.size(), 0);
+  assert.deepEqual(env.http.requests, []);
+  assert.deepEqual(await env.readRow(), before);
+});
+
+test("a rejected HTTP transport returns unavailable, saves nothing and closes the exchange", async () => {
+  const env = await setup();
+  const before = await env.readRow();
+  env.http.respond = () => { throw new Error(`transport failed ${TOKEN}`); };
+  const { result, emitted } = await submit(env, { token: TOKEN });
+  assert.deepEqual(result, { saved: false, reason: "unavailable", message: "Supabase is unavailable right now. Try again shortly." });
+  assert.equal(env.http.requests.length, 1);
+  assert.deepEqual(await env.readRow(), before);
+  assert.equal(env.surfaceExchanges.size(), 0);
+  assert.ok(!JSON.stringify([result, emitted]).includes(TOKEN));
+});
+
+test("a store failure after a successful probe is redacted and leaves the previous row intact", async (t) => {
+  const env = await setup();
+  const { pending, exchangeId, emitted } = await raise(env.tools);
+  const before = await env.readRow();
+  const writes = t.mock.method(env.repo, "upsert", async () => { throw new Error(`store failed ${TOKEN}`); });
+  env.surfaceExchanges.deliver({ exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params: { token: TOKEN } });
+  const result = await pending;
+  assert.deepEqual(result, { saved: false, reason: "error", message: "The access token could not be saved. Nothing was changed." });
+  assert.equal(writes.mock.callCount(), 1);
+  assert.equal(env.http.requests.length, 1);
+  assert.deepEqual(await env.readRow(), before);
+  assert.equal(env.surfaceExchanges.size(), 0);
+  assert.ok(!JSON.stringify([result, emitted]).includes(TOKEN));
+});
+
+for (const ending of ["expired", "abandoned", "abort"] as const) {
+  test(`a pending form that is ${ending} saves nothing and rejects late answers`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const env = await setup();
+    const before = await env.readRow();
+    let exchange: SurfaceExchange | undefined;
+    const open = env.surfaceExchanges.open.bind(env.surfaceExchanges);
+    t.mock.method(env.surfaceExchanges, "open", (...args: Parameters<typeof open>) => {
+      exchange = open(...args);
+      return exchange;
+    });
+    const controller = new AbortController();
+    const { pending, exchangeId } = await raise(env.tools, controller.signal);
+    assert.equal(env.surfaceExchanges.size(), 1);
+    if (ending === "expired") t.mock.timers.tick(5 * 60 * 1000);
+    else if (ending === "abort") controller.abort();
+    else exchange!.close();
+    assert.deepEqual(await pending, { saved: false, reason: ending === "abort" ? "abandoned" : ending });
+    assert.equal(env.surfaceExchanges.size(), 0);
+    assert.deepEqual(env.surfaceExchanges.deliver({ exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params: { token: TOKEN } }), { ok: false, reason: "unknown-or-closed" });
+    assert.deepEqual(env.http.requests, []);
+    assert.deepEqual(await env.readRow(), before);
+  });
+}

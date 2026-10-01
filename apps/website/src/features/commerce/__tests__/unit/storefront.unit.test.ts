@@ -115,3 +115,14 @@ test("toSiteProducts: description is absent from the mapped shape even when the 
   ]);
   assert.equal("description" in result, false);
 });
+
+test("recurring-only products use the cheapest active price across billing intervals", () => {
+  const annual = price({ id: "annual", billingInterval: "year", unitAmountCents: 9000 });
+  const monthly = price({ id: "monthly", billingInterval: "month", unitAmountCents: 1200 });
+  const archived = price({ id: "archived-monthly", billingInterval: "month", unitAmountCents: 100, status: "archived" });
+  assert.deepEqual(pickDisplayPrice([annual, archived, monthly]), monthly);
+  assert.deepEqual(toSiteProducts([{ product: product({ kind: "membership" }), prices: [annual, archived, monthly] }]), [{
+    id: "product-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 1200,
+    currency: "usd", compareAtPrice: undefined, specs: undefined,
+  }]);
+});

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
@@ -316,6 +318,54 @@ test("missingIndexNotice: the real script actually reaches this path via console
     /console\.warn\(missingIndexNotice\(/.test(source),
     "main() must print missingIndexNotice()'s own text via console.warn, not a separate inline string"
   );
+});
+
+function fixtureChecker(t: test.TestContext) {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "governance-check-")));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const script = path.join(scratch, "development", "scripts", "check-governance-adr-scope-drift.ts");
+  fs.mkdirSync(path.dirname(script), { recursive: true });
+  fs.copyFileSync(path.join(REPO_ROOT, "development/scripts/check-governance-adr-scope-drift.ts"), script);
+  fs.writeFileSync(path.join(scratch, "package.json"), '{"type":"module"}');
+  fs.symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(scratch, "node_modules"), "dir");
+  return { scratch, run: () => spawnSync(process.execPath, ["--import", "tsx", script], { cwd: scratch, encoding: "utf8", timeout: 10_000 }) };
+}
+
+test("missing index CLI emits the unverified notice on stderr and exits zero", (t) => {
+  const { run } = fixtureChecker(t);
+  const result = run();
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /SKIPPED \(nothing verified\): no ADS-memory\/governance\/adrs\/ADR-INDEX\.md/);
+  assert.match(result.stderr, /UNVERIFIED/);
+});
+
+test("fixture index CLI checks accepted scopes against real files and fails on an empty scope", (t) => {
+  const { scratch, run } = fixtureChecker(t);
+  const codeDir = path.join(scratch, "apps/website/src/contracts/core");
+  fs.mkdirSync(codeDir, { recursive: true });
+  fs.writeFileSync(path.join(codeDir, "operation-lock.ts"), "export {};\n");
+  const index = path.join(scratch, "ADS-memory/governance/adrs/ADR-INDEX.md");
+  fs.mkdirSync(path.dirname(index), { recursive: true });
+  const header = "| ID | Title | Enforcement | Scope Globs | Status | File |\n|---|---|---|---|---|---|\n";
+  const matching = "| GOV-ADR-101 | Lock | MANDATORY | `apps/website/src/contracts/core/operation-lock.ts` | ACCEPTED | lock.md |\n";
+  fs.writeFileSync(index, header + matching);
+  const good = run();
+  assert.equal(good.error, undefined);
+  assert.equal(good.status, 0, good.stderr);
+  assert.match(good.stdout, /1 ACCEPTED row\(s\) checked/);
+  fs.writeFileSync(index, header + matching + "| GOV-ADR-102 | Missing | MANDATORY | `apps/website/src/missing/**` | ACCEPTED | missing.md |\n");
+  const bad = run();
+  assert.equal(bad.error, undefined);
+  assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /GOV-ADR-102: 'apps\/website\/src\/missing\/\*\*'/);
+  assert.doesNotMatch(bad.stderr, /GOV-ADR-101:/);
+});
+
+test("glob literals escape a dot rather than matching any character", () => {
+  assert.equal(globMatchesAnyFile("apps/website/src/operation-lock.ts", ["apps/website/src/operation-lockXts"]), false);
+  assert.equal(globMatchesAnyFile("apps/website/src/operation-lock.ts", ["apps/website/src/operation-lock.ts"]), true);
 });
 
 // ---------------------------------------------------------------------------

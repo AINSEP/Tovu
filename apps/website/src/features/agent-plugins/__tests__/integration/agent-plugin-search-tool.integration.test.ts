@@ -251,7 +251,7 @@ test("a plugin with no mcp.json at all reports an empty mcpServers array, not an
   });
 });
 
-test("SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it", async () => {
+test("SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it", { skip: process.getuid?.() === 0 ? "root bypasses chmod read permissions" : false }, async () => {
   await withAgentPluginsDir(async () => {
     const broken = await installReal(
       WORKSPACE_A,
@@ -275,6 +275,8 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
     // readable — e.g. a permissions problem on disk. chmod 0 revokes read for everyone, including
     // this test's own process.
     const skillFile = path.join(broken.packageRoot, "skills", "broken-plugin", "SKILL.md");
+    const before = await search(WORKSPACE_A, { query: "plugin" });
+    assert.equal(before.matches.find((m) => m.pluginId === "broken-plugin")?.skills.length, 1);
     await chmod(skillFile, 0o000);
 
     const result = await search(WORKSPACE_A, { query: "plugin" });
@@ -302,15 +304,17 @@ test("two installed digests of the same plugin id do not crash search — unlike
 
 test("limit is clamped, not rejected — an out-of-range value still returns a result within [1, 25]", async () => {
   await withAgentPluginsDir(async () => {
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 26; i += 1) {
       await installReal(WORKSPACE_A, `compliance-tool-${i}`, { "plugin.json": manifestJson(`compliance-tool-${i}`, { keywords: ["compliance"] }) }, `archive-limit-${i}`);
     }
 
     const zero = await search(WORKSPACE_A, { query: "compliance", limit: 0 });
-    assert.ok(zero.matches.length >= 1, "limit 0 clamps up to 1, not down to nothing");
+    assert.equal(zero.totalInstalled, 26);
+    assert.equal(zero.matches.length, 1, "limit 0 clamps up to exactly 1");
 
     const huge = await search(WORKSPACE_A, { query: "compliance", limit: 999 });
-    assert.ok(huge.matches.length <= 25, "limit is capped at 25 regardless of what was requested");
+    assert.equal(huge.totalInstalled, 26);
+    assert.equal(huge.matches.length, 25, "limit is capped at 25 regardless of what was requested");
   });
 });
 

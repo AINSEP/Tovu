@@ -227,6 +227,11 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     expect(linkNode, "Link button must produce a link mark").not.toBeNull();
     const linkMark = linkNode!.marks!.find((m) => m.type === "link") as { attrs?: { href?: string } };
     expect(linkMark.attrs?.href).toBe("https://example.com/plugins");
+    for (const [word, mark] of [["Alpha", "bold"], ["Bravo", "italic"], ["Charlie", "strike"], ["Delta", "underline"], ["Echo", "code"], ["Foxtrot", "link"]]) {
+      const node = findNode(doc, (n) => n.type === "text" && n.text === word);
+      expect(node, `${word} must remain present`).not.toBeNull();
+      expect(node!.marks?.map((m) => m.type), `${word} must carry only its own mark`).toEqual([mark]);
+    }
   });
 
   test("H1, H2 and H3 create heading nodes at the correct level, each ending Enter back at a plain paragraph", async ({ page }) => {
@@ -236,11 +241,17 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     await page.keyboard.type("Heading One");
     await clickToolbar(page, "Heading 1");
     await page.keyboard.press("Enter");
+    await page.keyboard.type("Plain after One");
+    await page.keyboard.press("Enter");
     await page.keyboard.type("Heading Two");
     await clickToolbar(page, "Heading 2");
     await page.keyboard.press("Enter");
+    await page.keyboard.type("Plain after Two");
+    await page.keyboard.press("Enter");
     await page.keyboard.type("Heading Three");
     await clickToolbar(page, "Heading 3");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Plain after Three");
 
     await saveAndWaitForConfirmation(page);
     const doc = await fetchBodyJson(page, id);
@@ -252,6 +263,11 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     ] as const) {
       const heading = findNode(doc, (n) => n.type === "heading" && n.attrs?.level === level && (n.content ?? []).some((c) => c.text === text));
       expect(heading, `"${text}" must be a level-${level} heading, not any other level`).not.toBeNull();
+    }
+    for (const text of ["Plain after One", "Plain after Two", "Plain after Three"]) {
+      const parent = doc.content?.find((n) => n.content?.some((c) => c.text === text));
+      expect(parent, `${text} must persist after Enter`).toBeDefined();
+      expect(parent!.type).toBe("paragraph");
     }
   });
 
@@ -320,6 +336,11 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     expect(findNodeOfType(doc, "horizontalRule"), "the Divider button must produce a horizontalRule node").not.toBeNull();
     expect(findNode(doc, (n) => n.text === "Before")).not.toBeNull();
     expect(findNode(doc, (n) => n.text === "After")).not.toBeNull();
+    const beforeIndex = doc.content?.findIndex((n) => n.type === "paragraph" && n.content?.some((c) => c.text === "Before")) ?? -1;
+    expect(beforeIndex).toBeGreaterThanOrEqual(0);
+    expect(doc.content!.slice(beforeIndex).map((n) => ({ type: n.type, text: (n.content ?? []).map((c) => c.text ?? "").join("") }))).toEqual([
+      { type: "paragraph", text: "Before" }, { type: "horizontalRule", text: "" }, { type: "paragraph", text: "After" },
+    ]);
   });
 
   test("each align button sets the current paragraph's textAlign attr to its own value, not a neighbor's", async ({ page }) => {
@@ -344,6 +365,8 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     await saveAndWaitForConfirmation(page);
     const finalDoc = await fetchBodyJson(page, id);
     const finalParagraph = findNode(finalDoc, (n) => n.type === "paragraph" && (n.content ?? []).some((c) => c.text === "Aligned text"));
+    expect(finalParagraph, "Align left must preserve the target paragraph").not.toBeNull();
+    expect(finalParagraph!.content?.map((n) => n.text ?? "").join("")).toBe("Aligned text");
     // "left" is the CSS default the public renderer never emits as an explicit style
     // (`tiptap-render-contract.test.ts`'s own "paragraph, textAlign left" row) — what matters here is
     // only that it is no longer "center"/"right"/"justify", not the exact stored representation.

@@ -91,6 +91,17 @@ test("check() POSTs to the comment-check endpoint, form-encoded, without a user_
   assert.equal(params.get("comment_content"), "A normal comment.");
   assert.equal(params.has("user_ip"), false, "no raw IP is ever available to send");
   assert.equal(params.has("user_agent"), false);
+  assert.equal(params.get("comment_type"), "comment");
+  assert.equal(params.get("comment_author_email"), "visitor@example.com");
+  assert.equal(params.get("comment_author_url"), "https://visitor.example");
+  assert.equal(req.timeoutMs, 5000);
+  await adapter.check(makeSubmission({ parentId: "parent-1" }));
+  assert.equal(new URLSearchParams(http.calls[1].body).get("comment_type"), "reply");
+});
+
+test("check() fails open for an unrecognised successful response body", async () => {
+  const adapter = new AkismetSpamCheck(new FakeHttpClient([{ status: 200, headers: {}, bodyText: "invalid" }]), CONFIG);
+  assert.deepEqual(await adapter.check(makeSubmission()), { isSpam: false, score: 0, provider: "akismet" });
 });
 
 test("check() maps a plain 'true' response to isSpam with a high-but-not-maximal score", async () => {
@@ -141,15 +152,21 @@ test("check() fails OPEN on a thrown transport error (network failure/timeout)",
 });
 
 test("report() POSTs to submit-spam / submit-ham depending on the verdict", async () => {
-  const http = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "Thanks" }]);
-  const adapter = new AkismetSpamCheck(http, CONFIG);
-  await adapter.report({ workspaceId: "workspace-1", comment: makeComment(), verdict: "spam" });
-  assert.equal(http.calls[0].url, "https://test-api-key.rest.akismet.com/1.1/submit-spam");
-
-  const http2 = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "Thanks" }]);
-  const adapter2 = new AkismetSpamCheck(http2, CONFIG);
-  await adapter2.report({ workspaceId: "workspace-1", comment: makeComment(), verdict: "ham" });
-  assert.equal(http2.calls[0].url, "https://test-api-key.rest.akismet.com/1.1/submit-ham");
+  for (const verdict of ["spam", "ham"] as const) {
+    const http = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "Thanks" }]);
+    const adapter = new AkismetSpamCheck(http, { ...CONFIG, timeoutMs: 1234 });
+    await adapter.report({ workspaceId: "workspace-1", comment: makeComment({ parentId: "parent-1", authorUrl: "https://author.example", bodyText: "Feedback & body" }), verdict });
+    assert.equal(http.calls.length, 1);
+    const req = http.calls[0];
+    assert.equal(req.url, `https://test-api-key.rest.akismet.com/1.1/submit-${verdict}`);
+    assert.equal(req.method, "POST");
+    assert.deepEqual(req.headers, { "content-type": "application/x-www-form-urlencoded" });
+    assert.equal(req.timeoutMs, 1234);
+    assert.deepEqual(Object.fromEntries(new URLSearchParams(req.body)), {
+      blog: "https://example.com", comment_type: "reply", comment_author: "Visitor",
+      comment_author_email: "visitor@example.com", comment_author_url: "https://author.example", comment_content: "Feedback & body",
+    });
+  }
 });
 
 test("report() swallows a transport error rather than throwing (best-effort feedback)", async () => {

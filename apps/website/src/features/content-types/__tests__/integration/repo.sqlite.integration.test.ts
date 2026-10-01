@@ -105,10 +105,11 @@ test("revision/audit trail actually persists: register + field-change + deprecat
     // Restart, read revisions directly via a raw query against the real file — proves the
     // append-only ledger survives independent of the in-process repo instance.
     const dbAfterRestart = openContentDb(filePath);
-    const rows = dbAfterRestart.$client.prepare("SELECT op, content_type_key, workspace_id FROM content_type_revisions ORDER BY seq ASC").all() as Array<{
+    const rows = dbAfterRestart.$client.prepare("SELECT op, content_type_key, workspace_id, state_json FROM content_type_revisions ORDER BY seq ASC").all() as Array<{
       op: string;
       content_type_key: string;
       workspace_id: string;
+      state_json: string;
     }>;
     assert.equal(rows.length, 3);
     assert.deepEqual(
@@ -116,6 +117,11 @@ test("revision/audit trail actually persists: register + field-change + deprecat
       ["register", "field-change", "field-change"]
     );
     assert.ok(rows.every((r) => r.content_type_key === "recipe" && r.workspace_id === "ws-1"));
+    const registered = { workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [], status: "active", version: 1, tombstonedAt: null };
+    const updated = { ...registered, fields: [{ name: "title", kind: "text", required: true, queryable: false }], version: 2 };
+    const deprecated = { ...updated, status: "deprecated", version: 3 };
+    assert.deepEqual(rows.map((row) => JSON.parse(row.state_json)), [registered, updated, deprecated]);
+    assert.deepEqual(await new SqliteContentTypeRepo(dbAfterRestart).findByKey({ workspaceId: "ws-1", key: "recipe" }), deprecated);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

@@ -32,7 +32,8 @@ test("a link-heavy body scores high", async () => {
   const verdict = await check.check(
     submission({ bodyRaw: "check https://a.com https://b.com https://c.com https://d.com" })
   );
-  assert.ok(verdict.score > 0.4);
+  assert.equal(verdict.score, 0.6);
+  assert.equal(verdict.isSpam, true);
 });
 
 test("a body with spam keywords scores high and is flagged", async () => {
@@ -58,4 +59,18 @@ test("report() is a documented no-op that does not throw", async () => {
       verdict: "spam",
     })
   );
+});
+
+test("long bodies add risk only beyond 4000 characters and only with a link or spam keyword", async () => {
+  const check = new HeuristicSpamCheck();
+  for (const signal of ["", "https://x.com ", "casino "]) {
+    const atThreshold = signal + "x".repeat(4000 - signal.length);
+    const before = await check.check(submission({ bodyRaw: atThreshold }));
+    const after = await check.check(submission({ bodyRaw: atThreshold + "x" }));
+    const baseScore = signal === "casino " ? 0.35 : 0;
+    assert.equal(before.score, baseScore);
+    assert.equal(after.score, signal ? baseScore + 0.2 : 0);
+    assert.equal(before.isSpam, false);
+    assert.equal(after.isSpam, signal === "casino ");
+  }
 });

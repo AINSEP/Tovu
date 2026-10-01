@@ -1,5 +1,7 @@
 import { createServer, type Server } from "node:http";
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { createSurfaceExchangeStore } from "../../apps/website/src/contracts/core/tool-surface-exchanges.js";
+import { buildDeleteConfirmationResource } from "../../apps/website/src/features/post/delete-confirmation-ui.js";
 
 /**
  * @file Adversary pass on `content_post_delete`'s MCP-UI confirmation gate, exercised over REAL HTTP
@@ -155,6 +157,51 @@ function extractTokenFromResource(resourceText: string): string {
 
 test.beforeAll(async ({ request }) => {
   await waitForDaemonReady(request);
+});
+
+test.describe("current SurfaceExchange confirmation — hostile titles remain inert complete text", () => {
+  const titles = [
+    `</script><script>alert(document.cookie)</script>`,
+    `</SCRIPT/><img src=x onerror=alert(1)>`,
+    `<!-- --><script>alert(1)</script><!--`,
+    `x","confirmationToken":"stolen`,
+    `x\\","confirmationToken":"stolen`,
+    "line1\u2028alert(1)//line2", "line1\u2029alert(1)//line2",
+    "x`+alert(1)+`", "x${alert(1)}", "x{{constructor.constructor('alert(1)')()}}",
+    "Fish & Chips &lt;script&gt;", "</script>\u2028\",\"x\":\"",
+  ];
+  for (const [index, title] of titles.entries()) {
+    test(`hostile title ${index + 1} is emitted and rendered unchanged without executing code`, async ({ page }) => {
+      const store = createSurfaceExchangeStore();
+      let emittedHtml = "";
+      const exchange = store.open({ toolId: "content_post_delete", principalId: "title-probe" }, async (emission) => {
+        expect(emission.channel).toBe("mcp-ui");
+        emittedHtml = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      });
+      const dialogs: string[] = [];
+      page.on("dialog", async (dialog) => { dialogs.push(dialog.message()); await dialog.dismiss(); });
+      try {
+        const resource = buildDeleteConfirmationResource({
+          subject: { id: "title-probe", kind: "post", title, slug: "title-probe", status: "draft", version: 1 },
+          exchangeId: exchange.id,
+        });
+        await exchange.send({ channel: "mcp-ui", payload: { resource } });
+        expect(emittedHtml.length).toBeGreaterThan(0);
+        await page.setContent('<iframe title="Current delete confirmation" style="width:900px;height:600px"></iframe>');
+        const iframe = page.getByTitle("Current delete confirmation", { exact: true });
+        await iframe.evaluate((element, html) => { (element as HTMLIFrameElement).srcdoc = html; }, emittedHtml);
+        const frame = iframe.contentFrame();
+        await expect(frame.getByRole("heading", { name: "Delete this post?", exact: true })).toBeVisible();
+        const details = frame.locator(".mcpui-details dd");
+        await expect(details).toHaveCount(3);
+        expect(await details.first().textContent()).toBe(title);
+        await expect(frame.locator("img")).toHaveCount(0);
+        expect(dialogs).toEqual([]);
+      } finally {
+        exchange.close();
+      }
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -476,6 +523,15 @@ test.describe("CSRF / origin — a real cross-site browser POST against the rede
   const EVIL_PORT = 4995;
   const EVIL_ORIGIN = `http://127.0.0.1:${EVIL_PORT}`;
   let evilServer: Server;
+  async function assertBrowserSession(page: Page, baseURL: string): Promise<void> {
+    await page.goto(baseURL);
+    const control = await page.evaluate(async (path) => {
+      const response = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ toolName: "__csrf_probe__", params: {} }) });
+      return { status: response.status, body: await response.json() };
+    }, MCP_UI_PATH);
+    expect(control.status).toBe(403);
+    expect(control.body.code).toBe("TOOL_NOT_ALLOWLISTED");
+  }
 
   function evilPageHtml(targetUrl: string, body: Record<string, unknown>): string {
     return `<!doctype html><html><body>
@@ -497,7 +553,9 @@ fetch(${JSON.stringify(targetUrl)}, {
       const target = url.searchParams.get("target") ?? "";
       const toolName = url.searchParams.get("toolName") ?? "__csrf_probe__";
       res.writeHead(200, { "content-type": "text/html" });
-      res.end(evilPageHtml(target, { toolName, params: {} }));
+      res.end(url.searchParams.has("navigate")
+        ? `<!doctype html><a id="probe">Navigate to legitimate site</a><script>document.getElementById("probe").href = ${JSON.stringify(target)};</script>`
+        : evilPageHtml(target, { toolName, params: {} }));
     });
     await new Promise<void>((resolve) => evilServer.listen(EVIL_PORT, "127.0.0.1", resolve));
   });
@@ -511,6 +569,7 @@ fetch(${JSON.stringify(targetUrl)}, {
     baseURL,
   }) => {
     const target = `${baseURL}${MCP_UI_PATH}`;
+    await assertBrowserSession(page, baseURL!);
     const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
 
     await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
@@ -522,6 +581,7 @@ fetch(${JSON.stringify(targetUrl)}, {
     // as the admin — CSRF would be live.
     expect(response, "expected the browser to even attempt the cross-site request (network-level visibility)").toBeTruthy();
     expect(response!.status(), "a cross-site request must arrive unauthenticated if SameSite=Strict held").toBe(401);
+    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
   });
 
   test("HELD or CONFIRMED-VULNERABLE: a cross-site POST to the A2UI actions endpoint carries no session cookie", async ({
@@ -529,6 +589,7 @@ fetch(${JSON.stringify(targetUrl)}, {
     baseURL,
   }) => {
     const target = `${baseURL}/api/admin/v1/a2ui/actions`;
+    await assertBrowserSession(page, baseURL!);
     const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
 
     await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
@@ -536,15 +597,22 @@ fetch(${JSON.stringify(targetUrl)}, {
 
     expect(response, "expected the browser to even attempt the cross-site request").toBeTruthy();
     expect(response!.status()).toBe(401);
+    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
   });
 
   test("sanity: the SAME session cookie DOES authenticate a same-site request (proves the 401s above are SameSite, not a broken cookie)", async ({
-    request,
+    page, baseURL,
   }) => {
-    // Uses the ordinary `request` fixture, which carries the suite's real storageState cookie —
-    // confirms the cookie is genuinely valid and would authenticate if it were sent, so the 401s
-    // above are evidence of SameSite withholding it, not evidence the cookie itself is broken.
-    const res = await request.post(MCP_UI_PATH, { data: { toolName: "__csrf_probe__", params: {} } });
-    expect(res.status(), "a legitimate same-site call with the same cookie must NOT 401").not.toBe(401);
+    await assertBrowserSession(page, baseURL!);
+  });
+  test("SameSite=Strict also withholds the session on a cross-site top-level GET", async ({ page, baseURL }) => {
+    await assertBrowserSession(page, baseURL!);
+    const target = `${baseURL}/api/admin/v1/auth/me`;
+    await page.goto(`${EVIL_ORIGIN}/?navigate=1&target=${encodeURIComponent(target)}`);
+    const responsePromise = page.waitForResponse((response) => response.url() === target && response.request().isNavigationRequest());
+    await page.getByRole("link", { name: "Navigate to legitimate site" }).click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(401);
+    expect((await response.request().allHeaders()).cookie).toBeUndefined();
   });
 });

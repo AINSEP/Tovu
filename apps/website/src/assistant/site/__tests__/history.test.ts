@@ -82,14 +82,28 @@ describe("resolveBoundedHistory", () => {
     });
 
     it("costs O(maxMessages) regardless of how large the raw array is (resource bound)", () => {
-      // 50,000 entries — this must resolve promptly rather than validating every entry before capping.
-      const history = Array.from({ length: 50_000 }, (_, i) => ({ role: "user" as const, content: `${i}` }));
-      const start = performance.now();
+      const accessed: number[] = [];
+      const history = new Proxy(Array.from({ length: 50_000 }, (_, i) => ({ role: "user", content: `${i}` })), {
+        get(target, key, receiver) {
+          if (typeof key === "string" && /^\d+$/.test(key)) accessed.push(Number(key));
+          return Reflect.get(target, key, receiver);
+        },
+      });
       const turns = resolveBoundedHistory(history, { maxMessages: 12 });
-      const elapsedMs = performance.now() - start;
-      assert.equal(turns.length, 12);
-      assert.ok(elapsedMs < 50, `expected O(maxMessages) work, took ${elapsedMs}ms over 50,000 raw entries`);
+      assert.deepEqual(accessed, Array.from({ length: 12 }, (_, i) => 49_988 + i));
+      assert.deepEqual(turns.map((turn) => turn.content), Array.from({ length: 12 }, (_, i) => `${49_988 + i}`));
     });
+  });
+
+  it("defaults to the newest 12 turns with at most 2000 characters plus the ellipsis", () => {
+    const turns = resolveBoundedHistory(Array.from({ length: 13 }, (_, i) => ({
+      role: "user", content: `${i}:` + "x".repeat(2001),
+    })));
+    assert.equal(turns.length, 12);
+    assert.deepEqual(turns.map((turn) => turn.content), Array.from({ length: 12 }, (_, i) => {
+      const prefix = `${i + 1}:`;
+      return prefix + "x".repeat(2000 - prefix.length) + "…";
+    }));
   });
 
   describe("bounds — characters", () => {

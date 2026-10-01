@@ -188,8 +188,11 @@ test("a row is marked delivered only after its handler has finished", async (t) 
   assert.deepEqual(delivered, ["slow-1"]);
 });
 
-test("stop() waits for the running drain, and no drain runs after it", async () => {
-  const outbox = new InMemoryOutbox();
+test("stop() waits for the running drain, and no drain runs after it", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: new Date("2026-07-16T00:00:00.000Z") });
+  const inner = new InMemoryOutbox();
+  let claims = 0;
+  const outbox = spyOutbox(inner, { claimPending: () => { claims += 1; } });
   const bus = new InMemoryEventBus();
   const gate = deferred();
   const received: string[] = [];
@@ -200,21 +203,40 @@ test("stop() waits for the running drain, and no drain runs after it", async () 
   await outbox.enqueue(makeEvent("in-flight-1"));
 
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5 });
-  assert.ok(await waitFor(() => received.length === 1));
+  t.after(async () => { gate.resolve(); await drainer.stop(); });
+  t.mock.timers.tick(0);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(received, ["in-flight-1"]);
 
   let stopResolved = false;
-  const stopping = drainer.stop().then(() => {
-    stopResolved = true;
-  });
-  await sleep(30);
+  const stopping = drainer.stop().then(() => { stopResolved = true; });
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(stopResolved, false, "stop() must not resolve while a drain is still running");
 
   gate.resolve();
   await stopping;
   await outbox.enqueue(makeEvent("after-stop-1"));
-  await sleep(50);
-  assert.deepEqual(received, ["in-flight-1"], "no drain may run after stop()");
+  for (const elapsed of [5, 60_000, 3_600_000]) {
+    t.mock.timers.tick(elapsed);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(claims, 1, "no claim may run after stop(), including later deadlines");
+    assert.deepEqual(received, ["in-flight-1"]);
+  }
   await drainer.stop();
+
+  // Also stop an idle loop with its next timer already scheduled.
+  const idle = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5 });
+  t.after(() => idle.stop());
+  t.mock.timers.tick(0);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(received, ["in-flight-1", "after-stop-1"]);
+  assert.equal(claims, 2);
+  await idle.stop();
+  await outbox.enqueue(makeEvent("after-idle-stop"));
+  t.mock.timers.tick(3_600_000);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(claims, 2, "the pending idle timer must be cancelled");
+  assert.deepEqual(received, ["in-flight-1", "after-stop-1"]);
 });
 
 test("a handler that never settles cannot stall the loop: the event behind it is delivered and the stuck row stays retryable, never delivered", async (t) => {

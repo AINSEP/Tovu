@@ -27,7 +27,7 @@ test.describe("theme Explore — sidebar stays visible at a narrow viewport (202
   test("the file list has non-zero height and its rows are visible below 720px", async ({ page }) => {
     await loginAsAdmin(page);
     await page.setViewportSize(NARROW_VIEWPORT);
-    await page.goto("/admin/themes/explore?theme=basic", { waitUntil: "domcontentloaded" });
+    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
 
     const fileList = page.locator(".theme-explore-files").first();
     await fileList.waitFor({ state: "attached", timeout: 10_000 });
@@ -36,12 +36,30 @@ test.describe("theme Explore — sidebar stays visible at a narrow viewport (202
     // reachable. A non-zero bounding-box height is the honest "is it actually visible" check.
     const box = await fileList.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.height).toBeGreaterThan(0);
+    expect(box!.height).toBeGreaterThanOrEqual(120);
+    expect(box!.height).toBeLessThanOrEqual(241);
 
     const pagesHeading = page.locator(".theme-explore-files-heading", { hasText: "Pages" });
     await expect(pagesHeading).toBeVisible();
 
     const firstFileRow = page.locator(".theme-explore-file-row").first();
     await expect(firstFileRow).toBeVisible();
+    const lastFileRow = page.locator(".theme-explore-file-row").last();
+    const lastButton = lastFileRow.locator("button").first();
+    const lastBox = await lastFileRow.boundingBox();
+    expect(lastBox).not.toBeNull();
+    expect(lastBox!.y).toBeGreaterThanOrEqual(box!.y + box!.height);
+    await fileList.hover();
+    await page.mouse.wheel(0, 10_000);
+    await expect.poll(() => lastFileRow.evaluate((el) => {
+      const row = el.getBoundingClientRect();
+      const list = el.closest(".theme-explore-files")!.getBoundingClientRect();
+      return row.top >= list.top && row.bottom <= list.bottom + 1;
+    })).toBe(true);
+    await lastButton.click();
+    await expect(lastButton).toHaveClass(/\bis-active\b/);
+    const previewBox = await page.locator(".theme-explore-main").boundingBox();
+    expect(previewBox).not.toBeNull();
+    expect(previewBox!.y).toBeLessThan(NARROW_VIEWPORT.height);
   });
 });

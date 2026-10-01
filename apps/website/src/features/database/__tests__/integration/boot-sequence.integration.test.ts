@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateBootMigrationPolicy } from "../../boot/evaluate-boot-migration-policy.js";
-import { reconcileInterruptedMigrationOnBoot } from "../../boot/reconcile-interrupted-migration.js";
+import { evaluateBootMigrationPolicy, UnresolvedInterruptedMigrationError } from "../../boot/evaluate-boot-migration-policy.js";
+import { reconcileInterruptedMigrationOnBoot, type SiteServeStatus } from "../../boot/reconcile-interrupted-migration.js";
 
 /**
  * @file SPEC-017 C-106 / C-107 / CIC U-004 / INV-08 / REQ-15 / REQ-28 / REQ-29 — boot-sequence
- * ordering: crash reconciliation before cost-gated auto-migrate policy.
+ * defensive guard: reconciliation blocks a site and policy independently refuses unresolved runs.
+ * Production reconciliation is wired; the auto-migrate policy is not yet wired into boot.
  *
  * Assumed seam design:
  *
@@ -43,21 +44,27 @@ import { reconcileInterruptedMigrationOnBoot } from "../../boot/reconcile-interr
  */
 
 function fakeMigrationRunsRepo(nonTerminal: { id: string; status: string } | null) {
+  const lookups: string[] = [];
   return {
-    async findNonTerminalForSite() {
-      return nonTerminal;
+    lookups,
+    async findNonTerminalForSite(siteId: string) {
+      lookups.push(siteId);
+      return siteId === "site-1" ? nonTerminal : null;
     },
+    async markResolved() { throw new Error("boot reconciliation must not resolve runs"); },
   };
 }
 
-function fakeSiteStatus(initial: "SERVING" | "PENDING_MIGRATION" | "BLOCKED_PENDING_RECOVERY") {
-  let status = initial;
+function fakeSiteStatus(initial: SiteServeStatus) {
+  const statuses = new Map<string, SiteServeStatus>([["site-1", initial], ["site-2", "SERVING"]]);
   return {
-    async get() {
-      return status;
+    async get(siteId: string) {
+      assert.ok(statuses.has(siteId), `unexpected site ${siteId}`);
+      return statuses.get(siteId)!;
     },
-    async set(_siteId: string, next: typeof status) {
-      status = next;
+    async set(siteId: string, next: SiteServeStatus) {
+      assert.ok(statuses.has(siteId), `unexpected site ${siteId}`);
+      statuses.set(siteId, next);
     },
   };
 }
@@ -65,18 +72,20 @@ function fakeSiteStatus(initial: "SERVING" | "PENDING_MIGRATION" | "BLOCKED_PEND
 test("U-004-B1 / REQ-15 / AC-17: reconcileInterruptedMigrationOnBoot converts a non-terminal row into a blocking state and appends a migration.interrupted ledger row", async () => {
   const migrationRuns = fakeMigrationRunsRepo({ id: "run-1", status: "APPLYING" });
   const siteStatus = fakeSiteStatus("SERVING");
-  let ledgerAppended = false;
+  const ledgerRows: Array<{ siteId: string; migrationRunId: string }> = [];
   const ledger = {
-    async appendInterruptedRow() {
-      ledgerAppended = true;
+    async appendInterruptedRow(params: { siteId: string; migrationRunId: string }) {
+      ledgerRows.push(params);
     },
   };
 
   const result = await reconcileInterruptedMigrationOnBoot({ siteId: "site-1", migrationRuns, ledger, siteStatus });
 
   assert.equal(result.blocked, true);
-  assert.equal(ledgerAppended, true);
-  assert.equal(await siteStatus.get(), "BLOCKED_PENDING_RECOVERY");
+  assert.deepEqual(migrationRuns.lookups, ["site-1"]);
+  assert.deepEqual(ledgerRows, [{ siteId: "site-1", migrationRunId: "run-1" }]);
+  assert.equal(await siteStatus.get("site-2"), "SERVING");
+  assert.equal(await siteStatus.get("site-1"), "BLOCKED_PENDING_RECOVERY");
 });
 
 test("reconcileInterruptedMigrationOnBoot resolves (does not block) when no non-terminal row exists", async () => {
@@ -87,7 +96,7 @@ test("reconcileInterruptedMigrationOnBoot resolves (does not block) when no non-
   const result = await reconcileInterruptedMigrationOnBoot({ siteId: "site-1", migrationRuns, ledger, siteStatus });
 
   assert.equal(result.blocked, false);
-  assert.equal(await siteStatus.get(), "SERVING");
+  assert.equal(await siteStatus.get("site-1"), "SERVING");
 });
 
 test("U-004-B1 / U-004-ORD1 / INV-08: evaluateBootMigrationPolicy refuses to run while a non-terminal migration_runs row still exists for the site — defense-in-depth against an out-of-order boot wiring bug", async () => {
@@ -104,7 +113,8 @@ test("U-004-B1 / U-004-ORD1 / INV-08: evaluateBootMigrationPolicy refuses to run
       runAutoMigrate: async () => {
         autoMigrateRan = true;
       },
-    })
+    }),
+    UnresolvedInterruptedMigrationError
   );
 
   assert.equal(autoMigrateRan, false, "INV-08: auto-migrate must never run while an unresolved crashed migration exists");
@@ -145,11 +155,11 @@ test("AC-38 / AC-39 / REQ-29 / REQ-30 / INV-04: evaluateBootMigrationPolicy ente
     });
 
     assert.equal(autoMigrateRan, false, `costClass='${costClass}' must never trigger auto-migrate`);
-    assert.equal(await siteStatus.get(), "PENDING_MIGRATION");
+    assert.equal(await siteStatus.get("site-1"), "PENDING_MIGRATION");
   }
 });
 
-test("U-004-ORD1 (integration-observable ordering): a full boot sequence — reconcile first, then policy — never lets policy observe a stale (pre-reconciliation) non-terminal row", async () => {
+test("after a blocked reconciliation, the policy independently rejects the still-unresolved migration", async () => {
   const migrationRuns = fakeMigrationRunsRepo({ id: "run-1", status: "SNAPSHOTTING" });
   const siteStatus = fakeSiteStatus("SERVING");
   const invocationOrder: string[] = [];
@@ -178,7 +188,8 @@ test("U-004-ORD1 (integration-observable ordering): a full boot sequence — rec
       runAutoMigrate: async () => {
         invocationOrder.push("auto-migrate-ran");
       },
-    })
+    }),
+    UnresolvedInterruptedMigrationError
   );
 
   assert.deepEqual(invocationOrder, ["reconcile", "policy-attempted"], "auto-migrate must never run after a blocked reconciliation");

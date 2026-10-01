@@ -45,10 +45,12 @@ test("deriveAvailableName uses a custom withSuffix instead of the default when o
 });
 
 test("deriveAvailableName gives up after MAX_SUFFIX_ATTEMPTS rather than looping forever", async () => {
+  const attempted: string[] = [];
   await assert.rejects(
-    deriveAvailableName({ base: "x" }, { isTaken: async () => true }),
+    deriveAvailableName({ base: "x" }, { isTaken: async (candidate) => { attempted.push(candidate); return true; } }),
     new RegExp(`no free name.*after ${MAX_SUFFIX_ATTEMPTS} attempts`),
   );
+  assert.deepEqual(attempted, ["x", ...Array.from({ length: 999 }, (_, i) => `x ${i + 2}`)]);
 });
 
 test("deriveAvailableName calls onExhausted instead of the generic error when every candidate is taken", async () => {
@@ -103,4 +105,14 @@ test("a trailing number is NOT treated as a copy counter when the stripped base 
 test("a bare number with nothing to strip is treated as a literal name, not a counter", async () => {
   const isTaken = takenSet("2024");
   assert.equal(await deriveDuplicateName({ sourceName: "2024" }, { isTaken }), "2024 2");
+});
+
+test("deriveAvailableName succeeds on the final permitted candidate", async () => {
+  const attempted: string[] = [];
+  const result = await deriveAvailableName({ base: "x" }, { isTaken: async (candidate) => {
+    attempted.push(candidate);
+    return candidate !== "x 1000";
+  } });
+  assert.equal(result, "x 1000");
+  assert.deepEqual(attempted, ["x", ...Array.from({ length: 999 }, (_, i) => `x ${i + 2}`)]);
 });

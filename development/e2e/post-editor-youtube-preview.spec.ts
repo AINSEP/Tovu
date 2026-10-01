@@ -2,30 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
- * @file Owner-reported bug (2026-08-12): "the YouTube [embed] doesn't work" — a YouTube embed
- * rendered a solid black box in the Posts editor's Preview tab, raw draft fallback (`PostPreview`'s
- * branch 4, `PostEditor.tsx` — see that function's own file header for the branch numbering).
- *
- * Reproduced live (headless Chromium, before this fix): a brand-new/unpublished post's Preview tab
- * renders `editor.getHTML()` through `SrcDocSandbox` (`@jini-ai/ui/renderers`), whose
- * `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` deliberately omits
- * `allow-same-origin` (it treats the HTML as hostile by construction). YouTube's own embed player
- * needs same-origin storage access and fails to initialize there — confirmed live via two distinct
- * console errors inside that frame (a `caches` SecurityError naming the missing `allow-same-origin`
- * flag by name, and `writeEmbed is not defined`), rendering as a solid black box with no player, no
- * thumbnail, no error text an operator could act on.
- *
- * The PUBLISHED public page and the two real-navigated-iframe preview branches (2 and 3) are NOT
- * sandboxed at all and were confirmed live to render the real, playable embed correctly — this bug
- * is scoped to branch 4 only. `SrcDocSandbox`'s sandbox is shared, load-bearing security posture for
- * genuinely untrusted content elsewhere, so the fix (`rules.ts`'s
- * `degradeUnplayableEmbedsForRawPreview`) does not loosen it; it swaps the YouTube embed markup for
- * a labelled placeholder before that HTML ever reaches the sandbox, the same "degrade to a clear
- * label rather than a broken render" idiom `render.ts`'s `mediaPlaceholder` already uses on the
- * public side.
- *
- * Confirmed live (real headless Chromium, this suite's own hermetic `TOVU_DB=memory` boot) before
- * being written up as the RED state these tests started from.
+ * The historical raw sandboxed draft preview could not initialize YouTube storage. Drafts now
+ * use a navigated server-rendered preview, as published pages do. Exercise both current paths
+ * with a controlled embed response that requires origin storage, avoiding external player traffic.
  */
 
 const API_BASE_URL = "http://localhost:7851";
@@ -53,9 +32,15 @@ async function publishAndWaitForConfirmation(page: Page): Promise<void> {
 test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
+    // Exercise browser restrictions using a deterministic embed that needs origin storage,
+    // without depending on YouTube's network or player rollout.
+    await page.route("https://www.youtube-nocookie.com/embed/**", (route) => route.fulfill({
+      contentType: "text/html",
+      body: '<!doctype html><html><body><script>try { localStorage.setItem("player-probe", "ready"); document.body.textContent = "Player ready"; } catch (error) { document.body.textContent = "Player blocked"; }</script></body></html>',
+    }));
   });
 
-  test("FIXED: a YouTube embed in a DRAFT's raw-fallback preview (branch 4) shows a labelled placeholder, not a broken black iframe", async ({
+  test("a draft's server-rendered preview initializes its YouTube embed without sandbox restrictions", async ({
     page,
   }) => {
     await openFreshPost(page);
@@ -71,29 +56,23 @@ test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)
     await page.getByText("hello world").click();
 
     await page.getByRole("tab", { name: "Preview" }).click();
-    const iframe = page.locator(".editor-preview-iframe");
-    await expect(iframe).toHaveAttribute("sandbox", /allow-scripts/); // still branch 4 (sandboxed) — confirms this test is exercising the right branch
-    const frame = await iframe.elementHandle().then((h) => h!.contentFrame());
-    if (!frame) throw new Error("could not access the SrcDocSandbox content frame");
-
-    // FIX: no nested cross-origin YouTube iframe at all (it would never fully initialize inside this
-    // sandbox — see this suite's own header) — a labelled placeholder instead.
-    await expect(frame.locator("iframe")).toHaveCount(0);
-    const placeholder = frame.locator(".embed-preview-unavailable");
-    await expect(placeholder).toBeVisible();
-    await expect(placeholder).toContainText("YouTube video");
-    await expect(placeholder).toContainText("publish this post");
-    const box = await placeholder.boundingBox();
-    expect(box?.width, "placeholder must have real rendered width, not a collapsed/zero-size box").toBeGreaterThan(0);
-    expect(box?.height, "placeholder must have real rendered height, not a collapsed/zero-size box").toBeGreaterThan(0);
+    const iframe = page.getByTitle("Post preview", { exact: true });
+    await expect(iframe).toBeVisible();
+    expect(await iframe.getAttribute("sandbox")).toBeNull();
+    expect(await iframe.getAttribute("srcdoc")).toBeNull();
+    const preview = iframe.contentFrame();
+    await expect(preview.locator("body")).toContainText("hello world");
+    await expect(preview.locator(".embed-preview-unavailable")).toHaveCount(0);
+    const player = preview.locator(".youtube-embed iframe");
+    await expect(player).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(await player.getAttribute("sandbox")).toBeNull();
+    await player.scrollIntoViewIfNeeded();
+    await expect(player.contentFrame().locator("body")).toHaveText("Player ready");
   });
 
-  test("REGRESSION GUARD: the same YouTube embed still renders as a real, playable iframe once published (not sandboxed at all)", async ({
+  test("published YouTube iframe retains its complete attributes and initializes a controlled player", async ({
     page,
   }) => {
-    // Guards against a fix that over-applies `degradeUnplayableEmbedsForRawPreview` somewhere it
-    // shouldn't (e.g. accidentally wired into the public render path too) rather than scoping it to
-    // the one sandboxed branch that actually needs it.
     const { slug } = await openFreshPost(page);
     await bodyParagraph(page).click();
     await page.keyboard.type("hello world");
@@ -107,5 +86,19 @@ test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)
     const html = await res.text();
     expect(html).toContain('<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"');
     expect(html).not.toContain("embed-preview-unavailable");
+    await page.goto(`${API_BASE_URL}/${slug}`);
+    const player = page.locator(".youtube-embed iframe");
+    await expect(player).toHaveCount(1);
+    await expect(player).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(await player.getAttribute("sandbox")).toBeNull();
+    await expect(player).toHaveAttribute("allowfullscreen", "");
+    expect(await player.evaluate((element) => Object.fromEntries([...element.attributes].map((attribute) => [attribute.name, attribute.value])))).toEqual({
+      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+      title: "YouTube video",
+      allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+      allowfullscreen: "", loading: "lazy",
+    });
+    await player.scrollIntoViewIfNeeded();
+    await expect(player.contentFrame().locator("body")).toHaveText("Player ready");
   });
 });

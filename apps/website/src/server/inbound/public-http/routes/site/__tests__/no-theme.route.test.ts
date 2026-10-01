@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "#src/features/presentation/index";
+import type { CommerceProductRecord, CommerceProductRepoPort, CommercePriceRepoPort } from "#src/features/commerce/index";
 import { NO_THEME_ID } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -45,7 +46,25 @@ function closeServer(server: ReturnType<typeof createServer>) {
 }
 
 async function startThemelessServer() {
-  return startServer({ presentationRepo: new InMemoryPresentationSettingsRepo([NO_THEME_SETTINGS]) });
+  const product: CommerceProductRecord = {
+    id: "themeless-product", workspaceId: WORKSPACE_ID, name: "Themeless Canvas Tote", slug: "themeless-canvas-tote",
+    kind: "one_time", status: "active", createdAt: "2026-09-12T00:00:00.000Z", updatedAt: "2026-09-12T00:00:00.000Z", version: 1,
+  };
+  const commerceProductRepo: CommerceProductRepoPort = {
+    findById: async ({ workspaceId, id }) => workspaceId === WORKSPACE_ID && id === product.id ? product : null,
+    findBySlug: async ({ workspaceId, slug }) => workspaceId === WORKSPACE_ID && slug === product.slug ? product : null,
+    listActive: async ({ workspaceId }) => workspaceId === WORKSPACE_ID ? [product] : [],
+    save: async () => { throw new Error("not used by this read-only route"); },
+  };
+  const commercePriceRepo: CommercePriceRepoPort = {
+    findById: async () => null,
+    listByProduct: async ({ workspaceId, productId }) => workspaceId === WORKSPACE_ID && productId === product.id ? [{
+      id: "themeless-price", workspaceId: WORKSPACE_ID, productId: product.id, unitAmountCents: 2700,
+      currency: "usd", status: "active", createdAt: "2026-09-12T00:00:00.000Z", version: 1,
+    }] : [],
+    save: async () => { throw new Error("not used by this read-only route"); },
+  };
+  return startServer({ presentationRepo: new InMemoryPresentationSettingsRepo([NO_THEME_SETTINGS]), commerceProductRepo, commercePriceRepo });
 }
 
 test("GET / with the theme off serves a real, unstyled page — 200, not the no-themes 500", async (t) => {
@@ -80,19 +99,25 @@ test("GET /products with the theme off serves the storefront, unstyled", async (
   const html = await res.text();
   assert.doesNotMatch(html, /No themes installed/);
   assert.doesNotMatch(html, /Site error/);
+  assert.match(html, /Themeless Canvas Tote/);
+  assert.match(html, /href="\/products\/themeless-canvas-tote"/);
 });
 
 test("a themeless public page emits no `data-theme` and no theme badge on ANY route", async (t) => {
   const { server, baseUrl } = await startThemelessServer();
   t.after(() => closeServer(server));
 
-  for (const path of ["/", "/welcome", "/products"]) {
+  for (const path of ["/", "/welcome", "/products", "/products/themeless-canvas-tote"]) {
     const res = await fetch(`${baseUrl}${path}`);
     // Asserted FIRST and deliberately: a 500 body contains neither string, so without this the two
     // `doesNotMatch` assertions below pass while the route is completely broken. This test was
     // observed green against exactly that state before the fix.
     assert.equal(res.status, 200, `${path} must actually render before its markup can be judged`);
     const html = await res.text();
+    if (path.startsWith("/products")) {
+      assert.match(html, /Themeless Canvas Tote/);
+      assert.match(html, /\$27\.00/);
+    }
     assert.doesNotMatch(html, /data-theme=/, `${path} must not emit data-theme`);
     assert.doesNotMatch(html, /theme-badge/, `${path} must not emit the theme badge`);
   }

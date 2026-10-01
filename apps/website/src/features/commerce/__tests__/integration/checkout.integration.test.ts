@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { members, workspaces } from "#src/platform/db/schema.sqlite";
+import { commerceOrders, commerceOrderItems, members, workspaces } from "#src/platform/db/schema.sqlite";
 import { checkout, MAX_CHECKOUT_QUANTITY } from "../../checkout.js";
 import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "../../errors.js";
 import { SqliteCommerceOrderRepo, SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../../repo.sqlite.js";
@@ -134,6 +134,8 @@ test("checkout: rejects a quantity above the bound without writing anything", as
       }),
     CommerceCheckoutValidationError
   );
+  assert.deepEqual(db.select().from(commerceOrders).all(), []);
+  assert.deepEqual(db.select().from(commerceOrderItems).all(), []);
 });
 
 test("checkout: rejects an unknown price", async () => {
@@ -188,3 +190,30 @@ test("checkout: rejects an archived product even if its price is still active", 
     CommerceProductNotFoundError
   );
 });
+
+for (const quantity of [0, -1, 1.5]) {
+  test(`checkout: rejects quantity ${quantity} without an order or line item`, async (t) => {
+    const db = openTestDb();
+    t.after(() => db.$client.close());
+    seedWorkspaceAndMember(db);
+    await seedCatalog(db);
+    await assert.rejects(checkout({ deps: makeDeps(db), input: { workspaceId: "ws-1", memberId: "member-1", priceId: "price-1", quantity, provider: "stripe" } }), CommerceCheckoutValidationError);
+    assert.deepEqual(db.select().from(commerceOrders).all(), []);
+    assert.deepEqual(db.select().from(commerceOrderItems).all(), []);
+  });
+}
+
+for (const quantity of [undefined, 100]) {
+  test(`checkout: accepts ${quantity === undefined ? "the default quantity of 1" : "the inclusive quantity cap of 100"}`, async (t) => {
+    const db = openTestDb();
+    t.after(() => db.$client.close());
+    seedWorkspaceAndMember(db);
+    await seedCatalog(db);
+    const deps = makeDeps(db);
+    const result = await checkout({ deps, input: { workspaceId: "ws-1", memberId: "member-1", priceId: "price-1", quantity, provider: "stripe" } });
+    assert.equal((await deps.orders.findById({ workspaceId: "ws-1", id: result.order.id }))?.totalAmountCents, quantity === undefined ? 1500 : 150000);
+    const items = await deps.orders.listItems({ workspaceId: "ws-1", orderId: result.order.id });
+    assert.equal(items.length, 1);
+    assert.equal(items[0].quantity, quantity === undefined ? 1 : 100);
+  });
+}

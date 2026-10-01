@@ -24,7 +24,7 @@ function fakeIdGen(ids: string[]) {
 function fakeDbOps(): MigrateForwardDbOpsPort {
   return {
     async getCapabilities() {
-      return { restorePoint: { costClass: "expensive", kind: "file-snapshot" } };
+      return { restorePoint: { costClass: "expensive", kind: "provider-snapshot" } };
     },
     async captureRestorePoint() {
       return { artifactRef: "/snap/rp-1.db", watermarkAtCapture: 7 };
@@ -34,6 +34,7 @@ function fakeDbOps(): MigrateForwardDbOpsPort {
 
 test("row 2: executeMutation() persists the restore point with the REAL artifactRef, costClass and kind it just captured", async () => {
   const saved: Array<Record<string, unknown>> = [];
+  const ledgerRows: Array<Record<string, unknown>> = [];
   const hooks = buildMigrateForwardHooks({
     workspaceId: "ws-1",
     actorId: "actor-1",
@@ -46,20 +47,28 @@ test("row 2: executeMutation() persists the restore point with the REAL artifact
       },
     },
     databaseLedgerRepo: {
-      async append() {
-        // not under test here
-      },
+      async append(row) { ledgerRows.push(row); },
     },
   });
 
-  await hooks.executeMutation({ planHash: "hash-1", details: { costClass: "expensive", siteId: "ws-1" } });
+  assert.deepEqual(await hooks.executeMutation({ planHash: "hash-1", details: { costClass: "expensive", siteId: "ws-1" } }), { migrated: true });
 
   assert.equal(saved.length, 1, "exactly one restore point row must be saved");
   const row = saved[0]!;
   assert.equal(row.artifactRef, "/snap/rp-1.db", "the saved row must carry the REAL artifactRef captureRestorePoint returned, not omit it");
   assert.equal(row.costClass, "expensive", "costClass must come from getCapabilities(), not a hard-coded 'cheap'");
-  assert.equal(row.kind, "file-snapshot", "kind must come from getCapabilities()");
+  assert.equal(row.kind, "provider-snapshot", "kind must come from getCapabilities()");
   assert.equal(row.watermarkAtCapture, 7);
+  assert.deepEqual(row, {
+    restorePointId: "rp-1", idempotencyKey: "rp-1", trigger: "migrate-forward",
+    createdAt: "2026-09-24T00:00:00.000Z", createdBy: "actor-1",
+    costClass: "expensive", kind: "provider-snapshot", watermarkAtCapture: 7, artifactRef: "/snap/rp-1.db",
+  });
+  assert.deepEqual(ledgerRows, [{
+    id: "ledger-1", kind: "core.migration", restorePointId: "rp-1", outcome: "success",
+    detailJson: JSON.stringify({ artifactRef: "/snap/rp-1.db" }), actorWorkspaceId: "ws-1",
+    actorId: "actor-1", createdAt: "2026-09-24T00:00:00.000Z",
+  }]);
 });
 
 test("row 2: getCapabilities() is read fresh inside executeMutation(), not reused from computePlan()", async () => {
@@ -96,9 +105,13 @@ test("row 2: getCapabilities() is read fresh inside executeMutation(), not reuse
     },
   });
 
-  await hooks.computePlan();
+  const initialPlan = await hooks.computePlan();
   await hooks.executeMutation({ planHash: "hash-1", details: { costClass: "cheap", siteId: "ws-1" } });
 
   assert.equal(capabilityCallCount, 2, "computePlan() and executeMutation() must each call getCapabilities() fresh");
   assert.equal(saved[0]?.costClass, "expensive", "executeMutation() must save the value IT read, not the stale computePlan() value");
+  const changedPlan = await hooks.computePlan();
+  assert.deepEqual(initialPlan.details, { costClass: "cheap", siteId: "ws-1" });
+  assert.deepEqual(changedPlan.details, { costClass: "expensive", siteId: "ws-1" });
+  assert.notEqual(initialPlan.planHash, changedPlan.planHash, "a changed cost class must invalidate the confirmed plan");
 });

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import path from "node:path";
 
 import { listServerTestFiles } from "../list-server-test-files.js";
 import { isIntegrationTestFile } from "../route-coverage-lib.js";
@@ -21,6 +23,15 @@ test("listServerTestFiles: unit and integration lists partition all src/server t
 
   const overlap = unit.filter((f) => integration.includes(f));
   assert.deepEqual(overlap, []);
+
+  const repo = path.resolve(import.meta.dirname, "../../..");
+  function enumerate(directory: string): string[] {
+    return fs.readdirSync(path.join(repo, directory), { withFileTypes: true }).flatMap((entry) => {
+      const file = `${directory}/${entry.name}`;
+      return entry.isDirectory() ? enumerate(file) : entry.isFile() && entry.name.endsWith(".test.ts") ? [file] : [];
+    });
+  }
+  assert.deepEqual([...unit, ...integration].sort(), enumerate("apps/website/src/server").sort(), "partition must include every server test exactly once");
 
   for (const f of unit) assert.equal(isIntegrationTestFile(f), false, `${f} should not classify as integration`);
   for (const f of integration) assert.equal(isIntegrationTestFile(f), true, `${f} should classify as integration`);

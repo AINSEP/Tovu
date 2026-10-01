@@ -32,7 +32,8 @@ const BINARY_EDITED = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 /** 200 KB past the 1 MB text-read limit (`MAX_THEME_FILE_BYTES`), with every byte value present. */
 const LARGE_SIZE = 1_000_000 + 200_000;
 const LARGE_ORIGINAL = Buffer.from(Array.from({ length: LARGE_SIZE }, (_, i) => (i * 31) & 0xff));
-const LARGE_EDITED = Buffer.alloc(LARGE_SIZE, 0x61);
+const LARGE_EDITED = Buffer.from(LARGE_ORIGINAL);
+LARGE_EDITED[64 * 1024 + 17] ^= 0xff;
 
 const INDEX_HTML = "<html><body>x</body></html>";
 
@@ -119,6 +120,7 @@ test("reset restores a binary original's exact bytes, including bytes that are n
 test("reset of a file over the 1 MB text-read limit succeeds, restores its exact bytes, and returns content: null", async (t) => {
   const { baseUrl, live } = await startApp(t);
 
+  assert.equal(await modifiedFlag(baseUrl, "assets/big.bin"), true, "a later-chunk difference must be detected");
   const { status, body } = await postReset(baseUrl, "assets/big.bin");
 
   assert.equal(status, 200, JSON.stringify(body));

@@ -121,6 +121,10 @@ test("ENABLE_PRINCIPAL route: 200 re-activates a disabled user and reports its r
   assert.equal(body.user.principalId, targetId);
   assert.deepEqual(body.user.roleIds, [role.id]);
   assert.deepEqual(body.user.policyIds, [policy.id]);
+  const stored = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId });
+  assert.ok(stored);
+  assert.equal(stored.status, "active");
+  assert.equal(stored.disabledAt, undefined);
 });
 
 test("ENABLE_PRINCIPAL route: 403 FORBIDDEN when caller lacks user.manage", async (t) => {
@@ -200,13 +204,18 @@ test("ENABLE_PRINCIPAL route: 500 internal error when an unexpected error is thr
 });
 
 test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  let trashedTargetId = "";
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => id === trashedTargetId });
   const baseUrl = await startTestServer(app, t);
   const targetId = await createDisabledTestUser(deps, ownerId, "enabletrashed");
+  trashedTargetId = targetId;
+  assert.notEqual(targetId, ownerId);
+  const before = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId });
 
   const res = await fetch(`${baseUrl}${urlFor(targetId)}`, { method: "POST" });
   assert.equal(res.status, 409);
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
+  assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId }), before);
 });

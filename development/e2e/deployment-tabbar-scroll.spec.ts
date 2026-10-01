@@ -144,12 +144,13 @@ test.describe("Deployment: tab row stays fully visible with the admin chat pane 
     await page.goto("/admin/deployment", { waitUntil: "domcontentloaded" });
     await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
 
+    const bar = page.locator(".tab-bar").first();
+    const initialWidth = await bar.evaluate((el) => el.getBoundingClientRect().width);
     await page.locator("button.chat-fab").click();
     const dock = page.locator(".admin-chat-dock");
     await expect(dock).not.toHaveAttribute("hidden", "");
-    // Same settle `admin-fab-position.spec.ts` uses: lets the dock's `ResizeObserver`-driven width
-    // measurement (and the resulting content-column reflow) finish before measuring tab positions.
-    await page.waitForTimeout(500);
+    await expect.poll(() => bar.evaluate((el) => el.getBoundingClientRect().width))
+      .toBeLessThan(initialWidth - 1);
 
     const tabs = await page.getByRole("tab").allTextContents();
     expect(tabs).toEqual(["Overview", "Static Site", "Full Site", "Dockerfile", "History"]);
@@ -161,12 +162,21 @@ test.describe("Deployment: tab row stays fully visible with the admin chat pane 
     // viewport (800px) is much wider than `.tab-bar`'s own content column once the dock is open, so
     // a page-viewport check would pass even while `.tab-bar` itself clips the tab — see that
     // helper's own comment.
-    const historyTab = page.getByRole("tab", { name: "History" });
-    await expect(historyTab).toBeVisible();
-    expect(await isFullyWithinTabBarContainer(page, historyTab)).toBe(true);
-
-    await historyTab.click();
-    await expect(page).toHaveURL(/\?tab=history/);
-    await expect(historyTab).toHaveAttribute("aria-selected", "true");
+    const tabCases = [
+      ["Overview", "overview"], ["Static Site", "static-site"], ["Full Site", "full-site"],
+      ["Dockerfile", "dockerfile"], ["History", "history"],
+    ] as const;
+    // Measure every tab before any click can auto-scroll a clipped control into view.
+    for (const [name] of tabCases) {
+      const tab = page.getByRole("tab", { name, exact: true });
+      await expect(tab).toBeVisible();
+      await expect.poll(() => isFullyWithinTabBarContainer(page, tab), { message: name }).toBe(true);
+    }
+    for (const [name, id] of tabCases) {
+      const tab = page.getByRole("tab", { name, exact: true });
+      await tab.click();
+      await expect(page).toHaveURL(new RegExp(`\\?tab=${id}(?:&|$)`));
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+    }
   });
 });

@@ -8,6 +8,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerThemeStaticAssets } from "#src/server/inbound/public-http/middleware/theme-static-assets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import {
@@ -103,7 +104,7 @@ const BASE = (themeId: string) => `/api/admin/v1/workspaces/${WORKSPACE_ID}/them
  * plus `nosniff`, both present on every response this mount serves. */
 function assertScriptExecutionIsBlocked(headers: Headers): void {
   const csp = headers.get("content-security-policy") ?? "";
-  assert.ok(csp.includes("sandbox"), `expected a sandboxing CSP directive, got "${csp}"`);
+  assert.equal(csp, "default-src 'none'; sandbox");
   assert.ok(!/\ballow-scripts\b/.test(csp), `sandbox must not carry allow-scripts, got "${csp}"`);
   assert.equal(headers.get("x-content-type-options"), "nosniff");
 }
@@ -132,7 +133,7 @@ test("FIXED: an .svg with an embedded <script> is still writable (theme authorin
   // Content-type is UNCHANGED -- a real SVG logo/icon used as <img src> keeps working exactly as
   // before. Only the CSP/nosniff pair (asserted below) removes the script-execution capability.
   const contentType = served.headers.get("content-type") ?? "";
-  assert.ok(contentType.includes("svg"), `expected an svg content-type, got "${contentType}"`);
+  assert.equal(contentType.split(";")[0].trim().toLowerCase(), "image/svg+xml");
   const body = await served.text();
   assert.equal(body, payload, "bytes are unchanged -- the fix does not sanitize or alter content");
 
@@ -158,7 +159,7 @@ test("FIXED: a root-level .html file with an embedded <script> is still writable
   const served = await fetch(`${baseUrl}/theme-assets/authored/custom.html`);
   assert.equal(served.status, 200);
   const contentType = served.headers.get("content-type") ?? "";
-  assert.ok(contentType.includes("html"), `expected an html content-type, got "${contentType}"`);
+  assert.equal(contentType.split(";")[0].trim().toLowerCase(), "text/html");
   const body = await served.text();
   assert.equal(body, payload, "bytes are unchanged -- the fix does not sanitize or alter content");
 
@@ -268,4 +269,23 @@ test("FIXED (defense in depth, continuation agent, 2026-08-13): a FOURTH path in
     "LIVE current preview content",
     "the live preview/ file must be untouched by a refused reset",
   );
+});
+
+test("real composition serves authored SVG and preview SVG with restrictive headers", async (t) => {
+  const themesDir = makeThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const payload = '<svg xmlns="http://www.w3.org/2000/svg"><script>document.title="pwned"</script></svg>';
+  const themeDir = path.join(themesDir, "static", "authored");
+  fs.mkdirSync(path.join(themeDir, "preview", "dark"), { recursive: true });
+  fs.writeFileSync(path.join(themeDir, "evil.svg"), payload);
+  fs.writeFileSync(path.join(themeDir, "preview", "dark", "evil.svg"), payload);
+  const deps = { ...createRouteDeps(), themesDir, themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }) };
+  const baseUrl = await startTestServer(createApp(deps), t);
+  for (const url of ["/theme-assets/authored/evil.svg", "/theme-preview/authored/dark/evil.svg"]) {
+    const response = await fetch(`${baseUrl}${url}`);
+    assert.equal(response.status, 200, url);
+    assert.equal(await response.text(), payload);
+    assert.equal(response.headers.get("content-type")?.split(";")[0], "image/svg+xml");
+    assertScriptExecutionIsBlocked(response.headers);
+  }
 });

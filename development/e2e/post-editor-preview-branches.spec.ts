@@ -98,7 +98,7 @@ async function publishAndWaitForConfirmation(page: Page): Promise<void> {
   await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
 }
 
-/** The `.editor-preview-iframe` carries `src` for branches 1/2 (a real navigable iframe pointed at a
+/** The "Post preview" iframe carries `src` for branches 1/2 (a real navigable iframe pointed at a
  *  URL up front). Branch 3 (pending-content) sets NEITHER `src` NOR `srcdoc` — it only ever gets a
  *  `name`, and its navigation happens via a targeted form submit rather than an attribute the DOM
  *  exposes, so this structural signal only distinguishes branches 1/2 from branch 3; branch 3 is
@@ -107,7 +107,7 @@ async function publishAndWaitForConfirmation(page: Page): Promise<void> {
  *  file's header records as deleted 2026-09-11 — that component never sets `src`, only `srcdoc`, so a
  *  reappearing `srcdoc` attribute would be the tell if it ever came back. */
 async function previewIframeState(page: Page): Promise<{ src: string | null; srcdoc: string | null }> {
-  const iframe = page.locator(".editor-preview-iframe");
+  const iframe = page.getByTitle("Post preview", { exact: true });
   await expect(iframe).toBeVisible();
   return {
     src: await iframe.getAttribute("src"),
@@ -187,6 +187,16 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     // Real, themed chrome — a `<body>` attached inside a real navigated document, not an inline
     // `srcDoc` string with no template/theme CSS at all.
     await expect(pendingFrame.locator("body")).toBeVisible();
+    await pendingFrame.waitForLoadState("load");
+    const livePage = await page.context().newPage();
+    try {
+      await livePage.goto(API_BASE_URL, { waitUntil: "load" });
+      const liveBackground = await livePage.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(liveBackground, "control must itself have a themed background").not.toBe("rgba(0, 0, 0, 0)");
+      expect(await pendingFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(liveBackground);
+    } finally {
+      await livePage.close();
+    }
 
     // The notice this suite exists to verify — measured, not a screenshot.
     await expectNoticeGenuinelyVisible(page);
@@ -308,18 +318,25 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     );
   });
 
-  // BRANCH 2 (template preview: `status === "published" && !contentDirty`, only `templateChoice`
-  // pending) is NOT covered here. UNVERIFIED CLAIM, kept as previously recorded rather than silently
-  // dropped: this was originally skipped on the stated grounds that reaching it "requires an active
-  // STATIC-tier theme that declares `templates`, which this suite's hermetic `TOVU_DB=memory` boot
-  // does not have." Live evidence from authoring the branch-3 fix above casts doubt on that premise —
-  // a brand-new post in this exact hermetic boot auto-received `templateChoice=blog-post.html` in the
-  // pending-content request, and `content/themes/static/tovu-theme/theme.json` (this boot's seeded theme) DOES
-  // declare `"templates": ["blog-post.html", ...]`. Branch 2 may be reachable after all; left as a
-  // disclosed, unresolved gap rather than re-scoped and fixed here (out of this fix's own assigned
-  // scope — the pending-content branch, not branch-2 coverage).
-  test.skip(
-    "BRANCH 2 (template preview) not covered: originally recorded as requiring a static-tier theme with declared templates unavailable in this hermetic boot — that premise now looks questionable, see comment above",
-    () => {}
-  );
+  test("BRANCH 2: changing only a published post's template loads the alternate preview without changing the live page", async ({ page, request }) => {
+    const { slug } = await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Template-only preview content");
+    await publishAndWaitForConfirmation(page);
+    const liveBefore = await request.get(`${API_BASE_URL}/${slug}`);
+    expect(liveBefore.ok()).toBe(true);
+    const liveHtml = await liveBefore.text();
+    await page.locator('[data-agent-element="post-template-choice"]').selectOption("blog-sidebar-template.html");
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const { src, srcdoc } = await previewIframeState(page);
+    expect(srcdoc).toBeNull();
+    expect(src).toContain("/template-preview?templateChoice=blog-sidebar-template.html");
+    const preview = page.getByTitle("Post preview", { exact: true }).contentFrame();
+    await expect(preview.locator("body")).toContainText("Template-only preview content");
+    await expect(preview.locator(".docs-sidebar")).toBeVisible();
+    await expectNoticeGenuinelyVisible(page);
+    const liveAfter = await request.get(`${API_BASE_URL}/${slug}`);
+    expect(liveAfter.ok()).toBe(true);
+    expect(await liveAfter.text()).toBe(liveHtml);
+  });
 });

@@ -83,8 +83,11 @@ describe("site assistant tools", () => {
   describe("published-only enforcement", () => {
     it("scopes the list call to the configured workspace", async () => {
       const { calls, port } = fakePort();
-      await createSiteAssistantTools(makeDeps({ postRepo: port as never })).list_categories();
-      assert.deepEqual(calls[0], { workspaceId: "ws" });
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
+      await tools.list_categories();
+      await tools.search_published_entries({});
+      await tools.get_published_entry({ slug: "public-post" });
+      assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws" }, { workspaceId: "ws" }]);
     });
 
     it("never surfaces a draft from search", async () => {
@@ -125,6 +128,20 @@ describe("site assistant tools", () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
       const [first] = await tools.search_published_entries({ query: "public post" });
       assert.deepEqual(Object.keys(first).sort(), ["slug", "title", "type", "updatedAt"]);
+      const detail = await tools.get_published_entry({ slug: "public-post" });
+      assert.deepEqual(Object.keys(detail).sort(), ["slug", "text", "title", "type", "updatedAt"]);
+    });
+
+    it("matches titles and slugs case-insensitively and excludes nonmatches", async () => {
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
+        ...ROWS,
+        row({ slug: "opaque-slug", title: "Unique Heading", status: "published" }),
+        row({ slug: "unique-address", title: "Different Title", status: "published" }),
+      ]).port as never }));
+      assert.deepEqual((await tools.search_published_entries({ query: "PAGE" })).map((e) => e.slug), ["public-page"]);
+      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE HEADING" })).map((e) => e.slug), ["opaque-slug"]);
+      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE-ADDRESS" })).map((e) => e.slug), ["unique-address"]);
+      assert.deepEqual(await tools.search_published_entries({ query: "no matching content" }), []);
     });
 
     it("returns plain text from a Tiptap body, not the document tree", async () => {
@@ -152,6 +169,12 @@ describe("site assistant tools", () => {
     it("derives categories from published, non-trashed posts only", async () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
       assert.deepEqual(await tools.list_categories(), ["page", "post"]);
+      const hiddenPages = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
+        row({ slug: "visible", status: "published" }),
+        row({ slug: "draft-page", status: "draft", kind: "page" }),
+        row({ slug: "trashed-page", status: "published", kind: "page", deletedAt: "2026-02-01" }),
+      ]).port as never }));
+      assert.deepEqual(await hiddenPages.list_categories(), ["post"]);
     });
   });
 
@@ -169,6 +192,16 @@ describe("site assistant tools", () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort(many).port as never, maxResults: 2 }));
       const results = await tools.search_published_entries({});
       assert.equal(results.length, 2);
+      assert.deepEqual(results.map((e) => e.slug), ["p0", "p1"]);
+      const tailMatches = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
+        ...many,
+        row({ slug: "title-one", title: "Tail Match", status: "published" }),
+        row({ slug: "tail-match-two", title: "Unrelated", status: "published" }),
+        row({ slug: "title-three", title: "Tail Match", status: "published" }),
+      ]).port as never, maxResults: 2 }));
+      assert.deepEqual((await tailMatches.search_published_entries({ query: "tail match" })).map((e) => e.slug), ["title-one", "title-three"]);
+      assert.deepEqual((await tailMatches.search_published_entries({ query: "tail-match" })).map((e) => e.slug), ["tail-match-two"]);
+      assert.deepEqual(await tailMatches.search_published_entries({ query: "absent" }), []);
     });
 
     it("does not cap list_categories or get_published_entry, only the search list", async () => {

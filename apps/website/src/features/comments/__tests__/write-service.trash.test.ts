@@ -9,6 +9,11 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { declareDataModule } from "../../plugins/data-module.js";
+import { SqliteCommentRepo } from "../repo.sqlite.js";
+import { COMMENTS_DATA_MODULE } from "../types.js";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createCommentHookRegistry } from "../hooks.js";
@@ -52,8 +57,8 @@ interface RemoveCall {
   actor: { principalId: string; pluginId?: string | null };
 }
 
-function makeService(options: { removeFails?: "not-found" | "version-changed" } = {}) {
-  const repo = new InMemoryCommentRepo();
+function makeService(options: { removeFails?: "not-found" | "version-changed"; repo?: InMemoryCommentRepo | SqliteCommentRepo; transaction?: <T>(fn: () => Promise<T>) => Promise<T> } = {}) {
+  const repo = options.repo ?? new InMemoryCommentRepo();
   const outbox = new InMemoryOutbox();
   const hooks = createCommentHookRegistry();
   const removeCalls: RemoveCall[] = [];
@@ -80,7 +85,7 @@ function makeService(options: { removeFails?: "not-found" | "version-changed" } 
     runInTransaction: async (fn) => {
       trace.push("begin");
       try {
-        const result = await fn();
+        const result = await (options.transaction ? options.transaction(fn) : fn());
         trace.push("commit");
         return result;
       } catch (error) {
@@ -178,8 +183,13 @@ test("an ordinary moderation that never touches trash touches neither side of th
   assert.equal(forgetCalls.length, 0);
 });
 
-test("a failed index write rolls the moderation back rather than leaving a hidden comment with no Trash row", async () => {
-  const { repo, service, trace } = makeService({ removeFails: "version-changed" });
+test("a failed index write rolls the moderation back rather than leaving a hidden comment with no Trash row", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  const declared = await declareDataModule({ db, dbPath: ":memory:", decl: COMMENTS_DATA_MODULE });
+  assert.equal(declared.ok, true);
+  const kernel = contentKernel(db);
+  const { repo, service, trace } = makeService({ removeFails: "version-changed", repo: new SqliteCommentRepo(kernel), transaction: (fn) => kernel.transaction(fn) });
   await repo.create(makeComment());
 
   await assert.rejects(
@@ -197,6 +207,8 @@ test("a failed index write rolls the moderation back rather than leaving a hidde
   );
 
   assert.deepEqual(trace, ["begin", "remove", "rollback"]);
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }), makeComment());
+  assert.deepEqual(await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: "comment-1" }), []);
 });
 
 test("a conflicted moderation never reaches the index at all", async () => {

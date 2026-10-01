@@ -252,3 +252,25 @@ test("no provider response text, in any form, ever reaches the response — the 
     assert.ok(!html.includes(PROVIDER_SECRET_MARKER), `${name}: the marker must never appear in the response`);
   }
 });
+
+test("callback forwards the exact server and normalized query fields, including empty and repeated parameters", async (t) => {
+  const calls: unknown[] = [];
+  const deps: ExternalMcpOAuthCallbackRouteDeps = {
+    oauth: fakeOAuthService(async (input) => { calls.push(input); }),
+    callbackLimiter: fixedRateLimiter({ allowed: true }),
+  };
+  const baseUrl = await startTestServer(buildApp(deps), t);
+  const cases = [
+    { query: "state=s&code=c&error=denied&ignored=extra", status: 200, params: { state: "s", code: "c", error: "denied" } },
+    { query: "state=s&code=&error=", status: 200, params: { state: "s" } },
+    { query: "state=s&code=c1&code=c2&error=e1&error=e2", status: 200, params: { state: "s" } },
+    { query: "state=s1&state=s2&code=c", status: 400 },
+    { query: "state=&code=c", status: 400 },
+  ];
+  for (const scenario of cases) {
+    const before = calls.length;
+    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?${scenario.query}`);
+    assert.equal(response.status, scenario.status, scenario.query);
+    assert.deepEqual(calls.slice(before), scenario.params ? [{ serverId: SERVER_ID, params: scenario.params }] : []);
+  }
+});

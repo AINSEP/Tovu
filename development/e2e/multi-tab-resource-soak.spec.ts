@@ -55,6 +55,12 @@ const SCREENS: ReadonlyArray<{ navLabel: string }> = [{ navLabel: "Posts" }, { n
  *  inside `page`, simulating `count` additional long-lived tabs/pollers holding a connection open
  *  against the same origin. Mirrors `themes-presentation-request-timeout.spec.ts`'s own helper. */
 async function holdExtraConnections(page: Page, count: number): Promise<void> {
+  const network = await page.context().newCDPSession(page);
+  await network.send("Network.enable");
+  const protocols: string[] = [];
+  network.on("Network.responseReceived", (event) => {
+    if (new URL(event.response.url).pathname === SETTINGS_EVENTS_URL) protocols.push(event.response.protocol);
+  });
   await page.evaluate(
     ({ url, holdCount }) => {
       const win = window as unknown as { __soakSockets?: EventSource[] };
@@ -62,9 +68,19 @@ async function holdExtraConnections(page: Page, count: number): Promise<void> {
     },
     { url: SETTINGS_EVENTS_URL, holdCount: count }
   );
-  // Lets the extra connection attempts actually reach the browser's socket queue before the real
-  // navigation below fires — without this, both could be issued in the same tick and race.
-  await page.waitForTimeout(2_000);
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __soakSockets: EventSource[] }).__soakSockets.filter((socket) => socket.readyState === EventSource.OPEN).length
+  ), { timeout: 15_000 }).toBeGreaterThanOrEqual(5);
+  expect(protocols.length).toBeGreaterThanOrEqual(5);
+  expect(protocols.every((protocol) => protocol === "http/1.1")).toBe(true);
+  const probe = await page.evaluate(async () => {
+    try {
+      await fetch("/api/admin/v1/workspaces/workspace-local/posts", { signal: AbortSignal.timeout(2_000) });
+      return "responded";
+    } catch (error) { return (error as Error).name; }
+  });
+  expect(probe, "an ordinary request must be blocked by the held streams before navigation").toBe("TimeoutError");
+  await network.detach();
 }
 
 test.describe("admin app survives an exhausted per-origin connection pool, across multiple screens", () => {

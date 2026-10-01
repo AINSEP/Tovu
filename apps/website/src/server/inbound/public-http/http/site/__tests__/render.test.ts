@@ -420,7 +420,7 @@ function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 test("renderSite renders the live themes/dispatch home page: header/footer components, entry grid, escaped titles, no leftover Liquid tags", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid", `expected dispatch to load valid, got errors: ${JSON.stringify(theme.errors)}`);
 
   const posts = [fakePost(), fakePost({ id: "2", slug: "second", title: "Second Post", updatedAt: "2026-06-01T00:00:00.000Z" })];
@@ -437,7 +437,7 @@ test("renderSite renders the live themes/dispatch home page: header/footer compo
 });
 
 test("renderSite renders the live themes/dispatch entry (post) page: content injected raw, title escaped in the shell", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const post = fakePost();
@@ -453,7 +453,7 @@ test("renderSite renders the live themes/dispatch entry (post) page: content inj
 });
 
 test("renderSite: the ADR-054 visitor-chat mount node + script are absent by default, and every pre-existing caller (no siteAssistantEnabled param) keeps getting no widget", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [] });
@@ -463,7 +463,7 @@ test("renderSite: the ADR-054 visitor-chat mount node + script are absent by def
 });
 
 test("renderSite: siteAssistantEnabled:false is the same as omitting it — no mount node, no script, no stylesheet", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: false });
@@ -473,7 +473,7 @@ test("renderSite: siteAssistantEnabled:false is the same as omitting it — no m
 });
 
 test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
@@ -495,7 +495,7 @@ test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount n
 });
 
 test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier home page too — regression for the ADR-054 gap where `renderStaticTierHomePage` bypasses `pageShell` (and its siteAssistantMarkup splice) entirely, so the widget silently never appeared for any static theme's home route no matter the setting", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.tier, "static");
 
@@ -506,7 +506,7 @@ test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier 
 });
 
 test("renderSite: siteAssistantEnabled:false (or omitted) shows no widget on a static-tier home page — same fail-closed default as every other tier", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [] });
@@ -516,7 +516,7 @@ test("renderSite: siteAssistantEnabled:false (or omitted) shows no widget on a s
 });
 
 test("renderSite falls back to the minimal built-in body (never 500s) when a templated theme's source is hostile at render time", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   // Simulate a template hot-edited on disk to smuggle a disallowed tag after
   // `loadTheme` already validated it — the worker's defensive re-lint must
@@ -590,7 +590,7 @@ test("renderSite (declarative tier): a region with no resolved widgets (or no wi
 });
 
 test("renderSite (Liquid tier): {% render_block region: \"footer\" %} resolves the same widget list over the same render_block seam, no new Liquid capability needed (ADR-047 §2a)", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   theme.liquidTemplates.home = '<div id="footer-region">{% render_block region: "footer" %}</div>';
 
@@ -610,7 +610,7 @@ test("renderSite (Liquid tier): {% render_block region: \"footer\" %} resolves t
 });
 
 test("renderSite (Liquid tier): a menu widget's authored cssClass/rel/openInNewTab reach the page end-to-end through render_block region -> renderBlockSeam -> renderWidgetRegion -> renderWidgetIr — the exact chain a static-tier-only fix would have left silently broken on this tier (COMPONENTS has no 'menu' entry of its own; declarative/Liquid/Handlebars all resolve a menu widget through this one shared function)", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   theme.liquidTemplates.home = '<div id="footer-region">{% render_block region: "footer" %}</div>';
 
@@ -1239,14 +1239,14 @@ test("renderDocNode: a legacy src-only node with a hostile-scheme src still degr
   assert.doesNotMatch(html, /javascript:/);
 });
 
-test("renderSite: a ref-based image node embedded in a real post body renders a real <img> end-to-end through the declarative slot path, when the caller resolves mediaTransformVersions", async () => {
+test("renderSite: a ref-based image node embedded in a real post body renders a real <img> end-to-end through the Liquid post.content builder, when the caller resolves mediaTransformVersions", async () => {
   const post = fakePost({
     bodyJson: {
       type: "doc",
       content: [{ type: "image", attrs: { assetId: "asset-42", transformName: "public", alt: "Team photo" } }],
     },
   });
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   const html = await renderSite({
     theme,
@@ -1260,14 +1260,14 @@ test("renderSite: a ref-based image node embedded in a real post body renders a 
   assert.doesNotMatch(html, /media-ph/);
 });
 
-test("renderSite: an image node embedded in a real post body renders the placeholder end-to-end through both the declarative slot path and the shared Liquid/Handlebars `post.content` builder", async () => {
+test("renderSite: an image node embedded in a real post body renders the placeholder end-to-end through the Liquid post.content builder", async () => {
   const post = fakePost({
     bodyJson: {
       type: "doc",
       content: [{ type: "image", attrs: { src: "data:image/png;base64,AAAA", alt: "Team photo" } }],
     },
   });
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   const html = await renderSite({ theme, route: "post", siteTitle: "Dispatch Demo", posts: [post], post });
   assert.match(html, /media-ph/);
@@ -2005,11 +2005,12 @@ test("encodeFormFlashCookieValue: never puts field values in the URL/query layer
 });
 
 test("encodeFormFlashCookieValue: a value longer than the per-field bound is truncated, not rejected", () => {
-  const longValue = "x".repeat(5000); // MAX_BODY_STRING_LENGTH's own bound in forms-submit.ts
+  const longValue = "begin:" + "x".repeat(294) + "end:" + "y".repeat(4696); // MAX_BODY_STRING_LENGTH's own bound in forms-submit.ts
   const json = encodeFormFlashCookieValue({ slug: "contact", values: { message: longValue } });
   assert.ok(json);
   const decoded = decodeFormFlashCookieValue(json);
   assert.equal(decoded?.values.message.length, 300);
+  assert.equal(decoded?.values.message, "begin:" + "x".repeat(294));
   assert.ok(longValue.startsWith(decoded!.values.message), "the truncated preview must be a real prefix of what was typed");
 });
 
@@ -2194,7 +2195,7 @@ function htmlEmbeds(byType: Readonly<Record<string, ReadonlyMap<string, WidgetRe
 }
 
 test("renderSite (Slice 1): an 'html'-format post's body_html renders raw through the live dispatch theme's post.content — its bodyJson is never walked", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const post = htmlPage({
@@ -2273,7 +2274,7 @@ test("renderSite (Slice 2): an html Page's embed placeholders degrade safely whe
   assert.match(html, /widget-placeholder/);
 });
 
-test("renderSite (Slice 2): an unknown embed type degrades to the REQ-28 placeholder exactly like a known-type resolution failure — render.ts never distinguishes the two externally", async () => {
+test("renderSite (Slice 2): an unresolved supported media embed degrades to the REQ-28 placeholder", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
@@ -3123,4 +3124,87 @@ test("renderDocNode: an htmlAttributes name outside the [a-z][a-z0-9-]* shape is
       `payload ${JSON.stringify(payload)} must fail closed`
     );
   }
+});
+
+test("renderSite: an unowned unsupported embed type remains authored for later rendering stages", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>` });
+  const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, pageHtmlEmbeds: htmlEmbeds() });
+  assert.ok(html.includes(`<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>`));
+  assert.doesNotMatch(html, /widget-placeholder/);
+});
+
+for (const tier of ["declarative", "handlebars"] as const) {
+  for (const resolved of [true, false]) {
+    test(`renderSite: ${tier} post content renders a ${resolved ? "resolved image" : "legacy image placeholder"}`, async () => {
+      const theme = tier === "handlebars"
+        ? loadTheme({ themeDir: path.resolve(import.meta.dirname, "../../../../../../../../../development/fixtures/theme-archive/ledger"), id: "ledger", source: "built-in" })
+        : declarativeTheme({ type: "doc", content: [] });
+      if (tier === "declarative") theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+      assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
+      const post = fakePost({ bodyJson: { type: "doc", content: [{ type: "image", attrs: resolved
+        ? { assetId: "asset-42", transformName: "public", alt: "Team photo" }
+        : { src: "data:image/png;base64,AAAA", alt: "Team photo" } }] } });
+      const html = await renderSite({ theme, route: "post", siteTitle: "Image demo", posts: [post], post, mediaTransformVersions: new Map([["public", 5]]) });
+      if (resolved) {
+        assert.match(html, /<img src="\/m\/asset-42\/public\.v5\/image\.jpg" alt="Team photo" loading="lazy">/);
+        assert.doesNotMatch(html, /media-ph/);
+      } else {
+        assert.match(html, /media-ph/);
+        assert.match(html, /Team photo/);
+        assert.doesNotMatch(html, /base64,AAAA|<img/);
+      }
+      assert.doesNotMatch(html, /theme render error/);
+    });
+  }
+}
+
+test("declarative sections and feature grids render their distinct escaped content", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [
+    { type: "component", id: "tovu/section", props: { id: "about", title: "Section <title>", lead: "Lead & intro", body: ["Paragraph <one>"], bullets: ["Bullet & one"] } },
+    { type: "component", id: "tovu/feature-grid", props: { title: "Features", items: [{ title: "Feature <one>", body: "Feature & body", tag: "New" }] } },
+  ] });
+  const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+  assert.match(html, /<section class="section section--plain" id="about">[\s\S]*<h2 class="section__title">Section &lt;title&gt;<\/h2>/);
+  assert.match(html, /<p class="section__lead">Lead &amp; intro<\/p>/);
+  assert.match(html, /<p>Paragraph &lt;one&gt;<\/p>/);
+  assert.match(html, /<li>Bullet &amp; one<\/li>/);
+  assert.match(html, /<section class="feature-grid">[\s\S]*<h3 class="feature__title">Feature &lt;one&gt;<\/h3>/);
+  assert.match(html, /<p class="feature__body">Feature &amp; body<\/p>/);
+});
+
+test("declarative content slots render escaped assigned terms grouped by taxonomy", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = fakePost();
+  const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, assignedTerms: [
+    { termId: "t1", termName: "QA <one>", taxonomyName: "Category & group" },
+    { termId: "t2", termName: "QA two", taxonomyName: "Category & group" },
+    { termId: "t3", termName: "Tag three", taxonomyName: "Tags" },
+  ] });
+  assert.match(html, /<span class="entry-terms__taxonomy">Category &amp; group:<\/span> <span class="entry-terms__term">QA &lt;one&gt;<\/span>, <span class="entry-terms__term">QA two<\/span>/);
+  assert.match(html, /<span class="entry-terms__taxonomy">Tags:<\/span> <span class="entry-terms__term">Tag three<\/span>/);
+});
+
+test("content marker header overrides stay local to each occurrence of a shared IR", () => {
+  const ir: WidgetRenderIR = { componentId: "post-content", props: { title: "Distinct title", bodyJson: textDoc({ type: "text", text: "Body" }) } };
+  const resolved = htmlEmbeds({ content: new Map([["same", ir]]) });
+  const html = renderHtmlPageBody(`<section id="hidden-header"><div data-embed-config='{"type":"content","id":"same","header":false}'></div></section><section id="shown-header"><div data-embed-config='{"type":"content","id":"same","header":true}'></div></section>`, resolved);
+  assert.match(html, /<section id="hidden-header"><div><div class="post-detail-body"><p>Body<\/p><\/div><\/div><\/section>/);
+  assert.match(html, /<section id="shown-header"><div><div class="post-detail-header"><h1>Distinct title<\/h1><\/div><div class="post-detail-body"><p>Body<\/p><\/div><\/div><\/section>/);
+  assert.equal(ir.props.header, undefined);
+});
+
+test("a selected Liquid template override renders instead of the default route template", async () => {
+  const theme = loadTheme({ themeDir: path.resolve(import.meta.dirname, "../../../../../../../../../development/fixtures/theme-archive/dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+  theme.liquidTemplates.home = '<main id="default-template">Default {{ site.title }}</main>';
+  theme.liquidTemplates.selected = '<main id="selected-template">Selected {{ site.title }}</main>';
+  const args = { theme, route: "home" as const, siteTitle: "Choice", posts: [] };
+  const defaultHtml = await renderSite(args);
+  assert.match(defaultHtml, /<main id="default-template">Default Choice<\/main>/);
+  const selectedHtml = await renderSite({ ...args, liquidTemplateIdOverride: "selected" });
+  assert.match(selectedHtml, /<main id="selected-template">Selected Choice<\/main>/);
+  assert.doesNotMatch(selectedHtml, /default-template|theme render error/);
 });

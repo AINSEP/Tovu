@@ -70,6 +70,12 @@ const EXTRA_HELD_CONNECTIONS = 6;
 test.describe("Themes screen survives an exhausted per-origin connection pool", () => {
   test("getPresentation() fails visibly instead of hanging forever when no socket is free", async ({ page }) => {
     await loginAsAdmin(page);
+    const network = await page.context().newCDPSession(page);
+    await network.send("Network.enable");
+    const protocols: string[] = [];
+    network.on("Network.responseReceived", (event) => {
+      if (new URL(event.response.url).pathname === SETTINGS_EVENTS_URL) protocols.push(event.response.protocol);
+    });
 
     // Claim extra sockets against this same origin the same way the real bug's tabs did: long-lived
     // EventSource connections that never close. Fired from inside the page, not `page.route`, so the
@@ -84,9 +90,19 @@ test.describe("Themes screen survives an exhausted per-origin connection pool", 
       },
       { url: SETTINGS_EVENTS_URL, count: EXTRA_HELD_CONNECTIONS }
     );
-    // Lets the six connection attempts actually reach the browser's socket queue before the real
-    // navigation below fires — without this, both could be issued in the same tick and race.
-    await page.waitForTimeout(2_000);
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { __regressionSockets: EventSource[] }).__regressionSockets.filter((socket) => socket.readyState === EventSource.OPEN).length
+    ), { timeout: 15_000 }).toBeGreaterThanOrEqual(5);
+    expect(protocols.length).toBeGreaterThanOrEqual(5);
+    expect(protocols.every((protocol) => protocol === "http/1.1")).toBe(true);
+    const probe = await page.evaluate(async () => {
+      try {
+        await fetch("/api/admin/v1/workspaces/workspace-local/presentation", { signal: AbortSignal.timeout(2_000) });
+        return "responded";
+      } catch (error) { return (error as Error).name; }
+    });
+    expect(probe, "presentation must be blocked by the occupied pool before navigation").toBe("TimeoutError");
+    await network.detach();
 
     const themesNavLink = page.locator("nav").first().getByRole("link", { name: "Themes", exact: true });
     await themesNavLink.click();

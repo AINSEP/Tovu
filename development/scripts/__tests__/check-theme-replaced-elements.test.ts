@@ -14,7 +14,7 @@ import { checkTheme, findUnconstrainedElements, type ThemeStylesheets } from "..
  *     shapes a naive substring match would have let through (built directly from real CSS found in
  *     `fuel`'s and `portfolite`'s shipped stylesheets, not invented edge cases).
  *
- *  2. A REAL regression test against the actual shipped `src/themes/static/basic/css/theme.css` —
+ *  2. A REAL regression test against the shipped `content/themes/static/tovu-theme/css/theme.css` —
  *     the file this task's fix landed in — proving `checkTheme` reports it clean today, and that it
  *     genuinely goes RED if the fix's own rule is removed (verified by hand: temporarily deleting
  *     `img, video, iframe { max-width: 100%; }` from that file and re-running this exact test failed
@@ -74,7 +74,7 @@ test("no CSS at all reports every replaced element as unconstrained", () => {
   assert.deepEqual(finding.missing, ["img", "video", "iframe"]);
 });
 
-test("REGRESSION: the real shipped basic theme.css constrains img, video, and iframe", () => {
+test("REGRESSION: the shipped tovu-theme stylesheet passes the replaced-element declaration check", () => {
   const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
   const cssPath = path.join(REPO_ROOT, "content", "themes", "static", "tovu-theme", "css", "theme.css");
   assert.ok(fs.existsSync(cssPath), `expected ${cssPath} to exist`);
@@ -85,6 +85,6 @@ test("REGRESSION: the real shipped basic theme.css constrains img, video, and if
   assert.equal(
     finding,
     null,
-    `expected basic's theme.css to constrain img/video/iframe with no findings, got: ${JSON.stringify(finding)}`,
+    `expected tovu-theme's theme.css to declare img/video/iframe constraints, got: ${JSON.stringify(finding)}`,
   );
 });

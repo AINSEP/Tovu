@@ -34,7 +34,10 @@ async function login(page: Page): Promise<void> {
 
 async function gotoMediaProviders(page: Page): Promise<void> {
   await page.goto(`${ADMIN_PATH}media`, { waitUntil: "domcontentloaded" });
-  await page.click('.media-tab:has-text("Media providers")');
+  const tab = page.getByRole("tab", { name: "External Providers", exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".media-providers-panel")).toBeVisible();
   await page.waitForSelector(".jini-media-provider-card", { timeout: 20_000 });
 }
 

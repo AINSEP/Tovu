@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 import { parseArgs, rankHotspots } from "../report-churn-hotspots.js";
 
 /**
  * @file Direct coverage for the pure half of `report-churn-hotspots.ts` — argument parsing and the
- * ranking/flagging logic. `scanComplexity` and `churnFor` are deliberately not covered here: both
- * shell out (to `npx eslint` and `git log`), and stubbing either would test the stub rather than
- * the behavior. The ranking function was separated from that I/O precisely so this file needs
- * neither a git repo nor an ESLint run.
+ * ranking/flagging logic. CLI fixtures supply strict process-boundary responses for ESLint and
+ * git, exercising extraction, history counting and report assembly without running a real scan.
  *
  * Every fixture below uses REAL measured numbers from the 2026-08-20 repo-wide scan
  * (`ADS-memory/reports/2026-08-20-repo-wide-coverage-complexity-measurement.md` §6) rather than
@@ -49,6 +51,13 @@ test("parseArgs rejects a non-positive or non-numeric window with the offending 
   });
   assert.throws(() => parseArgs(["--top=-3"]), {
     message: '--top must be a positive number, got "-3"',
+  });
+  assert.throws(() => parseArgs(["--top=abc"]), { message: '--top must be a positive number, got "abc"' });
+});
+
+test("parseArgs accepts flags in different positions", () => {
+  assert.deepEqual(parseArgs(["--json", "--scope=apps/admin/src", "--top=5", "--months=12"]), {
+    months: 12, top: 5, scope: "apps/admin/src", json: true,
   });
 });
 
@@ -165,4 +174,46 @@ test("higher raw complexity wins a score tie before the path tiebreak applies", 
 
 test("an empty scan produces an empty ranking rather than throwing", () => {
   assert.deepEqual(rankHotspots(new Map(), new Map()), []);
+});
+
+test("CLI extracts complexity maxima, excludes tests, counts history and reports tooling failures", (t) => {
+  const repo = path.resolve(import.meta.dirname, "../../..");
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "churn-report-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const script = path.join(root, "development/scripts/report-churn-hotspots.ts");
+  fs.mkdirSync(path.dirname(script), { recursive: true });
+  fs.copyFileSync(path.join(repo, "development/scripts/report-churn-hotspots.ts"), script);
+  fs.writeFileSync(path.join(root, "package.json"), '{"type":"module"}');
+  fs.symlinkSync(path.join(repo, "node_modules"), path.join(root, "node_modules"), "dir");
+  const bin = path.join(root, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "package.json"), '{"type":"commonjs"}');
+  const message = (ruleId: string, text: string) => ({ ruleId, message: text });
+  const results = [
+    { filePath: path.join(root, "src/hot.ts"), messages: [message("complexity", "Function has a complexity of 12."), message("complexity", "Function has a complexity of 24."), message("sonarjs/cognitive-complexity", "Refactor to reduce its Cognitive Complexity from 17 to the 9 allowed."), message("unrelated-rule", "ignored")] },
+    { filePath: path.join(root, "src/cold.ts"), messages: [message("complexity", "Function has a complexity of 10.")] },
+    ...["src/__tests__/ignored.ts", "src/__measurements__/ignored.ts", "src/ignored.test.ts"].map((file) => ({ filePath: path.join(root, file), messages: [message("complexity", "Function has a complexity of 99.")] })),
+    { filePath: path.join(root, "src/clean.ts"), messages: [message("unrelated-rule", "ignored")] },
+  ];
+  const expectedNpxArgs = ["eslint", "--no-error-on-unmatched-pattern", ...["**/*.js", "**/*.mjs", "**/*.cjs", "content/themes/**", "development/fixtures/theme-archive/**"].flatMap((pattern) => ["--ignore-pattern", pattern]), "--rule", JSON.stringify({ complexity: ["error", 9], "sonarjs/cognitive-complexity": ["error", 9] }), "-f", "json", "src"];
+  const npx = `#!${process.execPath}\nconst assert = require("node:assert/strict"); assert.deepEqual(process.argv.slice(2), ${JSON.stringify(expectedNpxArgs)}); if (process.env.FIXTURE_TOOL_FAILURE === "yes") { console.error("fixture tooling failure"); process.exit(42); } console.log(${JSON.stringify(JSON.stringify(results))}); process.exit(1);\n`;
+  const git = `#!${process.execPath}\nconst assert = require("node:assert/strict"); const args = process.argv.slice(2); assert.deepEqual(args.slice(0, 5), ["log", "--since=3 months ago", "--follow", "--format=%H", "--"]); assert.equal(args.length, 6); assert.ok(["src/hot.ts", "src/cold.ts"].includes(args[5]), "unexpected history query"); process.stdout.write(args[5] === "src/hot.ts" ? "commit-one\\ncommit-two\\n" : "");\n`;
+  for (const [name, body] of [["npx", npx], ["git", git]]) fs.writeFileSync(path.join(bin, name), body, { mode: 0o755 });
+  const run = (failure: boolean) => spawnSync(process.execPath, ["--import", "tsx", script, "--months=3", "--scope=src", "--json"], {
+    cwd: root, encoding: "utf8", env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FIXTURE_TOOL_FAILURE: failure ? "yes" : "no" },
+  });
+  const result = run(false);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "", "strict process fixtures must accept every invocation");
+  assert.deepEqual(JSON.parse(result.stdout.slice(result.stdout.indexOf("{"))), {
+    months: 3, scope: "src", threshold: 9,
+    hotspots: [
+      { file: "src/hot.ts", cyclomatic: 24, cognitive: 17, violations: 3, churn: 2, score: 82, flags: [] },
+      { file: "src/cold.ts", cyclomatic: 10, cognitive: 0, violations: 1, churn: 0, score: 0, flags: ["FLAT_WIRING", "COLD"] },
+    ],
+  });
+  const failed = run(true);
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /fixture tooling failure/);
+  assert.doesNotMatch(failed.stdout, /"hotspots"/);
 });

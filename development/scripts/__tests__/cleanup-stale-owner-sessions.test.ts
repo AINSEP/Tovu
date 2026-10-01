@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { sessions } from "../../../apps/website/src/platform/db/schema.sqlite.js";
@@ -30,17 +31,21 @@ function tmpDir(prefix: string): string {
 /** Runs the real CLI with `node --import tsx`, capturing stdout+stderr even on a non-zero exit — a
  *  refusal (missing db path) exits 1, and the assertions below want the printed message, not the
  *  thrown error. */
-function runCli(args: string[]): string {
+function runCli(args: string[]): { status: number | null; output: string } {
+  // Pin only the child process: fixture expiry dates and the CLI's new Date() share NOW.
+  const clock = `const RealDate = Date; globalThis.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : [${JSON.stringify(NOW)}])); } static now() { return RealDate.parse(${JSON.stringify(NOW)}); } };`;
   try {
-    return execFileSync("node", ["--import", "tsx", SCRIPT, ...args], { cwd: REPO_ROOT, encoding: "utf8" });
+    return { status: 0, output: execFileSync("node", ["--import", "tsx", "--import", `data:text/javascript,${encodeURIComponent(clock)}`, SCRIPT, ...args], { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }) };
   } catch (err) {
-    const withOutput = err as { stdout?: string; stderr?: string };
-    return `${withOutput.stdout ?? ""}${withOutput.stderr ?? ""}`;
+    const withOutput = err as { status?: number; stdout?: string; stderr?: string };
+    return { status: withOutput.status ?? null, output: `${withOutput.stdout ?? ""}${withOutput.stderr ?? ""}` };
   }
 }
 
 function runScript(dbPath: string, extraArgs: string[] = []): string {
-  return runCli(["--db", dbPath, ...extraArgs]);
+  const result = runCli(["--db", dbPath, ...extraArgs]);
+  assert.equal(result.status, 0, result.output);
+  return result.output;
 }
 
 function seedRow(overrides: Partial<SessionRow> & { id: string }) {
@@ -98,9 +103,13 @@ test("partitionStaleSessions: splits a mixed batch into stale/live without reord
 // ---------------------------------------------------------------------------
 
 test("cleanup-stale-owner-sessions: refuses to run against the default (non-existent) --db path", () => {
-  const output = runCli([]);
+  const defaultPath = path.join(REPO_ROOT, "infra", "content.db");
+  assert.equal(fs.existsSync(defaultPath), false);
+  const { status, output } = runCli([]);
+  assert.equal(status, 1);
   assert.match(output, /content database not found at/, "must refuse the default path rather than silently creating an empty db");
   assert.match(output, /infra[/\\]content\.db/, "the default path must be the same non-existent infra/content.db the AAD backfill scripts use");
+  assert.equal(fs.existsSync(defaultPath), false);
 });
 
 test("cleanup-stale-owner-sessions: dry run is read-only, deletes nothing, lists exactly the stale rows", () => {
@@ -119,6 +128,11 @@ test("cleanup-stale-owner-sessions: dry run is read-only, deletes nothing, lists
     .run();
   seedDb.$client.close();
 
+  const beforeBytes = fs.readFileSync(dbPath);
+  const beforeReader = new Database(dbPath, { readonly: true });
+  const beforeRows = beforeReader.prepare("SELECT * FROM sessions ORDER BY id").all();
+  beforeReader.close();
+
   const dryRunOutput = runScript(dbPath);
   assert.match(dryRunOutput, /Found 4 total session row\(s\): 2 clearly stale \(expired or revoked\), 2 still live \(untouched\)\./);
   assert.match(dryRunOutput, /DRY RUN: would delete id=expired-1/);
@@ -127,6 +141,10 @@ test("cleanup-stale-owner-sessions: dry run is read-only, deletes nothing, lists
   assert.doesNotMatch(dryRunOutput, /would delete id=live-2/);
   assert.doesNotMatch(dryRunOutput, /RESTORE POINT CAPTURED/, "a dry run must never capture a restore point");
   assert.doesNotMatch(dryRunOutput, /DELETING:/, "a dry run must never actually delete");
+  const afterReader = new Database(dbPath, { readonly: true });
+  assert.deepEqual(afterReader.prepare("SELECT * FROM sessions ORDER BY id").all(), beforeRows);
+  afterReader.close();
+  assert.deepEqual(fs.readFileSync(dbPath), beforeBytes, "dry run must preserve all database bytes");
 
   const afterDryRun = openContentDb(dbPath);
   assert.equal(afterDryRun.select().from(sessions).all().length, 4, "dry run must be genuinely read-only — all 4 rows must still be there");

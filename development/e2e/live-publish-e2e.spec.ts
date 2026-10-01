@@ -138,6 +138,17 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
     // anywhere. ---
     const realAccountLabel = await healGitHubAccountLabel(page);
     expect(realAccountLabel, "sanity: the credential this run resolved to must be the real leonaburime-ucla account, not the original bug's invented one").toBe("leonaburime-ucla");
+    const contentMarker = `publish-e2e-${crypto.randomUUID()}`;
+    const postsPath = `/api/admin/v1/workspaces/${WORKSPACE_ID}/posts`;
+    const created = await page.request.post(postsPath, { data: { title: contentMarker } });
+    expect(created.ok()).toBe(true);
+    const { post: markerPost } = await created.json();
+    const saved = await page.request.put(`${postsPath}/${encodeURIComponent(markerPost.id)}`, {
+      data: { status: "published", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: contentMarker }] }] } },
+    });
+    expect(saved.ok()).toBe(true);
+    const { post: publishedMarkerPost } = await saved.json();
+    expect(publishedMarkerPost.status).toBe("published");
 
     // --- Turn 1: ask for a publish WITHOUT naming an owner anywhere. If the assistant ends up
     // publishing to the right account, that resolution has to have come from the verified credential,
@@ -210,6 +221,10 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
     // "MCP-UI dialog clipped its own buttons" — a scroll-anchor issue, not fixed here, this is only a
     // test-side workaround so the click itself can land). ---
     const confirmButton = dialog.locator('[data-mcpui-action="confirm"]');
+    const dbPath = process.env.E2E_LIVE_PUBLISH_CONTENT_DB;
+    expect(dbPath, "config must publish E2E_LIVE_PUBLISH_CONTENT_DB").toBeTruthy();
+    const historyBoundary = Number(execFileSync("sqlite3", [dbPath!, "SELECT COALESCE(MAX(rowid), 0) FROM publish_history;"]).toString().trim());
+    const publishStartedAt = Date.now();
     await confirmButton.scrollIntoViewIfNeeded().catch(() => undefined);
     await confirmButton.click();
 
@@ -228,12 +243,12 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
     const outcomeText = (await dialog.locator("body").innerText().catch(() => "")) || "";
     expect(outcomeText.trim(), "the outcome surface must never be the old generic placeholder").not.toBe("Done.");
 
-    const urlMatch = outcomeText.match(/https:\/\/[^\s"'<]+/);
-    const publishedUrl = urlMatch?.[0];
+    const outcomeSucceeded = await dialog.getByRole("status").getAttribute("data-state") === "done";
+    const outcomeMessage = await dialog.getByRole("status").innerText();
+    const publishedUrl = outcomeSucceeded ? outcomeMessage.match(/^Published live at (https:\/\/\S+)\.$/)?.[1] : undefined;
 
     // This is the actual verdict of the run. Reported honestly either way — a failure here is a real,
     // valuable finding, not something to retry into looking better (config sets `retries: 0`).
-    const outcomeSucceeded = /^Published\b/.test(outcomeText.trim()) || /\bPublished\b/.test(outcomeText);
     test.info().annotations.push({ type: "publish-outcome", description: outcomeText.slice(0, 2000) });
 
     // --- Assertion 5: the assistant's OWN chat message, once the parked turn resumes, must report the
@@ -243,9 +258,9 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
     const finalReply = finalTranscript.at(-1);
     expect(finalReply?.role).toBe("assistant");
     if (outcomeSucceeded) {
-      expect(finalReply?.content.toLowerCase(), `chat must truthfully report success — outcome surface said: ${JSON.stringify(outcomeText)}, chat said: ${JSON.stringify(finalReply?.content)}`).toMatch(
-        /publish|live|success/i
-      );
+      expect(publishedUrl, "success surface must carry its deployment URL").toBeTruthy();
+      expect(finalReply?.content, "chat must identify the actual successful deployment").toContain(publishedUrl!);
+      expect(finalReply?.content).not.toMatch(/publish(?:ing)?\s+(?:has\s+)?failed|not\s+(?:yet\s+)?live|could(?:n't| not)\s+publish|publication\s+failed/i);
       expect(finalReply?.content, "chat report must never claim a bare 'Done.' once the real outcome tool wired up (0f9bef4b)").not.toBe("Done.");
     } else {
       expect(finalReply?.content.toLowerCase(), `chat must truthfully report the failure it actually hit — outcome surface said: ${JSON.stringify(outcomeText)}`).toMatch(/fail|error|could not|couldn.t|problem/i);
@@ -264,15 +279,23 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
     // --- Assertion 6: a publish_history row landed, triggered by the agent tool, with a real commit
     // sha — queried directly against this run's own isolated DB snapshot (no route exposes
     // triggeredBy/commitSha to the admin API; see this file's header). ---
-    const dbPath = process.env.E2E_LIVE_PUBLISH_CONTENT_DB;
-    expect(dbPath, "config must publish E2E_LIVE_PUBLISH_CONTENT_DB").toBeTruthy();
-    const raw = execFileSync("sqlite3", ["-json", dbPath!, "SELECT triggered_by, commit_sha, url, published_at FROM publish_history WHERE target='github-pages' ORDER BY id DESC LIMIT 1;"]).toString();
+    const raw = execFileSync("sqlite3", ["-json", dbPath!, `SELECT triggered_by, commit_sha, url, published_at FROM publish_history WHERE target='github-pages' AND rowid > ${historyBoundary} ORDER BY rowid DESC;`]).toString();
     const rows = JSON.parse(raw || "[]") as Array<{ triggered_by: string; commit_sha: string | null; url: string; published_at: string }>;
-    expect(rows.length, "expected a publish_history row after a successful publish").toBeGreaterThan(0);
+    expect(rows, "exactly this publish must add a history record").toHaveLength(1);
     const row = rows[0]!;
     expect(row.triggered_by, "publish_history row must be attributed to the agent tool, not the admin UI").toBe("agent_tool");
     expect(row.commit_sha, `publish_history row must carry a real commit sha; got: ${JSON.stringify(row)}`).toBeTruthy();
-    expect(row.commit_sha!.length, "commit sha must look like a real git sha, not a placeholder").toBeGreaterThanOrEqual(7);
+    expect(row.commit_sha).toMatch(/^[a-f0-9]{40}$/);
+    expect(row.url).toBe(publishedUrl);
+    expect(Date.parse(row.published_at)).toBeGreaterThanOrEqual(publishStartedAt);
+    expect(Date.parse(row.published_at)).toBeLessThanOrEqual(Date.now());
+    const statusResponse = await page.request.get(`/api/admin/v1/workspaces/${WORKSPACE_ID}/system/publish`);
+    expect(statusResponse.ok()).toBe(true);
+    const run = await statusResponse.json();
+    expect(run.status).toBe("completed");
+    expect(run.result.ok).toBe(true);
+    expect(run.result.url).toBe(publishedUrl);
+    expect(run.result.providerMetadata.commitSha).toBe(row.commit_sha);
 
     // --- Assertion 7: the published URL is actually live. Polled, not a single shot — GitHub Pages'
     // own CDN can lag a published push by a few seconds even after the server's own reachability check
@@ -284,5 +307,10 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
         intervals: [3_000],
       })
       .toBe(200);
+    const markerUrl = new URL(`${publishedMarkerPost.slug}`, `${publishedUrl!.replace(/\/$/, "")}/`).href;
+    await expect.poll(async () => {
+      const response = await request.get(markerUrl);
+      return response.status() === 200 && (await response.text()).includes(contentMarker);
+    }, { message: `this deployment must serve this run's content at ${markerUrl}`, timeout: 60_000, intervals: [3_000] }).toBe(true);
   });
 });

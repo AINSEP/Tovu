@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { evaluateFileTiers, resolveBaseRef, ZERO_SHA } from "../check-route-coverage-diff.js";
@@ -47,6 +51,12 @@ test("push event: GITHUB_EVENT_BEFORE wins over the origin/main fallback", () =>
   );
 });
 
+test("ROUTE_COVERAGE_DIFF_BASE beats a positional ref and all GitHub environment fallbacks", () => {
+  withEnv({ ROUTE_COVERAGE_DIFF_BASE: "override-ref", GITHUB_BASE_REF: "main", GITHUB_EVENT_BEFORE: "event-ref" }, () => {
+    assert.equal(resolveBaseRef(["node", "check-route-coverage-diff.ts", "positional-ref"]), "override-ref");
+  });
+});
+
 test("brand-new branch's first push (GITHUB_EVENT_BEFORE is the all-zeros SHA) falls back to origin/main", () => {
   withEnv(
     { ROUTE_COVERAGE_DIFF_BASE: undefined, GITHUB_BASE_REF: undefined, GITHUB_EVENT_BEFORE: ZERO_SHA },
@@ -71,7 +81,7 @@ test("no env at all and no positional arg: falls all the way back to origin/main
   });
 });
 
-test("an explicit positional arg beats every env var, including GITHUB_EVENT_BEFORE", () => {
+test("a positional arg beats GitHub fallbacks when ROUTE_COVERAGE_DIFF_BASE is absent", () => {
   withEnv(
     { ROUTE_COVERAGE_DIFF_BASE: undefined, GITHUB_BASE_REF: undefined, GITHUB_EVENT_BEFORE: "abc123def456" },
     () => {
@@ -151,4 +161,41 @@ test("evaluateFileTiers: real branches (from the integration record) but no unit
   assert.equal(result.unit.ok, false);
   assert.equal(result.unit.pctValue, 0);
   assert.match(result.unit.detail, /no unit coverage record/);
+});
+
+test("CLI selects changed routes, loads both LCOV tiers, and returns failure or success", (t) => {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "route-diff-cli-")));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const repoRoot = path.resolve(import.meta.dirname, "../../..");
+  const scripts = path.join(scratch, "development/scripts");
+  const coverage = path.join(scratch, "development/coverage");
+  const bin = path.join(scratch, "bin");
+  for (const dir of [scripts, coverage, bin]) fs.mkdirSync(dir, { recursive: true });
+  for (const file of ["check-route-coverage-diff.ts", "route-coverage-lib.ts"]) fs.copyFileSync(path.join(repoRoot, "development/scripts", file), path.join(scripts, file));
+  fs.writeFileSync(path.join(scratch, "package.json"), '{"type":"module"}');
+  fs.symlinkSync(path.join(repoRoot, "node_modules"), path.join(scratch, "node_modules"), "dir");
+  const route = "apps/website/src/server/inbound/admin-http/routes/example.ts";
+  // No git writes: a strict executable boundary supplies controlled history and rejects wrong args.
+  fs.writeFileSync(path.join(bin, "git"), `#!${process.execPath}\nconst args = process.argv.slice(2);\nconst merge = ["merge-base", "fixture-base", "HEAD"];\nconst diff = ["diff", "--name-only", "--diff-filter=ACMR", "fixture-merge", "HEAD", "--", "apps/website/src/server/routes/", "apps/website/src/server/inbound/admin-http/routes/", "apps/website/src/server/inbound/public-http/routes/"];\nif (JSON.stringify(args) === JSON.stringify(merge)) process.stdout.write("fixture-merge\\n");\nelse if (JSON.stringify(args) === JSON.stringify(diff)) process.stdout.write(${JSON.stringify(route + "\napps/website/src/server/inbound/admin-http/routes/__tests__/ignored.test.ts\nREADME.md\n")});\nelse { process.stderr.write("unexpected git arguments: " + JSON.stringify(args)); process.exitCode = 2; }\n`, { mode: 0o755 });
+  const run = () => spawnSync(process.execPath, ["--import", "tsx", path.join(scripts, "check-route-coverage-diff.ts")], {
+    cwd: scratch, encoding: "utf8", timeout: 10_000,
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, ROUTE_COVERAGE_DIFF_BASE: "fixture-base" },
+  });
+  const missing = run();
+  assert.equal(missing.error, undefined);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /lcov\.unit\.info/);
+  const lcov = (hits: number) => `SF:${route}\nBRF:100\nBRH:${hits}\nend_of_record\n`;
+  fs.writeFileSync(path.join(coverage, "lcov.unit.info"), lcov(98));
+  fs.writeFileSync(path.join(coverage, "lcov.integration.info"), lcov(95));
+  const low = run();
+  assert.equal(low.error, undefined);
+  assert.equal(low.status, 1);
+  assert.match(low.stdout, /1 changed file\(s\) vs fixture-base/);
+  assert.ok(low.stderr.includes(`${route}: unit 98.00% branch < 99%`));
+  fs.writeFileSync(path.join(coverage, "lcov.unit.info"), lcov(99));
+  const passing = run();
+  assert.equal(passing.error, undefined);
+  assert.equal(passing.status, 0, passing.stderr);
+  assert.ok(passing.stdout.includes(`${route}: unit 99.00% branch, integration 95.00% branch`));
 });

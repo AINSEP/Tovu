@@ -17,6 +17,22 @@ import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStar
  */
 
 describe("createLiveRunTracker", () => {
+  test("run-to-conversation lookup isolates live registrations and removes only the unregistered run", () => {
+    const tracker = createLiveRunTracker();
+    assert.equal(tracker.conversationIdForRun("run-a"), undefined);
+    tracker.register("conv-1", "run-a");
+    tracker.register("conv-2", "run-b");
+    assert.equal(tracker.conversationIdForRun("run-a"), "conv-1");
+    assert.equal(tracker.conversationIdForRun("run-b"), "conv-2");
+    tracker.unregister("conv-2", "run-a");
+    assert.equal(tracker.conversationIdForRun("run-a"), "conv-1");
+    tracker.unregister("conv-1", "run-a");
+    assert.equal(tracker.conversationIdForRun("run-a"), undefined);
+    assert.equal(tracker.conversationIdForRun("run-b"), "conv-2");
+    tracker.unregister("conv-2", "run-b");
+    assert.equal(tracker.conversationIdForRun("run-b"), undefined);
+  });
+
   test("hasConcurrentLiveRun is false for a conversation with no registered runs at all", () => {
     const tracker = createLiveRunTracker();
     assert.equal(tracker.hasConcurrentLiveRun("conv-1", "run-a"), false);

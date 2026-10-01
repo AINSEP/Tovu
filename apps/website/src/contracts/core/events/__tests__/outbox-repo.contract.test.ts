@@ -63,12 +63,13 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
 
   test(`[${label}] claimPending respects batchSize`, async () => {
     const outbox = makeOutbox();
-    await outbox.enqueue(makeEvent({ id: "evt-a" }));
-    await outbox.enqueue(makeEvent({ id: "evt-b" }));
+    await outbox.enqueue(makeEvent({ id: "evt-a", occurredAt: "2026-07-15T00:00:00.000Z" }));
+    await outbox.enqueue(makeEvent({ id: "evt-b", occurredAt: "2026-07-15T01:00:00.000Z" }));
     await outbox.enqueue(makeEvent({ id: "evt-c" }));
 
     const claimed = await outbox.claimPending(2, "2026-07-16T00:00:01.000Z");
     assert.equal(claimed.length, 2);
+    assert.deepEqual(claimed.map((row) => row.id), ["evt-a", "evt-b"]);
   });
 
   test(`[${label}] markDelivered removes the row from future claims`, async () => {
@@ -98,6 +99,9 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
     const retried = await outbox.claimPending(10, "2026-07-16T01:00:01.000Z");
     assert.equal(retried.length, 1);
     assert.equal(retried[0].attempts, 2);
+    assert.equal(retried[0].id, "evt-1");
+    assert.equal(retried[0].lastError, "delivery boom");
+    assert.equal(retried[0].nextAttemptAt, "2026-07-16T01:00:00.000Z");
   });
 
   test(`[${label}] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)`, async () => {

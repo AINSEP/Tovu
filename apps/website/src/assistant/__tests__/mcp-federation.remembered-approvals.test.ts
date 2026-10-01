@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createLiveRunTracker, type LiveRunTracker } from "../../server/inbound/assistant/agent-run-concurrency.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -64,6 +65,7 @@ interface Stores {
 }
 
 interface Harness {
+  readonly tracker?: LiveRunTracker;
   readonly store: SurfaceExchangeStore;
   readonly sent: { name: string; args: Record<string, unknown> }[];
   registration(name: string): ToolRegistration;
@@ -71,7 +73,7 @@ interface Harness {
 
 function harness(
   stores: Stores,
-  options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean } = {},
+  options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean; tracker?: LiveRunTracker } = {},
 ): Harness {
   const store = createSurfaceExchangeStore();
   const sent: { name: string; args: Record<string, unknown> }[] = [];
@@ -101,7 +103,9 @@ function harness(
         always: stores.always,
         chat: stores.chat,
         // Run ids here are "<conversation>/<n>": the daemon maps a run to the conversation it started in.
-        conversationIdForRun: (runId) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
+        conversationIdForRun: options.tracker
+          ? (runId) => options.tracker!.conversationIdForRun(runId)
+          : (runId) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
       },
     ),
   };
@@ -109,6 +113,7 @@ function harness(
   return {
     store,
     sent,
+    tracker: options.tracker,
     registration(name) {
       const found = registrations.find((entry) => entry.descriptor.id === `mcp__supabase__${name}`);
       assert.ok(found, `expected a registration for ${name}`);
@@ -153,6 +158,7 @@ function call(
     signal: new AbortController().signal,
     emitSurface,
   } as ToolExecutionContext;
+  if (h.tracker) h.tracker.register(options.conversation ?? "chat-a", ctx.run.id);
   return { pending: h.registration(name).handler(ctx), cards };
 }
 
@@ -469,4 +475,13 @@ test("G3 remembered: the fingerprint ignores hint key order but not hint values"
     federatedToolApprovalFingerprint({ ...base, declaredAnnotations: undefined }),
     federatedToolApprovalFingerprint({ ...base, remoteName: "create_projects", declaredAnnotations: undefined }),
   );
+});
+
+test("remembered chat approvals use the live tracker conversation lookup and stay isolated", async () => {
+  const tracker = createLiveRunTracker();
+  const h = harness(memoryStores(), { tracker });
+  await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-tracker-a" });
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-tracker-a" }), true);
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-tracker-b" }), false);
+  assert.equal(h.sent.length, 2);
 });

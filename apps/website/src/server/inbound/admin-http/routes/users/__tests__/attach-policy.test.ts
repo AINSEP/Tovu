@@ -252,3 +252,20 @@ test("ATTACH_POLICY route: 500 internal error when an unexpected error is thrown
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
 });
+
+test("ATTACH_POLICY route: 201 returns the attachment persisted for the authorized target", async (t) => {
+  const { app, deps } = await buildApp();
+  await seedBarePrincipal(deps, "attach-success-target");
+  const policy = await deps.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "viewer-builtin-policy" });
+  assert.ok(policy);
+  assert.deepEqual(await deps.principalPolicyRepo.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "attach-success-target" }), []);
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}${urlFor("attach-success-target")}`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ policyId: policy.id }),
+  });
+  assert.equal(response.status, 201);
+  const body = await response.json() as { attachment: { id: string; workspaceId: string; principalId: string; policyId: string } };
+  assert.ok(body.attachment.id);
+  assert.deepEqual(body.attachment, { id: body.attachment.id, workspaceId: WORKSPACE_ID, principalId: "attach-success-target", policyId: policy.id });
+  assert.deepEqual(await deps.principalPolicyRepo.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "attach-success-target" }), [body.attachment]);
+});

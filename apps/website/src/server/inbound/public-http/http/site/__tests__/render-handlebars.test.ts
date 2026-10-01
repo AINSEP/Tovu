@@ -29,7 +29,7 @@ process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
 function ledgerTheme() {
   const theme = loadTheme({
-    themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "ledger"),
+    themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "ledger"),
     id: "ledger",
     source: "built-in",
   });
@@ -168,7 +168,7 @@ test("both logic tiers see the identical render-data contract — the same field
   hbs.handlebarsTemplates.home = "@@{{site.title}}|{{route}}|{{#each posts}}{{title}}:{{slug}}:{{dateShort}}{{/each}}@@";
   const hbsHtml = await renderSite({ theme: hbs, route: "home", siteTitle: "Shared", posts });
 
-  const liquid = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  const liquid = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(liquid.status, "valid");
   liquid.liquidTemplates.home = "@@{{ site.title }}|{{ route }}|{% for p in posts %}{{ p.title }}:{{ p.slug }}:{{ p.dateShort }}{% endfor %}@@";
   const liquidHtml = await renderSite({ theme: liquid, route: "home", siteTitle: "Shared", posts });

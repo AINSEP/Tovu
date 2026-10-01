@@ -45,8 +45,11 @@ test("a host with no rules of its own still gets the generic one-path-segment ru
 });
 
 test("rejects an invalid branch", () => {
-  assert.throws(() => validateWriteFilesInput({ ...VALID, branch: "has spaces" }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, branch: "" }), CustomCredentialValidationError);
+  assert.throws(() => validateWriteFilesInput({ ...VALID, branch: "has spaces" }), new CustomCredentialValidationError("invalid branch name 'has spaces'"));
+  assert.throws(() => validateWriteFilesInput({ ...VALID, branch: "" }), new CustomCredentialValidationError("invalid branch name ''"));
+  for (const branch of ["../tags/release", "main//child", "/main", "main/"]) {
+    assert.throws(() => validateWriteFilesInput({ ...VALID, branch }), new CustomCredentialValidationError(`invalid branch name '${branch}' — must not contain an empty or '..' path segment`));
+  }
 });
 
 test("accepts a branch name containing slashes", () => {
@@ -55,9 +58,9 @@ test("accepts a branch name containing slashes", () => {
 });
 
 test("rejects an empty or oversized commitMessage", () => {
-  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "" }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "  " }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "x".repeat(501) }), CustomCredentialValidationError);
+  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "" }), new CustomCredentialValidationError("commitMessage must be 1-500 characters"));
+  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "  " }), new CustomCredentialValidationError("commitMessage must be 1-500 characters"));
+  assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage: "x".repeat(501) }), new CustomCredentialValidationError("commitMessage must be 1-500 characters"));
 });
 
 // ---------------------------------------------------------------------------
@@ -79,7 +82,8 @@ test("rejects a NUL byte", () => {
 });
 
 test("rejects a path over the length cap", () => {
-  assert.throws(() => normalizeWriteFilePath("a".repeat(WRITE_FILES_LIMITS.maxPathLength + 1)), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath("a".repeat(1025)), new CustomCredentialValidationError(`file path exceeds the 1024-character cap: '${"a".repeat(80)}...'`));
+  assert.equal(normalizeWriteFilePath("a".repeat(1024)), "a".repeat(1024));
 });
 
 test("rejects an empty path, and a path that normalizes to nothing", () => {
@@ -89,10 +93,10 @@ test("rejects an empty path, and a path that normalizes to nothing", () => {
 });
 
 test("rejects a path naming or nesting under the reserved '.git' directory, case-insensitively", () => {
-  assert.throws(() => normalizeWriteFilePath(".git"), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath(".git/config"), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath(".GIT/hooks/pre-commit"), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath(".Git/HEAD"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath(".git"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git'"));
+  assert.throws(() => normalizeWriteFilePath(".git/config"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git/config'"));
+  assert.throws(() => normalizeWriteFilePath(".GIT/hooks/pre-commit"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.GIT/hooks/pre-commit'"));
+  assert.throws(() => normalizeWriteFilePath(".Git/HEAD"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.Git/HEAD'"));
 });
 
 test("normalizes backslashes and a leading './' the same way package-paths.ts's lexical rules do", () => {
@@ -113,29 +117,25 @@ test("rejects an empty files array", () => {
 });
 
 test("rejects more files than the count cap", () => {
-  const files = Array.from({ length: WRITE_FILES_LIMITS.maxFiles + 1 }, (_, i) => ({ path: `file-${i}.txt`, content: "x" }));
-  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), CustomCredentialValidationError);
+  const files = Array.from({ length: 26 }, (_, i) => ({ path: `file-${i}.txt`, content: "x" }));
+  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), new CustomCredentialValidationError("'files' has 26 entries, over the 25-file cap"));
 });
 
 test("accepts exactly the count cap", () => {
-  const files = Array.from({ length: WRITE_FILES_LIMITS.maxFiles }, (_, i) => ({ path: `file-${i}.txt`, content: "x" }));
+  const files = Array.from({ length: 25 }, (_, i) => ({ path: `file-${i}.txt`, content: "x" }));
   const result = validateWriteFilesInput({ ...VALID, files });
-  assert.equal(result.files.length, WRITE_FILES_LIMITS.maxFiles);
+  assert.equal(result.files.length, 25);
 });
 
 test("rejects a single file over the per-file byte cap", () => {
-  const files = [{ path: "big.txt", content: "x".repeat(WRITE_FILES_LIMITS.maxFileBytes + 1) }];
-  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), CustomCredentialValidationError);
+  const files = [{ path: "big.txt", content: "x".repeat(1_048_577) }];
+  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), new CustomCredentialValidationError("file 'big.txt' is 1048577 bytes, over the 1048576-byte per-file cap"));
 });
 
 test("rejects files that individually pass the per-file cap but exceed the aggregate cap together", () => {
-  // 5 files at 90% of the per-file cap sum to well over the (smaller) aggregate cap, while every
-  // single file individually stays under both the per-file cap and the file-count cap.
-  const perFile = Math.floor(WRITE_FILES_LIMITS.maxFileBytes * 0.9);
-  const files = Array.from({ length: 5 }, (_, i) => ({ path: `f${i}.txt`, content: "x".repeat(perFile) }));
-  for (const f of files) assert.ok(Buffer.byteLength(f.content, "utf8") <= WRITE_FILES_LIMITS.maxFileBytes);
-  assert.ok(perFile * files.length > WRITE_FILES_LIMITS.maxTotalBytes);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), CustomCredentialValidationError);
+  const files = Array.from({ length: 4 }, (_, i) => ({ path: `f${i}.txt`, content: "x".repeat(1_048_576) }));
+  files.push({ path: "overflow.txt", content: "x" });
+  assert.throws(() => validateWriteFilesInput({ ...VALID, files }), new CustomCredentialValidationError("'files' totals over the 4194304-byte aggregate cap"));
 });
 
 test("rejects a duplicate path within the same call, even when spelled differently before normalization", () => {
@@ -150,4 +150,16 @@ test("rejects a malformed file entry (missing content, wrong type, non-object)",
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: [{ path: "a.txt" }] }), CustomCredentialValidationError);
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: [{ path: "a.txt", content: 123 }] }), CustomCredentialValidationError);
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: ["not-an-object"] }), CustomCredentialValidationError);
+});
+
+test("resource limits are pinned independently and accept their inclusive byte boundaries", () => {
+  assert.deepEqual(WRITE_FILES_LIMITS, { maxFiles: 25, maxPathLength: 1024, maxFileBytes: 1_048_576, maxTotalBytes: 4_194_304 });
+  for (const bytes of [1_048_575, 1_048_576]) {
+    const files = [{ path: "boundary.txt", content: "x".repeat(bytes) }];
+    assert.deepEqual(validateWriteFilesInput({ ...VALID, files }).files, files);
+  }
+  for (const totalBytes of [4_194_303, 4_194_304]) {
+    const files = Array.from({ length: 4 }, (_, i) => ({ path: `f${i}.txt`, content: "x".repeat(i === 3 ? totalBytes - 3 * 1_048_576 : 1_048_576) }));
+    assert.deepEqual(validateWriteFilesInput({ ...VALID, files }).files, files);
+  }
 });

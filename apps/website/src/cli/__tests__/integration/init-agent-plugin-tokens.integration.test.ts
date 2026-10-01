@@ -5,7 +5,8 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { ValidationError } from "#src/platform/site-dir/errors";
-import { readNewSiteTokensFromStdin, storeNewSiteTokens } from "../../commands/agent-plugin-tokens.js";
+import { readNewSiteTokensFromStdin } from "../../commands/agent-plugin-tokens.js";
+import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { runInitCommand } from "../../commands/init.js";
 
 /**
@@ -118,11 +119,30 @@ test("an accepted token is sealed with the new site's own id and reported as sav
 });
 
 test("a seal failure after the create keeps the site and reports failed without the token", async () => {
-  const lines: string[] = [];
-  await storeNewSiteTokens({ dir: "/x", siteId: "id" }, { supabase: "sbp_secret" }, async () => {
-    throw new Error("keychain locked sbp_secret");
-  }, (line) => void lines.push(line));
-  assert.deepEqual(lines, ["agent-plugin-tokens: failed supabase\n"]);
+  const dir = path.join(parent, "seal-failed");
+  let sealCalls = 0;
+  let out = "";
+  captureStdout();
+  try {
+    await runInitCommand({
+      dir,
+      agentPluginTokensStdin: true,
+      readAgentPluginTokens: async () => '{"supabase":"sbp_secret"}',
+      checkAgentPluginToken: async () => "ok",
+      sealAgentPluginTokens: async () => {
+        sealCalls += 1;
+        throw new Error("keychain locked sbp_secret");
+      },
+    });
+  } finally {
+    out = restoreStdout();
+  }
+  assert.equal(sealCalls, 1);
+  assert.ok(fs.existsSync(path.join(dir, ".site-meta.json")));
+  assert.equal(readSiteDir({ dir }).config.name, "seal-failed");
+  assert.match(out, /^created site '/m);
+  assert.match(out, /^agent-plugin-tokens: failed supabase$/m);
+  assert.doesNotMatch(out, /sbp_secret|keychain locked/);
 });
 
 test("a Postgres connection string read from stdin cannot share stdin with tokens", async () => {

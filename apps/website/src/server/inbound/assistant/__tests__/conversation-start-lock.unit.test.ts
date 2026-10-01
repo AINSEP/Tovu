@@ -139,3 +139,30 @@ describe("createConversationStartLock", () => {
     assert.equal(lock.trackedConversationCount(), 0);
   });
 });
+
+test("a third section arriving after the first finishes still waits for the held second section", { timeout: 5_000 }, async () => {
+  const lock = createConversationStartLock();
+  const firstGate = Promise.withResolvers<void>();
+  const secondGate = Promise.withResolvers<void>();
+  const secondEntered = Promise.withResolvers<void>();
+  const order: string[] = [];
+  const first = lock.run("conv-1", async () => { await firstGate.promise; order.push("first:exit"); });
+  const second = lock.run("conv-1", async () => {
+    order.push("second:enter");
+    secondEntered.resolve();
+    await secondGate.promise;
+    order.push("second:exit");
+  });
+  firstGate.resolve();
+  await first;
+  await secondEntered.promise;
+  const third = lock.run("conv-1", async () => { order.push("third:enter"); });
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(order, ["first:exit", "second:enter"]);
+  } finally {
+    secondGate.resolve();
+    await Promise.all([second, third]);
+  }
+  assert.deepEqual(order, ["first:exit", "second:enter", "second:exit", "third:enter"]);
+});

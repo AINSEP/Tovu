@@ -69,6 +69,7 @@ test("an allowed caller's mutation executes and records exactly one change set",
   const recorded = await changeSets.findById({ workspaceId: WORKSPACE, id: changeSetId });
   assert.ok(recorded);
   assert.equal(recorded?.changeSet.actorId, "editor-1");
+  assert.deepEqual((await changeSets.listByWorkspace({ workspaceId: WORKSPACE })).map((row) => row.id), [changeSetId]);
 });
 
 test("a denied caller's mutation never executes and no change set is written (REQ-05)", async () => {
@@ -95,6 +96,7 @@ test("a denied caller's mutation never executes and no change set is written (RE
   );
 
   assert.equal(executed.count, 0, "the feature mutation must never run for a denied caller");
+  assert.deepEqual(await changeSets.listByWorkspace({ workspaceId: WORKSPACE }), []);
 });
 
 test("EC-08/INV-04: authorize() runs before the idempotency check — a denied replay never leaks DUPLICATE_COMMAND", async () => {

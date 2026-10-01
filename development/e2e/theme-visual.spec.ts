@@ -26,23 +26,55 @@ async function prepareForScreenshot(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
 }
 
-// Anti-flake: wait for webfonts (Google Fonts, loaded per theme.json `fonts`) to finish loading
-// before screenshotting, so text doesn't shift from a fallback font to the real one mid-diff.
-// Bounded wait — a slow/unavailable font CDN must not hang the suite, just risk a font-swap diff.
+// The shipped theme vendors both font families. Require the actual faces, including load success,
+// so a missing local asset cannot silently produce fallback-font screenshots.
 async function waitForFonts(page: Page): Promise<void> {
-  await page
-    .waitForFunction(() => document.fonts.status === "loaded", undefined, { timeout: 5_000 })
-    .catch(() => {
-      /* best-effort — screenshot proceeds even if webfonts haven't settled */
-    });
+  const fonts = await page.evaluate(async () => {
+    const families = ["Geist", "Geist Mono"];
+    return Promise.all(families.map(async (family) => {
+      const faces = await document.fonts.load(`400 16px "${family}"`);
+      return { family, count: faces.length, loaded: faces.every((face) => face.status === "loaded") };
+    }));
+  });
+  for (const font of fonts) {
+    expect(font.count, font.family).toBeGreaterThan(0);
+    expect(font.loaded, font.family).toBe(true);
+  }
+}
+
+async function expectKeyNavigation(page: Page, mobile = false): Promise<void> {
+  const header = page.locator(".site-header");
+  await expect(header).toBeVisible();
+  for (const name of ["Pricing", "Docs", "Blog", "About"]) {
+    const link = header.locator(".main-nav").getByRole("link", { name, exact: true });
+    await expect(link).toHaveCount(1);
+    if (!mobile) {
+      await expect(link).toBeVisible();
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    }
+  }
+  await expect(header.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
 }
 
 test.describe("theme visual regression (AW-2)", () => {
+  test("download installation command copy writes the displayed command to the clipboard", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/download");
+    const command = "curl -fsSL basic.sh/install | sh";
+    await expect(page.locator(".install-cmd code")).toHaveText(command);
+    await page.evaluate(() => navigator.clipboard.writeText("previous clipboard value"));
+    await page.locator(".install-cmd button").click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(command);
+  });
   test("home — desktop 1280", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await prepareForScreenshot(page);
     await page.goto("/");
     await waitForFonts(page);
+    await expectKeyNavigation(page);
     await expect(page).toHaveScreenshot("home-desktop.png", { fullPage: true });
   });
 
@@ -51,6 +83,7 @@ test.describe("theme visual regression (AW-2)", () => {
     await prepareForScreenshot(page);
     await page.goto("/");
     await waitForFonts(page);
+    await expectKeyNavigation(page);
     await expect(page).toHaveScreenshot("home-wide.png", { fullPage: true });
   });
 
@@ -61,6 +94,7 @@ test.describe("theme visual regression (AW-2)", () => {
     await prepareForScreenshot(page);
     await page.goto("/");
     await waitForFonts(page);
+    await expectKeyNavigation(page, true);
     // Deliberately do NOT click `label.nav-burger` here. Baseline the open-drawer state only
     // after AW-1's clipping fix lands.
     //
@@ -83,6 +117,8 @@ test.describe("theme visual regression (AW-2)", () => {
     await prepareForScreenshot(page);
     await page.goto("/welcome");
     await waitForFonts(page);
+    await expectKeyNavigation(page);
+    await expect(page.locator("article.post-detail")).toBeVisible();
     await expect(page).toHaveScreenshot("post-welcome.png", { fullPage: true });
   });
 });
@@ -136,6 +172,10 @@ test.describe("AW-1 — mobile nav drawer (basic theme)", () => {
       const box = await links.nth(i).boundingBox();
       expect(box).not.toBeNull();
       expect(box!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1);
+      expect(box!.x).toBeGreaterThanOrEqual(Math.max(0, navBox!.x) - 1);
+      expect(box!.y).toBeGreaterThanOrEqual(navBox!.y - 1);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(Math.min(390, navBox!.x + navBox!.width) + 1);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(Math.min(844, navBox!.y + navBox!.height) + 1);
     }
 
     // The CTA lives in `.nav-actions`, a header sibling outside the collapsing drawer — it must
@@ -233,36 +273,54 @@ test.describe("AW-4 — wide-screen content-page layout (basic theme)", () => {
   });
 });
 
-/**
- * Latent `img` aspect-ratio bug (found alongside AW-4, not itself a todos.md entry): the theme's
- * global reset gave `video`/`iframe` a `height: auto` but not `img` (fixed as part of this same
- * pass), so an `<img>` carrying HTML `width`/`height` attributes had its rendered width clamped by
- * `max-width: 100%` while its height stayed pinned to the attribute value — squashing/stretching
- * the image on any viewport narrower than the attribute width. No template in this theme currently
- * emits a real `<img>` tag (image slots render as CSS-gradient `.ph-img` placeholders), so there is
- * no product page this can be reproduced against today — this test injects a synthetic `<img>`
- * (a 1x1 data-URI, so no network fetch) with mismatched width/height attributes directly, to
- * exercise the CSS rule itself rather than a template that doesn't exist yet.
- */
+/** Exercise the shipped stylesheet with oversized replaced elements. The image fixture has
+ * real 4:1 intrinsic dimensions and is decoded before measuring its responsive geometry. */
+test("the shipped stylesheet clamps oversized video and iframe elements inside their container", async ({ page }) => {
+  await page.goto("/welcome");
+  const measurements = await page.evaluate(() => {
+    const container = document.createElement("div");
+    container.style.width = "200px";
+    document.body.append(container);
+    const boxes = ["video", "iframe"].map((tag) => {
+      const element = document.createElement(tag);
+      element.setAttribute("width", "800");
+      element.setAttribute("height", "200");
+      container.append(element);
+      return { tag, width: element.getBoundingClientRect().width, available: container.clientWidth };
+    });
+    container.remove();
+    return boxes;
+  });
+  expect(measurements).toHaveLength(2);
+  for (const box of measurements) {
+    expect(box.width, box.tag).toBeGreaterThan(0);
+    expect(box.width, box.tag).toBeLessThanOrEqual(box.available);
+  }
+});
+
 test("img keeps aspect ratio when HTML width/height attributes exceed the viewport", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 500, height: 400 });
   await page.goto("/welcome");
 
-  const rect = await page.evaluate(() => {
+  const rect = await page.evaluate(async () => {
     const img = document.createElement("img");
-    img.src =
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    img.src = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><rect width="800" height="200" fill="red"/></svg>');
     // 4:1 attribute aspect ratio, wider than the 500px viewport — `max-width: 100%` must clamp
     // the rendered width, and `height: auto` must scale the height to match, not leave it pinned.
     img.width = 800;
     img.height = 200;
     document.body.appendChild(img);
+    await img.decode();
     const box = img.getBoundingClientRect();
     document.body.removeChild(img);
-    return { width: box.width, height: box.height };
+    return { width: box.width, height: box.height, availableWidth: document.body.clientWidth };
   });
 
-  expect(rect.width / rect.height).toBeCloseTo(4, 0);
+  expect(rect.width).toBeGreaterThan(0);
+  expect(rect.width).toBeLessThanOrEqual(Math.min(rect.availableWidth, 500));
+  expect(rect.width).toBeLessThan(800);
+  expect(rect.width / rect.height).toBeCloseTo(4, 3);
+  expect(rect.height).toBeCloseTo(rect.width / 4, 3);
 });

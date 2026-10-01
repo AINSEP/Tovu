@@ -16,13 +16,14 @@ export interface ZipFixtureEntry {
   readonly mode?: number;
 }
 
-/** Builds a real zip archive in memory from a flat list of file entries — no directory entries are
- * added explicitly (matching a real archiver's common behavior of only recording files; a
- * directory's existence is implied by its files' paths, exactly as `install.ts`'s own
- * `ensureContainedDirectory`-equivalent logic in `extractEntries` already handles). */
+/** Builds real file entries and explicit directories (paths ending in /). */
 export async function buildZipFixture(entries: readonly ZipFixtureEntry[]): Promise<Buffer> {
   const zipfile = new yazl.ZipFile();
   for (const entry of entries) {
+    if (entry.path.endsWith("/")) {
+      zipfile.addEmptyDirectory(entry.path);
+      continue;
+    }
     const buffer = typeof entry.content === "string" ? Buffer.from(entry.content, "utf8") : entry.content;
     zipfile.addBuffer(buffer, entry.path, entry.mode !== undefined ? { mode: entry.mode } : undefined);
   }

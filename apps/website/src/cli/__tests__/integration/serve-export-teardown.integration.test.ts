@@ -19,6 +19,27 @@ const realResolver = await import("#src/server/runtime/boot/plugin-sdk-resolver"
 mock.module(new URL("../../../server/runtime/boot/plugin-sdk-resolver.ts", import.meta.url).href, {
   namedExports: { ...realResolver, registerPluginSdkResolver: () => {} },
 });
+const realServing = await import("#src/server/runtime/composition/serving-app");
+const workerStops: { name: string; stopped: boolean }[] = [];
+mock.module(new URL("../../../server/runtime/composition/serving-app.ts", import.meta.url).href, {
+  namedExports: {
+    ...realServing,
+    createServingApp: (...args: Parameters<typeof realServing.createServingApp>) => {
+      const serving = realServing.createServingApp(...args);
+      for (const name of ["outboxDrainer", "trashSweeper"] as const) {
+        const worker = serving[name];
+        const stop = worker.stop.bind(worker);
+        const witness = { name, stopped: false };
+        workerStops.push(witness);
+        mock.method(worker, "stop", async () => {
+          await stop();
+          witness.stopped = true;
+        });
+      }
+      return serving;
+    },
+  },
+});
 const { runExportCommand } = await import("../../commands/export.js");
 const { runServeCommand } = await import("../../commands/serve.js");
 
@@ -106,12 +127,17 @@ test("serve: a composition failure after the boot closes the store", async () =>
 });
 
 test("serve: EADDRINUSE stops the started workers and closes the store", async () => {
+  workerStops.length = 0;
   const dir = await pgliteSite();
   const blocker = net.createServer();
   await new Promise<void>((resolve) => blocker.listen(0, "127.0.0.1", resolve));
   const { port } = blocker.address() as net.AddressInfo;
   try {
     await assert.rejects(runServeCommand({ dir, port: String(port), host: "127.0.0.1" }), PortInUseError);
+    assert.deepEqual(workerStops, [
+      { name: "outboxDrainer", stopped: true },
+      { name: "trashSweeper", stopped: true },
+    ]);
     await assertOwnerReleased(dir);
   } finally {
     await new Promise<void>((resolve) => blocker.close(() => resolve()));

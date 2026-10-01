@@ -88,9 +88,9 @@ const INTEGRATION_BRANCH_THRESHOLD = 95;
 export const ZERO_SHA = "0000000000000000000000000000000000000000";
 
 export function resolveBaseRef(argv: string[]): string {
+  if (process.env.ROUTE_COVERAGE_DIFF_BASE) return process.env.ROUTE_COVERAGE_DIFF_BASE;
   const positional = argv[2];
   if (positional) return positional;
-  if (process.env.ROUTE_COVERAGE_DIFF_BASE) return process.env.ROUTE_COVERAGE_DIFF_BASE;
   const ghBase = process.env.GITHUB_BASE_REF;
   if (ghBase) return ghBase.includes("/") ? ghBase : `origin/${ghBase}`;
   const eventBefore = process.env.GITHUB_EVENT_BEFORE;

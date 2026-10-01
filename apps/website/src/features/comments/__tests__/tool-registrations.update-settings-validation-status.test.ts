@@ -3,7 +3,9 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
-import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemorySettingsRepo } from "../../settings/index.js";
+import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
 
@@ -20,8 +22,22 @@ function ctxWithInput(input: unknown): ToolExecutionContext {
   return { executionId: "e1", principal: { id: "p1" }, run: { id: "r1" }, input, signal: new AbortController().signal };
 }
 
+async function makeDeps(): Promise<CommentsToolDeps> {
+  const settingsRepo = new InMemorySettingsRepo();
+  const principalRepo = new InMemoryPrincipalRepo([]);
+  let id = 0;
+  const clock = { nowIso: () => "2026-07-16T00:00:00.000Z" };
+  const idGen = { newId: () => `settings-test-${++id}` };
+  await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, clock, ids: idGen }, { workspaceId: "ws-settings", systemPrincipalId: "system" });
+  return {
+    workspaceId: "ws-settings", settingsRepo, principalRepo, clock, idGen,
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    commentsSettingsReady: Promise.resolve(),
+  } as CommentsToolDeps;
+}
+
 test("comments_update_settings: an empty patch is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
-  const deps = createRouteDeps() as unknown as CommentsToolDeps;
+  const deps = await makeDeps();
   const registration = buildCommentsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
     (r) => r.descriptor.id === "comments_update_settings",
   );
@@ -35,4 +51,22 @@ test("comments_update_settings: an empty patch is a ToolInputError (400), not a 
       return true;
     },
   );
+});
+
+test("comments_update_settings extracts every supported field and persists the patch in the ledger", async () => {
+  const deps = await makeDeps();
+  const registration = buildCommentsRegistrations(deps).find((r) => r.descriptor.id === "comments_update_settings");
+  assert.ok(registration);
+  const patch = { enabled: false, requireModeration: false, maxDepth: 2, closeAfterDays: 30, spamAutoRejectScore: 0.8, maxPerIpPerHour: 7 };
+  await registration.handler(ctxWithInput({ ...patch, unrelated: "ignored" }));
+  assert.deepEqual(await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }), patch);
+});
+
+test("comments_update_settings maps out-of-range domain validation to ToolInputError and writes nothing", async () => {
+  const deps = await makeDeps();
+  const before = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const registration = buildCommentsRegistrations(deps).find((r) => r.descriptor.id === "comments_update_settings");
+  assert.ok(registration);
+  await assert.rejects(registration.handler(ctxWithInput({ spamAutoRejectScore: 1.5, requireModeration: false })), (error: unknown) => error instanceof ToolInputError && /spamAutoRejectScore/.test(error.message));
+  assert.deepEqual(await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }), before);
 });

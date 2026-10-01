@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -82,6 +82,8 @@ test("real zip: installs a valid package end to end (real yazl-built archive, re
     const archive = await buildZipFixture([
       { path: "plugin.json", content: VALID_MANIFEST },
       { path: "skills/ui-ux-design/SKILL.md", content: "# UI/UX Design\n\nGuidance." },
+      { path: "skills/", content: "" },
+      { path: "empty/", content: "" },
     ]);
     const digest = createHash("sha256").update(archive).digest("hex");
 
@@ -95,6 +97,10 @@ test("real zip: installs a valid package end to end (real yazl-built archive, re
 
     assert.equal(installed.pluginId, "ui-ux-design");
     assert.deepEqual(installed.skills, [{ name: "ui-ux-design", skillPath: "skills/ui-ux-design/SKILL.md" }]);
+    assert.equal(await readFile(path.join(installed.packageRoot, "plugin.json"), "utf8"), VALID_MANIFEST);
+    assert.equal(await readFile(path.join(installed.packageRoot, "skills/ui-ux-design/SKILL.md"), "utf8"), "# UI/UX Design\n\nGuidance.");
+    assert.equal((await stat(path.join(installed.packageRoot, "empty"))).isDirectory(), true);
+    assert.deepEqual(await readdir(path.join(installed.packageRoot, "empty")), []);
   } finally {
     await forceRemove(cwd);
   }
@@ -215,11 +221,7 @@ test("real zip: a genuinely malicious archive (byte-patched, not yazl-written) w
 
     const digest = createHash("sha256").update(patched).digest("hex");
 
-    // Whatever the specific error -- yauzl's own automatic validateFileName() firing before the
-    // "entry" is ever handed to install.ts, or install.ts's own normalizePackageEntryPath if it got
-    // that far -- the end-to-end pipeline must reject this archive and must not write anything
-    // outside the workspace's own package root. Which layer catches it is documented in this file's
-    // own header; that it's caught, end to end, through the REAL reader, is what this test proves.
+    // Reject for traversal specifically, rather than accepting structural ZIP corruption.
     await assert.rejects(() =>
       installAgentPlugin({
         archive: patched,
@@ -228,9 +230,22 @@ test("real zip: a genuinely malicious archive (byte-patched, not yazl-written) w
         layout: instanceLayout,
         workspaceId: WORKSPACE_ID,
       }),
+      (error: unknown) => (error instanceof Error && error.message === `invalid relative path: ${maliciousPath}`) ||
+        (error instanceof AgentPluginInstallError && error.code === "UNSAFE_ENTRY_PATH"),
     );
 
     assert.deepEqual(await readdir(workspaceLayout.packages).catch(() => []), []);
+    const safeName = "B".repeat(maliciousPath.length);
+    const control = Buffer.from(safeArchive.toString("latin1").replaceAll(placeholder, safeName), "latin1");
+    const installed = await installAgentPlugin({
+      archive: control,
+      expectedSha256: createHash("sha256").update(control).digest("hex"),
+      archiveReader: yauzlAgentPluginArchiveReader,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
+    });
+    assert.equal(await readFile(path.join(installed.packageRoot, safeName), "utf8"), "leaked");
+    assert.equal(await readFile(path.join(installed.packageRoot, "plugin.json"), "utf8"), VALID_MANIFEST);
   } finally {
     await forceRemove(cwd);
   }
