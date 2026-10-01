@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Principal, RunRef } from "@jini-ai/core";
+import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
@@ -25,11 +25,13 @@ const PRINCIPAL: Principal = { id: "principal-1" };
 const RUN: RunRef = { id: "run-1" };
 
 /** A `ToolExecutor` stand-in whose `execute` does exactly what a test tells it to. */
-function fakeExecutor(behavior: { result?: ToolExecutionResult; throws?: unknown }): ToolExecutor & { calls: number } {
+function fakeExecutor(behavior: { result?: ToolExecutionResult; throws?: unknown }): ToolExecutor & { calls: number; arguments: Parameters<ToolExecutor["execute"]>[] } {
   const executor = {
     calls: 0,
-    execute: async (): Promise<ToolExecutionResult> => {
+    arguments: [] as Parameters<ToolExecutor["execute"]>[],
+    execute: async (...args: Parameters<ToolExecutor["execute"]>): Promise<ToolExecutionResult> => {
       executor.calls += 1;
+      executor.arguments.push(args);
       if (behavior.throws !== undefined) throw behavior.throws;
       assert.ok(behavior.result, "fakeExecutor needs either a result or a throws");
       return behavior.result;
@@ -38,7 +40,7 @@ function fakeExecutor(behavior: { result?: ToolExecutionResult; throws?: unknown
     cancel: () => {},
     getAuditRecord: () => null,
   };
-  return executor as ToolExecutor & { calls: number };
+  return executor;
 }
 
 function wrap(inner: ToolExecutor, sink: ToolAttemptAuditSink) {
@@ -50,6 +52,18 @@ function wrap(inner: ToolExecutor, sink: ToolAttemptAuditSink) {
     onSinkError: () => {},
   });
 }
+
+test("audit forwards every execute argument, including the cancellation and surface channels", async () => {
+  const inner = fakeExecutor({ result: { executionId: "e", status: "completed" } });
+  const input = { key: "recipe" };
+  const signal = new AbortController().signal;
+  const emit: SurfaceEmitter = async () => {};
+  await wrap(inner, createInMemoryToolAttemptAuditSink()).execute(PRINCIPAL, RUN, "t", input, signal, emit);
+  assert.equal(inner.arguments.length, 1);
+  const expected = [PRINCIPAL, RUN, "t", input, signal, emit];
+  assert.equal(inner.arguments[0].length, expected.length);
+  for (const [index, argument] of expected.entries()) assert.equal(inner.arguments[0][index], argument);
+});
 
 test("ORDERING GAP: an unknown tool leaves a durable attempt record — Jini writes none at all, because it throws before minting one", async () => {
   const sink = createInMemoryToolAttemptAuditSink();

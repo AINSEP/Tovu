@@ -28,18 +28,20 @@ const FIXED_ID = "ERR-AAAA-BBBB-CCCC-DDDD";
 const STRIPE_KEY = ["sk", "live", ""].join("_") + "Ab3".repeat(8);
 const GHP_TOKEN = "ghp_" + "a1".repeat(18);
 
-function fakeExecutor(result: ToolExecutionResult): ToolExecutor & { calls: number } {
+function fakeExecutor(result: ToolExecutionResult): ToolExecutor & { calls: number; arguments: Parameters<ToolExecutor["execute"]>[] } {
   const executor = {
     calls: 0,
-    execute: async (): Promise<ToolExecutionResult> => {
+    arguments: [] as Parameters<ToolExecutor["execute"]>[],
+    execute: async (...args: Parameters<ToolExecutor["execute"]>): Promise<ToolExecutionResult> => {
       executor.calls += 1;
+      executor.arguments.push(args);
       return result;
     },
     resumeConfirmation: () => {},
     cancel: () => {},
     getAuditRecord: () => null,
   };
-  return executor as ToolExecutor & { calls: number };
+  return executor;
 }
 
 function throwingExecutor(error: unknown): ToolExecutor {
@@ -211,10 +213,14 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through", 
   assert.deepEqual(calls, ["resume:e:confirm", "cancel:e", "get:e"]);
 });
 
-// Present only so `SurfaceEmitter` is exercised as a type — the decorator must forward the exact
-// argument list `inner.execute` declares, `emitSurface` included, with no narrowing.
-void (async () => {
+test("redaction forwards every execute argument, including the cancellation and surface channels", async () => {
   const emit: SurfaceEmitter = async () => {};
+  const signal = new AbortController().signal;
+  const input = { field: "value" };
   const inner = fakeExecutor({ executionId: "e", status: "completed" });
-  await withRedactedToolFailures(inner).execute(PRINCIPAL, RUN, "t", {}, undefined, emit);
-})();
+  await withRedactedToolFailures(inner).execute(PRINCIPAL, RUN, "t", input, signal, emit);
+  assert.equal(inner.arguments.length, 1);
+  const expected = [PRINCIPAL, RUN, "t", input, signal, emit];
+  assert.equal(inner.arguments[0].length, expected.length);
+  for (const [index, argument] of expected.entries()) assert.equal(inner.arguments[0][index], argument);
+});

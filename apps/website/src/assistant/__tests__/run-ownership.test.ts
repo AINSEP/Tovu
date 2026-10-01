@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
+import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
+import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import { registerRunRoutes, type AdapterContext, type RunStartHandler } from "@jini-ai/http-kit";
@@ -168,10 +170,13 @@ test("a non-owner cannot cancel another principal's in-flight run, and the run k
   t.after(harness.close);
   const runId = await startRun(harness, ALICE);
 
+  const cancellations: unknown[] = [];
+  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(BOB) });
 
   assert.equal(res.status, 404);
   assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+  assert.deepEqual(cancellations, [], "a refused cancel must not record cancellation intent");
 });
 
 // A run with no recorded owner (its contextRef was malformed, so no principal could be decoded)
@@ -188,6 +193,8 @@ test("a run with no recorded owner is unreadable and uncancellable by every admi
   const runId = ((await res.json()) as { run: { id: string } }).run.id;
   assert.equal(harness.registry.ownerOf(runId), undefined);
 
+  const cancellations: unknown[] = [];
+  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
   const read = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asPrincipal(BOB) });
   const cancel = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(BOB) });
 
@@ -195,6 +202,7 @@ test("a run with no recorded owner is unreadable and uncancellable by every admi
   assert.deepEqual(await read.json(), { error: { code: "NOT_FOUND", message: `run "${runId}" was not found` } });
   assert.equal(cancel.status, 404);
   assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+  assert.deepEqual(cancellations, [], "an ownerless run must receive no cancellation intent");
 });
 
 test("forget() drops a run's owner, so the registry does not grow for the daemon's lifetime", () => {
@@ -208,10 +216,16 @@ test("the owner can cancel their own run", async (t) => {
   const harness = await bootDaemonRoutes();
   t.after(harness.close);
   const runId = await startRun(harness, ALICE);
+  const otherRunId = await startRun(harness, ALICE, "another run");
+  const cancelledRunIds: string[] = [];
+  for (const id of [runId, otherRunId]) {
+    t.after(harness.lifecycle.onCancelRequested(id, () => cancelledRunIds.push(id)));
+  }
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(ALICE) });
 
   assert.equal(res.status, 200);
+  assert.deepEqual(cancelledRunIds, [runId], "only the requested run receives intent, exactly once");
 });
 
 test("ownership outlives the run — a finished run is still readable, so it must still be guarded", async (t) => {
@@ -231,6 +245,8 @@ test("run-scoped routes fail closed when no principal is asserted", async (t) =>
   const harness = await bootDaemonRoutes();
   t.after(harness.close);
   const runId = await startRun(harness, ALICE);
+  const cancellations: unknown[] = [];
+  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
 
   const status = await fetch(`${harness.baseUrl}/api/runs/${runId}`);
   const events = await fetch(`${harness.baseUrl}/api/runs/${runId}/events`);
@@ -242,6 +258,7 @@ test("run-scoped routes fail closed when no principal is asserted", async (t) =>
     assert.equal(((await res.json()) as { error: { code: string } }).error.code, "UNAUTHENTICATED");
   }
   assert.equal((await harness.lifecycle.get(runId))?.state, "running", "the unauthenticated cancel must not have landed");
+  assert.deepEqual(cancellations, [], "an unauthenticated cancel must receive no cancellation intent");
 });
 
 test("GET /api/runs lists only the caller's own runs, not every run on the daemon", async (t) => {
@@ -268,12 +285,9 @@ test("the ?contextRef= filter still applies, and stays owner-scoped underneath i
   await startRun(harness, ALICE, "first");
   const second = await startRun(harness, ALICE, "second");
   // Byte-identical contextRef, different principal — the filter alone would return both.
-  const bobContextRef = contextRefFor(BOB, "second");
-  await fetch(`${harness.baseUrl}/api/runs`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...asPrincipal(BOB) },
-    body: JSON.stringify({ contextRef: bobContextRef }),
-  });
+  const { run: bobRun } = await harness.lifecycle.start({ contextRef: contextRefFor(ALICE, "second") });
+  harness.registry.record(bobRun.id, BOB);
+  assert.equal((await harness.lifecycle.get(bobRun.id))?.contextRef, (await harness.lifecycle.get(second))?.contextRef);
 
   const res = await fetch(
     `${harness.baseUrl}/api/runs?contextRef=${encodeURIComponent(contextRefFor(ALICE, "second"))}`,
@@ -281,8 +295,37 @@ test("the ?contextRef= filter still applies, and stays owner-scoped underneath i
   );
 
   const { runs } = (await res.json()) as { runs: { id: string }[] };
+  assert.equal(res.status, 200);
   assert.deepEqual(
     runs.map((run) => run.id),
     [second]
   );
+});
+
+test("the production daemon mounts ownership before run routes and records the decoded principal on start", () => {
+  const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-server.ts", import.meta.url), "utf8");
+  const parsed = ts.createSourceFile("agent-daemon-server.ts", source, ts.ScriptTarget.Latest, true);
+  const printer = ts.createPrinter({ removeComments: true });
+  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
+  // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
+  const statements = parsed.statements.map(text);
+  const gate = statements.indexOf('app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH], runScopedCallers: runCredentials }));');
+  const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));');
+  const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));');
+  const routes = statements.indexOf('registerRunRoutes(app, { lifecycle, onStarted }, adapter);');
+  assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
+    "both owner gates must execute after authentication and before the unscoped http-kit routes");
+
+  const declaration = parsed.statements.flatMap((node) => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
+    .find((node) => ts.isIdentifier(node.name) && node.name.text === "onStarted");
+  assert.ok(declaration?.initializer && ts.isArrowFunction(declaration.initializer));
+  const body = declaration.initializer.body;
+  assert.ok(ts.isBlock(body));
+  const record = body.statements.findIndex((node) => text(node) === "runOwners.record(run.id, principal.id);");
+  assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
+  const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
+    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef(request.contextRef);")
+    && node.tryBlock.statements.some((statement) => text(statement) === "principal = { id: decoded.principalId };")
+    && node.catchClause?.block.statements.some(ts.isReturnStatement));
+  assert.ok(decode >= 0 && decode < record, "ownership must use the validated contextRef principal, with malformed input returning before recording");
 });
