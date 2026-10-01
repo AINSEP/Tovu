@@ -25,9 +25,14 @@ describeEachDialect("DatabaseDestinationRepo", { tables: ["database_transfer_des
     const replaced = { ...RECORD, description: { ...RECORD.description, host: "db2.example.test" }, sealed: { ...RECORD.sealed, ciphertext: "c2" } };
     await repo.upsert(replaced);
     assert.deepEqual(await repo.find("ws-1"), replaced);
+    const other = { ...RECORD, workspaceId: "ws-2", lastRunJson: '{"ok":false,"rows":17}' };
+    await repo.upsert(other);
     await repo.setLastRun("ws-1", '{"ok":true,"rows":3}');
     assert.equal((await repo.find("ws-1"))?.lastRunJson, '{"ok":true,"rows":3}');
+    assert.deepEqual(await repo.find("ws-2"), other);
     await repo.setLastRun("ws-missing", "{}");
+    assert.deepEqual(await repo.find("ws-2"), other);
+    assert.equal((await repo.find("ws-1"))?.lastRunJson, '{"ok":true,"rows":3}');
     assert.equal(await repo.find("ws-missing"), null);
   });
 });

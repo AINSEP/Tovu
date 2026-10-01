@@ -90,55 +90,70 @@ test("create: authorize() returning allowed:false 403s", async (t) => {
 
 test("create: no body at all (req.body undefined) still 400s on the missing-label validation", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, undefined, { noBody: true });
+  const { status, json } = await post(t, app, undefined, { noBody: true });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "label is required" });
 });
 
 test("create: empty object body 400s — label is required", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, {});
+  const { status, json } = await post(t, app, {});
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "label is required" });
 });
 
 test("create: label present, malformed targetUrl 400s", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, { label: "x", targetUrl: "not-a-url", topics: ["a"] });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "not-a-url", topics: ["a"] });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "target_url 'not-a-url' is not a valid URL" });
 });
 
 test("create: label + non-https targetUrl 400s", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, { label: "x", targetUrl: "http://example.com/hook", topics: ["a"] });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "http://example.com/hook", topics: ["a"] });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "target_url must use https://" });
 });
 
 test("create: label + https targetUrl but disallowed egress target 400s", async (t) => {
   const app = buildApp({
     originRegistry: { isAllowedEgressTarget: async () => false } as unknown as IntegrationsRouteDeps["originRegistry"],
   });
-  const { status } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "target_url 'https://example.com/hook' is not an allowed egress target" });
 });
 
 test("create: valid label/url, topics omitted (defaults to []) 400s — at least one topic is required", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook" });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook" });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "at least one topic is required" });
 });
 
 test("create: valid label/url, topics is not an array 400s the same way as omitted", async (t) => {
   const app = buildApp();
-  const { status } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: "not-an-array" });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: "not-an-array" });
   assert.equal(status, 400);
+  assert.deepEqual(json, { error: "at least one topic is required" });
 });
 
 test("create: fully valid request succeeds (201) and echoes the created subscription", async (t) => {
-  const app = buildApp();
-  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a", "b"] });
+  const deps = createRouteDeps();
+  const app = buildApp({ webhookSubscriptionRepo: deps.webhookSubscriptionRepo });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hooks/comment-created?source=tovu", topics: ["a", "b"] });
   assert.equal(status, 201, JSON.stringify(json));
-  const body = json as { subscription: { label: string; targetUrl: string; topics: string[] } };
+  const body = json as { subscription: { id: string; label: string; targetUrl: string; topics: string[] } };
   assert.equal(body.subscription.label, "x");
   assert.deepEqual(body.subscription.topics, ["a", "b"]);
+  assert.equal(body.subscription.targetUrl, "https://example.com/hooks/comment-created?source=tovu");
+  const stored = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: body.subscription.id });
+  assert.ok(stored);
+  assert.equal(stored.label, "x");
+  assert.equal(stored.targetUrl, "https://example.com/hooks/comment-created?source=tovu");
+  assert.deepEqual(stored.topics, ["a", "b"]);
+  assert.equal(stored.status, "active");
 });
 
 test("create: an undefined workspaceId param (impossible via real routing -- a matched `:workspaceId` segment is always a populated string) still 404s through the `?? \"\"` fallback", async (t) => {
@@ -162,14 +177,19 @@ test("create: an undefined workspaceId param (impossible via real routing -- a m
 
 test("create: an unexpected repo failure (not a validation/not-found error) 500s", async (t) => {
   const base = createRouteDeps();
+  let insertReached = false;
   const app = buildApp({
-    webhookSubscriptionRepo: {
-      ...base.webhookSubscriptionRepo,
-      save: async () => {
-        throw new Error("boom");
+    webhookSubscriptionRepo: new Proxy(base.webhookSubscriptionRepo, {
+      get(target, key) {
+        if (key === "insert") return async () => { insertReached = true; throw new Error("injected insert failure"); };
+        const value = Reflect.get(target, key);
+        return typeof value === "function" ? value.bind(target) : value;
       },
-    },
+    }),
   });
-  const { status } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
+  const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
+  assert.equal(insertReached, true);
   assert.equal(status, 500);
+  assert.deepEqual(json, { error: "internal error" });
+  assert.deepEqual(await base.webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });

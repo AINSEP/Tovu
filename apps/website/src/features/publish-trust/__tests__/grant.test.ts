@@ -151,6 +151,23 @@ test("a non-object grant is refused", () => {
 });
 
 test("every publishing route is reachable by a publishing credential", () => {
+  const base = "/api/admin/v1/workspaces/:workspaceId/publish-content";
+  const required = [
+    { method: "GET", path: `${base}/export` },
+    { method: "GET", path: `${base}/capabilities` },
+    { method: "POST", path: `${base}/blobs/probe` },
+    { method: "PUT", path: `${base}/blobs/:sha` },
+    { method: "GET", path: `${base}/blobs/:sha` },
+    { method: "POST", path: `${base}/bundles` },
+    { method: "POST", path: `${base}/import/plan` },
+    { method: "POST", path: `${base}/import/confirm` },
+    { method: "POST", path: `${base}/import/execute` },
+  ];
+  assert.deepEqual(PUBLISH_TRUST_ROUTES, required);
+  for (const route of required) {
+    const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64));
+    assert.equal(isPublishTrustRoute(route.method, concrete), true, `${route.method} ${concrete}`);
+  }
   for (const route of PUBLISH_TRUST_ROUTES) {
     const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64));
     assert.equal(isPublishTrustRoute(route.method, concrete), true, `${route.method} ${concrete}`);

@@ -199,12 +199,23 @@ export async function cancelCampaign(required: {
   return { campaign };
 }
 
+/** Validates a timezone-qualified ISO timestamp, including the calendar date that Date.parse normalizes. */
+function isValidScheduleTimestamp(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false;
+  if (!Number.isFinite(Date.parse(value))) return false;
+  const datePart = value.slice(0, 10);
+  return new Date(`${datePart}T00:00:00.000Z`).toISOString().slice(0, 10) === datePart;
+}
+
 /** C-011 — schedule a draft campaign (`admin.newsletter.campaign.schedule` tier). */
 export async function scheduleCampaign(required: {
   deps: CampaignWriteServiceDeps;
   input: { workspaceId: UUID; id: UUID; actorId: UUID; scheduledAt: string };
 }): Promise<{ campaign: CampaignRecord }> {
   const { deps, input } = required;
+  if (!isValidScheduleTimestamp(input.scheduledAt)) {
+    throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string");
+  }
   const campaign = await deps.campaignRepo.transaction(async () => {
     const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.id });
     if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${input.id} was not found`);

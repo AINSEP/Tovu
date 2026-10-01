@@ -153,3 +153,24 @@ test("apply(): exact conflict and blocked texts; the result carries blobWritten"
   assert.ok(result.changeSetId);
   assert.equal(result.blobWritten, true);
 });
+
+test("verifyApplied reports a missing published media row", async () => {
+  const d = await deps();
+  const handler = contributeMediaPublish().build(d);
+  assert.ok(handler.verifyApplied);
+  assert.deepEqual(await handler.verifyApplied({ entities: [entity({ ...PHOTO, id: "missing-row", slug: "missing-photo" })] }),
+    ["Media 'missing-photo' was published but is not on the site."]);
+});
+
+test("verifyApplied reports a missing poster and clears the diagnostic once that poster exists", async () => {
+  const d = await deps();
+  const media = d.ports.media!;
+  const video = { ...PHOTO, htmlAttributes: 'poster="/m/missing-poster/public.v1/image.webp"' };
+  await media.repo.save(video);
+  const handler = contributeMediaPublish().build(d);
+  assert.ok(handler.verifyApplied);
+  assert.deepEqual(await handler.verifyApplied({ entities: [entity(video)] }),
+    ["Media 'team-photo' uses 'missing-poster' in its HTML attributes, but 'missing-poster' is not on the site, so it will not load."]);
+  await media.repo.save({ ...BARE, slug: "missing-poster" });
+  assert.deepEqual(await handler.verifyApplied({ entities: [entity(video)] }), []);
+});

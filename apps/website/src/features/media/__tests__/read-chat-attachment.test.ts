@@ -88,7 +88,10 @@ async function writeSidecar(
     ownerId: OWNER,
     ...overrides,
   };
-  const fileName = chatAttachmentSidecarFileName(options.ref ?? REF);
+  // Persisted format is specified independently of the reader helper.
+  const fileName = options.ref === undefined
+    ? "attachment_11111111-2222-3333-4444-555555555555.json"
+    : chatAttachmentSidecarFileName(options.ref);
   await writeFile(resolve(staged.sidecarDirectory, fileName), JSON.stringify(record));
 }
 

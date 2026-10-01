@@ -5,6 +5,7 @@ import test from "node:test";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { pullBlobsFromPeer, PublishContentPeerTransportError } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
+import { computeBlobStorageKey } from "../../media/index.js";
 
 /**
  * @file The PULL direction's blob leg — `pullBlobsFromPeer`, the client half of
@@ -64,16 +65,18 @@ class FakeBlobPeer implements HttpClientPort {
 /** A `BlobStorePort` write-seam double: records every `putIfAbsent`, so "nothing was written" is
  *  asserted against the real call list rather than inferred. */
 class RecordingBlobSink {
-  readonly written: Array<{ sha256: string; bytes: Uint8Array }> = [];
+  readonly written: Array<{ workspaceId: string; sha256: string; bytes: Uint8Array }> = [];
   constructor(private readonly present: Set<string> = new Set()) {}
 
   async exists({ storageKey }: { storageKey: string }): Promise<boolean> {
     return this.present.has(storageKey);
   }
 
-  async putIfAbsent({ sha256, bytes }: { workspaceId: string; sha256: string; bytes: Uint8Array }) {
-    this.written.push({ sha256, bytes });
-    return { storageKey: `key/${sha256}`, written: true };
+  async putIfAbsent({ workspaceId, sha256, bytes }: { workspaceId: string; sha256: string; bytes: Uint8Array }) {
+    this.written.push({ workspaceId, sha256, bytes });
+    const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
+    this.present.add(storageKey);
+    return { storageKey, written: true };
   }
 }
 
@@ -83,7 +86,7 @@ function pullDeps(httpClient: HttpClientPort, blobSink: RecordingBlobSink, overr
     credential: CREDENTIAL,
     blobSink,
     workspaceId: WORKSPACE,
-    computeStorageKey: (sha256: string) => `key/${sha256}`,
+    computeStorageKey: (sha256: string) => computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }),
     ...overrides,
   };
 }
@@ -110,6 +113,11 @@ test("pull downloads each missing blob and writes the bytes it verified, under t
   );
   assert.deepEqual(Buffer.from(sink.written[0].bytes), first, "the stored bytes must be byte-for-byte what the peer sent");
   assert.deepEqual(Buffer.from(sink.written[1].bytes), second);
+  assert.deepEqual(sink.written.map((entry) => entry.workspaceId), [WORKSPACE, WORKSPACE]);
+  for (const sha256 of [firstSha, secondSha]) {
+    assert.equal(await sink.exists({ storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }) }), true);
+    assert.equal(await sink.exists({ storageKey: computeBlobStorageKey({ workspaceId: CREDENTIAL.remoteWorkspaceId, sha256 }) }), false);
+  }
   assert.ok(
     peer.calls.every((call) => call.url.includes(`/workspaces/${CREDENTIAL.remoteWorkspaceId}/publish-content/blobs/`)),
     "every blob fetch must be built under the PEER's workspace id, never this instance's"
@@ -121,7 +129,7 @@ test("pull never re-downloads a blob this instance already holds", async () => {
   const bytes = Buffer.from("already here");
   const sha = sha256Of(bytes);
   const peer = new FakeBlobPeer({ [sha]: { json: { sha256: sha, dataBase64: bytes.toString("base64") } } });
-  const sink = new RecordingBlobSink(new Set([`key/${sha}`]));
+  const sink = new RecordingBlobSink(new Set([computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha })]));
 
   const result = await pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [sha] });
 

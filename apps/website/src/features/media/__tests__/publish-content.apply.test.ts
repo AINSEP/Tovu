@@ -363,6 +363,7 @@ test("apply() updates an existing row when expectedVersion matches, recording th
     "Old Title",
     "the inverse must carry the pre-write record — media has no revision ledger, so this IS the revert path"
   );
+  assert.deepEqual(recorded?.items[0]?.inversePayload, existing);
 });
 
 test("apply() refuses to overwrite a destination row that moved on from expectedVersion", async () => {
@@ -589,3 +590,25 @@ test("precheck() returns null once the blob has been staged and no slug holds th
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
   assert.equal(await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord())), null);
 });
+
+for (const operation of ["create", "update"] as const) {
+  test(`apply() compensates the complete ${operation} when recording its change set fails after the write`, async () => {
+    const prior = operation === "update" ? makeMediaRecord({ title: "Before", alt: "Prior alt", caption: "Prior caption", credit: "Prior credit", width: 123, height: 456, cssClass: "prior-class", htmlAttributes: 'loading="lazy"', version: 3 }) : null;
+    const fixture = await makeFixture({ mediaRows: prior ? [prior] : [] });
+    await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+    const error = new Error("change set storage unavailable");
+    let writesObserved = 0;
+    fixture.changeSets.insert = async () => {
+      const row = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" });
+      assert.equal(row?.title, "After");
+      assert.equal(row?.version, operation === "update" ? 4 : 1);
+      writesObserved += 1;
+      throw error;
+    };
+    await assert.rejects(handlerFor(fixture.deps).apply({ entity: packedFrom(makeMediaRecord({ title: "After" })), expectedVersion: prior?.version, principalId: OPERATOR_ID, idempotencyKey: `rollback-${operation}` }), (actual) => actual === error);
+    assert.equal(writesObserved, 1);
+    assert.deepEqual(await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" }), prior);
+    assert.deepEqual(await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+    assert.deepEqual(await fixture.deps.outbox!.claimPending(10, "2026-09-18T12:00:00.000Z"), []);
+  });
+}

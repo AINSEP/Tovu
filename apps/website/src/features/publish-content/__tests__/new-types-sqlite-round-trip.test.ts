@@ -11,11 +11,13 @@ import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
-import { createWidgetInstance } from "#src/features/widgets/write-service";
+import { createWidgetInstance, updateWidgetInstance } from "#src/features/widgets/write-service";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
-import { makeSite, registerOnly, roundTrip, WORKSPACE_ID } from "./round-trip-harness.js";
+import { entityKey } from "../planner.js";
+import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "./round-trip-harness.js";
 
 /**
  * @file The factory-built types whose own tests run on in-memory repos (`form`, `content-type`,
@@ -108,6 +110,57 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
   assert.deepEqual(second.rows.map((r) => [r.entityType, r.outcome]).filter(([, o]) => o !== "unchanged"), []);
   const hashes = (list: typeof entities) => Object.fromEntries(list.map((e) => [`${e.entityType}:${e.id}`, e.contentHash]));
   assert.deepEqual(hashes(destinationPack), hashes(entities));
+
+  const form = await dst.repos.forms.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
+  assert.equal(form?.name, "Contact");
+  assert.equal(form?.status, "active");
+  assert.deepEqual(form?.fields, [
+    { id: "email", label: "Email", type: "email", required: true },
+    { id: "msg", label: "Message", type: "textarea", required: false, maxLength: 500 },
+  ]);
+  assert.deepEqual(form?.notify, { enabled: true, recipients: ["owner@example.com"] });
+
+  // Exercise writes into populated SQL destinations, including a deprecated collection becoming active.
+  const sourceForm = await src.repos.forms.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
+  await src.repos.forms.update({ ...sourceForm!, name: "Write to us", status: "disabled", version: 2,
+    fields: [{ id: "email", label: "Your email", type: "email", required: true }, { id: "msg", label: "Details", type: "textarea", required: false, maxLength: 1000 }],
+    notify: { enabled: true, recipients: ["editor@example.com", "support@example.com"] },
+  });
+  await src.repos.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Dishes",
+    fields: [{ name: "servings", kind: "integer", required: true, queryable: false }],
+    status: "active", version: 4, tombstonedAt: null,
+  });
+  await updateWidgetInstance({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor,
+    widgetInstanceId: about.id, baseVersion: about.version, title: "About us", config: { body: "Updated introduction" },
+  } });
+  const sourceArea = await src.repos.entries.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id });
+  const placements = [{ placementId: "p-2", widgetEntryId: about.id, enabled: false }];
+  await mutateWidgetAreaPlacements({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor,
+    areaEntryId: areaEntry.id, baseVersion: sourceArea!.version, placements,
+  } });
+  const changedEntities = await packAll(src.site);
+  const firstUpdate = await plan(changedEntities, dst.site, entities.map((e) => entityKey(e.entityType, e.id)));
+  await applyReport(firstUpdate, changedEntities, dst.site);
+  const updated = { first: firstUpdate, second: await plan(changedEntities, dst.site) };
+  assert.deepEqual(updated.first.rows.map((r) => [r.entityType, r.outcome]).sort(),
+    [["content-type", "forced"], ["form", "forced"], ["widget", "forced"], ["widget-area", "forced"]].sort());
+  assert.deepEqual(updated.second.rows.map((r) => r.outcome), ["unchanged", "unchanged", "unchanged", "unchanged"]);
+  const updatedForm = await dst.repos.forms.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
+  assert.equal(updatedForm?.id, form?.id);
+  assert.equal(updatedForm?.name, "Write to us");
+  assert.equal(updatedForm?.status, "disabled");
+  assert.deepEqual(updatedForm?.fields, [{ id: "email", label: "Your email", type: "email", required: true }, { id: "msg", label: "Details", type: "textarea", required: false, maxLength: 1000 }]);
+  assert.deepEqual(updatedForm?.notify, { enabled: true, recipients: ["editor@example.com", "support@example.com"] });
+  const collection = await dst.repos.contentTypes.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
+  assert.equal(collection?.label, "Dishes");
+  assert.equal(collection?.status, "active");
+  assert.deepEqual(collection?.fields, [{ name: "servings", kind: "integer", required: true, queryable: false }]);
+  const widget = await dst.repos.entries.findById({ workspaceId: WORKSPACE_ID, id: about.id });
+  assert.equal(widget?.title, "About us");
+  assert.deepEqual(parseWidgetInstancePayload(widget!.fieldsJson).config, { body: "Updated introduction" });
+  const areas = await dst.repos.entries.listByWorkspace({ workspaceId: WORKSPACE_ID, type: "widget_area" });
+  assert.equal(areas.length, 1);
+  assert.deepEqual(parseWidgetAreaPayload(areas[0]!.fieldsJson).doc.placements, placements);
 });
 
 test("a contact-form widget lands pointing at the destination's own form (forms get a new id there), then stays unchanged", async () => {

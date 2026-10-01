@@ -386,6 +386,7 @@ test("makeCredentialedRequest: a self-describing token's BARE value (no scheme p
   const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
 
   assert.ok(!result.bodyText.includes("fake_test_token_value"), "the bare self-describing token value must be redacted even with no scheme prefix");
+  assert.equal(result.bodyText, '{"error":"invalid macaroon [REDACTED]"}');
 });
 
 test("makeCredentialedRequest: a self-describing token's BARE value (no scheme prefix) reflected in a response header is redacted", async () => {
@@ -1252,3 +1253,44 @@ test("makeCredentialedRequest: a pathologically short credential token withholds
   assert.equal(result.headers["X-Safe-Header"], "banana");
 });
 
+
+test("makeCredentialedRequest: the UTF-8 byte cap accepts exactly 1MB and rejects oversized multibyte bodies", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const audit = new InMemoryCredentialedRequestAuditLog();
+  const deps = makeDeps({ httpClient, audit }, writeDeps);
+  const body = "é".repeat(500_000);
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "POST", url: "https://api.name.com/v4/domains", body });
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0]!.body, body);
+  assert.equal(audit.entries.length, 1);
+  assert.equal(audit.entries[0]!.bodyBytes, 1_000_000);
+  await assert.rejects(
+    makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "POST", url: "https://api.name.com/v4/domains", body: body + "é" }),
+    (err: unknown) => {
+      assert.ok(err instanceof CredentialedRequestValidationError);
+      assert.equal(err.message, "body is 1000002 bytes, which exceeds the 1000000-byte limit for this tool");
+      return true;
+    }
+  );
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(audit.entries.length, 1, "validation refusals do not produce transport audits");
+});
+
+for (const fixture of [
+  { connection: { username: "user", token: "password" }, header: "Basic dXNlcjpwYXNzd29yZA==" },
+  { connection: { token: "bearer-test-token" }, header: "Bearer bearer-test-token" },
+  { connection: { token: "FlyV1fake_test_token_value" }, header: "FlyV1 fake_test_token_value" },
+]) {
+  test(`verifyCustomCredential sends the exact ${fixture.header.split(" ")[0]} authentication header`, async () => {
+    const writeDeps = makeWriteDeps();
+    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "probe", category: "ops", baseUrl: "https://api.fly.io", connection: fixture.connection });
+    const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+    const result = await verifyCustomCredential(makeDeps({ httpClient }, writeDeps), { workspaceId: WORKSPACE, label: "probe" });
+    assert.equal(result.status, "valid");
+    assert.equal(httpClient.calls.length, 1);
+    assert.equal(httpClient.calls[0]!.url, "https://api.fly.io/");
+    assert.equal(httpClient.calls[0]!.method, "GET");
+    assert.deepEqual(httpClient.calls[0]!.headers, { Authorization: fixture.header });
+  });
+}

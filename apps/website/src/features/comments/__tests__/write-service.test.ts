@@ -40,6 +40,7 @@ function makeService() {
   const repo = new InMemoryCommentRepo();
   const outbox = new InMemoryOutbox();
   const hooks = createCommentHookRegistry();
+  const removedIndex = new Set<string>();
   const service = createCommentWriteService({
     repo,
     outbox,
@@ -47,16 +48,17 @@ function makeService() {
     clock: { nowIso: () => "2026-07-16T01:00:00.000Z" },
     idGen: { newId: () => "event-1" },
     ...commentTrashDoubles(),
+    forgetRemoved: async ({ workspaceId, id }) => { removedIndex.delete(`${workspaceId}:${id}`); },
   });
-  return { repo, outbox, hooks, service };
+  return { repo, outbox, hooks, service, removedIndex };
 }
 
 test("approving a comment enqueues comments.approved and fires the statusChanged hook", async () => {
   const { repo, outbox, hooks, service } = makeService();
   await repo.create(makeComment());
-  let hookFired: { fromStatus: string | null; toStatus: string } | null = null;
+  let hookFired: Parameters<typeof hooks.runStatusChangedHooks>[0] | null = null;
   hooks.registerStatusChangedHook(async (payload) => {
-    hookFired = { fromStatus: payload.fromStatus, toStatus: payload.toStatus };
+    hookFired = payload;
   });
 
   const result = await service.applyModeration({
@@ -70,11 +72,15 @@ test("approving a comment enqueues comments.approved and fires the statusChanged
   });
 
   assert.equal(result.ok, true);
-  assert.deepEqual(hookFired, { fromStatus: "pending", toStatus: "approved" });
+  assert.deepEqual(hookFired, { workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: "pending", toStatus: "approved" });
 
   const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
   assert.equal(claimed.length, 1);
-  assert.equal(claimed[0].event.name, "comments.approved");
+  assert.deepEqual(claimed[0].event, {
+    id: "event-1", name: "comments.approved", occurredAt: "2026-07-16T01:00:00.000Z",
+    aggregateId: "comment-1", workspaceId: WORKSPACE_ID,
+    payload: { commentId: "comment-1", entryId: "entry-1", status: "approved" },
+  });
 });
 
 test("a conflict returns without enqueueing an event or firing the hook", async () => {
@@ -102,8 +108,10 @@ test("a conflict returns without enqueueing an event or firing the hook", async 
 });
 
 test("purge enqueues comments.purged", async () => {
-  const { repo, outbox, service } = makeService();
-  await repo.create(makeComment());
+  const { repo, outbox, service, removedIndex } = makeService();
+  await repo.create(makeComment({ status: "trash" }));
+  removedIndex.add(`${WORKSPACE_ID}:comment-1`);
+  removedIndex.add("other:comment-1");
 
   const result = await service.purge({ workspaceId: WORKSPACE_ID, id: "comment-1", actorPrincipalId: "principal-1", note: "abuse" });
   assert.equal(result.ok, true);
@@ -111,11 +119,14 @@ test("purge enqueues comments.purged", async () => {
   const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
   assert.equal(claimed.length, 1);
   assert.equal(claimed[0].event.name, "comments.purged");
+  assert.deepEqual([...removedIndex], ["other:comment-1"]);
   assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }), null);
 });
 
 test("a 'trash' action (no explicit event mapping needed beyond comments.trashed) enqueues the right event", async () => {
-  const { outbox, repo, service } = makeService();
+  const { outbox, repo, service, hooks } = makeService();
+  const changed: Parameters<typeof hooks.runStatusChangedHooks>[0][] = [];
+  hooks.registerStatusChangedHook(async (payload) => { changed.push(payload); });
   await repo.create(makeComment({ status: "approved" }));
 
   await service.applyModeration({
@@ -129,5 +140,24 @@ test("a 'trash' action (no explicit event mapping needed beyond comments.trashed
   });
 
   const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+  assert.equal(claimed.length, 1);
   assert.equal(claimed[0].event.name, "comments.trashed");
+  assert.deepEqual(changed, [{ workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: "approved", toStatus: "trash" }]);
 });
+
+for (const scenario of [
+  { action: "mark_spam", from: "pending", to: "spam", event: "comments.marked_spam" },
+  { action: "restore", from: "trash", to: "pending", event: null },
+] as const) {
+  test(`${scenario.action} delivers the status hook and its contracted outbox events`, async () => {
+    const { repo, outbox, hooks, service } = makeService();
+    await repo.create(makeComment({ status: scenario.from }));
+    const changed: Parameters<typeof hooks.runStatusChangedHooks>[0][] = [];
+    hooks.registerStatusChangedHook(async (payload) => { changed.push(payload); });
+    assert.deepEqual(await service.applyModeration({ workspaceId: WORKSPACE_ID, id: "comment-1",
+      expectedVersion: 0, action: scenario.action, toStatus: scenario.to, actorPrincipalId: "principal-1", note: null }), { ok: true });
+    assert.deepEqual(changed, [{ workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: scenario.from, toStatus: scenario.to }]);
+    const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+    assert.deepEqual(claimed.map((row) => row.event.name), scenario.event ? [scenario.event] : []);
+  });
+}

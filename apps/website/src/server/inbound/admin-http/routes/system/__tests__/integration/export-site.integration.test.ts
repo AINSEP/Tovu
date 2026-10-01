@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -177,29 +177,50 @@ test("export-site: an unexpected authorize() failure 500s, and a fresh workspace
   assert.equal(status.status, 500);
 });
 
-test("export-site: a real trigger succeeds (202, running snapshot) and an immediate second trigger 409s", async (t) => {
+test("export-site: a gated real export starts running and refuses a second trigger until settlement", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-export-int-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const deps = testDeps(dir);
+  const realExport = deps.runExportSite;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  let engineCalls = 0;
+  deps.runExportSite = async (options) => {
+    engineCalls++;
+    await barrier;
+    return realExport(options);
+  };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/export`, {
-    method: "POST",
-    headers: { cookie },
-  });
-  assert.equal(trigger.status, 202);
-  const body = (await trigger.json()) as { status: string; outputDir: string };
-  assert.equal(body.status, "running");
-  assert.equal(body.outputDir, dir);
+  let settled!: Awaited<ReturnType<typeof waitForSettled>>;
+  try {
+    const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/export`, {
+      method: "POST",
+      headers: { cookie },
+    });
+    assert.equal(trigger.status, 202);
+    const body = (await trigger.json()) as { status: string; outputDir: string };
+    assert.equal(body.status, "running");
+    assert.equal(body.outputDir, dir);
 
-  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/export`, {
-    method: "POST",
-    headers: { cookie },
-  });
-  assert.equal(second.status, 409);
-
-  await waitForSettled(baseUrl, cookie, deps.workspaceId);
+    const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/export`, {
+      method: "POST",
+      headers: { cookie },
+    });
+    assert.equal(second.status, 409);
+    assert.equal(engineCalls, 1);
+  } finally {
+    release();
+    settled = await waitForSettled(baseUrl, cookie, deps.workspaceId);
+  }
+  assert.equal(settled.status, "completed");
+  assert.equal(settled.ok, true);
+  assert.deepEqual(settled.failedRoutes, []);
+  const counts = settled.counts as { routesSucceeded: number; routesFailed: number };
+  assert.ok(counts.routesSucceeded > 0);
+  assert.equal(counts.routesFailed, 0);
+  assert.match(readFileSync(path.join(dir, "index.html"), "utf8"), /<html[\s>]/i);
 });
 
 test("export-site: a non-string basePath 400s", async (t) => {
@@ -252,7 +273,7 @@ test("export-site: a valid non-blank basePath is accepted (202)", async (t) => {
   const body = (await res.json()) as { status: string };
   assert.equal(body.status, "running");
 
-  await waitForSettled(baseUrl, cookie, deps.workspaceId);
+  assert.equal((await waitForSettled(baseUrl, cookie, deps.workspaceId)).status, "completed");
 });
 
 test("export-site: GET status succeeds (200) and reflects a just-triggered running export", async (t) => {
@@ -272,8 +293,9 @@ test("export-site: GET status succeeds (200) and reflects a just-triggered runni
   assert.equal(status.status, 200);
   const body = (await status.json()) as { status: string; outputDir: string | null };
   assert.equal(body.outputDir, dir);
+  assert.ok(["running", "completed"].includes(body.status));
 
-  await waitForSettled(baseUrl, cookie, deps.workspaceId);
+  assert.equal((await waitForSettled(baseUrl, cookie, deps.workspaceId)).status, "completed");
 });
 
 test("export-site: POST `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async (t) => {
@@ -316,5 +338,5 @@ test("export-site: `body === undefined || body === null` short-circuit in parseT
   assert.equal(getStatus(), 202);
   assert.equal((getBody() as { status: string }).status, "running");
 
-  await waitForSettled(baseUrl, cookie, deps.workspaceId);
+  assert.equal((await waitForSettled(baseUrl, cookie, deps.workspaceId)).status, "completed");
 });

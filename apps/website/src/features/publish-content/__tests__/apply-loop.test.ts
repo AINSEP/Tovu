@@ -657,10 +657,39 @@ test("a row without `retires` behaves exactly as before S5 — the generic creat
 // Baselines: written for created/unchanged/applied/forced ONLY.
 // ---------------------------------------------------------------------------
 
+for (const outcome of ["applied", "forced"] as const) {
+  test(`a destination removed after planning ${outcome} stays removed and retains its prior baseline`, async () => {
+    const original = makePost({ id: "removed-after-plan", title: "Original" });
+    const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([original]);
+    const baseline = {
+      workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID,
+      entityType: "post", entityId: original.id,
+      hashAtLastSync: packedFrom(original).contentHash, hashVersion: CONTENT_HASH_VERSION,
+      syncedAt: clock.nowIso(), runId: "prior-run",
+    };
+    await baselineRepo.upsert(baseline);
+    const entities = [packedFrom({ ...original, title: "Incoming update" })];
+    const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+    assert.equal(report.rows[0]?.outcome, "applied");
+    if (outcome === "forced") report.rows[0] = { ...report.rows[0]!, outcome: "forced" };
+    const bundleId = await stage(bundleRepo, clock, entities);
+    await postRepo.hardDelete({ workspaceId: WORKSPACE_ID, id: original.id });
+
+    const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+    assert.deepEqual(result.changeSetIds, []);
+    assert.equal(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: original.id }), null);
+    const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+    assert.equal((JSON.parse(run!.reportJson) as PublishContentReport).rows[0]?.outcome, "conflict");
+    assert.deepEqual(await baselineRepo.findOne(baseline), baseline);
+  });
+}
+
 test("baselines are upserted for created/unchanged/applied/forced and NEVER for conflict/blocked", async () => {
   const applied = makePost({ id: "p-applied", title: "Applied dest", slug: "p-applied", version: 1, createdByPrincipalId: "author-a" });
   const forced = makePost({ id: "p-forced", title: "Forced dest", slug: "p-forced", version: 1, createdByPrincipalId: "author-f" });
-  const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([applied, forced]);
+  const unchangedSource = makePost({ id: "p-unchanged", title: "Same as dest", slug: "p-unchanged" });
+  const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([applied, forced, unchangedSource]);
 
   // "applied" needs a baseline matching the CURRENT destination hash so it does not itself downgrade.
   await baselineRepo.upsert({
@@ -675,7 +704,6 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
   });
 
   const createdSource = makePost({ id: "p-created", title: "New from peer", slug: "p-created", createdByPrincipalId: "author-c" });
-  const unchangedSource = makePost({ id: "p-unchanged", title: "Same as dest", slug: "p-unchanged" });
   const appliedSource = makePost({ ...applied, title: "Updated from peer" });
   const forcedSource = makePost({ ...forced, title: "Force-overwrite from peer" });
   // Packed entities ALSO exist for the conflict/blocked ids below — deliberately, so a naive
@@ -717,11 +745,25 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId });
 
   assert.ok(await findBaseline("p-created"), "created must gain a baseline");
-  assert.ok(await findBaseline("p-unchanged"), "unchanged must gain (refresh) a baseline");
+  assert.deepEqual(await findBaseline("p-unchanged"), {
+    workspaceId: WORKSPACE_ID,
+    peerPrincipalId: SOURCE_PRINCIPAL_ID,
+    entityType: "post",
+    entityId: "p-unchanged",
+    hashAtLastSync: packedFrom(unchangedSource).contentHash,
+    hashVersion: CONTENT_HASH_VERSION,
+    syncedAt: clock.nowIso(),
+    runId: "run-1",
+  });
   assert.ok(await findBaseline("p-applied"), "applied must gain a baseline");
   assert.ok(await findBaseline("p-forced"), "forced must gain a baseline");
   assert.equal(await findBaseline("p-conflict"), null, "conflict must NEVER gain a baseline");
   assert.equal(await findBaseline("p-blocked"), null, "blocked must NEVER gain a baseline");
+
+  const next = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, [
+    packedFrom({ ...unchangedSource, title: "Next source edit" }),
+  ]);
+  assert.equal(next.rows[0]?.outcome, "applied", "the unchanged agreement must allow the next source edit");
 
   void runRepo; // asserted indirectly via result.changeSetIds above; run-row content covered in its own test below.
 });
@@ -1137,10 +1179,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     // Both types ask `content.write`; only the registry's stamp tells them apart.
-    authorize: (async (params: { publishType?: string }) =>
-      params.publishType === "media"
-        ? { allowed: false, reason: "this publishing grant does not cover 'media'" }
-        : { allowed: true, reason: "test" }) as never,
+    authorize: async () => ({ allowed: false, reason: "factory authority denies all writes" }),
     ports: {
       post: { repo: postRepo, forgetRemoved: async () => {} },
       media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
@@ -1192,7 +1231,13 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
   const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
   const bundleId = await stage(bundleRepo, clock, entities);
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({
+    report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1",
+    authorize: (async (params: { publishType?: string }) =>
+      params.publishType === "media"
+        ? { allowed: false, reason: "this publishing grant does not cover 'media'" }
+        : { allowed: true, reason: "request authority permits posts" }) as never,
+  });
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied");
@@ -1517,7 +1562,9 @@ test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and
   assert.equal(result.changeSetIds.length, 1, "the create itself must still land — a repoint failure never fails the run");
   assert.equal(result.menuLinksUpdated, 0);
   assert.equal(result.menuLinksNotUpdated.length, 1);
-  assert.match(result.menuLinksNotUpdated[0]!, /^Menu links were not updated: /, "the generic prefix names the handler's own entityType");
+  assert.equal(result.menuLinksNotUpdated[0],
+    "Menu links were not updated: publish-content: menu.repointReferences() requires PublishContentDeps.ports.menu.repo, " +
+    ".changeSets, .authorize and .outbox — wire them from the real apply-loop composition root (features/publish-content/apply-loop.ts).");
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied", "the run itself must still complete despite the repoint pass failing");

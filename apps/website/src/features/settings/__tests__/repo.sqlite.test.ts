@@ -58,6 +58,7 @@ test("SqliteSettingsRepo: saveDefinition + findActiveDefinition round-trip throu
   const found = await repo.findActiveDefinition({ namespace: def.namespace, key: def.key, workspaceId: null });
   assert.equal(found?.settingId, def.settingId);
   assert.deepEqual(found?.schema, { type: "string" });
+  assert.deepEqual(found, def);
 });
 
 test("SqliteSettingsRepo: set() writes exactly one value row + one revision row in the real DB (AC-07)", async () => {

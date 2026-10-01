@@ -71,12 +71,17 @@ test("re-connecting the SAME site still updates its row in place rather than rep
   );
   const again = await saveConnectedDestination(
     { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    { workspaceId: WORKSPACE, label: "Rebuilt site A", baseUrl: SITE_A, remoteWorkspaceId: "remote-a-rebuilt" }
   );
 
   assert.equal(again.id, first.id, "re-connecting the same site must not mint a new row id");
   const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE });
   assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.id, first.id);
+  assert.equal(rows[0]?.label, "Rebuilt site A");
+  assert.equal(rows[0]?.remoteWorkspaceId, "remote-a-rebuilt");
+  assert.equal(rows[0]?.createdAt, "2026-09-20T10:00:00.000Z");
+  assert.equal(rows[0]?.updatedAt, "2026-09-20T11:00:00.000Z");
 });
 
 test("moving the connection leaves a hand-configured destination and its credential alone", async () => {

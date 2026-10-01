@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { registerRedirectsPhaseHandlers } from "../phase-handler.js";
+import { RedirectPhaseHandlerResolver, registerRedirectsPhaseHandlers } from "../phase-handler.js";
+import { redirectMatcher } from "../matcher.js";
+import { InMemoryRedirectRepo } from "../repo.memory.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
 import type { RouteResolveContext } from "#src/platform/routing/types";
 
@@ -55,4 +58,38 @@ test("the live composition's disposer still revokes it, idempotently", async () 
 
   assert.equal(await runPreContentPhase("/x", ctx), null, "disposing the live registration must revoke it");
   assert.equal(await runPostContentPhase("/x", ctx), null, "disposing the live registration must revoke it");
+});
+
+test("registered phases forward the request context and reserve pre-content for override rules", async () => {
+  const at = "2026-09-01T00:00:00.000Z";
+  const repo = new InMemoryRedirectRepo([false, true].map((override) => ({
+    id: `rule-${override}`, workspaceId: "ws", matchType: "exact" as const,
+    fromPattern: override ? "/override" : "/ordinary", toTarget: "/destination",
+    statusCode: 302 as const, status: "active" as const, override, priority: 0,
+    source: "manual" as const, createdByPrincipal: "owner", createdAt: at, updatedAt: at, version: 1,
+  })));
+  const real = new RedirectPhaseHandlerResolver({ repo, matcher: redirectMatcher,
+    originRegistry: new OriginRegistry({ repo: new InMemoryOriginSettingRepo([{
+      workspaceId: "ws", origin: createVerifiedOrigin({ scheme: "https", host: "trusted.example", verifiedAt: at, source: "workspace-setting" }),
+      redirectAllowlist: [],
+    }]) }),
+  });
+  const requests: Parameters<typeof real.resolve>[0][] = [];
+  registerRedirectsPhaseHandlers({ resolver: { resolve: async (request) => {
+    requests.push(request);
+    return real.resolve(request);
+  } } });
+  const redirect = { kind: "redirect", location: "/destination", statusCode: 302 };
+  assert.equal(await runPreContentPhase("/ordinary", ctx), null);
+  assert.deepEqual(await runPostContentPhase("/ordinary", ctx), redirect);
+  assert.deepEqual(await runPreContentPhase("/override", ctx), redirect);
+  assert.deepEqual(await runPostContentPhase("/override", ctx), redirect);
+  assert.equal(await runPostContentPhase("/ordinary", { workspaceId: "other-ws" }), null);
+  assert.deepEqual(requests, [
+    { workspaceId: "ws", path: "/ordinary", phase: "pre_content" },
+    { workspaceId: "ws", path: "/ordinary", phase: "post_content" },
+    { workspaceId: "ws", path: "/override", phase: "pre_content" },
+    { workspaceId: "ws", path: "/override", phase: "post_content" },
+    { workspaceId: "other-ws", path: "/ordinary", phase: "post_content" },
+  ]);
 });

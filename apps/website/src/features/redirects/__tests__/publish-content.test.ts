@@ -9,7 +9,7 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 import { redirectMatcher } from "../matcher.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import { contributeRedirectPublish } from "../publish-content.js";
-import { createRedirect, tombstoneRedirect, type RedirectsWriteDeps } from "../redirects.js";
+import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "../redirects.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
@@ -186,7 +186,8 @@ test("precheck() reports a message rather than throwing when redirectsWriteDeps 
 // apply()
 // ---------------------------------------------------------------------------
 
-test("apply() creates a new redirect via createRedirect and carries override (D3: a published redirect must win over a live page)", async () => {
+for (const statusCode of [301, 302, 307, 308] as const) {
+test(`apply() creates a ${statusCode} redirect and carries all transferred fields including override`, async () => {
   const writeDeps = makeWriteDeps();
   const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
 
@@ -195,7 +196,7 @@ test("apply() creates a new redirect via createRedirect and carries override (D3
       matchType: "exact",
       fromPattern: "/folded-stub",
       toTarget: "/new-home",
-      statusCode: 301,
+      statusCode,
       status: "active",
       override: true,
       priority: 0,
@@ -210,7 +211,11 @@ test("apply() creates a new redirect via createRedirect and carries override (D3
   assert.equal(landed?.fromPattern, "/folded-stub");
   assert.equal(landed?.override, true, "override must carry through so the redirect wins over an existing live page (D3)");
   assert.equal(landed?.source, "import");
+  assert.deepEqual({ matchType: landed?.matchType, fromPattern: landed?.fromPattern, toTarget: landed?.toTarget,
+    statusCode: landed?.statusCode, status: landed?.status, override: landed?.override, priority: landed?.priority },
+    { matchType: "exact", fromPattern: "/folded-stub", toTarget: "/new-home", statusCode, status: "active", override: true, priority: 0 });
 });
+}
 
 test("apply() updates an existing destination row, re-resolved by natural key", async () => {
   const writeDeps = makeWriteDeps();
@@ -302,4 +307,32 @@ test("apply() reports a conflict when the destination row disappeared between pl
       }),
     (err: unknown) => err instanceof PublishContentApplyRowError && err.rowOutcome === "conflict"
   );
+});
+
+test("apply() preserves a concurrent natural-key redirect edit and rejects a repeated stale request", async () => {
+  const writeDeps = makeWriteDeps();
+  const { record: seed } = await createRedirect({ deps: writeDeps, input: {
+    workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-docs", toTarget: "/initial",
+    statusCode: 301, actorId: ACTOR_ID,
+  } });
+  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const planned = await handler.inspect("exact:/old-docs");
+  await updateRedirect({ deps: writeDeps, input: {
+    workspaceId: WORKSPACE_ID, id: seed.id, expectedVersion: seed.version,
+    toTarget: "/operator-edit", statusCode: 307, actorId: ACTOR_ID,
+  } });
+  const before = await writeDeps.repo.findById({ workspaceId: WORKSPACE_ID, id: seed.id });
+  const request = { entity: packedEntity("exact:/old-docs", { matchType: "exact", fromPattern: "/old-docs",
+    toTarget: "/incoming", statusCode: 302, status: "active", override: true, priority: 5 }),
+    expectedVersion: planned!.version, principalId: "operator-1", idempotencyKey: "stale-retry",
+  };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await assert.rejects(() => handler.apply(request), (error: unknown) => {
+      assert.ok(error instanceof PublishContentApplyRowError);
+      assert.equal(error.rowOutcome, "conflict");
+      assert.match(error.message, /expected version 1, found version 2/);
+      return true;
+    });
+    assert.deepEqual(await writeDeps.repo.findById({ workspaceId: WORKSPACE_ID, id: seed.id }), before);
+  }
 });

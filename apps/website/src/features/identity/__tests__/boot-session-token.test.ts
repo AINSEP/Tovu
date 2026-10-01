@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createBootSessionTokenStore } from "../boot-session-token.js";
+import { createBootSessionTokenStore, mintBootSessionToken, redeemBootSessionToken, isBootSessionTokenArmed } from "../boot-session-token.js";
 
 /**
  * @file Coverage for the boot-session token store.
@@ -78,4 +78,16 @@ test("a short input does not throw — timingSafeEqual would, on unequal lengths
   store.mint();
   assert.doesNotThrow(() => store.redeem("x"));
   assert.equal(store.redeem("x"), false);
+});
+
+test("the production process wrappers share one armed single-use store", (t) => {
+  const token = mintBootSessionToken();
+  t.after(() => { redeemBootSessionToken(token); });
+  assert.equal(isBootSessionTokenArmed(), true);
+  assert.equal(redeemBootSessionToken("wrong-token"), false);
+  assert.equal(isBootSessionTokenArmed(), true);
+  assert.equal(redeemBootSessionToken(token), true);
+  assert.equal(isBootSessionTokenArmed(), false);
+  assert.equal(redeemBootSessionToken(token), false);
+  assert.equal(redeemBootSessionToken(""), false);
 });

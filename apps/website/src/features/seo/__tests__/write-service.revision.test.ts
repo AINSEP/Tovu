@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
+import { InMemoryPostRepo, SqlitePostRepo, type PostRecord } from "../../post/index.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
@@ -75,6 +76,13 @@ test("setEntrySeoOverrides's revision chains after a prior revision, like any ot
     recordedAt: NOW,
   });
   await postRepo.save(seedPost());
+  const append = postRepo.appendRevision.bind(postRepo);
+  let previousId: string | null | undefined;
+  postRepo.appendRevision = async (input) => {
+    const result = await append(input);
+    previousId = result.previousId;
+    return result;
+  };
 
   await setEntrySeoOverrides({
     deps: { postRepo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
@@ -86,4 +94,28 @@ test("setEntrySeoOverrides's revision chains after a prior revision, like any ot
   assert.equal(revisions[0].id, createRevisionId);
   assert.equal(revisions[1].op, "update");
   assert.equal(revisions[1].seq, 2);
+  assert.equal(previousId, createRevisionId, "the repository's chain result must point to the preceding create revision");
 });
+
+for (const adapter of ["memory", "sqlite"] as const) {
+  test(`setEntrySeoOverrides: ${adapter} transaction rolls the row and ledger back when revision append fails`, async () => {
+    const postRepo = adapter === "memory" ? new InMemoryPostRepo() : new SqlitePostRepo(openContentDb(":memory:"));
+    const original = seedPost({ seoExtJson: JSON.stringify({ description: "Original description" }) });
+    await postRepo.save(original);
+    await postRepo.appendRevision({ postId: ENTRY_ID, workspaceId: WORKSPACE, seq: 1, op: "create",
+      stateJson: original, actorId: "creator", recordedAt: NOW });
+    const before = await postRepo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
+    const ledgerBefore = await postRepo.listRevisions({ workspaceId: WORKSPACE, postId: ENTRY_ID });
+    const append = postRepo.appendRevision.bind(postRepo);
+    postRepo.appendRevision = async (input) => {
+      await append(input);
+      throw new Error("revision storage failed");
+    };
+    await assert.rejects(() => setEntrySeoOverrides({
+      deps: { postRepo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
+      input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "Uncommitted SEO title" }, callerPrincipalId: "editor" },
+    }), /revision storage failed/);
+    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID }), before);
+    assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE, postId: ENTRY_ID }), ledgerBefore);
+  });
+}

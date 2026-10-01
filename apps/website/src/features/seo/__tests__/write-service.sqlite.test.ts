@@ -76,3 +76,34 @@ test("setEntrySeoOverrides: entry-not-found against the real SQLite adapter reje
     SeoEntryNotFoundError
   );
 });
+
+test("setEntrySeoOverrides: SQLite retries a stale read and preserves the competing content and SEO save", async () => {
+  const repo = new SqlitePostRepo(openTestDb());
+  await repo.save({ id: "post-race", workspaceId: "workspace-local", title: "Original", slug: "race",
+    bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 });
+  const read = repo.findById.bind(repo);
+  let raced = false;
+  repo.findById = async (input) => {
+    const stale = await read(input);
+    if (!raced && stale) {
+      raced = true;
+      await repo.save({ ...stale, title: "Concurrent content title", bodyJson: { type: "doc", content: [
+        { type: "paragraph", content: [{ type: "text", text: "Concurrent body" }] },
+      ] },
+        seoExtJson: JSON.stringify({ description: "Concurrent SEO description" }), version: 2 });
+    }
+    return stale;
+  };
+  await setEntrySeoOverrides({ deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
+    input: { workspaceId: "workspace-local", entryId: "post-race", patch: { title: "SEO title" }, callerPrincipalId: "seo-editor" } });
+  const landed = await read({ workspaceId: "workspace-local", id: "post-race" });
+  assert.equal(landed?.title, "Concurrent content title");
+  assert.deepEqual(landed?.bodyJson, { type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "Concurrent body" }] },
+  ] });
+  assert.equal(landed?.version, 3);
+  assert.deepEqual(JSON.parse(landed!.seoExtJson!), { description: "Concurrent SEO description", title: "SEO title" });
+  const revisions = await repo.listRevisions({ workspaceId: "workspace-local", postId: "post-race" });
+  assert.deepEqual(revisions.map((r) => r.seq), [3]);
+  assert.equal(revisions[0]?.stateJson.title, "Concurrent content title");
+});

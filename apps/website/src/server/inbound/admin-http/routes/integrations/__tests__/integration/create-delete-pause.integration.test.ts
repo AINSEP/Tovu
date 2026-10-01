@@ -130,7 +130,8 @@ test("create: no topics 400s", async (t) => {
 });
 
 test("create: valid request succeeds (201)", async (t) => {
-  const app = createApp(testDeps());
+  const deps = testDeps();
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const res = await fetch(`${baseUrl}${SUBS_PATH}`, {
     method: "POST",
@@ -138,6 +139,15 @@ test("create: valid request succeeds (201)", async (t) => {
     body: JSON.stringify({ label: "x", targetUrl: "https://example.com/hook", topics: ["a"] }),
   });
   assert.equal(res.status, 201);
+  const { subscription } = await res.json();
+  assert.equal(subscription.label, "x");
+  assert.equal(subscription.targetUrl, "https://example.com/hook");
+  assert.deepEqual(subscription.topics, ["a"]);
+  assert.equal(subscription.status, "active");
+  const stored = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.ok(stored);
+  assert.equal(stored.targetUrl, "https://example.com/hook");
+  assert.equal(stored.status, "active");
 });
 
 test("create: an unexpected repo failure 500s", async (t) => {
@@ -211,7 +221,8 @@ test("delete: unknown subscription id 404s", async (t) => {
 });
 
 test("delete: soft-deletes an existing subscription (200, status disabled)", async (t) => {
-  const app = createApp(testDeps());
+  const deps = testDeps();
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const created = await fetch(`${baseUrl}${SUBS_PATH}`, {
     method: "POST",
@@ -224,6 +235,12 @@ test("delete: soft-deletes an existing subscription (200, status disabled)", asy
   assert.equal(res.status, 200);
   const body = (await res.json()) as { subscription: { status: string } };
   assert.equal(body.subscription.status, "disabled");
+  const stored = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.ok(stored);
+  assert.equal(stored.status, "disabled");
+  assert.equal(stored.label, "x");
+  assert.equal(stored.targetUrl, "https://example.com/hook");
+  assert.deepEqual(stored.topics, ["a"]);
 });
 
 test("delete: an unexpected repo failure 500s", async (t) => {
@@ -327,7 +344,8 @@ test("pause: unknown subscription id 404s", async (t) => {
 });
 
 test("pause: pauses (default) then resumes (paused:false), real toggling round trip", async (t) => {
-  const app = createApp(testDeps());
+  const deps = testDeps();
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const created = await fetch(`${baseUrl}${SUBS_PATH}`, {
     method: "POST",
@@ -336,6 +354,8 @@ test("pause: pauses (default) then resumes (paused:false), real toggling round t
   });
   const { subscription } = (await created.json()) as { subscription: { id: string } };
 
+  const original = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.ok(original);
   const paused = await fetch(`${baseUrl}${SUBS_PATH}/${subscription.id}/pause`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
@@ -344,6 +364,10 @@ test("pause: pauses (default) then resumes (paused:false), real toggling round t
   assert.equal(paused.status, 200);
   assert.equal(((await paused.json()) as { subscription: { status: string } }).subscription.status, "paused");
 
+  const pausedRow = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.ok(pausedRow);
+  assert.deepEqual(pausedRow, { ...original, status: "paused", updatedAt: pausedRow.updatedAt });
+
   const resumed = await fetch(`${baseUrl}${SUBS_PATH}/${subscription.id}/pause`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
@@ -351,6 +375,9 @@ test("pause: pauses (default) then resumes (paused:false), real toggling round t
   });
   assert.equal(resumed.status, 200);
   assert.equal(((await resumed.json()) as { subscription: { status: string } }).subscription.status, "active");
+  const resumedRow = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.ok(resumedRow);
+  assert.deepEqual(resumedRow, { ...original, status: "active", updatedAt: resumedRow.updatedAt });
 });
 
 test("pause: pausing a disabled (deleted) subscription 400s (validation error)", async (t) => {

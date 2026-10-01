@@ -18,6 +18,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 
 import {
   computeBlobStorageKey,
@@ -166,7 +168,7 @@ test("importMediaEntity: re-importing an existing id with a DIFFERENT claimed sh
 
 test("importMediaEntity: re-importing an existing id with the SAME claimed sha256 is idempotent and succeeds", async () => {
   const deps = makeDeps();
-  const original = makeMediaRecord({ id: "asset-1", source: { sha256: HELLO_SHA256 }, version: 3, title: "Old Title" });
+  const original = makeMediaRecord({ id: "asset-1", source: { sha256: HELLO_SHA256 }, version: 3, title: "Old Title", createdAt: "2025-06-01T00:00:00.000Z" });
   await deps.mediaRepo.save(original);
   await deps.assetBlobRepo.save({
     id: "blob-1",
@@ -188,6 +190,7 @@ test("importMediaEntity: re-importing an existing id with the SAME claimed sha25
   const updated = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "asset-1" });
   assert.equal(updated?.source.sha256, HELLO_SHA256);
   assert.equal(updated?.title, "New Title");
+  assert.equal(updated?.createdAt, "2025-06-01T00:00:00.000Z");
   assert.equal(updated?.version, 4, "version bumps on re-import like any other save");
 });
 
@@ -295,4 +298,22 @@ test("importMediaEntity: a brand-new blob IS stamped with the supplied blobCreat
   assert.deepEqual(result, { status: "imported", id: "asset-fresh", blobWritten: true });
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 });
   assert.equal(blob?.createdByPrincipal, "importing-operator");
+});
+
+test("importMediaEntity translates a slug acquired during the write window into a typed block", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  const mediaRepo = new SqliteMediaRepo(db);
+  const deps = makeDeps({ mediaRepo });
+  const holder = makeMediaRecord({ id: "racing-holder", slug: "racing-slug", source: { sha256: "a".repeat(64) } });
+  const realInsert = mediaRepo.insertIfAbsent.bind(mediaRepo);
+  mediaRepo.insertIfAbsent = async (row) => { await mediaRepo.save(holder); return realInsert(row); };
+  const incoming = makeMediaRecord({ id: "incoming-race", slug: "racing-slug" });
+  const result = await importMediaEntity({ deps, input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer", baseVersion: null } });
+  assert.deepEqual(result, { status: "blocked", code: "slug-taken", reason: "slug 'racing-slug' is already held by a different media ('racing-holder')" });
+  assert.equal(await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: incoming.id }), null);
+  assert.deepEqual(await mediaRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: incoming.slug }), holder);
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 });
+  assert.ok(blob, "append-only blobs written before the slug race remain reclaimable");
+  assert.deepEqual(await deps.blobStore.get({ storageKey: blob.storageKey }), HELLO_BYTES);
 });

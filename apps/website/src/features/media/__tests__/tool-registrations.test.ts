@@ -10,6 +10,7 @@ import {
   InMemoryMediaRepo,
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
+  registerTransform,
 } from "../index.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
@@ -78,7 +79,11 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
 }
 
 test("media_upload_asset records the SNIFFED content type (not the caller's declared string) so the asset is correctly typed afterward", async () => {
-  const { deps, mediaContentTypeStore } = fakeRouteDeps();
+  const { deps, mediaContentTypeStore, mediaRepo } = fakeRouteDeps();
+  await registerTransform({
+    deps: { transformRepo: deps.transformDefinitionRepo!, clock: deps.clock, idGen: deps.idGen },
+    input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
+  });
 
   const out = (await wired("media_upload_asset", deps).handler(
     executionContext({
@@ -87,10 +92,15 @@ test("media_upload_asset records the SNIFFED content type (not the caller's decl
       // Deliberately WRONG — a caller lying about the type must not poison the recorded value.
       contentType: "image/gif",
     })
-  )) as { media: { sha256: string } };
+  )) as { media: { id: string; sha256: string; slug: string; publicUrl: string | null } };
 
   const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
   assert.equal(recorded.get(out.media.sha256), "image/png", "the recorded type must come from sniffing the real bytes, not the caller's declared 'image/gif'");
+  const stored = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: out.media.id });
+  assert.ok(stored);
+  assert.equal(stored.slug, "logo");
+  assert.equal(out.media.slug, stored.slug);
+  assert.equal(out.media.publicUrl, "/m/logo/public.v1/image.webp");
 });
 
 test("two uploads of different bytes each get their own recorded content type", async () => {

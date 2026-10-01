@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -7,6 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { registerAdminMediaUpdateRoute } from "../update.js";
 import { registerAdminMediaUploadRoute } from "../upload.js";
 import type { MediaRouteDeps } from "../deps.js";
 
@@ -71,7 +73,9 @@ async function upload(t: import("node:test").TestContext, app: express.Express, 
 }
 
 test("upload: alt: null uploads fine and stores empty string, same as omitted", async (t) => {
-  const app = buildApp();
+  const deps = createRouteDeps();
+  const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const app = buildApp(mediaDeps);
   const { status, json } = await upload(t, app, {
     filename: "pixel.png",
     contentType: "image/png",
@@ -80,6 +84,18 @@ test("upload: alt: null uploads fine and stores empty string, same as omitted", 
   });
   assert.equal(status, 201);
   assert.equal(json.media.alt, "");
+  const expectedBytes = Buffer.from(ONE_PIXEL_PNG_BASE64, "base64");
+  const expectedSha = createHash("sha256").update(expectedBytes).digest("hex");
+  const stored = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: json.media.id });
+  assert.ok(stored);
+  assert.equal(stored.alt, "");
+  assert.equal(stored.source.sha256, expectedSha);
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: expectedSha });
+  assert.ok(blob);
+  const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  assert.equal(bytes.byteLength, expectedBytes.byteLength);
+  assert.deepEqual(Buffer.from(bytes), expectedBytes);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), expectedSha);
 });
 
 test("upload: caption: {} (non-string, non-null) is rejected with 400 and an exact message", async (t) => {
@@ -137,7 +153,8 @@ test("upload: a normal alt string value is stored trimmed", async (t) => {
 // `ftyp` box so they pass the route's content sniff and reach uploadMedia's own size check.
 test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected with the new cap in the message", async (t) => {
   const app = buildApp();
-  const oversized = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1);
+  assert.equal(TOVU_MAX_UPLOAD_BYTES, 50 * 1024 * 1024);
+  const oversized = Buffer.alloc(50 * 1024 * 1024 + 1);
   MP4_FTYP_HEADER.copy(oversized);
   const { status, json } = await upload(t, app, {
     filename: "clip.mp4",
@@ -146,7 +163,7 @@ test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected wi
   });
   assert.equal(status, 400);
   // Jini's uploadMedia states the cap in MB (Jini 754b0ff9), e.g. "50 MB" for 50 MiB.
-  assert.equal(json.error, `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES / (1024 * 1024)} MB size cap`);
+  assert.equal(json.error, "uploaded file exceeds the 50 MB size cap");
 });
 
 test("upload: SVG markup declared as image/png is rejected with 400 and nothing is stored", async (t) => {
@@ -186,7 +203,10 @@ test("upload: unrecognized bytes declared as image/png are rejected with 400", a
 });
 
 test("upload: a real PNG mislabeled image/jpeg is stored as what its bytes are (image/png)", async (t) => {
-  const app = buildApp();
+  const deps = createRouteDeps();
+  const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const app = buildApp(mediaDeps);
+  registerAdminMediaUpdateRoute(app, mediaDeps);
   const { status, json } = await upload(t, app, {
     filename: "pixel.jpg",
     contentType: "image/jpeg",
@@ -194,4 +214,44 @@ test("upload: a real PNG mislabeled image/jpeg is stored as what its bytes are (
   });
   assert.equal(status, 201);
   assert.equal(json.media.contentType, "image/png");
+  const stored = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: json.media.id });
+  assert.ok(stored);
+  const recorded = await deps.mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [stored.source.sha256] });
+  assert.equal(recorded.get(stored.source.sha256), "image/png");
+  const baseUrl = await startTestServer(app, t);
+  const updated = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media/${stored.id}`, {
+    method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ caption: "Still a PNG" }),
+  });
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).media.contentType, "image/png");
+});
+
+
+test("upload: exactly 50 MiB is accepted and persisted", async (t) => {
+  const deps = createRouteDeps();
+  const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const app = buildApp(mediaDeps);
+  const bytes = Buffer.alloc(50 * 1024 * 1024);
+  MP4_FTYP_HEADER.copy(bytes);
+  const { status, json } = await upload(t, app, {
+    filename: "boundary.mp4", contentType: "video/mp4", dataBase64: bytes.toString("base64"),
+  });
+  assert.equal(status, 201, JSON.stringify(json));
+  const stored = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: json.media.id });
+  assert.ok(stored);
+  assert.equal(stored.source.sha256, createHash("sha256").update(bytes).digest("hex"));
+});
+
+test("upload: wrong workspace returns 404 without writing an asset", async (t) => {
+  const deps = createRouteDeps();
+  const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const app = buildApp(mediaDeps);
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/media`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ filename: "pixel.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
+  });
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "workspace was not found" });
+  assert.deepEqual(await deps.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
 });

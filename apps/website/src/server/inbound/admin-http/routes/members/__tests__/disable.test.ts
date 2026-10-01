@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { DefaultMemberAccessResolver } from "#src/features/members/access-resolver";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
@@ -104,14 +106,22 @@ test("MEMBER_DISABLE route: 200 on success, revokes every live member session", 
   const member = await seedMember(deps, "member-to-disable");
 
   const nowIso = deps.clock.nowIso();
-  await deps.memberSessionRepo.save({
-    id: "session-1",
-    workspaceId: WORKSPACE_ID,
-    memberId: member.id,
-    tokenHash: "token-hash-1",
-    createdAt: nowIso,
-    expiresAt: nowIso,
+  const other = await seedMember(deps, "another-member");
+  const tokens = ["target-one", "target-two", "other-member-token"];
+  for (const [i, token] of tokens.entries()) {
+    await deps.memberSessionRepo.save({
+      id: `session-${i}`, workspaceId: WORKSPACE_ID, memberId: i < 2 ? member.id : other.id,
+      tokenHash: createHash("sha256").update(token).digest("hex"), createdAt: nowIso,
+      expiresAt: new Date(Date.parse(nowIso) + 86_400_000).toISOString(),
+    });
+  }
+  const resolver = new DefaultMemberAccessResolver({
+    sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,
   });
+  for (const token of tokens) {
+    assert.equal((await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: token, nowIso })).isAuthenticated, true);
+  }
+  const otherSessionsBefore = await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: other.id });
 
   const res = await fetch(`${baseUrl}${urlFor(member.id)}`, { method: "POST" });
   assert.equal(res.status, 200);
@@ -120,8 +130,13 @@ test("MEMBER_DISABLE route: 200 on success, revokes every live member session", 
   assert.equal(body.member.status, "disabled");
 
   const sessions = await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id });
-  assert.equal(sessions.length, 1);
-  assert.ok(sessions[0]!.revokedAt, "a live session must be revoked by disabling the member");
+  assert.deepEqual(sessions.map((session) => session.id).sort(), ["session-0", "session-1"]);
+  for (const session of sessions) assert.ok(session.revokedAt);
+  for (const token of tokens.slice(0, 2)) {
+    assert.equal((await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: token, nowIso })).isAuthenticated, false);
+  }
+  assert.deepEqual(await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: other.id }), otherSessionsBefore);
+  assert.equal((await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: tokens[2], nowIso })).isAuthenticated, true);
 });
 
 test("MEMBER_DISABLE route: 200 idempotent no-op when the member is already disabled", async (t) => {
@@ -129,13 +144,30 @@ test("MEMBER_DISABLE route: 200 idempotent no-op when the member is already disa
   const baseUrl = await startTestServer(app, t);
   const member = await seedMember(deps, "member-disable-twice");
 
+  await deps.memberSessionRepo.save({
+    id: "repeat-disable-session", workspaceId: WORKSPACE_ID, memberId: member.id,
+    tokenHash: "repeat-disable-token", createdAt: deps.clock.nowIso(), expiresAt: "2099-01-01T00:00:00.000Z",
+  });
   const first = await fetch(`${baseUrl}${urlFor(member.id)}`, { method: "POST" });
   assert.equal(first.status, 200);
 
+  const firstBody = await first.json();
+  const memberBefore = await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: member.id });
+  const sessionsBefore = await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id });
+  assert.ok(sessionsBefore[0]?.revokedAt);
+  let repeatWrites = 0;
+  const originalSave = deps.memberRepo.save.bind(deps.memberRepo);
+  const originalRevoke = deps.memberSessionRepo.revokeAllForMember.bind(deps.memberSessionRepo);
+  t.mock.method(deps.memberRepo, "save", async (...args) => { repeatWrites++; return originalSave(...args); });
+  t.mock.method(deps.memberSessionRepo, "revokeAllForMember", async (...args) => { repeatWrites++; return originalRevoke(...args); });
   const second = await fetch(`${baseUrl}${urlFor(member.id)}`, { method: "POST" });
   assert.equal(second.status, 200);
   const body = (await second.json()) as { member: { status: string } };
   assert.equal(body.member.status, "disabled");
+  assert.deepEqual(body, firstBody);
+  assert.deepEqual(await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: member.id }), memberBefore);
+  assert.deepEqual(await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id }), sessionsBefore);
+  assert.equal(repeatWrites, 0);
 });
 
 test("MEMBER_DISABLE route: 404 when the member does not exist", async (t) => {
@@ -163,4 +195,21 @@ test("MEMBER_DISABLE route: 500 internal error when an unexpected error is throw
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
+});
+
+
+test("MEMBER_DISABLE route: denied caller leaves member and sessions unchanged", async (t) => {
+  const { app, deps } = await buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+  const member = await seedMember(deps, "denied-member");
+  await deps.memberSessionRepo.save({
+    id: "denied-session", workspaceId: WORKSPACE_ID, memberId: member.id, tokenHash: "denied-token-hash",
+    createdAt: deps.clock.nowIso(), expiresAt: "2099-01-01T00:00:00.000Z",
+  });
+  const before = await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id });
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${urlFor(member.id)}`, { method: "POST" });
+  assert.equal(res.status, 403);
+  assert.equal((await res.json()).details.permission, "member.manage");
+  assert.deepEqual(await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: member.id }), member);
+  assert.deepEqual(await deps.memberSessionRepo.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id }), before);
 });

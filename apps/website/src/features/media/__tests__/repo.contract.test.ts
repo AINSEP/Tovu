@@ -77,6 +77,7 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
     await repo.save(makeMedia());
     const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
     assert.deepEqual(found, makeMedia());
+    assert.equal(await repo.findById({ workspaceId: "workspace-2", id: "media-1" }), null);
   });
 
   test(`[${label}] save() upserts (an update replaces the prior state)`, async () => {
@@ -99,6 +100,8 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
   test(`[${label}] remove() deletes the row`, async () => {
     const repo = makeRepo();
     await repo.save(makeMedia());
+    await repo.remove({ workspaceId: "workspace-2", id: "media-1" });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), makeMedia());
     await repo.remove({ workspaceId: WORKSPACE_ID, id: "media-1" });
     assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), null);
   });
@@ -468,6 +471,7 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
     await repo.save(makeAssetBlob());
     const found = await repo.findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) });
     assert.deepEqual(found, makeAssetBlob());
+    assert.equal(await repo.findByHash({ workspaceId: "workspace-2", sha256: "b".repeat(64) }), null);
   });
 
   test(`[${label}] save() upserts on (workspaceId, sha256)`, async () => {
@@ -489,6 +493,8 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
   test(`[${label}] remove() deletes the row`, async () => {
     const repo = makeRepo();
     await repo.save(makeAssetBlob());
+    await repo.remove({ workspaceId: "workspace-2", sha256: "b".repeat(64) });
+    assert.deepEqual(await repo.findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
     await repo.remove({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) });
     assert.equal(await repo.findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), null);
   });
@@ -516,6 +522,7 @@ function runRenditionSuite(label: string, makeRepo: () => AssetRenditionRepoPort
     await repo.save(makeRendition());
     const found = await repo.findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 });
     assert.deepEqual(found, makeRendition());
+    assert.equal(await repo.findOne({ workspaceId: "workspace-2", assetId: "blob-1", transformName: "thumb", version: 1 }), null);
   });
 
   test(`[${label}] save() upserts (a second save with the same id replaces the prior row, not a duplicate)`, async () => {
@@ -532,14 +539,19 @@ function runRenditionSuite(label: string, makeRepo: () => AssetRenditionRepoPort
     const repo = makeRepo();
     await repo.save(makeRendition({ id: "r-1", transformName: "thumb" }));
     await repo.save(makeRendition({ id: "r-2", transformName: "hero" }));
+    await repo.save(makeRendition({ id: "r-other-asset", assetId: "blob-other" }));
+    await repo.save(makeRendition({ id: "r-other-workspace", workspaceId: "workspace-2" }));
     const list = await repo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-1" });
     assert.equal(list.length, 2);
+    assert.deepEqual(list.sort((a, b) => a.id.localeCompare(b.id)), [makeRendition({ id: "r-1", transformName: "thumb" }), makeRendition({ id: "r-2", transformName: "hero" })]);
   });
 
   test(`[${label}] removeByAsset deletes every rendition for that asset, none other`, async () => {
     const repo = makeRepo();
     await repo.save(makeRendition({ id: "r-1", assetId: "blob-1" }));
     await repo.save(makeRendition({ id: "r-2", assetId: "blob-2" }));
+    await repo.removeByAsset({ workspaceId: "workspace-2", assetId: "blob-1" });
+    assert.deepEqual(await repo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-1" }), [makeRendition({ id: "r-1", assetId: "blob-1" })]);
     await repo.removeByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-1" });
     assert.equal((await repo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-1" })).length, 0);
     assert.equal((await repo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-2" })).length, 1);
@@ -568,20 +580,26 @@ function runTransformDefSuite(label: string, makeRepo: () => TransformDefinition
     await repo.insert(makeTransformDef());
     const found = await repo.findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 });
     assert.deepEqual(found, makeTransformDef());
+    assert.equal(await repo.findByNameVersion({ workspaceId: "workspace-2", name: "thumb", version: 1 }), null);
+    assert.deepEqual(await repo.listByName({ workspaceId: "workspace-2", name: "thumb" }), []);
   });
 
   test(`[${label}] listByName returns every version`, async () => {
     const repo = makeRepo();
     await repo.insert(makeTransformDef({ id: "d-1", version: 1 }));
-    await repo.insert(makeTransformDef({ id: "d-2", version: 2 }));
+    const second = makeTransformDef({ id: "d-2", version: 2, params: { width: 640, height: 480, format: "jpeg", fit: "contain" } });
+    await repo.insert(second);
+    await repo.insert(makeTransformDef({ id: "d-other-name", name: "hero" }));
+    await repo.insert(makeTransformDef({ id: "d-other-workspace", workspaceId: "workspace-2" }));
     const list = await repo.listByName({ workspaceId: WORKSPACE_ID, name: "thumb" });
     assert.equal(list.length, 2);
+    assert.deepEqual(list.sort((a, b) => a.version - b.version), [makeTransformDef({ id: "d-1", version: 1 }), second]);
   });
 
   test(`[${label}] insert() rejects a duplicate (workspaceId, name, version) — append-only`, async () => {
     const repo = makeRepo();
     await repo.insert(makeTransformDef());
-    await assert.rejects(() => repo.insert(makeTransformDef()));
+    await assert.rejects(() => repo.insert(makeTransformDef()), /already exists — append-only violation/);
   });
 }
 
@@ -616,13 +634,15 @@ test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_regist
     await new SqliteAssetRenditionRepo(db1).save(makeRendition());
     await new SqliteTransformDefinitionRepo(db1).insert(makeTransformDef());
 
+    db1.$client.close();
     // "Restart": brand-new content.db handles against the SAME on-disk file — the in-memory
     // adapters this replaces would have lost all four rows entirely.
     const db2 = openContentDb(dbPath);
-    assert.ok(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }));
-    assert.ok(await new SqliteAssetBlobRepo(db2).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }));
-    assert.ok(await new SqliteAssetRenditionRepo(db2).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }));
-    assert.ok(await new SqliteTransformDefinitionRepo(db2).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }));
+    assert.deepEqual(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), makeMedia());
+    assert.deepEqual(await new SqliteAssetBlobRepo(db2).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
+    assert.deepEqual(await new SqliteAssetRenditionRepo(db2).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
+    assert.deepEqual(await new SqliteTransformDefinitionRepo(db2).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());
+    db2.$client.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

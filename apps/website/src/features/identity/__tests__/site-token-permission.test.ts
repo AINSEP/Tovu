@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createSqliteIdentityRouteDeps } from "../wiring.js";
 
 import {
   InMemoryPolicyPermissionRepo,
@@ -213,4 +218,42 @@ test("the pre-integrations-manage backfill is additive — it never invents an a
 
   assert.ok(held.includes(SITE_TOKEN_MANAGE), "the one capability under discussion is granted");
   assert.ok(!held.includes(INTEGRATIONS_MANAGE), "restoring root-key management must not also silently restore integration-connection management");
+});
+
+test("a custom policy holding only the integrations anchor inherits token management through migration", async () => {
+  const { repos, can } = await buildChain();
+  await repos.principals.save({ id: "custom-user", workspaceId: WORKSPACE, kind: "user", displayName: "Custom", status: "active", createdAt: clock.nowIso() });
+  await repos.policies.save({ id: "custom-policy", workspaceId: WORKSPACE, name: "custom-policy", isBuiltin: false, isFrozen: false });
+  await repos.principalPolicies.save({ id: "custom-link", workspaceId: WORKSPACE, principalId: "custom-user", policyId: "custom-policy" });
+  await repos.policyPermissions.save({ id: "custom-anchor", workspaceId: WORKSPACE, policyId: "custom-policy", permission: "admin.integrations.manage" });
+  assert.equal((await can("custom-user", SITE_TOKEN_MANAGE)).allowed, false);
+  await migrateDeprecatedPermissionGrants({ policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
+  assert.deepEqual(await can("custom-user", SITE_TOKEN_MANAGE), { allowed: true, reason: "matched" });
+});
+
+test("real identityReady boot restores token-management access in a workspace lacking the integrations anchor", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "site-token-boot-"));
+  const db = openContentDb(join(dir, "content.db"));
+  t.after(() => { db.$client.close(); rmSync(dir, { recursive: true, force: true }); });
+  const idGen = counterIdGen("boot");
+  const setup = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock, idGen, reconcileGrantsOnBoot: false });
+  await setup.identityReady;
+  const policy = await setup.policyRepo.findByName({ workspaceId: WORKSPACE, name: "admin-builtin-policy" });
+  const role = await setup.roleRepo.findByName({ workspaceId: WORKSPACE, name: "admin" });
+  assert.ok(policy);
+  assert.ok(role);
+  for (const row of await setup.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id })) {
+    if (row.permission === INTEGRATIONS_MANAGE || row.permission === SITE_TOKEN_MANAGE) {
+      await setup.policyPermissionRepo.delete({ workspaceId: WORKSPACE, id: row.id });
+    }
+  }
+  await setup.principalRepo.save({ id: "vintage-admin", workspaceId: WORKSPACE, kind: "user", displayName: "Vintage admin", status: "active", createdAt: clock.nowIso() });
+  await setup.principalRoleRepo.save({ id: "vintage-role", workspaceId: WORKSPACE, principalId: "vintage-admin", roleId: role.id });
+  const request = { workspaceId: WORKSPACE, principalId: "vintage-admin", permission: "admin.security.tokens.manage" };
+  assert.deepEqual(await setup.authorize(request), { allowed: false, reason: "no_grant" });
+  const boot = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock, idGen });
+  await boot.identityReady;
+  assert.deepEqual(await boot.authorize(request), { allowed: true, reason: "matched" });
+  const grants = await boot.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id });
+  assert.equal(grants.some((row) => row.permission === INTEGRATIONS_MANAGE), false);
 });

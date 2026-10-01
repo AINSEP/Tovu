@@ -111,7 +111,7 @@ test("moderate/purge: direct-invoke fallback for nullish params.workspaceId (unr
 // ---------------------------------------------------------------------------------------------
 
 test("moderate/approve: authorize denial 403s naming 'comments.moderate'", async (t) => {
-  const { app } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+  const { app, applyModerationCalls, purgeCalls } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE}/c1/approve`, {
     method: "POST",
@@ -123,10 +123,12 @@ test("moderate/approve: authorize denial 403s naming 'comments.moderate'", async
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details.permission, "comments.moderate");
   assert.equal(body.details.reason, "no_grant");
+  assert.deepEqual(applyModerationCalls, []);
+  assert.deepEqual(purgeCalls, []);
 });
 
 test("moderate/trash: authorize denial 403s naming 'comments.delete'", async (t) => {
-  const { app } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+  const { app, applyModerationCalls, purgeCalls } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE}/c1/trash`, {
     method: "POST",
@@ -136,18 +138,38 @@ test("moderate/trash: authorize denial 403s naming 'comments.delete'", async (t)
   assert.equal(res.status, 403);
   const body = (await res.json()) as { details: { permission: string } };
   assert.equal(body.details.permission, "comments.delete");
+  assert.deepEqual(applyModerationCalls, []);
+  assert.deepEqual(purgeCalls, []);
 });
 
 test("moderate/purge: authorize denial 403s naming 'comments.delete.force' (a SEPARATE, stronger permission than trash)", async (t) => {
-  const { app } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+  const { app, applyModerationCalls, purgeCalls } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE}/c1/purge`, { method: "POST", headers: { "content-type": "application/json" } });
   assert.equal(res.status, 403);
   const body = (await res.json()) as { details: { permission: string } };
   assert.equal(body.details.permission, "comments.delete.force");
+  assert.deepEqual(applyModerationCalls, []);
+  assert.deepEqual(purgeCalls, []);
 });
 
 // ---------------------------------------------------------------------------------------------
+
+for (const action of ["spam", "restore"]) {
+  test(`moderate/${action}: denial leaves the write service untouched`, async (t) => {
+    const { app, applyModerationCalls, purgeCalls } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+    const baseUrl = await startTestServer(app, t);
+    const res = await fetch(`${baseUrl}${BASE}/c1/${action}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedVersion: 0 }),
+    });
+    assert.equal(res.status, 403);
+    assert.equal((await res.json()).details.permission, "comments.moderate");
+    assert.deepEqual(applyModerationCalls, []);
+    assert.deepEqual(purgeCalls, []);
+  });
+}
+
 // `parseExpectedVersion` — the nested-ternary number/string/invalid matrix, and the
 // `Number.isInteger(n) && n >= 0` bound. `comments-e2e.test.ts` only ever sends a JSON number
 // (0); the string-coercion branch and the negative-integer bound are untested anywhere else.
@@ -331,6 +353,10 @@ test("moderate: each of approve/spam/trash/restore checks its own permission and
     assert.equal(authorizeCalls[i]?.permission, c.permission, `${c.path} permission`);
     assert.equal(applyModerationCalls[i]?.action, c.action, `${c.path} action`);
     assert.equal(applyModerationCalls[i]?.toStatus, c.toStatus, `${c.path} toStatus`);
+    assert.deepEqual(applyModerationCalls[i], {
+      workspaceId: WORKSPACE_ID, id: `comment-${i}`, actorPrincipalId: "test-principal",
+      expectedVersion: 0, action: c.action, toStatus: c.toStatus, note: null,
+    });
   }
 });
 
@@ -378,14 +404,23 @@ test("moderate RBAC: a 'comments.moderate'-only principal can approve/spam/resto
   const { baseUrl } = await bootAuthenticated(app, t);
   const moderatorCookie = await loginWithPermissions(deps, baseUrl, ["comments.moderate"]);
 
-  const approve = await fetch(`${baseUrl}${BASE}/c1/approve`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: moderatorCookie },
-    body: JSON.stringify({ expectedVersion: 0 }),
+  await deps.commentRepo.create({
+    id: "c1", workspaceId: deps.workspaceId, entryId: "entry-1", parentId: null,
+    threadRootId: "c1", depth: 0, status: "pending", authorPrincipalId: null,
+    authorName: "Visitor", authorEmail: "visitor@example.com", authorUrl: null,
+    authorIpHash: "hash-1", bodyText: "Please moderate me", spamScore: null, spamProvider: null,
+    createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 0,
   });
-  // Comment "c1" doesn't exist, but authorization is decided BEFORE the not-found check —
-  // a 404 here (not 403) still proves the permission gate let this principal through.
-  assert.notEqual(approve.status, 403, "comments.moderate must be sufficient for approve");
+  for (const [version, action] of ["approve", "spam", "restore"].entries()) {
+    const response = await fetch(`${baseUrl}${BASE}/c1/${action}`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: moderatorCookie },
+      body: JSON.stringify({ expectedVersion: version }),
+    });
+    assert.equal(response.status, 204, await response.clone().text());
+    const stored = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: "c1" });
+    assert.equal(stored?.status, action === "spam" ? "spam" : "approved");
+    assert.equal(stored?.version, version + 1);
+  }
 
   const trash = await fetch(`${baseUrl}${BASE}/c1/trash`, {
     method: "POST",

@@ -12,10 +12,9 @@ import { openPlaywrightSiteEvidenceBrowser } from "../../playwright-browser.js";
 /**
  * @file The Playwright adapter against a REAL browser and a REAL server.
  *
- * SKIPS, loudly, when Chromium is not installed — which is the same condition production degrades
- * under, so a skip here is not a hole in the evidence: it means this machine is in the "browser
- * unavailable" state that `collect-page-evidence.unit.test.ts` covers directly. Run
- * `npx playwright install chromium` to make it execute.
+ * Optional local runs skip when Chromium is unavailable. Browser-required runs must set
+ * TOVU_SITE_EVIDENCE_BROWSER_REQUIRED=1: adapter startup failures then fail this file.
+ * Intentional unavailability is covered by `collect-page-evidence.unit.test.ts`.
  *
  * What only a real browser can prove, and is therefore what this file asserts:
  * - a cookie set by a `<script>` after load is actually observed (the whole point of render-truth);
@@ -55,7 +54,7 @@ const PAGE_HTML = `<!doctype html>
 </body>
 </html>`;
 
-function startFixtureServer(): Promise<{ server: Server; port: number; posts: string[] }> {
+function startFixtureServer(offsiteLocation = "https://example.invalid/landing?token=SECRET"): Promise<{ server: Server; port: number; posts: string[] }> {
   const posts: string[] = [];
   const server = createServer((req, res) => {
     if (req.method === "POST") {
@@ -64,7 +63,7 @@ function startFixtureServer(): Promise<{ server: Server; port: number; posts: st
       return;
     }
     if (req.url === "/offsite") {
-      res.writeHead(302, { location: "https://example.invalid/landing?token=SECRET" }).end();
+      res.writeHead(302, { location: offsiteLocation }).end();
       return;
     }
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "x-fixture": "yes" }).end(PAGE_HTML);
@@ -97,6 +96,9 @@ function originRegistry(port: number): OriginRegistryPort {
 
 const availability = await openPlaywrightSiteEvidenceBrowser();
 if (availability.available) await availability.browser.close();
+if (process.env.TOVU_SITE_EVIDENCE_BROWSER_REQUIRED === "1") {
+  assert.equal(availability.available, true, availability.available ? undefined : `required browser unavailable: ${availability.reason}`);
+}
 const skip = availability.available ? false : `no headless browser on this machine: ${availability.reason}`;
 
 test("observes real rendered evidence from a real page", { skip }, async () => {
@@ -121,6 +123,7 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
     const tracker = page.observation.cookies.find((cookie) => cookie.name === "tracker_id");
     assert.ok(tracker, "a script-set cookie must be observed");
     assert.equal(tracker.firstParty, true);
+    assert.equal(tracker.phase, "after");
 
     // The privacy guarantee, asserted over the whole serialized result rather than one field.
     assert.ok(
@@ -133,6 +136,22 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
     const blocked = page.observation.requests.filter((request) => request.blockedReason !== undefined);
     assert.ok(blocked.length > 0, "the aborted POST must still be recorded — the attempt IS the evidence");
     assert.ok(blocked.every((request) => request.method !== "GET"));
+    const subscribe = blocked.find((request) => request.method === "POST" && request.pathname === "/subscribe");
+    assert.ok(subscribe, "the consent click's subscribe attempt must be observed");
+    assert.equal(subscribe.phase, "after");
+    assert.ok(page.observation.requests.some((request) => request.method === "GET" && request.phase === "before"));
+
+    const withoutConsent = await collectPageEvidence(
+      { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser },
+      { paths: ["/"] },
+    );
+    assert.equal(withoutConsent.pages.length, 1);
+    const before = withoutConsent.pages[0].observation;
+    assert.ok(before.requests.length > 0);
+    assert.ok(before.requests.every((request) => request.phase === "before"));
+    assert.equal(before.cookies.find((cookie) => cookie.name === "tracker_id")?.phase, "before");
+    assert.ok(!before.requests.some((request) => request.pathname === "/subscribe"));
+    assert.deepEqual(posts, []);
 
     const accessibility = page.observation.accessibility;
     assert.ok(accessibility);
@@ -142,6 +161,9 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
       [1, 3],
       "the raw outline (including the h1 -> h3 skip) is reported as observed, not judged",
     );
+    assert.deepEqual(accessibility.headings.map(({ level, text }) => ({ level, text })), [
+      { level: 1, text: "Fixture" }, { level: 3, text: "Skipped level" },
+    ]);
     const unlabelledImage = accessibility.images.find((image) => image.src === "/unlabelled.png");
     assert.equal(unlabelledImage?.alt, null, "a missing alt attribute is null");
     assert.equal(accessibility.images.find((image) => image.src === "/decorative.png")?.alt, "", "an empty alt is not a missing one");
@@ -155,6 +177,40 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
     assert.equal(unlabelled?.labelSource, "none");
     assert.ok(unlabelled?.selector && unlabelled.selector.length > 0, "every finding needs a citable selector");
 
+    // Resolve the adapter's selectors in Chromium against the same fixture DOM.
+    const { chromium } = await import("playwright");
+    const selectorBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    try {
+      const dom = await selectorBrowser.newPage();
+      await dom.setContent(PAGE_HTML);
+      for (const heading of accessibility.headings) {
+        const element = dom.locator(heading.selector);
+        assert.equal(await element.count(), 1);
+        assert.equal(await element.evaluate((node) => node.tagName.toLowerCase()), `h${heading.level}`);
+        assert.equal((await element.textContent())?.trim(), heading.text);
+      }
+      assert.equal(accessibility.images.length, 2);
+      for (const image of accessibility.images) {
+        const element = dom.locator(image.selector);
+        assert.equal(await element.count(), 1);
+        assert.equal(await element.evaluate((node) => node.tagName.toLowerCase()), "img");
+        assert.equal(await element.getAttribute("src"), image.src);
+        assert.equal(await element.getAttribute("alt"), image.alt);
+      }
+      const main = accessibility.landmarks.find((landmark) => landmark.role === "main");
+      assert.ok(main);
+      assert.equal(await dom.locator(main.selector).count(), 1);
+      assert.equal(await dom.locator(main.selector).evaluate((node) => node.tagName.toLowerCase()), "main");
+      assert.ok(labelled);
+      assert.ok(unlabelled);
+      assert.equal(await dom.locator(labelled.selector).count(), 1);
+      assert.equal(await dom.locator(labelled.selector).getAttribute("id"), "email");
+      assert.equal(await dom.locator(unlabelled.selector).count(), 1);
+      assert.equal(await dom.locator(unlabelled.selector).getAttribute("name"), "unlabelled");
+    } finally {
+      await selectorBrowser.close();
+    }
+
     assert.ok(!accessibility.contrastSamples.some((sample) => sample.selector === "#hidden-descendant"));
     assert.ok(accessibility.contrastSamples.some((sample) => sample.ratio < 4.5), "the low-contrast paragraph must be sampled");
   } finally {
@@ -163,7 +219,8 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
 });
 
 test("a server-side redirect off the origin is refused after navigation, with the target redacted to its origin", { skip }, async () => {
-  const { server, port } = await startFixtureServer();
+  const landing = await startFixtureServer();
+  const { server, port } = await startFixtureServer(`http://127.0.0.1:${landing.port}/landing?token=SECRET`);
   try {
     const result = await collectPageEvidence(
       { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser },
@@ -172,13 +229,11 @@ test("a server-side redirect off the origin is refused after navigation, with th
 
     assert.deepEqual(result.pages, []);
     const skipped = result.skipped.find((entry) => entry.path === "/offsite");
-    // Either the navigation itself failed (the host does not resolve) or the redirect was caught by
-    // the post-navigation same-origin check — both are correct refusals, and the assertion accepts
-    // either rather than pinning behaviour that depends on the machine's DNS.
     assert.ok(skipped, "an off-origin redirect must never produce an inspected page");
-    assert.ok(skipped.reason === "off-origin-redirect" || skipped.reason === "navigation-failed");
+    assert.equal(skipped.reason, "off-origin-redirect");
     assert.ok(!JSON.stringify(result).includes("SECRET"), "the redirect target's query must not be echoed back");
   } finally {
     server.close();
+    landing.server.close();
   }
 });

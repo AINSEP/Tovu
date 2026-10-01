@@ -33,10 +33,10 @@ const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/publish-content/peers`;
 const API_KEY = "tovu_live_0123456789abcdef";
 
 function buildApp(
-  options: { allow?: boolean; httpClient?: HttpClientPort } = {}
+  options: { allow?: boolean; allowedPermissions?: readonly string[]; repo?: InMemoryPublishContentPeerRepo; httpClient?: HttpClientPort } = {}
 ): { app: express.Express; askedPermissions: string[]; repo: InMemoryPublishContentPeerRepo } {
   const askedPermissions: string[] = [];
-  const repo = new InMemoryPublishContentPeerRepo();
+  const repo = options.repo ?? new InMemoryPublishContentPeerRepo();
   const keyring = new InMemoryKeyring();
   let n = 0;
 
@@ -44,7 +44,7 @@ function buildApp(
     workspaceId: WORKSPACE_ID,
     authorize: async ({ permission }: { permission: string }) => {
       askedPermissions.push(permission);
-      return { allowed: options.allow ?? true, reason: "matched" };
+      return { allowed: options.allowedPermissions ? options.allowedPermissions.includes(permission) : options.allow ?? true, reason: "matched" };
     },
     clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
     idGen: { newId: () => `peer-${++n}` },
@@ -223,11 +223,18 @@ test("a duplicate label is a 409 DUPLICATE_LABEL", async (t) => {
 });
 
 test("DELETE is idempotent 204", async (t) => {
-  const { app } = buildApp();
+  const { app, repo } = buildApp();
   const server = await startTestServer(app, t);
   await createPeer(server);
   assert.equal((await fetch(`${server}${BASE}/peer-1`, { method: "DELETE" })).status, 204);
   assert.equal((await fetch(`${server}${BASE}/peer-1`, { method: "DELETE" })).status, 204);
+  assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" }), null);
+  const listed = await fetch(`${server}${BASE}`);
+  assert.equal(listed.status, 200);
+  assert.deepEqual(await listed.json(), { peers: [] });
+  const pull = await fetch(`${server}${BASE}/peer-1/pull`, { method: "POST" });
+  assert.equal(pull.status, 404);
+  assert.equal((await pull.json()).code, "PEER_NOT_FOUND");
 });
 
 test("push/pull address a peer by peerId only — an unknown one is 404 PEER_NOT_FOUND", async (t) => {
@@ -457,4 +464,63 @@ test("push/execute forwards overwriteEntityKeys to the peer's own /import/execut
   });
   assert.equal(res.status, 200, await res.text());
   assert.deepEqual(executeBody, { bundleId: "b1", confirmationToken: "t1", overwriteEntityKeys: ["post:p1"] });
+});
+
+
+test("a read-only principal cannot mutate a peer or use any transport route", async (t) => {
+  const seeded = buildApp();
+  const setupServer = await startTestServer(seeded.app, t);
+  assert.equal((await createPeer(setupServer)).status, 201);
+  const before = structuredClone(await seeded.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" }));
+  let outbound = 0;
+  const { app, askedPermissions } = buildApp({
+    repo: seeded.repo, allowedPermissions: ["publish_content.read"],
+    httpClient: { send: async () => { outbound++; throw new Error("denied requests must not reach a peer"); } },
+  });
+  const server = await startTestServer(app, t);
+  const listed = await fetch(`${server}${BASE}`);
+  assert.equal(listed.status, 200);
+  askedPermissions.length = 0;
+  for (const [method, path, body] of [
+    ["POST", "", { label: "second", baseUrl: "https://other.example.com", remoteWorkspaceId: "remote-ws", apiKey: API_KEY }],
+    ["PATCH", "/peer-1", { label: "must-not-change", apiKey: "replacement-key" }],
+    ["DELETE", "/peer-1", undefined],
+    ["POST", "/peer-1/push/plan", {}],
+    ["POST", "/peer-1/push/confirm", { planId: "plan-1", planHash: "hash-1" }],
+    ["POST", "/peer-1/push/execute", { bundleId: "bundle-1", confirmationToken: "token-1" }],
+    ["POST", "/peer-1/pull", {}],
+  ] as const) {
+    const res = await fetch(`${server}${BASE}${path}`, {
+      method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    assert.equal(res.status, 403, `${method} ${path}`);
+    assert.match((await res.json()).error, /'publish_content\.apply'/);
+    assert.deepEqual(await seeded.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" }), before);
+    assert.equal((await seeded.repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 1);
+  }
+  assert.deepEqual(askedPermissions, Array(7).fill("publish_content.apply"));
+  assert.equal(outbound, 0);
+});
+
+test("push/confirm relays the exact plan id and hash and returns the peer's token", async (t) => {
+  const calls: Array<{ method: string; url: string; body: unknown }> = [];
+  const { app } = buildApp({ httpClient: {
+    send: async (request) => {
+      calls.push({ method: request.method, url: request.url, body: JSON.parse(String(request.body)) });
+      if (request.method !== "POST" || request.url !== "https://tovu.example.com/api/admin/v1/workspaces/remote-ws-9/publish-content/import/confirm") {
+        throw new Error(`unexpected request ${request.method} ${request.url}`);
+      }
+      assert.deepEqual(JSON.parse(String(request.body)), { planId: "peer-plan-42", planHash: "peer-hash-99" });
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ confirmationToken: "peer-confirmation-token" }) };
+    },
+  } });
+  const server = await startTestServer(app, t);
+  assert.equal((await createPeer(server)).status, 201);
+  const res = await fetch(`${server}${BASE}/peer-1/push/confirm`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ planId: "peer-plan-42", planHash: "peer-hash-99" }),
+  });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.deepEqual(await res.json(), { confirmationToken: "peer-confirmation-token" });
+  assert.deepEqual(calls, [{ method: "POST", url: "https://tovu.example.com/api/admin/v1/workspaces/remote-ws-9/publish-content/import/confirm", body: { planId: "peer-plan-42", planHash: "peer-hash-99" } }]);
 });

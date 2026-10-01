@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import sharp from "sharp";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import {
@@ -557,4 +558,25 @@ test("a finalUrl that does not parse is ignored rather than crashing an otherwis
 
   assert.equal(fetched.url.href, URL_UNDER_TEST, "falling back beats throwing: the bytes are fine, only the label was unusable");
   assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG);
+});
+
+for (const [format, contentType] of [["jpeg", "image/jpeg"], ["gif", "image/gif"], ["webp", "image/webp"], ["avif", "image/avif"]] as const) {
+  test(`fetchImage accepts real ${contentType} bytes independently of the served type`, async () => {
+    const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).toFormat(format).toBuffer();
+    const client = new FakeHttpClient([imageResponse(bytes)]);
+    const result = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+    assert.equal(client.calls.length, 1);
+    assert.equal(result.contentType, contentType);
+    assert.deepEqual(Buffer.from(result.bytes), bytes);
+  });
+}
+
+test("parseable HTTP finalUrl is kept as provenance for already-fetched bytes", async () => {
+  const finalUrl = "http://cdn.example.net/actual-hop.png";
+  const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl })]);
+  const result = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  assert.equal(result.url.href, finalUrl);
+  assert.deepEqual(Buffer.from(result.bytes), REAL_PNG);
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0].url, URL_UNDER_TEST);
 });

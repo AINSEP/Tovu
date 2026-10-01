@@ -54,6 +54,27 @@ test("setEntrySeoOverrides: authorize() runs first — unauthorized caller gets 
 
   const after = await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
   assert.equal(after?.seoExtJson, null);
+  await assert.rejects(() => setEntrySeoOverrides({
+    deps: { postRepo: repo, authorize: alwaysDeny, invalidateSitemapCache: noopInvalidate, clock },
+    input: { workspaceId: WORKSPACE, entryId: "missing", patch: { unknown: "invalid" } as never, callerPrincipalId: "p1" },
+  }), ForbiddenError);
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID }), seedPost());
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WORKSPACE, postId: ENTRY_ID }), []);
+});
+
+test("setEntrySeoOverrides: a grant for this SEO permission and caller context permits the persisted write", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+  const expected = { permission: "admin.seo.manage", principalId: "seo-editor", workspaceId: WORKSPACE,
+    entityType: "seo-entry", entityId: ENTRY_ID };
+  const requests: unknown[] = [];
+  await setEntrySeoOverrides({ deps: { postRepo: repo, invalidateSitemapCache: noopInvalidate, clock,
+    authorize: async (request) => {
+      requests.push(request);
+      return { allowed: Object.entries(expected).every(([key, value]) => request[key as keyof typeof request] === value), reason: "scoped SEO grant" };
+    },
+  }, input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "Authorized title" }, callerPrincipalId: "seo-editor" } });
+  assert.deepEqual(requests, [expected]);
+  assert.deepEqual(JSON.parse((await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID }))!.seoExtJson!), { title: "Authorized title" });
 });
 
 test("setEntrySeoOverrides: an unregistered key is rejected, existing row unchanged (AC-04)", async () => {

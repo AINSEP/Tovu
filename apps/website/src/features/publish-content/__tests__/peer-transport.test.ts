@@ -48,6 +48,7 @@ class FakeHttpClient implements HttpClientPort {
   constructor(private readonly routes: Array<{ match: RegExp; status?: number; json?: unknown; bodyText?: string }>) {}
 
   async send(request: HttpRequest): Promise<HttpResponse> {
+    assert.equal(request.headers.authorization, `Bearer ${API_KEY}`, `${request.method} requests must authenticate`);
     this.calls.push(request);
     const route = this.routes.find((candidate) => candidate.match.test(request.url));
     if (!route) throw new Error(`unexpected request: ${request.method} ${request.url}`);
@@ -393,7 +394,10 @@ test("pull returns the peer's envelope, and a non-bundle response is refused rat
         artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
         hashVersion: 1,
         sourceLabel: "Remote Site",
-        entities: [{ entityType: "post", id: "p-1", schemaVersion: 1 }],
+        entities: [{ entityType: "post", id: "p-1", schemaVersion: 2, hashVersion: 1,
+          contentHash: "peer-agreement-hash", requiredBlobs: ["d".repeat(64)],
+          state: { title: "Peer article", slug: "peer-article", bodyHtml: "<p>Published text</p>", status: "published" },
+        }],
         blobManifest: ["d".repeat(64)],
       },
     },
@@ -403,6 +407,10 @@ test("pull returns the peer's envelope, and a non-bundle response is refused rat
   assert.equal(envelope.hashVersion, 1);
   assert.equal(envelope.sourceLabel, "Remote Site");
   assert.equal(envelope.entities.length, 1);
+  assert.deepEqual(envelope.entities, [{ entityType: "post", id: "p-1", schemaVersion: 2, hashVersion: 1,
+    contentHash: "peer-agreement-hash", requiredBlobs: ["d".repeat(64)],
+    state: { title: "Peer article", slug: "peer-article", bodyHtml: "<p>Published text</p>", status: "published" },
+  }]);
   assert.deepEqual(envelope.blobManifest, ["d".repeat(64)]);
 
   const wrong = new FakeHttpClient([{ match: /\/export$/, json: { ok: true } }]);

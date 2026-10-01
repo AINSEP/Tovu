@@ -76,7 +76,11 @@ function baseDeps(overrides: Partial<RouteManifestDeps> = {}): RouteManifestDeps
 }
 
 test("buildRouteManifest: includes home and every seeded published post/page, and does not depend on sitemap.ts", async () => {
-  const manifest = await buildRouteManifest(baseDeps());
+  const deps = baseDeps();
+  await deps.postRepo.save({ id: "unpublished-fixture", workspaceId: deps.workspaceId, title: "Private draft", slug: "private-draft",
+    bodyJson: { type: "doc", content: [] }, status: "draft", kind: "post", updatedAt: "2026-09-01T00:00:00.000Z", version: 1 });
+  const manifest = await buildRouteManifest(deps);
+  assert.equal(manifest.routes.some((route) => route.path === "/private-draft"), false);
 
   const home = manifest.routes.find((r) => r.path === "/");
   assert.ok(home, "expected a '/' route");
@@ -231,7 +235,8 @@ test("buildRouteManifest: a post that overridesThemePage wins over the theme's s
     overridesThemePage: true,
   };
   const postRepo = new InMemoryPostRepo([overridingPost]);
-  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+  const themes = base.themes.map((theme) => theme.manifest.id === "tovu-theme" ? withPublishedPages(theme, ["pricing"]) : theme);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo, themes, resolveActiveThemeId: async () => "tovu-theme" }));
 
   const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
   assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
@@ -258,7 +263,8 @@ test("buildRouteManifest: a post that never decided (overridesThemePage omitted)
     version: 1,
   };
   const postRepo = new InMemoryPostRepo([neverDecidedPost]);
-  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+  const themes = base.themes.map((theme) => theme.manifest.id === "tovu-theme" ? withPublishedPages(theme, ["pricing"]) : theme);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo, themes, resolveActiveThemeId: async () => "tovu-theme" }));
 
   const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
   assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
@@ -341,9 +347,11 @@ test("buildRouteManifest: an exact-match active redirect is enumerated; a prefix
     version: 1,
   };
   const prefixRule: RedirectRecord = { ...exactRule, id: "redir-prefix", matchType: "prefix", fromPattern: "/old" };
-  const redirectRepo = new InMemoryRedirectRepo([exactRule, prefixRule]);
+  const disabledRule: RedirectRecord = { ...exactRule, id: "redir-disabled", fromPattern: "/disabled-redirect", status: "disabled" };
+  const redirectRepo = new InMemoryRedirectRepo([exactRule, prefixRule, disabledRule]);
 
   const manifest = await buildRouteManifest(baseDeps({ redirectRepo }));
+  assert.equal(manifest.routes.some((route) => route.path === "/disabled-redirect"), false);
 
   const exact = manifest.routes.find((r) => r.path === "/old-page");
   assert.ok(exact, "expected the exact-match redirect to be enumerated as a route");

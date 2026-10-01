@@ -56,6 +56,9 @@ class FakeGitHub implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
   readonly unexpected: string[] = [];
   readonly blobContents: Buffer[] = [];
+  readonly files = new Map<string, Buffer>([["README.md", Buffer.from("Outside the backup folder")]]);
+  private readonly treeFiles = new Map<string, Map<string, Buffer>>();
+  private commitTree: string | undefined;
   readonly state = { visibility: "private", push: true, tip: "tip-1", folderExists: false, patchStatus: 200, networkDown: false };
   private trees = 0;
 
@@ -69,16 +72,55 @@ class FakeGitHub implements HttpClientPort {
       return json(200, { private: s.visibility === "private", visibility: s.visibility, default_branch: "main", html_url: "https://github.com/octo/backups", permissions: { push: s.push } });
     }
     if (route === "GET /git/ref/heads/main") return json(200, { object: { sha: s.tip } });
-    if (route === `GET /git/commits/${s.tip}`) return json(200, { tree: { sha: `tree-of-${s.tip}` } });
+    if (route === `GET /git/commits/${s.tip}`) {
+      this.treeFiles.set(`tree-of-${s.tip}`, new Map(this.files));
+      return json(200, { tree: { sha: `tree-of-${s.tip}` } });
+    }
     if (route === "GET /contents/demo-site?ref=main") return s.folderExists ? json(200, [{ name: "tovu-backup.json" }]) : json(404, { message: "Not Found" });
     if (route === "POST /git/blobs") {
       const body = JSON.parse(request.body ?? "{}") as { content: string; encoding: string };
       this.blobContents.push(Buffer.from(body.content, body.encoding === "base64" ? "base64" : "utf8"));
       return json(201, { sha: `blob-${this.blobContents.length}` });
     }
-    if (route === "POST /git/trees") return json(201, { sha: `new-tree-${++this.trees}` });
-    if (route === "POST /git/commits") return json(201, { sha: "new-commit" });
-    if (route === "PATCH /git/refs/heads/main") return s.patchStatus === 200 ? json(200, { object: { sha: "new-commit" } }) : json(s.patchStatus, { message: "Update is not a fast forward" });
+    if (route === "POST /git/trees") {
+      const body = JSON.parse(request.body ?? "{}");
+      if (body.base_tree) assert.ok(this.treeFiles.has(body.base_tree), "base tree must exist");
+      const files = new Map(this.treeFiles.get(body.base_tree) ?? []);
+      for (const entry of body.tree) {
+        for (const old of files.keys()) if (old === entry.path || old.startsWith(`${entry.path}/`)) files.delete(old);
+        if (entry.type === "tree") {
+          const subtree = this.treeFiles.get(entry.sha);
+          assert.ok(subtree, "subtree must exist");
+          for (const [name, bytes] of subtree) files.set(`${entry.path}/${name}`, bytes);
+        } else {
+          assert.equal(entry.type, "blob");
+          const bytes = this.blobContents[Number(entry.sha.replace("blob-", "")) - 1];
+          assert.ok(bytes, "referenced blob must exist");
+          files.set(entry.path, bytes);
+        }
+      }
+      const sha = `new-tree-${++this.trees}`;
+      this.treeFiles.set(sha, files);
+      return json(201, { sha });
+    }
+    if (route === "POST /git/commits") {
+      const body = JSON.parse(request.body ?? "{}");
+      assert.deepEqual(body.parents, [s.tip]);
+      assert.ok(this.treeFiles.has(body.tree));
+      this.commitTree = body.tree;
+      return json(201, { sha: "new-commit" });
+    }
+    if (route === "PATCH /git/refs/heads/main") {
+      if (s.patchStatus !== 200) return json(s.patchStatus, { message: "Update is not a fast forward" });
+      const body = JSON.parse(request.body ?? "{}");
+      assert.equal(body.sha, "new-commit");
+      assert.notEqual(body.force, true);
+      assert.ok(this.commitTree);
+      this.files.clear();
+      for (const [name, bytes] of this.treeFiles.get(this.commitTree)!) this.files.set(name, bytes);
+      s.tip = "new-commit";
+      return json(200, { object: { sha: "new-commit" } });
+    }
     this.unexpected.push(route);
     return json(599, { message: "unexpected request" });
   }
@@ -289,9 +331,9 @@ function exchangeIdFromSurface(surface: unknown): string {
 }
 
 /** Starts a push and waits for its dialog. Asserts the call is still parked. */
-async function raiseDialog(h: ReturnType<typeof harness>, planId: string, principalId = OWNER_PRINCIPAL) {
+async function raiseDialog(h: ReturnType<typeof harness>, planId: string, principalId = OWNER_PRINCIPAL, signal?: AbortSignal) {
   const emitted: unknown[] = [];
-  const pending = call(h.pushTool, { planId }, { principalId, emitSurface: async (s) => void emitted.push(s) }) as Promise<Result>;
+  const pending = call(h.pushTool, { planId }, { principalId, signal, emitSurface: async (s) => void emitted.push(s) }) as Promise<Result>;
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the push must raise exactly one dialog before it parks");
   assert.equal(await Promise.race([pending, Promise.resolve("still-waiting" as const)]), "still-waiting", "the push must wait for the human");
@@ -615,6 +657,8 @@ test("a network failure is NETWORK_UNREACHABLE; the detail goes to the server lo
 
 test("the push raises the dialog and touches GitHub not at all while it waits; confirm re-checks, then blobs -> 2 trees -> commit -> non-force ref update", async (t) => {
   const h = harness(t);
+  h.github.files.set("demo-site/obsolete.txt", Buffer.from("Old backup file"));
+  h.github.state.folderExists = true;
   await h.seed();
   const planned = await plan(h);
   const callsAfterPlan = h.github.calls.length;
@@ -636,7 +680,7 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
     branch: "main",
     folder: "demo-site",
     filesWritten: (planned.fileCount as number) + 1,
-    totalBytes: result.totalBytes,
+    totalBytes: DB_BYTES.length + Buffer.byteLength('{"name":"Demo Site"}') + Buffer.byteLength('{"siteId":"s1"}') + Buffer.byteLength("IMG") + Buffer.byteLength("<html>") + Buffer.byteLength("# skill") + h.github.blobContents.at(-1)!.length,
   });
   assert.deepEqual(h.github.unexpected, []);
 
@@ -659,6 +703,18 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   const manifest = JSON.parse(h.github.blobContents.at(-1)!.toString("utf8")) as { format: string; files: { path: string }[] };
   assert.equal(manifest.format, "tovu-site-backup", "the manifest is uploaded last");
   assert.equal(manifest.files.length, planned.fileCount);
+  assert.deepEqual([...h.github.files.keys()].sort(), [
+    "README.md", "demo-site/database/content.db", "demo-site/settings/.site-meta.json", "demo-site/settings/config.json",
+    "demo-site/skills/ws/workspace-local/notes/SKILL.md", "demo-site/themes/static/demo/index.html", "demo-site/tovu-backup.json",
+    "demo-site/uploads/ws/workspace-local/blobs/ab/abcdef",
+  ].sort());
+  for (const [name, bytes] of [
+    ["README.md", Buffer.from("Outside the backup folder")], ["demo-site/database/content.db", Buffer.from(DB_BYTES)],
+    ["demo-site/settings/.site-meta.json", Buffer.from('{"siteId":"s1"}')], ["demo-site/settings/config.json", Buffer.from('{"name":"Demo Site"}')],
+    ["demo-site/skills/ws/workspace-local/notes/SKILL.md", Buffer.from("# skill")], ["demo-site/themes/static/demo/index.html", Buffer.from("<html>")],
+    ["demo-site/uploads/ws/workspace-local/blobs/ab/abcdef", Buffer.from("IMG")],
+  ] as const) assert.deepEqual(h.github.files.get(name), bytes, name);
+  assert.deepEqual(JSON.parse(h.github.files.get("demo-site/tovu-backup.json")!.toString("utf8")), manifest);
 
   const writes = h.github.writes();
   const rootTree = JSON.parse(writes.at(-3)!.body ?? "{}") as { base_tree: string };
@@ -684,6 +740,40 @@ test("cancel pushes nothing, and the planId is spent", async (t) => {
   assert.equal(h.github.calls.length, callsAfterPlan, "a cancel costs no request");
   const again = (await call(h.pushTool, { planId }, { emitSurface: async () => undefined })) as Result;
   assert.equal(again.code, "PLAN_NOT_FOUND");
+});
+
+test("a pre-aborted push abandons without a dialog or host writes", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const planId = await plannedId(h);
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: unknown[] = [];
+  const before = h.github.calls.length;
+  assert.deepEqual(await call(h.pushTool, { planId }, { signal: controller.signal, emitSurface: async (surface) => { emitted.push(surface); } }),
+    { pushed: false, cancelled: false, reason: "abandoned" });
+  assert.deepEqual(emitted, []);
+  assert.equal(h.github.calls.length, before);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("aborting a waiting push abandons and closes the exchange without host writes", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const planId = await plannedId(h);
+  const controller = new AbortController();
+  const before = h.github.calls.length;
+  const { pending, exchangeId } = await raiseDialog(h, planId, OWNER_PRINCIPAL, controller.signal);
+  controller.abort();
+  // Bounded even if the abort listener is lost; do not leave the exchange's idle timer running.
+  const timeout = setTimeout(() => h.surfaceExchanges.deliver({ exchangeId, toolId: "site_backup_push", principalId: OWNER_PRINCIPAL, params: { decision: "cancel" } }), 1000);
+  try {
+    assert.deepEqual(await pending, { pushed: false, cancelled: false, reason: "abandoned" });
+  } finally { clearTimeout(timeout); }
+  assert.deepEqual(h.surfaceExchanges.deliver({ exchangeId, toolId: "site_backup_push", principalId: OWNER_PRINCIPAL, params: { decision: "confirm" } }),
+    { ok: false, reason: "unknown-or-closed" });
+  assert.equal(h.github.calls.length, before);
+  assert.deepEqual(h.github.writes(), []);
 });
 
 test("a planId works once: a second push with it is PLAN_NOT_FOUND and raises no dialog", async (t) => {

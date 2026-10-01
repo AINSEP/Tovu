@@ -274,3 +274,35 @@ test("saveCampaign: at the REAL SQLite adapter, a successful save writes exactly
   assert.equal(db.select().from(newsletterCampaigns).all().length, 1);
   assert.equal(db.select().from(newsletterCampaignRevisions).all().length, 1);
 });
+
+
+for (const scheduledAt of ["tomorrow", "not-a-date", "2030-02-30T00:00:00.000Z"]) {
+  test(`scheduleCampaign: invalid timestamp ${scheduledAt} is rejected without changing campaign or revisions`, async () => {
+    const deps = makeMemoryDeps();
+    const { campaign } = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
+    const before = await deps.campaignRepo.findById({ workspaceId: WS, id: campaign.id });
+    const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: campaign.id });
+    await assert.rejects(
+      scheduleCampaign({ deps, input: { workspaceId: WS, id: campaign.id, actorId: "actor-1", scheduledAt } }),
+      (error: unknown) => {
+        assert.ok(error instanceof NewsletterValidationError);
+        assert.equal(error.message, "scheduledAt must be a valid ISO date-time string");
+        return true;
+      },
+    );
+    assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: campaign.id }), before);
+    assert.deepEqual(await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: campaign.id }), revisions);
+  });
+}
+
+
+for (const scheduledAt of ["2028-02-29T23:59:59.123Z", "2030-01-01T03:04:05+02:30"]) {
+  test(`scheduleCampaign: valid leap-day or offset timestamp ${scheduledAt} remains verbatim`, async () => {
+    const deps = makeMemoryDeps();
+    const { campaign } = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
+    await scheduleCampaign({ deps, input: { workspaceId: WS, id: campaign.id, actorId: "actor-1", scheduledAt } });
+    const stored = await deps.campaignRepo.findById({ workspaceId: WS, id: campaign.id });
+    assert.equal(stored?.status, "scheduled");
+    assert.equal(stored?.scheduledAt, scheduledAt);
+  });
+}

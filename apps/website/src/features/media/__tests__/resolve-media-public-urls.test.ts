@@ -68,6 +68,10 @@ test("resolveMediaPublicUrls: a trashed asset resolves to null without consultin
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
   const trashed = fakeAsset({ status: "trashed" });
+  await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "image/png" });
+  mediaContentTypeStore.getMany = async () => { assert.fail("trashed asset must not trigger content-type lookup"); };
+  transformDefinitionRepo.listByName = async () => { assert.fail("trashed asset must not trigger transform lookup"); };
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [trashed]);
   assert.equal(result.get(trashed.id), null);
 });
@@ -77,6 +81,11 @@ test("resolveMediaPublicUrls: a batch that is ENTIRELY trashed short-circuits to
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
   const trashedA = fakeAsset({ status: "trashed" });
   const trashedB = fakeAsset({ status: "trashed" });
+  await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashedA.source.sha256, contentType: "video/mp4" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashedB.source.sha256, contentType: "image/png" });
+  mediaContentTypeStore.getMany = async () => { assert.fail("all-trashed batch must not trigger content-type lookup"); };
+  transformDefinitionRepo.listByName = async () => { assert.fail("all-trashed batch must not trigger transform lookup"); };
   const result = await resolveMediaPublicUrls(
     { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
     [trashedA, trashedB]
@@ -94,9 +103,10 @@ test("resolveMediaPublicUrls: an active asset with no 'public' transform registe
   assert.equal(result.get(asset.id), null);
 });
 
-test("resolveMediaPublicUrls: a recorded video asset resolves to the byte-passthrough /original URL, bypassing the transform lookup entirely", async () => {
+test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /original URL rather than a registered image transform", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
@@ -112,6 +122,17 @@ test("resolveMediaPublicUrls: a non-video asset with a registered 'public' trans
 
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp`);
+});
+
+test("resolveMediaPublicUrls: the latest public revision supplies both URL version and format", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const deps = transformRegistryDeps(transformDefinitionRepo);
+  await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" } });
+  await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "png" }, owner: "core" } });
+  const asset = fakeAsset();
+  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  assert.equal(result.get(asset.id), `/m/${asset.id}/public.v2/image.png`);
 });
 
 test("resolveMediaPublicUrls: a non-video asset whose sha256 has no recorded content type at all falls through to the ordinary image path unchanged", async () => {

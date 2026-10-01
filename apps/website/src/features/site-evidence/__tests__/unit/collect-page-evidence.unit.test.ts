@@ -239,11 +239,12 @@ test("a page load that THROWS (not merely returns ok: false) skips that one page
     },
   });
 
-  const result = await collectPageEvidence(deps(browser), { paths: ["/", "/about"] });
+  const result = await collectPageEvidence(deps(browser), { paths: ["/", "/about", "/after-error"] });
 
-  assert.deepEqual(visited, ["https://example.test/", "https://example.test/about"], "the throw must not stop the loop from reaching the next page");
-  assert.equal(result.pages.length, 1);
-  assert.deepEqual(result.pages.map((page) => page.path), ["/"]);
+  assert.deepEqual(visited, ["https://example.test/", "https://example.test/about", "https://example.test/after-error"], "the throw must not stop the loop from reaching the next page");
+  assert.equal(result.pages.length, 2);
+  assert.deepEqual(result.pages.map((page) => page.path), ["/", "/after-error"]);
+  assert.equal(result.pages.find((page) => page.path === "/after-error")?.observation.document.title, "Example");
   const skipped = result.skipped.find((entry) => entry.path === "/about");
   assert.equal(skipped?.reason, "navigation-failed");
   assert.ok(skipped?.message.includes("Execution context was destroyed"));

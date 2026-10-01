@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import {
+  authorize,
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
   InMemoryPrincipalPolicyRepo,
@@ -13,6 +14,7 @@ import {
   InMemorySessionRepo,
   InMemoryUserRepo,
 } from "@jini-ai/cms/identity";
+import { authenticateApiKey } from "../api-key-service.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
 import {
@@ -56,6 +58,7 @@ function runPrincipalRepoSuite(adapterName: string, makeRepo: () => PrincipalRep
   test(`[${adapterName}] PrincipalRepoPort: save + findById round-trips, save is upsert`, async () => {
     const repo = makeRepo();
     await repo.save({ id: "p-1", workspaceId: WS, kind: "user", displayName: "Ada", status: "active", createdAt: "2026-01-01T00:00:00.000Z" });
+    assert.equal(await repo.findById({ workspaceId: WS2, id: "p-1" }), null);
     let found = await repo.findById({ workspaceId: WS, id: "p-1" });
     assert.equal(found?.displayName, "Ada");
 
@@ -82,6 +85,8 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
     assert.equal((await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-1" }))?.username, "ada");
     assert.equal((await repo.findByUsername({ workspaceId: WS, username: "ada" }))?.principalId, "p-1");
 
+    assert.equal(await repo.findByPrincipalId({ workspaceId: WS2, principalId: "p-1" }), null);
+    assert.equal(await repo.findByUsername({ workspaceId: WS2, username: "ada" }), null);
     await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h2", email: "a@b.co" });
     const found = await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-1" });
     assert.equal(found?.passwordHash, "h2");
@@ -110,9 +115,13 @@ function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPor
     assert.equal((await repo.findById({ workspaceId: WS, id: "s-1" }))?.tokenHash, "hash-1");
     assert.equal((await repo.findByTokenHash({ workspaceId: WS, tokenHash: "hash-1" }))?.id, "s-1");
 
+    assert.equal(await repo.findById({ workspaceId: WS2, id: "s-1" }), null);
+    assert.equal(await repo.findByTokenHash({ workspaceId: WS2, tokenHash: "hash-1" }), null);
+    assert.equal((await repo.findByTokenHash({ workspaceId: WS, tokenHash: "hash-1" }))?.expiresAt, "2026-02-01T00:00:00.000Z");
     await repo.revoke({ workspaceId: WS, id: "s-1", revokedAt: "2026-01-05T00:00:00.000Z" });
     const found = await repo.findById({ workspaceId: WS, id: "s-1" });
     assert.equal(found?.revokedAt, "2026-01-05T00:00:00.000Z");
+    assert.equal(found?.expiresAt, "2026-02-01T00:00:00.000Z");
   });
 
   test(`[${adapterName}] SessionRepoPort: listByPrincipalId (SPEC-006 0.6.0)`, async () => {
@@ -132,6 +141,8 @@ function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
     assert.equal((await repo.findById({ workspaceId: WS, id: "r-1" }))?.name, "admin");
     assert.equal((await repo.findByName({ workspaceId: WS, name: "admin" }))?.id, "r-1");
     assert.equal((await repo.findById({ workspaceId: WS, id: "r-1" }))?.isBuiltin, true);
+    assert.equal(await repo.findById({ workspaceId: WS2, id: "r-1" }), null);
+    assert.equal(await repo.findByName({ workspaceId: WS2, name: "admin" }), null);
   });
 
   test(`[${adapterName}] RoleRepoPort: list scopes by workspace`, async () => {
@@ -144,6 +155,8 @@ function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
   test(`[${adapterName}] RoleRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
     const repo = makeRepo();
     await repo.save({ id: "r-3", workspaceId: WS, name: "custom", isBuiltin: false });
+    await repo.delete({ workspaceId: WS2, id: "r-3" });
+    assert.equal((await repo.findById({ workspaceId: WS, id: "r-3" }))?.name, "custom");
     await repo.delete({ workspaceId: WS, id: "r-3" });
     assert.equal(await repo.findById({ workspaceId: WS, id: "r-3" }), null);
   });
@@ -154,6 +167,8 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
     const repo = makeRepo();
     await repo.save({ id: "pol-1", workspaceId: WS, name: "owner", description: "full access", isBuiltin: true, isFrozen: false });
     const found = await repo.findById({ workspaceId: WS, id: "pol-1" });
+    assert.equal(await repo.findById({ workspaceId: WS2, id: "pol-1" }), null);
+    assert.equal(await repo.findByName({ workspaceId: WS2, name: "owner" }), null);
     assert.equal(found?.name, "owner");
     assert.equal(found?.description, "full access");
     assert.equal(found?.isFrozen, false);
@@ -163,6 +178,8 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
   test(`[${adapterName}] PolicyRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
     const repo = makeRepo();
     await repo.save({ id: "pol-3", workspaceId: WS, name: "custom", isBuiltin: false, isFrozen: false });
+    await repo.delete({ workspaceId: WS2, id: "pol-3" });
+    assert.equal((await repo.findById({ workspaceId: WS, id: "pol-3" }))?.name, "custom");
     await repo.delete({ workspaceId: WS, id: "pol-3" });
     assert.equal(await repo.findById({ workspaceId: WS, id: "pol-3" }), null);
   });
@@ -187,6 +204,25 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
 }
 
 function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => PolicyPermissionRepoPort) {
+  test(`[${adapterName}] constrained policy grants round-trip and stay fail-closed in authorization`, async () => {
+    const repo = makeRepo();
+    const row = { id: "pp-constrained", workspaceId: WS, policyId: "pol-constrained", permission: "content.write", resourceType: "post", constraintJson: '{"field":"title"}' };
+    await repo.save(row);
+    assert.deepEqual(await repo.listByPolicyId({ workspaceId: WS, policyId: row.policyId }), [row]);
+    const principals = new InMemoryPrincipalRepo();
+    const principalPolicies = new InMemoryPrincipalPolicyRepo();
+    await principals.save({ id: "constrained-user", workspaceId: WS, kind: "user", displayName: "Limited", status: "active", createdAt: "2026-01-01T00:00:00.000Z" });
+    await principalPolicies.save({ id: "constraint-link", workspaceId: WS, principalId: "constrained-user", policyId: row.policyId });
+    const deps = { principals, principalPolicies, principalRoles: new InMemoryPrincipalRoleRepo(), rolePolicies: new InMemoryRolePolicyRepo(), policyPermissions: repo };
+    for (const entityType of ["post", "page"]) {
+      assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS, entityType } }),
+        { allowed: false, reason: "unconstrained_deny" });
+    }
+    await repo.save({ ...row, constraintJson: null });
+    assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS, entityType: "post" } }),
+      { allowed: true, reason: "matched" });
+  });
+
   test(`[${adapterName}] PolicyPermissionRepoPort: save + listByPolicyId`, async () => {
     const repo = makeRepo();
     await repo.save({ id: "pp-1", workspaceId: WS, policyId: "pol-1", permission: "content.read" });
@@ -345,6 +381,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
     keyHash: "scrypt$16384$8$1$c2FsdA$ZGlnZXN0",
     prefix: "tovu_ak_0123456789ab",
     issuedPolicyId: "pol-frozen-1",
+    expiresAt: "2026-01-04T00:00:00.000Z",
     createdAt: "2026-01-01T00:00:00.000Z",
   };
 
@@ -370,6 +407,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
     const repo = makeRepo();
     await repo.save(row);
     assert.equal((await repo.findByPrefix({ workspaceId: WS, prefix: row.prefix }))?.id, "ak-1");
+    assert.equal((await repo.findByPrefix({ workspaceId: WS, prefix: row.prefix }))?.expiresAt, row.expiresAt);
     assert.equal(await repo.findByPrefix({ workspaceId: WS, prefix: "tovu_ak_ffffffffffff" }), null);
     // A key from another workspace must never resolve here — INV-01, composite (workspaceId, ...).
     assert.equal(await repo.findByPrefix({ workspaceId: WS2, prefix: row.prefix }), null);
@@ -385,6 +423,27 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
 
     const rows = await repo.listByPrincipalId({ workspaceId: WS, principalId: "p-1" });
     assert.deepEqual(rows.map((r) => r.id).sort(), ["ak-1", "ak-2"]);
+    assert.deepEqual(rows.map((r) => r.expiresAt), [row.expiresAt, row.expiresAt]);
+  });
+
+
+  test(`[${adapterName}] expiry survives decoding and authentication refuses an expired otherwise-valid key`, async () => {
+    const repo = makeRepo();
+    const repos = { principals: new InMemoryPrincipalRepo(), users: new InMemoryUserRepo(), sessions: new InMemorySessionRepo(),
+      roles: new InMemoryRoleRepo(), policies: new InMemoryPolicyRepo(), policyPermissions: new InMemoryPolicyPermissionRepo(),
+      rolePolicies: new InMemoryRolePolicyRepo(), principalRoles: new InMemoryPrincipalRoleRepo(), principalPolicies: new InMemoryPrincipalPolicyRepo() };
+    await repos.principals.save({ id: row.principalId, workspaceId: WS, kind: "api_key", displayName: "Runner", status: "active", createdAt: row.createdAt });
+    await repo.save(row);
+    const deps = { repos, apiKeys: repo, clock: { nowIso: () => "2026-01-05T00:00:00.000Z" }, idGen: { newId: () => "unused" },
+      hasher: { hash: async (value: string) => value, verify: async (a: string, b: string) => a === b },
+      secretHasher: { hash: async () => row.keyHash, verify: async (hash: string, secret: string) => hash === row.keyHash && secret === "test-secret" } };
+    const input = { workspaceId: WS, rawKey: `${row.prefix}.test-secret` };
+    assert.equal(await authenticateApiKey({ deps, input }), null);
+    assert.equal((await repo.findById({ workspaceId: WS, id: row.id }))?.lastUsedAt, undefined);
+    await repo.save({ ...row, expiresAt: "2026-01-06T00:00:00.000Z" });
+    const authenticated = await authenticateApiKey({ deps, input });
+    assert.equal(authenticated?.apiKey.id, row.id);
+    assert.equal(authenticated?.apiKey.expiresAt, "2026-01-06T00:00:00.000Z");
   });
 
   test(`[${adapterName}] ApiKeyRepoPort: optional columns round-trip as undefined, not null`, async () => {

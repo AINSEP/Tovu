@@ -145,11 +145,19 @@ test("publish-content applies the report the gateway verified, not one re-derive
       return { artifactRef: "artifact-1", watermarkAtCapture: 1 };
     },
   };
-  const restorePointsRepo: PublishContentRestorePointSavePort = { save: async () => {} };
+  const restorePoints = new Map<string, Parameters<PublishContentRestorePointSavePort["save"]>[0]>();
+  const restorePointsRepo: PublishContentRestorePointSavePort = {
+    save: async (row) => { restorePoints.set(row.restorePointId, structuredClone(row)); },
+  };
 
   let applied: PublishContentReport | null = null;
   const applyPort: PublishContentApplyPort = {
-    applyReport: async ({ report }) => {
+    applyReport: async ({ report, restorePointId }) => {
+      assert.deepEqual(restorePoints.get(restorePointId), {
+        restorePointId, idempotencyKey: restorePointId,
+        trigger: "publish-content-import", createdAt: "2026-09-20T12:00:00.000Z",
+        createdBy: ACTOR_ID, artifactRef: "artifact-1", watermarkAtCapture: 1,
+      }, "the recovery artifact must already be stored before apply");
       applied = report;
       return { runId: "run-1", changeSetIds: [] };
     },
@@ -195,7 +203,9 @@ test("publish-content applies the report the gateway verified, not one re-derive
     planHash: planned.planHash,
   });
 
-  await execute({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, confirmationToken: token.confirmationToken });
+  const executed = await execute({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, confirmationToken: token.confirmationToken });
+  assert.equal(restorePoints.size, 1);
+  assert.equal((executed as { restorePointId: string }).restorePointId, [...restorePoints.keys()][0]);
 
   assert.notEqual(applied, null, "applyReport was never called");
   const appliedReport = applied as unknown as PublishContentReport;

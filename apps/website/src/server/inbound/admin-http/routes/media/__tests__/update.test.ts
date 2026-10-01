@@ -502,3 +502,21 @@ test("update: a trashed media row is refused with 409 ENTITY_IN_TRASH and left u
   const after = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
   assert.equal(after?.alt, "Original alt text");
 });
+
+
+for (const htmlAttributes of [
+  'ONERROR="alert(1)"', 'OnClIcK=alert(1)',
+  'poster="JaVaScRiPt:alert(1)"', 'poster="  javascript:alert(1)"',
+  'poster=javascript:alert(1)', 'loading="lazy" ONERROR="alert(1)"',
+  'src="data:text/html,<script>alert(1)</script>"', 'href=data:text/html,evil',
+]) {
+  test(`update: rejects hostile htmlAttributes ${htmlAttributes} without partial writes`, async (t) => {
+    const deps = createRouteDeps();
+    const app = buildMediaApp(deps);
+    const id = await seedMedia(deps, { title: "Keep title", htmlAttributes: 'loading="lazy"' });
+    const before = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+    const { status } = await patch(t, app, id, { title: "Must not persist", htmlAttributes });
+    assert.equal(status, 400);
+    assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id }), before);
+  });
+}

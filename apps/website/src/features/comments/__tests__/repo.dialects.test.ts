@@ -95,15 +95,22 @@ describeEachDialect<CommentRepoPort>(
       for (let i = 0; i < 5; i += 1) {
         await repo.create(comment(`c${i}`, { entryId: i < 3 ? "e1" : "e2", createdAt: `2026-09-28T00:0${i}:00.000Z` }));
       }
-      await repo.create(comment("same-time", { createdAt: "2026-09-28T00:04:00.000Z" }));
+      for (const id of ["same-time", "same-time-2", "same-time-3"]) {
+        await repo.create(comment(id, { createdAt: "2026-09-28T00:04:00.000Z" }));
+      }
       const page1 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2 });
       assert.deepEqual(page1.items.map((c) => c.id), ["c0", "c1"]);
       const page2 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page1.nextCursor });
       assert.deepEqual(page2.items.map((c) => c.id), ["c2", "c3"]);
       const page3 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page2.nextCursor });
       assert.deepEqual(page3.items.map((c) => c.id), ["c4", "same-time"]);
-      assert.equal(page3.nextCursor, null);
-      assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending" }), 6);
+      assert.equal(page3.nextCursor, "same-time");
+      const page4 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page3.nextCursor });
+      assert.deepEqual(page4.items.map((c) => c.id), ["same-time-2", "same-time-3"]);
+      assert.equal(page4.nextCursor, null);
+      assert.deepEqual([page1, page2, page3, page4].flatMap((p) => p.items.map((c) => c.id)),
+        ["c0", "c1", "c2", "c3", "c4", "same-time", "same-time-2", "same-time-3"]);
+      assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending" }), 8);
       assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending", entryId: "e1" }), 3);
     });
 

@@ -97,14 +97,26 @@ test("C-001/C-002: 200 returns every installed skill projected to {toolId, name,
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
 
+    await writeSkill(skillsDir, "code-review", { "SKILL.md": "---\nname: code-review\ndescription: Review code changes.\n---\n# Review\n" });
+
     const { app } = buildTestApp();
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
     const response = await fetch(`${baseUrl}${BASE}/skills`, { headers: { cookie } });
     assert.equal(response.status, 200);
     const body = (await response.json()) as { skills: Array<{ toolId: string; name: string; description: string }> };
-    assert.deepEqual(body.skills, [
+    assert.deepEqual(body.skills.sort((a, b) => a.toolId.localeCompare(b.toolId)), [
+      { toolId: "skill_code_review", name: "code-review", description: "Review code changes." },
       { toolId: "skill_incident_response", name: "incident-response", description: "Use when handling production incidents." },
+    ]);
+    await rm(path.join(skillsDir, "ws", WORKSPACE_ID, "incident-response"), { recursive: true });
+    await writeSkill(skillsDir, "release-check", { "SKILL.md": "---\nname: release-check\ndescription: Check a release.\n---\n# Release\n" });
+    const refreshed = await fetch(`${baseUrl}${BASE}/skills`, { headers: { cookie } });
+    assert.equal(refreshed.status, 200);
+    const next = (await refreshed.json()).skills as Array<{ toolId: string; name: string; description: string }>;
+    assert.deepEqual(next.sort((a, b) => a.toolId.localeCompare(b.toolId)), [
+      { toolId: "skill_code_review", name: "code-review", description: "Review code changes." },
+      { toolId: "skill_release_check", name: "release-check", description: "Check a release." },
     ]);
   });
 });

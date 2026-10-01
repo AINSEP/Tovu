@@ -78,6 +78,8 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     await repo.saveGlobalValue({ ...base, scope: "global", workspaceId: null, principalId: null });
     await repo.saveWorkspaceValue({ ...base, scope: "workspace", workspaceId: "ws-1", principalId: null });
     await repo.saveUserValue({ ...base, scope: "user", workspaceId: "ws-1", principalId: "p-1" });
+    const secondUser = { ...base, scope: "user" as const, workspaceId: "ws-1", principalId: "p-2", valueJson: "second user" };
+    await repo.saveUserValue(secondUser);
 
     assert.equal((await repo.getGlobalValue(def.settingId))?.valueJson, "x");
     assert.equal((await repo.getWorkspaceValue({ workspaceId: "ws-1", settingId: def.settingId }))?.valueJson, "x");
@@ -86,6 +88,7 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
       "x"
     );
     // Isolation: a workspace value must not leak into a different workspace's read.
+    assert.deepEqual(await repo.getUserValue({ workspaceId: "ws-1", principalId: "p-2", settingId: def.settingId }), secondUser);
     assert.equal(await repo.getWorkspaceValue({ workspaceId: "ws-OTHER", settingId: def.settingId }), null);
   });
 
@@ -111,6 +114,8 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     assert.ok(seq2 > seq1);
 
     const revisions = await repo.listRevisions({ settingId: def.settingId });
+    assert.deepEqual(revisions.map((r) => r.seq), [seq1, seq2]);
+    assert.deepEqual(revisions, [{ ...base, seq: seq1 }, { ...base, seq: seq2 }]);
     assert.deepEqual(
       revisions.map((r) => r.seq),
       [...revisions.map((r) => r.seq)].sort((a, b) => a - b)
@@ -204,11 +209,26 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     };
     await repo.saveWorkspaceValue({ ...base, scope: "workspace", workspaceId: "ws-1", principalId: null });
     await repo.saveWorkspaceValue({ ...base, scope: "workspace", workspaceId: "ws-2", principalId: null });
+    const otherSetting = { ...base, settingId: "setting-other", scope: "workspace" as const, workspaceId: "ws-1", principalId: null, valueJson: "keep same workspace" };
+    await repo.saveWorkspaceValue(otherSetting);
+    const userValues = [
+      { ...base, scope: "user" as const, workspaceId: "ws-1", principalId: "p-1", valueJson: "delete" },
+      { ...base, scope: "user" as const, workspaceId: "ws-1", principalId: "p-2", valueJson: "keep principal" },
+      { ...base, scope: "user" as const, workspaceId: "ws-2", principalId: "p-1", valueJson: "keep workspace" },
+      { ...base, scope: "user" as const, workspaceId: "ws-1", principalId: "p-1", settingId: "setting-other", valueJson: "keep setting" },
+    ];
+    for (const value of userValues) await repo.saveUserValue(value);
 
     await repo.deleteWorkspaceValue({ workspaceId: "ws-1", settingId: def.settingId });
 
     assert.equal(await repo.getWorkspaceValue({ workspaceId: "ws-1", settingId: def.settingId }), null);
     assert.notEqual(await repo.getWorkspaceValue({ workspaceId: "ws-2", settingId: def.settingId }), null);
+    assert.deepEqual(await repo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-other" }), otherSetting);
+    await repo.deleteUserValue({ workspaceId: "ws-1", principalId: "p-1", settingId: def.settingId });
+    assert.equal(await repo.getUserValue({ workspaceId: "ws-1", principalId: "p-1", settingId: def.settingId }), null);
+    for (const value of userValues.slice(1)) {
+      assert.deepEqual(await repo.getUserValue({ workspaceId: value.workspaceId, principalId: value.principalId, settingId: value.settingId }), value);
+    }
   });
 
   test(`[${adapterName}] listUserValuesByWorkspace returns every principal's rows for a workspace, none from another workspace`, async () => {

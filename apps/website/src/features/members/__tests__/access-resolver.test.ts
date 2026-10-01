@@ -171,7 +171,7 @@ test("decide: truth table over every (visibility, member-state) combination", ()
     // visibility: unknown/unparseable — fails closed for every member state, no teaser (a teaser
     // would leak that gated content exists behind an entitlement the reader can never resolve).
     { label: "unknown + anonymous", access: UNKNOWN_ACCESS, context: anonymous, allowed: false, reason: "unknown_visibility", teaser: false },
-    { label: "unknown + authenticated paid + required tier", access: UNKNOWN_ACCESS, context: authWithRequiredTier, allowed: false, reason: "unknown_visibility", teaser: false },
+    { label: "unknown + authenticated paid + required tier", access: UNKNOWN_ACCESS, context: authenticatedContext(["tier-gold"], true), allowed: false, reason: "unknown_visibility", teaser: false },
   ];
 
   for (const row of rows) {
@@ -227,6 +227,14 @@ test("resolveContext returns the anonymous context for a revoked or expired sess
       createdAt: "2026-01-01T00:00:00.000Z",
       expiresAt: "2026-01-02T00:00:00.000Z",
     },
+    {
+      id: "session-expires-now",
+      workspaceId: WORKSPACE_ID,
+      memberId: "member-1",
+      tokenHash: hashToken("expires-now-token"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: NOW,
+    },
   ]);
   const resolver = new DefaultMemberAccessResolver({
     sessions,
@@ -247,6 +255,8 @@ test("resolveContext returns the anonymous context for a revoked or expired sess
     nowIso: NOW,
   });
   assert.deepEqual(expiredContext, anonymousContext());
+  const boundaryContext = await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: "expires-now-token", nowIso: NOW });
+  assert.deepEqual(boundaryContext, anonymousContext(), "a session is expired at its exact expiry timestamp");
 });
 
 test("resolveContext returns an authenticated context with activeTierIds + isPaid for a valid session", async () => {
@@ -352,3 +362,23 @@ test("resolveContext: a valid session with an active subscription to a NON-paid 
   assert.deepEqual(context.activeTierIds, ["tier-free"]);
   assert.equal(context.isPaid, false, "a resolved tier that is not type 'paid' must not flip isPaid");
 });
+
+for (const activeTierIds of [[], ["tier-free", "tier-paid"]]) {
+  test(`resolveContext: valid session with ${activeTierIds.length ? "free first and paid second" : "no subscriptions"}`, async () => {
+    const sessions = new InMemoryMemberSessionRepo([{
+      id: "session-multiple", workspaceId: WORKSPACE_ID, memberId: "member-1",
+      tokenHash: hashToken("multiple-token"), createdAt: NOW, expiresAt: "2027-01-01T00:00:00.000Z",
+    }]);
+    const tiers = new InMemoryMemberTierRepo((["free", "paid"] as const).map((type) => ({
+      id: `tier-${type}`, workspaceId: WORKSPACE_ID, name: type, slug: type, type,
+      status: "active" as const, visibleInPortal: true, createdAt: NOW, updatedAt: NOW, version: 1,
+    })));
+    const subscriptions = new InMemoryMemberSubscriptionRepo(activeTierIds.map((tierId, index) => ({
+      id: `sub-${index}`, workspaceId: WORKSPACE_ID, memberId: "member-1", tierId,
+      status: "active" as const, source: "signup" as const, startedAt: NOW, createdAt: NOW, updatedAt: NOW, version: 1,
+    })));
+    const resolver = new DefaultMemberAccessResolver({ sessions, subscriptions, tiers });
+    const context = await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: "multiple-token", nowIso: NOW });
+    assert.deepEqual(context, authenticatedContext(activeTierIds, activeTierIds.length > 0));
+  });
+}

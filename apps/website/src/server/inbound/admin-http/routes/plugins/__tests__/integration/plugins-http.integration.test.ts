@@ -5,7 +5,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { registerPluginsListRoute } from "../../list.js";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
@@ -23,9 +23,7 @@ import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discove
  * "valid" site plugin explicitly carries `tier: "tier-3"` so it does not spuriously read as
  * invalid post-1.1.1.
  *
- * TDD-certified against the stubs in `../../list.ts` / `../../set-enabled.ts`; currently RED —
- * both handlers respond `501 not implemented`. These assertions describe the contract the
- * Programmer stage must satisfy.
+ * Exercises the implemented list and activation routes through real authentication.
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -56,7 +54,7 @@ const AC11_DISCOVERY: readonly PluginDiscoveryRecord[] = [
   },
 ];
 
-function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps } {
+function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps; baseDeps: ReturnType<typeof createRouteDeps> } {
   const baseDeps = createRouteDeps();
   const pluginDeps: PluginsRouteDeps = {
     workspaceId: baseDeps.workspaceId,
@@ -78,7 +76,7 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps } 
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginsListRoute(app, pluginDeps);
   registerPluginSetEnabledRoute(app, pluginDeps);
-  return { app, pluginDeps };
+  return { app, pluginDeps, baseDeps };
 }
 
 test("AC-11/REQ-10: GET .../plugins returns all 3 discovered plugins with correct source/status/enabled/errors (RT-009 fixture)", async (t) => {
@@ -173,7 +171,7 @@ test("PLUGIN_INVALID: PATCH {enabled:true} for a plugin whose discovered status 
 });
 
 test("AC-19/REQ-07: PATCH {enabled:true} for a valid plugin succeeds (200), returns changeSetId, and records exactly one applied change set", async (t) => {
-  const { app, pluginDeps } = buildTestApp();
+  const { app, pluginDeps, baseDeps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const response = await fetch(`${baseUrl}${BASE}/plugins/valid-site-plugin`, {
@@ -189,6 +187,21 @@ test("AC-19/REQ-07: PATCH {enabled:true} for a valid plugin succeeds (200), retu
 
   const changeSets = await pluginDeps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
   assert.equal(changeSets.filter((cs) => cs.id === body.changeSetId).length, 1);
+  const recorded = await pluginDeps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: body.changeSetId });
+  assert.ok(recorded);
+  assert.equal(recorded.changeSet.status, "applied");
+  assert.equal(recorded.changeSet.workspaceId, WORKSPACE_ID);
+  assert.equal(recorded.changeSet.actorId, await baseDeps.ownerPrincipalId);
+  assert.equal(recorded.changeSet.summary, "Set plugin 'valid-site-plugin' enabled=true");
+  assert.equal(recorded.items.length, 1);
+  assert.equal(recorded.items[0].entityId, "valid-site-plugin");
+  assert.equal(recorded.items[0].entityType, "plugin-activation");
+  assert.equal(recorded.items[0].operation, "update");
+  const inventory = await fetch(`${baseUrl}${BASE}/plugins`, { headers: { cookie } });
+  assert.equal(inventory.status, 200);
+  const listed = (await inventory.json()).plugins;
+  assert.equal(listed.find((plugin: { id: string }) => plugin.id === "valid-site-plugin")?.enabled, true);
+  assert.equal(listed.find((plugin: { id: string }) => plugin.id === "word-count")?.enabled, false);
 });
 
 test("AC-13/REQ-07/INV-05: the recorded change set carries an entityType/operation shape a revert registry entry can resolve a reverter against, and its inversePayload captures the PRIOR (pre-enable) activation state", async (t) => {
@@ -221,4 +234,26 @@ test("AC-13/REQ-07/INV-05: the recorded change set carries an entityType/operati
     { enabled: false },
     "the inverse payload must capture the PRIOR (pre-enable) enabled value so a future reverter can restore it exactly"
   );
+  const disableResponse = await fetch(`${baseUrl}${BASE}/plugins/valid-site-plugin`, {
+    method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ enabled: false }),
+  });
+  assert.equal(disableResponse.status, 200);
+  const disabled = await disableResponse.json();
+  const disableChange = await pluginDeps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: disabled.changeSetId });
+  assert.ok(disableChange);
+  assert.deepEqual(disableChange.items[0].inversePayload, { enabled: true });
+  assert.equal((await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "valid-site-plugin" }))?.enabled, false);
+});
+
+
+test("plugins list: a signed-in principal without admin.plugins.read receives no inventory", async (t) => {
+  const { app, baseDeps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginAsBarePrincipal(baseDeps, baseUrl);
+  const response = await fetch(`${baseUrl}${BASE}/plugins`, { headers: { cookie } });
+  assert.equal(response.status, 403);
+  const body = await response.json();
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "admin.plugins.read");
+  assert.equal("plugins" in body, false);
 });

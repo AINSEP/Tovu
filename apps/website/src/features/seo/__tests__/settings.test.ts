@@ -122,10 +122,12 @@ test("setSeoSettings: a 501-char titleTemplate is rejected", async () => {
 
 test("setSeoSettings: robotsRules with exactly 50 entries is accepted", async () => {
   const deps = await seeded();
-  const robotsRules = Array.from({ length: 50 }, (_, i) => ({ userAgent: `agent-${i}` }));
+  const robotsRules = Array.from({ length: 50 }, (_, i) => ({ userAgent: `agent-${i}`, allow: [`/public-${i}`], disallow: [`/private-${i}`] }));
 
   const result = await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { robotsRules } });
   assert.equal(result.robotsRules.length, 50);
+  assert.deepEqual(result.robotsRules, robotsRules);
+  assert.deepEqual((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).robotsRules, robotsRules);
 });
 
 test("setSeoSettings: robotsRules with 51 entries is rejected, zero settings changed", async () => {
@@ -188,6 +190,19 @@ test("setSeoSettings: unauthorized write is rejected FORBIDDEN with zero writes"
   assert.equal(after.sitemapEnabled, true);
 });
 
+test("setSeoSettings: the caller needs only admin.seo.manage in the target workspace", async () => {
+  const deps = await seeded();
+  const requests: unknown[] = [];
+  deps.authorize = (async (request: { permission: string; principalId: string; workspaceId: string }) => {
+    requests.push(request);
+    return { allowed: request.permission === "admin.seo.manage" && request.principalId === CALLER && request.workspaceId === WORKSPACE,
+      reason: "SEO-only grant" };
+  }) as typeof deps.authorize;
+  await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { sitemapEnabled: false } });
+  assert.equal(requests.length, 1);
+  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).sitemapEnabled, false);
+});
+
 // --- Characterization tests below pin pre-refactor behavior of
 // `validateSeoSettingsPatch`/`setSeoSettings` field-by-field. Added before
 // restructuring `src/seo/settings.ts` because branch coverage on these paths
@@ -243,12 +258,14 @@ test("setSeoSettings: a 501-char defaultDescription is rejected", async () => {
 
 test("setSeoSettings: a null defaultDescription bypasses validation and reads back as undefined (the '' sentinel)", async () => {
   const deps = await seeded();
+  await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { defaultDescription: "Previously saved description" } });
   const result = await setSeoSettings(deps, {
     workspaceId: WORKSPACE,
     callerPrincipalId: CALLER,
     patch: { defaultDescription: null },
   });
   assert.equal(result.defaultDescription, undefined);
+  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).defaultDescription, undefined);
 });
 
 test("setSeoSettings: defaultOgImage is validated, written, and round-trips", async () => {
@@ -290,12 +307,14 @@ test("setSeoSettings: a 2049-char defaultOgImage is rejected", async () => {
 
 test("setSeoSettings: a null defaultOgImage bypasses validation and reads back as undefined", async () => {
   const deps = await seeded();
+  await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { defaultOgImage: "https://example.com/previous.png" } });
   const result = await setSeoSettings(deps, {
     workspaceId: WORKSPACE,
     callerPrincipalId: CALLER,
     patch: { defaultOgImage: null },
   });
   assert.equal(result.defaultOgImage, undefined);
+  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).defaultOgImage, undefined);
 });
 
 test("setSeoSettings: twitterSite is validated as a bounded string, written, and round-trips", async () => {
@@ -363,12 +382,14 @@ test("setSeoSettings: an unknown patch key is rejected, zero settings changed", 
 
 test("setSeoSettings: a null twitterSite is written as the '' sentinel and reads back as undefined", async () => {
   const deps = await seeded();
+  await setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: { twitterSite: "@previous" } });
   const result = await setSeoSettings(deps, {
     workspaceId: WORKSPACE,
     callerPrincipalId: CALLER,
     patch: { twitterSite: null },
   });
   assert.equal(result.twitterSite, undefined);
+  assert.equal((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).twitterSite, undefined);
 });
 
 test("setSeoSettings: a defaultRobots patch missing the 'nofollow' boolean is rejected", async () => {
@@ -482,4 +503,7 @@ test("setSeoSettings: a robots rule 'allow' with exactly 100 entries is accepted
     patch: { robotsRules: [{ userAgent: "agent-1", allow }] },
   });
   assert.equal(result.robotsRules[0]?.allow?.length, 100);
+  const expected = [{ userAgent: "agent-1", allow }];
+  assert.deepEqual(result.robotsRules, expected);
+  assert.deepEqual((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).robotsRules, expected);
 });

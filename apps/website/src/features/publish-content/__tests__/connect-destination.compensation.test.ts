@@ -31,6 +31,7 @@ const REMOTE_WORKSPACE = "remote-a";
 /** Records which grant writes happened, in order, so a test can assert the grant was put back. */
 class RecordingProvisioning {
   readonly calls: string[] = [];
+  readonly grantRequests: { baseUrl: string; entityTypes: readonly string[] }[] = [];
   readonly target = { kind: "test", path: "deploy.json", nextStep: "Deploy this site once more." };
 
   async readProvisioned() {
@@ -95,13 +96,16 @@ function connectDeps(repo: PublishContentPeerRepoPort, provisioning: RecordingPr
     idGen: { newId: () => "peer-1" },
     // The grant half is already written by the time the peer row is saved, so these tests inject
     // the completed handshake result rather than standing up a fake destination server.
-    connectGrant: async () => ({
+    connectGrant: async (input: { baseUrl: string; entityTypes: readonly string[] }) => {
+      provisioning.grantRequests.push(structuredClone(input));
+      return {
       identity: { workspaceId: REMOTE_WORKSPACE, generation: 1 },
       baseUrl: SITE,
       changed: true,
       target: provisioning.target,
       nextStep: "Deploy this site once more.",
-    }),
+      };
+    },
     reverseGrant: async () => {
       provisioning.calls.push("disconnect");
       return { changed: true, target: provisioning.target };
@@ -190,6 +194,7 @@ test("a clean connect writes both halves and reports the saved row", async () =>
 
   assert.equal(result.site.baseUrl, SITE);
   assert.equal(result.site.hasCredential, false);
+  assert.deepEqual(provisioning.grantRequests, [{ baseUrl: SITE, entityTypes: ["post"] }]);
   assert.deepEqual(provisioning.calls, [], "a successful connect must never reverse its own grant");
   const rows = await inner.listByWorkspace({ workspaceId: WORKSPACE });
   assert.deepEqual(rows.map((row) => row.baseUrl), [SITE]);

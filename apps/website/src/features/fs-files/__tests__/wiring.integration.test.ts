@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { setCustomFsRoot } from "../custom-root-store.js";
 
 import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
@@ -53,4 +57,38 @@ test("without installFirstPartyToolContributors, neither tool is present — pro
 
   assert.equal(ids.includes(FS_LIST_FILES_TOOL_ID), false);
   assert.equal(ids.includes(FS_READ_FILE_TOOL_ID), false);
+});
+
+test("catalog filesystem handlers use the current workspace's persisted custom root", async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "fs-catalog-root-"));
+  const original = process.env.TOVU_SITE_DIR;
+  process.env.TOVU_SITE_DIR = base;
+  t.after(() => {
+    if (original === undefined) delete process.env.TOVU_SITE_DIR;
+    else process.env.TOVU_SITE_DIR = original;
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+  const ownRoot = path.join(base, "own");
+  const otherRoot = path.join(base, "other");
+  fs.mkdirSync(ownRoot);
+  fs.mkdirSync(otherRoot);
+  fs.writeFileSync(path.join(ownRoot, "note.txt"), "own workspace");
+  fs.writeFileSync(path.join(otherRoot, "note.txt"), "other workspace");
+  fs.writeFileSync(path.join(otherRoot, "other-only.txt"), "other file");
+  const deps = createRouteDeps();
+  setCustomFsRoot(deps.workspaceId, ownRoot, { siteDir: base });
+  setCustomFsRoot("other-workspace", otherRoot, { siteDir: base });
+  deps.authorize = async () => ({ allowed: true }) as never;
+  installFirstPartyToolContributors();
+  const catalog = buildAssistantToolRegistrations(deps);
+  const read = catalog.find((r) => r.descriptor.id === FS_READ_FILE_TOOL_ID);
+  const list = catalog.find((r) => r.descriptor.id === FS_LIST_FILES_TOOL_ID);
+  assert.ok(read);
+  assert.ok(list);
+  const context = { principal: { id: "principal-1" }, run: { id: "run-1" } };
+  assert.deepEqual(await read.handler({ ...context, tool: { id: FS_READ_FILE_TOOL_ID }, input: { root: "custom", path: "note.txt" } } as never),
+    { root: "custom", path: "note.txt", content: "own workspace", bytes: 13 });
+  const listing = await list.handler({ ...context, tool: { id: FS_LIST_FILES_TOOL_ID }, input: { root: "custom" } } as never) as { files: unknown[] };
+  assert.equal(listing.files.length, 1);
+  assert.deepEqual(listing.files, ["note.txt"]);
 });

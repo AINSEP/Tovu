@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -214,6 +214,47 @@ test("a database whose restore mechanism is not a cheap file snapshot is refused
   }
 });
 
+test("a snapshot capture failure returns a safe message and a separate diagnostic code", async () => {
+  const site = makeSite();
+  try {
+    const dbOps = new FakeDbOps(site.root);
+    dbOps.captureRestorePoint = async () => { throw Object.assign(new Error("private path /secret/content.db: disk failure"), { code: "EIO" }); };
+    const result = await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" });
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("capture must fail");
+    assert.equal(result.message, "the database snapshot failed; nothing was backed up");
+    assert.equal(result.logDetail, "Error(EIO)");
+    assert.doesNotMatch(JSON.stringify(result), /\/secret\/content\.db/);
+  } finally { site.cleanup(); }
+});
+
+test("an unreadable snapshot artifact is removed even on failure; failed cleanup stays caller-safe", async () => {
+  const site = makeSite();
+  try {
+    const dbOps = new FakeDbOps(site.root);
+    const artifact = path.join(site.root, "snapshot-link.db");
+    symlinkSync(path.join(site.root, "missing-private.db"), artifact);
+    assert.equal(lstatSync(artifact).isSymbolicLink(), true);
+    dbOps.captureRestorePoint = async () => ({ artifactRef: artifact, watermarkAtCapture: 42 });
+    const result = await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" });
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("artifact read must fail");
+    assert.equal(result.message, "the database snapshot could not be read back; nothing was backed up");
+    assert.match(result.logDetail ?? "", /ENOENT/);
+    assert.throws(() => lstatSync(artifact), { code: "ENOENT" }, "read failure must still unlink the artifact");
+
+    const directoryArtifact = path.join(site.root, "directory-artifact");
+    mkdirSync(directoryArtifact);
+    dbOps.captureRestorePoint = async () => ({ artifactRef: directoryArtifact, watermarkAtCapture: 42 });
+    const cleanupFailure = await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" });
+    assert.equal(cleanupFailure.ok, false);
+    if (cleanupFailure.ok) assert.fail("directory read must fail");
+    assert.equal(cleanupFailure.message, "the database snapshot could not be read back; nothing was backed up");
+    assert.match(cleanupFailure.logDetail ?? "", /EISDIR/);
+    assert.equal(lstatSync(directoryArtifact).isDirectory(), true);
+  } finally { site.cleanup(); }
+});
+
 // ---------------------------------------------------------------------------
 // Limits — the host's declared per-file ceiling (GitHub: 100 MiB), plus count/total bounds
 // ---------------------------------------------------------------------------
@@ -281,6 +322,44 @@ test("a planned file that changed after the plan is refused as stale; an unchang
     if (!stale.ok) assert.match(stale.message, /changed since the plan/);
   } finally {
     site.cleanup();
+  }
+});
+
+test("a same-size edit after planning is refused on its modification time", async () => {
+  const site = makeSite();
+  try {
+    const { files } = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+    const planned = files.find((file) => file.path === "themes/static/demo/index.html");
+    assert.ok(planned);
+    writeFileSync(planned.absPath, "SECRET");
+    utimesSync(planned.absPath, new Date("2026-09-21T12:00:00Z"), new Date("2026-09-21T12:00:00Z"));
+    assert.equal(lstatSync(planned.absPath).size, planned.bytes);
+    assert.notEqual(lstatSync(planned.absPath).mtimeMs, planned.mtimeMs);
+    assert.deepEqual(await readPlannedFile(planned), { ok: false, message: `'${planned.path}' changed since the plan was made. Call site_backup_plan again.` });
+  } finally { site.cleanup(); }
+});
+
+test("a file replaced after planning by a symlink with matching size and mtime is refused", async () => {
+  const site = makeSite();
+  const outside = mkdtempSync(path.join(tmpdir(), "backup-swapped-symlink-"));
+  try {
+    const at = new Date("2026-09-21T12:00:00Z");
+    const file = path.join(site.root, "themes", "static", "demo", "index.html");
+    utimesSync(file, at, at);
+    const { files } = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+    const planned = files.find((file) => file.path === "themes/static/demo/index.html");
+    assert.ok(planned);
+    const secret = path.join(outside, "private.txt");
+    writeFileSync(secret, "SECRET");
+    utimesSync(secret, at, at);
+    assert.equal(lstatSync(secret).size, planned.bytes);
+    assert.equal(lstatSync(secret).mtimeMs, planned.mtimeMs);
+    unlinkSync(planned.absPath);
+    symlinkSync(secret, planned.absPath);
+    assert.deepEqual(await readPlannedFile(planned), { ok: false, message: `'${planned.path}' changed since the plan was made. Call site_backup_plan again.` });
+  } finally {
+    site.cleanup();
+    rmSync(outside, { recursive: true, force: true });
   }
 });
 

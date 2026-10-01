@@ -47,10 +47,10 @@ function entity(entityType: string, id: string): PackedEntity {
   };
 }
 
-function registerFixtureContributors(): void {
+function registerFixtureContributors(requiredBlob: string | null = null): void {
   resetPublishContentContributorsForTests();
 
-  const pageEntities = [entity("page", "p1"), entity("page", "p2")];
+  const pageEntities = [{ ...entity("page", "p1"), requiredBlobs: requiredBlob ? [requiredBlob] : [] }, entity("page", "p2")];
   const pageContributor: PublishContentContributor = {
     entityType: "page",
     dependsOn: [],
@@ -519,4 +519,50 @@ test("an unscoped plan adds nothing — every media row is an ordinary row", asy
       ["p2", null],
     ]
   );
+});
+
+
+for (const scope of [
+  { entityKeys: ["page:p1"] },
+  { entityTypes: ["page"], entityKeys: ["page:p1", "theme-files:static/basic"] },
+]) {
+  test(`push/plan honors valid row scope ${JSON.stringify(scope)}`, async (t) => {
+    registerFixtureContributors();
+    t.after(() => resetPublishContentContributorsForTests());
+    let staged: PackedEntity[] | null = null;
+    const { app } = buildApp(fakePeerHttpClient((entities) => { staged = entities; }));
+    const server = await startTestServer(app, t);
+    assert.equal((await createPeer(server)).status, 201);
+    const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope }),
+    });
+    assert.equal(res.status, 200, await res.clone().text());
+    assert.ok(staged);
+    assert.deepEqual(staged.map((e) => `${e.entityType}:${e.id}`), ["page:p1"]);
+  });
+}
+
+test("push/plan: an explicitly empty selection stages no entities or required blobs", async (t) => {
+  registerFixtureContributors("a".repeat(64));
+  t.after(() => resetPublishContentContributorsForTests());
+  let staged: PackedEntity[] | null = null;
+  let stagedBlobManifest: string[] | null = null;
+  const requests: string[] = [];
+  const client = fakePeerHttpClient((entities) => { staged = entities; });
+  const { app } = buildApp({
+    send: async (request) => {
+      requests.push(request.url);
+      if (request.url.endsWith("/bundles")) stagedBlobManifest = JSON.parse(String(request.body)).blobManifest;
+      return client.send(request);
+    },
+  });
+  const server = await startTestServer(app, t);
+  assert.equal((await createPeer(server)).status, 201);
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ selectedEntityKeys: [] }),
+  });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.deepEqual(staged, []);
+  assert.deepEqual(stagedBlobManifest, []);
+  assert.equal(requests.some((url) => url.includes("/blobs")), false);
 });

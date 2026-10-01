@@ -182,12 +182,14 @@ test("migrateLegacyPresentationSettings: one row's write failure is recorded in 
     activeThemeId: "this-write-fails",
     updatedAt: "2026-06-01T00:00:00.000Z",
   };
-  const deps = { ...makeDeps([goodRow, badRow]), settingsRepo: new FailingOnceSettingsRepo("this-write-fails") };
+  const deps = { ...makeDeps([badRow, goodRow]), settingsRepo: new FailingOnceSettingsRepo("this-write-fails") };
 
   const result = await migrateLegacyPresentationSettings(deps);
 
   assert.equal(result.migratedCount, 1);
   assert.deepEqual(result.failedWorkspaceIds, ["workspace-bad"]);
+  const definition = await deps.settingsRepo.findActiveDefinition({ namespace: "core.presentation", key: "activeThemeId", workspaceId: null });
+  assert.equal((await deps.settingsRepo.getGlobalValue(definition!.settingId))?.valueJson, "atlas");
 });
 
 test("migrateLegacyPresentationSettings: a workspace with the theme turned OFF does not become the registered DEFAULT for every other workspace", async () => {
@@ -228,4 +230,8 @@ test("migrateLegacyPresentationSettings: the row itself STILL migrates — guard
 
   const result = await migrateLegacyPresentationSettings(deps);
   assert.equal(result.migratedCount, 1, "the workspace's own stored value must still be mirrored");
+  const effective = await getEffective({ repo: deps.settingsRepo }, {
+    namespace: "core.presentation", key: "activeThemeId", scopeContext: { workspaceId: "workspace-1" },
+  });
+  assert.equal(effective?.value, NO_THEME_ID);
 });

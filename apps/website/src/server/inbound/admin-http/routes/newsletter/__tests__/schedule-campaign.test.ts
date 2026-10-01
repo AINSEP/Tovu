@@ -127,25 +127,32 @@ test("schedule-campaign: forbidden 403s when unauthorized", async (t) => {
 });
 
 test("schedule-campaign: scheduledAt of an invalid type (e.g. a number) -> 400 before authorize() even runs", async (t) => {
-  const { app } = buildApp();
+  let authorizeCalls = 0;
+  const { app } = buildApp({ authorize: async () => { authorizeCalls++; return { allowed: true, reason: "matched" }; } });
   const { status, json } = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/schedule`, {
     scheduledAt: 12345,
   });
   assert.equal(status, 400);
   assert.equal((json as { code?: string }).code, "NEWSLETTER_VALIDATION_ERROR");
+  assert.equal(authorizeCalls, 0);
 });
 
-test("schedule-campaign: scheduledAt: null is valid and defaults to now, same as omitted", async (t) => {
-  const { app, deps } = buildApp();
-  const campaign = await seedDraftCampaign(deps);
-  const { status, json } = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/schedule`, {
-    scheduledAt: null,
+for (const bodyInput of [{ scheduledAt: null }, {}]) {
+  test(`schedule-campaign: ${JSON.stringify(bodyInput)} defaults to the exact clock time and persists it`, async (t) => {
+    const fixedNow = "2026-10-01T12:34:56.000Z";
+    const base = createRouteDeps();
+    const { app, deps } = buildApp({ clock: { ...base.clock, nowIso: () => fixedNow } });
+    const campaign = await seedDraftCampaign(deps);
+    const { status, json } = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/schedule`, bodyInput);
+    assert.equal(status, 200, JSON.stringify(json));
+    const body = json as { data: { status: string; scheduledAt: string | null } };
+    assert.equal(body.data.status, "scheduled");
+    assert.equal(body.data.scheduledAt, fixedNow);
+    const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+    assert.equal(stored?.scheduledAt, fixedNow);
+    assert.equal(stored?.status, "scheduled");
   });
-  assert.equal(status, 200, JSON.stringify(json));
-  const body = json as { data: { status: string; scheduledAt: string | null } };
-  assert.equal(body.data.status, "scheduled");
-  assert.ok(body.data.scheduledAt);
-});
+}
 
 test("schedule-campaign: a caller-supplied scheduledAt string is honored verbatim (not silently overridden with 'now')", async (t) => {
   const { app, deps } = buildApp();
@@ -191,3 +198,17 @@ test("schedule-campaign: direct-invoke with an undefined body hits the `(rawBody
   await handler({ params: { workspaceId: WORKSPACE_ID, id: campaign.id }, body: undefined }, res);
   assert.equal(capture.statusCode, 200, JSON.stringify(capture.jsonBody));
 });
+
+
+for (const scheduledAt of ["tomorrow", "not-a-date", "2030-02-30T00:00:00.000Z"]) {
+  test(`schedule-campaign: invalid date-time ${scheduledAt} returns validation error and leaves the draft unchanged`, async (t) => {
+    const { app, deps } = buildApp();
+    const campaign = await seedDraftCampaign(deps);
+    const before = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+    const { status, json } = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/schedule`, { scheduledAt });
+    assert.equal(status, 400);
+    assert.equal((json as { code: string }).code, "NEWSLETTER_VALIDATION_ERROR");
+    assert.equal((json as { error: string }).error, "scheduledAt must be a valid ISO date-time string");
+    assert.deepEqual(await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id }), before);
+  });
+}
