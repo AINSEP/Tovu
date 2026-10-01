@@ -53,6 +53,7 @@ import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
+import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -220,6 +221,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // see `features/media-import/tool-registrations.ts`'s own header. Added at the same time the
   // contributor was, rather than after the completeness test above caught it.
   "media-import": mediaImportAgentToolCatalog as unknown as AgentToolDefinition[],
+  "media-view": mediaViewImageAgentToolCatalog as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],

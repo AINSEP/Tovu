@@ -31,6 +31,7 @@ import { contributeIdentityTools } from "#src/features/identity/tool-registratio
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
 import { contributeMediaTools } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "#src/features/media/duplicate-asset";
+import { contributeMediaViewImageTools } from "#src/features/media/view-image-tool";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
@@ -296,6 +297,7 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeIdentityTools());
   registerToolContributor(contributeWebhooksTools());
   registerToolContributor(contributeMediaTools());
+  registerToolContributor(contributeMediaViewImageTools());
   registerToolContributor(contributeMediaGenerationTools());
   registerToolContributor(contributeMediaImportTools());
   registerToolContributor(contributeMembersTools());

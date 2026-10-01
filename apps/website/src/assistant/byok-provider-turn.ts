@@ -28,6 +28,8 @@ import {
   runOpenAiToolTurn,
   type AnthropicMessageParam,
   type AnthropicToolCall,
+  type AnthropicToolResultContentBlock,
+  type AzureContentPart,
   type AnthropicToolDef,
   type AzureFunctionToolDef,
   type AzureMessageParam,
@@ -35,6 +37,8 @@ import {
   type GoogleContent,
   type GoogleToolCall,
   type GoogleToolDef,
+  type GoogleToolResultPart,
+  type OpenAiContentPart,
   type OpenAiFunctionToolDef,
   type OpenAiMessageParam,
   type OpenAiToolCall,
@@ -74,8 +78,19 @@ export interface ByokToolCall {
   readonly input: unknown;
 }
 
+/**
+ * One block of a tool result that carries more than text — the MCP content-block shape
+ * (`{type:'image', mimeType, data}`) a registered tool returns, e.g. `media_view_image`.
+ * Each `run*Turn` below maps it onto that provider's own image part; nothing here is
+ * provider-specific.
+ */
+export type ByokToolResultBlock =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "image"; readonly mimeType: string; readonly data: string };
+
 export interface ByokToolResult {
-  readonly content: string;
+  /** A string for an ordinary result; blocks only when the result carries an image. */
+  readonly content: string | readonly ByokToolResultBlock[];
   readonly isError?: boolean;
 }
 
@@ -130,6 +145,71 @@ export interface ByokProviderTurnResult {
  *  constant rather than two independently-typed string literals, so the fold and the detection can
  *  never drift apart. */
 const TOOL_ERROR_PREFIX = "[tool error] ";
+
+/** Anthropic's base64 image source accepts exactly these four types; anything else would be rejected
+ *  by the adapter's own guard, so it is passed through and left to that guard to report. */
+type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+/** Maps tool-result blocks onto Anthropic `tool_result` content (which carries images natively). */
+function toAnthropicToolContent(content: ByokToolResult["content"]): string | AnthropicToolResultContentBlock[] {
+  if (typeof content === "string") return content;
+  return content.map((block) =>
+    block.type === "text"
+      ? { type: "text", text: block.text }
+      : { type: "image", source: { type: "base64", media_type: block.mimeType as AnthropicImageMediaType, data: block.data } },
+  );
+}
+
+/** Maps tool-result blocks onto OpenAI/Azure content parts. The adapter moves the image parts into a
+ *  follow-up user message itself (a `tool` message is text-only on that wire). */
+function toOpenAiToolContent(content: ByokToolResult["content"]): string | OpenAiContentPart[] {
+  if (typeof content === "string") return content;
+  return content.map((block) =>
+    block.type === "text" ? { type: "text", text: block.text } : { type: "image_url", image_url: { url: `data:${block.mimeType};base64,${block.data}` } },
+  );
+}
+
+/** Maps tool-result blocks onto Gemini parts; the adapter appends `inlineData` beside the `functionResponse`. */
+function toGoogleToolContent(content: ByokToolResult["content"]): string | GoogleToolResultPart[] {
+  if (typeof content === "string") return content;
+  return content.map((block) => (block.type === "text" ? { text: block.text } : { inlineData: { mimeType: block.mimeType, data: block.data } }));
+}
+
+/** Prefixes a failed result with {@link TOOL_ERROR_PREFIX} for the two protocols with no error flag. */
+function foldToolError(content: string | OpenAiContentPart[], isError: boolean | undefined): string | OpenAiContentPart[] {
+  if (!isError) return content;
+  return typeof content === "string" ? `${TOOL_ERROR_PREFIX}${content}` : [{ type: "text", text: TOOL_ERROR_PREFIX.trimEnd() }, ...content];
+}
+
+/** The image's type, from whichever provider part shape carries one; `null` for a non-image part. */
+function imagePartMimeType(part: Record<string, unknown>): string | null {
+  const source = part.source as { media_type?: unknown } | undefined;
+  if (part.type === "image" && typeof source?.media_type === "string") return source.media_type;
+  const imageUrl = part.image_url as { url?: unknown } | undefined;
+  if (part.type === "image_url" && typeof imageUrl?.url === "string") return /^data:([^;,]+)/.exec(imageUrl.url)?.[1] ?? "url";
+  const inlineData = part.inlineData as { mimeType?: unknown } | undefined;
+  if (typeof inlineData?.mimeType === "string") return inlineData.mimeType;
+  return null;
+}
+
+/**
+ * The text a `tool_result` event shows in the chat pane. Text parts are kept, each image becomes
+ * `[image: <type>]` — never the base64 itself, which would put a megabyte of noise in the transcript.
+ * A plain string result is returned unchanged.
+ *
+ * @complexity O(parts).
+ */
+function describeToolResultContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return JSON.stringify(content);
+  return content
+    .map((part: Record<string, unknown>) => {
+      if (typeof part.text === "string") return part.text;
+      const mimeType = imagePartMimeType(part);
+      return mimeType === null ? JSON.stringify(part) : `[image: ${mimeType}]`;
+    })
+    .join("\n");
+}
 
 /** `ToolDescriptor.inputSchema` is `unknown` by contract (a schema dialect is a consumer concern —
  *  see that field's own doc in `@jini-ai/core`'s `tool-registry.ts`). Every provider here wants a
@@ -763,9 +843,9 @@ async function runAnthropicTurn(input: ByokProviderTurnInput): Promise<ByokProvi
     input_schema: inputSchemaOf(d),
   }));
   const messages: AnthropicMessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }));
-  const executeTool = async (call: AnthropicToolCall): Promise<{ content: string; isError?: boolean }> => {
+  const executeTool = async (call: AnthropicToolCall) => {
     const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    return result;
+    return { content: toAnthropicToolContent(result.content), ...(result.isError !== undefined ? { isError: result.isError } : {}) };
   };
   // Set by `onEvent` below off the adapter's own `{type:'end'}` — see `normalizeTurnResult`'s doc
   // for why this, not `result.stopReason`, is the reason a caller should actually be told.
@@ -791,7 +871,7 @@ async function runAnthropicTurn(input: ByokProviderTurnInput): Promise<ByokProvi
         input.onEvent({
           type: "tool_result",
           toolUseId: event.toolUseId,
-          content: typeof event.content === "string" ? event.content : JSON.stringify(event.content),
+          content: describeToolResultContent(event.content),
           isError: event.isError,
         });
         return;
@@ -817,7 +897,7 @@ async function runOpenAiTurn(input: ByokProviderTurnInput): Promise<ByokProvider
   // silent, contentless success.
   const executeTool = async (call: OpenAiToolCall) => {
     const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    return { content: result.isError ? `${TOOL_ERROR_PREFIX}${result.content}` : result.content };
+    return { content: foldToolError(toOpenAiToolContent(result.content), result.isError) };
   };
   // See `runAnthropicTurn`'s identical local for why this exists.
   let capturedEndReason: string | null = null;
@@ -843,8 +923,8 @@ async function runOpenAiTurn(input: ByokProviderTurnInput): Promise<ByokProvider
         // error styling, via `translateRunAgentPayload`) actually correct for a failed tool call —
         // without this, a denied/failed OpenAI-protocol tool call would render with no visual
         // distinction from a successful one.
-        const content = typeof event.content === "string" ? event.content : JSON.stringify(event.content);
-        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX) });
+        const content = describeToolResultContent(event.content);
+        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX.trimEnd()) });
         return;
       }
       input.onEvent(event as ByokTurnEvent);
@@ -871,7 +951,9 @@ async function runAzureTurn(input: ByokProviderTurnInput): Promise<ByokProviderT
   // `AzureToolResult` has no `isError` field, so a host failure is folded into `content`.
   const executeTool = async (call: AzureToolCall) => {
     const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    return { content: result.isError ? `${TOOL_ERROR_PREFIX}${result.content}` : result.content };
+    // `AzureContentPart` is structurally `OpenAiContentPart` (Azure's chat/completions body is
+    // byte-identical to OpenAI's), so the same mapping serves both.
+    return { content: foldToolError(toOpenAiToolContent(result.content), result.isError) as string | AzureContentPart[] };
   };
   // See `runAnthropicTurn`'s identical local for why this exists.
   let capturedEndReason: string | null = null;
@@ -890,8 +972,8 @@ async function runAzureTurn(input: ByokProviderTurnInput): Promise<ByokProviderT
       if (event.type === "end") capturedEndReason = event.reason;
       if (event.type === "tool_result") {
         // Same derivation as `runOpenAiTurn` above, same reason — see that function's comment.
-        const content = typeof event.content === "string" ? event.content : JSON.stringify(event.content);
-        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX) });
+        const content = describeToolResultContent(event.content);
+        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX.trimEnd()) });
         return;
       }
       input.onEvent(event as ByokTurnEvent);
@@ -921,7 +1003,7 @@ async function runGoogleTurn(input: ByokProviderTurnInput): Promise<ByokProvider
     // using that shape (`redirects_create`/`redirects_update`'s `statusCode` today).
     const coercedInput = coerceNumericEnumStringsToNumbers(call.input, numericEnumPathsByToolName.get(call.name) ?? []);
     const result = await input.executeTool({ id: call.id, name: call.name, input: coercedInput });
-    return result;
+    return { content: toGoogleToolContent(result.content), ...(result.isError !== undefined ? { isError: result.isError } : {}) };
   };
   // See `runAnthropicTurn`'s identical local for why this exists.
   let capturedEndReason: string | null = null;
@@ -943,7 +1025,7 @@ async function runGoogleTurn(input: ByokProviderTurnInput): Promise<ByokProvider
         input.onEvent({
           type: "tool_result",
           toolUseId: event.toolUseId,
-          content: typeof event.content === "string" ? event.content : JSON.stringify(event.content),
+          content: describeToolResultContent(event.content),
           isError: event.isError,
         });
         return;

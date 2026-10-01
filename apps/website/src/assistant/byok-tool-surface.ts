@@ -56,12 +56,13 @@ import type { McpSessionPort } from "./mcp-federation/ports.js";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-executor-stack.js";
+import type { ByokToolResultBlock } from "./byok-provider-turn.js";
 
 /** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
  *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight
  *  back to the provider adapter with no second mapping layer of its own. */
 export interface ByokMetaToolResult {
-  readonly content: string;
+  readonly content: string | readonly ByokToolResultBlock[];
   readonly isError?: boolean;
 }
 
@@ -244,7 +245,32 @@ function err(content: string): ByokMetaToolResult {
   return { content, isError: true };
 }
 
+/**
+ * The output's content blocks when it is an MCP content envelope (`{content: [...]}`) of only `text`
+ * and `image` blocks with at least one image — so a picture a tool returns (e.g.
+ * `media_view_image`) reaches the provider as an image, not as base64 inside a JSON
+ * string. Anything else, including a text-only envelope, returns `null` and keeps the JSON-string
+ * contract every other tool relies on. Whitelist, like `@jini-ai/mcp`'s `okResult()`: one unknown
+ * block type and the whole output stays a string.
+ *
+ * @complexity O(blocks).
+ */
+function imageContentBlocksOf(output: unknown): ByokToolResultBlock[] | null {
+  if (!isRecord(output) || !Array.isArray(output.content)) return null;
+  const blocks: ByokToolResultBlock[] = [];
+  for (const block of output.content as unknown[]) {
+    if (!isRecord(block)) return null;
+    if (block.type === "text" && typeof block.text === "string") blocks.push({ type: "text", text: block.text });
+    else if (block.type === "image" && typeof block.mimeType === "string" && typeof block.data === "string") {
+      blocks.push({ type: "image", mimeType: block.mimeType, data: block.data });
+    } else return null;
+  }
+  return blocks.some((block) => block.type === "image") ? blocks : null;
+}
+
 function ok(output: unknown): ByokMetaToolResult {
+  const blocks = imageContentBlocksOf(output);
+  if (blocks) return { content: blocks };
   return { content: typeof output === "string" ? output : JSON.stringify(output ?? null) };
 }
 

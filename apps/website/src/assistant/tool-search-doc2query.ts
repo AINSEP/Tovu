@@ -417,6 +417,13 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "How do I add a new image from a base64 file?",
     "If I upload the same picture twice, does it create two entries?",
   ],
+  media_view_image: [
+    "Write alt text for this image.",
+    "Can you look at this picture and tell me what it shows?",
+    "Describe the photo in the media library.",
+    "What is in this image? Suggest a caption.",
+    "Open the image and check it before I use it.",
+  ],
   media_update_metadata: [
     "Can you change the alt text on this image?",
     "How do I update the caption for a media file?",

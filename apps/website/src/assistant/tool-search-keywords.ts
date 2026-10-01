@@ -56,6 +56,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
   media_upload_asset: "image images photo upload uploads uploading add attach file files picture",
   media_trash_asset: "image images photo delete remove trash file picture attachment",
+  media_view_image:
+    "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
   media_update_metadata:
     "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
