@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
+import ts from "typescript";
 
 import {
   clearPersistedState,
@@ -79,12 +80,14 @@ describe("transcript-storage", () => {
       const storage = new FakeStorage();
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(["not", "an", "object"]));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("clears the key and starts empty when open is the wrong type", () => {
       const storage = new FakeStorage();
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: "yes", messages: [] }));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("clears the whole entry when a message's id is not a string", () => {
@@ -92,6 +95,7 @@ describe("transcript-storage", () => {
       const poisoned = { open: true, messages: [{ id: 42, role: "user", content: "fine" }] };
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("clears the whole entry when a message's content is not a string", () => {
@@ -99,6 +103,7 @@ describe("transcript-storage", () => {
       const poisoned = { open: true, messages: [{ id: "1", role: "user", content: 42 }] };
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("clears the whole entry when a message entry is not an object at all", () => {
@@ -106,6 +111,7 @@ describe("transcript-storage", () => {
       const poisoned = { open: true, messages: [message("1", "user", "fine"), "not an object"] };
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("clears the whole entry when even one message in the array is wrong-shaped", () => {
@@ -120,6 +126,7 @@ describe("transcript-storage", () => {
         { open: false, messages: [] },
         "no partial recovery — one bad message clears the entire stored entry, not just itself",
       );
+      assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
     });
 
     it("never throws when storage access itself throws", () => {
@@ -164,7 +171,26 @@ describe("transcript-storage", () => {
       const reloaded = loadPersistedState(storage);
       assert.ok(reloaded.messages.length < 15, "byte cap must trim before the 50-message count cap would ever trigger");
       assert.equal(reloaded.messages.at(-1)?.id, "14", "the newest survives; oldest are dropped first");
+      assert.deepEqual(reloaded.messages, messages.slice(6));
+      assert.ok(Buffer.byteLength(storage.getItem(TRANSCRIPT_STORAGE_KEY)!, "utf8") <= 200_000);
     });
+
+    it("drops a single message larger than the byte cap while retaining pane state", () => {
+      const storage = new FakeStorage();
+      savePersistedState(storage, { open: true, messages: [message("huge", "assistant", "x".repeat(200_001))] });
+      assert.deepEqual(JSON.parse(storage.getItem(TRANSCRIPT_STORAGE_KEY)!), { open: true, messages: [] });
+      assert.deepEqual(loadPersistedState(storage), { open: true, messages: [] });
+    });
+
+    for (const [character, retained] of [["界", 3], ["🙂", 2]] as const) {
+      it(`enforces the UTF-8 byte cap for ${character} transcripts`, () => {
+        const storage = new FakeStorage();
+        const messages = Array.from({ length: 5 }, (_, i) => message(`${i}`, "assistant", character.repeat(20_000)));
+        savePersistedState(storage, { open: true, messages });
+        assert.deepEqual(loadPersistedState(storage), { open: true, messages: messages.slice(5 - retained) });
+        assert.ok(Buffer.byteLength(storage.getItem(TRANSCRIPT_STORAGE_KEY)!, "utf8") <= 200_000);
+      });
+    }
 
     it("never throws when the underlying setItem throws (e.g. quota exceeded)", () => {
       const throwing: Storage = {
@@ -354,6 +380,27 @@ describe("real-sessionStorage-bound wrappers", () => {
  * read" — silently recreates the two-key-schemes-that-can-drift problem this consolidation fixed.
  * Do not delete this as pedantic; it is the only thing enforcing that the encapsulation holds.
  */
+function storageReferences(text: string): string[] {
+  const sf = ts.createSourceFile("storage.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const found = new Set<string>();
+  const names = new Set(["sessionStorage", "localStorage", "indexedDB"]);
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node) && names.has(node.text)) found.add(node.text);
+    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && names.has(node.argumentExpression.text)) found.add(node.argumentExpression.text);
+    if ((ts.isPropertyAccessExpression(node) && node.name.text === "cookie" && node.expression.getText(sf) === "document")
+      || (ts.isElementAccessExpression(node) && node.expression.getText(sf) === "document" && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === "cookie")) found.add("document.cookie");
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return [...found].sort();
+}
+
+it("the storage guard sees aliases and computed accesses, while ignoring comments", () => {
+  assert.deepEqual(storageReferences(`// sessionStorage localStorage indexedDB document.cookie
+const s = "sessionStorage";`), []);
+  assert.deepEqual(storageReferences(`const s = window.sessionStorage; const l = window["localStorage"]; indexedDB.open("chat"); document.cookie = "chat=x";`), ["document.cookie", "indexedDB", "localStorage", "sessionStorage"]);
+});
+
 describe("storage encapsulation guard", () => {
   it("only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src", () => {
     const testFileUrl = import.meta.url;
@@ -371,13 +418,15 @@ describe("storage encapsulation guard", () => {
           continue;
         }
         if (!/\.(ts|tsx)$/.test(entry.name)) continue;
-        if (allowedFiles.has(relativePath)) continue;
+        if (relativePath === path.join("__tests__", "session-store.test.ts")) continue;
         const contents = readFileSync(fullPath, "utf8");
-        if (contents.includes("sessionStorage")) offenders.push(relativePath);
+        const refs = storageReferences(contents);
+        const banned = refs.filter((ref) => ref !== "sessionStorage" || !allowedFiles.has(relativePath));
+        if (banned.length) offenders.push(`${relativePath}: ${banned.join(", ")}`);
       }
     }
     walk(srcDir);
 
-    assert.deepEqual(offenders, [], `sessionStorage must only be named in session-store.ts; found it in: ${offenders.join(", ")}`);
+    assert.deepEqual(offenders, [], `storage access must stay session-only and encapsulated; found: ${offenders.join(", ")}`);
   });
 });

@@ -141,6 +141,18 @@ test("media original video route: Range requests are honored — a <video> tag c
     assert.equal(res.headers.get("content-range"), `bytes 0-4/${bytes.byteLength}`);
     const slice = new Uint8Array(await res.arrayBuffer());
     assert.deepEqual(slice, bytes.subarray(0, 5));
+    for (const [range, start] of [["bytes=-5", bytes.byteLength - 5], ["bytes=5-", 5]] as const) {
+      const partial = await fetch(`${baseUrl}/m/${media.id}/original`, { headers: { Range: range } });
+      assert.equal(partial.status, 206);
+      assert.equal(partial.headers.get("content-range"), `bytes ${start}-${bytes.byteLength - 1}/${bytes.byteLength}`);
+      assert.equal(partial.headers.get("content-length"), String(bytes.byteLength - start));
+      assert.equal(partial.headers.get("accept-ranges"), "bytes");
+      assert.deepEqual(new Uint8Array(await partial.arrayBuffer()), bytes.subarray(start));
+    }
+    const unsatisfiable = await fetch(`${baseUrl}/m/${media.id}/original`, { headers: { Range: `bytes=${bytes.byteLength}-` } });
+    assert.equal(unsatisfiable.status, 416);
+    assert.equal(unsatisfiable.headers.get("content-range"), `bytes */${bytes.byteLength}`);
+    assert.equal((await unsatisfiable.arrayBuffer()).byteLength, 0);
   });
 });
 
@@ -199,8 +211,16 @@ test("media original video route: an anonymous caller is 404'd for a video whose
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
     assert.equal(memberRes.status, 200, "an entitled signed-in member must still get the real video");
+    assert.equal(memberRes.headers.get("cache-control"), "private, no-store");
     const body = new Uint8Array(await memberRes.arrayBuffer());
     assert.deepEqual(body, bytes);
+    const memberPartial = await fetch(`${baseUrl}/m/${media.id}/original`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}`, Range: "bytes=0-4" },
+    });
+    assert.equal(memberPartial.status, 206);
+    assert.equal(memberPartial.headers.get("cache-control"), "private, no-store");
+    assert.equal(memberPartial.headers.get("content-range"), `bytes 0-4/${bytes.byteLength}`);
+    assert.deepEqual(new Uint8Array(await memberPartial.arrayBuffer()), bytes.subarray(0, 5));
   });
 });
 

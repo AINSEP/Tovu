@@ -95,3 +95,18 @@ test("credentials: the port carries workspaceId today even though env resolution
     secretKey: "sk_live",
   });
 });
+
+
+test("credentials: the production env adapter reads process.env when no options are passed", async () => {
+  const values = { TOVU_PAYMENT_LIPAY_SECRET_KEY: " sk_process ", TOVU_PAYMENT_LIPAY_WEBHOOK_SECRET: "whsec_process" };
+  const previous = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, values);
+  try {
+    assert.deepEqual(await new EnvPaymentCredentials().getCredentials({ workspaceId: WORKSPACE_ID, providerId: "lipay", keys: ["secretKey", "webhookSecret"] }), { secretKey: "sk_process", webhookSecret: "whsec_process" });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

@@ -82,3 +82,23 @@ test("the identity record itself is never overwritten by a later mismatched decl
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+
+for (const signed of [false, true]) {
+  test(signed ? "distinct present signatures require consent and preserve the original identity" : "a publisher-only provenance change requires consent and preserves the original identity", async () => {
+    const { db, dir } = openDb();
+    try {
+      const provenance = { sourceUrl: "https://example.com/a", publisher: "acme", ...(signed ? { signature: "sig-original" } : {}) };
+      await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance });
+      const before = await getPluginIdentity({ db, pluginId: "plugin-a" });
+      const changed = signed ? { ...provenance, signature: "sig-different" } : { ...provenance, publisher: "impostor" };
+      const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: changed });
+      assert.equal(decision.allowed, false);
+      assert.equal(decision.track, "consent-required");
+      assert.deepEqual(await getPluginIdentity({ db, pluginId: "plugin-a" }), before);
+    } finally {
+      db.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}

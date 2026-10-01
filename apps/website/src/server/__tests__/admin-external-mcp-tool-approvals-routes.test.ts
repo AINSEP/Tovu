@@ -76,15 +76,23 @@ test("revoking removes exactly that tool's Always allow, and a second revoke is 
   const { app, repo } = buildTestApp();
   await seed(repo, "github", "search_repositories");
   await seed(repo, "github", "get_file");
+  await seed(repo, "linear", "search_repositories");
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const del = await req(baseUrl, `${BASE}/github/tool-approvals/search_repositories`, cookie, { method: "DELETE" });
+  const del = await req(baseUrl, `${BASE}/linear/tool-approvals/search_repositories`, cookie, { method: "DELETE" });
   assert.equal(del.status, 200);
   assert.deepEqual(await del.json(), { removed: true });
-  assert.equal(await repo.find({ workspaceId: WORKSPACE_ID as UUID, serverId: "github", toolName: "search_repositories" }), null);
+  assert.equal(await repo.find({ workspaceId: WORKSPACE_ID as UUID, serverId: "linear", toolName: "search_repositories" }), null);
   assert.notEqual(await repo.find({ workspaceId: WORKSPACE_ID as UUID, serverId: "github", toolName: "get_file" }), null);
 
-  const again = await req(baseUrl, `${BASE}/github/tool-approvals/search_repositories`, cookie, { method: "DELETE" });
+  const remaining = await req(baseUrl, `${BASE}/tool-approvals`, cookie);
+  assert.equal(remaining.status, 200);
+  assert.deepEqual((await remaining.json() as { approvals: Array<{ serverId: string; toolName: string }> }).approvals.map(({ serverId, toolName }) => ({ serverId, toolName })), [
+    { serverId: "github", toolName: "get_file" },
+    { serverId: "github", toolName: "search_repositories" },
+  ]);
+
+  const again = await req(baseUrl, `${BASE}/linear/tool-approvals/search_repositories`, cookie, { method: "DELETE" });
   assert.equal(again.status, 404);
   assert.deepEqual(await again.json(), { error: "no Always allow is saved for that tool", code: "NOT_FOUND" });
 });

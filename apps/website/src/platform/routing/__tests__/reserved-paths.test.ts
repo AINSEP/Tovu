@@ -48,6 +48,10 @@ const RESERVED: readonly (readonly [string, "admin" | "api"])[] = [
   ["/AdMiN/settings", "admin"],
   ["/blog/../admin", "admin"],
   ["/blog/%2e%2e/admin", "admin"],
+  ["/blog%2F..%2Fadmin", "admin"],
+  ["/blog%2f%2e%2e%2fAPI/tools", "api"],
+  ["/one%2Ftwo%2F..%2F..%2Fadmin", "admin"],
+  ["/x%23section%2F..%2Fapi", "api"],
   ["//admin", "admin"],
   ["/api", "api"],
   ["/api/admin/v1/auth/me", "api"],
@@ -132,7 +136,17 @@ test("checkSiteRelativeTarget still applies the reserved-surface rule after pars
   assert.deepEqual(checkSiteRelativeTarget("/%61dmin/settings?x=1"), { kind: "reserved", surface: "admin" });
 });
 
+test("checkSiteRelativeTarget reports an unparseable reference", () => {
+  assert.deepEqual(checkSiteRelativeTarget("http://["), { kind: "unparseable" });
+});
+
 test("hasControlCharacter finds C0 and C1 but not printable ASCII", () => {
+  for (const [code, expected] of [
+    [0x00, true], [0x1f, true], [0x20, false], [0x7e, false],
+    [0x7f, true], [0x80, true], [0x9f, true], [0xa0, false],
+  ] as const) {
+    assert.equal(hasControlCharacter(`/ok${String.fromCharCode(code)}`), expected, `U+${code.toString(16)}`);
+  }
   assert.equal(hasControlCharacter("/ok"), false);
   assert.equal(hasControlCharacter("/ok\n"), true);
   assert.equal(hasControlCharacter("/ok"), true);
@@ -153,7 +167,7 @@ test("published_page_fetch's path validator refuses exactly what the shared rule
   // structural rules (`//...` protocol-relative, `..` traversal) — those would pass this assertion
   // for the wrong reason and pin nothing.
   const pinned = RESERVED.map(([pathname]) => pathname).filter(
-    (pathname) => !pathname.startsWith("//") && !pathname.includes("..") && !pathname.includes("%2e")
+    (pathname) => !pathname.startsWith("//") && !pathname.includes("..") && !pathname.includes("%2e") && !/%2f/i.test(pathname)
   );
   assert.ok(pinned.length >= 10, `expected the pin to still cover the rule, got ${pinned.length} cases`);
 

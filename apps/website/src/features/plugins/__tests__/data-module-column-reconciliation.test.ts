@@ -49,7 +49,10 @@ test("dataModule: a missing nullable column on an already-existing table is adde
   const first = await declareDataModule({ db, dbPath, decl: v1 });
   assert.equal(first.ok, true, JSON.stringify(first.error));
 
-  const v2 = { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns, { name: "sku", type: "TEXT" as const }] }] };
+  const v2 = { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns,
+    { name: "sku", type: "TEXT" as const }, { name: "quantity", type: "INTEGER" as const },
+    { name: "weight", type: "REAL" as const }, { name: "payload", type: "BLOB" as const },
+  ] }] };
   const second = await declareDataModule({ db, dbPath, decl: v2 });
 
   assert.equal(second.ok, true, JSON.stringify(second.error));
@@ -57,7 +60,11 @@ test("dataModule: a missing nullable column on an already-existing table is adde
   assert.deepEqual(second.altered, ["p_coltest__widgets"], "the existing table is reported as altered");
   assert.ok(second.snapshotPath, "a pre-DDL snapshot was still taken for an ALTER, same as for a CREATE");
   assert.equal(fs.existsSync(second.snapshotPath!), false, "the snapshot is discarded once the migration commits");
-  assert.deepEqual(liveColumns(db, "p_coltest__widgets"), ["id", "title", "sku"], "the new column now exists");
+  assert.deepEqual(liveColumns(db, "p_coltest__widgets"), ["id", "title", "sku", "quantity", "weight", "payload"], "the new columns now exist");
+  const types = (db.prepare('PRAGMA table_info("p_coltest__widgets")').all() as Array<{ name: string; type: string }>).map(({ name, type }) => [name, type]);
+  assert.deepEqual(types, [["id", "TEXT"], ["title", "TEXT"], ["sku", "TEXT"], ["quantity", "INTEGER"], ["weight", "REAL"], ["payload", "BLOB"]]);
+  db.prepare("INSERT INTO p_coltest__widgets (id, sku, quantity, weight, payload) VALUES (?, ?, ?, ?, ?)").run("w1", "sku-1", 42, 1.25, Buffer.from([0, 255]));
+  assert.deepEqual(db.prepare("SELECT sku, quantity, weight, payload FROM p_coltest__widgets WHERE id = 'w1'").get(), { sku: "sku-1", quantity: 42, weight: 1.25, payload: Buffer.from([0, 255]) });
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });

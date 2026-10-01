@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
@@ -179,4 +181,35 @@ test("maxEntries counts directories too, so a wide tree of empty folders cannot 
 
   assert.deepEqual(result.files, []);
   assert.equal(result.truncated, true);
+});
+
+
+test("a regular file replaced by a symlink after listing never exposes the target", async (t) => {
+  const root = await tempRoot(t);
+  const pkg = path.join(root, "pkg");
+  const victim = path.join(pkg, "victim.txt");
+  const secret = path.join(root, "secret.txt");
+  await writeTree(root, { "secret.txt": "TOP-SECRET-OUTSIDE", "pkg/victim.txt": "regular file" });
+  const pkgReal = await fsPromises.realpath(pkg);
+  const originalReaddir = fsPromises.readdir;
+  let swapped = false;
+  const spy = t.mock.method(fsPromises, "readdir", async (...args: Parameters<typeof fsPromises.readdir>) => {
+    const entries = await originalReaddir(...args);
+    if (args[0] === pkgReal && !swapped) {
+      await rm(victim);
+      await symlink(secret, victim);
+      swapped = true;
+    }
+    return entries;
+  });
+  syncBuiltinESMExports();
+  try {
+    const result = await readPluginPackageFiles({ input: { rootDir: pkg, containerDir: root } });
+    assert.equal(swapped, true, "fixture must swap only after the regular Dirent is captured");
+    assert.deepEqual(result.files, [{ relativePath: "victim.txt", sizeBytes: 0, content: null, omitted: "symlink" }]);
+    assert.equal(JSON.stringify(result).includes("TOP-SECRET-OUTSIDE"), false);
+  } finally {
+    spy.mock.restore();
+    syncBuiltinESMExports();
+  }
 });

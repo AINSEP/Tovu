@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminContentTypeListRoute } from "../../inbound/admin-http/routes/content-types/list.js";
@@ -53,15 +53,21 @@ test("content-types routes: register -> list -> update-fields -> lifecycle golde
     ["recipe"]
   );
 
+  const fields = [{ name: "prep_minutes", kind: "integer", required: false, queryable: true }, { name: "servings", kind: "integer", required: false, queryable: false }];
   const updateRes = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ fields: [{ name: "prep_minutes", kind: "integer", required: false, queryable: true }, { name: "servings", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+    body: JSON.stringify({ fields, expectedVersion: 1 }),
   });
   assert.equal(updateRes.status, 200);
   const updated = (await updateRes.json()) as { contentType: { version: number; fields: unknown[] } };
   assert.equal(updated.contentType.version, 2);
   assert.equal(updated.contentType.fields.length, 2);
+  assert.deepEqual(updated.contentType.fields, fields);
+  const persistedRes = await fetch(`${baseUrl}/api/admin/v1/content-types`, { headers: { cookie } });
+  assert.equal(persistedRes.status, 200);
+  const persisted = await persistedRes.json();
+  assert.deepEqual(persisted.items.find((item: { key: string }) => item.key === "recipe").fields, fields);
 
   const deprecateRes = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/lifecycle`, {
     method: "POST",
@@ -71,6 +77,42 @@ test("content-types routes: register -> list -> update-fields -> lifecycle golde
   assert.equal(deprecateRes.status, 200);
   const deprecated = (await deprecateRes.json()) as { contentType: { status: string } };
   assert.equal(deprecated.contentType.status, "deprecated");
+  const afterDeprecation = await fetch(`${baseUrl}/api/admin/v1/content-types`, { headers: { cookie } });
+  assert.equal(afterDeprecation.status, 200);
+  const finalState = (await afterDeprecation.json()).items.find((item: { key: string }) => item.key === "recipe");
+  assert.equal(finalState.status, "deprecated");
+  assert.deepEqual(finalState.fields, fields);
+});
+
+test("content-types routes: a principal without grants is denied by each route before changing stored definitions", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const seed = await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST", headers: { cookie: ownerCookie, "content-type": "application/json" },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+  assert.equal(seed.status, 201);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl);
+  const beforeRes = await fetch(`${baseUrl}/api/admin/v1/content-types`, { headers: { cookie: ownerCookie } });
+  assert.equal(beforeRes.status, 200);
+  const before = await beforeRes.json();
+  for (const [method, suffix, body, permission] of [
+    ["GET", "", undefined, "admin.collections.read"],
+    ["POST", "", { key: "denied", label: "Denied", fields: [] }, "admin.collections.manage"],
+    ["PUT", "/recipe/fields", { fields: [], expectedVersion: 1 }, "admin.collections.manage"],
+  ] as const) {
+    const denied = await fetch(`${baseUrl}/api/admin/v1/content-types${suffix}`, {
+      method, headers: { cookie, "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    assert.equal(denied.status, 403, method);
+    const error = await denied.json();
+    assert.equal(error.code, "FORBIDDEN");
+    assert.equal(error.details.permission, permission, "the route's own gate provides structured permission details");
+    assert.equal(error.details.reason, "no_grant");
+  }
+  const afterRes = await fetch(`${baseUrl}/api/admin/v1/content-types`, { headers: { cookie: ownerCookie } });
+  assert.equal(afterRes.status, 200);
+  assert.deepEqual(await afterRes.json(), before);
 });
 
 test("content-types routes: registering a reserved key ('post') is rejected VALIDATION_ERROR (ADR-043 §4)", async (t) => {

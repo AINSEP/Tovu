@@ -10,6 +10,7 @@
  * that store's functions, from the right places, bound the right way.
  */
 import test from "node:test";
+import ts from "typescript";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -42,32 +43,109 @@ test("captureSitePreview loads the site's OWN public root, never /admin/", () =>
   assert.doesNotMatch(body, /\/admin\//, "must never navigate the capture window to /admin/");
 });
 
-test("captureSitePreview's window is hidden and scoped to the site's own partition", () => {
+/** Execute the actual declaration with Electron/I/O boundaries supplied by the test. */
+function executable(name: string, deps: Record<string, unknown>) {
+  const sf = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
+  const declaration = sf.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+  assert.ok(declaration, name);
+  const js = ts.transpile(declaration.getText(sf), { target: ts.ScriptTarget.ES2022 });
+  return new Function(...Object.keys(deps), `${js}; return ${name};`)(...Object.values(deps));
+}
+
+function captureHarness(failAt?: "load" | "capture" | "store") {
+  const options: any[] = [];
+  const writes: unknown[][] = [];
+  const warnings: unknown[][] = [];
+  const urls: string[] = [];
+  let destroyed = false;
+  const resizedBytes = Buffer.from("resized png");
+  const deps = {
+    BrowserWindow: class {
+      constructor(opts: unknown) { options.push(opts); }
+      async loadURL(url: string) { urls.push(url); if (failAt === "load") throw new Error("load failed"); }
+      isDestroyed() { return destroyed; }
+      destroy() { destroyed = true; }
+      webContents = { capturePage: async () => {
+        if (failAt === "capture") throw new Error("capture failed");
+        return {
+          toPNG: () => Buffer.from("original png"),
+          resize: (opts: unknown) => {
+            assert.deepEqual(opts, { width: 320 });
+            return { toPNG: () => resizedBytes };
+          },
+        };
+      } };
+    },
+    app: { getPath: (key: string) => { assert.equal(key, "userData"); return "/profile"; } },
+    writePreview: (...args: unknown[]) => { if (failAt === "store") throw new Error("store failed"); writes.push(args); },
+    console: { warn: (...args: unknown[]) => warnings.push(args) },
+    setTimeout: (callback: () => void) => { callback(); },
+    PREVIEW_CAPTURE_WIDTH_PX: 1280, PREVIEW_CAPTURE_HEIGHT_PX: 800,
+    PREVIEW_PAINT_SETTLE_MS: 0, PREVIEW_WIDTH_PX: 320,
+  };
+  return { run: executable("captureSitePreview", deps), options, writes, warnings, urls, resizedBytes, destroyed: () => destroyed };
+}
+
+test("captureSitePreview's window is hidden and scoped to the site's own partition", async () => {
   const body = functionBody("captureSitePreview");
   const windowOptions = body.match(/new BrowserWindow\(\{[\s\S]*?\}\);/);
   assert.ok(windowOptions, "expected a new BrowserWindow(...) in captureSitePreview");
-  assert.match(windowOptions[0], /show:\s*false/, "the capture window must never be shown");
-  assert.match(windowOptions[0], /partition/, "the capture window must be scoped to the site's own partition");
+  assert.match(windowOptions[0], /show:\s*false/);
+  assert.match(windowOptions[0], /partition/);
+  const h = captureHarness();
+  await h.run("/sites/alpha", 8123, "persist:alpha-auth");
+  assert.equal(h.options.length, 1);
+  assert.equal(h.options[0].show, false);
+  assert.equal(h.options[0].webPreferences.partition, "persist:alpha-auth");
+  assert.deepEqual(h.urls, ["http://127.0.0.1:8123/"]);
 });
 
-test("captureSitePreview writes through writePreview, keyed by siteDir, resized before storage", () => {
+test("captureSitePreview writes through writePreview, keyed by siteDir, resized before storage", async () => {
   const body = functionBody("captureSitePreview");
   assert.match(body, /capturePage\(\)/);
-  assert.match(body, /\.resize\(\{[^}]*\}\)/, "the captured image must be downscaled before it is stored");
+  assert.match(body, /\.resize\(\{[^}]*\}\)/);
   assert.match(body, /writePreview\(app\.getPath\("userData"\),\s*siteDir,/);
+  const h = captureHarness();
+  await h.run("/sites/beta", 8124, "persist:beta");
+  assert.deepEqual(h.writes, [["/profile", "/sites/beta", h.resizedBytes]]);
+  assert.equal(h.destroyed(), true);
 });
 
-test("captureSitePreview never throws past its own boundary — every failure is caught and logged", () => {
+test("captureSitePreview never throws past its own boundary — every failure is caught and logged", async () => {
   const body = functionBody("captureSitePreview");
-  assert.match(body, /catch \(error\)/, "a failed capture must be swallowed, not propagated");
-  assert.match(body, /finally/, "the hidden window must be torn down whether the capture succeeded or not");
+  assert.match(body, /catch \(error\)/);
+  assert.match(body, /finally/);
+  for (const stage of ["load", "capture", "store"] as const) {
+    const h = captureHarness(stage);
+    await assert.doesNotReject(() => h.run("/sites/failing", 8125, "persist:fail"));
+    assert.equal(h.warnings.length, 1, stage);
+    assert.match(String(h.warnings[0][0]), new RegExp(`${stage} failed`));
+    assert.equal(h.destroyed(), true, stage);
+    assert.deepEqual(h.writes, []);
+  }
 });
 
 test("scheduleSitePreview captures a site at most once per process run", () => {
   const body = functionBody("scheduleSitePreview");
-  assert.match(body, /previewCapturedThisRun\.has\(siteDir\)/, "must check the run-scoped guard before scheduling");
-  assert.match(body, /previewCapturedThisRun\.add\(siteDir\)/, "must mark the site captured before the timer fires");
-  assert.match(body, /setTimeout\(/, "must debounce past first-boot settle rather than capturing immediately");
+  assert.match(body, /previewCapturedThisRun\.has\(siteDir\)/);
+  assert.match(body, /previewCapturedThisRun\.add\(siteDir\)/);
+  assert.match(body, /setTimeout\(/);
+  const timers: Array<() => void> = [];
+  const captures: unknown[][] = [];
+  const schedule = executable("scheduleSitePreview", {
+    previewCapturedThisRun: new Set<string>(),
+    PREVIEW_CAPTURE_DEBOUNCE_MS: 1500,
+    setTimeout: (fn: () => void, ms: number) => { assert.equal(ms, 1500); timers.push(fn); },
+    captureSitePreview: (...args: unknown[]) => captures.push(args),
+  });
+  schedule("/sites/alpha", 8123, "persist:alpha");
+  schedule("/sites/alpha", 8123, "persist:alpha");
+  assert.equal(timers.length, 1);
+  assert.deepEqual(captures, []);
+  for (const timer of timers) timer();
+  assert.deepEqual(captures, [["/sites/alpha", 8123, "persist:alpha"]]);
+  schedule("/sites/alpha", 8123, "persist:alpha");
+  assert.equal(timers.length, 1);
 });
 
 test("both places a site enters openSites schedule its preview capture", () => {

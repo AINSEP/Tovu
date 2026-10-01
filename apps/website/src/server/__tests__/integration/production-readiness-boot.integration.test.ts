@@ -1,11 +1,110 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
 import { CAPABILITY_INVENTORY } from "../../runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "../../runtime/boot/production-readiness-gate.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
+import { toPublicUnsubscribeDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
+
+async function withComposedSite(
+  t: test.TestContext,
+  mode: "local" | "production",
+  exercise: (required: { dbPath: string; root: string; open: () => Promise<Awaited<ReturnType<typeof createSiteRouteDeps>>>; close: () => Promise<void> }) => Promise<void>
+): Promise<void> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-production-composition-"));
+  const cwd = process.cwd();
+  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_INTEGRATIONS_ROOT_KEY", "TOVU_SITE_KEY"];
+  const original = new Map(names.map((name) => [name, process.env[name]]));
+  const home = t.mock.method(os, "homedir", () => root);
+  syncBuiltinESMExports();
+  let closeStore: (() => Promise<void>) | undefined;
+  const close = async () => {
+    const current = closeStore;
+    closeStore = undefined;
+    await current?.();
+  };
+  try {
+    process.chdir(root);
+    process.env.TOVU_RUNTIME_MODE = mode;
+    process.env.TOVU_ADMIN_PASSWORD = "composition-test-password";
+    process.env.ANALYTICS_ROOT_KEY_SEED = "12".repeat(32);
+    process.env.TOVU_INTEGRATIONS_ROOT_KEY = "34".repeat(32);
+    delete process.env.TOVU_SITE_KEY;
+    const dbPath = path.join(root, "site", "content.db");
+    fs.mkdirSync(path.dirname(dbPath));
+    const open = async () => {
+      assert.equal(closeStore, undefined, "close the previous composition before reopening");
+      const deps = await createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => { closeStore = () => store.close(); } });
+      await Promise.all(Object.values(deps).filter((value) => value instanceof Promise));
+      // Drain the SQLite boot writers chained off the exposed readiness promises.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      // An empty batch waits for the unexposed mailer boot lookup without sending mail.
+      await deps.mailer.sendBatch([], {
+        idempotencyKey: "composition-fixture-drain", workspaceId: deps.workspaceId,
+        sourceContext: { module: "composition-test" }, lane: "interactive",
+      });
+      return deps;
+    };
+    await exercise({ dbPath, root, open, close });
+  } finally {
+    try {
+      await close();
+    } finally {
+      process.chdir(cwd);
+      home.mock.restore();
+      syncBuiltinESMExports();
+      for (const [name, value] of original) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+}
+
+for (const mode of ["local", "production"] as const) {
+  test(`composed public unsubscribe in ${mode} refuses a missing key without minting one`, async (t) => {
+    await withComposedSite(t, mode, async ({ root, open }) => {
+      const deps = await open();
+      delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+      const localKey = path.join(root, ".tovu", "integrations-root-key.hex");
+      const productionKey = path.join(root, "sites", ".tovu", "integrations-root-key.hex");
+      await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /no root key/);
+      assert.equal(fs.existsSync(localKey), false);
+      assert.equal(fs.existsSync(productionKey), false);
+      if (mode === "production") {
+        fs.mkdirSync(path.dirname(productionKey), { recursive: true });
+        fs.writeFileSync(productionKey, "56".repeat(32));
+        await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /allowFileFallback is disabled/);
+        assert.equal(fs.readFileSync(productionKey, "utf8"), "56".repeat(32));
+      }
+    });
+  });
+}
+
+test("the real production gateway keeps a pending confirmation token after closing and reopening its site", async (t) => {
+  await withComposedSite(t, "production", async ({ open, close }) => {
+    const record = {
+      confirmationToken: "ctok-production-restart", planHash: "distinct-plan-hash", scopeId: "workspace-production",
+      confirmerPrincipalId: "principal-production", status: "minted" as const,
+      createdAt: "2026-10-01T00:00:00.000Z", expiresAt: "2026-10-01T00:10:00.000Z",
+    };
+    const first = await open();
+    await first.gatedMutations.gatewayDeps.tokens.save(record);
+    await close();
+    const reopened = await open();
+    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.findByToken(record.confirmationToken), record);
+    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.tryRedeem({ token: record.confirmationToken, now: "2026-10-01T00:05:00.000Z" }), {
+      redeemed: true, record: { ...record, status: "redeemed" },
+    });
+  });
+});
 
 /**
  * @file SPEC-022 — real-composition integration coverage (AC-01, AC-05, AC-12, AC-23/24,

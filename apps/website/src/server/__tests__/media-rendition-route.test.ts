@@ -4,9 +4,10 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
+import sharp from "sharp";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { registerTransform, uploadMedia, trashMedia, updateMediaMetadata, ImageSourceCorruptError, ImageTransformUnavailableError } from "../../features/media/index.js";
+import { registerTransform, uploadMedia, trashMedia, updateMediaMetadata, ImageSourceCorruptError, ImageTransformUnavailableError, SharpImageTransformer } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
 import type { MemberSessionRecord } from "../../features/members/index.js";
 import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
@@ -51,7 +52,7 @@ function bytesFrom(content: string): Uint8Array {
  * compile-time catch here, since both are plain object literals — this was
  * caught by a fresh test run, not by `tsc`).
  */
-async function uploadOne(deps: ReturnType<typeof createRouteDeps>, content: string, filename = "a.png") {
+async function uploadOne(deps: ReturnType<typeof createRouteDeps>, content: string | Uint8Array, filename = "a.png") {
   return uploadMedia({
     deps: {
       clock: deps.clock,
@@ -63,7 +64,7 @@ async function uploadOne(deps: ReturnType<typeof createRouteDeps>, content: stri
     },
     input: {
       workspaceId: deps.workspaceId,
-      bytes: bytesFrom(content),
+      bytes: typeof content === "string" ? bytesFrom(content) : content,
       filename,
       contentType: "image/png",
       createdByPrincipal: "user-1",
@@ -122,6 +123,13 @@ test("media rendition route: an already-generated rendition serves 200 with the 
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "hero-photo-bytes", "hero.png");
     const { definition } = await registerOne(deps, "thumb", { width: 100, height: 100, format: "webp" });
+    const expectedBytes = new Uint8Array(await sharp({ create: { width: 100, height: 100, channels: 3, background: { r: 17, g: 83, b: 151 } } }).webp().toBuffer());
+    const { storageKey } = await deps.blobStore.put({ workspaceId: deps.workspaceId, sha256: createHash("sha256").update(expectedBytes).digest("hex"), bytes: expectedBytes });
+    await deps.assetRenditionRepo.save({
+      id: "seeded-thumb-rendition", workspaceId: deps.workspaceId, assetId: media.id, transformName: definition.name,
+      version: definition.version, storageKey, createdAt: deps.clock.nowIso(),
+    });
+    deps.imageTransformer = { transform: async () => { assert.fail("an existing rendition must be served without regeneration"); } };
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`);
     assert.equal(res.status, 200);
@@ -129,6 +137,27 @@ test("media rendition route: an already-generated rendition serves 200 with the 
     assert.equal(res.headers.get("content-type"), "image/webp");
     const body = new Uint8Array(await res.arrayBuffer());
     assert.ok(body.byteLength > 0);
+    assert.deepEqual(body, expectedBytes);
+  });
+});
+
+test("media rendition route: real pixel transformation returns a decodable resized PNG", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const source = await sharp({ create: { width: 12, height: 8, channels: 3, background: { r: 17, g: 83, b: 151 } } }).png().toBuffer();
+    const { media } = await uploadOne(deps, source, "pixels.png");
+    const { definition } = await registerOne(deps, "pixel-check", { width: 6, height: 4, format: "png" });
+    deps.imageTransformer = new SharpImageTransformer();
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/pixels.png`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "image/png");
+    const output = Buffer.from(await res.arrayBuffer());
+    const metadata = await sharp(output).metadata();
+    assert.equal(metadata.format, "png");
+    assert.equal(metadata.width, 6);
+    assert.equal(metadata.height, 4);
+    const { data, info } = await sharp(output).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    assert.equal(info.channels, 3);
+    assert.deepEqual(data, Buffer.from(Array.from({ length: 24 }, () => [17, 83, 151]).flat()));
   });
 });
 

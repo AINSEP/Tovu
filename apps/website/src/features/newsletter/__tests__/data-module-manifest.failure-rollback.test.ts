@@ -24,7 +24,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { declareDataModule, type DataModuleDecl } from "../../plugins/data-module.js";
-import { NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
+import { installNewsletterDataModule, NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-newsletter-dm-"));
@@ -122,6 +122,7 @@ test("data-module-manifest: a mid-DDL failure against the REAL 5-table manifest 
   // The recovery snapshot itself is the PRE-DDL state: core content present, no newsletter tables at all.
   const snap = new Database(result.recoveryPoint!);
   assert.ok(tableExists(snap, "workspaces"), "recovery snapshot captured pre-existing core content");
+  assert.deepEqual(snap.prepare("SELECT * FROM workspaces").all(), preExistingWorkspaceRows, "recovery snapshot retains the core rows, not just their schema");
   for (const fq of ALL_NEWSLETTER_TABLE_NAMES) {
     assert.equal(tableExists(snap, fq), false, `recovery snapshot predates ${fq} — it is the PRE-DDL anchor`);
   }
@@ -152,4 +153,18 @@ test("data-module-manifest: after a rolled-back attempt, a clean retry of the RE
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+
+test("installNewsletterDataModule rejects a real declaration failure instead of continuing boot", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  try {
+    db.exec("CREATE TABLE p_newsletter__lists (id INTEGER PRIMARY KEY)");
+    await assert.rejects(() => installNewsletterDataModule({ db, dbPath }), /newsletter dataModule declaration failed: COLUMN_TYPE_MISMATCH/);
+    assert.deepEqual(db.prepare("SELECT * FROM workspaces").all(), [{ id: "ws-1", name: "Acme" }]);
+    assert.equal(tableExists(db, NEWSLETTER_TABLE_NAMES.sends), false);
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

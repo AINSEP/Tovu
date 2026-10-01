@@ -5,6 +5,8 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import ts from "typescript";
 
 import { startVisibleInterval } from "./visible-interval.js";
 import type { IntervalTimers, VisibilitySource } from "./visible-interval.js";
@@ -29,11 +31,14 @@ function fakeDocument(initial: DocumentVisibilityState): VisibilitySource & {
   };
 }
 
-function fakeTimers(): IntervalTimers & { running: () => number; fire: () => void } {
+function fakeTimers(): IntervalTimers & { running: () => number; fire: () => void; periods: number[] } {
   const active = new Map<number, () => void>();
   let next = 1;
+  const periods: number[] = [];
   return {
-    setInterval: (callback) => {
+    periods,
+    setInterval: (callback, ms) => {
+      periods.push(ms);
       active.set(next, callback);
       return next++;
     },
@@ -53,6 +58,7 @@ test("ticks on its period while the window is visible", () => {
   let ticks = 0;
   startVisibleInterval(() => ticks++, 4000, doc, timers);
   assert.equal(timers.running(), 1);
+  assert.deepEqual(timers.periods, [4000]);
   timers.fire();
   timers.fire();
   assert.equal(ticks, 2);
@@ -100,4 +106,32 @@ test("the returned stop clears the timer and the listener", () => {
   doc.set("hidden");
   doc.set("visible");
   assert.equal(ticks, 0);
+});
+
+// Execute the real polling hook's effect with only React and IPC boundaries supplied.
+test("the projects polling hook schedules its listSites callback every 4000ms", async () => {
+  const text = fs.readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8");
+  const sf = ts.createSourceFile("App.hooks.ts", text, ts.ScriptTarget.Latest, true);
+  const node = sf.statements.find((stmt) => ts.isFunctionDeclaration(stmt) && stmt.name?.text === "useSitesPolling");
+  assert.ok(node);
+  const js = ts.transpile(node.getText(sf).replace(/^export /, ""), { target: ts.ScriptTarget.ES2022 });
+  let calls = 0;
+  let poll: (() => void) | undefined;
+  let cleanup: (() => void) | undefined;
+  let stopped = false;
+  const hook = new Function("useState", "useEffect", "runnerInventoryBridge", "startVisibleInterval", `${js}; return useSitesPolling;`)(
+    (initial: unknown) => [initial, () => {}],
+    (effect: () => () => void) => { cleanup = effect(); },
+    () => ({ listSites: async () => { calls++; return []; } }),
+    (tick: () => void, period: number) => { assert.equal(period, 4000); poll = tick; return () => { stopped = true; }; },
+  );
+  hook();
+  assert.equal(calls, 1, "initial load");
+  assert.ok(poll);
+  poll();
+  assert.equal(calls, 2, "the interval callback loads projects");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(cleanup);
+  cleanup();
+  assert.equal(stopped, true);
 });

@@ -58,6 +58,25 @@ function aboutHeading(page: Page): Locator {
   return page.getByRole("heading", { level: 1, name: ABOUT_TARGET.title, exact: true });
 }
 
+/** Force the target below the viewport so a skipped scroll cannot pass. */
+async function putHeadingOffscreen(page: Page, heading: Locator): Promise<void> {
+  await heading.evaluate((el) => {
+    const spacer = document.createElement("div");
+    spacer.style.height = "200vh";
+    el.before(spacer);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
+  const viewport = await page.evaluate(() => window.innerHeight);
+  expect((await heading.boundingBox())!.y).toBeGreaterThan(viewport);
+}
+
+async function expectHeadingInViewport(heading: Locator): Promise<void> {
+  await expect.poll(() => heading.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  })).toBe(true);
+}
+
 /** Plain-object copy of `getBoundingClientRect()` — the live `DOMRect` does not survive
  *  `Locator.evaluate`'s structured-clone boundary with its own prototype, and only these four fields
  *  are what AC7 is actually about (a reflow moves position and/or size; it does not merely change some
@@ -92,7 +111,9 @@ test.describe("SPEC-046 AC2 — highlight pulses, holds, fades, and leaves no re
 
     await openSitePage(page, ABOUT_TARGET.path);
     const heading = aboutHeading(page);
+    await putHeadingOffscreen(page, heading);
     await triggerHighlight(page);
+    await expectHeadingInViewport(heading);
     await expect(heading).toHaveClass(new RegExp(HIGHLIGHT_CLASS));
 
     // Measured, not assumed: `getComputedStyle` reads what the browser's cascade actually resolved
@@ -174,7 +195,9 @@ test.describe("SPEC-046 AC4 — reduced motion: no pulse, no smooth scroll, the 
     expect(reducedMotionActuallySet).toBe(true);
 
     const heading = aboutHeading(page);
+    await putHeadingOffscreen(page, heading);
     await triggerHighlight(page);
+    await expectHeadingInViewport(heading);
     await expect(heading).toHaveClass(new RegExp(HIGHLIGHT_CLASS));
 
     // No pulse: exactly the fade name, nothing else. `e5a1dbd`'s bug made this compute as `"none"`

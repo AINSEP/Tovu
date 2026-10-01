@@ -105,6 +105,8 @@ test("reload() before start() never reads the roster and resolves an empty resul
 
 test("start() called twice calls attach exactly once — single-flight and idempotent", async () => {
   let attachCalls = 0;
+  const entered = deferred<void>();
+  const gate = deferred<void>();
   const runtime = createFederationRuntime({
     registry: fakeRegistry(),
     deps: FEDERATION_DEPS,
@@ -112,11 +114,23 @@ test("start() called twice calls attach exactly once — single-flight and idemp
     log: "[test]",
     attach: async (params) => {
       attachCalls += 1;
+      entered.resolve();
+      await gate.promise;
       return admitAllWithDriftOnX(params);
     },
   });
 
-  await runtime.start();
+  const first = runtime.start();
+  await entered.promise;
+  const second = runtime.start();
+  try {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(attachCalls, 1, "concurrent callers share the pending attachment");
+    assert.equal(runtime.started, false);
+  } finally {
+    gate.resolve();
+    await Promise.all([first, second]);
+  }
   await runtime.start();
 
   assert.equal(attachCalls, 1);
@@ -498,17 +512,23 @@ test("configuredConnectionIds() is undefined before resolveConnections() resolve
 });
 
 test("a connection that fails again on every reload is listed once, with its latest reason", async () => {
+  let attempts = 0;
+  const fail = attachFailing(new Set(["y"]));
   const runtime = createFederationRuntime({
     registry: fakeRegistry(),
     deps: FEDERATION_DEPS,
     resolveConnections: async () => [connection("y")],
     log: "[test]",
-    attach: attachFailing(new Set(["y"])),
+    attach: async (params) => {
+      const result = await fail(params);
+      attempts++;
+      return { ...result, connectFailures: [{ connectionId: "y", reason: `failure-${attempts}` }] };
+    },
   });
 
   await runtime.start();
   await runtime.reload();
   await runtime.reload();
 
-  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "boom" }], "repeated failures must replace, not accumulate");
+  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "failure-3" }], "repeated failures must replace, not accumulate");
 });

@@ -534,6 +534,9 @@ function computeEventTransition(
   lastAppliedAt: number | null
 ): { apply: false } | { apply: true; next: PaymentStatus | null; refundedTotal: number } {
   if (lastAppliedAt !== null && event.occurredAt < lastAppliedAt) return { apply: false };
+  if (event.kind === "refunded" && event.amount !== undefined && event.amount.currency !== paymentRow.currency) {
+    return { apply: false };
+  }
 
   const current = paymentRow.status as PaymentStatus;
   if (isTerminalPaymentStatus(current)) return { apply: false };

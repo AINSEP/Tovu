@@ -25,6 +25,7 @@ import {
   InMemoryMemberTierRepo,
 } from "../repo.memory.js";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
+import { MemberConflictError, MemberAuthError } from "../types.js";
 
 const WORKSPACE_ID = "ws-members-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -146,4 +147,93 @@ test("members_request_magic_link over the per-email rate limit says so, with the
     code: "BAD_REQUEST",
     message: "MEMBERS_RATE_LIMITED: too many sign-in requests for 'someone@example.com' — retry after 42s",
   });
+});
+
+
+const MEMBER_VIEW = {
+  id: "m-1", email: "alice@example.com", name: "Alice", status: "active" as const,
+  emailVerifiedAt: "2026-09-15T00:00:00.000Z", createdAt: "2026-09-14T00:00:00.000Z", updatedAt: "2026-09-15T00:00:00.000Z", version: 3,
+};
+
+async function seedMember(deps: MembersToolDeps) {
+  await deps.memberRepo.save({ ...MEMBER_VIEW, workspaceId: WORKSPACE_ID, note: "operator-only", fields: { private: "hidden" } });
+}
+
+function output(result: Awaited<ReturnType<typeof call>>) {
+  assert.equal(result.ok, true, JSON.stringify(result));
+  if (!result.ok) throw new Error("expected success");
+  return result.value.result.output;
+}
+
+test("all Members tools require member.manage and accept a principal with exactly that permission", async () => {
+  for (const [toolId, input] of [
+    ["members_list", {}], ["members_get_by_id", { memberId: "m-1" }],
+    ["members_disable", { memberId: "m-1" }], ["members_request_magic_link", { email: "alice@example.com" }],
+  ] as const) {
+    for (const heldPermission of ["member.manage", "admin.menus.update"]) {
+      const deps = makeRouteDeps();
+      deps.authorize = async ({ permission }) => ({ allowed: permission === heldPermission, reason: permission === heldPermission ? "matched" : "insufficient_permission" });
+      await seedMember(deps);
+      const result = await call(await buildHarness(deps), toolId, input);
+      if (heldPermission === "member.manage") {
+        output(result);
+      } else {
+        assert.equal(result.ok, false, toolId);
+        if (result.ok) throw new Error("expected refusal");
+        assert.deepEqual(result.error, { code: "BAD_REQUEST", message: `MEMBERS_FORBIDDEN: principal '${PRINCIPAL_ID}' is not authorized for 'member.manage' (insufficient_permission)` });
+      }
+    }
+  }
+});
+
+test("list, get, disable and magic-link success preserve the model-facing payloads", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  const harness = await buildHarness(deps);
+  assert.deepEqual(output(await call(harness, "members_list", {})), { members: [MEMBER_VIEW] });
+  assert.deepEqual(output(await call(harness, "members_get_by_id", { memberId: "m-1" })), { member: MEMBER_VIEW });
+  const disabled = { ...MEMBER_VIEW, status: "disabled", updatedAt: NOW, version: 4 };
+  assert.deepEqual(output(await call(harness, "members_disable", { memberId: "m-1" })), { member: disabled });
+  assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.status, "disabled");
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "other@example.com" })), { delivered: true });
+  assert.equal((await deps.memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: "other@example.com" }))?.status, "pending");
+});
+
+test("magic-link limiter shares normalized email budget and authorization denial spends none", async () => {
+  const deps = makeRouteDeps();
+  const keys: string[] = [];
+  const counts = new Map<string, number>();
+  deps.magicLinkPerEmailLimiter = { check(key) {
+    keys.push(key);
+    const count = (counts.get(key) ?? 0) + 1;
+    counts.set(key, count);
+    return count > 1 ? { allowed: false, retryAfterSeconds: 42 } : { allowed: true };
+  } };
+  let allowed = false;
+  deps.authorize = async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" });
+  const harness = await buildHarness(deps);
+  assert.equal((await call(harness, "members_request_magic_link", { email: "  ALICE@example.com  " })).ok, false);
+  assert.deepEqual(keys, []);
+  allowed = true;
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "  ALICE@example.com  " })), { delivered: true });
+  const limited = await call(harness, "members_request_magic_link", { email: "alice@example.com" });
+  assert.equal(limited.ok, false);
+  if (limited.ok) throw new Error("expected rate limit");
+  assert.deepEqual(limited.error, { code: "BAD_REQUEST", message: "MEMBERS_RATE_LIMITED: too many sign-in requests for 'alice@example.com' — retry after 42s" });
+  assert.deepEqual(keys, ["alice@example.com", "alice@example.com"]);
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "bob@example.com" })), { delivered: true });
+});
+
+test("a repository conflict is model-facing while an unexpected auth error remains redacted", async () => {
+  for (const [error, expected] of [
+    [new MemberConflictError("member update conflicted"), { code: "BAD_REQUEST", message: "MEMBERS_CONFLICT: member update conflicted" }],
+    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "an internal error occurred" }],
+  ] as const) {
+    const deps = makeRouteDeps();
+    deps.memberRepo.findById = async () => { throw error; };
+    const result = await call(await buildHarness(deps), "members_get_by_id", { memberId: "m-1" });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("expected failure");
+    assert.deepEqual({ code: result.error.code, message: result.error.message }, expected);
+  }
 });

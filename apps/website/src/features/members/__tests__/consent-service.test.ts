@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteMemberConsentRepo } from "../repo.sqlite.js";
 
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory.js";
@@ -128,12 +130,14 @@ test("requestConsent throws MemberNotFoundError for an unknown memberId and crea
 });
 
 test("T029/INV-NEW-02: confirmConsent transitions pending -> granted", async () => {
-  const deps = makeDeps();
+  const clock = makeClock("2026-07-13T00:00:00.000Z");
+  const deps = makeDeps({ clock });
   await requestConsent({
     deps,
     input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" },
   });
 
+  clock.set("2026-07-14T12:34:56.000Z");
   const { consent } = await confirmConsent({
     deps,
     input: {
@@ -146,7 +150,8 @@ test("T029/INV-NEW-02: confirmConsent transitions pending -> granted", async () 
   });
 
   assert.equal(consent.status, "granted");
-  assert.ok(consent.grantedAt);
+  assert.equal(consent.grantedAt, "2026-07-14T12:34:56.000Z");
+  assert.equal((await deps.consents.findByMemberAndPurpose({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE }))?.grantedAt, "2026-07-14T12:34:56.000Z");
 
   const revisions = await deps.consents.listRevisions({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE });
   assert.equal(revisions.length, 2);
@@ -199,7 +204,8 @@ test("confirmConsent on an already-granted purpose (no fresh pending request) th
 });
 
 test("T030: revokeConsent is idempotent — revoking an already-revoked purpose is a no-op", async () => {
-  const deps = makeDeps();
+  const clock = makeClock("2026-07-13T00:00:00.000Z");
+  const deps = makeDeps({ clock });
   await requestConsent({
     deps,
     input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" },
@@ -209,10 +215,19 @@ test("T030: revokeConsent is idempotent — revoking an already-revoked purpose 
     input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "confirm" }, originModule: "newsletter" },
   });
 
+  clock.set("2026-07-15T12:00:00.000Z");
   const first = await revokeConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } });
   assert.equal(first.consent.status, "revoked");
   const revisionsAfterFirst = await deps.consents.listRevisions({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE });
   assert.equal(revisionsAfterFirst.length, 3); // request, confirm, revoke
+  assert.equal(revisionsAfterFirst[2].op, "consent_revoke");
+  assert.equal(revisionsAfterFirst[2].originModule, "members");
+  assert.deepEqual(revisionsAfterFirst[2].beforeJson, { status: "granted" });
+  assert.deepEqual(revisionsAfterFirst[2].afterJson, { status: "revoked" });
+  const stored = await deps.consents.findByMemberAndPurpose({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE });
+  assert.equal(stored?.revokedAt, "2026-07-15T12:00:00.000Z");
+  assert.equal(stored?.grantedAt, "2026-07-13T00:00:00.000Z");
+  clock.set("2026-07-16T12:00:00.000Z");
 
   const second = await revokeConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } });
   assert.equal(second.consent.status, "revoked");
@@ -220,6 +235,8 @@ test("T030: revokeConsent is idempotent — revoking an already-revoked purpose 
 
   const revisionsAfterSecond = await deps.consents.listRevisions({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE });
   assert.equal(revisionsAfterSecond.length, 3, "no-op revoke must not append a new revision row");
+  assert.deepEqual(revisionsAfterSecond, revisionsAfterFirst);
+  assert.deepEqual(await deps.consents.findByMemberAndPurpose({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE }), stored);
 });
 
 test("revokeConsent on a purpose with no prior consent record throws MemberNotFoundError", async () => {
@@ -244,4 +261,37 @@ test("T031: checkConsent reflects the current status once a request exists", asy
   });
   const result = await checkConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } });
   assert.deepEqual(result, { status: "pending" });
+  await confirmConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "confirm" }, originModule: "newsletter" } });
+  assert.deepEqual(await checkConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } }), { status: "granted" });
+  await revokeConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } });
+  assert.deepEqual(await checkConsent({ deps, input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE } }), { status: "revoked" });
+});
+
+
+test("confirmConsent refuses revoked consent without changing the value or ledger", async () => {
+  const deps = makeDeps();
+  const input = { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" };
+  await requestConsent({ deps, input });
+  await confirmConsent({ deps, input });
+  await revokeConsent({ deps, input });
+  const before = await deps.consents.findByMemberAndPurpose(input);
+  const revisions = await deps.consents.listRevisions(input);
+  await assert.rejects(() => confirmConsent({ deps, input }), MemberNotFoundError);
+  assert.deepEqual(await deps.consents.findByMemberAndPurpose(input), before);
+  assert.deepEqual(await deps.consents.listRevisions(input), revisions);
+});
+
+test("requestConsent rolls back its durable value when revision insertion fails", async () => {
+  const db = openContentDb(":memory:");
+  try {
+    const consents = new SqliteMemberConsentRepo(db);
+    const deps = makeDeps({ consents });
+    const input = { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" };
+    db.$client.exec("CREATE TRIGGER reject_consent_revision BEFORE INSERT ON member_revisions BEGIN SELECT RAISE(ABORT, 'revision rejected'); END");
+    await assert.rejects(() => requestConsent({ deps, input }), /revision rejected/);
+    assert.equal(await consents.findByMemberAndPurpose(input), null);
+    assert.deepEqual(await consents.listRevisions(input), []);
+  } finally {
+    db.$client.close();
+  }
 });

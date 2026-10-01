@@ -7,6 +7,7 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
+import { resolveExecutionCredential } from "../../assistant/execution-credential-store.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -129,7 +130,7 @@ test("GET for an admin who has never configured a key returns isSet:false with n
 });
 
 test("PUT with an apiKey sets it and the response never contains the plaintext key", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "sk-ant-LIVE-EXAMPLE-KEY-7777", protocol: "anthropic" });
@@ -140,6 +141,7 @@ test("PUT with an apiKey sets it and the response never contains the plaintext k
   const body = (await res.json()) as { data: { isSet: boolean; masked: string | null } };
   assert.equal(body.data.isSet, true);
   assert.equal(body.data.masked, "••••7777");
+  assert.equal((await resolveSavedCredential(deps, baseUrl, cookie))?.apiKey, "sk-ant-LIVE-EXAMPLE-KEY-7777");
 });
 
 test("PUT with an empty apiKey is a 400 validation error, and GET afterward still shows not-set", async (t) => {
@@ -163,7 +165,7 @@ test("PUT with a non-string providerId (present but wrong type) is a 400, not a 
 });
 
 test("PUT omitting apiKey updates model without disturbing the previously-saved key", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "stable-key-0000" });
@@ -174,16 +176,24 @@ test("PUT omitting apiKey updates model without disturbing the previously-saved 
   assert.equal(body.data.isSet, true);
   assert.equal(body.data.masked, "••••0000");
   assert.equal(body.data.model, "claude-opus-4-8");
+  assert.equal((await resolveSavedCredential(deps, baseUrl, cookie))?.apiKey, "stable-key-0000");
 });
 
 test("DELETE clears the key; a second DELETE on an already-cleared credential is a harmless 200", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "to-delete-1234" });
   const first = await del(baseUrl, CREDENTIAL_PATH, cookie);
   assert.equal(first.status, 200);
   assert.equal((await first.json() as { data: { isSet: boolean } }).data.isSet, false);
+
+  const after = await get(baseUrl, CREDENTIAL_PATH, cookie);
+  assert.equal(after.status, 200);
+  const afterBody = await after.json() as { data: { isSet: boolean; masked: string | null } };
+  assert.equal(afterBody.data.isSet, false);
+  assert.equal(afterBody.data.masked, null);
+  assert.equal(await resolveSavedCredential(deps, baseUrl, cookie), null);
 
   const second = await del(baseUrl, CREDENTIAL_PATH, cookie);
   assert.equal(second.status, 200);
@@ -253,3 +263,11 @@ test("admin B's DELETE cannot clear admin A's credential", async (t) => {
   assert.equal(aView.data.isSet, true, "admin B deleting their own (never-set) key must not touch admin A's row");
   assert.equal(aView.data.masked, "••••1111");
 });
+
+async function resolveSavedCredential(deps: RouteDeps, baseUrl: string, cookie: string) {
+  const me = await get(baseUrl, "/api/admin/v1/auth/me", cookie);
+  assert.equal(me.status, 200);
+  const { user } = await me.json() as { user: { id: string } };
+  return resolveExecutionCredential({ repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    { workspaceId: deps.workspaceId, principalId: user.id });
+}

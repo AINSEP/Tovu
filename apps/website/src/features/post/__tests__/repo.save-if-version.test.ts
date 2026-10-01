@@ -7,6 +7,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
@@ -61,7 +62,7 @@ function nextRecord(from: PostRecord, text: string): PostRecord {
 function openTempSqliteRepo() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "post-save-if-version-sqlite-"));
   const db = openContentDb(path.join(tmpDir, "content.db"));
-  return { repo: new SqlitePostRepo(db), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
+  return { db, repo: new SqlitePostRepo(db), cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }
 
 /** Runs the same behavioral contract against both `PostRepoPort` adapters. `withRepo` hands the
@@ -178,4 +179,17 @@ runSaveIfVersionContract("PglitePostRepo", async () => {
   const { repo, teardown } = makePglitePostRepo();
   await repo.save(baseRecord());
   return { repo, teardown };
+});
+
+
+test("a successful SQLite guarded save replaces the real searchable title and body", async () => {
+  const { repo, db, cleanup } = openTempSqliteRepo();
+  try {
+    const search = new SqlitePostSearchIndex(db);
+    await repo.save(baseRecord());
+    assert.deepEqual((await search.search({ workspaceId: WS, terms: ["original"], limit: 10 })).map((hit) => hit.id), [ID]);
+    assert.deepEqual(await repo.saveIfVersion({ record: { ...nextRecord(baseRecord(), "saffron"), slug: "saffron" }, ifVersion: 1 }), { applied: true });
+    assert.deepEqual((await search.search({ workspaceId: WS, terms: ["saffron"], limit: 10 })).map((hit) => hit.id), [ID]);
+    assert.deepEqual(await search.search({ workspaceId: WS, terms: ["original"], limit: 10 }), []);
+  } finally { cleanup(); }
 });

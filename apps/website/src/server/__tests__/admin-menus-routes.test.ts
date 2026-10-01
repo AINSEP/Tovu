@@ -184,6 +184,13 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
   const fetched = (await getRes.json()) as { menu: { items: unknown[] } };
   assert.equal(fetched.menu.items.length, 1);
 
+  const orderedTree = [
+    { id: "item-1", label: "Home", target: { kind: "url", href: "/" }, children: [
+      { id: "child-2", label: "Team", target: { kind: "url", href: "/team" } },
+      { id: "child-1", label: "Contact", target: { kind: "url", href: "/contact" } },
+    ] },
+    { id: "item-2", label: "About", target: { kind: "url", href: "/about" } },
+  ];
   // update-tree (whole-tree replace, OCC on version 1)
   const updateRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, {
     method: "PUT",
@@ -192,16 +199,17 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
       expectedVersion: 1,
       title: "Primary Nav",
       slug: "primary-nav",
-      items: [
-        { id: "item-1", label: "Home", target: { kind: "url", href: "/" } },
-        { id: "item-2", label: "About", target: { kind: "url", href: "/about" } },
-      ],
+      items: orderedTree,
     }),
   });
   assert.equal(updateRes.status, 200);
   const updated = (await updateRes.json()) as { menu: { version: number; items: unknown[] } };
   assert.equal(updated.menu.version, 2);
   assert.equal(updated.menu.items.length, 2);
+  assert.deepEqual(updated.menu.items, orderedTree);
+  const readBack = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, { headers: { cookie } });
+  assert.equal(readBack.status, 200);
+  assert.deepEqual((await readBack.json() as { menu: { items: unknown[] } }).menu.items, orderedTree);
 
   // stale OCC is rejected
   const staleRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, {
@@ -667,11 +675,15 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds; a second del
 
   // A principal holding only `admin.menus.delete` can trash it — no separate `.force` permission
   // is ever consulted now that there is no force ladder.
-  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}?force=true`, {
     method: "DELETE",
     headers: { cookie: deleteOnlyCookie },
   });
   assert.equal(trashRes.status, 200);
+  assert.deepEqual((await trashRes.json() as { trashed: boolean; id: string }).trashed, true);
+  const trash = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), entityTypes: ["menu"], limit: 20 });
+  assert.deepEqual(trash.items.map((item) => item.entityId), [menu.id], "force query must still leave a recoverable menu");
+  assert.equal((await deps.navLocationBindingRepo.findByLocation({ workspaceId: deps.workspaceId, locationKey: "primary" }))?.menuId, menu.id, "trash preserves bindings until purge");
 
   // A second delete on an already-trashed menu is just not-found — not 403, not 409.
   const secondRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
@@ -874,5 +886,35 @@ test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/serv
       false,
       `${file} still references the deprecated 'navigation.manage' string literal`
     );
+  }
+});
+
+test("assigning an occupied location displaces only the former menu and persists the replacement", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`;
+  const ids: string[] = [];
+  for (const slug of ["menu-a", "menu-b"]) {
+    const created = await fetch(base, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ title: slug, slug }) });
+    assert.equal(created.status, 201);
+    ids.push((await created.json() as { menu: { id: string } }).menu.id);
+  }
+  const assign = (id: string) => fetch(`${base}/${id}/locations`, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ locationKey: "primary" }) });
+  assert.equal((await assign(ids[0]!)).status, 200);
+  const replacement = await assign(ids[1]!);
+  assert.equal(replacement.status, 200);
+  const body = await replacement.json() as { menu: { id: string; locations: string[] }; displacedMenu: { id: string; locations: string[] }; binding: { menuId: string; locationKey: string; workspaceId: string } };
+  assert.equal(body.menu.id, ids[1]);
+  assert.deepEqual(body.menu.locations, ["primary"]);
+  assert.equal(body.displacedMenu.id, ids[0]);
+  assert.deepEqual(body.displacedMenu.locations, []);
+  assert.equal(body.binding.menuId, ids[1]);
+  assert.equal(body.binding.locationKey, "primary");
+  assert.equal(body.binding.workspaceId, deps.workspaceId);
+  assert.deepEqual(await deps.navLocationBindingRepo.findByLocation({ workspaceId: deps.workspaceId, locationKey: "primary" }), body.binding);
+  for (const [id, locations] of [[ids[0], []], [ids[1], ["primary"]]] as const) {
+    const read = await fetch(`${base}/${id}`, { headers: { cookie } });
+    assert.equal(read.status, 200);
+    assert.deepEqual((await read.json() as { menu: { locations: string[] } }).menu.locations, locations);
   }
 });

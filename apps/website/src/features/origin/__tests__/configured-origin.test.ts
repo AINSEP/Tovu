@@ -244,3 +244,27 @@ test("resolveConfiguredOrigin: reads process.env when no env override is supplie
     else process.env.TOVU_PUBLIC_URL = previous;
   }
 });
+
+
+test("resolveConfiguredOrigin accepts loopback lookalikes, canonicalizes :443 and retains nested basePath", () => {
+  for (const host of ["mylocalhost.com", "127.example.com"]) {
+    assert.deepEqual(resolve(`https://${host}`), { origin: { scheme: "https", host, verifiedAt: NOW, source: "workspace-setting" }, warnings: [] });
+  }
+  assert.deepEqual(resolve("https://x.example:443/a/b/"), {
+    origin: { scheme: "https", host: "x.example", basePath: "/a/b", verifiedAt: NOW, source: "workspace-setting" }, warnings: [],
+  });
+});
+
+
+test("planOriginBoot defaults to the production runtime signal and writes no localhost seed", () => {
+  const previous = process.env.TOVU_RUNTIME_MODE;
+  process.env.TOVU_RUNTIME_MODE = "production";
+  try {
+    const { warnings, warn } = capture();
+    assert.deepEqual(planOriginBoot({ now: NOW }, { env: {}, warn }), { kind: "none" });
+    assert.deepEqual(warnings, [NO_CONFIG_IN_PRODUCTION_WARNING]);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE;
+    else process.env.TOVU_RUNTIME_MODE = previous;
+  }
+});

@@ -153,3 +153,36 @@ test("lipay: charging an unregistered provider is a typed error and writes nothi
 
   cleanup(db, dir);
 });
+
+
+test("lipay lists and dispatches to every configured provider, preserving distinct capabilities", async () => {
+  const dispatched: string[] = [];
+  const acme = stubProvider({ async createCharge(input) {
+    dispatched.push(`acme:${input.idempotencyKey}`);
+    return { ok: true, providerRef: "acme_charge", status: "succeeded", next: { kind: "none" } };
+  } });
+  const regional = stubProvider({ id: "m-pesa", displayName: "M-Pesa", capabilities: {
+    refunds: "none", tokenization: false, recurring: false, confirmation: ["out_of_band"], currencies: ["KES"], webhooks: true,
+  }, async createCharge(input) {
+    dispatched.push(`m-pesa:${input.idempotencyKey}`);
+    return { ok: true, providerRef: "mp_charge", status: "pending", next: { kind: "out_of_band", instructions: "Approve on handset" } };
+  } });
+  const { api, db, dir } = await makeLipay({ providers: [acme, regional], credentials: new InMemoryPaymentCredentials({ acme: { secretKey: "acme_sk" }, "m-pesa": { secretKey: "mp_sk" } }) });
+  try {
+    assert.deepEqual(api.listProviders(), [
+      { id: "acme", displayName: "Acme Pay", capabilities: { refunds: "none", tokenization: false, recurring: false, confirmation: ["none"], currencies: "any", webhooks: false } },
+      { id: "m-pesa", displayName: "M-Pesa", capabilities: { refunds: "none", tokenization: false, recurring: false, confirmation: ["out_of_band"], currencies: ["KES"], webhooks: true } },
+    ]);
+    for (const [providerId, currency, providerRef, status] of [["acme", "USD", "acme_charge", "succeeded"], ["m-pesa", "KES", "mp_charge", "pending"]] as const) {
+      const result = await api.charge({ workspaceId: WORKSPACE_ID, providerId, amount: { minorUnits: 123, currency }, idempotencyKey: `order-${providerId}` });
+      assert.equal(result.ok, true);
+      if (!result.ok) throw new Error("expected charge success");
+      assert.equal(result.payment.providerRef, providerRef);
+      assert.equal(result.payment.status, status);
+      assert.equal((await api.getPayment({ workspaceId: WORKSPACE_ID, id: result.payment.id }))?.providerId, providerId);
+    }
+    assert.deepEqual(dispatched, ["acme:order-acme", "m-pesa:order-m-pesa"]);
+  } finally {
+    cleanup(db, dir);
+  }
+});

@@ -623,14 +623,19 @@ test("with no configuration, the daemon boots exactly as it did before federatio
   assert.equal(registry.registered.length, 0);
 });
 
-test("omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies", async () => {
+test("omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies", async (t) => {
+  resetFederatedMcpPresetsForTests();
+  t.after(resetFederatedMcpPresetsForTests);
+  const key = "TOVU_TEST_FEDERATION_ENV_SENTINEL";
+  const prior = process.env[key];
+  process.env[key] = "env-from-process";
+  t.after(() => { if (prior === undefined) delete process.env[key]; else process.env[key] = prior; });
+  let seen: NodeJS.ProcessEnv | undefined;
+  registerFederatedMcpPreset({ presetId: "env-observer", resolve: (env) => { seen = env; return null; } });
   const registry = fakeRegistry(["database_get_health"]);
-  // No `connections` and no `env` — forces both the preset-resolution path AND its `process.env`
-  // default, distinct from the `env: {}` override every other test in this file supplies (which
-  // takes the OTHER side of the `??`). No real vendor preset is configured in this sandbox's
-  // actual process.env, so the outcome is the same as the explicit-`{}` case above.
   const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps });
-
+  assert.equal(seen, process.env, "the preset must receive the real environment");
+  assert.equal(seen?.[key], "env-from-process");
   assert.deepEqual(result.registeredToolIds, []);
   assert.equal(registry.registered.length, 0);
 });
@@ -801,9 +806,7 @@ test("omitting `logger` uses the real console logger — info and warn both reac
 // seam every other test in this file (and adapter.stdio.ts's own tests) use.
 // ---------------------------------------------------------------------------
 
-/** A minimal, real MCP stdio server: answers `initialize` and `tools/list` (with zero tools),
- *  ignores everything else including the `notifications/initialized` notification. Just enough for
- *  `connectMcpStdioSession`'s handshake to complete against a REAL child process. */
+/** A real MCP stdio fixture: handshake, one read-only echo tool, and tools/call replies. */
 const MINIMAL_MCP_SERVER_SCRIPT = `
 process.stdin.setEncoding("utf8");
 let buffer = "";
@@ -820,7 +823,9 @@ process.stdin.on("data", (chunk) => {
     if (message.method === "initialize") {
       process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: "2025-06-18", serverInfo: { name: "fixture", version: "1" } } }) + "\\n");
     } else if (message.method === "tools/list") {
-      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools: [] } }) + "\\n");
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools: [{ name: "echo_fixture", description: "Echoes the supplied input.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } }] } }) + "\\n");
+    } else if (message.method === "tools/call") {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: JSON.stringify(message.params) }] } }) + "\\n");
     }
   }
 });
@@ -840,7 +845,7 @@ test("omitting `connect` uses the real defaultConnect — a genuine spawn + hand
     logger,
     connections: [
       {
-        config: { ...CONFIG, allowedToolNames: [] },
+        config: { ...CONFIG, allowedToolNames: ["echo_fixture"] },
         launch: { command: process.execPath, args: ["-e", MINIMAL_MCP_SERVER_SCRIPT], env: {} },
       },
     ],
@@ -848,9 +853,17 @@ test("omitting `connect` uses the real defaultConnect — a genuine spawn + hand
   });
 
   try {
-    // The fixture advertises zero tools, so nothing is registered — the point of this test is that
-    // the real spawn + JSON-RPC handshake completed at all, not the admission outcome.
-    assert.deepEqual(result.registeredToolIds, []);
+    assert.deepEqual(result.registeredToolIds, ["mcp__supabase__echo_fixture"]);
+    assert.equal(result.sessions.length, 1);
+    const registration = registrationFor(registry.registered, "mcp__supabase__echo_fixture");
+    const called = await registration.handler(toolContext({ token: "round-trip-sentinel" })) as { federated: unknown; untrusted: string };
+    assert.deepEqual(called.federated, { connectionId: "supabase", tool: "echo_fixture", remoteReportedError: false });
+    const payload = called.untrusted.split("\n").find((line) => line.startsWith('{"content":'));
+    assert.ok(payload, "the registered handler must carry the child's tool reply");
+    const remote = JSON.parse(payload) as { content: Array<{ type: string; text: string }> };
+    assert.equal(remote.content.length, 1);
+    assert.equal(remote.content[0].type, "text");
+    assert.deepEqual(JSON.parse(remote.content[0].text), { name: "echo_fixture", arguments: { token: "round-trip-sentinel" } });
     assert.equal(
       messages.some((message) => message.includes("failed")),
       false,
@@ -915,8 +928,10 @@ test("defaultConnect: a launch command that does not exist fails the connection 
  *  fill and deadlock the child." A server that emits diagnostic noise on stderr must not cause the
  *  handshake to fail, hang, or have that noise misinterpreted as protocol traffic. */
 const SERVER_SCRIPT_WITH_STDERR_NOISE = `
-process.stderr.write("some diagnostic banner the server prints on startup\\n");
-${MINIMAL_MCP_SERVER_SCRIPT}
+// Install the protocol listener only after diagnostics have drained through the pipe.
+process.stderr.write("D".repeat(2 * 1024 * 1024), () => {
+  ${MINIMAL_MCP_SERVER_SCRIPT}
+});
 `;
 
 test("defaultConnect: a real child writing to stderr does not fail, hang, or leak into the protocol stream", async () => {
@@ -937,6 +952,9 @@ test("defaultConnect: a real child writing to stderr does not fail, hang, or lea
 
   try {
     assert.deepEqual(result.registeredToolIds, []);
+    assert.equal(result.sessions.length, 1, "stderr must drain before the handshake completes");
+    const tools = await result.sessions[0].listTools();
+    assert.deepEqual(tools.map((tool) => tool.name), ["echo_fixture"], "the session remains live after draining diagnostics");
     assert.equal(
       messages.some((message) => message.includes("failed")),
       false,

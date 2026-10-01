@@ -7,7 +7,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "../../../db/sqlite/content-db.js";
-import { ValidationError } from "../../errors.js";
+import { InternalError, ValidationError } from "../../errors.js";
 import { readSiteDir } from "../../read-site-dir.js";
 import { planRepairSite, repairSite, SiteRepairRefusedError } from "../../repair-site.js";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
@@ -200,4 +200,66 @@ test("planRepairSite(): previews the exact plan repairSite() would write, withou
   assert.equal(plan.meta.schemaTag, runtime.tag);
   assert.equal(fs.existsSync(path.join(dir, "config.json")), false, "planRepairSite must never write — it is a preview only");
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false);
+});
+
+test("repairSite stamps an older recognized migration identity without migrating the database", async (t) => {
+  const dir = mkTempDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  writeMigratedDb(dir);
+  const journal = JSON.parse(fs.readFileSync(new URL("../../../db/drizzle/meta/_journal.json", import.meta.url), "utf8")) as {
+    entries: Array<{ idx: number; tag: string; when: number }>;
+  };
+  const historical = journal.entries.at(-2)!;
+  assert.ok(historical.idx < runtimeSchemaVersion().index);
+  const dbPath = path.join(dir, "content.db");
+  const db = new Database(dbPath);
+  try {
+    db.prepare("DELETE FROM __drizzle_migrations WHERE created_at > ?").run(historical.when);
+    assert.equal((db.prepare("SELECT MAX(created_at) AS stamp FROM __drizzle_migrations").get() as { stamp: number }).stamp, historical.when);
+  } finally {
+    db.close();
+  }
+  const before = fs.readFileSync(dbPath);
+  const result = await repairSite({ dir });
+  assert.equal(result.schemaVersion, historical.idx);
+  assert.equal(result.schemaTag, historical.tag);
+  const { meta } = readSiteDir({ dir });
+  assert.equal(meta.schemaVersion, historical.idx);
+  assert.equal(meta.schemaTag, historical.tag);
+  assert.deepEqual(fs.readFileSync(dbPath), before, "repair must never upgrade the existing database");
+});
+
+test("repairSite metadata write failure removes only its new config and preserves existing site data", async (t) => {
+  const dir = mkTempDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  writeMigratedDb(dir);
+  const dbPath = path.join(dir, "content.db");
+  const before = fs.readFileSync(dbPath);
+  const uploadPath = path.join(dir, "uploads", "existing.bin");
+  fs.mkdirSync(path.dirname(uploadPath));
+  fs.writeFileSync(uploadPath, Buffer.from([0, 255, 72, 19]));
+  const rename = fs.renameSync;
+  let failedMetaWrite = false;
+  const fault = t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
+    if (String(to) === path.join(dir, ".site-meta.json")) {
+      assert.ok(fs.existsSync(path.join(dir, "config.json")), "fault occurs after config succeeds");
+      failedMetaWrite = true;
+      throw new Error("injected metadata rename failure");
+    }
+    return rename(from, to);
+  });
+  try {
+    await assert.rejects(repairSite({ dir }), (error: unknown) => {
+      assert.ok(error instanceof InternalError);
+      assert.match(error.message, /injected metadata rename failure/);
+      return true;
+    });
+  } finally {
+    fault.mock.restore();
+  }
+  assert.equal(failedMetaWrite, true);
+  assert.equal(fs.existsSync(path.join(dir, "config.json")), false);
+  assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false);
+  assert.deepEqual(fs.readFileSync(dbPath), before);
+  assert.deepEqual(fs.readFileSync(uploadPath), Buffer.from([0, 255, 72, 19]));
 });

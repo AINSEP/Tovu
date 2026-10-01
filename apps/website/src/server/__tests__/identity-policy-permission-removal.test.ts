@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
+import { loginAsBarePrincipal } from "./helpers/http-test-server.js";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 /**
@@ -200,4 +201,49 @@ test("both new policy-permission routes require authentication (401)", async (t)
     const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" } });
     assert.equal(res.status, 401, `${method} ${path} should require authentication`);
   }
+});
+
+test("a caller with content.read but no role.manage is denied both policy-permission routes without changing rows", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const target = await seedPolicyWithPermission(baseUrl, cookie, "protected-policy", "content.write");
+  const readOnly = await seedPolicyWithPermission(baseUrl, cookie, "read-only-policy", "content.read");
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "policy-reader" });
+  await deps.principalPolicyRepo.save({ id: "policy-reader-link", workspaceId: deps.workspaceId, principalId: "bare-policy-reader", policyId: readOnly.policyId });
+  const before = await deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId: target.policyId });
+  for (const [method, suffix] of [["GET", ""], ["DELETE", `/${target.policyPermissionId}`]]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/policies/${target.policyId}/permissions${suffix}`, { method, headers: { cookie: bareCookie } });
+    assert.equal(res.status, 403);
+    const body = await res.json() as { code: string; details: { permission: string; reason: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "role.manage");
+    assert.equal(body.details.reason, "no_grant");
+  }
+  assert.deepEqual(await deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId: target.policyId }), before);
+});
+
+test("removing a policy permission revokes effective access for an attached user in the same session", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const target = await seedPolicyWithPermission(baseUrl, cookie, "revocable-access", "content.read");
+  const userCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "revocable-reader" });
+  await deps.principalPolicyRepo.save({ id: "revocable-reader-link", workspaceId: deps.workspaceId, principalId: "bare-revocable-reader", policyId: target.policyId });
+  const permissions = async () => {
+    const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie: userCookie } });
+    assert.equal(me.status, 200);
+    return (await me.json() as { effectivePermissions: string[] }).effectivePermissions;
+  };
+  const postsUrl = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts`;
+  assert.deepEqual(await permissions(), ["content.read"]);
+  assert.equal((await fetch(postsUrl, { headers: { cookie: userCookie } })).status, 200);
+  const removed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/policies/${target.policyId}/permissions/${target.policyPermissionId}`, { method: "DELETE", headers: { cookie } });
+  assert.equal(removed.status, 204);
+  assert.deepEqual(await permissions(), []);
+  const denied = await fetch(postsUrl, { headers: { cookie: userCookie } });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json() as { details: { permission: string } }).details.permission, "content.read");
 });

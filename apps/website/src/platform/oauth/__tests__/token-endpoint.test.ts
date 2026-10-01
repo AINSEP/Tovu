@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { requestOAuthToken } from "../token-endpoint.js";
-import { createFetchDouble, createTestClock, TEST_CLIENT } from "./helpers.js";
+import { assertOAuthRejects, createFetchDouble, createTestClock, TEST_CLIENT } from "./helpers.js";
 
 /**
  * @file Direct characterization tests for {@link requestOAuthToken}'s field-normalization branches.
@@ -89,3 +89,38 @@ test("a non-empty refresh_token passes through unchanged", async () => {
 
   assert.equal(tokens.refreshToken, "rt-1");
 });
+
+test("HTTP 200 with authorization_pending remains a retryable provider error", async () => {
+  const http = createFetchDouble([{ status: 200, json: { error: "authorization_pending", access_token: "must-not-win" } }]);
+  const error = await assertOAuthRejects(() => requestOAuthToken(
+    { clock: createTestClock(), fetchFn: http.fetchFn },
+    { tokenEndpoint: TOKEN_ENDPOINT, client: TEST_CLIENT, params: { grant_type: "urn:ietf:params:oauth:grant-type:device_code" } },
+  ), "OAUTH_AUTHORIZATION_PENDING");
+  assert.equal(error.providerErrorCode, "authorization_pending");
+  assert.equal(error.retryable, true);
+  assert.equal(http.requests.length, 1);
+});
+
+test("HTTP 200 without an access_token is a malformed response", async () => {
+  const http = createFetchDouble([{ json: { token_type: "Bearer" } }]);
+  await assertOAuthRejects(() => requestOAuthToken(
+    { clock: createTestClock(), fetchFn: http.fetchFn },
+    { tokenEndpoint: TOKEN_ENDPOINT, client: TEST_CLIENT, params: { grant_type: "authorization_code" } },
+  ), "OAUTH_MALFORMED_RESPONSE");
+});
+
+test("scope accepts comma and whitespace separators without empty scopes", async () => {
+  const http = createFetchDouble([{ json: { access_token: "at", scope: "  read,write  profile,  email " } }]);
+  const tokens = await requestOAuthToken({ clock: createTestClock(), fetchFn: http.fetchFn },
+    { tokenEndpoint: TOKEN_ENDPOINT, client: TEST_CLIENT, params: { grant_type: "authorization_code" } });
+  assert.deepEqual(tokens.scopes, ["read", "write", "profile", "email"]);
+});
+
+for (const expiresIn of [0, -1, "abc"]) {
+  test(`expires_in ${JSON.stringify(expiresIn)} yields unknown expiry`, async () => {
+    const http = createFetchDouble([{ json: { access_token: "at", expires_in: expiresIn } }]);
+    const tokens = await requestOAuthToken({ clock: createTestClock(), fetchFn: http.fetchFn },
+      { tokenEndpoint: TOKEN_ENDPOINT, client: TEST_CLIENT, params: { grant_type: "authorization_code" } });
+    assert.equal(tokens.expiresAt, null);
+  });
+}

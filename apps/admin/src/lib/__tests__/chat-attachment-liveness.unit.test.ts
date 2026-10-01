@@ -50,12 +50,20 @@ describe("createChatAttachmentValidator", () => {
 
   it("preserves input order across a bounded-concurrency sweep", async () => {
     const refs = Array.from({ length: 6 }, (_, index) => `attachment:0000000${index}-aaaa-bbbb-cccc-dddddddddddd`);
-    const fetchImpl = fetchStub(Object.fromEntries(refs.map((ref) => [ref, 200])));
-    const validate = createChatAttachmentValidator({ fetchImpl });
+    const release = new Map<string, (response: Response) => void>();
+    const fetchImpl: FetchMock = vi.fn((input) => new Promise((resolve) => {
+      const ref = decodeURIComponent(String(input).split("/").at(-1)!);
+      release.set(ref, resolve);
+    }));
+    const pending = createChatAttachmentValidator({ fetchImpl, concurrency: 2 })(refs.map((ref) => attachment(ref)));
+    // Keep the first request pending while the other worker finishes the rest.
+    for (const ref of refs.slice(1)) {
+      await vi.waitFor(() => expect(release.has(ref)).toBe(true));
+      release.get(ref)!({ ok: true, status: 200 } as Response);
+    }
+    release.get(refs[0])!({ ok: true, status: 200 } as Response);
 
-    const survivors = await validate(refs.map((ref) => attachment(ref)));
-
-    expect(survivors.map((survivor) => survivor.path)).toEqual(refs);
+    expect((await pending).map((survivor) => survivor.path)).toEqual(refs);
   });
 
   it("probes with a body-less HEAD to the read-back route, same-origin, with the ref encoded", async () => {
@@ -71,6 +79,26 @@ describe("createChatAttachmentValidator", () => {
     expect(init.method).toBe("HEAD");
     expect(init.credentials).toBe("same-origin");
     expect(init.signal).toBeDefined();
+  });
+
+  it("drops a pending probe when its configured deadline aborts", async () => {
+    const fetchImpl: FetchMock = vi.fn((_input, init) => new Promise((_resolve, reject) => {
+      const signal = init!.signal!;
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    const pending = createChatAttachmentValidator({ fetchImpl, timeoutMs: 20 })([attachment(LIVE_REF)]);
+    // A bounded watchdog makes an ignored deadline fail instead of hanging this file.
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        pending,
+        new Promise((_, reject) => { watchdog = setTimeout(() => reject(new Error("probe missed its 20ms deadline")), 500); }),
+      ]);
+      expect(result).toEqual([]);
+      expect(fetchImpl.mock.calls[0][1]!.signal!.aborted).toBe(true);
+    } finally {
+      clearTimeout(watchdog);
+    }
   });
 
   it("drops a reference whose probe rejects, rather than restoring one it could not confirm", async () => {

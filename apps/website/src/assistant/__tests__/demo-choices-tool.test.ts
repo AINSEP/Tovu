@@ -250,7 +250,12 @@ test("the fallback surface carries no exchange id, since nothing is waiting on i
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler)) as { content: Array<{ resource?: { text: string } }> };
-  const html = result.content[1]?.resource?.text ?? "";
+  const html = result.content[1]?.resource?.text;
+  assert.equal(typeof html, "string", "fallback must contain an HTML resource");
+  assert.ok(html && html.length > 0);
+  assert.match(html, /<form\b/);
+  assert.ok(html.includes(DEMO_CHOICES_TOOL_ID), "the form must name its submission tool");
+  assert.match(html, /name=["']plan["']/);
 
   assert.ok(!html.includes(SURFACE_EXCHANGE_ID_PARAM), "an exchange id in a surface with no exchange behind it would name a call that does not exist");
 });

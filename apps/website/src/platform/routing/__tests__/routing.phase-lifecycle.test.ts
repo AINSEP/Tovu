@@ -120,8 +120,14 @@ test("unregisterResolvePhaseOwner revokes that owner's handlers in EVERY phase",
     { owner }
   );
 
+  const other = Symbol("surviving-owner");
+  registerResolvePhase("pre_content", async () => ({ kind: "redirect", location: "/other-pre", statusCode: 301 }), { owner: other });
+  registerResolvePhase("post_content", async () => ({ kind: "redirect", location: "/other-post", statusCode: 302 }), { owner: other });
+
   unregisterResolvePhaseOwner(owner);
 
+  assert.deepEqual(await runPreContentPhase("/anything", ctx), { kind: "redirect", location: "/other-pre", statusCode: 301 });
+  assert.deepEqual(await runPostContentPhase("/anything", ctx), { kind: "redirect", location: "/other-post", statusCode: 302 });
   await runPreContentPhase("/anything", ctx);
   await runPostContentPhase("/anything", ctx);
   assert.deepEqual(seen, [], "a revoked owner must run in neither phase");

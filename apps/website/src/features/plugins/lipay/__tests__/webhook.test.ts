@@ -62,9 +62,14 @@ test("webhook: a genuinely signed delivery verifies and advances the payment to 
   const payment = await pendingPayment(harness);
   const nowSeconds = Math.floor(harness.clock.now() / 1000);
 
+  const rawBody = Buffer.from(JSON.stringify({
+    id: "evt_1", type: "charge.succeeded", created: nowSeconds,
+    data: { id: "ch_1", amount: 1000, currency: "USD", providerMetadata: { trace: "preserve me" } },
+    unknownField: ["extra", 42],
+  }, null, 2) + "\n", "utf8");
   const ack = await harness.api.handleWebhook({
-    providerId: "lipay",
-    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+    providerId: "lipay", rawBody,
+    headers: { "x-lipay-signature": signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: nowSeconds }) },
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
@@ -76,6 +81,7 @@ test("webhook: a genuinely signed delivery verifies and advances the payment to 
   assert.equal(rows[0].payment_id, payment.id);
   // The raw body is retained verbatim as the audit record of what the provider actually sent.
   assert.equal(JSON.parse(rows[0].payload).id, "evt_1");
+  assert.equal(rows[0].payload, rawBody.toString("utf8"), "retain every signed byte, including whitespace and unknown fields");
 
   cleanup(harness.db, harness.dir);
 });
@@ -727,4 +733,102 @@ test("webhook: the signing helper and the verifier agree byte for byte", () => {
 
   const expected = createHmac("sha256", WEBHOOK_SECRET).update("1800000000.").update(rawBody).digest("hex");
   assert.equal(header, `t=1800000000,v1=${expected}`);
+});
+
+
+for (const skewSeconds of [-301, -300, -299, 299, 300, 301]) {
+  test(`webhook signature ${skewSeconds}s from now respects the inclusive five-minute window`, async () => {
+    const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+    try {
+      const payment = await pendingPayment(harness);
+      const nowSeconds = Math.floor(harness.clock.now() / 1000);
+      const ack = await harness.api.handleWebhook({ providerId: "lipay", ...delivery({ id: "evt_boundary", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }, { signedAtSeconds: nowSeconds + skewSeconds }) });
+      const accepted = Math.abs(skewSeconds) <= 300;
+      assert.equal(ack.accepted, accepted);
+      assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, accepted ? "succeeded" : "pending");
+      assert.equal(eventRows(harness.db).length, accepted ? 1 : 0);
+      if (!accepted) assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+    } finally { cleanup(harness.db, harness.dir); }
+  });
+}
+
+test("concurrent deliveries of the same refund apply money once and acknowledge one duplicate", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "succeeded")] });
+  try {
+    const payment = await pendingPayment(harness);
+    const signed = delivery({ id: "evt_race", type: "charge.refunded", createdSeconds: Math.floor(harness.clock.now() / 1000), charge: { id: "ch_1", amount: 400, currency: "USD" } });
+    const acknowledgements = await Promise.all([
+      harness.api.handleWebhook({ providerId: "lipay", ...signed }),
+      harness.api.handleWebhook({ providerId: "lipay", ...signed }),
+    ]);
+    assert.deepEqual(acknowledgements.map((ack) => ack.accepted), [true, true]);
+    assert.equal(acknowledgements.reduce((sum, ack) => sum + ack.processed, 0), 1);
+    assert.equal(acknowledgements.reduce((sum, ack) => sum + ack.duplicates, 0), 1);
+    assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.amountRefundedMinor, 400);
+    assert.equal(eventRows(harness.db).length, 1);
+    assert.equal(eventRows(harness.db)[0].applied, 1);
+  } finally { cleanup(harness.db, harness.dir); }
+});
+
+test("a refund event with a different currency is recorded without changing the payment's money", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "succeeded")] });
+  try {
+    const payment = await pendingPayment(harness);
+    const ack = await harness.api.handleWebhook({ providerId: "lipay", ...delivery({ id: "evt_eur", type: "charge.refunded", createdSeconds: Math.floor(harness.clock.now() / 1000), charge: { id: "ch_1", amount: 400, currency: "EUR" } }) });
+    assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+    const after = await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+    assert.equal(after?.amountRefundedMinor, 0);
+    assert.equal(after?.status, "succeeded");
+    assert.equal(eventRows(harness.db).find((row) => row.provider_event_id === "evt_eur")?.applied, 0);
+  } finally { cleanup(harness.db, harness.dir); }
+});
+
+test("an older otherwise-legal refund is recorded without advancing the refunded total", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "succeeded")] });
+  try {
+    const payment = await pendingPayment(harness);
+    const now = Math.floor(harness.clock.now() / 1000);
+    await harness.api.handleWebhook({ providerId: "lipay", ...delivery({ id: "evt_new", type: "charge.refunded", createdSeconds: now, charge: { id: "ch_1", amount: 200, currency: "USD" } }) });
+    const ack = await harness.api.handleWebhook({ providerId: "lipay", ...delivery({ id: "evt_old", type: "charge.refunded", createdSeconds: now - 30, charge: { id: "ch_1", amount: 300, currency: "USD" } }, { signedAtSeconds: now }) });
+    assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+    const after = await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+    assert.equal(after?.amountRefundedMinor, 200);
+    assert.equal(after?.status, "partially_refunded");
+    assert.equal(eventRows(harness.db).find((row) => row.provider_event_id === "evt_new")?.applied, 1);
+    assert.equal(eventRows(harness.db).find((row) => row.provider_event_id === "evt_old")?.applied, 0);
+  } finally { cleanup(harness.db, harness.dir); }
+});
+
+test("a recognized event without created persists the injected clock as occurred_at", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")], startAt: Date.UTC(2026, 6, 30, 12, 0, 0) + 123 });
+  try {
+    await pendingPayment(harness);
+    const rawBody = Buffer.from(JSON.stringify({ id: "evt_no_created", type: "charge.succeeded", data: { id: "ch_1" } }));
+    const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody, headers: { "x-lipay-signature": signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: Math.floor(harness.clock.now() / 1000) }) } });
+    assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+    assert.deepEqual(harness.db.prepare("SELECT occurred_at, applied FROM p_lipay__events WHERE provider_event_id = 'evt_no_created'").get(), { occurred_at: Date.UTC(2026, 6, 30, 12, 0, 0) + 123, applied: 1 });
+  } finally { cleanup(harness.db, harness.dir); }
+});
+
+test("an event INSERT infrastructure failure propagates after correlation and leaves no partial writes", async (t) => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  try {
+    const payment = await pendingPayment(harness);
+    const before = await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+    const prepare = harness.db.prepare.bind(harness.db);
+    let failedInsert = false;
+    const spy = t.mock.method(harness.db, "prepare", (text: string) => {
+      if (/^insert into "p_lipay__events"/i.test(text)) {
+        failedInsert = true;
+        throw new Error("event INSERT infrastructure failed");
+      }
+      return prepare(text);
+    });
+    try {
+      await assert.rejects(() => harness.api.handleWebhook({ providerId: "lipay", ...delivery({ id: "evt_insert_fail", type: "charge.succeeded", createdSeconds: Math.floor(harness.clock.now() / 1000), charge: { id: "ch_1" } }) }), /event INSERT infrastructure failed/);
+    } finally { spy.mock.restore(); }
+    assert.equal(failedInsert, true, "correlation must have succeeded and reached the INSERT");
+    assert.deepEqual(await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }), before);
+    assert.deepEqual(eventRows(harness.db), []);
+  } finally { cleanup(harness.db, harness.dir); }
 });

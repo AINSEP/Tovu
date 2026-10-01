@@ -6,8 +6,10 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { isDeniedFsFileName } from "#src/features/fs-files/fs-files";
-import { checkTreePath } from "#src/features/publish-content/file-tree-policy";
+import { minimatch } from "minimatch";
+
+import { isDeniedFsFileName, readFsFile } from "#src/features/fs-files/fs-files";
+import { checkTreeFiles, checkTreePath } from "#src/features/publish-content/file-tree-policy";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { duplicateSite } from "../../duplicate-site.js";
 import { ValidationError } from "../../errors.js";
@@ -96,7 +98,19 @@ test("the site backup collects no .storage-secret.json from any scope", async (t
   );
 });
 
-test("agent file tools and publish trees deny the secret by name, at any depth", () => {
+test("agent file tools and publish trees deny the secret by name, at any depth", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "storage-secret-reader-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "nested"));
+  fs.writeFileSync(path.join(root, "nested", "ordinary.json"), '{"message":"ordinary neighbor"}');
+  for (const relativePath of [STORAGE_SECRET_FILENAME, `nested/${STORAGE_SECRET_FILENAME}`, `nested/.${STORAGE_SECRET_FILENAME}.123.abc.tmp`]) {
+    fs.writeFileSync(path.join(root, relativePath), SECRET_MARKER);
+    assert.throws(() => readFsFile({ rootPath: root, relativePath }), /denied filename pattern/);
+    assert.match(checkTreeFiles("theme-files", [{ path: relativePath, size: SECRET_MARKER.length, textSample: SECRET_MARKER }]) ?? "", /sealed database connection string/);
+  }
+  const ordinary = readFsFile({ rootPath: root, relativePath: "nested/ordinary.json" });
+  assert.deepEqual(ordinary, { content: '{"message":"ordinary neighbor"}', bytes: 31 });
+  assert.equal(checkTreeFiles("theme-files", [{ path: "nested/ordinary.json", size: ordinary.bytes, textSample: ordinary.content }]), null);
   assert.equal(isDeniedFsFileName(STORAGE_SECRET_FILENAME), true);
   assert.equal(isDeniedFsFileName(".Storage-Secret.json"), true, "case-folded like every other entry");
   assert.equal(isDeniedFsFileName(`.${STORAGE_SECRET_FILENAME}.123.abc.tmp`), true, "a crashed write's temp file too");
@@ -114,6 +128,28 @@ test("git ignores the secret in any site folder (sites/ is tracked and deployed 
     assert.equal(result.status, 0, `${rel} must be git-ignored`);
   }
   for (const file of [".dockerignore", "Dockerfile.dockerignore"]) {
-    assert.match(fs.readFileSync(path.join(REPO_ROOT, file), "utf8"), /^\*\*\/\*\.storage-secret\.json\*$/m, `${file} excludes the secret`);
+    const patterns = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");
+    for (const rel of [STORAGE_SECRET_FILENAME, `sites/any-site/${STORAGE_SECRET_FILENAME}`, `themes/nested/.${STORAGE_SECRET_FILENAME}.123.abc.tmp`]) {
+      assert.equal(dockerContextExcludes(patterns, rel), true, `${file} effectively excludes ${rel}`);
+      assert.equal(dockerContextExcludes(`${patterns}\n!**/*.storage-secret.json*\n`, rel), false, "the oracle must honor a later re-inclusion");
+    }
+    assert.equal(dockerContextExcludes(patterns, "themes/nested/ordinary.json"), false, "ordinary content remains in the build context");
   }
 });
+
+/** Docker's ordered glob rules for the patterns in these two context files: last match wins,
+ * including negation; directory matches apply to descendants. The glob engine handles ** and
+ * dotfiles (unlike a source-text presence check, a later re-inclusion changes the result). */
+function dockerContextExcludes(source: string, relativePath: string): boolean {
+  const segments = relativePath.split("/");
+  const ancestors = segments.map((_segment, index) => segments.slice(0, index + 1).join("/"));
+  let excluded = false;
+  for (const line of source.split(/\r?\n/)) {
+    const rule = line.trim();
+    if (rule === "" || rule.startsWith("#") || rule === ".") continue;
+    const negated = rule.startsWith("!");
+    const pattern = (negated ? rule.slice(1) : rule).replace(/^\/+|\/+$/g, "");
+    if (ancestors.some((candidate) => minimatch(candidate, pattern, { dot: true, nonegate: true }))) excluded = !negated;
+  }
+  return excluded;
+}

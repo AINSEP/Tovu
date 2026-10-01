@@ -101,19 +101,41 @@ test("an empty apiKey is rejected — DELETE clears a key, PUT does not accept b
 
 test("a non-string protocol/baseUrl/model is rejected before any write", async () => {
   const { deps, repo } = makeDeps();
-  await assert.rejects(
-    () => setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, protocol: 12345 as unknown as string }),
-    ExecutionCredentialValidationError
-  );
-  assert.equal(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+  for (const field of ["protocol", "baseUrl", "model"] as const) {
+    await assert.rejects(
+      () => setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, [field]: 12345 }),
+      (error: unknown) => {
+        assert.ok(error instanceof ExecutionCredentialValidationError);
+        assert.equal(error.message, `${field} must be a string`);
+        return true;
+      },
+    );
+    assert.equal(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+  }
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "existing-key", model: "original-model" });
+  const before = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
+  for (const field of ["protocol", "baseUrl", "model"] as const) {
+    await assert.rejects(
+      () => setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, [field]: 12345 }),
+      (error: unknown) => {
+        assert.ok(error instanceof ExecutionCredentialValidationError);
+        assert.equal(error.message, `${field} must be a string`);
+        return true;
+      },
+    );
+    assert.deepEqual(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), before);
+  }
 });
 
 test("a non-positive maxTokens is rejected before any write", async () => {
-  const { deps } = makeDeps();
-  await assert.rejects(
-    () => setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, maxTokens: 0 }),
-    ExecutionCredentialValidationError
-  );
+  const { deps, repo } = makeDeps();
+  for (const maxTokens of [0, -1, NaN]) {
+    await assert.rejects(
+      () => setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, maxTokens }),
+      ExecutionCredentialValidationError,
+    );
+    assert.equal(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+  }
 });
 
 test("omitting apiKey leaves the previously-stored key untouched — only model changes", async () => {
@@ -349,4 +371,17 @@ test("AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in t
 
   const resolved = await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(resolved, null, "resolveExecutionCredential never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
+});
+
+test("AAD binding rejects a ciphertext transplanted across workspaces for the same principal", async () => {
+  const { deps, repo } = makeDeps();
+  const otherWorkspace = "ws-other";
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "workspace-one" });
+  await setExecutionCredential(deps, { workspaceId: otherWorkspace, principalId: ADMIN_A, apiKey: "workspace-two" });
+  const destination = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const source = await repo.findByWorkspaceAndPrincipal({ workspaceId: otherWorkspace, principalId: ADMIN_A });
+  assert.ok(destination && source);
+  await repo.upsert({ ...destination, sealed: source.sealed, masked: source.masked });
+  assert.equal(await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+  assert.equal((await resolveExecutionCredential(deps, { workspaceId: otherWorkspace, principalId: ADMIN_A }))?.apiKey, "workspace-two");
 });

@@ -22,9 +22,9 @@ afterEach(() => {
   focusManager.setFocused(undefined);
 });
 
-function Reader({ fetch, refetchOnWindowFocus }: { fetch: () => Promise<string>; refetchOnWindowFocus?: boolean }) {
-  const q = useFetchQuery({ key: ["focus-thing"], fetch, staleTime: 0, ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }) });
-  return <span data-testid="data">{q.data ?? "-"}</span>;
+function Reader({ fetch, refetchOnWindowFocus, id = "data" }: { fetch: () => Promise<string>; refetchOnWindowFocus?: boolean; id?: string }) {
+  const q = useFetchQuery({ key: ["focus-thing", id], fetch, staleTime: 0, ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }) });
+  return <span data-testid={id}>{q.data ?? "-"}</span>;
 }
 
 describe("useFetchQuery refetchOnWindowFocus", () => {
@@ -47,9 +47,12 @@ describe("useFetchQuery refetchOnWindowFocus", () => {
   it("does NOT refetch on window focus when the option is omitted — the default stays unchanged", async () => {
     let call = 0;
     const fetch = vi.fn(async () => `v${++call}`);
+    let sentinelCalls = 0;
+    const sentinelFetch = vi.fn(async () => `sentinel${++sentinelCalls}`);
     render(
       <FetchQueryProvider>
         <Reader fetch={fetch} />
+        <Reader fetch={sentinelFetch} refetchOnWindowFocus id="sentinel" />
       </FetchQueryProvider>
     );
     await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("v1"));
@@ -57,8 +60,7 @@ describe("useFetchQuery refetchOnWindowFocus", () => {
     focusManager.setFocused(false);
     focusManager.setFocused(true);
 
-    // Give any (wrongly) scheduled refetch a turn to land, then confirm it didn't.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() => expect(screen.getByTestId("sentinel")).toHaveTextContent("sentinel2"));
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("data")).toHaveTextContent("v1");
   });

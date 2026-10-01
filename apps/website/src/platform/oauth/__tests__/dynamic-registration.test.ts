@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { registerOAuthClientDynamically } from "../dynamic-registration.js";
-import { assertOAuthRejects, sendJson, startDiscoveryFixture, startLoopbackServer } from "./helpers.js";
+import { assertOAuthRejects, createFetchDouble, sendJson, startDiscoveryFixture, startLoopbackServer } from "./helpers.js";
 
 /**
  * @file Tests for RFC 7591 dynamic client registration, against real loopback servers.
@@ -41,6 +41,7 @@ test("registration POSTs an RFC 7591 client-metadata document as JSON", async ()
     const request = fixture.requests.at(-1);
     assert.ok(request, "expected the registration endpoint to have been called");
     assert.equal(request.method, "POST");
+    assert.equal(request.headers["content-type"], "application/json");
     const body = parseBody(request.body);
     assert.deepEqual(body.redirect_uris, [REDIRECT_URI]);
     assert.equal(body.client_name, "Tovu");
@@ -49,6 +50,7 @@ test("registration POSTs an RFC 7591 client-metadata document as JSON", async ()
     assert.deepEqual(body.response_types, ["code"]);
     assert.equal(body.scope, "openid email offline_access");
     assert.equal(body.application_type, "web");
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -64,6 +66,7 @@ test("a public client is the default — no client secret is requested and none 
     assert.equal(registered.clientId, "minted-abc");
     assert.equal(registered.clientSecret, null);
     assert.equal(registered.tokenEndpointAuthMethod, "none");
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -92,6 +95,7 @@ test("a server that volunteers a client secret anyway has it carried back, with 
     assert.equal(registered.tokenEndpointAuthMethod, "client_secret_post");
     assert.equal(registered.clientIdIssuedAt, 1_756_000_000);
     assert.equal(registered.clientSecretExpiresAt, 0);
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -107,6 +111,7 @@ test("an echoed token_endpoint_auth_method outside the supported vocabulary fall
       { registrationEndpoint: `${fixture.origin}/oauth2/register`, clientName: "Tovu", redirectUris: [REDIRECT_URI], scopes: [] },
     );
     assert.equal(registered.tokenEndpointAuthMethod, "none");
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -128,6 +133,7 @@ test("a response with no client id is a malformed response, not a silently broke
       error.operatorAction,
       "This server's dynamic client registration endpoint is not behaving like an RFC 7591 endpoint.",
     );
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -154,6 +160,7 @@ test("a refusal is reported with its RFC 7591 error code and WITHOUT the server'
     assert.ok(!error.message.includes("script"), "the provider's free text must never reach the message");
     // Registration is never retried, whatever the server calls its error.
     assert.equal(error.retryable, false);
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -171,6 +178,7 @@ test("a refusal a hostile server labels slow_down is still terminal — registra
       "OAUTH_PROVIDER_REJECTED",
     );
     assert.equal(error.retryable, false);
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
@@ -218,6 +226,7 @@ test("a registration endpoint that redirects is refused rather than followed", a
         ),
       "OAUTH_PROVIDER_UNREACHABLE",
     );
+    assert.equal(server.requests.length, 1, "registration must make exactly one attempt");
   } finally {
     await server.close();
   }
@@ -239,6 +248,7 @@ test("an oversized registration response is capped rather than buffered", async 
       "OAUTH_MALFORMED_RESPONSE",
     );
     assert.equal(error.message, "the client registration response exceeded 65536 bytes");
+    assert.equal(server.requests.length, 1, "registration must make exactly one attempt");
   } finally {
     await server.close();
   }
@@ -263,7 +273,41 @@ test("requested grant types and auth method are honoured when the caller names t
     assert.deepEqual(body.grant_types, ["urn:ietf:params:oauth:grant-type:device_code"]);
     assert.equal(body.token_endpoint_auth_method, "client_secret_post");
     assert.deepEqual(body.response_types, []);
+    assert.equal(fixture.requests.filter((request) => request.url === "/oauth2/register").length, 1, "registration must make exactly one attempt");
   } finally {
     await fixture.close();
   }
+});
+
+for (const [supported, expected] of [
+  [undefined, "client_secret_basic"],
+  [[], "client_secret_basic"],
+  [["client_secret_basic"], "client_secret_basic"],
+  [["client_secret_post"], "client_secret_post"],
+  [["client_secret_post", "client_secret_basic"], "client_secret_basic"],
+  [["none", "private_key_jwt"], "none"],
+] as const) {
+  test(`secret without an echoed method resolves ${JSON.stringify(supported)} to ${expected}`, async () => {
+    const http = createFetchDouble([{ json: { client_id: "issued-id", client_secret: "issued-secret" } }]);
+    const registered = await registerOAuthClientDynamically({ fetchFn: http.fetchFn }, {
+      registrationEndpoint: "https://auth.example.com/register", clientName: "Tovu",
+      redirectUris: [REDIRECT_URI], scopes: [], authMethodsSupported: supported,
+    });
+    assert.equal(registered.clientId, "issued-id");
+    assert.equal(registered.clientSecret, "issued-secret");
+    assert.equal(registered.tokenEndpointAuthMethod, expected);
+    assert.equal(http.requests.length, 1);
+  });
+}
+
+test("an unreachable registration is attempted exactly once", async () => {
+  let attempts = 0;
+  await assertOAuthRejects(() => registerOAuthClientDynamically({ fetchFn: async () => {
+    attempts += 1;
+    throw new Error("connection refused");
+  } }, {
+    registrationEndpoint: "https://auth.example.com/register", clientName: "Tovu",
+    redirectUris: [REDIRECT_URI], scopes: [],
+  }), "OAUTH_PROVIDER_UNREACHABLE");
+  assert.equal(attempts, 1);
 });

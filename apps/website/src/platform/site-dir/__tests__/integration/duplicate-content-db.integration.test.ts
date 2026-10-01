@@ -6,6 +6,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { migrateSqliteContentFile, openSqliteContentConnection } from "../../../db/sqlite/content-db.js";
+import { InternalError } from "../../errors.js";
 import { openChatDb } from "../../../db/sqlite/chat-db.js";
 import { initSite } from "../../init-site.js";
 import { duplicateContentDb } from "../../duplicate-content-db.js";
@@ -100,29 +102,39 @@ test("chat/session history rows do not survive the copy, even though the source 
   }
 });
 
-test("real content (posts, workspace, presentation) survives the copy intact", async () => {
+test("real content (posts, workspace, presentation) survives the copy intact, including live WAL commits", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
-
-    await duplicateContentDb({ sourceDbPath, targetDbPath });
-
-    const source = new Database(sourceDbPath, { readonly: true });
-    const copy = new Database(targetDbPath, { readonly: true });
+    const source = new Database(sourceDbPath);
     try {
-      const sourcePosts = source.prepare(`SELECT id, title FROM posts ORDER BY id`).all();
-      const copyPosts = copy.prepare(`SELECT id, title FROM posts ORDER BY id`).all();
-      assert.ok(sourcePosts.length > 0, "the starter template must seed at least one post (test precondition)");
-      assert.deepEqual(copyPosts, sourcePosts, "every post row must survive, byte-for-byte");
+      source.pragma("journal_mode = WAL");
+      source.pragma("wal_checkpoint(TRUNCATE)");
+      source.pragma("wal_autocheckpoint = 0");
+      const mainBytes = fs.readFileSync(sourceDbPath);
+      source.transaction(() => {
+        source.prepare("UPDATE posts SET title = ?, body_json = ?").run("WAL-only distinctive title", JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body committed in the live WAL" }] }] }));
+        source.prepare("UPDATE workspaces SET name = ?").run("Distinctive workspace in WAL");
+        source.prepare("UPDATE presentation_settings SET active_theme_id = ?, updated_at = ?").run("distinctive-theme", "2026-01-02T03:04:05.000Z");
+      })();
+      assert.ok(fs.statSync(`${sourceDbPath}-wal`).size > 32, "precondition: committed data is in a live WAL");
+      assert.deepEqual(fs.readFileSync(sourceDbPath), mainBytes, "precondition: main file has not checkpointed those commits");
 
-      const sourceWorkspaces = (source.prepare(`SELECT COUNT(*) AS c FROM workspaces`).get() as { c: number }).c;
-      const copyWorkspaces = (copy.prepare(`SELECT COUNT(*) AS c FROM workspaces`).get() as { c: number }).c;
-      assert.equal(copyWorkspaces, sourceWorkspaces, "workspace row count must be preserved");
-      assert.ok(copyWorkspaces > 0, "test precondition: the starter template seeds a workspace");
+      await duplicateContentDb({ sourceDbPath, targetDbPath });
+
+      const copy = new Database(targetDbPath, { readonly: true });
+      try {
+        for (const [table, key] of [["posts", "id"], ["workspaces", "id"], ["presentation_settings", "workspace_id"]]) {
+          const expected = source.prepare(`SELECT * FROM ${table} ORDER BY ${key}`).all();
+          assert.ok(expected.length > 0, `${table} must have distinctive source rows`);
+          assert.deepEqual(copy.prepare(`SELECT * FROM ${table} ORDER BY ${key}`).all(), expected, `${table} rows must survive intact`);
+        }
+      } finally {
+        copy.close();
+      }
     } finally {
       source.close();
-      copy.close();
     }
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
@@ -137,8 +149,13 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
 
+    const source = new Database(sourceDbPath, { readonly: true });
+    const expectedHistory = source.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all();
+    source.close();
+    assert.ok(expectedHistory.length > 1, "precondition: multiple migrations were applied");
     const copy = new Database(targetDbPath, { readonly: true });
     try {
+      assert.deepEqual(copy.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
       const [integrity] = copy.pragma("integrity_check") as Array<{ integrity_check: string }>;
       assert.equal(integrity.integrity_check, "ok");
 
@@ -149,6 +166,14 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
       );
     } finally {
       copy.close();
+    }
+    const reopened = openSqliteContentConnection(targetDbPath);
+    try {
+      const report = await migrateSqliteContentFile(reopened, targetDbPath);
+      assert.deepEqual(report.applied, [], "production reopen must not replay migrations");
+      assert.deepEqual(reopened.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
+    } finally {
+      reopened.$client.close();
     }
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
@@ -330,8 +355,13 @@ test("a content.db with no chat tables at all duplicates without error", async (
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
 
+    const source = new Database(sourceDbPath, { readonly: true });
+    const expectedHistory = source.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all();
+    source.close();
+    assert.ok(expectedHistory.length > 1, "precondition: multiple migrations were applied");
     const copy = new Database(targetDbPath, { readonly: true });
     try {
+      assert.deepEqual(copy.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
       const [integrity] = copy.pragma("integrity_check") as Array<{ integrity_check: string }>;
       assert.equal(integrity.integrity_check, "ok");
       const posts = (copy.prepare(`SELECT COUNT(*) AS c FROM posts`).get() as { c: number }).c;
@@ -339,6 +369,25 @@ test("a content.db with no chat tables at all duplicates without error", async (
     } finally {
       copy.close();
     }
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("an existing copy target is refused without overwriting either file", async () => {
+  const parent = mkTempParent();
+  try {
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
+    const sourceBytes = fs.readFileSync(sourceDbPath);
+    const targetDbPath = path.join(parent, "existing.db");
+    fs.writeFileSync(targetDbPath, "existing-target-canary");
+    await assert.rejects(duplicateContentDb({ sourceDbPath, targetDbPath }), (error: unknown) => {
+      assert.ok(error instanceof InternalError);
+      assert.ok(error.message.startsWith(`duplicateContentDb: copying to ${targetDbPath} failed:`));
+      return true;
+    });
+    assert.equal(fs.readFileSync(targetDbPath, "utf8"), "existing-target-canary");
+    assert.deepEqual(fs.readFileSync(sourceDbPath), sourceBytes);
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inflateSync } from "node:zlib";
+import { crc32, inflateSync } from "node:zlib";
 
 import { renderSolidColorPng } from "../demo-image-png.js";
 
@@ -17,6 +17,7 @@ function readChunk(buf: Buffer, offset: number): { type: string; data: Buffer; n
   const length = buf.readUInt32BE(offset);
   const type = buf.toString("ascii", offset + 4, offset + 8);
   const data = buf.subarray(offset + 8, offset + 8 + length);
+  assert.equal(buf.readUInt32BE(offset + 8 + length), crc32(buf.subarray(offset + 4, offset + 8 + length)), `${type} CRC must cover type + data`);
   return { type, data, next: offset + 8 + length + 4 };
 }
 

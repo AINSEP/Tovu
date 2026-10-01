@@ -6,6 +6,8 @@ import { createFrontendControl } from "@jini-ai/http-kit";
 
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "../frontend-control-capabilities.js";
 
+const EXPECTED_PAGE_IDS = ["page.click", "page.fill", "page.find_elements", "page.highlight", "page.navigate", "page.scroll_to", "page.select_option"];
+
 /**
  * @file Pins the one invariant `agent-daemon-server.ts`'s `createFrontendControl` call depends on:
  * no capability reaching it may require a confirmation transport this host does not have (see
@@ -67,10 +69,8 @@ test("chat.reset_conversation is present, self-confirmed via inputSchema, and re
 
 test("page.* capabilities are still present alongside the chat verbs", () => {
   const ids = FRONTEND_CONTROL_CAPABILITIES.map((capability) => capability.id);
-  assert.ok(
-    ids.some((id) => id.startsWith("page.")),
-    "expected at least one page.* capability to survive the chat-verb addition",
-  );
+  assert.ok(ids.some((id) => id.startsWith("page.")));
+  assert.deepEqual(ids.filter((id) => id.startsWith("page.")).sort(), EXPECTED_PAGE_IDS);
 });
 
 /**
@@ -109,6 +109,7 @@ test("admin.capture_screenshot is registered, read-only, session-scoped, and sta
     /iframe/i,
     "the description must warn that cross-origin/MCP-UI iframes render blank, or the model will over-trust a blank one as evidence of an empty surface",
   );
+  assert.ok(capability.description.includes("Cross-origin iframes render as BLANK space — this includes every MCP-UI surface the assistant itself has rendered, so a blank rectangle where a rendered UI card should be is NOT evidence that nothing is there."));
 });
 
 /**
@@ -140,10 +141,8 @@ test("createFrontendControl registers exactly the seven chat.* verbs as callable
   ]) {
     assert.ok(ids.includes(expected), `expected ${expected} to be a registered tool`);
   }
-  assert.ok(
-    ids.some((id) => id.startsWith("page.")),
-    "expected page.* tools to still be registered",
-  );
+  assert.ok(ids.some((id) => id.startsWith("page.")));
+  assert.deepEqual(ids.filter((id) => id.startsWith("page.")).sort(), EXPECTED_PAGE_IDS);
 
   const confirmingRegistrations = frontendControl.toolRegistrations.filter(
     (registration) => registration.descriptor.requiresConfirmation === true,

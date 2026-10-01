@@ -29,6 +29,17 @@ import ts from "typescript";
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../..");
 const SCAN_ROOT = path.join(REPO_ROOT, "apps/website/src");
 
+const WORKSPACE_PACKAGES = new Set<string>([JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")).name]);
+const workspaceGlobs: string[] = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")).workspaces ?? [];
+for (const glob of workspaceGlobs) {
+  assert.ok(glob.endsWith("/*"), `unsupported workspace glob: ${glob}`);
+  const parent = path.join(REPO_ROOT, glob.slice(0, -2));
+  for (const entry of fs.readdirSync(parent, { withFileTypes: true })) {
+    const manifest = path.join(parent, entry.name, "package.json");
+    if (entry.isDirectory() && fs.existsSync(manifest)) WORKSPACE_PACKAGES.add(JSON.parse(fs.readFileSync(manifest, "utf8")).name);
+  }
+}
+
 /**
  * One first-party `require()` this guard accepts, with the reason it is safe. Keep this list exact
  * (file + specifier), not a glob — a future legitimate lazy leaf must be added here deliberately,
@@ -56,8 +67,8 @@ function listSourceFiles(dir: string): string[] {
       out.push(...listSourceFiles(full));
       continue;
     }
-    if (!/\.(ts|tsx|mts|cts)$/.test(entry.name)) continue;
-    if (/\.test\.(ts|tsx)$/.test(entry.name) || entry.name.endsWith(".d.ts")) continue;
+    if (!/\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(entry.name)) continue;
+    if (/\.test\.[cm]?[jt]sx?$/.test(entry.name) || /\.d\.[cm]?ts$/.test(entry.name)) continue;
     out.push(full);
   }
   return out.sort();
@@ -75,6 +86,7 @@ function collectCreateRequireBindings(sourceFile: ts.SourceFile): CreateRequireB
   for (const stmt of sourceFile.statements) {
     if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteralLike(stmt.moduleSpecifier)) continue;
     if (stmt.moduleSpecifier.text !== "node:module" && stmt.moduleSpecifier.text !== "module") continue;
+    if (stmt.importClause?.name) namespaces.add(stmt.importClause.name.text);
     const bindings = stmt.importClause?.namedBindings;
     if (!bindings) continue;
     if (ts.isNamespaceImport(bindings)) {
@@ -85,7 +97,27 @@ function collectCreateRequireBindings(sourceFile: ts.SourceFile): CreateRequireB
       if ((element.propertyName ?? element.name).text === "createRequire") direct.add(element.name.text);
     }
   }
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && node.initializer && isModuleReference(node.initializer, namespaces)) {
+      if (ts.isIdentifier(node.name)) namespaces.add(node.name.text);
+      if (ts.isObjectBindingPattern(node.name)) {
+        for (const element of node.name.elements) {
+          if (ts.isIdentifier(element.name) && (element.propertyName ?? element.name).getText(sourceFile) === "createRequire") direct.add(element.name.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return { direct, namespaces };
+}
+
+function isModuleReference(expr: ts.Expression, namespaces: ReadonlySet<string>): boolean {
+  if (ts.isIdentifier(expr)) return namespaces.has(expr.text);
+  if (!ts.isCallExpression(expr) || !expr.arguments[0] || !ts.isStringLiteralLike(expr.arguments[0])) return false;
+  if (!["node:module", "module"].includes(expr.arguments[0].text)) return false;
+  return (ts.isIdentifier(expr.expression) && expr.expression.text === "require")
+    || (ts.isPropertyAccessExpression(expr.expression) && expr.expression.getText() === "process.getBuiltinModule");
 }
 
 /** True for a `createRequire(...)` call under any of the names {@link collectCreateRequireBindings} resolved — the factory a first-party `require` may be bound through instead of the global. */
@@ -93,7 +125,7 @@ function isCreateRequireCall(node: ts.Node, bindings: CreateRequireBindings): bo
   if (!ts.isCallExpression(node)) return false;
   const callee = node.expression;
   if (ts.isIdentifier(callee)) return bindings.direct.has(callee.text);
-  return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && bindings.namespaces.has(callee.expression.text) && callee.name.text === "createRequire";
+  return ts.isPropertyAccessExpression(callee) && isModuleReference(callee.expression, bindings.namespaces) && callee.name.text === "createRequire";
 }
 
 /** Every local name this file binds to `require` — the global identifier plus any `const x = createRequire(...)`. */
@@ -103,6 +135,8 @@ function collectRequireNames(sourceFile: ts.SourceFile, bindings: CreateRequireB
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && isCreateRequireCall(node.initializer, bindings)) {
       names.add(node.name.text);
     }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ts.isIdentifier(node.left) && isCreateRequireCall(node.right, bindings)) names.add(node.left.text);
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
@@ -112,6 +146,7 @@ function collectRequireNames(sourceFile: ts.SourceFile, bindings: CreateRequireB
 /** True when `expr` (a call's callee) resolves to a require function — a known local name, or an inline `createRequire(...)(...)`. */
 function isRequireCallee(expr: ts.Expression, names: ReadonlySet<string>, bindings: CreateRequireBindings): boolean {
   if (ts.isIdentifier(expr) && names.has(expr.text)) return true;
+  if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === "module" && expr.name.text === "require") return true;
   return isCreateRequireCall(expr, bindings);
 }
 
@@ -124,7 +159,7 @@ function classifySpecifier(call: ts.CallExpression): string {
 
 /** A specifier that can only resolve to a module inside this repo — relative, `#src/`-aliased, absolute, or unreadable (see {@link classifySpecifier}). */
 function isFirstParty(spec: string): boolean {
-  return spec === "<non-literal>" || spec.startsWith("#src/") || spec.startsWith("./") || spec.startsWith("../") || path.isAbsolute(spec);
+  return [...WORKSPACE_PACKAGES].some((name) => spec === name || spec.startsWith(`${name}/`)) || spec === "<non-literal>" || spec.startsWith("#src/") || spec.startsWith("./") || spec.startsWith("../") || path.isAbsolute(spec);
 }
 
 /** Every first-party specifier `fileName`'s source `require()`s — the guard's core detector, proven by G1 before G2/G3 trust it. */
@@ -153,14 +188,24 @@ function firstPartyRuntimeImports(fileName: string, text: string): string[] {
     const isImport = ts.isImportDeclaration(stmt);
     const isExport = ts.isExportDeclaration(stmt);
     if (!isImport && !isExport) continue;
-    const isTypeOnly = (isImport && stmt.importClause?.isTypeOnly) || (isExport && stmt.isTypeOnly);
+    const isTypeOnly = (isImport && (stmt.importClause?.isTypeOnly || (!stmt.importClause?.name && stmt.importClause?.namedBindings && ts.isNamedImports(stmt.importClause.namedBindings) && stmt.importClause.namedBindings.elements.length > 0 && stmt.importClause.namedBindings.elements.every((item) => item.isTypeOnly)))) || (isExport && (stmt.isTypeOnly || (stmt.exportClause && ts.isNamedExports(stmt.exportClause) && stmt.exportClause.elements.length > 0 && stmt.exportClause.elements.every((item) => item.isTypeOnly))));
     if (isTypeOnly) continue;
     const spec = stmt.moduleSpecifier;
     if (spec && ts.isStringLiteralLike(spec) && isFirstParty(spec.text)) specs.push(spec.text);
   }
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const spec = classifySpecifier(node);
+      if (isFirstParty(spec)) specs.push(spec);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return specs;
 }
 
+// Arbitrary higher-order flow (e.g. a loader passed as a function parameter) is outside this
+// syntactic detector; direct factories, module bindings and assigned loaders are supported.
 test("detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes", () => {
   assert.deepEqual(findFirstPartyRequires("x.ts", `require("./app.js")`), ["./app.js"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `const r = createRequire(import.meta.url); r("#src/a")`), ["#src/a"]);
@@ -172,11 +217,58 @@ test("detector: findFirstPartyRequires recognizes every require-call shape and i
   assert.deepEqual(findFirstPartyRequires("x.ts", `import { createRequire as mk } from "node:module";\nmk(import.meta.url)("./app.js")`), ["./app.js"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `import { createRequire as mk } from "node:module";\nconst r = mk(import.meta.url);\nr("./app.js")`), ["./app.js"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `import * as mod from "node:module";\nmod.createRequire(import.meta.url)("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `import mod from "node:module"; mod.createRequire(import.meta.url)("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `import mod from "module"; const r = mod.createRequire(import.meta.url); r("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.cjs", `module.require("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `process.getBuiltinModule("module").createRequire(import.meta.url)("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.cjs", `const { createRequire: mk } = require("node:module"); const r = mk(__filename); r("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `let r; r = createRequire(import.meta.url); r("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", 'require(`./app.js`)'), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `require("./" + "app.js")`), ["<non-literal>"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `require("@tovu/sdk"); require("@tovu/sdk/plugins")`), ["@tovu/sdk", "@tovu/sdk/plugins"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `require.resolve("tsx")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `require("node:sea")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `createRequire(import.meta.url)("nodemailer")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `// require("./c.js")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `const s = "require('./d.js')";`), []);
+});
+
+test("the source-file scanner includes JavaScript variants and excludes declarations/tests", () => {
+  const dir = fs.mkdtempSync(path.join(process.env.TMPDIR ?? "/tmp", "tovu-require-scanner-"));
+  try {
+    for (const file of ["a.js", "b.mjs", "c.cjs", "d.ts", "types.d.ts", "skip.test.js"]) fs.writeFileSync(path.join(dir, file), "");
+    assert.deepEqual(listSourceFiles(dir).map((file) => path.basename(file)), ["a.js", "b.mjs", "c.cjs", "d.ts"]);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("the leaf scanner includes dynamic imports and first-party require loads", () => {
+  assert.deepEqual(firstPartyRuntimeImports("x.ts", `async function load() { return import("./shared-registry.js"); }`), ["./shared-registry.js"]);
+  assert.deepEqual(firstPartyRuntimeImports("x.ts", `export { x } from "./state.js"; import type { T } from "./types.js"; import { type U } from "./more-types.js";`), ["./state.js"]);
+  assert.deepEqual(firstPartyRuntimeImports("x.ts", `type T = typeof import("./types.js"); import("node:fs");`), []);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `function load() { return require("./shared-registry.js"); }`), ["./shared-registry.js"]);
+});
+
+function runtimeImportersOf(targetPath: string, files: readonly string[]): string[] {
+  const importers: string[] = [];
+  for (const file of files) {
+    for (const spec of firstPartyRuntimeImports(file, fs.readFileSync(file, "utf8"))) {
+      const resolved = ts.resolveModuleName(spec, file, { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, baseUrl: REPO_ROOT, paths: { "#src/*": ["apps/website/src/*"] } }, ts.sys).resolvedModule?.resolvedFileName;
+      if (resolved && path.resolve(resolved) === path.resolve(targetPath)) importers.push(file);
+    }
+  }
+  return importers;
+}
+
+test("the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf", () => {
+  const dir = fs.mkdtempSync(path.join(process.env.TMPDIR ?? "/tmp", "tovu-leaf-importers-"));
+  try {
+    const target = path.join(dir, "leaf.ts");
+    fs.writeFileSync(target, "export const x = 1;");
+    const files = ["import.ts", "export.ts", "dynamic.ts", "type.ts"].map((file) => path.join(dir, file));
+    const texts = [`import { x } from "./leaf.js";`, `export { x } from "./leaf.js";`, `async function load() { return import("./leaf.js"); }`, `import type { x } from "./leaf.js";`];
+    files.forEach((file, index) => fs.writeFileSync(file, texts[index]));
+    assert.deepEqual(runtimeImportersOf(target, files), files.slice(0, 3));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("no source file under apps/website/src require()s a first-party module except the allowlist", () => {
@@ -210,6 +302,8 @@ test("every allowlist entry is still present and still a first-party-import-free
       // NodeNext specifiers name the compiled `.js` output; the source on disk is `.ts`.
       const targetPath = path.resolve(path.dirname(absPath), spec).replace(/\.js$/, ".ts");
       const targetText = fs.readFileSync(targetPath, "utf8");
+      assert.deepEqual(findFirstPartyRequires(targetPath, targetText), [], `${spec} must not require first-party state`);
+      assert.deepEqual(runtimeImportersOf(targetPath, listSourceFiles(SCAN_ROOT)), [], `${spec} must have no production runtime importers, so its required copy stays the only copy`);
       assert.deepEqual(
         firstPartyRuntimeImports(targetPath, targetText),
         [],

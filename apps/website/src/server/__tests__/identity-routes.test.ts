@@ -33,7 +33,18 @@ async function loginAs(baseUrl: string, username: string, password: string) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  return { res, cookie: res.headers.get("set-cookie")?.split(";")[0] ?? "" };
+  const setCookie = res.headers.get("set-cookie");
+  if (res.ok) {
+    assert.ok(setCookie, "successful login sets a session cookie");
+    const attributes = setCookie.split(";").slice(1).map((value) => value.trim());
+    assert.ok(attributes.includes("Path=/"), "the session must cover authenticated routes outside /auth/login");
+    assert.ok(attributes.includes("HttpOnly"));
+    assert.ok(attributes.includes("Secure"));
+    assert.ok(attributes.includes("SameSite=Strict"));
+    assert.ok(attributes.some((value) => /^Max-Age=[1-9]\d*$/.test(value)));
+    assert.equal(attributes.some((value) => /^Domain=/i.test(value)), false, "session cookie is host-only");
+  }
+  return { res, cookie: setCookie?.split(";")[0] ?? "" };
 }
 
 test("AC-02: wrong password is rejected 401 and never sets a session cookie", async (t) => {

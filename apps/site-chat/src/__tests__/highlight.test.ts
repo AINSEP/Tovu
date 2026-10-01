@@ -84,8 +84,24 @@ describe("findTargetElement", () => {
   it("accepts an explicit root, scoping the search below it", () => {
     const main = document.querySelector("main");
     assert.ok(main);
-    assert.equal(findTargetElement("Hello World", main as ParentNode)?.className, "entry-title");
+    const inside = main.querySelector(".entry-title");
+    const outside = document.createElement("h2");
+    outside.textContent = "Hello World";
+    document.body.prepend(outside);
+    assert.equal(findTargetElement("Hello World", main), inside);
+    outside.textContent = "Outside only";
+    assert.equal(findTargetElement("Outside only", main), null);
   });
+  it("prefers an exact title-class match over an earlier case-insensitive heading", () => {
+    const heading = document.querySelector(".entry-title")!;
+    heading.textContent = "HELLO WORLD";
+    const exact = document.createElement("div");
+    exact.className = "custom-title";
+    exact.textContent = "Hello World";
+    document.querySelector("main")!.append(exact);
+    assert.equal(findTargetElement("Hello World"), exact);
+  });
+
 });
 
 describe("applyHighlight / clearHighlight", () => {
@@ -112,11 +128,53 @@ describe("applyHighlight / clearHighlight", () => {
     assert.ok(second.classList.contains("tovu-site-assistant__highlight"));
   });
 
-  it("re-applying to the already-highlighted element is a no-op, not a restart", () => {
+  it("re-applying to the already-highlighted element is a no-op, not a restart", (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
     const el = document.querySelector(".entry-title") as Element;
-    applyHighlight(el);
-    applyHighlight(el);
-    assert.ok(el.classList.contains("tovu-site-assistant__highlight"), "still highlighted after a redundant apply");
+    const observer = new dom.window.MutationObserver(() => {});
+    try {
+      applyHighlight(el);
+      t.mock.timers.tick(10_000);
+      observer.observe(el, { attributes: true, attributeFilter: ["class"] });
+      applyHighlight(el);
+      assert.deepEqual(observer.takeRecords(), [], "redundant apply must not remove/re-add the class");
+      assert.ok(el.classList.contains("tovu-site-assistant__highlight"), "still highlighted after a redundant apply");
+      t.mock.timers.tick(10_999);
+      assert.ok(el.classList.contains("tovu-site-assistant__highlight"));
+      t.mock.timers.tick(1);
+      assert.ok(!el.classList.contains("tovu-site-assistant__highlight"), "expires at the original deadline");
+    } finally {
+      observer.disconnect();
+      clearHighlight();
+    }
+  });
+
+  it("clears at the 21s fallback deadline when no animationend arrives", (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const el = document.querySelector(".entry-title")!;
+    try {
+      applyHighlight(el);
+      t.mock.timers.tick(20_999);
+      assert.ok(el.classList.contains("tovu-site-assistant__highlight"));
+      t.mock.timers.tick(1);
+      assert.ok(!el.classList.contains("tovu-site-assistant__highlight"));
+    } finally { clearHighlight(); }
+  });
+
+  it("cancels the old fallback so it cannot clear a newer highlight", (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const first = document.querySelector(".entry-title")!;
+    const second = document.querySelector("p")!;
+    try {
+      applyHighlight(first);
+      t.mock.timers.tick(10_000);
+      applyHighlight(second);
+      t.mock.timers.tick(11_000);
+      assert.ok(!first.classList.contains("tovu-site-assistant__highlight"));
+      assert.ok(second.classList.contains("tovu-site-assistant__highlight"), "old deadline must not clear the new target");
+      t.mock.timers.tick(10_000);
+      assert.ok(!second.classList.contains("tovu-site-assistant__highlight"));
+    } finally { clearHighlight(); }
   });
 
   it("clears on the FADE animation's animationend, ignoring an earlier pulse animationend", () => {

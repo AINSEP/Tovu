@@ -51,20 +51,9 @@ function Reader({ fetch, enabled }: { fetch: () => Promise<string>; enabled?: bo
   );
 }
 
-/** One enabled reader and one disabled reader on the SAME key, so a failure
- *  cached by the first is observable through the second — the real shape of
- *  the lazy-cell bug, where a row's cell remounts disabled next to a key that
- *  has already failed. */
-function Cached({ fetch }: { fetch: () => Promise<string> }) {
-  const live = useFetchQuery({ key: ["thing"], fetch });
+function DisabledReader({ fetch }: { fetch: () => Promise<string> }) {
   const lazy = useFetchQuery({ key: ["thing"], fetch, enabled: false });
-  return (
-    <div>
-      <span data-testid="live-status">{live.status}</span>
-      <span data-testid="lazy-status">{lazy.status}</span>
-      <span data-testid="lazy-error">{lazy.error?.message ?? "-"}</span>
-    </div>
-  );
+  return <><span data-testid="lazy-status">{lazy.status}</span><span data-testid="lazy-error">{lazy.error?.message ?? "-"}</span></>;
 }
 
 describe("useFetchQuery", () => {
@@ -113,19 +102,14 @@ describe("useFetchQuery", () => {
   it("a disabled query reports no error even when the same key already failed", async () => {
     const fetch = vi.fn(async () => Promise.reject(new Error("hits route down")));
 
-    // First mount: enabled, fails, and the failure is now cached under the key.
-    const first = wrap(<Reader fetch={fetch} enabled />);
+    const { rerender } = wrap(<Reader fetch={fetch} enabled />);
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
-    first.unmount();
-
-    // Second mount: same provider is gone, so re-create the scenario within one
-    // cache by mounting both readers under a single provider instead.
-    render(
+    rerender(
       <FetchQueryProvider>
-        <Cached fetch={fetch} />
+        <Reader fetch={fetch} enabled />
+        <DisabledReader fetch={fetch} />
       </FetchQueryProvider>,
     );
-    await waitFor(() => expect(screen.getByTestId("live-status")).toHaveTextContent("error"));
 
     // The disabled sibling shares the failed key but must stay quiet.
     expect(screen.getByTestId("lazy-status")).toHaveTextContent("loading");
@@ -177,24 +161,36 @@ describe("useFetchQuery", () => {
         <Reader fetch={fetch} />
       </>,
     );
-    await waitFor(() => expect(screen.getAllByTestId("data")[0]).toHaveTextContent("shared"));
+    await waitFor(() => {
+      expect(screen.getAllByTestId("data").map((el) => el.textContent)).toEqual(["shared", "shared"]);
+      expect(screen.getAllByTestId("status").map((el) => el.textContent)).toEqual(["success", "success"]);
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  /**
-   * Coverage-gap-fill (2026-09-05). Every other test in this file omits `staleTime`, so the
-   * `...(staleTime === undefined ? {} : { staleTime })` spread (adapter.tanstack.tsx) had only ever
-   * taken its `{}` branch. This is the interface's actual promise — an explicit `staleTime` reaches
-   * TanStack at all — not TanStack's own staleness timing, which this file's header says is
-   * deliberately out of scope.
-   */
-  it("accepts an explicit staleTime without throwing, and still resolves normally", async () => {
-    function StaleReader({ fetch }: { fetch: () => Promise<string> }) {
+  it("uses explicit staleTime across remounts, refetching only after that interval", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const fetch = vi.fn().mockResolvedValueOnce("fresh").mockResolvedValue("refreshed");
+    function StaleReader() {
       const q = useFetchQuery({ key: ["stale-thing"], fetch, staleTime: 60_000 });
       return <span data-testid="data">{q.data ?? "-"}</span>;
     }
-    wrap(<StaleReader fetch={async () => "fresh"} />);
-    await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("fresh"));
+    try {
+      const { rerender } = wrap(<StaleReader />);
+      await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("fresh"));
+      rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
+      clock.mockReturnValue(1_059_999);
+      rerender(<FetchQueryProvider><StaleReader /></FetchQueryProvider>);
+      expect(screen.getByTestId("data")).toHaveTextContent("fresh");
+      expect(fetch).toHaveBeenCalledTimes(1);
+      rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
+      clock.mockReturnValue(1_060_001);
+      rerender(<FetchQueryProvider><StaleReader /></FetchQueryProvider>);
+      await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("refreshed"));
+      expect(fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });
 
@@ -446,12 +442,16 @@ describe("invalidation matching", () => {
     let otherV = 0;
     const otherFetch = vi.fn(async () => `other${++otherV}`);
 
+    let sentinelV = 0;
+    const sentinelFetch = vi.fn(async () => `sentinel${++sentinelV}`);
     function Siblings() {
       const other = useFetchQuery({ key: ["forms"], fetch: otherFetch });
+      const sentinel = useFetchQuery({ key: ["redirects"], fetch: sentinelFetch });
       const invalidate = useInvalidate();
       return (
         <div>
           <span data-testid="other">{other.data ?? "-"}</span>
+          <span data-testid="sentinel">{sentinel.data ?? "-"}</span>
           <button type="button" onClick={() => invalidate(["redirects"])}>
             push
           </button>
@@ -462,7 +462,7 @@ describe("invalidation matching", () => {
     await waitFor(() => expect(screen.getByTestId("other")).toHaveTextContent("other1"));
 
     await userEvent.click(screen.getByRole("button", { name: "push" }));
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(screen.getByTestId("sentinel")).toHaveTextContent("sentinel2"));
     expect(otherFetch).toHaveBeenCalledTimes(1);
   });
 });

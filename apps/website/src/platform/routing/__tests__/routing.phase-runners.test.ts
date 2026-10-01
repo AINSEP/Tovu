@@ -108,3 +108,36 @@ test("the existing routing.test.ts suite's resolve() behavior is unaffected by t
     outcome: { kind: "redirect", location: "/moved", statusCode: 301 },
   });
 });
+
+test("runPreContentPhase normalizes a trailing slash and query before matching", async () => {
+  resetRoutingRegistrationsForTests();
+  const seen: string[] = [];
+  registerResolvePhase("pre_content", async (path) => {
+    seen.push(path);
+    return path === "/retired" ? { kind: "redirect", location: "/new-home", statusCode: 301 } : null;
+  });
+  assert.deepEqual(await runPreContentPhase("/retired/?x=1", ctx), { kind: "redirect", location: "/new-home", statusCode: 301 });
+  assert.deepEqual(seen, ["/retired"]);
+});
+
+for (const phase of ["pre_content", "post_content"] as const) {
+  test(`${phase} forwards complete context through standalone and bundled resolution`, async () => {
+    resetRoutingRegistrationsForTests();
+    const contexts: RouteResolveContext[] = [
+      { workspaceId: "workspace-a", siteId: "site-a", locale: "fr", originKey: "origin-a", originOverride: "https://a.example/" },
+      { workspaceId: "workspace-b", siteId: "site-b", locale: "de", originKey: "origin-b", originOverride: "https://b.example/" },
+    ];
+    const seen: RouteResolveContext[] = [];
+    registerResolvePhase(phase, async (_path, forwarded) => {
+      seen.push(forwarded);
+      return { kind: "redirect", location: `/${forwarded.workspaceId}/${forwarded.locale}`, statusCode: 302 };
+    });
+    for (const context of contexts) {
+      const outcome = { kind: "redirect", location: `/${context.workspaceId}/${context.locale}`, statusCode: 302 };
+      const run = phase === "pre_content" ? runPreContentPhase : runPostContentPhase;
+      assert.deepEqual(await run("/retired", context), outcome);
+      assert.deepEqual(await resolve({ input: { path: "/retired", ctx: context } }), { matched: true, phase, outcome });
+    }
+    assert.deepEqual(seen, [contexts[0], contexts[0], contexts[1], contexts[1]]);
+  });
+}

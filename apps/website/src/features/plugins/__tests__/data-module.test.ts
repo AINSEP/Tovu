@@ -486,3 +486,54 @@ test("dataModule: accepts an identifier of exactly 63 bytes — the limit is inc
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+
+test("dataModule refuses an otherwise valid Tier-1 declaration before schema, snapshot or bookkeeping writes", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  try {
+    const schema = db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
+    const files = fs.readdirSync(dir).sort();
+    const result = await declareDataModule({ db, dbPath, decl: { ...productsDecl, pluginTier: "tier-1" } });
+    assert.equal(result.ok, false);
+    assert.equal(result.error?.code, "TIER1_NOT_ALLOWED");
+    assert.equal(result.snapshotPath, null);
+    assert.deepEqual(db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all(), schema);
+    assert.deepEqual(db.prepare("SELECT * FROM posts").all(), [{ id: "p1", title: "hello" }]);
+    assert.deepEqual(fs.readdirSync(dir).sort(), files);
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("dataModule reports a committed migration as successful despite a post-commit checkpoint failure", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  let failedCheckpoint = false;
+  const fault = new Proxy(db, { get(target, prop) {
+    if (prop === "prepare") return (text: string) => {
+      if (/PRAGMA wal_checkpoint/i.test(text) && tableExists(db, "p_hello__products") && !db.inTransaction) {
+        failedCheckpoint = true;
+        throw new Error("post-commit checkpoint failed");
+      }
+      return target.prepare(text);
+    };
+    const value = Reflect.get(target, prop);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
+  try {
+    const result = await declareDataModule({ db: fault, dbPath, decl: productsDecl });
+    assert.equal(failedCheckpoint, true, "fault must reach the checkpoint after durable DDL");
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.created, ["p_hello__products"]);
+    assert.equal(tableExists(db, "p_hello__products"), true);
+    assert.equal((db.prepare("SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1").get() as { phase: string }).phase, "COMMITTED");
+    db.prepare("INSERT INTO posts VALUES ('p2', 'after commit')").run();
+    const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery.js");
+    const recovery = await recoverIncompleteDataModuleMigrations({ store: db, restoreSnapshots: () => { assert.fail("a committed migration must never restore"); } });
+    assert.deepEqual(recovery, { recovered: 0, entries: [] });
+    assert.deepEqual(db.prepare("SELECT * FROM posts WHERE id = 'p2'").get(), { id: "p2", title: "after commit" });
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

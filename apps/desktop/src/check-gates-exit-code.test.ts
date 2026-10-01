@@ -175,13 +175,12 @@ test("a gate script on disk that the manifest does not run fails the run", () =>
 });
 
 test("a gate script the manifest DOES run is not reported as drift", () => {
-  const { status } = runWith(
-    { gates: [{ id: "cov", run: "node scripts/check-coverage.ts" }, { id: "ok", run: "node -e \"process.exit(0)\"" }] },
+  const { status, stderr } = runWith(
+    { gates: [{ id: "cov", run: "node scripts/check-coverage.ts", enabled: false, disabledReason: "fixture tests registration only", disabledOn: today() }, { id: "ok", run: "node -e \"process.exit(0)\"" }] },
     ["check-coverage.ts"]
   );
-  // The `cov` gate itself fails here (the planted script is a stub with no such path from cwd), so
-  // only the ABSENCE of a drift complaint is asserted, not the overall status.
-  assert.equal(status, 1);
+  assert.equal(status, 0);
+  assert.doesNotMatch(stderr, /nothing runs|check-coverage\.ts/);
 });
 
 test("the runner does not report ITSELF as an unregistered gate script", () => {

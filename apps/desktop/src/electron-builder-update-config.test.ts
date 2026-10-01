@@ -44,7 +44,12 @@ test("the Store package keeps AppData unvirtualized, with the capability that re
   const manifest = fs.readFileSync(manifestPath, "utf8");
   assert.match(manifest, /<desktop6:FileSystemWriteVirtualization>disabled<\/desktop6:FileSystemWriteVirtualization>/);
   assert.match(manifest, /IgnorableNamespaces="desktop6 rescap"/);
-  assert.ok((config.appx?.minVersion ?? "") >= "10.0.18362.0", "desktop6 virtualization control needs Windows 10 1903+");
+  const version = config.appx?.minVersion ?? "";
+  assert.match(version, /^\d+\.\d+\.\d+\.\d+$/);
+  const parts = version.split(".").map(Number);
+  const minimum = [10, 0, 18362, 0];
+  const firstDifference = parts.findIndex((part, index) => part !== minimum[index]);
+  assert.ok(firstDifference === -1 || parts[firstDifference]! > minimum[firstDifference]!, "desktop6 virtualization control needs Windows 10 1903+");
 });
 
 test("the custom Store manifest uses only macros electron-builder 26 fills (an unknown one fails the build)", () => {
@@ -61,7 +66,21 @@ test("the custom Store manifest uses only macros electron-builder 26 fills (an u
 });
 
 test("the Store tile assets exist at the sizes the manifest names", () => {
-  for (const name of ["StoreLogo.png", "Square44x44Logo.png", "Square150x150Logo.png", "Wide310x150Logo.png"]) {
-    assert.ok(fs.statSync(path.join(DESKTOP_ROOT, "build", "appx", name)).size > 0, name);
+  const resourceRoot = path.join(DESKTOP_ROOT, config.directories?.buildResources ?? "build");
+  const manifest = fs.readFileSync(path.join(resourceRoot, config.appx?.customManifestPath ?? ""), "utf8");
+  // electron-builder substitutes these macros with its fixed asset filenames.
+  for (const macro of ["logo", "square44x44Logo", "square150x150Logo", "defaultTile"]) {
+    assert.ok(manifest.includes("${" + macro + "}"), `missing manifest role ${macro}`);
+  }
+  for (const [name, width, height] of [
+    ["StoreLogo.png", 50, 50], ["Square44x44Logo.png", 44, 44],
+    ["Square150x150Logo.png", 150, 150], ["Wide310x150Logo.png", 310, 150],
+  ] as const) {
+    const png = fs.readFileSync(path.join(resourceRoot, "appx", name));
+    assert.deepEqual(png.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), `${name} PNG signature`);
+    assert.equal(png.readUInt32BE(8), 13, `${name} IHDR length`);
+    assert.equal(png.toString("ascii", 12, 16), "IHDR", name);
+    assert.equal(png.readUInt32BE(16), width, `${name} width`);
+    assert.equal(png.readUInt32BE(20), height, `${name} height`);
   }
 });

@@ -24,7 +24,7 @@ function newEditorWithTitle(contentHtml: string) {
 
 describe("PostTitle — Enter keyboard shortcut", () => {
   it("Enter while the cursor is inside the title moves the selection into the first body block, leaving the title's own text untouched", () => {
-    const editor = newEditorWithTitle("<h1 data-post-title>Hello title</h1><p>Body text</p>");
+    const editor = newEditorWithTitle("<h1 data-post-title>Hello title</h1><p>First body</p><p>Last body</p>");
     try {
       // Position 1 is just inside the title node's own opening boundary — inside the title
       // regardless of where exactly within its text the cursor sits.
@@ -38,6 +38,22 @@ describe("PostTitle — Enter keyboard shortcut", () => {
       // A handled keydown calls preventDefault(), which dispatchEvent surfaces as `false`.
       expect(fired).toBe(false);
       expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+      expect(editor.state.selection.from).toBe(14);
+      expect(editor.state.selection.$from.parent.textContent).toBe("First body");
+      expect(editor.state.doc.firstChild?.textContent).toBe("Hello title");
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  it("Enter during title composition leaves the selection and text untouched", () => {
+    const editor = newEditorWithTitle("<h1 data-post-title>Hello title</h1><p>Body text</p>");
+    try {
+      editor.commands.setTextSelection(3);
+      editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+      expect(editor.view.composing).toBe(true);
+      editor.view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true, cancelable: true }));
+      expect(editor.state.selection.from).toBe(3);
       expect(editor.state.doc.firstChild?.textContent).toBe("Hello title");
     } finally {
       editor.destroy();

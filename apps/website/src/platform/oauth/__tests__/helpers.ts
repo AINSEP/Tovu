@@ -277,6 +277,10 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
     }
 
     if (path === "/oauth2/register") {
+      if (req.headers["content-type"]?.split(";")[0].trim() !== "application/json") {
+        sendJson(res, 415, { error: "invalid_client_metadata" });
+        return;
+      }
       const sequence = options.registrations;
       const scripted = sequence === undefined ? undefined : sequence[Math.min(registrationCount, sequence.length - 1)];
       registrationCount += 1;

@@ -6,7 +6,8 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { createPost, deletePost, updatePost, type PostRecord } from "../post.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "../search.js";
-import { backfillPostSearchIndex } from "../search-index.js";
+import { backfillPostSearchIndex, postSearchIndexFor } from "../search-index.js";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
 
@@ -109,7 +110,9 @@ test("scores are reported highest-is-best, inverting bm25()'s cost convention", 
 
   const hits = await h.find("pricing");
   assert.equal(hits.length, 2);
-  assert.ok(hits[0].score >= hits[1].score, "the first hit must not score below the second");
+  assert.deepEqual(ids(hits), ["strong", "weak"]);
+  assert.ok(hits.every((hit) => Number.isFinite(hit.score) && hit.score > 0), "BM25 costs are inverted into positive finite scores");
+  assert.ok(hits[0].score > hits[1].score, "the stronger title/body hit must strictly outrank the weak body hit");
 });
 
 test("multi-word queries are OR'd — a post matching only one term still surfaces", async () => {
@@ -182,8 +185,12 @@ test("publishing a draft changes what a status-filtered search returns, with no 
 
 test("limit caps the page, and the cap is applied AFTER the visibility filters", async () => {
   const h = harness();
-  await h.add({ id: "page-1", title: "Pricing page", text: "x", kind: "page" });
-  for (let i = 0; i < 5; i += 1) await h.add({ id: `post-${i}`, title: `Pricing post ${i}`, text: "x", kind: "post" });
+  for (let i = 0; i < 5; i += 1) await h.add({ id: `post-${i}`, title: `Pricing pricing pricing ${i}`, text: "pricing", kind: "post" });
+  await h.add({ id: "page-1", title: "Pricing page", text: "details", kind: "page" });
+  await h.add({ id: "page-2", title: "Other page", text: "pricing", kind: "page" });
+  const all = ids(await h.find("pricing"));
+  assert.deepEqual([...all].sort(), ["page-1", "page-2", "post-0", "post-1", "post-2", "post-3", "post-4"]);
+  assert.ok(all.indexOf("post-0") < all.indexOf("page-1"), "ineligible posts outrank the best eligible page");
 
   assert.equal((await h.find("pricing", { limit: 2 })).length, 2);
   // The 5 posts would fill any page of size 1 if LIMIT ran before the kind filter; it must not.
@@ -335,6 +342,50 @@ test("backfill indexes a whole legacy corpus in one pass", async () => {
     insertUnindexedPost(h.db, { id: `legacy-${i}`, title: `Legacy entry ${i}`, slug: `legacy-${i}`, bodyJson: body(`Body of entry ${i}.`) });
   }
 
-  assert.equal(await backfillPostSearchIndex(h.db), 25);
+  assert.equal(await backfillPostSearchIndex(h.db, { batchSize: 7 }), 25);
   assert.equal((await h.find("legacy", { limit: 50 })).length, 25);
+  assert.deepEqual(ids(await h.find("legacy", { limit: 50 })).sort(), Array.from({ length: 25 }, (_, i) => `legacy-${i}`).sort());
+  assert.equal(await backfillPostSearchIndex(h.db, { batchSize: 7 }), 0, "a repeat after all four batches writes nothing");
+});
+
+
+test("a long post returns a bounded contextual snippet rather than the entire extracted body", async () => {
+  const h = harness();
+  const text = `DISTANT_START ${"unrelated opening words ".repeat(80)} needlecontext is the relevant passage ${"unrelated ending words ".repeat(80)} DISTANT_END`;
+  await h.add({ id: "long", title: "Long document", text });
+  const hits = await h.find("needlecontext");
+  assert.deepEqual(ids(hits), ["long"]);
+  const snippet = hits[0].snippet;
+  assert.match(snippet, /needlecontext is the relevant passage/);
+  assert.ok(snippet.length < 400, "twenty-token excerpt stays bounded on a very long post");
+  assert.equal(snippet.includes("DISTANT_START"), false);
+  assert.equal(snippet.includes("DISTANT_END"), false);
+});
+
+test("the production search factory waits for legacy backfill readiness before querying", { timeout: 5000 }, async () => {
+  const h = harness();
+  insertUnindexedPost(h.db, { id: "legacy-ready", title: "Readiness", slug: "readiness", bodyJson: body("legacy body") });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const ready = gate.then(() => backfillPostSearchIndex(h.db));
+  const search = postSearchIndexFor(contentKernel(h.db), { ready });
+  let settled = false;
+  const pending = search.search({ workspaceId: WS, terms: ["readiness"], limit: 10 }).then((hits) => { settled = true; return hits; });
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, "a query cannot return the pre-backfill empty result");
+  } finally { release(); }
+  assert.deepEqual(ids(await pending), ["legacy-ready"]);
+  assert.equal(await ready, 1);
+});
+
+test("the production search factory propagates a deferred readiness failure", { timeout: 5000 }, async () => {
+  const h = harness();
+  let rejectReady!: (error: Error) => void;
+  const ready = new Promise<void>((_, reject) => { rejectReady = reject; });
+  const failure = new Error("legacy backfill failed");
+  const search = postSearchIndexFor(contentKernel(h.db), { ready });
+  const pending = assert.rejects(search.search({ workspaceId: WS, terms: ["pricing"], limit: 10 }), failure);
+  rejectReady(failure);
+  await pending;
 });

@@ -142,12 +142,19 @@ describeEachDialect(
         const { campaigns } = makeRepos();
         await campaigns.saveCampaignRow(campaign("c1"));
         await campaigns.incrementCounter({ workspaceId: WS, id: "c1", counter: "delivered", updatedAt: T1 });
-        await campaigns.saveCampaignRow(campaign("c1", { subject: "Changed", status: "scheduled", version: 2, updatedAt: T1 }));
+        const updated = campaign("c1", {
+          subject: "Changed", status: "scheduled", preheader: "New preheader", fromName: "New sender",
+          fromEmail: "new@acme.test", replyTo: "reply@acme.test", listId: "list-2", scheduledAt: T1,
+          sendStartedAt: T1, audienceSnapshotId: "snap-2", createdByPrincipal: "p2", createdAt: T1,
+          version: 2, updatedAt: T1,
+        });
+        await campaigns.saveCampaignRow(updated);
         const after = await campaigns.findById({ workspaceId: WS, id: "c1" });
         assert.equal(after?.subject, "Changed");
         assert.equal(after?.status, "scheduled");
         assert.equal(after?.version, 2);
         assert.equal(after?.counters.delivered, 1);
+        assert.deepEqual(after, { ...updated, counters: { recipients: 0, delivered: 1, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 } });
       });
 
       test("list is scoped, ordered by id, and keyset-paginated with a limit", async () => {

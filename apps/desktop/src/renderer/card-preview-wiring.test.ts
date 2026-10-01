@@ -43,6 +43,7 @@ test("the tile renders the capture when one exists, and the port tile otherwise 
   assert.match(body, /previewUrl \? \(/, "expected a previewUrl-gated branch inside the tile");
   assert.match(body, /<img className="card__preview" src=\{previewUrl\} alt="" \/>/);
   assert.match(body, /<span className="card__port">\{project\.port\}<\/span>/, "the port fallback must still exist");
+  assert.match(body, /<div className="card__tile">\s*\{\s*\}\s*\{previewUrl \? \(\s*<img className="card__preview" src=\{previewUrl\} alt="" \/>\s*\) : \(\s*<span className="card__port">\{project\.port\}<\/span>\s*\)\}\s*<\/div>/, "the entire tile must contain only the image/fallback conditional in that order");
 });
 
 test("the preview image carries no alt text — it is decoration, not content", () => {

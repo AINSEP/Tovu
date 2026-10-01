@@ -318,3 +318,53 @@ test("BR-01 (1): a SITE plugin whose integrity map does not cover its entry file
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+
+for (const rejectSetup of [false, true]) {
+  test(`loadPlugin awaits asynchronous setup before reporting ${rejectSetup ? "failure" : "success and attached hooks"}`, { timeout: 5000 }, async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hooks: string[] = [];
+    let settled = false;
+    const loading = loadPlugin({
+      record: record({ source: "built-in" }), manifest: manifest({ capabilities: ["hooks.attach"], hooks: ["content.entry.beforeSave"] }),
+      entryPath: "built-in:async-setup", coreDeps: coreDeps({ attachFilter: (name) => { hooks.push(name); } }),
+    }, { runtimeSdkVersion: "1.0.0", importModule: async () => definedPluginModule(async (sdk) => {
+      entered();
+      await gate;
+      if (rejectSetup) throw new Error("async setup failed");
+      sdk.addFilter("content.entry.beforeSave", async () => ({}));
+    }) }).then((result) => { settled = true; return result; });
+    try {
+      await started;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(settled, false, "load must remain pending while setup is held");
+      assert.deepEqual(hooks, []);
+    } finally {
+      release();
+    }
+    assert.deepEqual(await loading, rejectSetup ? { loaded: false, reason: "PLUGIN_SETUP_FAILED" } : { loaded: true });
+    assert.deepEqual(hooks, rejectSetup ? [] : ["content.entry.beforeSave"]);
+  });
+}
+
+test("a tampered secondary packaged module prevents importing its verified entry", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-loader-secondary-"));
+  try {
+    const entryContents = "import './secondary.mjs'; export default { definition: { setup() {} } };\n";
+    const entryPath = await writeFixtureEntry(dir, entryContents);
+    const secondaryContents = "export const secondary = 'original';\n";
+    await writeFile(path.join(dir, "server", "secondary.mjs"), "export const secondary = 'tampered';\n");
+    let imports = 0;
+    const result = await loadPlugin({
+      record: record(), manifest: manifest({ integrity: { "server/index.mjs": sha256(entryContents), "server/secondary.mjs": sha256(secondaryContents) } }),
+      entryPath, coreDeps: coreDeps(),
+    }, { runtimeSdkVersion: "1.0.0", importModule: async () => { imports++; return definedPluginModule(); } });
+    assert.deepEqual(result, { loaded: false, reason: "INTEGRITY_FAILED" });
+    assert.equal(imports, 0, "secondary tamper must be detected before any entry evaluation");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

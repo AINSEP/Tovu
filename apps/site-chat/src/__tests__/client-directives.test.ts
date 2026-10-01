@@ -59,6 +59,25 @@ describe("isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary)", () => {
   });
 });
 
+describe("wrong-typed page actions at both trust boundaries", () => {
+  for (const field of ["slug", "title", "path"] as const) {
+    for (const invalid of [5, {}, null]) {
+      it(`rejects a non-string ${field}: ${JSON.stringify(invalid)}`, () => {
+        const action = { ...NAV, target: { ...NAV.target, [field]: invalid } };
+        assert.equal(isPageActionDirective({ kind: "page_action", action }), false);
+        assert.equal(isQueuedPageAction(action), false);
+      });
+    }
+  }
+  it("rejects a non-boolean navigate auto flag at both boundaries", () => {
+    for (const auto of ["true", 1, null]) {
+      const action = { ...NAV, auto };
+      assert.equal(isPageActionDirective({ kind: "page_action", action }), false);
+      assert.equal(isQueuedPageAction(action), false);
+    }
+  });
+});
+
 describe("extractPageActions", () => {
   it("returns [] for undefined events", () => {
     assert.deepEqual(extractPageActions(undefined), []);

@@ -33,12 +33,12 @@ const WS = "workspace-local";
 function fakeReverter(opts: {
   currentVersion: number | null;
   currentActor?: string | null;
-  onApplyInverse?: () => void;
+  onApplyInverse?: (input: Parameters<EntityReverter["applyInverse"]>[0]) => void;
 }): EntityReverter {
   const reverter: EntityReverter = {
     currentVersion: async () => opts.currentVersion,
-    applyInverse: async () => {
-      opts.onApplyInverse?.();
+    applyInverse: async (input) => {
+      opts.onApplyInverse?.(input);
     },
   };
   if (opts.currentActor !== undefined) {
@@ -100,8 +100,10 @@ test("change-sets revert: a workspace id that is not this site's is 404", async 
 });
 
 test("change-sets revert: an unknown change set id is 404 CHANGE_SET_NOT_FOUND", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let inverseCalls = 0;
+  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { inverseCalls += 1; } }));
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/does-not-exist/revert`, {
     method: "POST",
@@ -111,11 +113,15 @@ test("change-sets revert: an unknown change set id is 404 CHANGE_SET_NOT_FOUND",
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "CHANGE_SET_NOT_FOUND");
   assert.match(body.error, /'does-not-exist' was not found/);
+  assert.equal(inverseCalls, 0);
+  assert.equal(await deps.changeSets.findById({ workspaceId: WS, id: "does-not-exist" }), null);
 });
 
 test("change-sets revert: a change set that is not 'applied' is 409 CHANGE_SET_INVALID_STATUS", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let inverseCalls = 0;
+  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { inverseCalls += 1; } }));
   await deps.changeSets.insert(seededChangeSet({ id: "cs-proposed", status: "proposed" }), [
     seededItem({ changeSetId: "cs-proposed" }),
   ]);
@@ -127,13 +133,16 @@ test("change-sets revert: a change set that is not 'applied' is 409 CHANGE_SET_I
   assert.equal(res.status, 409);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "CHANGE_SET_INVALID_STATUS");
+  assert.equal(inverseCalls, 0);
+  assert.equal((await deps.changeSets.findById({ workspaceId: WS, id: "cs-proposed" }))?.changeSet.status, "proposed");
 });
 
 test("change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   deps.revertRegistry = createRevertRegistry();
-  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5 }));
+  let inverseCalls = 0;
+  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, onApplyInverse: () => { inverseCalls += 1; } }));
   await deps.changeSets.insert(seededChangeSet({ id: "cs-conflict" }), [
     seededItem({ changeSetId: "cs-conflict", entityVersionAtApply: 3 }),
   ]);
@@ -145,6 +154,8 @@ test("change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT",
   assert.equal(res.status, 409);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "REVERT_CONFLICT");
+  assert.equal(inverseCalls, 0);
+  assert.equal((await deps.changeSets.findById({ workspaceId: WS, id: "cs-conflict" }))?.changeSet.status, "applied");
 });
 
 test("change-sets revert: an item with no registered reverter is 422 REVERT_NOT_POSSIBLE", async (t) => {
@@ -162,6 +173,24 @@ test("change-sets revert: an item with no registered reverter is 422 REVERT_NOT_
   assert.equal(res.status, 422);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "REVERT_NOT_POSSIBLE");
+  assert.equal((await deps.changeSets.findById({ workspaceId: WS, id: "cs-unrevertible" }))?.changeSet.status, "applied");
+});
+
+test("change-sets revert: an unrevertible later item prevents even an eligible item's inverse", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let inverseCalls = 0;
+  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { inverseCalls += 1; } }));
+  const changeSet = seededChangeSet({ id: "cs-mixed" });
+  await deps.changeSets.insert(changeSet, [
+    seededItem({ id: "eligible", changeSetId: changeSet.id, position: 1 }),
+    seededItem({ id: "unregistered", changeSetId: changeSet.id, entityType: "unregistered-type", position: 0 }),
+  ]);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/${changeSet.id}/revert`, { method: "POST", headers: { cookie } });
+  assert.equal(res.status, 422);
+  assert.equal((await res.json()).code, "REVERT_NOT_POSSIBLE");
+  assert.equal(inverseCalls, 0);
+  assert.deepEqual((await deps.changeSets.findById({ workspaceId: WS, id: changeSet.id }))?.changeSet, changeSet);
 });
 
 test("change-sets revert: an unexpected error is 500 with a generic body", async (t) => {
@@ -260,10 +289,22 @@ test("change-sets revert: force:true past a real conflict reverts the entity thr
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   deps.revertRegistry = createRevertRegistry();
   let applyInverseCalled = false;
+  let inverseCalls = 0;
+  const entities = new Map([[`${WS}/entity-1`, { field: "new-value", version: 5 }], ["other-workspace/entity-1", { field: "other-site", version: 5 }]]);
   deps.revertRegistry.register(
     "widget",
     "update",
-    fakeReverter({ currentVersion: 5, onApplyInverse: () => { applyInverseCalled = true; } })
+    fakeReverter({ currentVersion: 5, onApplyInverse: ({ workspaceId, item }) => {
+      applyInverseCalled = true;
+      inverseCalls += 1;
+      assert.equal(workspaceId, WS);
+      assert.equal(item.entityType, "widget");
+      assert.equal(item.entityId, "entity-1");
+      const entity = entities.get(`${workspaceId}/${item.entityId}`)!;
+      const inverse = item.inversePayload as { field: string };
+      entity.field = inverse.field;
+      entity.version += 1;
+    } })
   );
   await deps.changeSets.insert(seededChangeSet({ id: "cs-force" }), [
     seededItem({ changeSetId: "cs-force", entityVersionAtApply: 3 }),
@@ -277,6 +318,15 @@ test("change-sets revert: force:true past a real conflict reverts the entity thr
 
   assert.equal(res.status, 200);
   assert.equal(applyInverseCalled, true, "force:true must actually apply the inverse through the real route");
+  assert.deepEqual(entities.get(`${WS}/entity-1`), { field: "old-value", version: 6 });
+  assert.deepEqual(entities.get("other-workspace/entity-1"), { field: "other-site", version: 5 });
+  assert.equal((await deps.changeSets.findById({ workspaceId: WS, id: "cs-force" }))?.changeSet.status, "reverted");
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-force/revert`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ force: true }),
+  });
+  assert.equal(second.status, 409);
+  assert.equal((await second.json()).code, "CHANGE_SET_INVALID_STATUS");
+  assert.equal(inverseCalls, 1);
 });
 
 test("change-sets revert: without force, a real conflict names the newer version and the actor in the 409 details", async (t) => {

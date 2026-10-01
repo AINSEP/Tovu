@@ -81,21 +81,36 @@ test("a re-capture moves the version forward, which is what the renderer watches
   // The whole point of the token: the record carries this number, not the image, so the renderer
   // re-fetches bytes only when they actually changed rather than on every 4s poll.
   const userData = tempDir();
-  const first = writePreview(userData, "/sites/example", PNG);
-  const laterBytes = Buffer.concat([PNG, Buffer.from([0])]);
-  // Force a distinguishable mtime — mtimeMs resolution can collapse two writes in the same tick.
+  writePreview(userData, "/sites/example", PNG);
   const file = previewPath(userData, "/sites/example");
-  writePreview(userData, "/sites/example", laterBytes);
-  fs.utimesSync(file, new Date(), new Date(Date.now() + 1000));
-  assert.notEqual(readPreviewVersion(userData, "/sites/example"), first);
+  fs.utimesSync(file, new Date(1_000_000), new Date(1_000_000));
+  const first = readPreviewVersion(userData, "/sites/example");
+  const laterBytes = Buffer.concat([PNG, Buffer.from([0])]);
+  const second = writePreview(userData, "/sites/example", laterBytes);
+  assert.ok(first !== null && second !== null && second > first);
+  assert.equal(readPreviewVersion(userData, "/sites/example"), second);
+  assert.deepEqual(fs.readFileSync(file), laterBytes);
 });
 
-test("writePreview leaves no temp file behind, on success or on failure", () => {
+test("writePreview leaves no temp file behind, on success or on failure", (t) => {
   const userData = tempDir();
   writePreview(userData, "/sites/example", PNG);
   assert.deepEqual(fs.readdirSync(path.join(userData, "site-previews")), [
     path.basename(previewPath(userData, "/sites/example")),
   ]);
+  const file = previewPath(userData, "/sites/example");
+  let renameDestination: string | undefined;
+  let tempExisted = false;
+  t.mock.method(fs, "renameSync", (temp: string, destination: string) => {
+    renameDestination = destination;
+    tempExisted = fs.existsSync(temp);
+    throw new Error("rename refused");
+  });
+  assert.equal(writePreview(userData, "/sites/example", Buffer.from("replacement")), null);
+  assert.equal(renameDestination, file);
+  assert.equal(tempExisted, true, "failure is after the temp write");
+  assert.deepEqual(fs.readFileSync(file), PNG);
+  assert.deepEqual(fs.readdirSync(path.join(userData, "site-previews")), [path.basename(file)]);
 });
 
 test("writePreview returns null rather than throwing when it cannot write", () => {
