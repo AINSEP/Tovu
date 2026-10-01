@@ -55,7 +55,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- media -------------------------------------------------------------------------------
   media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
   media_upload_asset: "image images photo upload uploads uploading add attach file files picture",
-  media_trash_asset: "image images photo delete remove trash file picture attachment",
+  media_trash_asset: "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
   media_view_image:
     "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
   media_update_metadata:
@@ -105,7 +105,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   recovery_resolve_deep_link: "restore point link verify check database timeline deep link envelope",
 
   // --- redirects ---------------------------------------------------------------------------
-  redirects_create: "url urls link links redirect forward point moved old new address route vanity short",
+  redirects_create: "url urls link links redirect forward point moved old new address route vanity short redirect blog url path forward 301 302 moved",
   redirects_list: "url urls link links redirect redirects forward list existing",
   redirects_get: "url link redirect read view details one specific existing",
   redirects_get_hits: "url link redirect hits traffic clicks visits how many people broken followed",
@@ -168,7 +168,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   forms_get_submission: "form submission response reply entry message detail",
   forms_list_definitions: "forms contact form list existing built",
   forms_create_definition: "form contact form build create new fields",
-  forms_update_definition: "form edit change existing update fields recipients",
+  forms_update_definition: "form edit change existing update fields recipients send email notify notification notifications submissions address recipient recipients inbox forward",
   forms_set_definition_status: "form enable disable turn off retire deactivate activate",
 
   // --- menus / navigation ----------------------------------------------------------------------
@@ -182,7 +182,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   seo_regenerate_sitemap: "sitemap google search engine index rebuild regenerate crawl submit",
   seo_analyze_entry: "seo search results ranking google visibility not showing up indexed problems audit page",
   seo_get_entry_meta: "seo meta title description tags page preview snippet",
-  seo_set_entry_overrides: "seo meta title description override page tags",
+  seo_set_entry_overrides: "seo meta title description override page tags hide google noindex robots search engines index indexing exclude",
   seo_get_settings: "seo settings current site wide defaults meta social",
   seo_set_settings: "seo settings change update site wide defaults meta social robots",
 
@@ -202,10 +202,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   widgets_create_instance: "widget create add new block sidebar footer",
   widgets_list_regions: "widget regions areas slots sidebar footer available",
   widgets_list_instances: "widget widgets list existing placed blocks",
-  widgets_get_instance: "widget read view details one existing current where used",
+  widgets_get_instance: "widget read view details one existing current where used which pages use uses used usage where banner",
   widgets_get_region: "widget region read view current placements existing",
   widgets_update_instance: "widget update edit change config settings instance",
-  widgets_trash_instance: "widget delete remove trash soft delete",
+  widgets_trash_instance: "widget delete remove trash soft delete remove delete take off widget footer sidebar header",
   widgets_set_region_placements: "widget region replace set whole list sidebar footer bulk update",
   widgets_insert_embed: "widget embed insert add put inline post entry body content",
   widgets_remove_embed: "widget embed remove delete take out inline post body",
@@ -220,8 +220,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // silently orphan — so nothing here needs the primitive itself, only a way for retrieval to find
   // the write tool when a user asks to "copy"/"duplicate" a theme file. See this file's own header
   // for why a keyword miss is a silent failure mode, not a wrong-result one.
-  theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone",
-  theme_edit_file: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section",
+  theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
+  theme_edit_file: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
@@ -279,7 +279,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",
   content_post_list: "post posts blog articles list all recent copy duplicate clone",
   content_post_create: "post blog article write new create draft copy duplicate clone",
-  content_post_update: "post blog article edit change update publish draft",
+  content_post_update: "post blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish",
   content_post_delete: "post blog article delete remove trash",
   content_post_get: "post page article lookup find fetch read single one by id details specific copy duplicate clone",
   // 2026-09-07 — added the same day as the tool itself (page-tool-gap dispatch). Phrased from the
@@ -308,24 +308,24 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // entries added for consistency, same reasoning as backup_execute_restore above.
   collections_plan_cleanup: "content type content types cleanup clean up purge wipe delete permanently preview plan check what would happen before dry run eligible eligibility tombstoned old unused",
   collections_execute_cleanup: "content type content types cleanup clean up purge wipe delete permanently erase get rid of remove run execute confirm confirmed tombstoned old unused rows records data",
-  collections_content_type_define: "content type custom fields schema model post type kind of content structure define build register new",
+  collections_content_type_define: "content type custom fields schema model post type kind of content structure define build register new new content type collection kind model schema team staff products bio fields custom",
   collections_content_type_deprecate: "content type retire stop using disable old outdated no longer need freeze",
-  collections_content_type_list: "content types schema models available what content kinds exist fields structure",
+  collections_content_type_list: "content types schema models available what content kinds exist fields structure collections collection list what have",
   collections_content_type_reactivate: "content type bring back restore undeprecate enable again turn back on",
   collections_content_type_tombstone: "content type delete remove permanently destroy get rid of",
-  collections_content_type_update_fields: "content type fields schema add remove change edit structure update model rename field",
+  collections_content_type_update_fields: "content type fields schema add remove change edit structure update model rename field add field new field fields column property collection products price schema",
 
   // --- workspace / settings ------------------------------------------------------------------------------
   workspace_get: "site name title settings workspace details info about",
-  workspace_update: "site name title rename change workspace settings brand",
+  workspace_update: "site name title rename change workspace settings brand rename site site name rename my site",
   // workspace_create and workspace_delete are deliberately UNWIRED (never agent-callable — creating
   // or deleting the single addressable workspace row would orphan or break every other domain's
   // boot-wired workspaceId — see file header). Entries added for consistency, same reasoning as
   // backup_execute_restore above.
   workspace_create: "workspace site create new add",
   workspace_delete: "workspace site delete remove destroy get rid of",
-  settings_get_effective: "setting settings configuration config value current",
-  settings_list_definitions: "setting settings configuration options available what can",
+  settings_get_effective: "setting settings configuration config value current site settings what settings configuration options current values",
+  settings_list_definitions: "setting settings configuration options available what can all site settings",
   settings_get_raw: "setting raw value layer global workspace user default unresolved debug",
   settings_set_ui_preference: "preference language theme accent color notification sounds personal admin ui my settings",
   // settings_set, settings_clear, settings_reset, and settings_register_definitions are deliberately
@@ -344,7 +344,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   plugins_set_enabled:
     "plugin plugins agent plugin agent-plugin agent-plugins enable disable turn on off activate deactivate switch on switch off " +
     "extension addon add-on skill skills capability use it install it already installed not active inactive",
-  plugins_list: "plugin plugins extensions installed available list",
+  plugins_list: "plugin plugins extensions installed available list have installed my",
   // Added 2026-09-07 (ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md, Gap #4):
   // plugins_uninstall is a new tool with no prior entry at all.
   // S4 (2026-09-24): this tool now covers BOTH plugin families — the deleted standalone
@@ -438,6 +438,22 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "pending unpublished changes changed not yet published what would be published preview " +
     "review before publishing without publishing dry run",
 
+  // --- trash / live-site publishing (2026-10-01) --------------------------------------------------------
+  // The 2026-10-01 search eval (ADS-memory/.local-artifacts/tool-gaps/search-eval/REPORT.md, 127
+  // operator requests) found these five with no entry at all: "recover the page i deleted" ranked
+  // trash_restore_item 18th. The same batch extended 17 existing entries above (content_post_update,
+  // collections_content_type_*, widgets_*, media_trash_asset, forms_update_definition, theme_*_file,
+  // seo_set_entry_overrides, redirects_create, workspace_update, settings_*, plugins_list,
+  // custom_credential_create). Strings are the report's verbatim, since that is what was measured,
+  // except where noted.
+  trash_restore_item: "recover undelete restore deleted bring back get back undo delete removed page post image",
+  trash_list_items: "whats what's trash bin recycle deleted items recently deleted show list",
+  trash_item: "delete remove get rid of menu menus submission submissions form entry entries spam",
+  // The report's strings for these two also had "push"; dropped, because it outranked
+  // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
+  publish_content_status: "changes live go live update live site not updating",
+  publish_content_connect: "changes live go live",
+
   // --- custom-credentials (2026-09-01) ------------------------------------------------------------------
   // Added the same day as `custom_credential_list` itself, after `custom_credential_verify`/
   // `custom_credential_make_request` were found to have shipped with ZERO search-keyword coverage —
@@ -467,7 +483,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "credential token api key set update change rotate replace new expired refresh save secret",
   custom_credential_create:
     "credential add new create save connect account api key token provider registrar hosting third-party " +
-    "service dns fly.io name.com",
+    "service dns fly.io name.com save store add new api key secret stripe openai mailchimp",
   // The generic plugin token fallback form (was SPEC-052's supabase_set_access_token, moved
   // 2026-09-29). Deliberately NO "connect", "sign in", "database" or "postgres": those belong to
   // agent_plugin_connect below, and a fallback outranking it is how supabase_get_database was misused.

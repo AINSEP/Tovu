@@ -29,7 +29,9 @@
  *   `identity_policy_delete`, carries no "still referenced, so refuse" guard at all — nothing stops
  *   a single call from permanently destroying a visitor's data with no way back. That asymmetry
  *   (reversible read vs. unconditional permanent write) is exactly the read/write split this pass's
- *   directive asks for; delete stays human-UI-only.
+ *   directive asks for; delete stays human-UI-only. (Since trash T4, `trash_item` can move a
+ *   submission to the Trash, restorable for 60 days; that is not a permanent delete, and
+ *   `forms_list_submissions`' description points the model there.)
  *
  * How it relates to the project:
  * `assistant/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s;
@@ -257,7 +259,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_list_submissions",
     description:
-      "Lists a form's submissions, newest-first, with each submission's field values, source IP, and submission time. Read-only. There is no forms_delete_submission — permanently removing a visitor's data stays human-UI-only.",
+      "Lists a form's submissions, newest-first, with each submission's field values, source IP, and submission time. Read-only. To remove a submission, move it to the Trash with trash_item (entityType 'form_submission'); permanent removal stays human-only, from the Trash screen.",
     sideEffects: "none",
     authorization: { permission: "admin.forms.submissions.read" },
     inputSchema: {

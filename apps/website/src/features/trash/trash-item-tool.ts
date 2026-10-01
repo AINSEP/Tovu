@@ -224,7 +224,7 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Wi
     description:
       "Moves one item of any kind the Trash holds to the Trash, named by entityType and entityId (see entityType's own " +
       "enum for the full list — posts/pages, comments, media assets and redirect rules today, plus forms, form " +
-      "submissions, widgets and other Trash-registered kinds). HUMAN-GATED: it always shows a confirmation dialog and " +
+      "submissions, widgets, menus, taxonomies and terms, and other Trash-registered kinds). HUMAN-GATED: it always shows a confirmation dialog and " +
       "WAITS for the human's answer before writing anything — there is no second call to make. For a kind with its own " +
       "delete tool (post, comment, media, redirect, widget), it runs that tool's own permission check and shows that " +
       "tool's own dialog, so the result is identical to calling that tool directly. For every other kind it checks the " +

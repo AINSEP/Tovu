@@ -17,6 +17,7 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Is the 'Recipe' content type still active or did someone retire it?",
     "I need the current version number for a content type before I edit it.",
     "Can you show me every content type, including old ones nobody uses anymore?",
+    "Which collections / content types do I have?",
   ],
   collections_content_type_define: [
     "How do I add a brand new content type to the CMS?",
@@ -747,6 +748,8 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "What settings apply to me as a user versus the whole workspace?",
     "I want the effective, precedence-resolved values for a namespace.",
     "What's the value that actually wins between global, workspace, and user settings?",
+    "What settings does my site have?",
+    "Show me all current site settings.",
   ],
   settings_get_raw: [
     "Can you show me the raw values for this setting at every layer?",
