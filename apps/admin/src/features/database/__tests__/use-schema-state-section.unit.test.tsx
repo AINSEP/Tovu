@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
@@ -22,6 +22,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("useSchemaStateSection", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("stays silent once a clean in-sync read lands", async () => {
     const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
     const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
@@ -67,4 +68,20 @@ describe("useSchemaStateSection", () => {
     await waitFor(() => expect(result.current.settled).toBe(true));
     expect(result.current.t("Database")).toBe("Database");
   });
+  it("binds the translator to the resolved Spanish locale for database warnings", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (String(url).includes("namespace=core.language")) {
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ key: "locale", value: "es" }] }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected test request: ${url}`));
+    }));
+    const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
+    const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });
+
+    await waitFor(() => expect(result.current.t("Your database is out of date")).toBe("Tu base de datos está desactualizada"));
+    expect(result.current.settled).toBe(true);
+  });
+
 });

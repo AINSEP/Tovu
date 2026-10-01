@@ -50,11 +50,17 @@ describe("useLogin — submit", () => {
   it("on success, calls onLogin with the returned user and clears busy", async () => {
     const user = { id: "u1", username: "admin" };
     const onLogin = vi.fn();
-    const { result } = renderHook(() => useLogin({ onLogin }, { port: createFakeLoginPort({ user }) }));
+    const login = vi.fn().mockResolvedValue({ user });
+    const { result } = renderHook(() => useLogin({ onLogin }, { port: { login } }));
+    act(() => {
+      result.current.setUsername("alice.operator");
+      result.current.setPassword("distinct-password-123");
+    });
 
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
     expect(onLogin).toHaveBeenCalledWith(user);
+    expect(login).toHaveBeenCalledExactlyOnceWith({ username: "alice.operator", password: "distinct-password-123" });
     expect(result.current.busy).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -99,17 +105,27 @@ describe("useLogin — submit", () => {
   });
 
   it("clears a previous error at the start of a new submit attempt", async () => {
+    let resolveLogin!: (value: { user: { id: string; username: string } }) => void;
     const login = vi
       .fn()
       .mockRejectedValueOnce(new Error("first failure"))
-      .mockResolvedValueOnce({ user: { id: "u1", username: "admin" } });
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveLogin = resolve; }));
     const port: LoginPort = { login };
     const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
 
     await act(async () => result.current.submit(fakeSubmitEvent()));
     expect(result.current.error).toBe("first failure");
 
-    await act(async () => result.current.submit(fakeSubmitEvent()));
+    let retryPromise!: Promise<void>;
+    act(() => { retryPromise = result.current.submit(fakeSubmitEvent()); });
+    expect(result.current.busy).toBe(true);
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      resolveLogin({ user: { id: "u1", username: "admin" } });
+      await retryPromise;
+    });
     await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.busy).toBe(false);
   });
 });

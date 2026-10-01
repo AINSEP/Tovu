@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,12 +21,13 @@ import type { AdminContentType } from "@/lib/api";
  * reaching every dialog state without a real `fetch`.
  */
 
-const { newDialogRef, newDialogPropsRef, editDialogRef, editDialogPropsRef, lifecycleDialogRef } = vi.hoisted(() => ({
+const { newDialogRef, newDialogPropsRef, editDialogRef, editDialogPropsRef, lifecycleDialogRef, lifecycleDialogPropsRef } = vi.hoisted(() => ({
   newDialogRef: { current: null as unknown },
   newDialogPropsRef: { current: null as unknown },
   editDialogRef: { current: null as unknown },
   editDialogPropsRef: { current: null as unknown },
   lifecycleDialogRef: { current: null as unknown },
+  lifecycleDialogPropsRef: { current: null as unknown },
 }));
 
 vi.mock("../hooks/use-new-content-type-dialog.hooks", async (importOriginal) => {
@@ -57,7 +58,10 @@ vi.mock("../hooks/use-edit-fields-dialog.hooks", async (importOriginal) => {
 });
 vi.mock("../hooks/use-lifecycle-confirm-dialog.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-lifecycle-confirm-dialog.hooks")>();
-  return { ...actual, useLifecycleConfirmDialog: () => lifecycleDialogRef.current };
+  return { ...actual, useLifecycleConfirmDialog: (props: unknown) => {
+    lifecycleDialogPropsRef.current = props;
+    return lifecycleDialogRef.current;
+  } };
 });
 
 const TYPE: AdminContentType = {
@@ -147,6 +151,7 @@ beforeEach(() => {
   newDialogRef.current = newDialogController();
   editDialogRef.current = editDialogController();
   lifecycleDialogRef.current = lifecycleDialogController();
+  lifecycleDialogPropsRef.current = null;
 });
 
 function renderCollections(overrides: Partial<CollectionsController> = {}) {
@@ -209,12 +214,16 @@ describe("Copy embed code", () => {
     renderCollections({ types: [TYPE, DEPRECATED_TYPE], copyFallback: { key: "recipe", snippet } });
     expect(screen.getByText(snippet)).toBeInTheDocument();
     expect(screen.getAllByText(/data-embed-config/)).toHaveLength(1);
+    expect(within(screen.getByRole("row", { name: /Recipe/ })).getByText(snippet)).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Old Type/ })).queryByText(snippet)).not.toBeInTheDocument();
   });
 
   it("shows Copied only for the row whose key matches copiedKey", () => {
     renderCollections({ types: [TYPE, DEPRECATED_TYPE], copiedKey: "recipe" });
     expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy embed code" })).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Recipe/ })).getByRole("button", { name: "Copied" })).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Old Type/ })).getByRole("button", { name: "Copy embed code" })).toBeInTheDocument();
   });
 });
 
@@ -282,6 +291,7 @@ describe("row menu — status-driven visibility (mirrors contentTypeMenuItems)",
     await user.click(screen.getByRole("button", { name: 'Actions for content type "Recipe"' }));
     await user.click(screen.getByRole("menuitem", { name: "Tombstone" }));
     expect(c.setPendingLifecycle).toHaveBeenCalledWith({ op: "tombstone", contentType: TYPE });
+    expect(c.runLifecycle).not.toHaveBeenCalled();
   });
 
   it("Reactivate calls runLifecycle directly — NOT confirm-gated", async () => {
@@ -323,7 +333,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.type(screen.getByLabelText("Label"), "x");
-    expect(dlg.setLabel).toHaveBeenCalled();
+    expect(dlg.setLabel).toHaveBeenCalledWith("x");
   });
 
   it("typing the key calls setKey", async () => {
@@ -332,7 +342,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.type(screen.getByLabelText("Key"), "x");
-    expect(dlg.setKey).toHaveBeenCalled();
+    expect(dlg.setKey).toHaveBeenCalledWith("x");
   });
 
   it("typing a field name calls updateField with { name }", async () => {
@@ -607,7 +617,16 @@ describe("EditFieldsDialog", () => {
 });
 
 describe("LifecycleConfirmDialog", () => {
-  it("renders when pendingLifecycle is set, using its op-derived copy and the content type's label", () => {
+  it.each(["deprecate", "tombstone"] as const)("passes %s and a working cancel callback to the dialog hook", (op) => {
+    const c = renderCollections({ pendingLifecycle: { op, contentType: TYPE } });
+    const props = lifecycleDialogPropsRef.current as { op: string; onCancel: () => void };
+    expect(props.op).toBe(op);
+    props.onCancel();
+    expect(c.setPendingLifecycle).toHaveBeenCalledExactlyOnceWith(null);
+    expect(c.runLifecycle).not.toHaveBeenCalled();
+  });
+
+  it("renders when pendingLifecycle is set, using the hook's copy and the content type's label", () => {
     renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
     expect(screen.getByRole("heading", { name: "Deprecate content type" })).toBeInTheDocument();
     expect(screen.getByText("Recipe", { selector: "strong" })).toBeInTheDocument();

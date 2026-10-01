@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { useInfoTip } from "../InfoTip.hooks";
 
@@ -95,21 +95,24 @@ describe("useInfoTip", () => {
     attachIcon(result, { top: 400, bottom: 420, left: 100, right: 120, width: 20, height: 20 });
     act(() => result.current.show());
 
-    const stopPropagation = () => {};
+    const stopPropagation = vi.fn();
     const event = { key: "Escape", stopPropagation: () => stopPropagation() } as unknown as Parameters<
       typeof result.current.handleIconKeyDown
     >[0];
     act(() => result.current.handleIconKeyDown(event));
 
     expect(result.current.open).toBe(false);
+    expect(stopPropagation).toHaveBeenCalledOnce();
   });
 
   it("handleIconKeyDown on Escape while already closed does not throw", () => {
     const { result } = renderHook(() => useInfoTip());
-    const event = { key: "Escape", stopPropagation: () => {} } as unknown as Parameters<
+    const stopPropagation = vi.fn();
+    const event = { key: "Escape", stopPropagation } as unknown as Parameters<
       typeof result.current.handleIconKeyDown
     >[0];
     expect(() => act(() => result.current.handleIconKeyDown(event))).not.toThrow();
     expect(result.current.open).toBe(false);
+    expect(stopPropagation).not.toHaveBeenCalled();
   });
 });

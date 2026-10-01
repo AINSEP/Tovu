@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FAB_EDGE_MARGIN, useFabPosition, type FabPositionResult } from "../ChatFab/ChatFab.hooks";
 
@@ -86,6 +86,36 @@ describe("click vs. drag threshold", () => {
 });
 
 describe("free-form drag (no edge-snap)", () => {
+  it("pointercancel ends an interrupted drag, persists the position, and removes the document listeners", () => {
+    const addListener = vi.spyOn(document, "addEventListener");
+    const removeListener = vi.spyOn(document, "removeEventListener");
+    try {
+      const { result } = renderHook(() => useFabPosition({ dockOpen: false, avoidBottomPx: 0 }));
+      const rect = { left: 924, top: 724, right: 980, bottom: 780 };
+      act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
+      act(() => pointerMove(552, 402));
+      expect(result.current.isDragging).toBe(true);
+
+      act(() => { document.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 1 })); });
+      expect(result.current.isDragging).toBe(false);
+      expect(result.current.style).toEqual({ right: 420, bottom: 370 });
+      const stored = localStorage.getItem(STORAGE_KEY);
+      expect(JSON.parse(stored ?? "{}")).toEqual({ rightFraction: 0.42, bottomFraction: 0.4625, pinnedByUser: true });
+      for (const name of ["pointermove", "pointerup", "pointercancel"]) {
+        const registration = addListener.mock.calls.find(([eventName]) => eventName === name);
+        expect(registration).toBeDefined();
+        expect(removeListener).toHaveBeenCalledWith(name, registration![1]);
+      }
+      act(() => pointerMove(352, 202));
+      act(() => pointerUp(352, 202));
+      expect(result.current.style).toEqual({ right: 420, bottom: 370 });
+      expect(localStorage.getItem(STORAGE_KEY)).toBe(stored);
+    } finally {
+      addListener.mockRestore();
+      removeListener.mockRestore();
+    }
+  });
+
   it("a drop in the middle of the screen stays in the middle of the screen", () => {
     const { result } = renderHook(() => useFabPosition({ dockOpen: false, avoidBottomPx: 0 }));
     // Starts at the default bottom-right resting spot (right=20, bottom=20 at this 1000x800
@@ -94,7 +124,11 @@ describe("free-form drag (no edge-snap)", () => {
     const rect = { left: 924, top: 724, right: 980, bottom: 780 };
 
     act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
+    act(() => pointerMove(752, 552));
+    expect(result.current.isDragging).toBe(true);
+    expect(result.current.style).toEqual({ right: 220, bottom: 220 });
     act(() => pointerMove(552, 402));
+    expect(result.current.style).toEqual({ right: 420, bottom: 370 });
     act(() => pointerUp(552, 402));
 
     // Old behavior would have snapped this back to right:20 or left:20 — asserting the exact
@@ -232,6 +266,7 @@ describe("avoidRightPx — holding clear of the desktop dock", () => {
       useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: window.innerWidth * 4 }),
     );
     expect(result.current.style.right).toBeLessThanOrEqual(window.innerWidth - FAB_EDGE_MARGIN);
+    expect(result.current.style.right + FAB_SIZE_PX + FAB_EDGE_MARGIN).toBeLessThanOrEqual(window.innerWidth);
     expect(result.current.style.right).toBeGreaterThanOrEqual(FAB_EDGE_MARGIN);
   });
 
@@ -240,11 +275,23 @@ describe("avoidRightPx — holding clear of the desktop dock", () => {
     expect(result.current.style.right).toBe(FAB_EDGE_MARGIN);
   });
 
-  it("never REDUCES a dragged resting offset that already clears the dock", () => {
+  it("raises the untouched default to the required dock clearance", () => {
     const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 10 }));
     // The resting right (FAB_EDGE_MARGIN) vs. the required clearance (10 + margin): the larger wins,
     // so clearance can only ever move the FAB further from the dock, never toward it.
     expect(result.current.style.right).toBe(10 + FAB_EDGE_MARGIN);
+  });
+
+  it("preserves a migrated left-side resting offset that already clears the dock when it opens", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "left", bottomFraction: 0.3 }));
+    const { result, rerender } = renderHook(
+      ({ dockOpen }) => useFabPosition({ dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
+      { initialProps: { dockOpen: false } },
+    );
+    const restingRight = window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX;
+    expect(result.current.style.right).toBe(restingRight);
+    rerender({ dockOpen: true });
+    expect(result.current.style.right).toBe(restingRight);
   });
 });
 

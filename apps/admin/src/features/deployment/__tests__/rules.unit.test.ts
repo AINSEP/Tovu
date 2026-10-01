@@ -134,6 +134,9 @@ describe("deploymentEnvVarNoteKey", () => {
     const notes = names.map(deploymentEnvVarNoteKey);
     expect(new Set(notes).size).toBe(names.length);
     expect(notes.every((n) => n.length > 0)).toBe(true);
+    expect(deploymentEnvVarNoteKey("TOVU_ADMIN_PASSWORD")).toBe("Falls back to a public default.");
+    expect(deploymentEnvVarNoteKey("TOVU_ADMIN_USER")).toBe('Falls back to "admin".');
+    expect(deploymentEnvVarNoteKey("JINI_AGENT_DAEMON_PORT")).toBe("Falls back to port 4319.");
   });
 
   it("states the integrations Site Token is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
@@ -149,6 +152,10 @@ describe("deploymentEnvVarNoteKey", () => {
 describe("FULL_SITE_PROVIDERS", () => {
   it("lists exactly the six providers named in the brief, each planned and each with unique id/description", () => {
     expect(FULL_SITE_PROVIDERS).toHaveLength(6);
+    expect(FULL_SITE_PROVIDERS.map(({ id, name }) => [id, name])).toEqual([
+      ["aws", "AWS"], ["fly", "Fly.io"], ["railway", "Railway"],
+      ["render", "Render"], ["digitalocean", "DigitalOcean"], ["vps", "VPS (SSH)"],
+    ]);
     expect(FULL_SITE_PROVIDERS.every((p) => p.status === "planned")).toBe(true);
     expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.id)).size).toBe(6);
     expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.descriptionKey)).size).toBe(6);
@@ -176,6 +183,8 @@ describe("runStatusTone", () => {
 describe("exportRunStatusLabelKey", () => {
   it("reads an undefined run the same as an explicit idle run", () => {
     expect(exportRunStatusLabelKey(undefined)).toBe(exportRunStatusLabelKey({ status: "idle" }));
+    expect(exportRunStatusLabelKey(undefined)).toBe("Not started");
+    expect(exportRunStatusLabelKey({ status: "idle" })).toBe("Not started");
   });
 
   it("distinguishes a clean finish from one with route failures", () => {
@@ -192,6 +201,8 @@ describe("exportRunStatusLabelKey", () => {
 describe("publishRunStatusLabelKey", () => {
   it("reads an undefined run the same as an explicit idle run", () => {
     expect(publishRunStatusLabelKey(undefined)).toBe(publishRunStatusLabelKey({ status: "idle" }));
+    expect(publishRunStatusLabelKey(undefined)).toBe("Not started");
+    expect(publishRunStatusLabelKey({ status: "idle" })).toBe("Not started");
   });
 
   it("distinguishes a real success from a completed-but-failed outcome (e.g. no credentials)", () => {

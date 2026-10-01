@@ -1,7 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerAdminWebMcpTool } from "../../App.hooks";
+import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
 import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
+
+vi.mock("@jini-ai/chat/react", () => ({
+  createFrontendSessionBridge: vi.fn(() => ({ ready: Promise.resolve(), close: vi.fn() })),
+}));
+
+const documentContextDescriptor = Object.getOwnPropertyDescriptor(document, "modelContext");
+const navigatorContextDescriptor = Object.getOwnPropertyDescriptor(navigator, "modelContext");
+
+afterEach(() => {
+  for (const [target, descriptor] of [[document, documentContextDescriptor], [navigator, navigatorContextDescriptor]] as const) {
+    if (descriptor) Object.defineProperty(target, "modelContext", descriptor);
+    else Reflect.deleteProperty(target, "modelContext");
+  }
+});
 
 /**
  * @file `App.hooks.tsx`'s `registerAdminWebMcpTool` — publish-criteria plan §4 S5 ("WebMCP on"),
@@ -27,6 +42,7 @@ describe("registerAdminWebMcpTool", () => {
     expect(registerTool).toHaveBeenCalledTimes(1);
     const [registration] = registerTool.mock.calls[0]!;
     expect(registration.name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
+    expect(registration.inputSchema).toEqual(PUBLISH_CONTENT_CAPABILITY.inputSchema);
   });
 
   it("calling its execute forwards to the SAME admin. executor buildAdminCapabilityExecutors builds — one implementation behind both doors", async () => {
@@ -43,7 +59,7 @@ describe("registerAdminWebMcpTool", () => {
     expect(result).toBe("planned");
   });
 
-  it("unmount aborts the signal — the caller's AbortController is what unregisters the tool (WebMCP's only mechanism)", () => {
+  it("forwards the caller's abort signal to the host", () => {
     const registerTool = vi.fn();
     const executors = { "admin.": vi.fn() };
     const controller = new AbortController();
@@ -65,5 +81,43 @@ describe("registerAdminWebMcpTool", () => {
     const controller = new AbortController();
 
     expect(() => registerAdminWebMcpTool(executors, controller.signal, undefined)).not.toThrow();
+  });
+
+  it("resolves document.modelContext before navigator.modelContext on the default path", () => {
+    const documentHost = { registerTool: vi.fn() };
+    const navigatorHost = { registerTool: vi.fn() };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: documentHost });
+    Object.defineProperty(navigator, "modelContext", { configurable: true, value: navigatorHost });
+
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal);
+
+    expect(documentHost.registerTool).toHaveBeenCalledTimes(1);
+    expect(navigatorHost.registerTool).not.toHaveBeenCalled();
+  });
+
+  it("falls back to navigator.modelContext when document has no host", () => {
+    const navigatorHost = { registerTool: vi.fn() };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: undefined });
+    Object.defineProperty(navigator, "modelContext", { configurable: true, value: navigatorHost });
+
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal);
+
+    expect(navigatorHost.registerTool).toHaveBeenCalledTimes(1);
+    expect(navigatorHost.registerTool.mock.calls[0][0].name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
+  });
+
+  it("the real bridge registers on mount and aborts its registered signal on unmount", () => {
+    const registerTool = vi.fn();
+    Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool } });
+    const { result, unmount } = renderHook(() => useAgentPageBridge());
+    const element = document.createElement("main");
+    act(() => result.current.setContentEl(element));
+
+    expect(registerTool).toHaveBeenCalledTimes(1);
+    const [registration, options] = registerTool.mock.calls[0];
+    expect(registration.name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
+    expect(options.signal.aborted).toBe(false);
+    unmount();
+    expect(options.signal.aborted).toBe(true);
   });
 });

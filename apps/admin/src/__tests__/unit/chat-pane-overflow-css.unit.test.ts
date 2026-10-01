@@ -24,33 +24,48 @@ import { describe, expect, it } from "vitest";
  */
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/assistant.css"), "utf8");
 
-/** Extracts a rule's declaration block by selector, tolerating the multi-selector
+/** Collects every declaration block for a selector, tolerating the multi-selector
  *  `.jini-message-ext-events,\n.mcpui-surface-card { ... }` shape used below. */
 function ruleFor(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`(?:^|[,{}])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`, "m");
-  return re.exec(stylesheet)?.[1] ?? "";
+  const re = new RegExp(`(?:^|[,{}])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`, "gm");
+  return [...stylesheet.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(re)].map((match) => match[1]).join(";\n");
+}
+
+/** Guard later overrides of the same selector, including ones inside media queries. This is
+ * declaration coverage; browser geometry is still needed for the full cascade/layout. */
+function lastDeclaration(rule: string, property: string): string | undefined {
+  const declarations = [...rule.matchAll(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"))];
+  return declarations.at(-1)?.[1]?.trim();
 }
 
 describe("chat pane horizontal-overflow fix", () => {
   it("stops .jini-message-list from becoming a horizontal scroll container for the whole transcript", () => {
     const rule = ruleFor(".jini-message-list");
     expect(rule).toMatch(/overflow-x\s*:\s*hidden/);
+    expect(lastDeclaration(rule, "overflow-x")).toBe("hidden");
   });
 
   it("lets an unbroken long token (a URL, a hash) wrap inside a message bubble instead of forcing the bubble wide", () => {
     const rule = ruleFor(".jini-message-content");
     expect(rule).toMatch(/overflow-wrap\s*:\s*anywhere/);
+    expect(lastDeclaration(rule, "overflow-wrap")).toBe("anywhere");
   });
 
   it("gives a fenced code block (Markdown.tsx's bare <pre><code>, styled nowhere else) its own local horizontal scrollbar", () => {
     const rule = ruleFor(".jini-message-content pre");
     expect(rule).toMatch(/overflow-x\s*:\s*auto/);
     expect(rule).toMatch(/max-width\s*:\s*100%/);
+    expect(lastDeclaration(rule, "overflow-x")).toBe("auto");
+    expect(lastDeclaration(rule, "max-width")).toBe("100%");
   });
 
   it("caps the MCP-UI surface card and its ext-event wrapper at the message row's own width", () => {
     const rule = ruleFor(".mcpui-surface-card");
     expect(rule).toMatch(/max-width\s*:\s*100%/);
+    expect(lastDeclaration(rule, "max-width")).toBe("100%");
+    const wrapperRule = ruleFor(".jini-message-ext-events");
+    expect(wrapperRule).toMatch(/max-width\s*:\s*100%/);
+    expect(lastDeclaration(wrapperRule, "max-width")).toBe("100%");
   });
 });

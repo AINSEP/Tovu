@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { FsFolderIndicator } from "../FsFolderIndicator";
+import { useFsFolderIndicator } from "../FsFolderIndicator.hooks";
 
 /**
  * @file First dedicated test file for `FsFolderIndicator.tsx`/`FsFolderIndicator.hooks.ts` — the
@@ -68,16 +69,18 @@ describe("FsFolderIndicator", () => {
   it("opens the inline editor, submits a path, and reflects the server's response", async () => {
     const user = userEvent.setup();
     getFsFilesCustomRoot.mockResolvedValue({ path: null });
-    setFsFilesCustomRoot.mockResolvedValue({ path: "/Users/la/Programming/kUInetic/demo" });
+    setFsFilesCustomRoot.mockResolvedValue({ path: "/canonical/project" });
     render(<FsFolderIndicator />);
 
     await user.click(await screen.findByText("No folder set"));
     const input = screen.getByLabelText("Folder path for the assistant to read");
-    await user.type(input, "/Users/la/Programming/kUInetic/demo");
+    await user.type(input, "  /Users/la/Programming/kUInetic/demo  ");
     await user.click(screen.getByRole("button", { name: "Set" }));
 
     await waitFor(() => expect(setFsFilesCustomRoot).toHaveBeenCalledWith("/Users/la/Programming/kUInetic/demo"));
-    expect(await screen.findByText("demo")).toBeInTheDocument();
+    expect(await screen.findByText("project")).toBeInTheDocument();
+    expect(screen.getByTitle("/canonical/project")).toBeInTheDocument();
+    expect(screen.queryByTitle("/Users/la/Programming/kUInetic/demo")).not.toBeInTheDocument();
   });
 
   it("shows the server's own rejection message inline rather than crashing or going silent", async () => {
@@ -118,5 +121,64 @@ describe("FsFolderIndicator", () => {
 
     await waitFor(() => expect(clearFsFilesCustomRoot).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("No folder set")).toBeInTheDocument();
+  });
+
+  it("prefills the current path when editing a set folder", async () => {
+    const user = userEvent.setup();
+    getFsFilesCustomRoot.mockResolvedValue({ path: "/existing/project" });
+    render(<FsFolderIndicator />);
+    await user.click(await screen.findByText("project"));
+    expect(screen.getByLabelText("Folder path for the assistant to read")).toHaveValue("/existing/project");
+  });
+
+  it("ignores an empty or whitespace-only draft in the hook", async () => {
+    getFsFilesCustomRoot.mockResolvedValue({ path: null });
+    const { result } = renderHook(() => useFsFolderIndicator());
+    await waitFor(() => expect(result.current.path).toBeNull());
+    act(() => result.current.startEditing());
+    act(() => result.current.submit());
+    act(() => result.current.setDraft("   "));
+    act(() => result.current.submit());
+    expect(setFsFilesCustomRoot).not.toHaveBeenCalled();
+    expect(result.current.editing).toBe(true);
+    expect(result.current.pending).toBe(false);
+  });
+
+  it("falls back to unset when the initial GET fails", async () => {
+    getFsFilesCustomRoot.mockRejectedValue(new Error("offline"));
+    render(<FsFolderIndicator />);
+    expect(await screen.findByText("No folder set")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the folder and exposes the fallback error when clearing fails", async () => {
+    getFsFilesCustomRoot.mockResolvedValue({ path: "/existing/project" });
+    clearFsFilesCustomRoot.mockRejectedValue({});
+    const { result } = renderHook(() => useFsFolderIndicator());
+    await waitFor(() => expect(result.current.path).toBe("/existing/project"));
+    act(() => result.current.clear());
+    await waitFor(() => expect(result.current.error).toBe("Could not clear the folder."));
+    expect(result.current.path).toBe("/existing/project");
+    expect(result.current.pending).toBe(false);
+  });
+
+  it("disables the inline editor while setting a folder and restores it on rejection", async () => {
+    const user = userEvent.setup();
+    getFsFilesCustomRoot.mockResolvedValue({ path: null });
+    let rejectSet!: (reason: Error) => void;
+    setFsFilesCustomRoot.mockReturnValue(new Promise((_resolve, reject) => { rejectSet = reject; }));
+    render(<FsFolderIndicator />);
+    await user.click(await screen.findByText("No folder set"));
+    const input = screen.getByLabelText("Folder path for the assistant to read");
+    await user.type(input, "/project");
+    await user.click(screen.getByRole("button", { name: "Set" }));
+    expect(input).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Set" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await act(async () => rejectSet(new Error("offline")));
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    expect(input).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Set" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
 });

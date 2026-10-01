@@ -50,6 +50,7 @@ describe("FullSiteTab", () => {
       document.querySelector('[data-agent-element="deployment-full-site-dockerfile-link"]'),
     ).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-full-site-providers"]')).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View the Dockerfile" })).toHaveAttribute("data-agent-element", "deployment-full-site-dockerfile-link");
   });
 });
 
@@ -71,5 +72,6 @@ describe("HistoryTab", () => {
     render(<HistoryTab />);
     expect(document.querySelector('[data-agent-element="deployment-history-empty"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-history-publish-link"]')).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("data-agent-element", "deployment-history-publish-link");
   });
 });

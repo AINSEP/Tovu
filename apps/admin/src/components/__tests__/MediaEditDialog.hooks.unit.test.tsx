@@ -1,7 +1,8 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useMediaEditDialog, useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
+import { defaultAdminLocalePort } from "../../hooks/admin-locale-dependencies.hooks";
 
 /**
  * @file `useMediaEditDialog` — the `MediaEditDialog`'s draft/validation/Escape state, driven
@@ -82,14 +83,14 @@ describe("useMediaEditDialog — save", () => {
     expect(onSave).toHaveBeenCalledWith({ alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' });
   });
 
-  it("blank fields save as null (clearing a previously-set value), not an empty string — alt included", () => {
+  it.each(["", "   "])("blank fields (%j) save as null (clearing a previously-set value), not an empty string — alt included", (blank) => {
     const onSave = vi.fn();
     const { result } = renderHook(() =>
       useMediaEditDialog({ alt: "was-set", cssClass: "was-set", htmlAttributes: "was-set" }, onSave, vi.fn(), { locale: "en" })
     );
-    act(() => result.current.setAlt(""));
-    act(() => result.current.setCssClass(""));
-    act(() => result.current.setHtmlAttributes(""));
+    act(() => result.current.setAlt(blank));
+    act(() => result.current.setCssClass(blank));
+    act(() => result.current.setHtmlAttributes(blank));
     act(() => result.current.save());
     expect(onSave).toHaveBeenCalledWith({ alt: null, cssClass: null, htmlAttributes: null });
   });
@@ -142,6 +143,13 @@ describe("useMediaEditDialog — t", () => {
 });
 
 describe("useWiredMediaEditDialog — real locale wiring", () => {
+  it("uses Spanish loaded through the real admin locale hook for dialog copy", async () => {
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
+    const { result } = renderHook(() => useWiredMediaEditDialog({ alt: null, cssClass: null, htmlAttributes: null }, vi.fn(), vi.fn()));
+    await waitFor(() => expect(result.current.t("Edit this instance")).toBe("Editar esta instancia"));
+    expect(result.current.t("Save")).toBe("Guardar");
+  });
+
   it("resolves to the same controller shape as the unwired hook (English default, no settings stub)", () => {
     const { result } = renderHook(() => useWiredMediaEditDialog({ alt: null, cssClass: "x", htmlAttributes: null }, vi.fn(), vi.fn()));
     expect(result.current.cssClass).toBe("x");

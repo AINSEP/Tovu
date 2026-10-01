@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { templateAssetUrl, useTemplateSource } from "../use-template-source.hooks";
@@ -63,6 +63,33 @@ describe("useTemplateSource", () => {
     const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "x.html", port));
 
     await waitFor(() => expect(result.current).toEqual({ status: "error", message: "network down" }));
+  });
+
+  it.each(["resolve", "reject"] as const)("ignores a stale template that settles via %s after the newer template loads", async (settlement) => {
+    let resolveOld!: (html: string) => void;
+    let rejectOld!: (error: unknown) => void;
+    const fetchTemplateSource = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }))
+      .mockResolvedValueOnce("<h1>new template</h1>");
+    const port = { fetchTemplateSource };
+    const { result, rerender } = renderHook(
+      ({ filename }) => useTemplateSource("basic", "static", 2, filename, port),
+      { initialProps: { filename: "old.html" } },
+    );
+    rerender({ filename: "new.html" });
+    await waitFor(() => expect(result.current).toEqual({ status: "loaded", html: "<h1>new template</h1>" }));
+    expect(fetchTemplateSource).toHaveBeenNthCalledWith(2, "/theme-assets/basic/render/pages/new.html");
+    await act(async () => {
+      if (settlement === "resolve") resolveOld("<h1>old template</h1>");
+      else rejectOld(new Error("old template failed"));
+    });
+    expect(result.current).toEqual({ status: "loaded", html: "<h1>new template</h1>" });
+  });
+
+  it("uses the fallback message for a non-Error rejection", async () => {
+    const port = { fetchTemplateSource: vi.fn().mockRejectedValue("offline") };
+    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "x.html", port));
+    await waitFor(() => expect(result.current).toEqual({ status: "error", message: "failed to load the template" }));
   });
 
   it("fetches the v1 URL built by templateAssetUrl for a v1 (apiVersion undefined) theme", async () => {

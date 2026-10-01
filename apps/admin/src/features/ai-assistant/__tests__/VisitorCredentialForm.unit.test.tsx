@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/ui";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -267,6 +269,46 @@ describe("VisitorCredentialSettingsFooter", () => {
 });
 
 describe("VisitorCredentialForm", () => {
+  it("forwards edited keys and provider selections to the controller", async () => {
+    const user = userEvent.setup();
+    const editConfig = vi.fn();
+    const selectPreset = vi.fn();
+    function useFake() {
+      const [config, setConfig] = useState(fakeController().config);
+      return fakeController({ config, selectPreset, editConfig: (next) => { editConfig(next); setConfig(next); } });
+    }
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);
+
+    const keyField = document.querySelector<HTMLInputElement>('input[autocomplete="new-password"]')!;
+    await user.type(keyField, "visitor-key-123");
+    expect(editConfig).toHaveBeenLastCalledWith({ ...fakeController().config, apiKey: "visitor-key-123" });
+    expect(keyField).toHaveValue("visitor-key-123");
+    for (const baseUrl of ["https://api.openai.com/v1", "https://openrouter.ai/api/v1"]) {
+      const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.baseUrl === baseUrl)!;
+      await user.click(screen.getByRole("tab", { name: preset.title }));
+      expect(selectPreset).toHaveBeenLastCalledWith(preset);
+    }
+  });
+
+  it("uses the stored key mask and runs the connection probe with an empty key field", async () => {
+    const controller = fakeController({
+      config: { ...fakeController().config, model: "gemini-flash-latest" },
+      hasUsableKey: true,
+      hasStoredKey: true,
+      stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null },
+      connectionTest: { status: "error", message: "connection refused" },
+    });
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => controller} t={(key) => key === "connection refused" ? "Translated connection failure" : key} />);
+
+    expect(screen.getByPlaceholderText("••••ab12")).toHaveValue("");
+    expect(screen.getByText("Translated connection failure")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Test connection" });
+    expect(button).toBeEnabled();
+    await userEvent.click(button);
+    expect(controller.runTestConnection).toHaveBeenCalledTimes(1);
+    expect(controller.runKeyTest).not.toHaveBeenCalled();
+  });
+
   it("renders the intro copy, provider chips, and key field via the injected hook", () => {
     const useFake = () => fakeController();
     render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);

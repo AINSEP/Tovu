@@ -1,7 +1,8 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DragEvent } from "react";
-import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
+import { createElement, createRef, type DragEvent } from "react";
+import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
+import type { ChatTransport } from "@jini-ai/chat/core";
 
 import { ApiError } from "../../../../lib/api";
 import type { FolderDropPort } from "../../folder-drop-port";
@@ -142,6 +143,53 @@ describe("useFolderDrop", () => {
     expect(event.preventDefault).not.toHaveBeenCalled();
     expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).not.toHaveBeenCalled();
+  });
+
+  it("uses the folder path in a drop containing a string item, a loose file, and a folder", async () => {
+    const composerHandle = fakeComposerHandle();
+    const loose = { id: "loose" } as unknown as File;
+    const folder = { id: "folder" } as unknown as File;
+    const dataTransfer = {
+      items: [
+        { kind: "string" },
+        { kind: "file", webkitGetAsEntry: () => ({ isDirectory: false }) },
+        { kind: "file", webkitGetAsEntry: () => ({ isDirectory: true }) },
+      ],
+      files: [loose, folder],
+    } as unknown as DataTransfer;
+    const port: FolderDropPort = { getPathForFile: (file) => file === folder ? "/Users/x/site" : "/Users/x/loose.txt" };
+    const setCustomRoot = vi.fn().mockResolvedValue({ path: "/Users/x/site" });
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }),
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+
+    expect(composerHandle.current?.insertText).toHaveBeenCalledExactlyOnceWith("/Users/x/site");
+    expect(setCustomRoot).toHaveBeenCalledExactlyOnceWith("/Users/x/site");
+  });
+
+  it("leaves a drop whose webkitGetAsEntry returns null for normal file handling", () => {
+    const composerHandle = fakeComposerHandle();
+    const dataTransfer = {
+      items: [{ kind: "file", webkitGetAsEntry: () => null }],
+      files: [{ id: "no-entry" }],
+    } as unknown as DataTransfer;
+    const getPathForFile = vi.fn(() => "/must-not-be-used");
+    const setCustomRoot = vi.fn();
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => ({ getPathForFile }), setCustomRoot, getCustomRoot: vi.fn(),
+    }));
+    const event = fakeDropEvent(dataTransfer);
+
+    act(() => result.current.handleDropCapture(event));
+
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(event.stopPropagation).not.toHaveBeenCalled();
+    expect(getPathForFile).not.toHaveBeenCalled();
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
+    expect(setCustomRoot).not.toHaveBeenCalled();
+    expect(result.current.notice).toBeNull();
   });
 
   it("inserts the path and sets the custom root on a successful drop (AC-01/AC-02)", async () => {
@@ -311,6 +359,28 @@ describe("useFolderDrop", () => {
     // throw or resurrect a notice.
     act(() => vi.advanceTimersByTime(5000));
     expect(result.current.notice).toBeNull();
+  });
+
+  it("a dismissed confirmation's timer never erases a later error notice", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
+    const setCustomRoot = vi.fn()
+      .mockResolvedValueOnce({ path: "/Users/x/site" })
+      .mockRejectedValueOnce(new Error("write failed"));
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }), autoDismissMs: 4000,
+    }));
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+    expect(result.current.notice?.kind).toBe("confirmation");
+    act(() => vi.advanceTimersByTime(1000));
+    act(() => result.current.dismiss());
+    expect(result.current.notice).toBeNull();
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+    const errorNotice = { kind: "error", path: "/Users/x/site", reason: "endpoint-unreachable" };
+    expect(result.current.notice).toEqual(errorNotice);
+    act(() => vi.advanceTimersByTime(4000));
+    expect(result.current.notice).toEqual(errorNotice);
   });
 
   it("auto-dismisses the confirmation after autoDismissMs", async () => {
@@ -489,5 +559,35 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
     await flushMicrotasks();
     expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
     expect(shown.filter((n) => n !== null).map((n) => `${n!.kind} ${n!.path}`)).not.toContain("error /Users/x/a");
+  });
+});
+
+
+describe("useFolderDrop — real ChatPane composer", () => {
+  it.each([false, true])("keeps dropped paths in the editable draft when the root write fails=%s", async (fails) => {
+    const composerHandle = createRef<ChatPaneComposerHandle>();
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/one", "/Users/x/two"]);
+    const transport: ChatTransport = {
+      async startRun() { throw new Error("this test never sends"); },
+      async reattachRun() {},
+      async fetchRunStatus() { return null; },
+      async stopRun() {},
+    };
+    const setCustomRoot = fails
+      ? vi.fn().mockRejectedValue(new Error("write failed"))
+      : vi.fn().mockResolvedValue({ path: "/Users/x/two" });
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }),
+    }));
+    render(createElement(ChatPane, {
+      transport, composerHandle, initialDraft: "Inspect",
+      agents: [{ id: "codex", name: "Codex", available: true }],
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+
+    expect(screen.getByRole("textbox")).toHaveValue("Inspect /Users/x/one /Users/x/two");
+    expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/two");
+    expect(result.current.notice?.kind).toBe(fails ? "error" : "confirmation");
   });
 });

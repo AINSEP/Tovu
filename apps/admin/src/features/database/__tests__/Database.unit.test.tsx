@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -256,6 +257,7 @@ describe("TimelineSection — loading/error/loaded", () => {
     renderDatabase({ timeline: { rows: [ROW], error: "stale filter" } });
     expect(screen.getByText("stale filter")).toBeInTheDocument();
     expect(screen.getAllByRole("table").length).toBeGreaterThan(0);
+    expect(screen.getByText("stale filter").compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("clicking 'View in Recovery →' calls the real navigateToRecoveryWithDeepLink (stashes envelope + navigates)", async () => {
@@ -284,6 +286,25 @@ describe("TimelineSection — filter form", () => {
     const c = renderDatabase({ timeline: { rows: [ROW] } });
     await user.type(screen.getByLabelText("Outcome"), "x");
     expect(c.timeline.setOutcome).toHaveBeenCalled();
+    expect(c.timeline.setOutcome).toHaveBeenLastCalledWith("x");
+  });
+
+  it("keeps a multi-character outcome value as the controlled input changes", async () => {
+    const user = userEvent.setup();
+    const setOutcome = vi.fn();
+    function StatefulDatabase() {
+      const [outcome, setOutcomeState] = useState("");
+      timelineRef.current = timelineController({ outcome, setOutcome: (value) => {
+        setOutcome(value);
+        setOutcomeState(value);
+      } });
+      return <Database tabId="timeline" />;
+    }
+    render(<StatefulDatabase />);
+    const input = screen.getByLabelText("Outcome");
+    await user.type(input, "success");
+    expect(setOutcome).toHaveBeenLastCalledWith("success");
+    expect(input).toHaveValue("success");
   });
 
   it("changing the kind select calls setKind", async () => {
@@ -317,10 +338,17 @@ describe("TimelineSection — pagination", () => {
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
-  it("clicking 'Load more' calls loadMore, and the button shows 'Loading…' + is disabled while loadingMore", () => {
-    const c = renderDatabase({ timeline: { rows: [ROW], nextCursor: "cursor1", loadingMore: true } });
+  it("clicking an enabled 'Load more' calls loadMore", async () => {
+    const user = userEvent.setup();
+    const c = renderDatabase({ timeline: { rows: [ROW], nextCursor: "cursor1" } });
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(c.timeline.loadMore).toHaveBeenCalledTimes(1);
+    expect(c.timeline.applyFilters).not.toHaveBeenCalled();
+  });
+
+  it("shows 'Loading…' and disables the pager while loadingMore", () => {
+    renderDatabase({ timeline: { rows: [ROW], nextCursor: "cursor1", loadingMore: true } });
     expect(screen.getByRole("button", { name: "Loading…" })).toBeDisabled();
-    void c;
   });
 });
 

@@ -17,8 +17,16 @@ describe("getFolderDropPort", () => {
   });
 
   it("falls back to the global window when no target is injected", () => {
-    // jsdom's global `window` has no `tovuFiles` — same "absent" case as the plain-browser test
-    // above, exercised through the real default path instead of an injected fake.
-    expect(getFolderDropPort(undefined)).toBeNull();
+    const previous = window.tovuFiles;
+    const port: FolderDropPort = { getPathForFile: () => "/Users/x/Desktop/Folder" };
+    try {
+      window.tovuFiles = port;
+      expect(getFolderDropPort(undefined)).toBe(port);
+      delete window.tovuFiles;
+      expect(getFolderDropPort(undefined)).toBeNull();
+    } finally {
+      if (previous === undefined) delete window.tovuFiles;
+      else window.tovuFiles = previous;
+    }
   });
 });

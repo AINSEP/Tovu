@@ -185,7 +185,11 @@ describe("StaticSiteTab — card 1, unchanged", () => {
     // `getAllByText` rather than `getByText`: "GitHub Pages" now also appears as the provider
     // picker's own tab label further down the same tab, which is expected (they're two different,
     // correct appearances of the same proper noun), not a collision to fix away.
-    for (const target of PUBLISH_TARGETS) expect(screen.getAllByText(target.label).length).toBeGreaterThan(0);
+    const hosts = screen.getByText("Where it runs").parentElement!;
+    for (const target of PUBLISH_TARGETS) {
+      expect(screen.getAllByText(target.label).length).toBeGreaterThan(0);
+      expect(within(hosts).getByText(target.label).tagName).toBe("LI");
+    }
   });
 });
 
@@ -291,14 +295,16 @@ describe("StaticSiteTab — build export action", () => {
           startedAtIso: "t0",
           finishedAtIso: "t1",
           outputDir: "/infra/export",
-          ok: true,
-          counts: { routesSucceeded: 27, routesFailed: 0, assetsSucceeded: 8, assetsFailed: 0 },
+          ok: false,
+          counts: { routesSucceeded: 27, routesFailed: 3, assetsSucceeded: 8, assetsFailed: 2 },
         },
       },
     });
     expect(screen.getByText("/infra/export")).toBeInTheDocument();
     expect(screen.getByText(/27/)).toBeInTheDocument();
     expect(screen.getByText(/8/)).toBeInTheDocument();
+    expect(within(screen.getByText("Routes").parentElement!).getByText("27 succeeded, 3 failed")).toBeInTheDocument();
+    expect(within(screen.getByText("Assets").parentElement!).getByText("8 succeeded, 2 failed")).toBeInTheDocument();
   });
 
   it("shows an errored run's message as an alert", () => {
@@ -648,9 +654,11 @@ describe("StaticSiteTab — preview and publish gating", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("unexpected route failure");
   });
 
-  it("never lets the operator publish without a real, human-driven click — Publish has an explicit onClick, never fires on render", () => {
+  it("does not publish on render or after pending effects settle without a click", async () => {
     const publish = vi.fn();
     renderTab({ publishController: { target: "vercel", projectName: "my-site", publish } });
+    expect(publish).not.toHaveBeenCalled();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     expect(publish).not.toHaveBeenCalled();
   });
 
@@ -781,6 +789,8 @@ describe("StaticSiteTab — AI agent tagging", () => {
     renderTab();
     expect(document.querySelector('[data-agent-element="deployment-static-site-export-card"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-export-build"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Build static export" })).toHaveAttribute("data-agent-element", "deployment-static-site-export-build");
+    expect(screen.getByRole("checkbox", { name: /overwrite existing files/i })).toHaveAttribute("data-agent-element", "deployment-static-site-export-clean");
     expect(document.querySelector('[data-agent-element="deployment-static-site-export-clean"]')).toBeInTheDocument();
   });
 
@@ -792,6 +802,11 @@ describe("StaticSiteTab — AI agent tagging", () => {
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-project-name"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-preview"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-trigger"]')).toBeInTheDocument();
+    expect(screen.getByLabelText("Owner")).toHaveAttribute("data-agent-element", "deployment-static-site-publish-owner");
+    expect(screen.getByLabelText("Repository")).toHaveAttribute("data-agent-element", "deployment-static-site-publish-repo");
+    expect(screen.getByLabelText("Commit message")).toHaveAttribute("data-agent-element", "deployment-static-site-publish-project-name");
+    expect(screen.getByRole("button", { name: "Preview" })).toHaveAttribute("data-agent-element", "deployment-static-site-publish-preview");
+    expect(screen.getByRole("button", { name: "Publish" })).toHaveAttribute("data-agent-element", "deployment-static-site-publish-trigger");
   });
 
   it("tags both cards' load-error notices for the AI agent", () => {
@@ -852,11 +867,14 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
   // (disclosure changes prominence, never hides the row itself) — never that a specific count of
   // rows survives, which the new contract makes false by design.
   it("the selected provider's credential row renders in BOTH executionModes — disclosure changes prominence, never hides the row", () => {
-    renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
+    const { unmount } = renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
     expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
+    unmount();
 
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
     expect(screen.getAllByRole("button", { name: "Save" }).length).toBeGreaterThanOrEqual(1);
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 });
 
@@ -1043,6 +1061,10 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${providerId}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${providerId}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${providerId}"]`)).toBeInTheDocument();
+      const target = publishTargetById(PUBLISH_TARGETS, providerId)!;
+      const tokenField = target.credential!.fields.find((field) => field.name === target.credential!.tokenField)!;
+      expect(screen.getByLabelText(tokenField.label)).toHaveAttribute("data-agent-element", `deployment-static-site-credentials-token-${providerId}`);
+      expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-agent-element", `deployment-static-site-credentials-save-${providerId}`);
       unmount();
     }
   });
@@ -1159,6 +1181,19 @@ describe("StaticSiteTab — REGRESSION: Verify control on the connected credenti
     });
     const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
     expect(within(row).getByText("GitHub rejected this credential (HTTP 401).")).toBeInTheDocument();
+    expect(within(row).getByText("GitHub rejected this credential (HTTP 401).")).toHaveClass("save-error");
+  });
+
+  it.each([
+    ["unreachable", "save-warning"],
+    ["valid", "save-ok"],
+  ] as const)("renders a %s verdict with its own tone", (status, tone) => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": {
+      saved: GH_CREDENTIAL,
+      verification: { status, message: "Provider verdict", checkedAt: "2026-08-16T00:00:00.000Z" },
+    } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByText("Provider verdict")).toHaveClass(tone);
   });
 
   it("shows a translated transport-failure message, distinct from a provider verification result", () => {
@@ -1201,6 +1236,8 @@ describe("StaticSiteTab — the 'which saved token publishes' picker (owner's or
     });
     const picker = screen.getByLabelText(/which saved token publishes/i) as HTMLSelectElement;
     expect(picker.querySelectorAll("option")).toHaveLength(2);
+    expect(within(picker).getByRole("option", { name: /^primary —/ })).toHaveValue("cred-1");
+    expect(within(picker).getByRole("option", { name: /^backup —/ })).toHaveValue("cred-2");
     expect(picker.value).toBe("cred-1");
   });
 
@@ -1215,7 +1252,7 @@ describe("StaticSiteTab — the 'which saved token publishes' picker (owner's or
       },
     });
     const picker = screen.getByLabelText(/which saved token publishes/i);
-    await user.selectOptions(picker, "cred-2");
+    await user.selectOptions(picker, within(picker).getByRole("option", { name: /^backup —/ }));
     expect(selectCredential).toHaveBeenCalledWith("github-pages", "cred-2");
   });
 });

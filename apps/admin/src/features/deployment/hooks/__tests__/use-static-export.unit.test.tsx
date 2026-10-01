@@ -291,6 +291,35 @@ describe("useStaticExport — poll loop", () => {
     expect(result.current.isRunning).toBe(true);
   });
 
+  it("successful polls reset the consecutive-failure bound between scattered blips", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    const completedRun: AdminExportRunSnapshot = { ...runningRun, status: "completed", finishedAtIso: "t1" };
+    const getSiteExportStatus = vi.fn()
+      .mockResolvedValueOnce(runningRun) // bootstrap
+      .mockRejectedValueOnce(new Error("blip 1"))
+      .mockResolvedValueOnce(runningRun)
+      .mockRejectedValueOnce(new Error("blip 2"))
+      .mockResolvedValueOnce(runningRun)
+      .mockRejectedValueOnce(new Error("blip 3"))
+      .mockResolvedValue(completedRun);
+    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isRunning).toBe(true));
+
+    for (let poll = 1; poll <= 5; poll += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+      expect(getSiteExportStatus).toHaveBeenCalledTimes(poll + 1);
+      expect(result.current.pollError).toBeNull();
+      expect(result.current.isRunning).toBe(true);
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(7);
+    expect(result.current.run?.status).toBe("completed");
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isRunning).toBe(false);
+  });
+
   it("REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Build button — not retried forever behind a stuck spinner", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
@@ -329,6 +358,20 @@ describe("useStaticExport — poll loop", () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
     expect(getSiteExportStatus.mock.calls.length).toBe(callsAtBound);
+
+    // A new Build clears the stale error and starts a fresh consecutive-failure budget.
+    getSiteExportStatus.mockResolvedValue(runningRun).mockRejectedValueOnce(new Error("retry blip"));
+    await act(async () => { await result.current.trigger(); });
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isRunning).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(callsAtBound + 1);
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isRunning).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(callsAtBound + 2);
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isRunning).toBe(true);
   });
 
   // Both tests below target the loop's `cancelled` guard specifically: a poll request already

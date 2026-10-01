@@ -78,7 +78,7 @@ describe("useExistingInstances", () => {
 
     await flush();
     expect(result.current.instances).toBeNull();
-    expect(result.current.error).toBeTruthy();
+    expect(result.current.error).toBe("network down");
   });
 });
 
@@ -132,10 +132,12 @@ describe("useWidgetPickerDialog", () => {
     const { result } = renderHook(() => useWidgetPickerDialog(props));
     await flush();
 
+    expect(result.current.newConfig).toEqual({ body: "" });
     act(() => result.current.setNewTitle("  Hero  "));
+    act(() => result.current.setNewConfig({ body: "Edited hero content" }));
     act(() => result.current.submitCreateNew(fakeFormEvent()));
 
-    expect(props.onCreateNew).toHaveBeenCalledWith("Hero", result.current.newConfig);
+    expect(props.onCreateNew).toHaveBeenCalledWith("Hero", { body: "Edited hero content" });
   });
 
   it("typeLabel resolves the friendly label for a known widget type", async () => {
@@ -188,13 +190,17 @@ describe("useWidgetAddControl", () => {
     fetchMock.mockResolvedValue(jsonResponse({ widget: EXISTING_WIDGET }));
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
+    act(() => result.current.setPickerType("menu"));
 
     await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
+      await result.current.handleCreateNew("Primary navigation", { menuRef: "primary-menu" });
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/widgets"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/widgets");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ widgetType: "menu", title: "Primary navigation", config: { menuRef: "primary-menu" } });
     expect(result.current.pickerType).toBeNull();
     expect(props.onResolved).toHaveBeenCalledWith(EXISTING_WIDGET.id);
   });

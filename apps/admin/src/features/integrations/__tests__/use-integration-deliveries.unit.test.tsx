@@ -77,19 +77,26 @@ describe("useIntegrationDeliveries — injected port", () => {
   });
 
   it("re-fetches when subscriptionId changes", async () => {
-    const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture({ id: "del-for-sub1" })] });
+    const deliveries = [
+      deliveryFixture({ id: "del-for-sub1" }),
+      deliveryFixture({ id: "del-for-sub2", subscriptionId: "sub2" }),
+    ];
+    const port = createFakeIntegrationDeliveriesPort();
+    const listSpy = vi.fn(async (subscriptionId: string) => ({
+      deliveries: deliveries.filter((delivery) => delivery.subscriptionId === subscriptionId),
+    }));
+    port.listIntegrationDeliveries = listSpy;
     const { result, rerender } = renderHook(({ subscriptionId }) => useIntegrationDeliveries(subscriptionId, port, fakeT), {
       initialProps: { subscriptionId: "sub1" },
       wrapper,
     });
-    await waitFor(() => expect(result.current.deliveries).toEqual([deliveryFixture({ id: "del-for-sub1" })]));
+    await waitFor(() => expect(result.current.deliveries).toEqual([deliveries[0]]));
+    expect(listSpy).toHaveBeenCalledExactlyOnceWith("sub1");
 
-    port.listIntegrationDeliveries = async () => ({ deliveries: [deliveryFixture({ id: "del-for-sub2", subscriptionId: "sub2" })] });
     rerender({ subscriptionId: "sub2" });
 
-    await waitFor(() =>
-      expect(result.current.deliveries).toEqual([deliveryFixture({ id: "del-for-sub2", subscriptionId: "sub2" })])
-    );
+    await waitFor(() => expect(result.current.deliveries).toEqual([deliveries[1]]));
+    expect(listSpy.mock.calls).toEqual([["sub1"], ["sub2"]]);
   });
 });
 

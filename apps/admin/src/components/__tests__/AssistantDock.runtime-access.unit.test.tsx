@@ -1,4 +1,4 @@
-import { render as renderWithoutProvider } from "@testing-library/react";
+import { act, render as renderWithoutProvider } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -180,16 +180,47 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
   });
 
   it("passes an AbortSignal so a request stuck behind an exhausted connection pool cannot hang forever", async () => {
-    const fetchSpy = vi.fn((url: string) =>
-      url !== "/api/agents" ? Promise.resolve(benignResponse()) : new Promise<Response>(() => {}),
-    );
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    // Node's native AbortSignal.timeout uses internal timers that Vitest cannot advance.
+    // Supply the same deadline semantics on the controlled clock, using a real abort signal.
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("The operation timed out.", "TimeoutError")), milliseconds);
+      return controller.signal;
+    });
+    try {
+      const fetchSpy = vi.fn((url: string, init?: RequestInit) => {
+        if (url !== "/api/agents") return Promise.resolve(benignResponse());
+        if (agentsCalls(fetchSpy).length > 1) return Promise.resolve(new Response(null, { status: 200 }));
+        return new Promise<Response>((_resolve, reject) => {
+          init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), { once: true });
+        });
+      });
+      vi.stubGlobal("fetch", fetchSpy);
 
-    render(<AssistantDock useChats={fakeChats} />);
-    const { daemonOnline } = latestRuntimeAccess();
-    void daemonOnline();
+      render(<AssistantDock useChats={fakeChats} />);
+      const { daemonOnline } = latestRuntimeAccess();
+      const first = daemonOnline();
+      const overlapping = daemonOnline();
+      // Attach rejection handlers before advancing time to avoid unhandled rejections.
+      const firstSettles = first.catch((error: unknown) => error);
+      const overlappingSettles = overlapping.catch((error: unknown) => error);
+      const init = agentsCalls(fetchSpy)[0]?.[1] as RequestInit;
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      expect(timeout).toHaveBeenCalledWith(60_000);
+      expect(agentsCalls(fetchSpy)).toHaveLength(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(59_999); });
+      expect(init.signal!.aborted).toBe(false);
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(init.signal!.aborted).toBe(true);
+      expect(await firstSettles).toMatchObject({ name: "TimeoutError" });
+      expect(await overlappingSettles).toMatchObject({ name: "TimeoutError" });
 
-    const init = agentsCalls(fetchSpy)[0]?.[1] as RequestInit;
-    expect(init.signal).toBeInstanceOf(AbortSignal);
+      await expect(daemonOnline()).resolves.toBe(true);
+      expect(agentsCalls(fetchSpy)).toHaveLength(2);
+    } finally {
+      timeout.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

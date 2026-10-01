@@ -145,6 +145,14 @@ it("offers Purge only under the trash filter, and gates it through ConfirmDialog
     await screen.findByText(/permanently delete this comment by "jane"\? this cannot be undone\./i)
   ).toBeInTheDocument();
 
+  await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByText(TRASHED_COMMENT.bodyText)).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+
+  await user.click(screen.getByRole("button", { name: /actions for the comment by "jane"/i }));
+  await user.click(screen.getByRole("menuitem", { name: /^purge$/i }));
+
   fetchMock
     .mockResolvedValueOnce(jsonResponse(undefined)) // purge POST, `void`
     .mockResolvedValueOnce(jsonResponse({ items: [], nextCursor: null })); // reloadFirstPage

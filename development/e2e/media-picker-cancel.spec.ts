@@ -158,3 +158,64 @@ test.describe("Media Picker — Cancel button reachability", () => {
     await expect(page.locator(".media-picker-dialog")).toHaveCount(0);
   });
 });
+
+test("Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape", async ({ page }) => {
+  await loginAsAdmin(page);
+  // Keep the asset list deterministic; focus and keyboard routing use the real browser dialog.
+  const media = ["First photo", "Second photo"].map((title, index) => ({
+    id: `lightbox-${index}`,
+    workspaceId: WORKSPACE_ID,
+    title,
+    slug: `lightbox-${index}`,
+    alt: title,
+    caption: "",
+    credit: "",
+    sha256: `lightbox-sha-${index}`,
+    contentType: "image/png",
+    status: "active",
+    createdAt: `2026-07-0${2 - index}T09:00:00.000Z`,
+    updatedAt: `2026-07-0${2 - index}T09:00:00.000Z`,
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
+    publicUrl: null,
+  }));
+  await page.route(`**${API_BASE}/workspaces/${WORKSPACE_ID}/media`, (route) =>
+    route.fulfill({ json: { media } })
+  );
+  await page.route(`**${API_BASE}/workspaces/${WORKSPACE_ID}/media/*/original`, (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+    })
+  );
+  await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
+  const expand = page.getByRole("button", { name: 'View "First photo" larger', exact: true });
+  await expand.click();
+  const dialog = page.locator("dialog.media-lightbox");
+  const close = dialog.getByRole("button", { name: "Close", exact: true });
+  await expect(close).toBeFocused();
+  expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: "Next asset", exact: true })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(close).toBeFocused();
+
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog.getByRole("heading")).toHaveText("Second photo");
+  await expect(dialog.locator(".media-lightbox-counter")).toHaveText("2 / 2");
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog.getByRole("heading")).toHaveText("Second photo");
+  await expect(dialog.locator(".media-lightbox-counter")).toHaveText("2 / 2");
+  await page.keyboard.press("ArrowLeft");
+  await expect(dialog.getByRole("heading")).toHaveText("First photo");
+  await expect(dialog.locator(".media-lightbox-counter")).toHaveText("1 / 2");
+  await page.keyboard.press("ArrowLeft");
+  await expect(dialog.getByRole("heading")).toHaveText("First photo");
+  await expect(dialog.locator(".media-lightbox-counter")).toHaveText("1 / 2");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(expand).toBeFocused();
+});

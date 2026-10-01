@@ -63,6 +63,18 @@ describe("useSeeMoreClamp", () => {
     expect(result.current.overflows).toBe(true);
   });
 
+  it.each([
+    [1, false],
+    [2, true],
+  ] as const)("reports overflow of %ipx as %s at the rounding tolerance boundary", (extraHeight, expected) => {
+    const { result, rerender } = renderHook(({ children }) => useSeeMoreClamp({ lines: 2, children }), {
+      initialProps: { children: "before measurement" },
+    });
+    result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, CLAMPED_BOX_HEIGHT + extraHeight);
+    rerender({ children: "measured text" });
+    expect(result.current.overflows).toBe(expected);
+  });
+
   it("does not re-measure while expanded, leaving overflows stale until the next collapse", () => {
     const { result, rerender } = renderHook(({ children }) => useSeeMoreClamp({ lines: 2, children }), {
       initialProps: { children: "a" },

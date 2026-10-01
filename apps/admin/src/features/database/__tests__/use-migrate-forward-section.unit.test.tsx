@@ -254,6 +254,38 @@ describe("reset", () => {
     expect(view.result.current.confirmationToken).toBeNull();
     expect(view.result.current.done).toBe(false);
   });
+  it("clears done after a completed execution", async () => {
+    const port = createFakeMigrateForwardSectionPort();
+    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    await act(async () => { await result.current.startPlan(); });
+    await act(async () => { await result.current.doConfirm(); });
+    await act(async () => { await result.current.doExecute(); });
+    expect(result.current.done).toBe(true);
+    expect(result.current.step).toBe("done");
+
+    act(() => result.current.reset());
+
+    expect(result.current).toMatchObject({ step: "idle", error: null, plan: null, confirmationToken: null, done: false, busy: false });
+  });
+
+  it.each(["plan", "confirm", "execute"] as const)("clears a populated %s mutation error on reset", async (failure) => {
+    const port = createFakeMigrateForwardSectionPort({ [`${failure}Error`]: new Error(`${failure} failed`) });
+    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+    await act(async () => { await result.current.startPlan(); });
+    if (failure !== "plan") {
+      await act(async () => { await result.current.doConfirm(); });
+    }
+    if (failure === "execute") {
+      await act(async () => { await result.current.doExecute(); });
+    }
+    await waitFor(() => expect(result.current.error).toBe(`${failure} failed`));
+
+    act(() => result.current.reset());
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current).toMatchObject({ step: "idle", error: null, plan: null, confirmationToken: null, done: false, busy: false });
+  });
+
 });
 
 describe("t/locale (2026-08-11, standing i18n rule)", () => {

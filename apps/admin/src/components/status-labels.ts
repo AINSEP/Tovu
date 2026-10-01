@@ -6,7 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
  * that turns known values into localized copy; a newly introduced server value remains visible
  * (rather than disappearing behind an untranslated placeholder) until it is added here.
  */
-const KNOWN_SERVER_LABELS: ReadonlySet<string> = new Set([
+export const KNOWN_SERVER_LABELS: ReadonlySet<string> = new Set([
   "published", "draft", "active", "trashed", "pending", "approved", "spam", "trash",
   "owner", "recipient", "recipients", "built-in", "site", "tier-1", "tier-2", "tier-3",
   "valid", "invalid", "success", "disabled", "exact", "prefix", "wildcard",

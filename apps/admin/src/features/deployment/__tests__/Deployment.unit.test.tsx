@@ -134,5 +134,8 @@ describe("agent handles", () => {
     expect(document.querySelector('[data-agent-element="deployment-tab-full-site"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-dockerfile"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-history"]')).toBeInTheDocument();
+    for (const [name, id] of [["Overview", "overview"], ["Static Site", "static-site"], ["Full Site", "full-site"], ["Dockerfile", "dockerfile"], ["History", "history"]]) {
+      expect(screen.getByRole("tab", { name })).toHaveAttribute("data-agent-element", `deployment-tab-${id}`);
+    }
   });
 });

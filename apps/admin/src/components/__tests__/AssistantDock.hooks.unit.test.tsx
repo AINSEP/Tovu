@@ -241,8 +241,48 @@ describe("useExecutionConfig", () => {
     });
 
     // Reading `result.current` post-unmount reflects the last committed render, which must still
-    // be the default — the cancellation guard is what stops the late resolve from touching it.
+    // be the default. The StrictMode replay test below observes the cancellation guard while mounted.
     expect(result.current.executionConfig).toEqual(DEFAULT_EXECUTION_CONFIG);
+  });
+
+  it("cancels both load lifecycles on unmount", () => {
+    mockLoadExecutionConfig.mockReturnValue(new Promise(() => {}));
+    mockLoadAdminExecutionCredential.mockReturnValue(new Promise(() => {}));
+    const abort = vi.spyOn(AbortController.prototype, "abort");
+    try {
+      const { unmount } = renderHook(() => useExecutionConfig());
+      expect(abort).not.toHaveBeenCalled();
+      unmount();
+      expect(abort).toHaveBeenCalledTimes(2);
+      expect(abort.mock.contexts.every((controller) => controller.signal.aborted)).toBe(true);
+      expect(settingsRefreshListeners).toEqual([]);
+    } finally {
+      abort.mockRestore();
+    }
+  });
+
+  it("ignores a stale config and credential rejection from the cleaned-up StrictMode mount", async () => {
+    let resolveOld!: (value: ExecutionConfig) => void;
+    let rejectCredential!: (error: Error) => void;
+    const current = byokConfig();
+    mockLoadExecutionConfig
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce(current);
+    mockLoadAdminExecutionCredential
+      .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectCredential = reject; }))
+      .mockResolvedValueOnce(storedCredential(true));
+    const { result } = renderHook(() => useExecutionConfig(), { reactStrictMode: true });
+    await waitFor(() => {
+      expect(result.current.executionConfig).toEqual(current);
+      expect(result.current.hasStoredAdminKey).toBe(true);
+    });
+    expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolveOld(DEFAULT_EXECUTION_CONFIG);
+      rejectCredential(new Error("stale credential load"));
+    });
+    expect(result.current.executionConfig).toEqual(current);
+    expect(result.current.hasStoredAdminKey).toBe(true);
   });
 
   it("keeps an operator's mode switch when the mount-load resolves late with the stale pre-switch value", async () => {
@@ -448,12 +488,27 @@ describe("useByokRuntime", () => {
     expect(listModels).not.toHaveBeenCalled();
   });
 
+  it.each(["blank-key", "local-mode"] as const)("clears discovered models when switching to %s without another discovery", async (change) => {
+    const listModels = vi.fn().mockResolvedValue(["saved-model"]);
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+    const setExecutionConfig = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) => useByokRuntime({ executionConfig, setExecutionConfig }),
+      { initialProps: { executionConfig: byokConfig() } },
+    );
+    await waitFor(() => expect(result.current.byokRuntime.models).toEqual([{ id: "saved-model", label: "saved-model" }]));
+    rerender({ executionConfig: change === "blank-key" ? byokConfig({ apiKey: "   " }) : DEFAULT_EXECUTION_CONFIG });
+    expect(result.current.byokRuntime.models).toEqual([]);
+    expect(listModels).toHaveBeenCalledTimes(1);
+  });
+
   it("discovers models once a BYOK credential is present and maps them into id/label options", async () => {
+    const config = byokConfig();
     const listModels = vi.fn().mockResolvedValue(["claude-opus-4-5", "claude-sonnet-4-5"]);
     mockCreateExecutionPort.mockReturnValue({ listModels } as never);
 
     const { result } = renderHook(() =>
-      useByokRuntime({ executionConfig: byokConfig(), setExecutionConfig: vi.fn() }),
+      useByokRuntime({ executionConfig: config, setExecutionConfig: vi.fn() }),
     );
 
     await waitFor(() =>
@@ -462,6 +517,27 @@ describe("useByokRuntime", () => {
         { id: "claude-sonnet-4-5", label: "claude-sonnet-4-5" },
       ]),
     );
+    expect(listModels).toHaveBeenCalledExactlyOnceWith(config.byok);
+  });
+
+  it.each([
+    { apiKey: "rotated-key" },
+    { baseUrl: "https://other-provider.example/v1" },
+    { protocol: "openai" as const },
+  ])("rediscovers with the changed credential or endpoint: %j", async (change) => {
+    const listModels = vi.fn().mockResolvedValueOnce(["old-model"]).mockResolvedValueOnce(["new-model"]);
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+    const setExecutionConfig = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) => useByokRuntime({ executionConfig, setExecutionConfig }),
+      { initialProps: { executionConfig: byokConfig() } },
+    );
+    await waitFor(() => expect(result.current.byokRuntime.models).toEqual([{ id: "old-model", label: "old-model" }]));
+    const updated = byokConfig(change);
+    rerender({ executionConfig: updated });
+    await waitFor(() => expect(result.current.byokRuntime.models).toEqual([{ id: "new-model", label: "new-model" }]));
+    expect(listModels).toHaveBeenCalledTimes(2);
+    expect(listModels).toHaveBeenNthCalledWith(2, updated.byok);
   });
 
   it("leaves models empty, without throwing, when discovery rejects", async () => {
@@ -476,6 +552,24 @@ describe("useByokRuntime", () => {
     // into the test, matching the "silent" contract documented on the hook's discovery effect.
     await waitFor(() => expect(listModels).toHaveBeenCalled());
     expect(result.current.byokRuntime.models).toEqual([]);
+  });
+
+  it("clears previously discovered models when the next discovery rejects", async () => {
+    let rejectDiscovery!: (error: Error) => void;
+    const listModels = vi.fn().mockResolvedValueOnce(["old-model"])
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectDiscovery = reject; }));
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+    const setExecutionConfig = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) => useByokRuntime({ executionConfig, setExecutionConfig }),
+      { initialProps: { executionConfig: byokConfig() } },
+    );
+    await waitFor(() => expect(result.current.byokRuntime.models).toEqual([{ id: "old-model", label: "old-model" }]));
+    rerender({ executionConfig: byokConfig({ apiKey: "rejected-key" }) });
+    expect(result.current.byokRuntime.models).toEqual([{ id: "old-model", label: "old-model" }]);
+    await act(async () => { rejectDiscovery(new Error("401")); });
+    expect(result.current.byokRuntime.models).toEqual([]);
+    expect(listModels).toHaveBeenCalledTimes(2);
   });
 
   it("does not update byokModels after unmount, once a successful discovery settles late", async () => {
@@ -518,6 +612,27 @@ describe("useByokRuntime", () => {
     });
 
     expect(result.current.byokRuntime.models).toEqual([]);
+  });
+
+  it.each(["resolve", "reject"] as const)("ignores a stale discovery that settles via %s after a new credential's models load", async (settlement) => {
+    let resolveOld!: (models: string[]) => void;
+    let rejectOld!: (error: Error) => void;
+    const listModels = vi.fn()
+      .mockImplementationOnce(() => new Promise<string[]>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }))
+      .mockResolvedValueOnce(["new-model"]);
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+    const setExecutionConfig = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) => useByokRuntime({ executionConfig, setExecutionConfig }),
+      { initialProps: { executionConfig: byokConfig() } },
+    );
+    rerender({ executionConfig: byokConfig({ apiKey: "new-key" }) });
+    await waitFor(() => expect(result.current.byokRuntime.models).toEqual([{ id: "new-model", label: "new-model" }]));
+    await act(async () => {
+      if (settlement === "resolve") resolveOld(["stale-model"]);
+      else rejectOld(new Error("stale discovery"));
+    });
+    expect(result.current.byokRuntime.models).toEqual([{ id: "new-model", label: "new-model" }]);
   });
 
   it("resolves the preset's label and icon for a known provider, from protocol+baseUrl alone", () => {
@@ -685,11 +800,41 @@ describe("useLocalCliSelection", () => {
 
     // A later, unrelated write (e.g. a BYOK model change) changes `executionConfig` identity but
     // leaves `localCli` alone — this must not re-run the hydration and stomp an operator's own
-    // subsequent pick (not exercised directly here, but the guard is what protects it).
+    // subsequent pick (exercised in the adjacent operator-pick test).
     const second = { ...first, byok: { ...first.byok, model: "gpt-5" } };
     rerender({ executionConfig: second });
 
     expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "o3" });
+  });
+
+  it("keeps a post-hydration operator pick across an unrelated config change", () => {
+    const config = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } });
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) => useLocalCliSelection({ executionConfig, setExecutionConfig, configLoaded: true }),
+      { initialProps: { executionConfig: config } },
+    );
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "gemini", model: "gemini-2.5-pro" }));
+    rerender({ executionConfig: { ...config, byok: { ...config.byok, model: "gpt-5" } } });
+    expect(result.current.localCliSelection).toEqual({ agentId: "gemini", model: "gemini-2.5-pro" });
+  });
+
+  it("does not discard a normalized model on an unrelated config change after hydration", () => {
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "default", label: "Default" }] }]);
+    try {
+      const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
+      const setExecutionConfig = stubSetExecutionConfig(config);
+      const { result, rerender } = renderHook(
+        ({ executionConfig }) => useLocalCliSelection({ executionConfig, setExecutionConfig, configLoaded: true }),
+        { initialProps: { executionConfig: config } },
+      );
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+      expect(setExecutionConfig).not.toHaveBeenCalled();
+      rerender({ executionConfig: { ...config, byok: { ...config.byok, model: "gpt-5" } } });
+      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "default" });
+    } finally {
+      localStorage.clear();
+    }
   });
 
   it("does not overwrite an operator's own pick made before the ledger's GET settles", () => {
@@ -1167,10 +1312,43 @@ describe("useAssistantTransport", () => {
 });
 
 describe("useAttachmentUploader", () => {
-  it("returns a callable uploader — the real createDaemonAttachmentUploader output", () => {
+  it("returns a callable uploader — the real createDaemonAttachmentUploader output", async () => {
     const { result } = renderHook(() => useAttachmentUploader());
 
     expect(typeof result.current).toBe("function");
+    const file = new File(["attachment bytes"], "notes.txt", { type: "text/plain" });
+    const attachment = { path: "attachments/notes.txt", name: "notes.txt", mimeType: "text/plain", size: file.size };
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ attachment }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const signal = new AbortController().signal;
+
+    await expect(result.current([file], { batchId: "turn-1", signal })).resolves.toEqual([attachment]);
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith("/api/attachments?batch=turn-1&name=notes.txt", expect.objectContaining({
+      method: "POST", headers: { "content-type": "application/octet-stream" }, body: file,
+    }));
+  });
+
+  it("enforces the host's 50 MiB per-file and 100 MiB per-turn limits across rerenders", async () => {
+    const attachment = { path: "attachments/large.bin", name: "large.bin", mimeType: "application/octet-stream", size: 50 * 1024 * 1024 };
+    const fetchSpy = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ attachment }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    // Only the metadata drives quota validation; avoid allocating 150 MiB in a unit test.
+    function sizedFile(size: number) {
+      const file = new File(["bytes"], "large.bin");
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    }
+    const maxFile = 50 * 1024 * 1024;
+    const options = { batchId: "turn-limit", signal: new AbortController().signal };
+    const { result, rerender } = renderHook(() => useAttachmentUploader());
+    await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("Each attachment must be 50 MB or smaller.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    await expect(result.current([sizedFile(maxFile)], options)).resolves.toEqual([attachment]);
+    rerender();
+    await expect(result.current([sizedFile(maxFile)], options)).resolves.toEqual([attachment]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    await expect(result.current([sizedFile(1)], options)).rejects.toThrow("Attachments for one message must total 100 MB or less.");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it("memoizes the uploader across re-renders — rebuilding it would reset a turn's running batch quota", () => {
@@ -1500,18 +1678,24 @@ describe("useComposerDiscoverySelect", () => {
   });
 
   it("rebuilds the callback when composerCapabilities changes", async () => {
+    const callAllowlistedTool = vi.fn();
     const capabilities = await projectionWith([]);
     const { result, rerender } = renderHook(
       ({ capabilities: c }) =>
-        useComposerDiscoverySelect({ composerCapabilities: c, callAllowlistedTool: vi.fn() }),
+        useComposerDiscoverySelect({ composerCapabilities: c, callAllowlistedTool }),
       { initialProps: { capabilities } },
     );
     const first = result.current;
-    const nextCapabilities = await projectionWith([]);
+    const nextCapabilities = await projectionWith([{
+      groupId: "g", groupLabel: "G", item: { id: "search:new", label: "New search" },
+      resolve: () => ({ kind: "compose-text", text: "new capability" }),
+    }]);
 
     rerender({ capabilities: nextCapabilities });
 
     expect(result.current).not.toBe(first);
+    await expect(result.current({ item: { id: "search:new", label: "New search" }, source: "slash" }))
+      .resolves.toEqual({ draft: "new capability" });
   });
 
   /**
@@ -1800,6 +1984,19 @@ describe("useSelectedPluginChips", () => {
 });
 
 describe("useWorkingDirectoryAccess", () => {
+  it("returns memoized usable access when the native picker is supported", async () => {
+    const picker = vi.fn().mockResolvedValue({ name: "picked-project" });
+    vi.stubGlobal("showDirectoryPicker", picker);
+    const { result, rerender } = renderHook(() => useWorkingDirectoryAccess());
+    const first = result.current;
+    expect(first).toBeDefined();
+    rerender();
+    expect(result.current).toBe(first);
+    await expect(result.current!.pickWorkingDirectory()).resolves.toBe("picked-project");
+    expect(picker).toHaveBeenCalledTimes(1);
+    localStorage.clear();
+  });
+
   it("returns undefined on a browser with no native directory picker — jsdom never implements showDirectoryPicker", () => {
     const { result } = renderHook(() => useWorkingDirectoryAccess());
 
@@ -1808,6 +2005,19 @@ describe("useWorkingDirectoryAccess", () => {
 });
 
 describe("useWorkingDirectoryAccessSeam", () => {
+  it("defaults to usable native directory access in a supported browser", async () => {
+    const picker = vi.fn().mockResolvedValue({ name: "seam-project" });
+    vi.stubGlobal("showDirectoryPicker", picker);
+    const { result, rerender } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+    const first = result.current;
+    expect(first).toBeDefined();
+    rerender();
+    expect(result.current).toBe(first);
+    await expect(result.current!.pickWorkingDirectory()).resolves.toBe("seam-project");
+    expect(picker).toHaveBeenCalledTimes(1);
+    localStorage.clear();
+  });
+
   it("defaults to the real useWorkingDirectoryAccess when no override is given", () => {
     const { result } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
 

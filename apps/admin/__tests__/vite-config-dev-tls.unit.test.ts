@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import { expect, test } from "vitest";
 
 import { isDevTlsExplicitlyDisabled } from "../dev-tls-disable-flag";
@@ -8,14 +10,34 @@ import { isDevTlsExplicitlyDisabled } from "../dev-tls-disable-flag";
  * of this same parse (see each file's own header for why there are three copies, not one shared
  * module).
  *
- * Targets `dev-tls-disable-flag.ts`, a zero-dependency leaf module split out of `vite.config.ts`
- * itself specifically so this could be tested: `vite.config.ts` imports the `vite` package and calls
- * `defineConfig`, so importing IT from inside this repo's own vitest (itself Vite-powered) test run
- * recursively re-invokes Vite's own esbuild transform pipeline — reproducibly crashed with `Invariant
- * violation: "new TextEncoder().encode("") instanceof Uint8Array" is incorrectly false` (two esbuild
- * service instances colliding) on this machine, twice, while an ordinary admin test passed under the
- * same `vitest run` invocation. See `dev-tls-disable-flag.ts`'s own header for the full account.
+ * Covers the leaf parser and the real config decision. Load the config in an isolated Node
+ * process to avoid a second Vite/esbuild service inside Vitest. Certificate reads are replaced
+ * before import, so this never reads a contributor's private key or starts a dev server.
  */
+
+const readTlsConfig = `
+  import fs from "node:fs";
+  import { syncBuiltinESMExports } from "node:module";
+  const originalExists = fs.existsSync;
+  const originalRead = fs.readFileSync;
+  fs.existsSync = (file) => String(file).includes("/.certs/") || originalExists(file);
+  fs.readFileSync = (file, ...args) => {
+    if (String(file).endsWith("/.certs/localhost.pem")) return Buffer.from("test cert");
+    if (String(file).endsWith("/.certs/localhost-key.pem")) return Buffer.from("test key");
+    return originalRead(file, ...args);
+  };
+  syncBuiltinESMExports();
+  // Vite supplies this when loading the ESM config; reproduce that binding for direct import.
+  globalThis.__dirname = process.cwd();
+  const loaded = await import("./vite.config.ts");
+  const config = loaded.default.default ?? loaded.default;
+  const https = config.server.https;
+  console.log(JSON.stringify({
+    tls: Boolean(https),
+    fakeCertificates: https ? https.cert.toString() === "test cert" && https.key.toString() === "test key" : false,
+    proxyTarget: config.server.proxy["/api"].target,
+  }));
+`;
 
 test("isDevTlsExplicitlyDisabled: true only for \"1\"/\"true\" (case-insensitive)", () => {
   expect(isDevTlsExplicitlyDisabled("1")).toBe(true);
@@ -33,4 +55,38 @@ test('REGRESSION (2026-09-05 audit finding): "false" and "0" must NOT disable de
 
 test("isDevTlsExplicitlyDisabled: undefined (unset) does not disable", () => {
   expect(isDevTlsExplicitlyDisabled(undefined)).toBe(false);
+});
+
+test.each([
+  [undefined, true],
+  ["false", true],
+  ["0", true],
+  ["true", false],
+  ["1", false],
+] as const)("the real config with TOVU_DISABLE_DEV_TLS=%s uses TLS=%s when certificates exist", async (flag, tls) => {
+  const env = { ...process.env };
+  delete env.TOVU_API_URL;
+  if (flag === undefined) delete env.TOVU_DISABLE_DEV_TLS;
+  else env.TOVU_DISABLE_DEV_TLS = flag;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", readTlsConfig], {
+    cwd: path.resolve(__dirname, ".."),
+    env,
+    encoding: "utf8",
+    timeout: 10000,
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stderr).toBe(0);
+  expect(JSON.parse(result.stdout.trim())).toEqual({
+    tls,
+    fakeCertificates: tls,
+    proxyTarget: `${tls ? "https" : "http"}://localhost:3000`,
+  });
+});
+
+test.each([
+  [" true ", true],
+  ["", false],
+  ["yes", false],
+] as const)("isDevTlsExplicitlyDisabled(%j) is %s", (flag, disabled) => {
+  expect(isDevTlsExplicitlyDisabled(flag)).toBe(disabled);
 });

@@ -57,6 +57,10 @@ describe("validateKey", () => {
     expect(validateKey("Recipe")).not.toBeNull();
   });
 
+  it.each(["my-recipe", "recipE", "my recipe"])("rejects an invalid character within key %s", (key) => {
+    expect(validateKey(key)).toBe("Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
+  });
+
   it("rejects an empty key", () => {
     expect(validateKey("")).not.toBeNull();
   });
@@ -72,12 +76,19 @@ describe("validateKey", () => {
   it("rejects the reserved keys 'post' and 'page'", () => {
     expect(validateKey("post")).toContain("reserved");
     expect(validateKey("page")).toContain("reserved");
+    for (const key of ["post", "page"]) {
+      expect(validateKey(key)).toBe(`"${key}" is a reserved key (built-in content already uses it).`);
+    }
   });
 });
 
 describe("validateFieldName", () => {
   it("accepts a valid field name", () => {
     expect(validateFieldName("prep_time")).toBeNull();
+  });
+
+  it.each(["prep-time", "prep Time", "prepTime", "", "a" + "b".repeat(64)])("rejects invalid field name %s with the validation message", (name) => {
+    expect(validateFieldName(name)).toBe("Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
   });
 
   it("rejects an invalid field name", () => {

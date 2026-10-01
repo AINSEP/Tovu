@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
+import type { AdminMenuItem } from "../../../lib/api";
+import { installInternalLinkInterceptor, useRouteLocation } from "../../../lib/router";
 
 /**
  * @file `MenuEditor`'s nested-item tree — pins the fix for the audit's Major finding: "Remove"
@@ -121,6 +123,22 @@ describe("removing an item with nested children", () => {
     expect(screen.queryByDisplayValue("Child")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Leaf")).toBeInTheDocument();
   });
+
+  it("counts grandchildren in the exact plural confirmation and preserves them on cancel", async () => {
+    const user = userEvent.setup();
+    const fixture: { menu: Omit<typeof MENU_WITH_NESTED_CHILD.menu, "items"> & { items: AdminMenuItem[] } } = structuredClone(MENU_WITH_NESTED_CHILD);
+    fixture.menu.items[0].children![0].children = [{ id: "grandchild", label: "Grandchild", target: { kind: "url", href: "/grandchild" } }];
+    fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<MenuEditor menuId="m1" />);
+    const fields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.click(within(fields).getByRole("button", { name: "Remove item" }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledWith('Remove "Parent"? This will also remove 2 nested items.');
+    for (const label of ["Parent", "Child", "Grandchild", "Leaf"]) {
+      expect(screen.getByDisplayValue(label)).toBeInTheDocument();
+    }
+  });
 });
 
 describe("removing a leaf item", () => {
@@ -150,12 +168,21 @@ describe("item-row fields — accessible names", () => {
   });
 
   it("gives the link-type select a real accessible name — previously none at all", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    const fixture: { menu: Omit<typeof MENU_WITH_NESTED_CHILD.menu, "items"> & { items: AdminMenuItem[] } } = structuredClone(MENU_WITH_NESTED_CHILD);
+    fixture.menu.items[0].children![0].target = { kind: "route", route: "home" };
+    fixture.menu.items[1].target = { kind: "entryRef", entryId: "e1" };
+    fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
     render(<MenuEditor menuId="m1" />);
 
     await screen.findByDisplayValue("Parent");
     // One "Link type" select per item row (2 root items + 1 nested child in the fixture).
     expect(screen.getAllByLabelText("Link type").length).toBe(3);
+    for (const [label, kind] of [["Parent", "url"], ["Child", "route"], ["Leaf", "entryRef"]]) {
+      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      const select = within(fields).getByLabelText("Link type");
+      expect(select).toBe(within(fields).getByRole("combobox", { name: "Link type" }));
+      expect(select).toHaveValue(kind);
+    }
   });
 
   it("gives the item label and the target-value fields a real accessible name", async () => {
@@ -183,6 +210,43 @@ describe("move controls", () => {
     await screen.findByDisplayValue("Parent");
     expect(screen.getAllByRole("button", { name: "Move item up" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Move item down" }).length).toBeGreaterThan(0);
+    for (const label of ["Parent", "Child", "Leaf"]) {
+      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      expect(within(fields).getAllByRole("button", { name: "Move item up" })).toHaveLength(1);
+      expect(within(fields).getAllByRole("button", { name: "Move item down" })).toHaveLength(1);
+    }
+  });
+
+  it("moves roots and nested siblings, preserves boundaries, and saves the reordered tree", async () => {
+    const user = userEvent.setup();
+    const fixture = structuredClone(MENU_WITH_NESTED_CHILD);
+    fixture.menu.items[0].children!.push({ id: "child2", label: "Child 2", target: { kind: "url", href: "/child2" } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(fixture));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...fixture.menu, version: 2 } }));
+    render(<MenuEditor menuId="m1" />);
+    await screen.findByDisplayValue("Parent");
+
+    const labels = () => screen.getAllByLabelText("Item label").map((input) => (input as HTMLInputElement).value);
+    const move = async (label: string, direction: "up" | "down") => {
+      const fields = screen.getByDisplayValue(label).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+      await user.click(within(fields).getByRole("button", { name: `Move item ${direction}` }));
+    };
+    await move("Parent", "up");
+    await move("Leaf", "down");
+    await move("Child", "up");
+    await move("Child 2", "down");
+    expect(labels()).toEqual(["Parent", "Child", "Child 2", "Leaf"]);
+    await move("Parent", "down");
+    expect(labels()).toEqual(["Leaf", "Parent", "Child", "Child 2"]);
+    await move("Child 2", "up");
+    expect(labels()).toEqual(["Leaf", "Parent", "Child 2", "Child"]);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCall).toBeDefined();
+    const body = JSON.parse(String((putCall![1] as RequestInit).body));
+    expect(body.items).toEqual([fixture.menu.items[1], { ...fixture.menu.items[0], children: [...fixture.menu.items[0].children!].reverse() }]);
   });
 });
 
@@ -230,7 +294,43 @@ describe("unsaved-changes protection on the back-link", () => {
     const watch = watchDefaultPrevented();
     fireEvent.click(screen.getByRole("link", { name: /menus/i }));
 
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledWith("You have unsaved changes. Leave without saving?");
     expect(watch.result()).toBe(false); // this screen's own handler did not prevent it
+  });
+
+  it("the real router preserves edits on cancel and reaches the list on confirmation", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const originalUrl = window.location.href;
+    window.history.replaceState(null, "", "/admin/menus/m1");
+    const uninstall = installInternalLinkInterceptor();
+    function RoutedEditor() {
+      const route = useRouteLocation();
+      return route === "/menus" ? <h1>Menus list</h1> : <MenuEditor menuId="m1" />;
+    }
+    const view = render(<RoutedEditor />);
+    try {
+      const title = await screen.findByLabelText("Menu title");
+      await user.clear(title);
+      await user.type(title, "Renamed");
+      await user.click(screen.getByRole("link", { name: /menus/i }));
+      expect(window.location.pathname).toBe("/admin/menus/m1");
+      expect(screen.getByLabelText("Menu title")).toHaveValue("Renamed");
+      expect(screen.queryByRole("heading", { name: "Menus list" })).not.toBeInTheDocument();
+
+      confirmSpy.mockReturnValue(true);
+      await user.click(screen.getByRole("link", { name: /menus/i }));
+      expect(window.location.pathname).toBe("/admin/menus");
+      expect(screen.getByRole("heading", { name: "Menus list" })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Menu title")).not.toBeInTheDocument();
+      expect(confirmSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      view.unmount();
+      uninstall();
+      window.history.replaceState(null, "", originalUrl);
+    }
   });
 });
 
@@ -310,6 +410,40 @@ describe("MenuItemTargetFields", () => {
     expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");
     expect(screen.getByPlaceholderText("taxonomy")).toHaveValue("category");
   });
+
+  it.each([
+    { target: { kind: "url", href: "/old" }, field: "URL", value: "/new", expected: { kind: "url", href: "/new" } },
+    { target: { kind: "route", route: "old" }, field: "Route name", value: "dashboard", expected: { kind: "route", route: "dashboard" } },
+    { target: { kind: "entryRef", entryId: "e1" }, field: "Entry ID", value: "e2", expected: { kind: "entryRef", entryId: "e2" } },
+    { target: { kind: "termRef", termId: "t1", taxonomy: "category" }, field: "Term ID", value: "t2", expected: { kind: "termRef", termId: "t2", taxonomy: "category" } },
+    { target: { kind: "termRef", termId: "t1", taxonomy: "category" }, field: "Taxonomy", value: "tag", expected: { kind: "termRef", termId: "t1", taxonomy: "tag" } },
+  ] as const)("writes $field to its own target field, retaining the rest of the item", ({ target, field, value, expected }) => {
+    const item: AdminMenuItem = { id: "i1", label: "Link", target, attrs: { cssClass: "featured" }, children: [] };
+    let changed: AdminMenuItem | undefined;
+    const onChange = vi.fn((_path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => { changed = update(item); });
+    render(<MenuItemTargetFields item={item} path={[1, 0]} onChange={onChange} t={t} />);
+    fireEvent.change(screen.getByLabelText(field), { target: { value } });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith([1, 0], expect.any(Function));
+    expect(changed).toEqual({ ...item, target: expected });
+  });
+
+  it("saves a typed route target through the full editor", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...MENU_WITH_NESTED_CHILD.menu, version: 2 } }));
+    render(<MenuEditor menuId="m1" />);
+    const fields = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.selectOptions(within(fields).getByLabelText("Link type"), "route");
+    await user.type(within(fields).getByLabelText("Route name"), "dashboard");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCall).toBeDefined();
+    const body = JSON.parse(String((putCall![1] as RequestInit).body));
+    expect(body.items[1].target).toEqual({ kind: "route", route: "dashboard" });
+    expect(body.items[0]).toEqual(MENU_WITH_NESTED_CHILD.menu.items[0]);
+  });
 });
 
 /**
@@ -380,8 +514,8 @@ describe("attrs — advanced per-item fields", () => {
 });
 
 describe("injected hook seam (useMenuEditorHook)", () => {
-  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
-    const controller: MenuEditorController = {
+  function fakeController(overrides: Partial<MenuEditorController> = {}): MenuEditorController {
+    return {
       isNew: true,
       menu: null,
       title: "",
@@ -401,7 +535,12 @@ describe("injected hook seam (useMenuEditorHook)", () => {
       save: vi.fn(async () => {}),
       saving: false,
       t: (key) => key,
+      ...overrides,
     };
+  }
+
+  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
+    const controller = fakeController();
     const useMenuEditorHook = vi.fn(() => controller);
 
     render(<MenuEditor menuId="m1" useMenuEditorHook={useMenuEditorHook} />);
@@ -410,6 +549,34 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     // synchronously, with no fetch queued, is only possible via the injected fake.
     expect(screen.getByText("Loading menu…")).toBeInTheDocument();
     expect(useMenuEditorHook).toHaveBeenCalledWith("m1");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows save status and disables Save while saving", async () => {
+    const user = userEvent.setup();
+    const controller = fakeController({ loading: false, saving: true, message: "Saved · version 2", error: "Save failed" });
+    render(<MenuEditor menuId="m1" useMenuEditorHook={() => controller} />);
+    expect(screen.getByText("Saved · version 2")).toHaveClass("save-ok");
+    expect(screen.getByText("Save failed")).toHaveClass("save-error");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(controller.save).not.toHaveBeenCalled();
+  });
+
+  it("wires create-mode Save, Add item, and a nested Add child to the controller", async () => {
+    const user = userEvent.setup();
+    const controller = fakeController({ loading: false, items: MENU_WITH_NESTED_CHILD.menu.items as AdminMenuItem[] });
+    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
+    expect(screen.getByRole("heading", { name: "New menu" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(controller.save).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    expect(controller.addRootItem).toHaveBeenCalledTimes(1);
+    const childFields = screen.getByDisplayValue("Child").closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.click(within(childFields).getByRole("button", { name: "+ child" }));
+    expect(controller.addChildAt).toHaveBeenCalledTimes(1);
+    expect(controller.addChildAt).toHaveBeenCalledWith([0, 0]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { api } from "../../lib/api";
 
 /**
  * @file `TOVU_ADMIN_ASSISTANT=off` is a real server-side disable (`admin-assistant-enabled.ts`) —
@@ -61,6 +62,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   // The post-preview-expand counterpart test below navigates to `/admin/posts/p1` — reset so a
   // later test in this file (or another file, if jsdom's location leaks across files in the same
@@ -68,11 +70,18 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-it("mounts the assistant dock and chat FAB by default (flag on, and when the field is absent)", async () => {
-  vi.stubGlobal("fetch", stubFetch({ data: { publicEnabled: false }, adminAssistantEnabled: true }));
+it.each([
+  ["flag on", { data: { publicEnabled: false }, adminAssistantEnabled: true }],
+  ["field absent", { data: { publicEnabled: false } }],
+])("mounts the assistant dock and chat FAB by default (%s)", async (_label, settingsBody) => {
+  vi.stubGlobal("fetch", stubFetch(settingsBody));
+  const settingsRead = vi.spyOn(api, "getAssistantSettings");
   const { container } = render(<App />);
 
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
+  await waitFor(() => expect(settingsRead).toHaveBeenCalled());
+  // The dock starts visible: inspect it only AFTER availability has processed the response.
+  await act(async () => { await settingsRead.mock.results[0]!.value; });
   expect(container.querySelector('[aria-label="Assistant"]')).not.toBeNull();
   expect(container.querySelector(".chat-fab")).not.toBeNull();
 });

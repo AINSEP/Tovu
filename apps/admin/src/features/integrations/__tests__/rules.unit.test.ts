@@ -84,21 +84,23 @@ describe("displayTimestamp", () => {
     topic: "post.published",
     status: "delivered",
     attempts: 1,
-    nextAttemptAt: "2026-08-01T00:00:00.000Z",
+    nextAttemptAt: "2026-08-03T12:30:00.000Z",
     lastResponseStatus: 200,
     lastError: null,
     signedWithVersion: 1,
     createdAt: "2026-08-01T00:00:00.000Z",
     deliveredAt: null,
-    deadAt: null,
+    deadAt: "2026-08-04T15:45:00.000Z",
   };
 
   it("prefers deliveredAt when present", () => {
     const delivered = { ...BASE, deliveredAt: "2026-08-02T00:00:00.000Z" };
     expect(displayTimestamp(delivered)).not.toBe(displayTimestamp(BASE));
+    expect(displayTimestamp(delivered)).toBe("2026-08-02 00:00");
   });
 
   it("falls back to createdAt when deliveredAt is null (never delivered)", () => {
     expect(displayTimestamp(BASE)).toBeTruthy();
+    expect(displayTimestamp(BASE)).toBe("2026-08-01 00:00");
   });
 });

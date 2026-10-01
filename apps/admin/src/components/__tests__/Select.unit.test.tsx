@@ -1,7 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { useSelectDropdown } from "../Select/Select.hooks";
 
 import { resolveSelectTriggerLabel, Select, type SelectOption } from "../Select/Select";
 
@@ -108,6 +110,9 @@ describe("Select", () => {
       await user.keyboard("{ArrowDown}");
 
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      const highlighted = screen.getByRole("option", { name: "Bravo" });
+      expect(highlighted).toHaveClass("is-highlighted");
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(highlighted);
     } finally {
       Element.prototype.scrollIntoView = original;
     }
@@ -134,6 +139,14 @@ describe("Select", () => {
     await user.keyboard("{ArrowUp}{Enter}");
 
     expect(onChange).toHaveBeenCalledWith("c");
+
+    await user.click(screen.getByRole("combobox", { name: "Pick one" }));
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(onChange).toHaveBeenLastCalledWith("b");
+
+    await user.click(screen.getByRole("combobox", { name: "Pick one" }));
+    await user.keyboard("{End}{ArrowDown}{Enter}");
+    expect(onChange).toHaveBeenLastCalledWith("a");
   });
 
   it("Home/End jump the highlight to the first/last option", async () => {
@@ -191,6 +204,16 @@ describe("Select", () => {
     await user.keyboard("{Enter}");
 
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    const { result } = renderHook(() => useSelectDropdown({
+      value: "", onChange: vi.fn(), options: FEW_OPTIONS, disabled: true,
+    }));
+    for (const key of ["Enter", " ", "ArrowDown", "ArrowUp"]) {
+      const preventDefault = vi.fn();
+      act(() => result.current.handleTriggerKeyDown({ key, preventDefault } as unknown as React.KeyboardEvent<HTMLButtonElement>));
+      expect(preventDefault).not.toHaveBeenCalled();
+      expect(result.current.open).toBe(false);
+    }
   });
 
   it("closes on an outside click without selecting anything", async () => {
@@ -327,6 +350,7 @@ describe("Select", () => {
       // Still visible per the bounding-rect check alone, so the panel stays open and repositioned
       // rather than closed — the obscured-by-another-element check simply never runs.
       expect(screen.getByRole("listbox")).toBeInTheDocument();
+      await waitFor(() => expect(document.querySelector(".select-panel")).toHaveStyle({ top: "91px", left: "0px", width: "100px" }));
     } finally {
       document.elementFromPoint = original;
     }
@@ -364,12 +388,21 @@ describe("Select", () => {
     rerender(<Select value="" onChange={vi.fn()} options={FEW_OPTIONS} aria-label="Pick one" disabled />);
     expect(screen.getByRole("combobox", { name: "Pick one" })).toBeDisabled();
 
-    // Dispatched directly at the panel rather than via userEvent.keyboard: the trigger is now
-    // disabled and cannot hold focus, so there is no real element left for the keystroke to
-    // originate from except the panel itself.
-    fireEvent.keyDown(document.querySelector(".select-panel")!, { key: "Tab" });
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    outside.focus();
+    const focusBefore = document.activeElement;
 
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument(); // still closes
+    // Keep focus outside the panel: removing a focused panel would itself move focus to body.
+    // Dispatch at the panel to exercise its missing-trigger Tab branch without native Tab moving
+    // focus from the outside button.
+    try {
+      fireEvent.keyDown(document.querySelector(".select-panel")!, { key: "Tab" });
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument(); // still closes
+      expect(document.activeElement).toBe(focusBefore);
+    } finally {
+      outside.remove();
+    }
   });
 
   it("a disabled Select does not open on click", async () => {
@@ -450,6 +483,7 @@ describe("Select", () => {
     try {
       window.dispatchEvent(new Event("scroll"));
       expect(screen.getByRole("listbox")).toBeInTheDocument();
+      await waitFor(() => expect(document.querySelector(".select-panel")).toHaveStyle({ top: "91px", left: "0px", width: "100px" }));
     } finally {
       document.elementFromPoint = originalElementFromPoint;
     }

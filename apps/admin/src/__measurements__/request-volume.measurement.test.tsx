@@ -5,8 +5,8 @@ import { FetchQueryProvider } from "../lib/fetch-query";
 
 /**
  * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `lib/fetch-query` actually
- * reduce request volume, or just move it?"). MEASUREMENT-ONLY, NOT a correctness test — it asserts
- * request counts, so it fails on any deliberate change to invalidation topology; that's the point,
+ * reduce request volume, or just move it?"). Pins the measured request methods, endpoints and
+ * multiplicities, so it fails on any deliberate change to invalidation topology; that's the point,
  * it's the before/after instrument for any Phase 2 change. Run with:
  * `cd apps/admin && npx vitest run src/__measurements__/request-volume.measurement.test.tsx --reporter=verbose`
  * — the `MEASURE\t...` lines in stdout are the actual data.
@@ -66,6 +66,21 @@ function logRow(feature: string, action: string, calls: Call[]) {
   console.log(`MEASURE\t${feature}\t${action}\t${calls.length}\t${JSON.stringify(urls)}`);
 }
 
+const ADMIN = "/api/admin/v1";
+const WORKSPACE = `${ADMIN}/workspaces/workspace-local`;
+
+/** Compare the complete multiset, including duplicates and unexpected requests. The recorder's
+ * responses resolve immediately; drain their processing and React notifications before the final
+ * count so a mutation's background invalidation is included. */
+async function expectRequests(calls: Call[], expected: string[]) {
+  const recorded = () => calls.map(({ method, url }) => `${method} ${url.replace(/^https?:\/\/[^/]+/, "")}`).sort();
+  await waitFor(() => expect(recorded()).toEqual([...expected].sort()));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(recorded()).toEqual([...expected].sort());
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -106,6 +121,7 @@ describe("redirects", () => {
     const { useWiredRedirects } = await import("../features/redirects/hooks/use-redirects.hooks");
     const { result } = renderHook(() => useWiredRedirects(), { wrapper });
     await waitFor(() => expect(result.current.redirects).not.toBeUndefined());
+    await expectRequests(calls, [`GET ${WORKSPACE}/redirects`]);
     logRow("redirects", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   }, 15000);
@@ -132,10 +148,11 @@ describe("redirects", () => {
     form.set("fromPattern", "/old");
     form.set("toTarget", "/new");
     form.set("statusCode", "301");
-    act(() => {
-      result.current.createRedirect(form);
+    await act(async () => {
+      await result.current.createRedirect(form);
     });
     await waitFor(() => expect(result.current.saving).toBe(false));
+    await expectRequests(calls, [`POST ${WORKSPACE}/redirects`, `GET ${WORKSPACE}/redirects`]);
     logRow("redirects", "create (save)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -156,6 +173,8 @@ describe("redirects", () => {
     await act(async () => {
       await result.current.confirmDelete();
     });
+    await waitFor(() => expect(result.current.pendingDelete).toBeNull());
+    await expectRequests(calls, [`DELETE ${WORKSPACE}/redirects/r1`, `GET ${WORKSPACE}/redirects`]);
     logRow("redirects", "delete", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -193,17 +212,21 @@ describe("redirects", () => {
     form.set("fromPattern", "/new");
     form.set("toTarget", "/new2");
     form.set("statusCode", "301");
-    act(() => {
-      combined.result.current.list.createRedirect(form);
+    await act(async () => {
+      await combined.result.current.list.createRedirect(form);
     });
     await waitFor(() => expect(combined.result.current.list.saving).toBe(false));
-    // Let any triggered background refetch actually land before counting.
-    await new Promise((r) => setTimeout(r, 50));
+    // KEYS.list is currently a prefix of KEYS.hits: exactly one loaded hit cell refetches.
+    // This measures the existing topology, without assuming that fan-out is a product defect.
+    await expectRequests(calls, [
+      `POST ${WORKSPACE}/redirects`, `GET ${WORKSPACE}/redirects`, `GET ${WORKSPACE}/redirects/rA/hits`,
+    ]);
 
     logRow("redirects", "PREFIX PROBE: create -> did /hits/rA refetch?", calls);
     const hitsRefetched = calls.some((c) => c.url.includes("/hits"));
     // eslint-disable-next-line no-console
     console.log(`MEASURE\tredirects\tPREFIX PROBE hits refetched=${hitsRefetched}`);
+    expect(hitsRefetched).toBe(true);
     expect(calls.length).toBeGreaterThan(0);
   });
 });
@@ -218,6 +241,7 @@ describe("taxonomy", () => {
     const { useWiredTaxonomy } = await import("../features/taxonomy/hooks/use-taxonomy.hooks");
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    await expectRequests(calls, [`GET ${ADMIN}/taxonomy`]);
     logRow("taxonomy", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -233,6 +257,7 @@ describe("collections", () => {
     const { useWiredCollections } = await import("../features/collections/hooks/use-collections.hooks");
     const { result } = renderHook(() => useWiredCollections(), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
+    await expectRequests(calls, [`GET ${ADMIN}/content-types`]);
     logRow("collections", "content-types list initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -253,6 +278,7 @@ describe("collections", () => {
     const { useWiredCollectionEntryEditor } = await import("../features/collections/hooks/use-collection-entry-editor.hooks");
     const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await expectRequests(calls, [`GET ${ADMIN}/content-types`, `GET ${ADMIN}/entries?type=recipe`]);
     logRow("collections", "entry editor open (detail panel)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -266,7 +292,7 @@ describe("collections", () => {
     };
     const { fn, calls } = createRecorder([
       { match: "/content-types", respond: () => jsonResponse({ items: [CONTENT_TYPE] }) },
-      { match: "/entries/e1", method: "PATCH", respond: () => jsonResponse({ entry: { ...ENTRY, version: 2 } }) },
+      { match: "/entries/e1", method: "PUT", respond: () => jsonResponse({ entry: { ...ENTRY, version: 2 } }) },
       { match: "/entries", respond: () => jsonResponse({ items: [ENTRY] }) },
       { match: "/taxonomy", respond: () => jsonResponse({ items: [] }) },
     ]);
@@ -279,6 +305,8 @@ describe("collections", () => {
     await act(async () => {
       await result.current.save();
     });
+    expect(result.current.entry?.version).toBe(2);
+    await expectRequests(calls, [`PUT ${ADMIN}/entries/e1`]);
     logRow("collections", "entry editor save (this hook in isolation)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -297,6 +325,7 @@ describe("roles", () => {
     const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
+    await expectRequests(calls, [`GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`]);
     logRow("roles", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -316,6 +345,7 @@ describe("roles", () => {
     await act(async () => {
       await result.current.onCreateRole({ preventDefault: () => {} } as unknown as React.FormEvent);
     });
+    await expectRequests(calls, [`POST ${WORKSPACE}/roles`, `GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`]);
     logRow("roles", "create role (save)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -337,6 +367,7 @@ describe("roles", () => {
     await act(async () => {
       await result.current.onDeleteRole();
     });
+    await expectRequests(calls, [`DELETE ${WORKSPACE}/roles/r1`, `GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`]);
     logRow("roles", "delete role", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -356,6 +387,7 @@ describe("users", () => {
     const { useWiredUsers } = await import("../features/users/hooks/use-users.hooks");
     const { result } = renderHook(() => useWiredUsers(), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
+    await expectRequests(calls, [`GET ${WORKSPACE}/users`, `GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`, `GET ${ADMIN}/auth/me`]);
     logRow("users", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -371,6 +403,7 @@ describe("forms", () => {
     const { useWiredFormsList } = await import("../features/forms/hooks/use-forms-list.hooks");
     const { result } = renderHook(() => useWiredFormsList(), { wrapper });
     await waitFor(() => expect(result.current.forms).not.toBeNull());
+    await expectRequests(calls, [`GET ${WORKSPACE}/forms`]);
     logRow("forms", "list initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -382,6 +415,7 @@ describe("forms", () => {
     const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
     const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
     await waitFor(() => expect(result.current.form).not.toBeNull());
+    await expectRequests(calls, [`GET ${WORKSPACE}/forms/f1`]);
     logRow("forms", "editor open (detail panel)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -389,21 +423,31 @@ describe("forms", () => {
   it("editor: save an existing form — checks for the same KEYS.form-vs-KEYS.list shape collections had", async () => {
     const FORM = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, version: 1 };
     const { fn, calls } = createRecorder([
-      { match: "/forms/f1", method: "PATCH", respond: () => jsonResponse({ data: { ...FORM, version: 2 } }) },
+      { match: "/forms/f1", method: "PUT", respond: () => jsonResponse({ data: { ...FORM, name: "Contact Us", version: 2 } }) },
       { match: "/forms/f1", respond: () => jsonResponse({ data: FORM }) },
+      { match: "/forms", method: "GET", respond: () => jsonResponse({ data: [FORM] }) },
     ]);
     vi.stubGlobal("fetch", fn);
     const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
-    const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
-    await waitFor(() => expect(result.current.form).not.toBeNull());
+    const { useWiredFormsList } = await import("../features/forms/hooks/use-forms-list.hooks");
+    const { result } = renderHook(() => ({
+      ...useWiredFormEditor({ formId: "f1", tab: "fields" }),
+      list: useWiredFormsList(),
+    }), { wrapper });
+    await waitFor(() => {
+      expect(result.current.form).not.toBeNull();
+      expect(result.current.list.forms).not.toBeNull();
+    });
     calls.length = 0;
 
     act(() => result.current.setName("Contact Us"));
     await act(async () => {
-      result.current.handleSave();
+      await result.current.handleSave();
     });
     await waitFor(() => expect(result.current.saving).toBe(false));
-    logRow("forms", "editor save (this hook in isolation)", calls);
+    expect(result.current.form?.version).toBe(2);
+    await expectRequests(calls, [`PUT ${WORKSPACE}/forms/f1`, `GET ${WORKSPACE}/forms`]);
+    logRow("forms", "editor save (list mounted alongside)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
 });
@@ -428,6 +472,7 @@ describe("media", () => {
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
+    await expectRequests(calls, [`GET ${WORKSPACE}/media`]);
     logRow("media", "initial load (full screen)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -455,7 +500,9 @@ describe("media", () => {
     await user.type(titleInput, "New title");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
+    await waitFor(() => expect(screen.queryByLabelText("Title")).not.toBeInTheDocument());
 
+    await expectRequests(calls, [`PATCH ${WORKSPACE}/media/m1`, `GET ${WORKSPACE}/media`]);
     logRow("media", "edit metadata save (list mounted alongside, production shape)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -471,6 +518,7 @@ describe("integrations", () => {
     const { useWiredIntegrations } = await import("../features/integrations/hooks/use-integrations.hooks");
     const { result } = renderHook(() => useWiredIntegrations(), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
+    await expectRequests(calls, [`GET ${WORKSPACE}/integrations/subscriptions`]);
     logRow("integrations", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -493,6 +541,7 @@ describe("integrations", () => {
     await act(async () => {
       await result.current.onCreate({ preventDefault: () => {} } as unknown as React.FormEvent);
     });
+    await expectRequests(calls, [`POST ${WORKSPACE}/integrations/subscriptions`, `GET ${WORKSPACE}/integrations/subscriptions`]);
     logRow("integrations", "create subscription (save)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -508,6 +557,7 @@ describe("database", () => {
     const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
+    await expectRequests(calls, [`GET ${ADMIN}/database/timeline`]);
     logRow("database", "timeline initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -525,6 +575,7 @@ describe("database", () => {
       result.current.applyFilters({ preventDefault: () => {} } as unknown as React.FormEvent);
     });
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    await expectRequests(calls, [`GET ${ADMIN}/database/timeline?kind=core.migration`]);
     logRow("database", "timeline filter change", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -535,6 +586,7 @@ describe("database", () => {
     const { useWiredRestorePointsSection } = await import("../features/database/hooks/use-restore-points-section.hooks");
     const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
     await waitFor(() => expect(result.current.points).not.toBeNull());
+    await expectRequests(calls, [`GET ${ADMIN}/database/restore-points`]);
     logRow("database", "restore points initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -603,15 +655,14 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     vi.stubGlobal("fetch", fn);
     const { useWiredCollectionEntryEditor } = await import("../features/collections/hooks/use-collection-entry-editor.hooks");
 
-    function Panel({ open }: { open: boolean }) {
-      // biome-ignore lint/correctness/useHookAtTopLevel: this is a MEASUREMENT file, not a correctness test (see file header) — the conditional call is standing in for a real unmount/remount. Measured both forms directly: this conditional-hook shortcut and the Rules-of-Hooks-correct form (mount/unmount the whole `Panel` via `rerender(<FetchQueryProvider>{null}</FetchQueryProvider>)`, matching the "redirects" convention above) produce IDENTICAL numbers (visit1=3, visit2=0). The correct form is not used here because it currently hangs in TipTap/ProseMirror teardown under jsdom (a pre-existing environment gap, unrelated to this hook — out of scope for a lint fix).
-      const editor = open ? useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }) : null;
-      return <div data-testid="loaded">{editor?.loaded ? "yes" : "no"}</div>;
+    function Panel() {
+      const editor = useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" });
+      return <div data-testid="loaded">{editor.loaded ? "yes" : "no"}</div>;
     }
 
     const { rerender } = render(
       <FetchQueryProvider>
-        <Panel open={true} />
+        <Panel />
       </FetchQueryProvider>
     );
     await waitFor(() => expect(screen.getByTestId("loaded").textContent).toBe("yes"));
@@ -619,14 +670,11 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     calls.length = 0;
 
     // Close the panel (unmount its query), then reopen the SAME record under the SAME provider.
+    rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
+    expect(screen.queryByTestId("loaded")).not.toBeInTheDocument();
     rerender(
       <FetchQueryProvider>
-        <Panel open={false} />
-      </FetchQueryProvider>
-    );
-    rerender(
-      <FetchQueryProvider>
-        <Panel open={true} />
+        <Panel />
       </FetchQueryProvider>
     );
     await waitFor(() => expect(screen.getByTestId("loaded").textContent).toBe("yes"));

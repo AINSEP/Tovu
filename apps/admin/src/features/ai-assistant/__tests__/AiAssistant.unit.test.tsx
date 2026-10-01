@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiAssistant } from "../AiAssistant";
 import { getNav } from "@/nav";
+import { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } from "../../../lib/assistant-dock-bus";
 
 /**
  * @file The "AI Assistant" admin screen — the public assistant's master switch plus the
@@ -28,6 +29,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetAssistantDockBus();
   // `handleTabChange` drives real `history.replaceState` via `lib/router`'s `navigate()` — reset
   // between tests so one test's tab click can't leak a `?tab=` into the next (same convention
   // `SettingsUi.unit.test.tsx`'s own `?tab=` describe block uses).
@@ -37,7 +39,7 @@ afterEach(() => {
 /** Serves GET from `state`, and applies a successful PUT to it — a stand-in for the real route's
  * "return what is now persisted" contract, so a test asserting the rendered value is asserting
  * server truth rather than local optimism. */
-function serveSettings(initial: { publicEnabled: boolean }, options: { failWrites?: boolean } = {}) {
+function serveSettings(initial: { publicEnabled: boolean }, options: { failWrites?: boolean; returnedEnabled?: boolean } = {}) {
   const state = { ...initial };
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     // The Admin tab's `AdminExecutionMode` fires this on mount to populate its CLI list
@@ -54,6 +56,7 @@ function serveSettings(initial: { publicEnabled: boolean }, options: { failWrite
         return jsonResponse({ error: "internal error", code: "INTERNAL_ERROR" }, 500);
       }
       Object.assign(state, JSON.parse(String(init.body)) as { publicEnabled?: boolean });
+      if (options.returnedEnabled !== undefined) state.publicEnabled = options.returnedEnabled;
       return jsonResponse({ data: state });
     }
     return jsonResponse({ data: state });
@@ -94,6 +97,19 @@ describe("the public on/off switch", () => {
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
     expect(putCall).toBeDefined();
     expect(String(putCall?.[0])).toContain("/assistant/settings");
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ publicEnabled: true });
+  });
+
+  it("follows a successful server response even when it disagrees with the requested toggle", async () => {
+    serveSettings({ publicEnabled: false }, { returnedEnabled: false });
+    render(<AiAssistant />);
+    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await userEvent.click(theSwitch());
+    // Enabled again means the save has settled; checking false before that could pass on initial state.
+    await waitFor(() => expect(theSwitch()).toBeEnabled());
+    expect(theSwitch()).not.toBeChecked();
+    const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCall).toBeDefined();
     expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ publicEnabled: true });
   });
 
@@ -204,8 +220,15 @@ describe("the not-yet-built roadmap accordion", () => {
     render(<AiAssistant />);
     await openRoadmapTab();
 
-    expect(screen.getByText(/per-day and per-conversation spend ceilings/i)).toBeInTheDocument();
-    expect(screen.getByText(/recent conversation counts, and spend to date/i)).toBeInTheDocument();
+    for (const copy of [/per-day and per-conversation spend ceilings/i, /recent conversation counts, and spend to date/i]) {
+      const explanation = screen.getByText(copy);
+      expect(explanation).toBeInTheDocument();
+      const details = explanation.closest("details")!;
+      expect(details).not.toHaveAttribute("open");
+      await userEvent.click(details.querySelector("summary")!);
+      expect(details).toHaveAttribute("open");
+      expect(explanation).toBeVisible();
+    }
     // The rate-limit row is gone on purpose (SPEC-046 REQ-7 shipped it). Asserted as an absence so
     // this test fails if someone re-adds a row advertising a control that already exists.
     expect(screen.queryByText(/per-ip or per-session request window/i)).not.toBeInTheDocument();
@@ -233,6 +256,23 @@ describe("?tab= deep linking", () => {
       expect(screen.getByLabelText(/show the ai assistant on the admin site/i)).toBeInTheDocument(),
     );
     expect(screen.queryByLabelText(/enable the ai assistant on the public site/i)).not.toBeInTheDocument();
+    const toggle = screen.getByLabelText(/show the ai assistant on the admin site/i);
+    const requests: boolean[] = [];
+    const unsubscribe = subscribeToAssistantDockRequests((open) => requests.push(open));
+    try {
+      expect(toggle).not.toBeChecked();
+      await userEvent.click(toggle);
+      expect(requests).toEqual([true]);
+      expect(toggle).not.toBeChecked();
+      act(() => publishAssistantDockState(true));
+      expect(toggle).toBeChecked();
+      await userEvent.click(toggle);
+      expect(requests).toEqual([true, false]);
+      act(() => publishAssistantDockState(false));
+      expect(toggle).not.toBeChecked();
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("falls back to the default tab for an id that names no real tab, instead of blanking the panel", async () => {

@@ -192,7 +192,11 @@ describe("useFormsList — delete (T7a, move to Trash)", () => {
 
   it("a 404 (already gone) refetches quietly — no error banner, dialog closes", async () => {
     const port = createFakeFormsPort({ forms: [formFixture()] });
-    port.trashForm = vi.fn(() => Promise.reject(new ApiError("not found", 404, "NOT_FOUND")));
+    port.trashForm = vi.fn(async () => {
+      // Another operator already removed it on the server; the loaded list is now stale.
+      port.forms.splice(0);
+      throw new ApiError("not found", 404, "NOT_FOUND");
+    });
     const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
     await waitFor(() => expect(result.current.forms).toHaveLength(1));
 
@@ -203,6 +207,7 @@ describe("useFormsList — delete (T7a, move to Trash)", () => {
 
     expect(result.current.pendingDelete).toBeNull();
     expect(result.current.error).toBeNull();
+    await waitFor(() => expect(result.current.forms).toEqual([]));
   });
 
   it("a 409 TRASH_VERSION_CHANGED surfaces the reload-and-retry copy", async () => {

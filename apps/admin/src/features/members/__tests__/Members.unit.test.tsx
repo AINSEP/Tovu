@@ -99,8 +99,9 @@ describe("an already-disabled member's menu", () => {
 describe("Disable — via RowMenu, confirm-gated", () => {
   it("opens a ConfirmDialog instead of acting immediately, and only disables on confirm", async () => {
     const user = userEvent.setup();
+    const otherMember = { ...DISABLED_MEMBER, status: "active" as const };
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER] }))
+      .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER, otherMember] }))
       .mockResolvedValueOnce(jsonResponse({ member: { ...ACTIVE_MEMBER, status: "disabled" } }));
     render(<Members />);
 
@@ -115,7 +116,13 @@ describe("Disable — via RowMenu, confirm-gated", () => {
     await user.click(within(dialog).getByRole("button", { name: /^disable$/i }));
 
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(true);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/admin/v1/workspaces/workspace-local/members/m1/disable");
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
     await screen.findByText("disabled");
+    const aliceRow = screen.getByText("alice@example.com").closest("tr")!;
+    const bobRow = screen.getByText("bob@example.com").closest("tr")!;
+    expect(within(aliceRow).getByText("disabled")).toBeInTheDocument();
+    expect(within(bobRow).getByText("active")).toBeInTheDocument();
     expect(dialog).not.toHaveAttribute("open");
   });
 
@@ -141,7 +148,7 @@ describe("Resend sign-in link — via RowMenu, immediate", () => {
   it("fires immediately with no dialog and shows a per-row notice", async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER] }))
+      .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER, { ...DISABLED_MEMBER, status: "active" }] }))
       .mockResolvedValueOnce(jsonResponse({ delivered: true }));
     render(<Members />);
 
@@ -151,5 +158,12 @@ describe("Resend sign-in link — via RowMenu, immediate", () => {
 
     expect(dialogFor(/disable this member\?/i)).not.toHaveAttribute("open");
     expect(await screen.findByText("Sign-in link sent.")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/admin/v1/workspaces/workspace-local/members/request-magic-link");
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ email: "alice@example.com" });
+    const aliceRow = screen.getByText("alice@example.com").closest("tr")!;
+    const bobRow = screen.getByText("bob@example.com").closest("tr")!;
+    expect(within(aliceRow).getByText("Sign-in link sent.")).toBeInTheDocument();
+    expect(within(bobRow).queryByText("Sign-in link sent.")).not.toBeInTheDocument();
   });
 });

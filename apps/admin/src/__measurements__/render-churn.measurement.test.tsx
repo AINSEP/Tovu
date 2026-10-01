@@ -1,5 +1,5 @@
 import { Profiler, type ProfilerOnRenderCallback } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../lib/fetch-query";
@@ -48,13 +48,28 @@ afterEach(() => {
 
 describe("render churn — no React.memo exists anywhere in this render path", () => {
   it("confirms empirically: a redirects-list refetch re-renders the redirects tree AND does NOT touch an unrelated taxonomy-reading sibling", async () => {
+    const createdRule = { ...RULE, id: "r2", fromPattern: "/new-path", toTarget: "/new-target" };
+    let redirectsGets = 0;
+    let redirectsPosts = 0;
+    let taxonomyGets = 0;
+    let resolveRefetch!: (response: Response) => void;
+    const pendingRefetch = new Promise<Response>((resolve) => { resolveRefetch = resolve; });
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       const method = (init?.method ?? "GET").toUpperCase();
       if (url.includes("/settings/effective") && url.includes("namespace=core.language")) return jsonResponse({ data: [] });
-      if (url.includes("/taxonomy")) return jsonResponse({ items: [] });
-      if (method === "POST" && url.includes("/redirects")) return jsonResponse({ data: RULE });
-      if (url.includes("/redirects")) return jsonResponse({ data: [RULE] });
+      if (method === "GET" && url.includes("/taxonomy")) {
+        taxonomyGets += 1;
+        return jsonResponse({ items: [] });
+      }
+      if (method === "POST" && url.endsWith("/redirects")) {
+        redirectsPosts += 1;
+        return jsonResponse({ data: createdRule });
+      }
+      if (method === "GET" && url.endsWith("/redirects")) {
+        redirectsGets += 1;
+        return redirectsGets === 1 ? jsonResponse({ data: [RULE] }) : pendingRefetch;
+      }
       return jsonResponse({});
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -84,19 +99,13 @@ describe("render churn — no React.memo exists anywhere in this render path", (
 
     const redirectsRendersBeforeWrite = redirectsRenders.length;
     const taxonomyRendersBeforeWrite = taxonomyRenders.length;
+    expect(redirectsGets).toBe(1);
+    expect(taxonomyGets).toBe(1);
 
     // Fire a redirects write (create) — invalidates KEYS.list=["redirects"] only. taxonomy's key
     // (["taxonomies"]) shares no prefix relation with it at all (confirmed in deliverable B).
     const fromInput = screen.getByLabelText(/from path/i);
     const toInput = screen.getByLabelText(/to target/i);
-    await act(async () => {
-      fromInput.dispatchEvent(new Event("focus", { bubbles: true }));
-    });
-    fromInput.setAttribute("value", "/new-path");
-    toInput.setAttribute("value", "/new-target");
-    // jsdom form submission needs real user typing to update React-controlled/uncontrolled state
-    // correctly — use fireEvent-level change events instead of raw attribute writes.
-    const { fireEvent } = await import("@testing-library/react");
     fireEvent.change(fromInput, { target: { value: "/new-path" } });
     fireEvent.change(toInput, { target: { value: "/new-target" } });
     await act(async () => {
@@ -104,8 +113,19 @@ describe("render churn — no React.memo exists anywhere in this render path", (
     });
 
     await waitFor(() => expect(redirectsRenders.length).toBeGreaterThan(redirectsRendersBeforeWrite));
-    // Give any (incorrectly) triggered background refetch of an unrelated key time to land.
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => {
+      expect(redirectsPosts).toBe(1);
+      expect(redirectsGets).toBe(2);
+    });
+    // Count request starts so even a slow, unnecessary taxonomy response cannot escape detection.
+    expect(taxonomyGets).toBe(1);
+    expect(screen.queryByText("/new-path")).not.toBeInTheDocument();
+    await act(async () => { resolveRefetch(jsonResponse({ data: [RULE, createdRule] })); });
+    // A pending-state render cannot stand in for the changed list actually reaching the UI.
+    expect(await screen.findByText("/new-path")).toBeInTheDocument();
+    expect(screen.getByText("/new-target")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: /add redirect/i })).toBeEnabled());
+    expect(taxonomyGets).toBe(1);
 
     const redirectsCommitsForOneWrite = redirectsRenders.length - redirectsRendersBeforeWrite;
     const taxonomyCommitsDuringRedirectsWrite = taxonomyRenders.length - taxonomyRendersBeforeWrite;

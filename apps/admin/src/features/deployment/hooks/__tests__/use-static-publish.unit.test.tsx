@@ -385,6 +385,43 @@ describe("useStaticPublish — preview", () => {
     expect(result.current.preview).toBeUndefined();
   });
 
+  it("switching hosts clears a completed preview", async () => {
+    const oldPreview = previewResultFixture();
+    const port = portWith({ getPublishPreview: () => Promise.resolve(oldPreview) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.targets).not.toBeUndefined());
+    act(() => result.current.setConfigField("owner", "octo"));
+    act(() => result.current.setConfigField("repo", "demo-repo"));
+    await act(async () => { await result.current.checkPreview(); });
+    expect(result.current.preview).toEqual(oldPreview);
+
+    act(() => result.current.setTarget("vercel"));
+    expect(result.current.target).toBe("vercel");
+    expect(result.current.preview).toBeUndefined();
+  });
+
+  it("switching hosts discards a pending preview's late response", async () => {
+    let resolvePreview!: (value: AdminStaticPublishPreview) => void;
+    const port = portWith({ getPublishPreview: () => new Promise((resolve) => { resolvePreview = resolve; }) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.targets).not.toBeUndefined());
+    act(() => result.current.setConfigField("owner", "octo"));
+    act(() => result.current.setConfigField("repo", "demo-repo"));
+    let previewPromise!: Promise<void>;
+    act(() => { previewPromise = result.current.checkPreview(); });
+    expect(result.current.previewLoading).toBe(true);
+
+    act(() => result.current.setTarget("vercel"));
+    expect(result.current.preview).toBeUndefined();
+    await act(async () => {
+      resolvePreview(previewResultFixture());
+      await previewPromise;
+    });
+    expect(result.current.target).toBe("vercel");
+    expect(result.current.preview).toBeUndefined();
+    expect(result.current.previewLoading).toBe(false);
+  });
+
   it("REGRESSION (C5): a duplicate checkPreview() call while one is in flight must be ignored outright, not sent as a second request", async () => {
     let calls = 0;
     const port = portWith({
@@ -615,6 +652,35 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(result.current.isPublishing).toBe(false);
   });
 
+  it("successful polls reset the consecutive-failure bound between scattered blips", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const completedRun: AdminPublishRunSnapshot = { ...runningRun, status: "completed", finishedAtIso: "t1" };
+    const getPublishStatus = vi.fn()
+      .mockResolvedValueOnce(runningRun) // bootstrap
+      .mockRejectedValueOnce(new Error("blip 1"))
+      .mockResolvedValueOnce(runningRun)
+      .mockRejectedValueOnce(new Error("blip 2"))
+      .mockResolvedValueOnce(runningRun)
+      .mockRejectedValueOnce(new Error("blip 3"))
+      .mockResolvedValue(completedRun);
+    const port = portWith({ getPublishStatus });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isPublishing).toBe(true));
+
+    for (let poll = 1; poll <= 5; poll += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+      expect(getPublishStatus).toHaveBeenCalledTimes(poll + 1);
+      expect(result.current.pollError).toBeNull();
+      expect(result.current.isPublishing).toBe(true);
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getPublishStatus).toHaveBeenCalledTimes(7);
+    expect(result.current.run?.status).toBe("completed");
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isPublishing).toBe(false);
+  });
+
   it("REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Publish button — not retried forever behind a stuck spinner", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
@@ -652,6 +718,22 @@ describe("useStaticPublish — publish trigger and poll", () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
     expect(getPublishStatus.mock.calls.length).toBe(callsAtBound);
+
+    // A new Publish clears the stale error and starts a fresh consecutive-failure budget.
+    getPublishStatus.mockResolvedValue(runningRun).mockRejectedValueOnce(new Error("retry blip"));
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => { await result.current.publish(); });
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isPublishing).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getPublishStatus).toHaveBeenCalledTimes(callsAtBound + 1);
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isPublishing).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(getPublishStatus).toHaveBeenCalledTimes(callsAtBound + 2);
+    expect(result.current.pollError).toBeNull();
+    expect(result.current.isPublishing).toBe(true);
   });
 
   // Both tests below target the loop's `cancelled` guard specifically — same reasoning as

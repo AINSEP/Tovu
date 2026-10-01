@@ -354,7 +354,7 @@ describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => 
     };
   }
 
-  it("Delete submission opens a confirm dialog; a double-click alone never deletes", async () => {
+  it("Delete submission opens a confirm dialog; only confirmation trashes the submission and refreshes the list", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // form load
@@ -374,8 +374,22 @@ describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => 
     // T7a (2026-09-21): submission delete now moves it to the Trash (`api.trash`) rather than a
     // hard `DELETE` — see `form-submissions-dependencies.hooks.ts`'s own doc.
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    expect(fetchMock.mock.calls.filter(([, init]) => ["POST", "PUT", "PATCH", "DELETE"].includes(init?.method))).toEqual([]);
     const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
     expect(within(dialog).getByText("It will disappear from this list. You can restore it from the Trash.")).toBeInTheDocument();
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ ok: true, version: null }))
+      .mockResolvedValueOnce(jsonResponse({ data: [], nextCursor: null }));
+    await user.click(within(dialog).getByRole("button", { name: "Move to trash" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls).toHaveLength(5));
+    const [url, init] = fetchMock.mock.calls[3];
+    expect(url).toMatch(/\/trash\/items$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ type: "form_submission", id: "s1" });
+    expect(await screen.findByText("No submissions yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view/i })).not.toBeInTheDocument();
   });
 });
 

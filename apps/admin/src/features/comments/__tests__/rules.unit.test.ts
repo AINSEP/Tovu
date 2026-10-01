@@ -151,9 +151,28 @@ describe("commentRowMenuItems", () => {
 
   it("wires onSelect through to the passed handlers", () => {
     handlers.onModerate.mockClear();
+    handlers.onRequestPurge.mockClear();
     const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers, "en");
     items.find((i) => i.key === "approve")?.onSelect();
     expect(handlers.onModerate).toHaveBeenCalledWith(COMMENT, "approve");
+    for (const action of ["spam", "trash"] as const) {
+      handlers.onModerate.mockClear();
+      items.find((i) => i.key === action)!.onSelect();
+      expect(handlers.onModerate).toHaveBeenCalledExactlyOnceWith(COMMENT, action);
+      expect(handlers.onRequestPurge).not.toHaveBeenCalled();
+    }
+
+    const trashed = { ...COMMENT, status: "trash" as const };
+    const trashItems = commentRowMenuItems(trashed, { permissions: FULL_PERMISSIONS, currentFilterStatus: "trash" }, handlers, "en");
+    handlers.onModerate.mockClear();
+    trashItems.find((i) => i.key === "restore")!.onSelect();
+    expect(handlers.onModerate).toHaveBeenCalledExactlyOnceWith(trashed, "restore");
+    expect(handlers.onRequestPurge).not.toHaveBeenCalled();
+
+    handlers.onModerate.mockClear();
+    trashItems.find((i) => i.key === "purge")!.onSelect();
+    expect(handlers.onRequestPurge).toHaveBeenCalledExactlyOnceWith(trashed);
+    expect(handlers.onModerate).not.toHaveBeenCalled();
   });
 
   it("translates labels to Spanish when locale is es", () => {

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { SettingsSection } from "../Comments";
@@ -57,4 +58,39 @@ describe("SettingsSection — useCommentSettingsHook injection", () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+  it("submits the edited real form fields under the names the settings patch reads", async () => {
+    const user = userEvent.setup();
+    const controller = fakeController();
+    render(<SettingsSection canConfigure locale="en" useCommentSettingsHook={() => controller} />);
+
+    await user.click(screen.getByRole("checkbox", { name: /comments enabled/i }));
+    await user.click(screen.getByRole("checkbox", { name: /require moderation/i }));
+    const fields = [
+      [/max thread depth/i, "7"],
+      [/close submissions after/i, "14"],
+      [/spam auto-reject score/i, "0.8"],
+      [/max submissions per ip/i, "20"],
+    ] as const;
+    for (const [name, value] of fields) {
+      const input = screen.getByRole("spinbutton", { name });
+      await user.clear(input);
+      await user.type(input, value);
+    }
+    await user.click(screen.getByRole("button", { name: /save settings/i }));
+
+    expect(controller.save).toHaveBeenCalledTimes(1);
+    const form = vi.mocked(controller.save).mock.calls[0][0];
+    expect(Object.fromEntries(form.entries())).toEqual({
+      maxDepth: "7", closeAfterDays: "14", spamAutoRejectScore: "0.8", maxPerIpPerHour: "20",
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: /comments enabled/i }));
+    await user.click(screen.getByRole("checkbox", { name: /require moderation/i }));
+    await user.click(screen.getByRole("button", { name: /save settings/i }));
+    expect(controller.save).toHaveBeenCalledTimes(2);
+    const checkedForm = vi.mocked(controller.save).mock.calls[1][0];
+    expect(checkedForm.get("enabled")).toBe("on");
+    expect(checkedForm.get("requireModeration")).toBe("on");
+  });
+
 });

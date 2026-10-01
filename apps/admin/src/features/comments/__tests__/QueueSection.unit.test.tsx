@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { QueueSection } from "../Comments";
@@ -75,4 +76,39 @@ describe("QueueSection — useCommentQueueHook injection", () => {
 
     expect(screen.getByText("fake queue error")).toBeInTheDocument();
   });
+  it("shows a failed action's alert in the affected comment row", () => {
+    const error = "This comment changed since you loaded it";
+    const otherComment = { ...COMMENT, id: "c2", bodyText: "Another comment" };
+    render(
+      <QueueSection permissions={["comments.read"]} locale="en" useCommentQueueHook={() => fakeController({
+        items: [COMMENT, otherComment],
+        stateFor: (id) => ({ busy: false, error: id === COMMENT.id ? error : null }),
+      })} />,
+    );
+
+    const row = screen.getByText(COMMENT.bodyText).closest("tr")!;
+    expect(within(row).getByRole("alert")).toHaveTextContent(error);
+    expect(within(screen.getByText(otherComment.bodyText).closest("tr")!).queryByRole("alert")).toBeNull();
+  });
+
+  it("loads the next page on click, disables the pager while loading, and hides it without a cursor", async () => {
+    const user = userEvent.setup();
+    const controller = fakeController({ nextCursor: "cursor-2" });
+    const view = () => <QueueSection permissions={["comments.read"]} locale="en" useCommentQueueHook={() => controller} />;
+    const { rerender } = render(view());
+
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(controller.loadMore).toHaveBeenCalledTimes(1);
+
+    controller.loadingMore = true;
+    rerender(view());
+    expect(screen.getByRole("button", { name: "Loading…" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Loading…" }));
+    expect(controller.loadMore).toHaveBeenCalledTimes(1);
+
+    controller.nextCursor = null;
+    rerender(view());
+    expect(screen.queryByRole("button", { name: /Load more|Loading…/ })).not.toBeInTheDocument();
+  });
+
 });

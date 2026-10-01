@@ -345,11 +345,39 @@ describe("RecentEntriesConfigFields", () => {
   it("checking a field writes it into config.fields; unchecking the last one removes the key", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, collection: "tovu_feature" }} onChange={onChange} />);
+    const { rerender } = render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, collection: "tovu_feature" }} onChange={onChange} />);
 
     const checkbox = await screen.findByRole("checkbox", { name: "Docs page" });
     await user.click(checkbox);
     expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", fields: ["docs_page"] });
+    const feedBack = () => rerender(<WidgetConfigFields widgetType="recent-entries" config={onChange.mock.calls.at(-1)![0]} onChange={onChange} />);
+    feedBack();
+    await user.click(screen.getByRole("checkbox", { name: "Featured" }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", fields: ["docs_page", "featured"] });
+    feedBack();
+    await user.click(checkbox);
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", fields: ["featured"] });
+    feedBack();
+    await user.click(screen.getByRole("checkbox", { name: "Featured" }));
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature" });
+  });
+
+  it("writes and clears sort and numeric columns without losing other config", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={onChange} />);
+    const feedBack = () => rerender(<WidgetConfigFields widgetType="recent-entries" config={onChange.mock.calls.at(-1)![0]} onChange={onChange} />);
+    await user.selectOptions(screen.getByLabelText("Sort"), "newest");
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, sort: "newest" });
+    feedBack();
+    await user.selectOptions(screen.getByLabelText("Sort"), "");
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5 });
+    feedBack();
+    await user.type(screen.getByLabelText("Columns"), "3");
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, columns: 3 });
+    feedBack();
+    await user.clear(screen.getByLabelText("Columns"));
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5 });
   });
 
   it("the filter row writes a single where clause, coercing a boolean field's value", async () => {
@@ -386,6 +414,21 @@ describe("RecentEntriesConfigFields", () => {
 
     expect(screen.getByLabelText("Filter value")).toHaveValue("true");
     expect(screen.getByTestId("where").textContent).toBe('{"featured":true}');
+  });
+
+  it("changing or clearing a filter removes where, and non-finite numeric input stays text", async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecentEntries />);
+    await user.selectOptions(await screen.findByLabelText("Filter"), "featured");
+    await user.type(screen.getByLabelText("Filter value"), "true");
+    expect(screen.getByTestId("where").textContent).toBe('{"featured":true}');
+    await user.selectOptions(screen.getByLabelText("Filter"), "score");
+    expect(screen.getByTestId("where").textContent).toBe("null");
+    expect(screen.getByLabelText("Filter value")).toHaveValue("");
+    await user.type(screen.getByLabelText("Filter value"), "abc");
+    expect(screen.getByTestId("where").textContent).toBe('{"score":"abc"}');
+    await user.clear(screen.getByLabelText("Filter value"));
+    expect(screen.getByTestId("where").textContent).toBe("null");
   });
 
   it("typing a decimal into a real filter value key by key keeps the decimal point", async () => {
@@ -635,6 +678,23 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
 
     expect(screen.getByLabelText("Máximo-FAKE")).toBeInTheDocument();
     expect(screen.getByLabelText("ID-categoría-FAKE")).toBeInTheDocument();
+  });
+
+  it("RecentEntriesConfigFields: translates collection, sort, layout, fields, filter and fallback copy", async () => {
+    vi.spyOn(api, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
+    const t = (key: string) => `${key}-FAKE`;
+    const { unmount } = render(<WidgetConfigFields widgetType="recent-entries" config={{ collection: "tovu_feature", where: { featured: true } }} onChange={vi.fn()} t={t} />);
+    await screen.findByText("Fields to show-FAKE");
+    for (const label of ["Collection", "Sort", "Layout", "Columns", "Filter", "Filter value"]) {
+      expect(screen.getByLabelText(`${label}-FAKE`)).toBeInTheDocument();
+    }
+    for (const option of ["All collections", "Default (recently updated)", "Newest first", "Oldest first", "Title (A–Z)", "Default (cards)", "Cards", "List", "No filter", "Docs page (ascending)", "Docs page (descending)"]) {
+      expect(screen.getByRole("option", { name: `${option}-FAKE` })).toBeInTheDocument();
+    }
+    unmount();
+    vi.mocked(api.listContentTypes).mockRejectedValue("failed");
+    render(<WidgetConfigFields widgetType="recent-entries" config={{}} onChange={vi.fn()} t={t} />);
+    expect(await screen.findByText("failed to load collections-FAKE")).toBeInTheDocument();
   });
 
   it("MenuConfigFields: translates the loading state, the label, and the empty option", async () => {

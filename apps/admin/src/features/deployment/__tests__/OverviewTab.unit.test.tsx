@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { OverviewTab } from "../OverviewTab";
@@ -140,6 +140,15 @@ describe("real fields, honestly labeled", () => {
     expect(screen.getByText("TOVU_ADMIN_USER")).toBeInTheDocument();
     expect(screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY")).toBeInTheDocument();
     expect(screen.getByText("JINI_AGENT_DAEMON_PORT")).toBeInTheDocument();
+    for (const [name, status] of [
+      ["TOVU_ADMIN_PASSWORD", "Set"],
+      ["TOVU_ADMIN_USER", "Set"],
+      ["TOVU_INTEGRATIONS_ROOT_KEY", "Not set"],
+      ["JINI_AGENT_DAEMON_PORT", "Set"],
+    ]) {
+      const row = screen.getByText(name).closest("li")!;
+      expect(within(row).getByText(status)).toBeInTheDocument();
+    }
     // Three set, one not — the fixture's own shape.
     expect(screen.getAllByText("Set")).toHaveLength(3);
     expect(screen.getAllByText("Not set")).toHaveLength(1);
@@ -169,6 +178,22 @@ describe("real fields, honestly labeled", () => {
     expect(screen.getByText(/required to boot in production\. Missing locally shows as a 503/i)).toBeInTheDocument();
     const notSetPills = screen.getAllByText("Not set");
     expect(notSetPills.every((el) => el.className.includes("status-neutral"))).toBe(true);
+  });
+
+  it("shows a malformed root key as invalid with a warning tone", () => {
+    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
+      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "env", invalid: true }] }),
+    })} />);
+    const row = screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY").closest("li")!;
+    expect(within(row).getByText("Invalid — the keyring rejects it")).toHaveClass("status-warning");
+  });
+
+  it("labels a root key resolved from the generated key file", () => {
+    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
+      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "file" }] }),
+    })} />);
+    const row = screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY").closest("li")!;
+    expect(within(row).getByText("Set (generated key file)")).toHaveClass("status-ok");
   });
 
   it("frames the TOVU_ADMIN_PASSWORD row itself as a warning when unset, unlike every other absent var", () => {
@@ -206,5 +231,7 @@ describe("agent handles", () => {
     expect(document.querySelector('[data-agent-element="deployment-overview-full-details-link"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-overview-instance-facts"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-overview-env-vars"]')).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Static Site details" })).toHaveAttribute("data-agent-element", "deployment-overview-static-details-link");
+    expect(screen.getByRole("link", { name: "View Full Site details" })).toHaveAttribute("data-agent-element", "deployment-overview-full-details-link");
   });
 });

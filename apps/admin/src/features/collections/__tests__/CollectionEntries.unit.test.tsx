@@ -87,7 +87,36 @@ describe("a real content type", () => {
     expect(await screen.findByRole("heading", { name: "Recipe" })).toBeInTheDocument();
     // See the `link`-vs-`button` note above — this is the assertion `a44148a1` left failing.
     expect(screen.getByRole("link", { name: /new entry/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /new entry/i })).toHaveAttribute("href", "/admin/collections/recipe/new");
     expect(screen.getByText("No entries yet in Recipe.")).toBeInTheDocument();
+  });
+});
+
+describe("loaded entries and errors", () => {
+  const entry = {
+    id: "e1", workspaceId: "w1", type: "recipe", slug: "my-recipe", status: "draft" as const,
+    title: "My Recipe", bodyJson: null, fieldsJson: null, publishedAt: null,
+    createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", version: 1,
+  };
+  const contentType = { workspaceId: "w1", key: "recipe", label: "Recipe", status: "active" as const, version: 1, fields: [] };
+
+  it("renders entries returned through the real hook", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("/content-types")) return jsonResponse(CONTENT_TYPES_RESPONSE);
+      if (String(url).includes("/entries")) return jsonResponse({ items: [entry] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<FetchQueryProvider><CollectionEntries contentTypeKey="recipe" /></FetchQueryProvider>);
+    expect(await screen.findByRole("link", { name: "My Recipe" })).toHaveAttribute("href", "/admin/collections/recipe/my-recipe");
+    expect(screen.queryByText("No entries yet in Recipe.")).not.toBeInTheDocument();
+  });
+
+  it.each([null, [], [entry]])("shows load errors with entries %j", (entries) => {
+    const controller: CollectionEntriesController = { contentType, entries, error: "entries unavailable", t: (key) => key };
+    render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
+    expect(screen.getByText("entries unavailable")).toHaveClass("notice", "error");
+    if (entries?.length) expect(screen.getByRole("link", { name: "My Recipe" })).toBeInTheDocument();
+    if (entries === null) expect(screen.queryByRole("link", { name: /new entry/i })).not.toBeInTheDocument();
   });
 });
 

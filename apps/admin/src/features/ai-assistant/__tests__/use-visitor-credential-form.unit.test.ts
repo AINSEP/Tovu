@@ -252,6 +252,10 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-typed" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["m1"] });
+
     act(() => result.current.editConfig({ ...result.current.config, apiKey: "" }));
     // No timer advance at all — the idle reset is synchronous, part of the effect's own guard.
     expect(result.current.discovery).toEqual({ status: "idle" });
@@ -499,17 +503,22 @@ describe("useVisitorCredentialForm — saveKey", () => {
 
 describe("useVisitorCredentialForm — selectPreset", () => {
   it("resets discovery and connectionTest to idle when switching providers", async () => {
+    vi.useFakeTimers();
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
+    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-typed" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
     await act(async () => {
       await result.current.runTestConnection();
     });
     expect(result.current.connectionTest.status).toBe("ok");
-
-    act(() => result.current.selectPreset(result.current.preset!));
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["m1"] });
+    const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === "anthropic")!;
+    expect(result.current.preset!.id).not.toBe(next.id);
+    act(() => result.current.selectPreset(next));
+    expect(result.current.config.providerId).toBe(next.id);
 
     expect(result.current.discovery).toEqual({ status: "idle" });
     expect(result.current.connectionTest).toEqual({ status: "idle" });

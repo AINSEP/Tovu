@@ -316,6 +316,27 @@ describe("save — existing entry", () => {
   });
 });
 
+describe("save — edited rich text", () => {
+  it.each([null, "e1"])("sends the current editor document for entryId %s", async (entryId) => {
+    const view = await mountLoaded({ entryId, entries: [ENTRY_WITH_BODY] });
+    const editedBody = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [
+        { type: "text", text: "Fresh recipe instructions", marks: [{ type: "bold" }] },
+      ] }],
+    };
+    expect(view.result.current.editor).not.toBeNull();
+    act(() => { view.result.current.editor!.commands.setContent(editedBody); });
+    expect(view.result.current.editor!.getJSON()).toEqual(editedBody);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, bodyJson: editedBody, version: 3 } }));
+    await act(async () => { await view.result.current.save(); });
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect((call[1] as RequestInit).method).toBe(entryId ? "PUT" : "POST");
+    expect(JSON.parse(String((call[1] as RequestInit).body)).bodyJson).toEqual(editedBody);
+    expect(view.result.current.entry?.bodyJson).toEqual(editedBody);
+  });
+});
+
 describe("toggleLifecycle", () => {
   it("is a no-op (no fetch call) when there is no entry yet", async () => {
     const view = await mountLoaded({ entryId: null });
@@ -521,11 +542,20 @@ describe("injected port (useWiredX conversion coverage)", () => {
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
     act(() => result.current.setTitle("Edited title"));
+    const editedBody = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Edited recipe ready to publish" }] }],
+    };
+    expect(result.current.editor).not.toBeNull();
+    act(() => { result.current.editor!.commands.setContent(editedBody); });
+    expect(result.current.editor!.getJSON()).toEqual(editedBody);
     await act(async () => {
       await result.current.toggleLifecycle("publish");
     });
 
     expect(port.entries[0]!.title).toBe("Edited title");
+    expect(port.entries[0]!.bodyJson).toEqual(editedBody);
+    expect(result.current.entry?.bodyJson).toEqual(editedBody);
     expect(result.current.entry?.status).toBe("published");
     expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 2}`);
   });

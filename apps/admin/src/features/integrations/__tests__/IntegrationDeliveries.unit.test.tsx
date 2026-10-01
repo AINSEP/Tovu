@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { displayTimestamp } from "../rules";
 import { IntegrationDeliveries } from "../IntegrationDeliveries";
 import type { IntegrationDeliveriesController } from "../hooks/use-integration-deliveries.hooks";
 import type { AdminWebhookDelivery } from "@/lib/api";
@@ -17,8 +18,8 @@ const DELIVERY: AdminWebhookDelivery = {
   eventId: "evt1",
   topic: "post.published",
   status: "delivered",
-  attempts: 1,
-  nextAttemptAt: "2026-08-01T00:00:00.000Z",
+  attempts: 3,
+  nextAttemptAt: "2026-08-02T00:00:00.000Z",
   lastResponseStatus: 200,
   lastError: null,
   signedWithVersion: 1,
@@ -70,7 +71,8 @@ describe("delivery table", () => {
     );
     expect(screen.getByText("delivered")).toBeInTheDocument();
     expect(screen.getByText("200")).toBeInTheDocument();
-    // Two "1"s could appear (attempts + version elsewhere) — attempts renders as a bare cell.
+    expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Status", "Attempts", "Last response", "Timestamp"]);
+    expect(screen.getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["delivered", "3", "200", displayTimestamp(DELIVERY)]);
     expect(screen.getAllByRole("cell").length).toBeGreaterThan(0);
   });
 

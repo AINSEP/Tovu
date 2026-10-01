@@ -201,11 +201,15 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
   it("Escape, real validation hint, and Save-not-gated all work end to end through the default hook, alt included", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={vi.fn()} />);
+    const onCancel = vi.fn();
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={onCancel} />);
 
     await user.type(screen.getByLabelText("Alt text (optional)"), "A cat");
     await user.type(screen.getByLabelText("HTML attributes (optional)"), 'onerror="x"');
     expect(await screen.findByText("Event handler attributes like 'onerror' are not allowed.")).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText("HTML attributes (optional)"));
+    await user.keyboard("{Escape}");
+    expect(onCancel).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave).toHaveBeenCalledWith({ alt: "A cat", cssClass: null, htmlAttributes: 'onerror="x"' });
@@ -223,15 +227,18 @@ describe("MediaEditDialog — focus trap", () => {
 });
 
 describe("MediaEditDialog — focus moves in on open and returns to the opener on close", () => {
-  it("moves focus onto the Alt field when the dialog mounts, and restores the opener's focus on unmount", () => {
+  it.each([
+    { showAlt: true, label: "Alt text (optional)" },
+    { showAlt: false, label: "CSS class (optional)" },
+  ])("moves focus onto $label when the dialog mounts, and restores the opener's focus on unmount", ({ showAlt, label }) => {
     const opener = document.createElement("button");
     opener.textContent = "Edit";
     document.body.appendChild(opener);
     opener.focus();
     expect(document.activeElement).toBe(opener);
 
-    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} />);
-    expect(document.activeElement).toBe(screen.getByLabelText("Alt text (optional)"));
+    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} showAlt={showAlt} />);
+    expect(document.activeElement).toBe(screen.getByLabelText(label));
 
     unmount();
     expect(document.activeElement).toBe(opener);

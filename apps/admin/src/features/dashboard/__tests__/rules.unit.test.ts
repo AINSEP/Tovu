@@ -55,6 +55,20 @@ describe("commentsStatMeta", () => {
   });
 });
 
+describe("stat meta translators", () => {
+  it("translates every template and substitutes counts after translation", () => {
+    const markerT = (key: string) => `[${key}]`;
+    expect(postsStatMeta(0, markerT)).toBe("[0 published]");
+    expect(postsStatMeta(5, markerT)).toBe("[5 published]");
+    expect(pagesStatMeta(1, markerT)).toBe("[1 draft]");
+    expect(pagesStatMeta(0, markerT)).toBe("[0 drafts]");
+    expect(pagesStatMeta(3, markerT)).toBe("[3 drafts]");
+    expect(commentsStatMeta(0, markerT)).toBe("[nothing to review]");
+    expect(commentsStatMeta(4, markerT)).toBe("[awaiting moderation]");
+    expect(commentsStatMeta(null, markerT)).toBe("[awaiting moderation]");
+  });
+});
+
 describe("shouldShowDefaultPasswordBanner", () => {
   it("shows when the caller is on the default and hasn't dismissed", () => {
     expect(shouldShowDefaultPasswordBanner(true, false)).toBe(true);

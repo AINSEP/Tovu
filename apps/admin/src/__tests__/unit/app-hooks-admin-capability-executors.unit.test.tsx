@@ -33,6 +33,8 @@ describe("buildAdminCapabilityExecutors", () => {
 
     expect(renderElementToCanvas).toHaveBeenCalledWith(element);
     expect(result.content).toHaveLength(2);
+    expect(result.content[0]).toMatchObject({ type: "text" });
+    expect(result.content[1]).toEqual({ type: "image", mimeType: "image/jpeg", data: "A".repeat(100) });
     document.body.removeChild(element);
   });
 
@@ -104,5 +106,45 @@ describe("buildAdminCapabilityExecutors", () => {
       "admin.publish_content: 'types' must be an array of strings"
     );
     expect(requestPublish).not.toHaveBeenCalled();
+  });
+
+  it("answers still-working after 20 seconds when the first plan stays pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const requestPublish = vi.fn(() => new Promise<PublishRequestResult>(() => {}));
+      const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+      const settled = vi.fn();
+      const result = executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: ["page"] });
+      void result.then(settled);
+      await vi.advanceTimersByTimeAsync(19_999);
+      expect(settled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toHaveBeenCalledTimes(1);
+      await expect(result).resolves.toEqual({
+        opened: true,
+        planned: false,
+        site: null,
+        willPublish: [],
+        willOverwrite: [],
+        leftAlone: [],
+        unmatchedItems: [],
+        unknownTypes: [],
+        nextStep: "Still working out what would change; the dialog will show it.",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the timeout when the first plan settles early", async () => {
+    vi.useFakeTimers();
+    try {
+      const planned = { opened: true, planned: true };
+      const executors = buildAdminCapabilityExecutors(null, vi.fn(), vi.fn().mockResolvedValue(planned));
+      await expect(executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, {})).resolves.toEqual(planned);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

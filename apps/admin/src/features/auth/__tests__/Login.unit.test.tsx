@@ -38,6 +38,8 @@ describe("Login", () => {
     render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "alice", password: "secret" })} />);
     expect(screen.getByLabelText(/username/i)).toHaveValue("alice");
     expect(screen.getByLabelText(/password/i)).toHaveValue("secret");
+    expect(screen.getByLabelText(/password/i)).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText(/password/i)).toHaveAttribute("autocomplete", "current-password");
   });
 
   it("calls the hook's setUsername/setPassword as the operator types", async () => {
@@ -54,8 +56,9 @@ describe("Login", () => {
   });
 
   it("shows no error banner when error is null", () => {
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: null })} />);
+    const { container } = render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: null })} />);
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
+    expect(container.querySelector(".login-error")).toBeNull();
   });
 
   it("shows the hook's error message verbatim when set", () => {

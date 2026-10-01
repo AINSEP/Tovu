@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS, type PanelRouteContext } from "../../panels";
+import { parseRoute } from "../../App";
 import { Themes, ThemeExplore } from "../../features/themes";
 import { Dashboard } from "../../features/dashboard";
 import { Placeholder } from "../../components/Placeholder";
@@ -85,7 +86,6 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "dashboard", component: Dashboard },
   { id: "sites", component: Sites },
   { id: "taxonomy", component: Taxonomy },
-  { id: "users", component: Users },
   { id: "authentication", component: Authentication },
   { id: "roles", component: Roles },
   { id: "members", component: Members },
@@ -124,6 +124,17 @@ describe.each(SIMPLE_PANELS)("panel '$id'", ({ id, component, extraProps }) => {
     const element = panel(id).render(ctx()) as ReactElement;
     expect(element.type).toBe(component);
     if (extraProps) expect(element.props).toMatchObject(extraProps);
+  });
+});
+
+describe("panel 'users'", () => {
+  it("opens the own-password reset only for the change-password view", () => {
+    const reset = panel("users").render(ctx({ view: "change-password" })) as ReactElement;
+    expect(reset.type).toBe(Users);
+    expect(reset.props).toMatchObject({ openOwnPasswordReset: true });
+    const index = panel("users").render(ctx()) as ReactElement;
+    expect(index.type).toBe(Users);
+    expect(index.props).toMatchObject({ openOwnPasswordReset: false });
   });
 });
 
@@ -324,9 +335,44 @@ describe("panel 'integrations'", () => {
   });
 });
 
+const ROUTE_RENDER_CASES = [
+  { id: "pages", pattern: "/:slug", component: PageEditor, props: { slug: "slug-sample" }, key: "slug-sample" },
+  { id: "posts", pattern: "/:postId", component: PostEditor, props: { postId: "postId-sample" }, key: "postId-sample" },
+  { id: "collections", pattern: "/:contentTypeKey/:entryId", component: CollectionEntryEditor, props: { contentTypeKey: "contentTypeKey-sample", entryId: "entryId-sample" }, key: "contentTypeKey-sample:entryId-sample" },
+  { id: "collections", pattern: "/:contentTypeKey", component: CollectionEntries, props: { contentTypeKey: "contentTypeKey-sample" } },
+  { id: "menus", pattern: "/new", component: MenuEditor, props: { menuId: null }, key: "new" },
+  { id: "menus", pattern: "/:menuId", component: MenuEditor, props: { menuId: "menuId-sample" }, key: "menuId-sample" },
+  { id: "widgets", pattern: "/regions", component: WidgetRegions, props: {} },
+  { id: "widgets", pattern: "/regions/:regionKey", component: WidgetRegionEditor, props: { regionKey: "regionKey-sample" }, key: "regionKey-sample" },
+  { id: "widgets", pattern: "/new", component: WidgetInstanceEditor, props: { widgetId: null, widgetType: "html" }, query: "type=html", key: "new" },
+  { id: "widgets", pattern: "/:widgetId", component: WidgetInstanceEditor, props: { widgetId: "widgetId-sample", widgetType: null }, query: "type=html", key: "widgetId-sample" },
+  { id: "forms", pattern: "/:formId/submissions", component: FormEditor, props: { formId: "formId-sample", tab: "submissions" }, key: "formId-sample" },
+  { id: "forms", pattern: "/:formId", component: FormEditor, props: { formId: "formId-sample", tab: "fields" }, key: "formId-sample" },
+  { id: "users", pattern: "/change-password", component: Users, props: { openOwnPasswordReset: true } },
+  { id: "themes", pattern: "/explore", component: ThemeExplore, props: { themeId: "quartz" }, query: "theme=quartz" },
+  { id: "integrations", pattern: "/:subscriptionId", component: IntegrationDeliveries, props: { subscriptionId: "subscriptionId-sample" } },
+];
+
+describe("declared detail routes through the real parser", () => {
+  it("covers every declared route pattern", () => {
+    const declared = ADMIN_PANELS.flatMap((p) => (p.routes ?? []).map((r) => `${p.id}${r.pattern}`));
+    expect(declared.sort()).toEqual(ROUTE_RENDER_CASES.map((c) => `${c.id}${c.pattern}`).sort());
+  });
+
+  it.each(ROUTE_RENDER_CASES)("$id$pattern renders the expected component and props", ({ id, pattern, component, props, query, key }) => {
+    const path = `/${id}${pattern.replace(/:([A-Za-z]+)/g, "$1-sample")}${query ? `?${query}` : ""}`;
+    const route = parseRoute(path);
+    expect(route.panelId).toBe(id);
+    const element = panel(route.panelId!).render(route) as ReactElement;
+    expect(element.type).toBe(component);
+    expect(element.props).toMatchObject(props);
+    if (key !== undefined) expect(element.key).toBe(key);
+  });
+});
+
 describe("ADMIN_PANELS — every panel id is exercised by this file", () => {
   it("no panel id is missing from the simple/tab-threaded/switch-based test groups above", () => {
-    const switchTested = ["pages", "posts", "collections", "menus", "widgets", "forms", "themes", "integrations"];
+    const switchTested = ["pages", "posts", "collections", "menus", "widgets", "forms", "themes", "integrations", "users"];
     const covered = new Set([...SIMPLE_PANELS.map((p) => p.id), ...TAB_THREADED_PANELS.map(([id]) => id), ...switchTested]);
     const missing = ADMIN_PANELS.map((p) => p.id).filter((id) => !covered.has(id));
     expect(missing).toEqual([]);

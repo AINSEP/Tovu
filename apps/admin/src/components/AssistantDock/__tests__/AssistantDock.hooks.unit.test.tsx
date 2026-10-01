@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -89,6 +90,21 @@ describe("useComposerCapabilities", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("ignores a nonempty projection from the cleaned-up effect after StrictMode remount", async () => {
+    const capabilities = await createBundledComposerCapabilitySource().list();
+    let resolveOld!: (value: typeof capabilities) => void;
+    vi.mocked(createBundledComposerCapabilitySource)
+      .mockReturnValueOnce({ id: "bundled", list: () => new Promise((resolve) => { resolveOld = resolve; }) })
+      .mockReturnValueOnce({ id: "bundled", list: async () => [] });
+    const { result } = renderHook(() => useComposerCapabilities(), {
+      reactStrictMode: true,
+    });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { resolveOld(capabilities); });
+    expect(capabilities.length).toBeGreaterThan(0);
+    expect(result.current.composerCapabilities).toEqual(emptyComposerCapabilityProjection());
+  });
+
   it("does not update composerCapabilities after unmount, once a successful projection settles late", async () => {
     let resolveList!: (capabilities: readonly never[]) => void;
     vi.mocked(createBundledComposerCapabilitySource).mockReturnValueOnce({
@@ -146,6 +162,34 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
     expect(html).toContain(`var hostOrigin = ${JSON.stringify(hostOrigin)};`);
     expect(html).not.toContain("window.location.origin");
   });
+
+  it("executes the proxy handshake with an exact host origin and ignores foreign senders", () => {
+    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    const html = decodeURIComponent(url.href.slice(url.href.indexOf(",") + 1));
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+    const host = { postMessage: vi.fn() };
+    const proxyDocument = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    let onMessage!: (event: { source: unknown; origin: string; data: unknown }) => void;
+    runInNewContext(script, {
+      window: { parent: host, addEventListener: (_type: string, listener: typeof onMessage) => { onMessage = listener; } },
+      document: proxyDocument,
+    });
+    expect(host.postMessage).toHaveBeenCalledExactlyOnceWith(
+      { method: "ui/notifications/sandbox-proxy-ready", params: {} }, hostOrigin,
+    );
+
+    const data = { method: "ui/notifications/sandbox-resource-ready", params: { html: "<p>trusted</p>" } };
+    onMessage({ source: host, origin: "https://foreign.example", data });
+    onMessage({ source: {}, origin: hostOrigin, data });
+    expect(proxyDocument.open).not.toHaveBeenCalled();
+    expect(proxyDocument.write).not.toHaveBeenCalled();
+    expect(proxyDocument.close).not.toHaveBeenCalled();
+
+    onMessage({ source: host, origin: hostOrigin, data });
+    expect(proxyDocument.open).toHaveBeenCalledTimes(1);
+    expect(proxyDocument.write).toHaveBeenCalledExactlyOnceWith("<p>trusted</p>");
+    expect(proxyDocument.close).toHaveBeenCalledTimes(1);
+  });
 });
 
 /**
@@ -174,6 +218,17 @@ describe("openMcpUiLink", () => {
 
     openMcpUiLink("javascript:alert(document.cookie)");
 
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "http://example.com/docs",
+    "data:text/html,<script>alert(1)</script>",
+    "file:///tmp/private.txt",
+    "blob:https://admin.example.com/1234",
+  ])("refuses a non-https URL: %s", (url) => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    openMcpUiLink(url);
     expect(openSpy).not.toHaveBeenCalled();
   });
 

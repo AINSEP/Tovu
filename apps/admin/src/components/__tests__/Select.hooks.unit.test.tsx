@@ -169,6 +169,10 @@ describe("focusableInDomOrder", () => {
   it("returns focusable elements in DOM order, skipping disabled ones and anything inside `exclude`", () => {
     document.body.innerHTML = `
       <button id="btn1">one</button>
+      <button id="disabled-button" disabled>disabled</button>
+      <input id="disabled-input" disabled />
+      <select id="disabled-select" disabled><option>disabled</option></select>
+      <textarea id="disabled-textarea" disabled></textarea>
       <div id="host"><input id="inp1" /><button id="btn2" disabled>two</button></div>
       <a id="link1" href="#">three</a>
     `;
@@ -419,10 +423,21 @@ describe("useSelectDropdown", () => {
   });
 
   it("closePanel resets position to null, forcing the measure-then-focus sequence to redo on the next open", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps()));
-    act(() => result.current.openPanel());
-    act(() => result.current.closePanel({ refocusTrigger: false }));
-    expect(result.current.open).toBe(false);
-    expect(result.current.position).toBeNull();
+    withInnerHeight(800, () => {
+      const { result } = renderHook(() => useSelectDropdown(hookProps()));
+      const trigger = fakeTrigger({ top: 100, bottom: 130, left: 20, width: 200 }) as HTMLButtonElement;
+      result.current.triggerRef.current = trigger;
+      act(() => result.current.openPanel());
+      expect(result.current.position).toMatchObject({ top: 134, left: 20, width: 200 });
+
+      act(() => result.current.closePanel({ refocusTrigger: false }));
+      expect(result.current.open).toBe(false);
+      expect(result.current.position).toBeNull();
+
+      vi.mocked(trigger.getBoundingClientRect).mockReturnValue({ top: 200, bottom: 230, left: 80, width: 240 } as DOMRect);
+      act(() => result.current.openPanel());
+      expect(result.current.open).toBe(true);
+      expect(result.current.position).toMatchObject({ top: 234, left: 80, width: 240 });
+    });
   });
 });

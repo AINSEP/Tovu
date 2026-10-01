@@ -43,8 +43,9 @@ describe("mediaProvidersPort.fetchMediaProviders", () => {
 describe("mediaProvidersPort.saveMediaProviders", () => {
   it("persists the whole map and returns the server's authoritative copy", async () => {
     const map = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "1234" } };
-    saveMediaProviders.mockResolvedValue(map);
-    await expect(mediaProvidersPort.saveMediaProviders(map)).resolves.toEqual(map);
+    const authoritative = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "9876" } };
+    saveMediaProviders.mockResolvedValue(authoritative);
+    await expect(mediaProvidersPort.saveMediaProviders(map)).resolves.toEqual(authoritative);
     expect(saveMediaProviders).toHaveBeenCalledWith(map);
   });
 

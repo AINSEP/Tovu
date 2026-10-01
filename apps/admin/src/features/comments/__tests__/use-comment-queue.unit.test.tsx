@@ -1,13 +1,14 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
 import type { AdminComment, AdminCommentsQueuePage, CommentStatus } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeCommentQueuePort } from "../hooks/comment-queue-dependencies.hooks";
 import { useCommentQueue } from "../hooks/use-comment-queue.hooks";
 import type { CommentQueuePort } from "../hooks/comment-queue-port.hooks";
-import { COMMENTS_QUEUE_RESOURCE } from "../rules";
+import { COMMENTS_QUEUE_RESOURCE, KEYS } from "../rules";
 
 /**
  * @file `useCommentQueue` — new coverage added alongside the `useWiredX` conversion
@@ -64,6 +65,17 @@ describe("useCommentQueue", () => {
     }
   });
 
+  it.each([
+    [new Error("network down"), "network down"],
+    [new ApiError("", 500), "failed to load the moderation queue"],
+  ])("exposes an initial queue load failure: %s", async (listError, message) => {
+    const port = createFakeCommentQueuePort({ listError });
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+
+    await waitFor(() => expect(result.current.error).toBe(message));
+    expect(result.current.items).toBeNull();
+  });
+
   it("re-loads page 1 (reset) when the status filter changes", async () => {
     const port = createFakeCommentQueuePort({ items: [COMMENT] });
     const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
@@ -91,6 +103,9 @@ describe("useCommentQueue", () => {
 
   it("onModerate moderates through the injected port and reloads page 1 on success", async () => {
     const port = createFakeCommentQueuePort({ items: [COMMENT] });
+    port.listCommentsQueue = vi.fn()
+      .mockResolvedValueOnce({ items: [COMMENT], nextCursor: null })
+      .mockResolvedValue({ items: [], nextCursor: null });
     const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
@@ -100,8 +115,9 @@ describe("useCommentQueue", () => {
 
     expect(port.moderateCalls).toEqual([{ commentId: "c1", action: "approve", expectedVersion: 1 }]);
     // The moderate call plus a reload of page 1 — the initial load is call 1.
-    expect(port.listCalls).toHaveLength(2);
+    expect(port.listCommentsQueue).toHaveBeenCalledTimes(2);
     expect(result.current.stateFor("c1").error).toBeNull();
+    await waitFor(() => expect(result.current.items).toEqual([]));
   });
 
   it("sets the row's own error (not a global one) when the injected port's moderate call rejects", async () => {
@@ -119,6 +135,9 @@ describe("useCommentQueue", () => {
 
   it("onPurge purges the pending comment through the injected port, reloads, and clears pendingPurge", async () => {
     const port = createFakeCommentQueuePort({ items: [COMMENT] });
+    port.listCommentsQueue = vi.fn()
+      .mockResolvedValueOnce({ items: [COMMENT], nextCursor: null })
+      .mockResolvedValue({ items: [], nextCursor: null });
     const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
@@ -129,6 +148,26 @@ describe("useCommentQueue", () => {
 
     expect(port.purgeCalls).toEqual([{ commentId: "c1" }]);
     expect(result.current.pendingPurge).toBeNull();
+    await waitFor(() => expect(result.current.items).toEqual([]));
+  });
+
+  it.each([
+    [new Error("purge denied"), "purge denied"],
+    [new ApiError("", 500), "Failed to purge comment."],
+  ])("closes the purge dialog and shows the row error on failure: %s", async (purgeError, message) => {
+    const port = createFakeCommentQueuePort({ items: [COMMENT], purgeError });
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([COMMENT]));
+    act(() => result.current.setPendingPurge(COMMENT));
+    expect(result.current.pendingPurge).toEqual(COMMENT);
+
+    await act(async () => { await result.current.onPurge(); });
+
+    expect(port.purgeCalls).toEqual([{ commentId: "c1" }]);
+    expect(result.current.stateFor("c1")).toEqual({ busy: false, error: message });
+    expect(result.current.pendingPurge).toBeNull();
+    expect(result.current.items).toEqual([COMMENT]);
+    expect(result.current.error).toBeNull();
   });
 
   it("is a no-op through the port when onPurge is called with no pendingPurge set", async () => {
@@ -184,46 +223,64 @@ describe("useCommentQueue — content refresh bus", () => {
   afterEach(() => resetContentRefreshBus());
 
   it("re-reads the queue when a content refresh fires, so an assistant moderation action appears without a reload", async () => {
-    const items = [COMMENT];
-    const port = createFakeCommentQueuePort({ items });
+    const port = createFakeCommentQueuePort();
+    const list = vi.fn()
+      .mockResolvedValueOnce({ items: [COMMENT], nextCursor: null })
+      .mockResolvedValue({ items: [COMMENT, { ...COMMENT, id: "c2" }], nextCursor: null });
+    port.listCommentsQueue = list;
     const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([COMMENT]));
 
     // The assistant's `comments_approve_comment` call landing server-side — the screen has no other
     // way to know it happened.
-    items.push({ ...COMMENT, id: "c2" });
     expect(result.current.items).toEqual([COMMENT]);
 
     act(() => publishContentRefresh());
 
     await waitFor(() => expect(result.current.items).toHaveLength(2));
+    expect(list).toHaveBeenCalledTimes(2);
   });
 
   it("refreshes on a notification that names comments-queue, and ignores one that names only other resources", async () => {
-    const items = [COMMENT];
-    const port = createFakeCommentQueuePort({ items });
+    const port = createFakeCommentQueuePort();
+    const list = vi.fn()
+      .mockResolvedValueOnce({ items: [COMMENT], nextCursor: null })
+      .mockResolvedValue({ items: [COMMENT, { ...COMMENT, id: "c2" }], nextCursor: null });
+    port.listCommentsQueue = list;
     const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([COMMENT]));
 
-    items.push({ ...COMMENT, id: "c2" });
 
     act(() => publishContentRefresh(["taxonomy"]));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Notifications and invalidation start list requests synchronously; inspect requests,
+    // rather than waiting for a possibly later query-state notification.
+    expect(list).toHaveBeenCalledTimes(1);
     expect(result.current.items).toEqual([COMMENT]);
 
     act(() => publishContentRefresh([COMMENTS_QUEUE_RESOURCE]));
     await waitFor(() => expect(result.current.items).toHaveLength(2));
+    expect(list).toHaveBeenCalledTimes(2);
   });
 
-  it("stops re-reading once unmounted", async () => {
+  it("stops invalidating the queue once unmounted, even with another observer still mounted", async () => {
     const port = createFakeCommentQueuePort({ items: [COMMENT] });
-    const { result, unmount } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
-    await waitFor(() => expect(result.current.items).not.toBeNull());
-
+    let controller!: ReturnType<typeof useCommentQueue>;
+    function Subscriber() {
+      controller = useCommentQueue({ port, locale: "en" });
+      return null;
+    }
+    function Observer() {
+      useFetchQuery({ key: KEYS.queue("pending"), fetch: () => port.listCommentsQueue({ status: "pending" }) });
+      return null;
+    }
+    const { rerender } = render(<FetchQueryProvider><Observer /><Subscriber /></FetchQueryProvider>);
+    await waitFor(() => expect(controller.items).toEqual([COMMENT]));
     const callsWhileMounted = port.listCalls.length;
-    unmount();
-    act(() => publishContentRefresh());
-    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // Keep the query active: a leaked subscription would otherwise invalidate an inactive
+    // cache without issuing a request, so an ordinary full unmount cannot detect that leak.
+    rerender(<FetchQueryProvider><Observer /></FetchQueryProvider>);
+    await act(async () => publishContentRefresh());
 
     expect(port.listCalls).toHaveLength(callsWhileMounted);
   });

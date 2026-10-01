@@ -251,19 +251,21 @@ describe("loadMore", () => {
     expect(result.current.loadingMore).toBe(false);
   });
 
-  it("sends no cursor param when loadMore is called with nextCursor already null", async () => {
+  it("makes no request and preserves rows when loadMore is called with nextCursor already null", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: null }));
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     expect(result.current.nextCursor).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [], nextCursor: null }));
     await act(async () => {
-      result.current.loadMore();
-      await Promise.resolve();
-      await Promise.resolve();
+      await result.current.loadMore();
     });
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT]);
+    expect(result.current.nextCursor).toBeNull();
     expect(String(fetchMock.mock.calls.at(-1)![0])).not.toContain("cursor=");
   });
 

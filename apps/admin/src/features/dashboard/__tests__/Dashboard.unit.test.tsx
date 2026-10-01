@@ -1,4 +1,5 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Dashboard } from "../Dashboard";
@@ -106,9 +107,11 @@ function successRoutes(): Record<string, () => Promise<Response>> {
   };
 }
 
+let locale = "en";
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
+  locale = "en";
   fetchMock = vi.fn();
   // `useWiredDashboard` also calls `useAdminLocale()` (real `fetch`, not this hook's own concern),
   // which would otherwise consume one of this file's strictly-ordered `mockResolvedValueOnce`
@@ -117,7 +120,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
     if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
       return Promise.resolve(
-        new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
+        new Response(JSON.stringify({ data: [{ key: "locale", value: locale }] }), { status: 200, headers: { "content-type": "application/json" } }),
       );
     }
     return fetchMock(url, init);
@@ -148,6 +151,9 @@ it("renders every stat card's real value and the merged, sorted activity panel w
   const commentsCard = statCard(container, "Comments");
   expect(await within(commentsCard).findByText("4")).toBeInTheDocument();
   expect(within(commentsCard).getByText(/awaiting moderation/)).toBeInTheDocument();
+  const queueCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/comments/queue"));
+  expect(queueCalls).toHaveLength(1);
+  expect(new URL(String(queueCalls[0][0]), "http://localhost").searchParams.get("status")).toBe("pending");
 
   expect(await screen.findByText("editorial")).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -155,6 +161,16 @@ it("renders every stat card's real value and the merged, sorted activity panel w
   expect(container.querySelectorAll(".is-error")).toHaveLength(0);
 
   await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
+});
+
+it("renders the stat meta lines in the operator's Spanish locale", async () => {
+  locale = "es";
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  render(<Dashboard />);
+
+  expect(await screen.findByText("2 publicados")).toBeInTheDocument();
+  expect(screen.getByText("2 borradores")).toBeInTheDocument();
+  expect(screen.getByText("esperando moderación")).toBeInTheDocument();
 });
 
 /**
@@ -387,21 +403,26 @@ describe("default-password banner (password-banner plan, 2026-09-24, Slice 3)", 
 
     const link = await screen.findByRole("link", { name: "Change password" });
     expect(link).toHaveAttribute("href", "/admin/users/change-password");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("link", { name: "Change password" })).not.toBeInTheDocument();
+    expect(screen.queryByText("It is recommended to change your password before deploying")).not.toBeInTheDocument();
+    expect(localStorage.getItem("tovu.admin.default-password-banner.dismissed")).toBe("dash-test-user");
   });
 });
 
 describe("site key banner (site-key plan §A.6)", () => {
-  it("renders no banner on a fresh site — no known state route returns", async () => {
-    fetchMock.mockImplementation(
-      routeFetch({
-        ...successRoutes(),
-        "system/site-token": () =>
-          Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "active" })),
-      }),
-    );
-    render(<Dashboard />);
-
+  it.each([undefined, "missing", "active"])("renders no site-key banner after the %s state settles", async (state) => {
+    let resolveStatus!: (response: Response) => void;
+    const statusResponse = new Promise<Response>((resolve) => { resolveStatus = resolve; });
+    fetchMock.mockImplementation(routeFetch({ ...successRoutes(), "system/site-token": () => statusResponse }));
+    const { container } = render(<Dashboard />);
     await screen.findByText("editorial");
+
+    await act(async () => {
+      resolveStatus(jsonResponse({ active: state === "active", source: "file", keyFilePath: "/x", runtimeMode: "local", state }));
+      await statusResponse;
+    });
+    expect(container.querySelector(".dash-site-key-banner")).toBeNull();
     expect(screen.queryByText(/site key|site's key/i)).not.toBeInTheDocument();
   });
 

@@ -125,7 +125,7 @@ describe("an existing Dockerfile", () => {
     render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ setDraft })} />);
 
     await user.type(screen.getByRole("textbox", { name: "Dockerfile contents" }), "X");
-    expect(setDraft).toHaveBeenCalled();
+    expect(setDraft).toHaveBeenCalledWith("FROM node:22\nX");
   });
 
   it("no Unsaved-changes pill and no Saved confirmation when nothing has changed", () => {
@@ -178,18 +178,29 @@ describe("an existing Dockerfile", () => {
 
   it("Download builds a real file from the current draft — object URL created, anchor clicked, then revoked", async () => {
     const user = userEvent.setup();
+    const draft = "FROM node:22\nRUN echo unsaved-draft\n";
     const createObjectURL = vi.fn().mockReturnValue("blob:fake-url");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ draft })} />);
     await user.click(screen.getByRole("button", { name: "Download" }));
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const [blob] = createObjectURL.mock.calls[0] as [Blob];
     expect(blob).toBeInstanceOf(Blob);
+    const contents = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    expect(contents).toBe(draft);
     expect(clickSpy).toHaveBeenCalledTimes(1);
+    const anchor = clickSpy.mock.contexts[0] as HTMLAnchorElement;
+    expect(anchor.getAttribute("href")).toBe("blob:fake-url");
+    expect(anchor.download).toBe("Dockerfile");
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
 
     clickSpy.mockRestore();
@@ -279,6 +290,10 @@ describe("agent handles", () => {
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-download"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-save"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-textarea"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy" })).toHaveAttribute("data-agent-element", "deployment-dockerfile-copy");
+    expect(screen.getByRole("button", { name: "Download" })).toHaveAttribute("data-agent-element", "deployment-dockerfile-download");
+    expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-agent-element", "deployment-dockerfile-save");
+    expect(screen.getByRole("textbox")).toHaveAttribute("data-agent-element", "deployment-dockerfile-textarea");
     // Nothing to report yet in this state.
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-unsaved"]')).not.toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-saved"]')).not.toBeInTheDocument();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
@@ -41,10 +41,12 @@ it("redeems a #boot= token before checking /auth/me, and the fragment is gone fr
 
   const calls: string[] = [];
   const hashAtCallTime: string[] = [];
-  const fetchMock = vi.fn(async (url: string) => {
+  let finishRedemption!: (response: Response) => void;
+  const redemption = new Promise<Response>((resolve) => { finishRedemption = resolve; });
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
     calls.push(String(url));
     hashAtCallTime.push(window.location.hash);
-    if (String(url).includes("/auth/boot-session")) return meOk("owner-1");
+    if (String(url).includes("/auth/boot-session")) return redemption;
     return meOk("owner-1");
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -54,6 +56,16 @@ it("redeems a #boot= token before checking /auth/me, and the fragment is gone fr
   // Synchronous, right after mount — before any awaited fetch has settled. If the fragment were
   // stripped only after redemption resolved, this would still see the raw token in the URL bar.
   expect(window.location.hash).toBe("");
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/v1/auth/boot-session");
+  expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "POST" });
+  expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ token: "real-token-123" });
+
+  // Flush queued microtasks while redemption is still blocked: auth/me must wait for its cookie.
+  await act(async () => {});
+  expect(calls).toEqual(["/api/admin/v1/auth/boot-session"]);
+  expect(result.current.checking).toBe(true);
+  expect(result.current.user).toBeNull();
+  await act(async () => { finishRedemption(meOk("owner-1")); });
 
   await waitFor(() => expect(result.current.checking).toBe(false));
 

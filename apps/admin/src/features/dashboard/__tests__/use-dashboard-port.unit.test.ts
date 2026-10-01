@@ -43,6 +43,7 @@ describe("useDashboard — injected port", () => {
       activeThemeName: "Meridian",
     });
 
+    const listCommentsQueue = vi.spyOn(port, "listCommentsQueue");
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
 
     await waitFor(() => expect(result.current.posts.value).toBe(2));
@@ -51,6 +52,7 @@ describe("useDashboard — injected port", () => {
     expect(result.current.drafts).toBe(1);
     expect(result.current.media.value).toBe(2);
     expect(result.current.comments.value).toBe(4);
+    expect(listCommentsQueue).toHaveBeenCalledExactlyOnceWith({ status: "pending" });
     expect(result.current.themeId).toBe("quartz-libre");
     expect(result.current.themeName).toBe("Meridian");
     expect(networkMock).not.toHaveBeenCalled();

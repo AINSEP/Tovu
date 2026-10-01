@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useOverflowDetection } from "../useOverflowDetection.hooks";
 
@@ -15,9 +15,10 @@ import { useOverflowDetection } from "../useOverflowDetection.hooks";
 
 type ResizeCallback = () => void;
 
-function installFakeResizeObserver(): { trigger: () => void; observedElements: Element[] } {
+function installFakeResizeObserver() {
   const observedElements: Element[] = [];
   let callback: ResizeCallback = () => {};
+  const disconnect = vi.fn(() => { observedElements.length = 0; });
 
   class FakeResizeObserver {
     constructor(cb: ResizeCallback) {
@@ -26,11 +27,11 @@ function installFakeResizeObserver(): { trigger: () => void; observedElements: E
     observe(el: Element) {
       observedElements.push(el);
     }
-    disconnect() {}
+    disconnect = disconnect;
   }
 
   vi.stubGlobal("ResizeObserver", FakeResizeObserver);
-  return { trigger: () => callback(), observedElements };
+  return { trigger: () => { if (observedElements.length) callback(); }, observedElements, disconnect };
 }
 
 function stubBoxMetrics(el: HTMLElement, metrics: { scrollWidth: number; clientWidth: number; scrollHeight: number; clientHeight: number }) {
@@ -63,6 +64,27 @@ describe("useOverflowDetection", () => {
     const { result } = renderHook(() => useHookWithRef());
 
     expect(result.current.isOverflowing).toBe(false);
+  });
+
+  it.each([
+    [202, 100, true],
+    [201, 101, false],
+    [200, 102, true],
+  ])("measures on mount with 1px slack (scrollWidth=%s, scrollHeight=%s)", (scrollWidth, scrollHeight, overflowing) => {
+    const { observedElements, disconnect } = installFakeResizeObserver();
+    const el = document.createElement("div");
+    stubBoxMetrics(el, { scrollWidth, clientWidth: 200, scrollHeight, clientHeight: 100 });
+    const { result, unmount } = renderHook(() => {
+      const hook = useOverflowDetection();
+      hook.containerRef.current = el;
+      return hook;
+    });
+    expect(observedElements).toEqual([el]);
+    expect(result.current.isOverflowing).toBe(overflowing);
+    expect(disconnect).not.toHaveBeenCalled();
+    unmount();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(observedElements).toEqual([]);
   });
 
   it("reports overflowing once the element's content exceeds its box on either axis", () => {

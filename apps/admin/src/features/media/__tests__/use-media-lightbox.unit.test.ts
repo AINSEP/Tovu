@@ -82,7 +82,8 @@ describe("syncLightboxDialog", () => {
     document.body.appendChild(trigger);
     trigger.focus();
     const closeButton = document.createElement("button");
-    document.body.appendChild(closeButton);
+    dialog.appendChild(closeButton);
+    document.body.appendChild(dialog);
     const focusSpy = vi.spyOn(closeButton, "focus");
 
     const triggerRef: React.RefObject<Element | null> = { current: null };
@@ -93,9 +94,13 @@ describe("syncLightboxDialog", () => {
     expect(triggerRef.current).toBe(trigger);
     expect(dialog.showModal).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenCalledTimes(1);
+    expect(dialog.open).toBe(true);
+    expect(document.activeElement).toBe(closeButton);
+    // jsdom does not enforce a closed dialog's native focus restrictions, so pin the order too.
+    expect(vi.mocked(dialog.showModal).mock.invocationCallOrder[0]).toBeLessThan(focusSpy.mock.invocationCallOrder[0]);
 
     document.body.removeChild(trigger);
-    document.body.removeChild(closeButton);
+    document.body.removeChild(dialog);
   });
 
   it("on close: closes the dialog and restores focus to the captured trigger", () => {

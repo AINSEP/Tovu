@@ -1,4 +1,4 @@
-import { render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { act, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,7 +22,7 @@ import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 
 const chatPaneSpy = vi.hoisted(() => vi.fn());
 
-vi.mock("@jini-ai/chat/react", () => ({
+vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
   JiniChatProvider: ({ children }: { children: ReactNode }) => children,
   ChatPane: (props: {
     executionMode: string;
@@ -59,7 +59,7 @@ vi.mock("@jini-ai/chat/react", () => ({
   ConversationList: () => null,
   A2uiSurfaceCard: () => null,
   createDaemonAttachmentUploader: () => vi.fn(),
-  createMcpUiToolCaller: () => vi.fn(),
+  createMcpUiToolCaller: (await importOriginal<typeof import("@jini-ai/chat/react")>()).createMcpUiToolCaller,
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
   // Module-scope value, not a function: `AssistantDock.tsx` reads it at import time for its
@@ -114,7 +114,7 @@ import {
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { navigate } from "../../lib/router";
 import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { registerExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
+import { MCP_UI_EXT_EVENT_NAME, registerExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
@@ -352,12 +352,15 @@ describe("AssistantDock", () => {
 
   it("reports apiModeAvailable false when BYOK mode is active, no local key is typed, and none is stored server-side", async () => {
     mockLoadExecutionConfig.mockResolvedValue(byokConfig({ apiKey: "  " }));
-    mockLoadAdminExecutionCredential.mockResolvedValue(storedCredential(false));
+    let resolveCredential!: (credential: ReturnType<typeof storedCredential>) => void;
+    mockLoadAdminExecutionCredential.mockReturnValue(new Promise((resolve) => { resolveCredential = resolve; }));
     render(<AssistantDock useChats={() => fakeChats()} />);
 
     await waitFor(() =>
-      expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ apiModeAvailable: false })),
+      expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ executionMode: "api", apiModeAvailable: false })),
     );
+    await act(async () => { resolveCredential(storedCredential(false)); });
+    expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ executionMode: "api", apiModeAvailable: false }));
   });
 
   /**
@@ -634,6 +637,21 @@ describe("AssistantDock useAdminLocale injection", () => {
  * the handler side of this contract, which was already correct and unchanged by this fix.
  */
 describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", () => {
+  it("the forwarded agentControl makes the real ChatPane subscribe to the bridge and unsubscribe on unmount", async () => {
+    const agentBridge = fakeAgentBridge();
+    render(<AssistantDock useChats={() => fakeChats()} agentBridge={agentBridge} />);
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0];
+    const { ChatPane: RealChatPane } = await vi.importActual<typeof import("@jini-ai/chat/react")>("@jini-ai/chat/react");
+    const { unmount } = render(<RealChatPane agentControl={props.agentControl} transport={{
+      startRun: vi.fn(), reattachRun: vi.fn(), fetchRunStatus: vi.fn(), stopRun: vi.fn(),
+    }} />);
+
+    expect(agentBridge.bridgeAccess.subscribe).toHaveBeenCalledWith(expect.any(Function));
+    const unsubscribe = vi.mocked(agentBridge.bridgeAccess.subscribe).mock.results[0].value;
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("wires ChatPane's agentControl to the page bridge, so a claimed chat.* invocation reaches a live listener instead of parking until the daemon's 30s timeout", () => {
     const agentBridge = fakeAgentBridge();
 
@@ -682,6 +700,12 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
  * call.
  */
 describe("AssistantDock — ext event renderer registrations", () => {
+  function rendererFor(eventName: string) {
+    const registration = vi.mocked(registerExtEventRenderer).mock.calls.find(([name]) => name === eventName);
+    expect(registration).toBeDefined();
+    return registration![1];
+  }
+
   /**
    * A complete `ExtEventRenderProps` plus whatever extra props one assertion wants to watch flow
    * through. Each registered renderer spreads its whole props object onto the card it renders,
@@ -706,8 +730,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
   }
 
   it("registers a renderer under MCP_UI_EXT_EVENT_NAME that renders OverflowAwareMcpUiSurfaceCard with every prop passed through, plus a real onToolCall", () => {
-    const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [, renderer] = mockedRegister.mock.calls[0];
+    const renderer = rendererFor(MCP_UI_EXT_EVENT_NAME);
     expect(renderer).toBeInstanceOf(Function);
 
     const element = renderedElement(renderer(extEventProps({ toolCallId: "tc-1", someProp: "value" })));
@@ -715,6 +738,23 @@ describe("AssistantDock — ext event renderer registrations", () => {
     expect(element.type).toBe(OverflowAwareMcpUiSurfaceCard);
     expect(element.props).toMatchObject({ toolCallId: "tc-1", someProp: "value" });
     expect(typeof element.props.onToolCall).toBe("function");
+  });
+
+  it("relays a rendered MCP tool call to the admin endpoint with the session cookie and payload", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ deleted: true })));
+    try {
+      const element = renderedElement(rendererFor(MCP_UI_EXT_EVENT_NAME)(extEventProps({})));
+      const onToolCall = element.props.onToolCall as (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown>;
+      await expect(onToolCall({ name: "content_post_delete", arguments: { id: "post-1", confirmationToken: "confirm-1" } })).resolves.toEqual({ deleted: true });
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/v1/mcp-ui/tool-calls", expect.objectContaining({
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ toolName: "content_post_delete", params: { id: "post-1", confirmationToken: "confirm-1" } }),
+      }));
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   /**
@@ -734,12 +774,14 @@ describe("AssistantDock — ext event renderer registrations", () => {
    * identical either way, which is exactly why this bug can hide behind a weaker assertion.
    */
   it("passes the SAME sandboxProxyUrl object identity across repeated renderer invocations, not a fresh URL each time", () => {
-    const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [, renderer] = mockedRegister.mock.calls[0];
+    const renderer = rendererFor(MCP_UI_EXT_EVENT_NAME);
 
     const first = renderedElement(renderer(extEventProps({ toolCallId: "tc-1" })));
     const second = renderedElement(renderer(extEventProps({ toolCallId: "tc-2" })));
 
+    expect(first.props.sandboxProxyUrl).toBeInstanceOf(URL);
+    expect((first.props.sandboxProxyUrl as URL).protocol).toBe("data:");
+    expect((first.props.sandboxProxyUrl as URL).href).toMatch(/^data:text\/html/);
     expect(first.props.sandboxProxyUrl).toBe(second.props.sandboxProxyUrl);
   });
 
@@ -750,9 +792,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
    * callback had ever been invoked, since `registerExtEventRenderer` itself is mocked in this file.
    */
   it("registers a renderer under 'a2ui' that renders RoutedA2uiSurfaceCard with every prop passed through, plus a real onAgentAction", () => {
-    const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [eventName, renderer] = mockedRegister.mock.calls[1];
-    expect(eventName).toBe("a2ui");
+    const renderer = rendererFor("a2ui");
 
     const element = renderedElement(renderer(extEventProps({ actionId: "a-1", someProp: "value" })));
 
@@ -762,9 +802,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
   });
 
   it("registers a renderer under 'slow_running' that renders SlowRunNoticeCard with every prop passed through", () => {
-    const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [eventName, renderer] = mockedRegister.mock.calls[2];
-    expect(eventName).toBe("slow_running");
+    const renderer = rendererFor("slow_running");
 
     const element = renderedElement(renderer(extEventProps({ someProp: "value" }, "r-1")));
 

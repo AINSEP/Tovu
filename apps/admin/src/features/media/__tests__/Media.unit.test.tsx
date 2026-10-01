@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
 
 import { Media } from "../Media";
 import { api } from "@/lib/api";
@@ -184,6 +185,39 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     expect(screen.getByText("sunset.png")).toBeInTheDocument();
   });
 
+  it("uploads the selected file bytes and trimmed alt, refreshes the grid, and clears the chooser", async () => {
+    const user = userEvent.setup();
+    const uploaded = { ...ACTIVE_ITEM, id: "media-new", title: "New Photo", slug: "new-photo" };
+    let uploadedBody: unknown = null;
+    let items = [ACTIVE_ITEM];
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === "/api/admin/v1/workspaces/workspace-local/media" && method === "POST") {
+        uploadedBody = JSON.parse(String(init?.body));
+        items = [uploaded, ...items];
+        return Promise.resolve(jsonResponse({ media: uploaded }));
+      }
+      if (url === "/api/admin/v1/workspaces/workspace-local/media" && method === "GET") {
+        return Promise.resolve(jsonResponse({ media: items }));
+      }
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const { container } = renderScreen();
+    await waitForCard(container, "Sunset Photo");
+    const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
+    await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
+    await user.type(screen.getByRole("textbox", { name: "Alt text (optional)" }), "  New photo alt  ");
+    await user.click(screen.getByRole("button", { name: "Upload", exact: true }));
+
+    await waitForCard(container, "New Photo");
+    expect(uploadedBody).toEqual({ filename: "new.png", contentType: "image/png", dataBase64: "AAEC/f7/", alt: "New photo alt" });
+    await waitFor(() => expect(fileInput.files).toHaveLength(0));
+    expect(fileInput).toHaveValue("");
+    expect(screen.getByText("No file chosen")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Alt text (optional)" })).toHaveValue("");
+  });
+
   it("the alt-text field has a real accessible name beyond its placeholder", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();
@@ -198,19 +232,16 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
   // and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/media-import/fetch-image.ts`) — it had
   // drifted the same way theirs had: `video/mp4`/`video/webm` were added to the server's real ceiling
   // (`DEFAULT_ALLOWED_MIME_TYPES`, `@jini-ai/cms/media`'s `media-service.ts`) 2026-08-24 but never
-  // mirrored into this upload `<input>`'s `accept` attribute or its handle label. Pinned here to the
-  // exact 7-type set so a future server-side addition fails this test instead of silently drifting
-  // again.
-  it("the file picker's accept list matches the server's real upload ceiling (all 7 DEFAULT_ALLOWED_MIME_TYPES, not just images)", async () => {
+  // mirrored into this upload `<input>`'s `accept` attribute or its handle label. Compare with the
+  // server contract itself so future changes cannot silently drift again.
+  it("the file picker's accept list matches DEFAULT_ALLOWED_MIME_TYPES", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
     const fileInput = screen.getByLabelText("File to upload");
     const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
-    expect(accepted).toEqual(
-      new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "video/mp4", "video/webm"])
-    );
+    expect(accepted).toEqual(DEFAULT_ALLOWED_MIME_TYPES);
   });
 });
 
@@ -414,17 +445,22 @@ describe("lightbox", () => {
     const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
     await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
     expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Close", exact: true })).toHaveFocus();
 
-    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    await user.keyboard("{ArrowRight}");
     expect(within(dialog).getByRole("heading", { name: "Trashed Clip" })).toBeInTheDocument();
     expect(within(dialog).getByText("2 / 2")).toBeInTheDocument();
 
     // Past the last item: stays put rather than wrapping to the first.
-    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    await user.keyboard("{ArrowRight}");
     expect(within(dialog).getByRole("heading", { name: "Trashed Clip" })).toBeInTheDocument();
+    expect(within(dialog).getByText("2 / 2")).toBeInTheDocument();
 
-    fireEvent.keyDown(dialog, { key: "ArrowLeft" });
+    await user.keyboard("{ArrowLeft}");
     expect(within(dialog).getByRole("heading", { name: "Sunset Photo" })).toBeInTheDocument();
+    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
+    await user.keyboard("{ArrowLeft}");
+    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
   });
 
   it("omits the expand trigger once an asset resolves as unsupported — nothing larger to show than the existing placeholder", async () => {
@@ -633,9 +669,34 @@ describe("metadata edit stays a partial patch", () => {
     expect(heightInput).toHaveValue(null);
 
     await user.type(widthInput, "800");
+    await user.type(heightInput, "450");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(patchBody).toEqual({ width: 800 }));
+    await waitFor(() => expect(patchBody).toEqual({ width: 800, height: 450 }));
+  });
+
+  it("clearing existing width and height sends null for native size", async () => {
+    const user = userEvent.setup();
+    const sizedItem = { ...ACTIVE_ITEM, width: 800, height: 450 };
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: ACTIVE_ITEM }));
+      }
+      if (method === "GET" && url.includes("/media")) return Promise.resolve(jsonResponse({ media: [sizedItem] }));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await user.clear(await screen.findByLabelText("Width (px)"));
+    await user.clear(screen.getByLabelText("Height (px)"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(patchBody).toEqual({ width: null, height: null }));
   });
 });
 
@@ -835,7 +896,7 @@ describe("EditMediaPanel — slug field", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/taken-slug/);
+    expect(alert).toHaveTextContent("slug 'taken-slug' is already used by another media asset in this workspace");
   });
 });
 
@@ -923,7 +984,7 @@ describe("EditMediaPanel — HTML attributes field", () => {
     expect(patchBody).toEqual({ title: "A Whole New Title", htmlAttributes: 'onerror="alert(1)"' });
   });
 
-  it("a 400 rejection from the server surfaces through the same save-error banner other failures use, even for a value THIS form's own client-side check passed (proves the server enforces independently, not just this form's live hint)", async () => {
+  it("displays the server's full 400 rejection for a value the client-side check accepts", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       const method = (init?.method ?? "GET").toUpperCase();
@@ -942,7 +1003,7 @@ describe("EditMediaPanel — HTML attributes field", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/data-motion/);
+    expect(alert).toHaveTextContent("media.htmlAttributes: 'data-motion' is not an allowed HTML attribute.");
   });
 });
 

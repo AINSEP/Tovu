@@ -70,6 +70,26 @@ describe("deployment-i18n error-message templates — unsupported-locale fallbac
   });
 });
 
+const SPANISH_TEMPLATES: Array<{ fn: (locale: string, error: string) => string; template: string }> = [
+  { fn: deploymentOverviewLoadErrorMessage, template: "No se pudo cargar el estado del despliegue ({error})." },
+  { fn: dockerfileLoadErrorMessage, template: "No se pudo cargar el Dockerfile ({error})." },
+  { fn: dockerfileSaveErrorMessage, template: "No se pudo guardar el Dockerfile ({error})." },
+  { fn: exportLoadErrorMessage, template: "No se pudo cargar el estado de la exportación ({error})." },
+  { fn: exportTriggerErrorMessage, template: "No se pudo iniciar la exportación ({error})." },
+  { fn: publishLoadErrorMessage, template: "No se pudo cargar el estado de la publicación ({error})." },
+  { fn: publishPreviewErrorMessage, template: "No se pudo comprobar este destino ({error})." },
+  { fn: publishTriggerErrorMessage, template: "No se pudo iniciar la publicación ({error})." },
+];
+
+describe("deployment-i18n error-message templates — covered non-English locale", () => {
+  it.each(SPANISH_TEMPLATES)("renders $template in Spanish and interpolates the error", ({ fn, template }) => {
+    const message = fn("es", "disk full");
+    expect(message).toBe(template.replace("{error}", "disk full"));
+    expect(message).not.toBe(fn("en", "disk full"));
+    expect(message).toContain("disk full");
+  });
+});
+
 const ADMIN_LOCALES = ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"];
 
 describe("deployment-i18n — Static Site credential row and publish step", () => {
@@ -95,7 +115,11 @@ describe("deployment-i18n — Static Site credential row and publish step", () =
   };
 
   it.each(ADMIN_LOCALES)("%s translates every string the Static Site tab shows", (locale) => {
-    for (const key of plain) expect(t(locale, key), `${locale}: ${key}`).not.toBe(key);
+    for (const key of plain) {
+      const value = t(locale, key);
+      expect(value, `${locale}: ${key}`).not.toBe(key);
+      expect(value.trim(), `${locale}: ${key}`).not.toBe("");
+    }
   });
 
   it.each(ADMIN_LOCALES)("%s keeps each summary template's placeholder, so the host, time and account land where its grammar puts them", (locale) => {

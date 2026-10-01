@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -65,12 +65,13 @@ describe("row actions menu", () => {
   it("moves Pause/Delete into a RowMenu, and Delete opens ConfirmDialog instead of window.confirm", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm");
+    const other = { ...SUBSCRIPTION, id: "sub2", label: "Other webhook" };
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ subscriptions: [SUBSCRIPTION] }))
+      .mockResolvedValueOnce(jsonResponse({ subscriptions: [other, SUBSCRIPTION] }))
       .mockResolvedValueOnce(jsonResponse({ subscription: SUBSCRIPTION }))
       // `onDelete` reloads the list on success (`await reload()`), same as every other write in
       // this file — a second GET, not just the DELETE itself.
-      .mockResolvedValueOnce(jsonResponse({ subscriptions: [] }));
+      .mockResolvedValueOnce(jsonResponse({ subscriptions: [other] }));
 
     renderScreen(<Integrations />);
 
@@ -89,6 +90,31 @@ describe("row actions menu", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const deleteCall = fetchMock.mock.calls[1];
     expect(deleteCall[1]?.method).toBe("DELETE");
+    expect(deleteCall[0]).toBe("/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/sub1");
+    await waitFor(() => expect(screen.queryByRole("link", { name: "My webhook" })).not.toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Other webhook" })).toBeInTheDocument();
+  });
+
+  it("Pause targets the chosen subscription and changes only its row to paused", async () => {
+    const user = userEvent.setup();
+    const other = { ...SUBSCRIPTION, id: "sub2", label: "Other webhook" };
+    const paused = { ...SUBSCRIPTION, status: "paused" };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ subscriptions: [other, SUBSCRIPTION] }))
+      .mockResolvedValueOnce(jsonResponse({ subscription: paused }))
+      .mockResolvedValueOnce(jsonResponse({ subscriptions: [other, paused] }));
+    renderScreen(<Integrations />);
+
+    await user.click(await screen.findByRole("button", { name: /actions for webhook "my webhook"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /^pause$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/sub1/pause");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ paused: true });
+    await waitFor(() => expect(within(screen.getByRole("link", { name: "My webhook" }).closest("tr")!).getByText("paused")).toBeInTheDocument());
+    expect(within(screen.getByRole("link", { name: "Other webhook" }).closest("tr")!).getByText("active")).toBeInTheDocument();
   });
 
   it("withholds the menu entirely for a disabled subscription, rather than an unusable empty dropdown", async () => {
