@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,5 +44,26 @@ describe("media preview click opens lightbox", () => {
     await user.click(within(dialog).getByRole("button", { name: /previous asset/i }));
     await user.click(within(dialog).getByRole("button", { name: /previous asset/i }));
     expect(within(dialog).getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
+  });
+
+  it("video cards: clicking the video does not open the lightbox; the corner button still does", async () => {
+    const user = userEvent.setup();
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    await screen.findByText("Beta");
+    const card = screen.getByText("Beta").closest(".media-card") as HTMLElement;
+    fireEvent.error(card.querySelector(".media-card-preview img")!);
+    const video = await waitFor(() => {
+      const v = card.querySelector(".media-card-preview video");
+      expect(v).not.toBeNull();
+      return v as HTMLElement;
+    });
+    expect(video.closest("button")).toBeNull();
+
+    await user.click(video);
+    expect(document.querySelector("dialog.media-lightbox")!.querySelector("h2")).toBeNull();
+
+    await user.click(within(card).getByRole("button", { name: /view "beta" larger/i }));
+    const dialog = document.querySelector("dialog.media-lightbox") as HTMLElement;
+    expect(within(dialog).getByRole("heading", { name: "Beta" })).toBeInTheDocument();
   });
 });
