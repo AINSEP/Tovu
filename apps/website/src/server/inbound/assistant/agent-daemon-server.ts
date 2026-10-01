@@ -169,7 +169,7 @@ import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pe
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { isRedactedToolFailure } from "#src/assistant/tool-failure-redaction";
+import { delegatedToolErrorDisclosure } from "#src/assistant/tool-failure-redaction";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import type { RunPageContext } from "#src/assistant/run-page-context";
 
@@ -1140,13 +1140,23 @@ registerRunActiveContextRoute(app, runActiveContexts);
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.
-// `isModelSafeToolFailure` lets a failure `withRedactedToolFailures` already redacted (it carries an
-// `ERR-…` id) reach the model as `Error <ID>: <reason>` rather than http-kit's opaque INTERNAL_ERROR.
-registerDelegatedToolRoutes(
-  app,
-  { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry, isModelSafeToolFailure: isRedactedToolFailure },
-  adapter,
-);
+// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
+// lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
+// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
+// would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
+// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text.
+// Built as a variable, not an inline literal: `describeInternalError` is newer than the published
+// @jini-ai/http-kit 0.3.7 types, and a non-literal argument is not excess-property-checked, so this
+// compiles against both. Against 0.3.7 at runtime the option is inert (bare 500s return) until
+// Tovu's http-kit range is bumped to the release that ships it.
+const delegatedToolRouteDeps = {
+  lifecycle,
+  toolExecutor,
+  resolvePrincipal,
+  toolRegistry: registry,
+  ...delegatedToolErrorDisclosure(),
+};
+registerDelegatedToolRoutes(app, delegatedToolRouteDeps, adapter);
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape

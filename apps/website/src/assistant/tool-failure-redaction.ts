@@ -82,6 +82,84 @@ export function isRedactedToolFailure(result: ToolExecutionResult): boolean {
   return readToolErrorId(result) !== undefined;
 }
 
+/**
+ * What `@jini-ai/http-kit`'s `describeInternalError` hands its describer — declared here,
+ * structurally, rather than imported as `DelegatedToolsInternalErrorContext`, so this module still
+ * compiles against a published http-kit that predates `status`.
+ */
+export interface DelegatedInternalErrorContext {
+  readonly source: string;
+  readonly runId: string;
+  readonly toolId: string;
+  /** http-kit's own id for this failure — the one its `[@jini-ai/http-kit] internal error` log line carries. */
+  readonly correlationId: string;
+  readonly error: unknown;
+  /** Set for a settled `timed-out`/`cancelled`/`failed` result; absent for a throw. */
+  readonly status?: string;
+}
+
+/** The unredacted reason for one delegated-route internal error, before {@link redactSecretShapes}. */
+function delegatedInternalErrorReason(context: DelegatedInternalErrorContext): string {
+  if (context.status === "timed-out") return `tool "${context.toolId}" timed out before it finished`;
+  if (context.status === "cancelled") {
+    return `tool "${context.toolId}" was cancelled before it finished (the run ended or the call was abandoned)`;
+  }
+  if (context.error instanceof Error && context.error.message.length > 0) return context.error.message;
+  if (typeof context.error === "string" && context.error.length > 0) return context.error;
+  return `tool "${context.toolId}" failed`;
+}
+
+/**
+ * `@jini-ai/http-kit`'s `describeInternalError` for the agent daemon's delegated-tool route: the
+ * text a model gets in place of the bare `INTERNAL_ERROR: an internal error occurred` for every
+ * failure that route would otherwise redact whole — an unknown tool id (the executor throws), a
+ * throwing `resolvePrincipal`, a `timed-out` or `cancelled` result, and a `failed` result that never
+ * passed through {@link withRedactedToolFailures}. Same "hide secrets only" rule and the same
+ * `Error <ID>: <reason>` shape as that decorator, with one {@link ToolFailureRecord} per call.
+ *
+ * There is no execution or resolved principal to record for a throw, so the record carries
+ * http-kit's `correlationId` in `executionId` instead — the id that joins it to http-kit's own log
+ * line for the same failure.
+ *
+ * @param context - The failure as http-kit reports it.
+ * @param deps - Test seams; production passes nothing.
+ * @returns `Error <ID>: <redacted reason>`.
+ * @complexity O(reason length) for the redaction pass.
+ */
+export function describeDelegatedInternalError(context: DelegatedInternalErrorContext, deps: RedactedToolFailuresDeps = {}): string {
+  const { text, redactions } = redactSecretShapes(delegatedInternalErrorReason(context));
+  const errorId = (deps.mintErrorId ?? mintToolErrorId)();
+  safeOnFailure(deps.onFailure ?? logToolFailure, {
+    errorId,
+    toolId: context.toolId,
+    runId: context.runId,
+    principalId: "(unresolved)",
+    executionId: `(none) correlationId=${context.correlationId}`,
+    redactions,
+    message: text,
+  });
+  return `Error ${errorId}: ${text}`;
+}
+
+/**
+ * The two error-disclosure options the agent daemon spreads into `registerDelegatedToolRoutes`, as
+ * one value so the daemon and its tests wire the identical pair: a failure this layer already
+ * ID-tagged answers `422 TOOL_EXECUTION_FAILED`, and every other internal error answers `500` with
+ * {@link describeDelegatedInternalError}'s text.
+ *
+ * @param deps - Test seams forwarded to the describer; production passes nothing.
+ * @complexity O(1).
+ */
+export function delegatedToolErrorDisclosure(deps: RedactedToolFailuresDeps = {}): {
+  readonly isModelSafeToolFailure: (result: ToolExecutionResult) => boolean;
+  readonly describeInternalError: (context: DelegatedInternalErrorContext) => string;
+} {
+  return {
+    isModelSafeToolFailure: isRedactedToolFailure,
+    describeInternalError: (context) => describeDelegatedInternalError(context, deps),
+  };
+}
+
 /** The value-free server-side record for one internal failure — everything needed to find the
  *  tool, run, principal, execution and full (already redacted) message under its ID, with no secret
  *  value ever entering it. `message` is the text AFTER {@link redactSecretShapes}. */
