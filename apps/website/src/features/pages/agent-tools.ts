@@ -179,8 +179,8 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "section inside the first, not replace it. Send only what goes inside: `<h1>New headline</h1>`.\n\n" +
       "Editing a region that CONTAINS other regions replaces those too — the result reports the " +
       "handles that still exist afterwards, so check them before targeting one again.\n\n" +
-      "To restructure the page, add a section, or remove one, use pages_write_html instead: this tool " +
-      "cannot change a region's own tag or attributes, and cannot create or delete a region.\n\n" +
+      "To reorder sections, use pages_move_region. To add a section or remove one, use pages_write_html " +
+      "instead: this tool cannot change a region's own tag or attributes, and cannot create or delete a region.\n\n" +
       PAGE_HTML_CONTRACT +
       VERSION_CONFLICT_GUIDANCE,
     sideEffects: "mutates-durable-state",
@@ -206,6 +206,47 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
           description:
             "The new INNER content for that region — what goes between its open and close tags. Do not " +
             "include the region element itself. Follows the same contract as this tool's description.",
+        },
+        expectedVersion: EXPECTED_VERSION_SCHEMA,
+      },
+    },
+  },
+  {
+    name: "pages_move_region",
+    description:
+      "Moves one whole section (region) of a page to sit immediately before or after another section — " +
+      "reorder, swap, or rearrange the page's sections without rewriting the page. The section moves as one " +
+      "piece: its tag, handle, contents and any regions nested inside it all travel together, and every other " +
+      "byte of the page stays exactly as it was.\n\n" +
+      "Address both sections by the handles in pages_read_html's 'regions' list (in page order). Send " +
+      "exactly one of 'before' or 'after'. To swap two adjacent sections, move the second one before the " +
+      "first. The result lists the handles in their new order.\n\n" +
+      "This only reorders; to change what a section says use pages_write_region, and to add or remove a " +
+      "section use pages_write_html." +
+      VERSION_CONFLICT_GUIDANCE,
+    sideEffects: "mutates-durable-state",
+    // Same gate as the other two writers: it rewrites the same `body_html` of the same public page.
+    authorization: { permission: PAGES_EDIT_HTML_PERMISSION },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "handle"],
+      properties: {
+        id: PAGE_ID_SCHEMA,
+        handle: {
+          type: "string",
+          minLength: 1,
+          description: "The handle of the section to move, exactly as pages_read_html reported it in 'regions'.",
+        },
+        before: {
+          type: "string",
+          minLength: 1,
+          description: "Place the moved section immediately BEFORE the section with this handle. Send this or 'after', not both.",
+        },
+        after: {
+          type: "string",
+          minLength: 1,
+          description: "Place the moved section immediately AFTER the section with this handle. Send this or 'before', not both.",
         },
         expectedVersion: EXPECTED_VERSION_SCHEMA,
       },

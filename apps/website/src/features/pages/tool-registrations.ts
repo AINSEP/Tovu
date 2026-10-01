@@ -28,10 +28,13 @@ import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import {
   handlesMadeAmbiguous,
   locateRegion,
+  moveRegion,
   regionHandlesIn,
   replaceRegionInner,
   untaggedTopLevelSections,
+  type PageRegion,
   type RegionLookupProblem,
+  type RegionMoveProblem,
 } from "./regions.js";
 
 /**
@@ -66,6 +69,8 @@ const pagesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffec
   //    missing here is not a safe default: `assertRiskMetadataIsWirable` refuses to register a tool
   //    with no classification at all, so the tool would simply not exist at runtime.
   ["pages_write_region", "mutates-durable-state"],
+  // -> read() + write(): the same version-conditioned UPDATE of body_html, carrying a reordered document.
+  ["pages_move_region", "mutates-durable-state"],
 ]);
 
 const CATALOG_BY_ID = indexCatalogById(pagesAgentToolCatalog);
@@ -227,6 +232,19 @@ function describeRegionProblem(id: string, handle: string, problem: RegionLookup
 }
 
 /**
+ * The single region `handle` addresses in page `id`'s body.
+ *
+ * @throws {ToolInputError} With {@link describeRegionProblem}'s sentence when it is absent, ambiguous
+ * or unclosed.
+ * @complexity O(n) in `html`'s length.
+ */
+function requireRegion(html: string, id: string, handle: string): PageRegion {
+  const lookup = locateRegion(html, handle);
+  if ("problem" in lookup) throw new ToolInputError(describeRegionProblem(id, handle, lookup.problem));
+  return lookup.region;
+}
+
+/**
  * The refusal for a region fragment that would leave some handle on more than one element.
  *
  * @complexity O(k) in the offending handle count.
@@ -251,6 +269,40 @@ function describeFullWriteHandleCollision(id: string, collisions: readonly strin
     `Nothing was written: the html for page '${id}' puts data-agent-element=${quoted} on more than one element, ` +
     "so that handle would stop addressing a single region. Give each section its own handle (each handle must be " +
     "unique across the whole page), then write the page again."
+  );
+}
+
+/**
+ * The `before`/`after` pair off a `pages_move_region` input — exactly one, as a placement.
+ *
+ * @throws {ToolInputError} When neither or both were sent.
+ * @complexity O(1).
+ */
+function parseMovePlacement(input: Record<string, unknown>): { placement: "before" | "after"; targetHandle: string } {
+  const hasBefore = input.before !== undefined;
+  if (hasBefore === (input.after !== undefined)) {
+    throw new ToolInputError(
+      "Send exactly one of 'before' or 'after': the handle of the region the moved section should sit immediately before, " +
+        "or immediately after. Nothing was written."
+    );
+  }
+  const placement = hasBefore ? "before" : "after";
+  return { placement, targetHandle: requireString(input, placement) };
+}
+
+/**
+ * The refusal for a move whose target is the moved region itself or lies inside it.
+ *
+ * @complexity O(1).
+ */
+function describeMoveProblem(move: { handle: string; targetHandle: string; placement: string; problem: RegionMoveProblem }): string {
+  const { handle, targetHandle, placement, problem } = move;
+  if (problem === "self") {
+    return `Nothing was written: '${handle}' cannot be placed ${placement} itself. Name a different region as the target.`;
+  }
+  return (
+    `Nothing was written: '${targetHandle}' is inside '${handle}', so '${handle}' cannot be placed ${placement} it — a section ` +
+    `cannot sit inside itself. Name a region outside '${handle}' as the target.`
   );
 }
 
@@ -485,6 +537,58 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         regions: regionHandlesIn(next),
         version: requireCapturedVersion(store),
       };
+    },
+
+    /**
+     * The section reorder. Read, cut-and-reinsert one whole region element, version-conditioned
+     * write — so "swap these two sections" never means re-sending the page.
+     */
+    pages_move_region: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: PAGES_EDIT_HTML_PERMISSION,
+        entityType: "post",
+      });
+
+      const id = requireString(input, "id");
+      const handle = requireString(input, "handle");
+      const { placement, targetHandle } = parseMovePlacement(input);
+      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
+
+      let current: string;
+      try {
+        current = await store.read();
+      } catch (err) {
+        if (!(err instanceof PageNotFoundError)) throw err;
+        return {
+          written: false,
+          reason:
+            `'${id}' has no bespoke HTML body to move a region of. Either it is a post (posts are edited with ` +
+            "content_post_update), or it is a page nobody has authored yet — author it in full with pages_write_html first.",
+        };
+      }
+      assertExpectedVersion({ id, expectedVersion, basis: requireCapturedVersion(store) });
+
+      const moved = moveRegion(current, requireRegion(current, id, handle), requireRegion(current, id, targetHandle), placement);
+      if ("problem" in moved) {
+        return { written: false, reason: describeMoveProblem({ handle, targetHandle, placement, problem: moved.problem }) };
+      }
+      if (moved.html === current) {
+        return {
+          written: false,
+          reason:
+            `Nothing was written: '${handle}' already sits immediately ${placement} '${targetHandle}'. ` +
+            `Current order: ${regionHandlesIn(current).join(", ")}.`,
+        };
+      }
+      try {
+        await store.write(moved.html);
+      } catch (err) {
+        throw toModelFacingWriteError(err);
+      }
+      return { written: true, id, handle, regions: regionHandlesIn(moved.html), version: requireCapturedVersion(store) };
     },
   };
 

@@ -73,7 +73,7 @@ async function seedThreeRegionPage(call: (n: string, i: Record<string, unknown>)
 
 test("pages_write_region is registered and publishes an input schema", () => {
   const { byName } = harness();
-  assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_region", "pages_write_html"].sort());
+  assert.deepEqual([...byName.keys()].sort(), ["pages_move_region", "pages_read_html", "pages_write_region", "pages_write_html"].sort());
   assert.ok(byName.get("pages_write_region")?.descriptor.inputSchema, "pages_write_region must publish an input schema");
 });
 

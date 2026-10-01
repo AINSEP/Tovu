@@ -71,9 +71,9 @@ test("pages_write_html and pages_write_region tell the model to write the JSON e
   }
 });
 
-test("all three Pages tools are registered with the input schemas the model needs", () => {
+test("all four Pages tools are registered with the input schemas the model needs", () => {
   const { byName } = harness();
-  assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_html", "pages_write_region"]);
+  assert.deepEqual([...byName.keys()].sort(), ["pages_move_region", "pages_read_html", "pages_write_html", "pages_write_region"]);
   for (const [name, entry] of byName) {
     assert.ok(entry.descriptor.inputSchema, `${name} must publish an input schema`);
   }

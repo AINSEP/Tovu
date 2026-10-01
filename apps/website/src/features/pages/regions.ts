@@ -372,6 +372,52 @@ export function replaceRegionInner(html: string, region: PageRegion, fragment: s
   return html.slice(0, region.innerStart) + fragment + html.slice(region.innerEnd);
 }
 
+/** Why {@link moveRegion} refused: the target IS the moved region, or lies inside it. */
+export type RegionMoveProblem = "self" | "into-itself";
+
+/** The whitespace run starting at `from` (forward) or ending at `from` (backward). */
+function whitespaceRun(html: string, from: number, direction: 1 | -1): number {
+  let cursor = from;
+  while (direction === 1 ? cursor < html.length && /\s/.test(html[cursor] as string) : cursor > 0 && /\s/.test(html[cursor - 1] as string)) {
+    cursor += direction;
+  }
+  return cursor;
+}
+
+/**
+ * The document with the WHOLE `moving` element (tag, handle, contents, nested regions) cut out and
+ * placed immediately before or after `target`, every other byte kept in order.
+ *
+ * The whitespace that followed the moved element travels with it (or, for an element with nothing
+ * after it, the whitespace before it), so a moved section neither glues onto its new neighbour nor
+ * leaves a doubled blank line where it was. Any target outside `moving` is legal — nested or not —
+ * because both offsets are element boundaries the scanner delimited, so the result stays balanced.
+ *
+ * @returns The new document, or why the move is impossible. An unchanged document is returned as-is.
+ * @complexity O(n) in `html`'s length.
+ */
+export function moveRegion(
+  html: string,
+  moving: PageRegion,
+  target: PageRegion,
+  placement: "before" | "after"
+): { readonly html: string } | { readonly problem: RegionMoveProblem } {
+  if (moving.start === target.start) return { problem: "self" };
+  if (target.start > moving.start && target.end <= moving.end) return { problem: "into-itself" };
+
+  let cutStart = moving.start;
+  let cutEnd = whitespaceRun(html, moving.end, 1);
+  if (cutEnd === moving.end) cutStart = whitespaceRun(html, moving.start, -1);
+  const element = html.slice(moving.start, moving.end);
+  const gap = cutEnd > moving.end ? html.slice(moving.end, cutEnd) : html.slice(cutStart, moving.start);
+
+  const without = html.slice(0, cutStart) + html.slice(cutEnd);
+  const anchor = placement === "before" ? target.start : target.end;
+  const at = anchor >= cutEnd ? anchor - (cutEnd - cutStart) : anchor;
+  const piece = placement === "before" ? element + gap : gap + element;
+  return { html: without.slice(0, at) + piece + without.slice(at) };
+}
+
 /** A top-level element the contract requires a handle on, and the handle it should probably carry. */
 export interface UntaggedSection {
   readonly tag: string;
