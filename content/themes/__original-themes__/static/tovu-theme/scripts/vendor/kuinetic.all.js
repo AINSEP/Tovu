@@ -25,10 +25,13 @@ var kuinetic = (() => {
     Animator: () => Animator,
     CHANNEL: () => CHANNEL,
     COMBOS: () => COMBOS,
+    KEY_NOTE_OWNER: () => KEY_NOTE_OWNER,
     KUI_EVENT: () => KUI_EVENT,
     PRESETS: () => PRESETS,
     PRIMITIVES: () => PRIMITIVES,
     Registry: () => Registry,
+    SUBTREE_CHANNEL: () => SUBTREE_CHANNEL,
+    attributeChannel: () => attributeChannel,
     collectingReporter: () => collectingReporter,
     consoleReporter: () => consoleReporter,
     control: () => control,
@@ -36,6 +39,13 @@ var kuinetic = (() => {
     createAnimator: () => createAnimator,
     createRegistry: () => createRegistry,
     default: () => src_default,
+    describe: () => describe2,
+    describeAttribute: () => describeAttribute,
+    describeEffect: () => describeEffect,
+    describeElement: () => describeElement,
+    describeElementAttribute: () => describeElementAttribute,
+    describeKeys: () => describeKeys,
+    describeSteps: () => describeSteps,
     detect: () => detect,
     inertInstance: () => inertInstance,
     kuinetic: () => kuinetic,
@@ -43,6 +53,8 @@ var kuinetic = (() => {
     resolveActivationSpec: () => resolveActivationSpec,
     resolveTargets: () => resolveTargets,
     silentReporter: () => silentReporter,
+    spellingsFor: () => spellingsFor,
+    timingContractOf: () => timingContractOf,
     toAttributeValue: () => toAttributeValue
   });
 
@@ -83,6 +95,10 @@ var kuinetic = (() => {
   }
   function queryScoped(el, ctx, selector, scope) {
     return [...(scope === "page" ? ctx.doc : el).querySelectorAll(selector)];
+  }
+  function queryControls(el, ctx, selector) {
+    const inside = [...el.querySelectorAll(selector)];
+    return inside.length > 0 ? inside : [...ctx.doc.querySelectorAll(selector)];
   }
 
   // src/core/event-sources.ts
@@ -589,18 +605,25 @@ var kuinetic = (() => {
     if (typeof IntersectionObserver === "undefined") return void 0;
     return (callback, init) => new IntersectionObserver(callback, init);
   }
+  function onlyBoundLate(name, claims) {
+    const authorising = authorisingActivations(name);
+    if (!authorising.includes("enter")) return false;
+    const suits = (claim2) => authorising.some((named) => claim2.supported.includes(named));
+    if (!claims.some((claim2) => claim2.entrance && suits(claim2))) return false;
+    return claims.every((claim2) => suits(claim2) || claim2.supported.includes("load"));
+  }
   function warnAboutActivation(request) {
     warnUnsupported(request);
     warnUnknownEvents(request);
   }
-  function warnUnsupported({ el, spec, supported, reporter }) {
-    if (supported.length === 0) return;
+  function warnUnsupported({ el, spec, supported, claims, reporter }) {
+    const declaredAny = supported.length > 0 || (claims?.some((claim2) => claim2.supported.length > 0) ?? false);
+    if (!declaredAny) return;
+    const shared = supported.length > 0 ? supported.join(", ") : "none in common across the composed effects";
     for (const name of spec.names) {
       if (authorisingActivations(name).some((named) => supported.includes(named))) continue;
-      reporter.warn(
-        `activation "${name}" is not supported by this effect (supports: ${supported.join(", ")})`,
-        el
-      );
+      if (claims && onlyBoundLate(name, claims)) continue;
+      reporter.warn(`activation "${name}" is not supported by this effect (supports: ${shared})`, el);
     }
   }
   function warnUnknownEvents({ el, spec, reporter }) {
@@ -1248,6 +1271,10 @@ var kuinetic = (() => {
      */
     skew: "skew"
   };
+  function attributeChannel(attribute) {
+    return `attr:${attribute}`;
+  }
+  var SUBTREE_CHANNEL = "subtree";
   function inertInstance(destroy = () => {
   }) {
     return {
@@ -3427,6 +3454,7 @@ var kuinetic = (() => {
       unknown,
       reducedMotion: "shorten",
       supportedActivations: [],
+      activationClaims: [],
       supportedTimelines: [],
       channels: [],
       warnings
@@ -3560,6 +3588,10 @@ var kuinetic = (() => {
       plan.fxNames.push(preset.name);
       plan.reducedMotion = strictestPolicy(plan.reducedMotion, primitive.reducedMotion);
       activations = intersect(activations, primitive.supportedActivations);
+      plan.activationClaims.push({
+        supported: primitive.supportedActivations,
+        entrance: phaseOf(entry) === "entrance"
+      });
       timelines = intersect(timelines, primitive.supportedTimelines);
       for (const channel of channelsFor(entry)) channels.add(channel);
       warnUnsupportedTimeline(preset.name, primitive.supportedTimelines, timeline, warnings);
@@ -5125,11 +5157,20 @@ var kuinetic = (() => {
     const windowRoot = windowScrollRoot(win);
     return (el) => {
       for (let node = el.parentElement; node; node = node.parentElement) {
+        if (scrollsTheViewport(node, win)) return windowRoot;
         if (isScrollable(node)) return elementScrollRoot(node, win);
       }
       return windowRoot;
     };
   }
+  function scrollsTheViewport(node, win) {
+    const root = win.document.documentElement;
+    if (node === root) return true;
+    if (node !== win.document.body) return false;
+    const rootStyle = win.getComputedStyle(root);
+    return !CLIPPING_OVERFLOW.has(rootStyle.overflowX) && !CLIPPING_OVERFLOW.has(rootStyle.overflowY);
+  }
+  var CLIPPING_OVERFLOW = /* @__PURE__ */ new Set(["auto", "scroll", "overlay", "hidden", "clip"]);
   var SCROLLABLE_OVERFLOW = /* @__PURE__ */ new Set(["auto", "scroll", "overlay"]);
   function defaultIsScrollable(win) {
     return (el) => {
@@ -5632,6 +5673,7 @@ var kuinetic = (() => {
         el,
         spec: resolveActivationSpec(config.activation),
         supported: plan.supportedActivations,
+        claims: plan.activationClaims,
         reporter: this.reporter
       });
       return config.activation;
@@ -6517,8 +6559,8 @@ var kuinetic = (() => {
       shouldObserve: options.observe ?? false
     };
   }
-  function resolveJsEffectPreparer(provided, deps) {
-    return provided ?? createJsEffectPreparer(deps);
+  function resolveJsEffectPreparer(provided2, deps) {
+    return provided2 ?? createJsEffectPreparer(deps);
   }
   function defaultRootResolver(root) {
     const doc = isElementNode(root) ? root.ownerDocument : root;
@@ -6535,11 +6577,214 @@ var kuinetic = (() => {
     }
   }
 
+  // src/core/timing-contract.ts
+  var ALL_TIMING_TOKENS = ["duration", "delay", "ease"];
+  var CONTRACTS = /* @__PURE__ */ new WeakMap();
+  function declareTimingContract(prepare, contract) {
+    CONTRACTS.set(prepare, contract);
+    return prepare;
+  }
+  function inheritTimingContract(inner, outer) {
+    const contract = CONTRACTS.get(inner);
+    return contract ? declareTimingContract(outer, contract) : outer;
+  }
+  function timingContractOf(primitive) {
+    return primitive.prepare ? CONTRACTS.get(primitive.prepare) : void 0;
+  }
+
+  // src/core/describe.ts
+  var POSITIONAL = [
+    { slot: "duration", accepts: "time" },
+    { slot: "delay", accepts: "time" },
+    { slot: "ease", accepts: "easing" }
+  ];
+  function describeEffect(registry, name, notes = {}) {
+    const resolved = registry.resolve(name);
+    if (!resolved) return void 0;
+    const { preset, primitive } = resolved;
+    const declared = primitive.parameters;
+    const contract = timingContractOf(primitive);
+    const honours = contract ? contract.honours ?? [] : ALL_TIMING_TOKENS;
+    const positionalOrder = POSITIONAL.map((slot) => ({
+      ...slot,
+      ...Object.hasOwn(declared, slot.slot) ? { param: slot.slot } : {},
+      honoured: honours.includes(slot.slot)
+    }));
+    const params = Object.entries(declared).map(([param, spec]) => {
+      const override = preset.params?.[param];
+      const note = findNote(spec.note, notes, [preset.name, primitive.id, "*"], param);
+      return {
+        name: param,
+        type: spec.type,
+        default: override ?? spec.default,
+        presetDefault: override !== void 0,
+        required: note?.required === true,
+        spellings: spellingsFor(spec, override ?? spec.default),
+        ...optionalFields(spec, param, note)
+      };
+    });
+    const described = {
+      name: preset.name,
+      primitive: primitive.id,
+      renderer: primitive.renderer,
+      params,
+      positionalOrder
+    };
+    if (contract && honours.length < ALL_TIMING_TOKENS.length) described.unhonouredBecause = contract.because;
+    return described;
+  }
+  function optionalFields(spec, param, note) {
+    const out = {};
+    if (spec.keywords) out.keywords = spec.keywords;
+    if (spec.minimum !== void 0) out.minimum = spec.minimum;
+    if (spec.maximum !== void 0) out.maximum = spec.maximum;
+    if (spec.integer) out.integer = true;
+    const index = POSITIONAL.findIndex((slot) => slot.slot === param);
+    if (index >= 0) out.positionalIndex = index;
+    if (note) out.note = note.why;
+    if (note?.whenOmitted) out.whenOmitted = note.whenOmitted;
+    return out;
+  }
+  function describeAttribute(registry, value, notes = {}) {
+    return describeSpecs(registry, parse(value).specs, notes);
+  }
+  function describeElementAttribute(registry, value, notes = {}) {
+    const parsed = parse(value);
+    const written = {};
+    for (const [field, key] of Object.entries(ELEMENT_KEYS)) {
+      const set = parsed[field];
+      if (set !== void 0) written[key.key] = set;
+    }
+    return { steps: describeSpecs(registry, parsed.specs, notes), keys: describeKeys(notes), written };
+  }
+  function describeKeys(notes = {}) {
+    const element = Object.values(ELEMENT_KEYS).map((key) => keyRow(key, "element", notes));
+    return [...element, ...STEP_KEY_LIST.map((key) => keyRow(key, "step", notes))];
+  }
+  function describeSpecs(registry, specs, notes) {
+    return specs.map((spec) => {
+      const written = { written: writtenArgs(spec), writtenKeys: writtenStepKeys(spec) };
+      const described = describeEffect(registry, spec.name, notes);
+      if (described) return { ...described, ...written };
+      const suggestion = suggest(spec.name, registry.names());
+      const unknown = suggestion ? { name: spec.name, unknown: true, suggestion } : { name: spec.name, unknown: true };
+      return { ...unknown, ...written };
+    });
+  }
+  function writtenArgs(spec) {
+    const written = { ...spec.params };
+    if (spec.duration !== void 0) written.duration = spec.duration;
+    if (spec.delay !== void 0) written.delay = spec.delay;
+    if (spec.easing !== void 0) written.ease = spec.easing;
+    return written;
+  }
+  function writtenStepKeys(spec) {
+    const written = {};
+    if (spec.at !== void 0) written.at = spec.at;
+    Object.assign(written, spec.gate);
+    if (spec.repeat !== void 0) written.repeat = spec.repeat;
+    if (spec.yoyo !== void 0) written.yoyo = String(spec.yoyo);
+    for (const [field, value] of Object.entries(spec.hoists ?? {})) {
+      written[ELEMENT_KEYS[field].key] = value;
+    }
+    return written;
+  }
+  var KEY_NOTE_OWNER = "data-kui";
+  function keyRow(key, scope, notes) {
+    const note = findNote(void 0, notes, [KEY_NOTE_OWNER], key.key);
+    const row = {
+      name: key.key,
+      type: key.type,
+      default: key.default,
+      presetDefault: false,
+      required: false,
+      spellings: [...key.spellings],
+      scope
+    };
+    if (key.keywords) row.keywords = key.keywords;
+    if (note) row.note = note.why;
+    if (note?.whenOmitted) row.whenOmitted = note.whenOmitted;
+    return row;
+  }
+  var TIMELINES2 = Object.keys({ time: 0, view: 0, scroll: 0, pointer: 0, pin: 0 });
+  var RM_POLICIES2 = Object.keys({ shorten: 0, crossfade: 0, disable: 0 });
+  var ELEMENT_KEYS = {
+    activation: { key: "on", type: "text", default: "", spellings: ["enter", "load", "hover", "click", "hover/unhover"] },
+    actions: { key: "actions", type: "text", default: "", spellings: ["play/pause/resume/reset", "play/none/none/reset"] },
+    timeline: { key: "timeline", type: "keyword", default: "", spellings: TIMELINES2, keywords: TIMELINES2 },
+    threshold: { key: "threshold", type: "percentage", default: "", spellings: ["0%", "25%"] },
+    cascade: { key: "cascade", type: "time", default: "", spellings: ["90ms", "0.09s"] },
+    spread: { key: "spread", type: "time", default: "", spellings: ["600ms", "0.6s"] },
+    order: { key: "order", type: "text", default: "", spellings: ["start", "end", "center", "edges", "random", "3"] },
+    cols: { key: "cols", type: "text", default: "", spellings: ["auto", "4"] },
+    along: { key: "along", type: "keyword", default: "", spellings: ["x", "y"], keywords: ["x", "y"] },
+    rm: { key: "rm", type: "keyword", default: "", spellings: RM_POLICIES2, keywords: RM_POLICIES2 },
+    func: { key: "func", type: "text", default: "", spellings: ["onRevealDone"] }
+  };
+  var gateKey = (key) => ({
+    key,
+    type: "keyword",
+    default: "",
+    spellings: BREAKPOINT_NAMES,
+    keywords: BREAKPOINT_NAMES
+  });
+  var STEP_KEYS = {
+    at: { key: "at", type: "text", default: "", spellings: ["after", "with", "-200ms", "with+100ms"] },
+    gate: { above: gateKey("above"), below: gateKey("below"), wide: gateKey("wide"), narrow: gateKey("narrow") },
+    repeat: { key: "repeat", type: "text", default: "", spellings: ["infinite", "3"] },
+    yoyo: { key: "yoyo", type: "keyword", default: "", spellings: ["true", "false"], keywords: ["true", "false"] }
+  };
+  var STEP_KEY_LIST = Object.values(STEP_KEYS).flatMap(
+    (entry) => "key" in entry ? [entry] : Object.values(entry)
+  );
+  function findNote(inline, notes, owners, param) {
+    const key = owners.map((owner) => `${owner}.${param}`).find((k) => Object.hasOwn(notes, k));
+    const note = inline ?? (key === void 0 ? void 0 : notes[key]);
+    if (note === void 0) return void 0;
+    return typeof note === "string" ? { why: note } : note;
+  }
+  var NUMBER = /^-?(?:\d+(?:\.\d+)?|\.\d+)/;
+  function spellingsFor(spec, fallback = spec.default) {
+    const value = validate(fallback, spec).ok ? fallback.trim() : "";
+    return EXAMPLES[spec.type](value, spec.keywords ?? []);
+  }
+  var EXAMPLES = {
+    angle: (value) => angleForms(value),
+    "angle|keyword": (value, keywords) => [...angleForms(keywords.includes(value) ? "" : value), ...keywords],
+    keyword: (_, keywords) => [...keywords],
+    time: timeForms,
+    number: (value) => [value || "1"],
+    percentage: (value) => [value || "50%"],
+    "number|percentage": alphaForms,
+    length: (value) => [value || "24px", "calc(1rem + 4px)"],
+    "length|percentage": (value) => [value || "24px", "50%"],
+    color: (value) => [value || "#e4f222", "rgb(228 242 34)", "currentcolor"],
+    easing: (value) => [value || "ease-out", "linear", "cubic-bezier(.2, .8, .2, 1)", "spring"],
+    path: () => ["M0,0L100,0"],
+    text: () => []
+  };
+  function angleForms(value) {
+    const n = NUMBER.exec(value)?.[0];
+    const degrees = value.endsWith("deg") || /^-?[\d.]+d?$/.test(value);
+    const base = degrees && n ? n : "45";
+    const forms = [base, `${base}d`, `${base}deg`];
+    return degrees || !value ? forms : [value, ...forms];
+  }
+  function timeForms(value) {
+    const n = NUMBER.exec(value)?.[0];
+    if (!n) return ["600ms", "0.6s"];
+    return value.endsWith("ms") ? [value, `${decimalNumber(n, -3)}s`] : [value, `${decimalNumber(n, 3)}ms`];
+  }
+  function alphaForms(value) {
+    const n = NUMBER.exec(value)?.[0];
+    if (!n) return ["0.5", "50%"];
+    return value.endsWith("%") ? [`${decimalNumber(n, -2)}`, value] : [value, `${decimalNumber(n, 2)}%`];
+  }
+
   // src/effects/shared.ts
   var TRIGGER_DELAY_PARAM = {
     delay: { type: "time", default: "0ms", cssProperty: "--kui-delay" }
   };
-  var ALL_TIMING_TOKENS = ["duration", "delay", "ease"];
   function authoredTiming(params, token) {
     if (token === "ease") return params.timing.easing;
     const ms = token === "duration" ? params.timing.durationMs : params.timing.delayMs;
@@ -6567,20 +6812,20 @@ var kuinetic = (() => {
     }
   }
   function withTimingContract(id, contract, prepare) {
-    return (el, params, ctx) => {
+    return declareTimingContract((el, params, ctx) => {
       warnUnhonouredTiming(id, contract, params, ctx.warn);
       return prepare(el, params, ctx);
-    };
+    }, contract);
   }
   function stylesheetTimingPrepare(id, contract) {
-    return (el, params, ctx) => {
+    return declareTimingContract((el, params, ctx) => {
       warnUnhonouredTiming(id, contract, params, ctx.warn);
       return deferredInstance(() => {
         mirrorTimingToCss(id, contract.honours ?? [], params, ctx);
         return () => {
         };
       });
-    };
+    }, contract);
   }
   var TIMELINE_AGNOSTIC = ["time", "view", "scroll", "pin"];
   var COMMON = {
@@ -6657,12 +6902,12 @@ var kuinetic = (() => {
      * What the ring rules actually write (`ambient.css`) beyond the gradient: `mask` +
      * `mask-composite`, which subtract the element's own content box to leave a ring — the same
      * physical property `media-mask` claims under the `'mask'` channel — and `position: relative`
-     * plus a `padding` that *is* the ring's thickness, which is a claim on the host's box in the
-     * sense `pin` and `background-media` already use `'layout'` for. Declared only as
-     * `background`, a `gradient-border, pin-section` pair composed silently while both decided the
-     * host's `position`, and `gradient-border, mask-reveal` while both wrote `mask`.
+     * plus a `padding` that *is* the ring's thickness — `position` as `pin` and `background-media`
+     * claim it, `padding` as `header-shrink` does. Declared only as `background`, a
+     * `gradient-border, pin-section` pair composed silently while both decided the host's
+     * `position`, and `gradient-border, mask-reveal` while both wrote `mask`.
      */
-    cssPrimitive("ambient-gradient-ring", [CHANNEL.background, "mask", "layout"], {
+    cssPrimitive("ambient-gradient-ring", [CHANNEL.background, "mask", "position", "padding"], {
       parameters: drift,
       defaultActivation: "load",
       reducedMotion: "disable",
@@ -7340,22 +7585,287 @@ var kuinetic = (() => {
   var STATE_PRIMITIVES = [...PRESS_PRIMITIVES, ...GROUP_PRIMITIVES];
   var STATE_PRESETS = [...PRESS_PRESETS, ...GROUP_PRESETS];
 
+  // src/core/element-size.ts
+  function watchElementSize(win, onChange) {
+    const ResizeObserverCtor = win.ResizeObserver;
+    const observer = ResizeObserverCtor ? new ResizeObserverCtor(onChange) : void 0;
+    const elements = /* @__PURE__ */ new Set();
+    win.addEventListener("resize", onChange, { passive: true });
+    return {
+      observe(element) {
+        if (elements.has(element)) return;
+        elements.add(element);
+        observer?.observe(element);
+      },
+      unobserve(element) {
+        elements.delete(element);
+        observer?.unobserve(element);
+      },
+      disconnect() {
+        win.removeEventListener("resize", onChange);
+        observer?.disconnect();
+        elements.clear();
+      }
+    };
+  }
+  function frameScheduler(win, callback) {
+    let frame;
+    let timeout;
+    const run = () => {
+      frame = void 0;
+      timeout = void 0;
+      callback();
+    };
+    return {
+      request() {
+        if (frame !== void 0 || timeout !== void 0) return;
+        if (win.requestAnimationFrame) frame = win.requestAnimationFrame(run);
+        else timeout = win.setTimeout(run, 16);
+      },
+      cancel() {
+        if (frame !== void 0) win.cancelAnimationFrame(frame);
+        if (timeout !== void 0) win.clearTimeout(timeout);
+        frame = void 0;
+        timeout = void 0;
+      }
+    };
+  }
+
   // src/effects/catalog/interaction-reveal.ts
-  function revealPrimitive(id, channels, parameters, perfClass = "compositor") {
+  function revealPrimitive(id, channels, parameters, { perfClass = "compositor", placed } = {}) {
+    const contract = {
+      honours: ALL_TIMING_TOKENS,
+      because: "interaction.css pins that value on this effect"
+    };
     return {
       id,
       renderer: "javascript",
-      channels,
+      // A placed family publishes the resolved side, and a running tease, on its host.
+      channels: placed ? [...channels, attributeChannel(placed.attribute), attributeChannel(placed.tease)] : channels,
       parameters,
       supportedTimelines: ["time"],
       supportedActivations: ["load"],
       defaultActivation: "load",
       perfClass,
       reducedMotion: "shorten",
-      prepare: stylesheetTimingPrepare(id, {
-        honours: ALL_TIMING_TOKENS,
-        because: "interaction.css pins that value on this effect"
-      })
+      prepare: placed ? withTimingContract(
+        id,
+        contract,
+        (el, params, ctx) => deferredInstance(() => {
+          mirrorTimingToCss(id, ALL_TIMING_TOKENS, params, ctx);
+          return prepareReveal(el, params, placed, ctx);
+        })
+      ) : stylesheetTimingPrepare(id, contract)
+    };
+  }
+  var OPPOSITE = { top: "bottom", bottom: "top", left: "right", right: "left" };
+  function isSide(value) {
+    return value !== null && Object.hasOwn(OPPOSITE, value);
+  }
+  function chooseSide(preferred, room, extent) {
+    if (room[preferred] >= extent) return preferred;
+    const opposite = OPPOSITE[preferred];
+    return room[opposite] > room[preferred] ? opposite : preferred;
+  }
+  function extentOf(part, host, side) {
+    switch (side) {
+      case "top":
+        return -part.offsetTop;
+      case "bottom":
+        return part.offsetTop + part.offsetHeight - host.clientHeight;
+      case "left":
+        return -part.offsetLeft;
+      case "right":
+        return part.offsetLeft + part.offsetWidth - host.clientWidth;
+    }
+  }
+  function prepareReveal(el, params, spec, ctx) {
+    const release2 = claimPart(el, params, spec, ctx);
+    const attrs = createAttributeLedger(el);
+    const restore = () => {
+      attrs.restore();
+      release2();
+    };
+    const place3 = params.text("place");
+    const teaseMs = params.ms("tease", 0);
+    const auto = place3 === "auto";
+    if (!auto && isSide(place3)) attrs.set(spec.attribute, place3);
+    const placeSide = auto ? autoPlacer(el, spec, attrs, ctx.win) : void 0;
+    const shift = shifter(el, spec, ctx);
+    const measure = () => {
+      placeSide?.();
+      shift();
+    };
+    let endTease = () => {
+    };
+    const shown = whileShown(el, ctx, measure, () => endTease());
+    const tease = teaseMs > 0 ? teaseOnEnter(el, ctx, { ms: teaseMs, attribute: spec.tease, attrs, shown }) : void 0;
+    if (tease) endTease = tease.end;
+    return () => {
+      tease?.stop();
+      shown.stop();
+      restore();
+    };
+  }
+  function claimPart(el, params, spec, ctx) {
+    const selector = resolveTarget(params.text("target"), ctx, spec.name);
+    if (!selector) return () => {
+    };
+    const matches = queryScoped(el, ctx, selector, "self");
+    const part = matches[0];
+    if (!part) {
+      ctx.warn(`${spec.name} target "${selector}" matched nothing inside this element`);
+      return () => {
+      };
+    }
+    if (matches.length > 1) {
+      ctx.warn(
+        `${spec.name} target "${selector}" matched ${matches.length} elements; only the first is used`
+      );
+    }
+    const ledger = createAttributeLedger(part);
+    if (!part.hasAttribute(spec.marker)) ledger.set(spec.marker, "");
+    return () => ledger.restore();
+  }
+  function autoPlacer(el, spec, attrs, win) {
+    const preferred = spec.preferred(el);
+    let side = preferred;
+    attrs.set(spec.attribute, side);
+    return () => {
+      const part = el.querySelector(`[${spec.marker}]`);
+      if (!part) return;
+      const rect = el.getBoundingClientRect();
+      const room = {
+        top: rect.top,
+        bottom: win.innerHeight - rect.bottom,
+        left: rect.left,
+        right: win.innerWidth - rect.right
+      };
+      const next = chooseSide(preferred, room, extentOf(part, el, side));
+      if (next === side) return;
+      side = next;
+      attrs.set(spec.attribute, side);
+    };
+  }
+  var VIEWPORT_MARGIN = 8;
+  function shiftWithin(start, size, viewport, margin = VIEWPORT_MARGIN) {
+    const low = margin;
+    const high = viewport - margin;
+    if (start < low || size > high - low) return low - start;
+    if (start + size > high) return high - start - size;
+    return 0;
+  }
+  function shifter(el, spec, ctx) {
+    let written = 0;
+    return () => {
+      const part = el.querySelector(`[${spec.marker}]`);
+      if (!part) return;
+      const stamped = el.getAttribute(spec.attribute);
+      const side = isSide(stamped) ? stamped : spec.preferred(el);
+      const rect = part.getBoundingClientRect();
+      const hostRect = el.getBoundingClientRect();
+      const [startKey, sizeKey, offsetKey, borderKey, layoutKey, viewportKey, windowKey] = side === "top" || side === "bottom" ? ["left", "width", "offsetLeft", "clientLeft", "offsetWidth", "clientWidth", "innerWidth"] : ["top", "height", "offsetTop", "clientTop", "offsetHeight", "clientHeight", "innerHeight"];
+      const hostSize = el[layoutKey];
+      const zoom = hostSize > 0 ? hostRect[sizeKey] / hostSize : 1;
+      if (zoom <= 0) return;
+      const entranceScale = parseFloat(ctx.win.getComputedStyle(part).scale) || 1;
+      const size = rect[sizeKey] / entranceScale;
+      const start = hostRect[startKey] + (el[borderKey] + part[offsetKey]) * zoom - size / 2;
+      const viewport = ctx.doc.documentElement[viewportKey] || ctx.win[windowKey];
+      const next = shiftWithin(start, size, viewport) / zoom;
+      if (next === written) return;
+      written = next;
+      ctx.style.set(spec.shift, `${next}px`);
+    };
+  }
+  function whileShown(el, ctx, measure, onUser) {
+    const { win } = ctx;
+    const frame = frameScheduler(win, measure);
+    let hovered = false;
+    let focused = false;
+    let teasing = false;
+    let watching;
+    const sync = () => {
+      const shown = hovered || focused || teasing;
+      if (shown && !watching) {
+        measure();
+        watching = new AbortController();
+        const options = { capture: true, passive: true, signal: watching.signal };
+        win.addEventListener("scroll", frame.request, options);
+        win.addEventListener("resize", frame.request, options);
+      } else if (!shown && watching) {
+        watching.abort();
+        watching = void 0;
+        frame.cancel();
+      }
+    };
+    const on = (type, update) => el.addEventListener(type, (event) => {
+      update(event);
+      sync();
+    }, { signal: ctx.signal });
+    on("pointerenter", () => {
+      hovered = true;
+      onUser();
+    });
+    on("pointerleave", () => hovered = false);
+    on("focusin", () => {
+      focused = true;
+      onUser();
+    });
+    on("focusout", (event) => {
+      focused = el.contains(event.relatedTarget);
+    });
+    return {
+      setTeasing(on2) {
+        teasing = on2;
+        sync();
+      },
+      stop() {
+        watching?.abort();
+        frame.cancel();
+      }
+    };
+  }
+  function teaseOnEnter(el, ctx, {
+    ms,
+    attribute,
+    attrs,
+    shown
+  }) {
+    const { win } = ctx;
+    let timer;
+    let observer;
+    const end = () => {
+      if (timer === void 0) return;
+      win.clearTimeout(timer);
+      timer = void 0;
+      attrs.remove(attribute);
+      shown.setTeasing(false);
+    };
+    const start = () => {
+      shown.setTeasing(true);
+      attrs.set(attribute, "");
+      timer = win.setTimeout(end, ms);
+    };
+    const Observer = win.IntersectionObserver;
+    if (Observer) {
+      observer = new Observer(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) return;
+          observer.disconnect();
+          start();
+        },
+        { threshold: 0.5 }
+      );
+      observer.observe(el);
+    }
+    return {
+      end,
+      stop() {
+        observer?.disconnect();
+        if (timer !== void 0) win.clearTimeout(timer);
+        timer = void 0;
+      }
     };
   }
   var labelSwapParams = {
@@ -7388,10 +7898,34 @@ var kuinetic = (() => {
     duration: { type: "time", default: "160ms", cssProperty: "--kui-duration" },
     delay: { type: "time", default: "1000ms", cssProperty: "--kui-delay" },
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
-    distance: { type: "length", default: "4px", cssProperty: "--kui-hover-intent-distance" }
+    distance: { type: "length", default: "4px", cssProperty: "--kui-hover-intent-distance" },
+    color: { type: "color", default: "#f4f4f0", cssProperty: "--kui-hover-intent-color" },
+    "bg-color": { type: "color", default: "#111111", cssProperty: "--kui-hover-intent-bg-color" },
+    radius: { type: "length", default: "12px", cssProperty: "--kui-hover-intent-radius" },
+    // `place` and `tease` are read by `prepareReveal`, not by any stylesheet — see
+    // `ParamSpecBase.cssProperty`.
+    place: {
+      type: "keyword",
+      default: "top",
+      keywords: ["top", "bottom", "auto"],
+      cssProperty: "--kui-hover-intent-place"
+    },
+    tease: { type: "time", default: "0ms", cssProperty: "--kui-hover-intent-tease" },
+    // Names the hint, in place of a `data-kui-hint` in the markup — see `claimPart`. Declared, so
+    // `compile.ts` leaves it here rather than moving the effect onto the hint.
+    target: { type: "text", default: "", cssProperty: "--kui-target" }
   };
   var HOVER_INTENT_PRIMITIVES = [
-    revealPrimitive("hover-intent", ["hint"], hoverIntentParams)
+    revealPrimitive("hover-intent", ["hint"], hoverIntentParams, {
+      placed: {
+        name: "hover-intent",
+        marker: "data-kui-hint",
+        attribute: "data-kui-hint-place",
+        tease: "data-kui-hint-tease",
+        shift: "--kui-hover-intent-shift",
+        preferred: () => "top"
+      }
+    })
   ];
   var HOVER_INTENT_PRESETS = [
     { name: "hover-intent", phase: "state", primitive: "hover-intent" }
@@ -7409,16 +7943,65 @@ var kuinetic = (() => {
       finite: true,
       minimum: 0,
       maximum: 1
-    }
+    },
+    color: { type: "color", default: "currentcolor", cssProperty: "--kui-anchored-preview-color" },
+    "bg-color": {
+      type: "color",
+      default: "transparent",
+      cssProperty: "--kui-anchored-preview-bg-color"
+    },
+    radius: { type: "length", default: "0px", cssProperty: "--kui-anchored-preview-radius" },
+    // `place` and `tease` are read by `prepareReveal`, not by any stylesheet — see
+    // `ParamSpecBase.cssProperty`. `tease` is `hover-intent`'s, unchanged: `0ms` is off.
+    place: {
+      type: "keyword",
+      default: "top",
+      keywords: ["top", "bottom", "left", "right", "auto"],
+      cssProperty: "--kui-anchored-preview-place"
+    },
+    tease: { type: "time", default: "0ms", cssProperty: "--kui-anchored-preview-tease" },
+    // Names the preview, in place of a `data-kui-preview` in the markup — see `claimPart`.
+    target: { type: "text", default: "", cssProperty: "--kui-target" }
   };
+  function previewSideOf(el) {
+    for (const token of (el.getAttribute(ATTR.normalized) ?? "").split(/\s+/)) {
+      const side = /^anchored-preview(?:-(bottom|left|right))?$/.exec(token);
+      if (side) return side[1] ?? "top";
+    }
+    return "top";
+  }
   var ANCHORED_PREVIEW_PRIMITIVES = [
-    revealPrimitive("anchored-preview", ["preview"], anchoredPreviewParams)
+    revealPrimitive("anchored-preview", ["preview"], anchoredPreviewParams, {
+      placed: {
+        name: "anchored-preview",
+        marker: "data-kui-preview",
+        attribute: "data-kui-preview-place",
+        tease: "data-kui-preview-tease",
+        shift: "--kui-anchored-preview-shift",
+        preferred: previewSideOf
+      }
+    })
   ];
   var ANCHORED_PREVIEW_PRESETS = [
     { name: "anchored-preview", phase: "state", primitive: "anchored-preview" },
-    { name: "anchored-preview-bottom", phase: "state", primitive: "anchored-preview" },
-    { name: "anchored-preview-left", phase: "state", primitive: "anchored-preview" },
-    { name: "anchored-preview-right", phase: "state", primitive: "anchored-preview" }
+    {
+      name: "anchored-preview-bottom",
+      phase: "state",
+      primitive: "anchored-preview",
+      params: { place: "bottom" }
+    },
+    {
+      name: "anchored-preview-left",
+      phase: "state",
+      primitive: "anchored-preview",
+      params: { place: "left" }
+    },
+    {
+      name: "anchored-preview-right",
+      phase: "state",
+      primitive: "anchored-preview",
+      params: { place: "right" }
+    }
   ];
   var searchExpandParams = {
     duration: { type: "time", default: "260ms", cssProperty: "--kui-duration" },
@@ -7436,7 +8019,7 @@ var kuinetic = (() => {
       "search-expand",
       ["expand", "discrete", "search-field"],
       searchExpandParams,
-      "layout"
+      { perfClass: "layout" }
     )
   ];
   var SEARCH_EXPAND_PRESETS = [
@@ -7852,7 +8435,10 @@ var kuinetic = (() => {
     label: { type: "text", default: "", cssProperty: "--kui-label" }
   };
   var POINTER_PRIMITIVES = [
-    pointerPrimitive("tilt-3d", ["rotate"], tiltParams, deferPrepare(prepareTilt3d)),
+    // `skew` is the `transform` shorthand's channel, which is what `prepareTilt3d` writes (a
+    // perspective and two axis rotations) — never the `rotate` property — beside an inline
+    // `transition` for its settle.
+    pointerPrimitive("tilt-3d", ["skew", "transition"], tiltParams, deferPrepare(prepareTilt3d)),
     pointerPrimitive("tilt-parallax", ["translate"], parallaxParams, deferPrepare(prepareTiltParallax)),
     pointerPrimitive("cursor-follow", ["translate"], cursorDotParams, deferPrepare(prepareCursorFollow)),
     pointerPrimitive("cursor-lag", ["translate"], cursorDotParams, deferPrepare(prepareCursorLag)),
@@ -7861,7 +8447,13 @@ var kuinetic = (() => {
     // `pseudo-before`: the glow overlay is a `::before` rule in `interaction.css`, so this primitive
     // owns that box the same way the border family does. See `border-draw`'s comment in
     // `HOVER_PRIMITIVES` for what the token means and why it was added here in the same change.
-    pointerPrimitive("cursor-spotlight", ["spotlight", "pseudo-before"], {}, deferPrepare(prepareSpotlight))
+    // `position`: the `relative` it gives an unpositioned host so that overlay has an anchor.
+    pointerPrimitive(
+      "cursor-spotlight",
+      ["spotlight", "pseudo-before", "position"],
+      {},
+      deferPrepare(prepareSpotlight)
+    )
   ];
   function prepareCursorFollow(el, params, ctx) {
     return prepareCursorDot(el, params, ctx, "kui-cursor-dot-follow");
@@ -8341,52 +8933,6 @@ var kuinetic = (() => {
     };
   }
 
-  // src/core/element-size.ts
-  function watchElementSize(win, onChange) {
-    const ResizeObserverCtor = win.ResizeObserver;
-    const observer = ResizeObserverCtor ? new ResizeObserverCtor(onChange) : void 0;
-    const elements = /* @__PURE__ */ new Set();
-    win.addEventListener("resize", onChange, { passive: true });
-    return {
-      observe(element) {
-        if (elements.has(element)) return;
-        elements.add(element);
-        observer?.observe(element);
-      },
-      unobserve(element) {
-        elements.delete(element);
-        observer?.unobserve(element);
-      },
-      disconnect() {
-        win.removeEventListener("resize", onChange);
-        observer?.disconnect();
-        elements.clear();
-      }
-    };
-  }
-  function frameScheduler(win, callback) {
-    let frame;
-    let timeout;
-    const run = () => {
-      frame = void 0;
-      timeout = void 0;
-      callback();
-    };
-    return {
-      request() {
-        if (frame !== void 0 || timeout !== void 0) return;
-        if (win.requestAnimationFrame) frame = win.requestAnimationFrame(run);
-        else timeout = win.setTimeout(run, 16);
-      },
-      cancel() {
-        if (frame !== void 0) win.cancelAnimationFrame(frame);
-        if (timeout !== void 0) win.clearTimeout(timeout);
-        frame = void 0;
-        timeout = void 0;
-      }
-    };
-  }
-
   // src/effects/catalog/media-shared.ts
   var AXIS_DEGREES = { vertical: 0, horizontal: 90 };
   var UNIT_DEGREES = { deg: 1, d: 1, grad: 0.9, rad: 180 / Math.PI, turn: 360 };
@@ -8745,14 +9291,14 @@ var kuinetic = (() => {
       settle2 = resolve;
     });
     let landed = false;
-    const land = () => {
+    const land2 = () => {
       if (landed) return;
       landed = true;
       stage.classList.remove("kui-slat-animating");
       built.restore();
       settle2();
     };
-    const timer = ctx.win.setTimeout(land, slatAssembleFinishMs(params, count));
+    const timer = ctx.win.setTimeout(land2, slatAssembleFinishMs(params, count));
     return {
       cleanup: () => {
         ctx.win.clearTimeout(timer);
@@ -8763,7 +9309,7 @@ var kuinetic = (() => {
       finished,
       finish: () => {
         ctx.win.clearTimeout(timer);
-        land();
+        land2();
       }
     };
   }
@@ -8898,7 +9444,9 @@ var kuinetic = (() => {
     {
       id: "slat-assemble",
       renderer: "javascript",
-      channels: [CHANNEL.opacity, CHANNEL.translate, CHANNEL.rotate],
+      // `position` for the `relative` it gives an unpositioned host, and the subtree because
+      // `installSlatStage` appends its slat stage there.
+      channels: [CHANNEL.opacity, CHANNEL.translate, CHANNEL.rotate, "position", SUBTREE_CHANNEL],
       parameters: slatParams,
       supportedTimelines: ["time"],
       supportedActivations: ["load", "enter", "hover", "focus", "click", "manual"],
@@ -8922,12 +9470,15 @@ var kuinetic = (() => {
        * and it is what makes `background-media, video-scrub` on one element a reported conflict
        * rather than two effects silently fighting over the same picture.
        *
-       * `layout` is claimed for the same reason `pin` claims it: preparation writes `position` and
-       * `isolation` on the *host*, which is a stacking-context claim on someone else's element. Left
-       * undeclared, `background-media, pin-section` composed silently while both decided what
-       * `position` the host has — the conflict detector cannot report a claim it was never told about.
+       * `position` and `isolation` are the two properties preparation writes on the *host*, a
+       * stacking-context claim on someone else's element. Left undeclared, `background-media,
+       * pin-section` composed silently while both decided what `position` the host has — the
+       * conflict detector cannot report a claim it was never told about.
+       *
+       * And the subtree, because the layer is appended into the host (`installBackgroundMedia`): it
+       * would become a deck's last slide, or `scroll-story`'s `:last-child` in place of its sections.
        */
-      channels: ["media", "layout"],
+      channels: ["media", "position", "isolation", SUBTREE_CHANNEL],
       renderer: "javascript",
       parameters: backgroundMediaParams,
       // Not a claim to support four timelines — an abstention. A backdrop is not driven by progress
@@ -9456,7 +10007,9 @@ var kuinetic = (() => {
     return {
       id,
       renderer: "javascript",
-      channels: ["content"],
+      // The subtree too: both counters rebuild the host's children (the number, or the odometer's
+      // digit columns), so a deck or a widget beside one would lose what it put there.
+      channels: ["content", SUBTREE_CHANNEL],
       parameters,
       supportedTimelines: ["time"],
       supportedActivations: ["load", "enter", "hover", "focus", "click", "manual"],
@@ -9844,7 +10397,9 @@ var kuinetic = (() => {
     return {
       id,
       renderer: "javascript",
-      channels,
+      // Every one of these replaces the host's children with its own spans or layers, so it owns
+      // them: beside a deck it would split the slides, beside `slow-mo` it would swallow the toggle.
+      channels: [...channels, SUBTREE_CHANNEL],
       parameters: options.parameters,
       supportedTimelines: ["time"],
       supportedActivations: ["load", "enter", "hover", "focus", "click", "manual"],
@@ -9974,21 +10529,21 @@ var kuinetic = (() => {
     const finished = new Promise((resolve) => {
       settle2 = resolve;
     });
-    const land = () => {
+    const land2 = () => {
       ctx.win.clearTimeout(timer);
       timer = void 0;
       layers.decorative.removeAttribute("aria-hidden");
       layers.srOnly.remove();
       settle2();
     };
-    let timer = ctx.win.setTimeout(land, splitRevealFinishMs(params, count));
+    let timer = ctx.win.setTimeout(land2, splitRevealFinishMs(params, count));
     return {
       finished,
-      land,
+      land: land2,
       rearm(nextCount) {
         if (timer === void 0) return;
         ctx.win.clearTimeout(timer);
-        timer = ctx.win.setTimeout(land, splitRevealFinishMs(params, nextCount));
+        timer = ctx.win.setTimeout(land2, splitRevealFinishMs(params, nextCount));
       },
       cancel() {
         if (timer !== void 0) ctx.win.clearTimeout(timer);
@@ -10227,7 +10782,8 @@ var kuinetic = (() => {
       prepare: deferPrepare(prepareTypewriter),
       perfClass: "continuous"
     }),
-    jsTextPrimitive("scramble-text", ["content"], {
+    // `min-width`/`min-height`: the rest box it pins while the glyphs churn (`prepareScramble`).
+    jsTextPrimitive("scramble-text", ["content", "min-width", "min-height"], {
       parameters: scrambleParams,
       prepare: deferPrepare(prepareScramble),
       perfClass: "continuous"
@@ -10636,6 +11192,36 @@ var kuinetic = (() => {
     return registry;
   }
 
+  // src/core/deck-viewer.ts
+  var provided = null;
+  function provideDeckViewer(viewer) {
+    provided = viewer;
+  }
+  function attachDeckViewer(request) {
+    return provided ? provided(request) : null;
+  }
+  var VIEWER_EVENT = "kui:viewer";
+  function announceViewer(doc, opener, open2) {
+    const Ctor = doc.defaultView?.CustomEvent ?? CustomEvent;
+    const source = opener.isConnected ? opener : doc;
+    source.dispatchEvent(new Ctor(VIEWER_EVENT, { bubbles: true, detail: { open: open2 } }));
+  }
+  var DECK_LIGHTBOX_PARAM = {
+    type: "keyword",
+    default: "false",
+    cssProperty: "--kui-deck-lightbox",
+    keywords: ["true", "false"]
+  };
+  function deckLightbox(enabled, request, warn) {
+    if (!enabled) return () => {
+    };
+    const release2 = attachDeckViewer(request);
+    if (release2) return release2;
+    warn("lightbox:true needs the showcase module (the lightbox gallery), which is not loaded; cards will not open");
+    return () => {
+    };
+  }
+
   // src/effects/step-marking.ts
   var STEP_STATE_ATTR = "data-kui-step-state";
   var STEP_OFFSET_ATTR = "data-kui-step-offset";
@@ -10724,28 +11310,49 @@ var kuinetic = (() => {
     }
     return Math.max(1, ...groups.values());
   }
+  function bindControl(request, param, run) {
+    const { el, ctx, params, label } = request;
+    const selector = resolveTarget(params.text(param), ctx, `${label} ${param}`);
+    if (!selector) return null;
+    if (queryControls(el, ctx, selector).length === 0) ctx.warn(`${label} ${param} "${selector}" matched nothing`);
+    return { selector, run };
+  }
   function delegateControls(request) {
-    const { el, ctx, scope, groups } = request;
+    const { el, ctx, groups } = request;
     if (groups.length === 0) return () => {
     };
-    const root = scope === "page" ? ctx.doc : el;
-    const onClick = (event) => {
-      const from = event.target;
-      if (typeof from?.closest !== "function") return;
+    const press = (from, inside) => {
       for (const { selector, run } of groups) {
-        const matches = queryScoped(el, ctx, selector, scope);
+        const matches = queryControls(el, ctx, selector);
         const matched = new Set(matches);
+        const stop = inside ? el : null;
         let node = from;
-        while (node && !matched.has(node)) node = node.parentElement;
-        if (!node) continue;
+        while (node && node !== stop && !matched.has(node)) node = node.parentElement;
+        if (!node || node === stop) continue;
         run(node, matches.indexOf(node));
       }
     };
-    root.addEventListener("click", onClick);
-    return () => root.removeEventListener("click", onClick);
+    const pressed = (event) => {
+      const from = event.target;
+      return typeof from?.closest === "function" ? from : null;
+    };
+    const onInside = (event) => {
+      const from = pressed(event);
+      if (from) press(from, true);
+    };
+    const onOutside = (event) => {
+      const from = pressed(event);
+      if (from && !el.contains(from)) press(from, false);
+    };
+    el.addEventListener("click", onInside);
+    ctx.doc.addEventListener("click", onOutside);
+    return () => {
+      el.removeEventListener("click", onInside);
+      ctx.doc.removeEventListener("click", onOutside);
+    };
   }
   function createStepIndex(options) {
-    const { el, params, ctx, scope, resolveSteps, onRender } = options;
+    const { el, params, ctx, resolveSteps, onRender } = options;
     const name = options.name ?? "step-progress";
     const marker = createStepMarker(resolveSteps, (message) => ctx.warn(`${name} ${message}`));
     const self = createAttributeLedger(el);
@@ -10764,26 +11371,23 @@ var kuinetic = (() => {
     };
     const next = () => goTo(nextStep(step, total()));
     const prev = () => goTo(prevStep(step, total()));
-    const groups = [];
-    const bindControl = (param, run) => {
-      const selector = resolveTarget(params.text(param), ctx, `${name} ${param}`);
-      if (!selector) return false;
-      if (queryScoped(el, ctx, selector, scope).length === 0) {
-        ctx.warn(`${name} ${param} "${selector}" matched nothing`);
-      }
-      groups.push({ selector, run });
-      return true;
+    const byHand = (move) => {
+      options.onInput?.();
+      move();
     };
-    const named = [
-      bindControl("next", next),
-      bindControl("prev", prev),
-      bindControl("jump", (_node, position) => {
-        if (position >= 0) goTo(position);
-      })
-    ].some(Boolean);
-    const fallback = options.clickFallback !== false && !named;
-    if (fallback) el.addEventListener("click", next);
-    const releaseControls = delegateControls({ el, ctx, scope, groups });
+    const request = { el, ctx, params, label: name };
+    const groups = [
+      bindControl(request, "next", () => byHand(next)),
+      bindControl(request, "prev", () => byHand(prev)),
+      bindControl(request, "jump", (_node, position) => {
+        if (position >= 0) byHand(() => goTo(position));
+      }),
+      ...options.controls ?? []
+    ].filter((group) => group !== null);
+    const fallback = options.clickFallback !== false && groups.length === 0;
+    const onContainerClick = () => byHand(next);
+    if (fallback) el.addEventListener("click", onContainerClick);
+    const releaseControls = delegateControls({ el, ctx, groups });
     render();
     return {
       goTo,
@@ -10792,13 +11396,291 @@ var kuinetic = (() => {
       current: () => step,
       total,
       release: () => {
-        if (fallback) el.removeEventListener("click", next);
+        if (fallback) el.removeEventListener("click", onContainerClick);
         releaseControls();
         self.restore();
         selfStyle.restore();
         marker.restore();
       }
     };
+  }
+
+  // src/effects/auto-motion.ts
+  var MIN_PERIOD_MS = 2e3;
+  var MAX_FRAME_MS = 100;
+  function clampPeriod(ms) {
+    if (!Number.isFinite(ms) || ms === 0) return 0;
+    return Math.sign(ms) * Math.max(MIN_PERIOD_MS, Math.abs(ms));
+  }
+  function cyclesFor(dtMs, periodMs) {
+    return Math.min(Math.max(dtMs, 0), MAX_FRAME_MS) / periodMs;
+  }
+  function isKeyboardFocus(target) {
+    const node = target;
+    if (typeof node?.matches !== "function") return true;
+    try {
+      return node.matches(":focus-visible");
+    } catch {
+      return true;
+    }
+  }
+  function createAutoMotion(request) {
+    const { el, ctx, spinMs, autoplayMs, settleMs, advance, step, setSpinning, onPausedChange } = request;
+    const pauseOnHover = request.pauseOnHover ?? true;
+    const enabled = spinMs !== 0 || autoplayMs !== 0;
+    if (!enabled) {
+      return {
+        enabled,
+        interrupt() {
+        },
+        hold() {
+        },
+        toggle() {
+        },
+        release() {
+        }
+      };
+    }
+    const win = ctx.win;
+    let userPaused = ctx.reducedMotion;
+    let hovered = false;
+    let focused = false;
+    let onscreen = true;
+    let gesture = false;
+    let held = false;
+    let viewing = false;
+    let viewerOpen = false;
+    let focusBeforeViewer = false;
+    let frame = 0;
+    let lastFrameAt = null;
+    let timer = null;
+    let holdTimer = null;
+    let spinning = false;
+    const active = () => !userPaused && !hovered && !focused && onscreen && !gesture && !held && !viewing && !ctx.doc.hidden;
+    const requestFrame = (callback) => typeof win.requestAnimationFrame === "function" ? win.requestAnimationFrame(callback) : win.setTimeout(() => callback(Date.now()), 16);
+    const cancelFrame = (handle) => {
+      if (typeof win.cancelAnimationFrame === "function") win.cancelAnimationFrame(handle);
+      else win.clearTimeout(handle);
+    };
+    const publishSpinning = (next) => {
+      if (next === spinning) return;
+      spinning = next;
+      setSpinning(next);
+    };
+    const tick = (now) => {
+      frame = 0;
+      if (!active()) return;
+      if (lastFrameAt !== null) advance(cyclesFor(now - lastFrameAt, spinMs));
+      lastFrameAt = now;
+      frame = requestFrame(tick);
+    };
+    const startSpin = () => {
+      if (frame !== 0) return;
+      publishSpinning(true);
+      lastFrameAt = null;
+      frame = requestFrame(tick);
+    };
+    const stopSpin = () => {
+      if (frame !== 0) cancelFrame(frame);
+      frame = 0;
+      publishSpinning(false);
+    };
+    const armAutoplay = () => {
+      if (timer !== null) return;
+      timer = win.setTimeout(() => {
+        timer = null;
+        step(autoplayMs > 0 ? 1 : -1);
+        update();
+      }, Math.abs(autoplayMs));
+    };
+    const clearAutoplay = () => {
+      if (timer === null) return;
+      win.clearTimeout(timer);
+      timer = null;
+    };
+    function update() {
+      const running = active();
+      if (spinMs !== 0) (running ? startSpin : stopSpin)();
+      if (autoplayMs !== 0) (running ? armAutoplay : clearAutoplay)();
+    }
+    const onEnter = () => {
+      hovered = true;
+      update();
+    };
+    const onLeave = () => {
+      hovered = false;
+      update();
+    };
+    const onFocusIn = (event) => {
+      focused = (!viewerOpen || focusBeforeViewer) && isKeyboardFocus(event.target);
+      update();
+    };
+    const onFocusOut = (event) => {
+      if (!viewerOpen) focusBeforeViewer = focused;
+      const next = event.relatedTarget;
+      focused = next !== null && el.contains(next) && isKeyboardFocus(next);
+      update();
+    };
+    const onVisibility = () => update();
+    const onViewer = (event) => {
+      const open2 = event.detail?.open === true;
+      viewerOpen = open2;
+      viewing = open2 && el.contains(event.target);
+      update();
+    };
+    if (pauseOnHover) {
+      el.addEventListener("pointerenter", onEnter);
+      el.addEventListener("pointerleave", onLeave);
+    }
+    el.addEventListener("focusin", onFocusIn);
+    el.addEventListener("focusout", onFocusOut);
+    ctx.doc.addEventListener("visibilitychange", onVisibility);
+    ctx.doc.addEventListener(VIEWER_EVENT, onViewer);
+    const Observer = win.IntersectionObserver;
+    const observer = Observer ? new Observer((entries) => {
+      for (const entry of entries) onscreen = entry.isIntersecting;
+      update();
+    }) : null;
+    observer?.observe(el);
+    onPausedChange(userPaused);
+    update();
+    return {
+      enabled,
+      interrupt() {
+        held = true;
+        if (holdTimer !== null) win.clearTimeout(holdTimer);
+        holdTimer = win.setTimeout(() => {
+          holdTimer = null;
+          held = false;
+          update();
+        }, Math.max(0, settleMs));
+        update();
+      },
+      hold(holding) {
+        gesture = holding;
+        update();
+      },
+      toggle() {
+        userPaused = !userPaused;
+        onPausedChange(userPaused);
+        update();
+      },
+      release() {
+        if (frame !== 0) cancelFrame(frame);
+        frame = 0;
+        if (timer !== null) win.clearTimeout(timer);
+        if (holdTimer !== null) win.clearTimeout(holdTimer);
+        timer = null;
+        holdTimer = null;
+        observer?.disconnect();
+        el.removeEventListener("pointerenter", onEnter);
+        el.removeEventListener("pointerleave", onLeave);
+        el.removeEventListener("focusin", onFocusIn);
+        el.removeEventListener("focusout", onFocusOut);
+        ctx.doc.removeEventListener("visibilitychange", onVisibility);
+        ctx.doc.removeEventListener(VIEWER_EVENT, onViewer);
+        publishSpinning(false);
+      }
+    };
+  }
+  var AUTOPLAY_PARAM = { type: "time", default: "0s", cssProperty: "--kui-autoplay" };
+  var PAUSE_PARAM = { type: "text", default: "", cssProperty: "--kui-pause" };
+  var HOVER_PARAM = {
+    type: "keyword",
+    default: "pause",
+    keywords: ["pause", "none"],
+    cssProperty: "--kui-hover"
+  };
+  function motionPeriods(request) {
+    const { params, ctx, label } = request;
+    const spinRaw = request.spin ? params.ms("spin", 0) : 0;
+    const autoplayRaw = params.ms("autoplay", 0);
+    const spin2 = clampPeriod(spinRaw);
+    const autoplay = clampPeriod(autoplayRaw);
+    if (spin2 !== spinRaw) ctx.warn(`${label} spin: minimum is 2s; clamped to ${Math.abs(spin2) / 1e3}s`);
+    if (autoplay !== autoplayRaw) {
+      ctx.warn(`${label} autoplay: minimum is 2s; clamped to ${Math.abs(autoplay) / 1e3}s`);
+    }
+    if (spin2 !== 0 && autoplay !== 0) {
+      ctx.warn(`${label}: spin: and autoplay: are both set; spin: wins`);
+      return { spin: spin2, autoplay: 0 };
+    }
+    return { spin: spin2, autoplay };
+  }
+  function createDeckMotion(request) {
+    const { el, ctx, params, label, settleMs, step } = request;
+    const { spin: spin2, autoplay } = motionPeriods(request);
+    const ledgers = /* @__PURE__ */ new Map();
+    const pauseSelector = resolveTarget(params.text("pause"), ctx, `${label} pause`);
+    const reflectPaused = (paused) => {
+      if (!pauseSelector) return;
+      for (const node of queryControls(el, ctx, pauseSelector)) {
+        let ledger = ledgers.get(node);
+        if (!ledger) {
+          ledger = createAttributeLedger(node);
+          ledgers.set(node, ledger);
+        }
+        ledger.set("aria-pressed", String(paused));
+      }
+    };
+    const motion = createAutoMotion({
+      el,
+      ctx,
+      spinMs: spin2,
+      autoplayMs: autoplay,
+      settleMs,
+      pauseOnHover: !params.is("hover", "none"),
+      advance: request.spin?.advance ?? (() => {
+      }),
+      step,
+      setSpinning: request.spin?.setSpinning ?? (() => {
+      }),
+      onPausedChange: reflectPaused
+    });
+    let pause = null;
+    if (pauseSelector && !motion.enabled) {
+      ctx.warn(`${label} pause: has nothing to pause without ${request.spin ? "spin: or " : ""}autoplay:`);
+    } else if (pauseSelector) {
+      pause = bindControl({ el, ctx, params, label }, "pause", () => motion.toggle());
+    }
+    return {
+      motion,
+      pause,
+      release() {
+        motion.release();
+        for (const ledger of ledgers.values()) ledger.restore();
+        ledgers.clear();
+      }
+    };
+  }
+
+  // src/effects/swipe-event.ts
+  var SWIPE_EVENT = "kui:swipe";
+  var DIRECTIONS = /* @__PURE__ */ new Set(["left", "right", "up", "down"]);
+  function announceSwipe(win, el, direction) {
+    const Ctor = win.CustomEvent;
+    el.dispatchEvent(new Ctor(SWIPE_EVENT, { bubbles: true, detail: { direction } }));
+  }
+  function swipeStep(direction) {
+    return direction === "left" || direction === "up" ? 1 : -1;
+  }
+  function swipeReaches(source, el) {
+    if (source === el) return true;
+    if (!source.contains(el)) return false;
+    for (let node = el.parentElement; node && node !== source; node = node.parentElement) {
+      if (node.hasAttribute("data-kui-step")) return false;
+    }
+    return true;
+  }
+  function stepOnSwipe(doc, el, step) {
+    const onSwipe = (event) => {
+      const direction = event.detail?.direction;
+      const source = event.target;
+      if (!direction || !DIRECTIONS.has(direction) || source.nodeType !== 1) return;
+      if (swipeReaches(source, el)) step(swipeStep(direction));
+    };
+    doc.addEventListener(SWIPE_EVENT, onSwipe);
+    return () => doc.removeEventListener(SWIPE_EVENT, onSwipe);
   }
 
   // src/effects/forms/primitives.ts
@@ -10921,7 +11803,7 @@ var kuinetic = (() => {
   }
   var STRENGTH_METER_PRIMITIVE = jsInputPrimitive(
     "strength-meter",
-    ["meter"],
+    ["meter", attributeChannel("data-kui-strength-level")],
     {},
     deferPrepare(prepareStrengthMeter)
   );
@@ -10932,14 +11814,55 @@ var kuinetic = (() => {
     deferPrepare(prepareRangeFill)
   );
   function prepareStepProgress(el, params, ctx) {
-    const selector = resolveTarget(params.text("target"), ctx, "step-progress");
+    const label = "step-progress";
+    const selector = resolveTarget(params.text("target"), ctx, label);
     const scope = scopeParam(params, "page");
     const resolveSteps = () => selector ? queryScoped(el, ctx, selector, scope) : el.children;
-    return createStepIndex({ el, params, ctx, scope, resolveSteps }).release;
+    const lightbox = params.is("lightbox");
+    const { motion, pause, release: releaseMotion } = createDeckMotion({
+      el,
+      ctx,
+      params,
+      label,
+      settleMs: effectDurationMs(params, 400),
+      step: (direction) => direction > 0 ? index.next() : index.prev()
+    });
+    const index = createStepIndex({
+      el,
+      params,
+      ctx,
+      resolveSteps,
+      controls: pause ? [pause] : [],
+      onInput: () => motion.interrupt(),
+      /*
+       * With `lightbox:true` a click on a slide opens the viewer, so the container click cannot also
+       * advance the deck: one press would both open the gallery and move the slide behind it. The
+       * deck still moves on its arrows, dots, swipe and autoplay.
+       */
+      clickFallback: !lightbox
+    });
+    const releaseViewer = deckLightbox(
+      lightbox,
+      { host: el, cards: resolveSteps, doc: ctx.doc, reducedMotion: ctx.reducedMotion },
+      (message) => ctx.warn(`${label} ${message}`)
+    );
+    const releaseSwipe = stepOnSwipe(ctx.doc, el, (direction) => {
+      motion.interrupt();
+      if (direction > 0) index.next();
+      else index.prev();
+    });
+    return () => {
+      releaseViewer();
+      releaseSwipe();
+      releaseMotion();
+      index.release();
+    };
   }
   var STEP_PROGRESS_BASE = jsInputPrimitive(
     "step-progress",
-    ["state"],
+    // The host's children are its steps unless `target:` says otherwise, so a widget that inserts
+    // one (`slow-mo`'s toggle) would become a step: the subtree is this deck's.
+    [SUBTREE_CHANNEL, attributeChannel("data-kui-step")],
     {
       // Empty default, not '4': `readParams` fills every declared default in unconditionally and
       // does not validate it, so an empty one is how `prepareStepProgress` tells "unauthored" from
@@ -10986,6 +11909,16 @@ var kuinetic = (() => {
        * at 390px and at 1440px, and the page keeps owning the box. Same reason `rest:` is a number.
        */
       main: { type: "number", default: "1", cssProperty: "--kui-main", finite: true, minimum: 0 },
+      /*
+       * The deck steps itself every `autoplay:` (`0s`, the default, is off), and `pause:` names the
+       * author's play/pause control, and `hover:none` stops a resting pointer pausing it. The spatial
+       * decks' declarations and scheduler, shared — see `prepareStepProgress` and `effects/auto-motion.ts`.
+       */
+      autoplay: AUTOPLAY_PARAM,
+      pause: PAUSE_PARAM,
+      hover: HOVER_PARAM,
+      // A click on a slide opens every slide in the lightbox gallery. See `core/deck-viewer.ts`.
+      lightbox: DECK_LIGHTBOX_PARAM,
       // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
       // see `prepareStepProgress`. One declaration, shared: `effects/step-marking.ts`.
       scope: SCOPE_PARAM
@@ -11032,7 +11965,7 @@ var kuinetic = (() => {
   }
   var SUBMIT_FLOW_PRIMITIVE = jsInputPrimitive(
     "submit-flow",
-    ["state"],
+    [attributeChannel("data-kui-stage")],
     {
       load: { type: "time", default: "1200ms", cssProperty: "--kui-load" },
       hold: { type: "time", default: "1500ms", cssProperty: "--kui-hold" }
@@ -11082,9 +12015,12 @@ var kuinetic = (() => {
      * two readings is the stylesheet. `step-progress` was the wrong word to type on a deck of
      * slides, which is the only reason this alias exists; nothing behaves differently under it.
      *
-     * It is still an *index*, not a carousel component: no ARIA, no roving focus, no autoplay. That
-     * boundary is the one section H states — the library animates elements you control and does not
-     * own the widget — and naming this `carousel` does not move it.
+     * It is still an *index*, not a carousel component: no ARIA, no roving focus. That boundary is
+     * the one section H states — the library animates elements you control and does not own the
+     * widget — and naming this `carousel` does not move it. `autoplay:`/`pause:` do not cross it: they
+     * press the same "next" a visitor's control does, on a timer, and the control is still the
+     * author's markup (`effects/auto-motion.ts`, shared with the spatial decks). Likewise
+     * `lightbox:true` hands a click on a slide to the showcase gallery (`core/deck-viewer.ts`).
      *
      * No `requiresOwnSubtree` here, unlike `step-progress` beside it. That flag means "this name's
      * shipped CSS reaches past the element into its descendants, so the universal `target:` must
@@ -11146,6 +12082,10 @@ var kuinetic = (() => {
     let active = false;
     let longPressTimer = null;
     let longPressFired = false;
+    let captured = false;
+    let pointerId = null;
+    let lastHandled = null;
+    let documentListening = null;
     function sampleOf(event) {
       return { x: event.clientX, y: event.clientY, time: deps.now() };
     }
@@ -11159,11 +12099,24 @@ var kuinetic = (() => {
       longPressTimer = null;
     }
     function onDown(event) {
+      if (origin && pointerId !== null && event.pointerId !== pointerId) {
+        clearLongPress();
+        const last = samples[samples.length - 1];
+        releaseCapture(pointerId);
+        finish({ x: last.x, y: last.y, time: deps.now() });
+        return;
+      }
+      if (options.accept && !options.accept(event)) {
+        origin = null;
+        return;
+      }
       origin = sampleOf(event);
       samples = [origin];
       active = false;
       longPressFired = false;
-      if (capturePointer) el.setPointerCapture?.(event.pointerId);
+      pointerId = event.pointerId;
+      captured = capturePointer === true && takeCapture(event.pointerId);
+      if (!captured) listenOnDocument();
       if (longPressMs > 0) {
         longPressTimer = deps.setTimer(() => {
           longPressFired = true;
@@ -11171,8 +12124,43 @@ var kuinetic = (() => {
         }, longPressMs);
       }
     }
+    function takeCapture(id) {
+      if (typeof el.setPointerCapture !== "function") return false;
+      try {
+        el.setPointerCapture(id);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function captureOnDrag(event) {
+      if (capturePointer !== "drag") return;
+      captured = takeCapture(event.pointerId);
+      if (captured) stopListeningOnDocument();
+    }
+    function listenOnDocument() {
+      const doc = el.ownerDocument;
+      if (!doc || documentListening) return;
+      documentListening = doc;
+      doc.addEventListener("pointermove", onMove, { passive: true });
+      doc.addEventListener("pointerup", onUp, { passive: true });
+      doc.addEventListener("pointercancel", onUp, { passive: true });
+    }
+    function stopListeningOnDocument() {
+      const doc = documentListening;
+      if (!doc) return;
+      documentListening = null;
+      doc.removeEventListener("pointermove", onMove);
+      doc.removeEventListener("pointerup", onUp);
+      doc.removeEventListener("pointercancel", onUp);
+    }
+    function firstHearing(event) {
+      if (event === lastHandled) return false;
+      lastHandled = event;
+      return true;
+    }
     function onMove(event) {
-      if (!origin) return;
+      if (!origin || !firstHearing(event)) return;
       const sample = sampleOf(event);
       samples.push(sample);
       if (samples.length > MAX_SAMPLES2) samples.shift();
@@ -11181,17 +12169,17 @@ var kuinetic = (() => {
       if (!active) {
         active = true;
         clearLongPress();
+        captureOnDrag(event);
         handlers.onStart?.(origin);
       }
       handlers.onMove?.(vector, sample);
     }
-    function onUp(event) {
-      clearLongPress();
-      if (capturePointer) el.releasePointerCapture?.(event.pointerId);
-      if (!origin) return;
-      const sample = sampleOf(event);
-      samples.push(sample);
-      const vector = vectorNow(sample);
+    function releaseCapture(id) {
+      if (captured) el.releasePointerCapture?.(id);
+      captured = false;
+      pointerId = null;
+    }
+    function reportEnd(vector, sample) {
       if (active) {
         handlers.onEnd?.(vector, sample);
         const direction = swipeDirection(vector, swipeVelocity);
@@ -11199,21 +12187,41 @@ var kuinetic = (() => {
       } else if (longPressFired) {
         handlers.onEnd?.(vector, sample);
       }
+    }
+    function onUp(event) {
+      clearLongPress();
+      stopListeningOnDocument();
+      releaseCapture(event.pointerId);
+      if (!origin) return;
+      finish(sampleOf(event));
+    }
+    function finish(sample) {
+      samples.push(sample);
+      reportEnd(vectorNow(sample), sample);
       origin = null;
       active = false;
       longPressFired = false;
       samples = [];
     }
+    function onLostCapture(event) {
+      if (event.target !== el) return;
+      if (!captured || event.pointerId !== pointerId) return;
+      captured = false;
+      onUp(event);
+    }
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove, { passive: true });
     el.addEventListener("pointerup", onUp, { passive: true });
     el.addEventListener("pointercancel", onUp, { passive: true });
+    el.addEventListener("lostpointercapture", onLostCapture, { passive: true });
     return () => {
       clearLongPress();
+      stopListeningOnDocument();
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("lostpointercapture", onLostCapture);
     };
   }
   function defaultGestureDeps() {
@@ -11351,22 +12359,26 @@ var kuinetic = (() => {
     runners.x.to(offset.x + vector.vx * carry);
     runners.y.to(offset.y + vector.vy * carry);
   }
-  function prepareSwipeable(el, params) {
+  function prepareSwipeable(el, params, ctx) {
+    const axis = params.text("axis", "both");
+    if (axis !== "both") ctx.style.set("touch-action", `${axis === "x" ? "pan-y" : "pan-x"} pinch-zoom`);
     const stop = recognise(
       el,
       {
         onSwipe(direction) {
           el.setAttribute("data-kui-swipe", direction);
+          announceSwipe(ctx.win, el, direction);
         }
       },
       {
-        axis: params.text("axis", "both"),
+        axis,
         swipeVelocity: params.num("velocity", 300),
-        // This primitive publishes an attribute and moves nothing, so it has no reason to hold the
-        // pointer — and holding it retargets the following `click` at this element, which silently
-        // breaks every interactive child. A `swipe-x` on a carousel shell killed its own dots and
-        // buttons that way. See `capturePointer` in `core/gesture.ts`.
-        capturePointer: false
+        // This primitive moves nothing, so it must not hold the pointer from `pointerdown` — that
+        // retargets the following `click` at this element and kills every interactive child (a
+        // `swipe-x` on a carousel shell killed its own dots and buttons). But a flick that leaves a
+        // small element never delivers `pointerup` to it unless captured, so capture only once the
+        // drag starts. See `capturePointer` in `core/gesture.ts`.
+        capturePointer: "drag"
       }
     );
     return () => {
@@ -11425,7 +12437,7 @@ var kuinetic = (() => {
   var GESTURE_PRIMITIVES = [
     gesturePrimitive(
       "draggable",
-      ["translate"],
+      ["translate", attributeChannel("data-kui-dragging")],
       {
         ...springParams2,
         axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", keywords: ["x", "y", "both"] },
@@ -11456,7 +12468,7 @@ var kuinetic = (() => {
     ),
     gesturePrimitive(
       "swipeable",
-      ["state"],
+      [attributeChannel("data-kui-swipe")],
       {
         axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", keywords: ["x", "y", "both"] },
         velocity: { type: "number", default: "300", cssProperty: "--kui-velocity" }
@@ -11465,7 +12477,7 @@ var kuinetic = (() => {
     ),
     gesturePrimitive(
       "pressable",
-      ["state"],
+      [attributeChannel("data-kui-pressed")],
       { duration: { type: "time", default: "500ms", cssProperty: "--kui-duration" } },
       // `duration` here is the hold threshold, not a span of motion — `long-press 800ms` means
       // "count it once the finger has been down for 800ms". It is read (see `preparePressable`), so
@@ -11516,6 +12528,7 @@ var kuinetic = (() => {
     },
     { name: "swipe", primitive: "swipeable", phase: "state" },
     { name: "swipe-x", primitive: "swipeable", params: { axis: "x" }, phase: "state" },
+    { name: "swipe-y", primitive: "swipeable", params: { axis: "y" }, phase: "state" },
     { name: "long-press", primitive: "pressable", phase: "state" },
     { name: "magnetic", primitive: "magnetic", phase: "state" },
     {
@@ -11811,13 +12824,15 @@ var kuinetic = (() => {
     ),
     layoutPrimitive(
       "auto-height",
-      ["layout"],
+      // The two properties it writes on the panel: `overflow: hidden`, and the `height` it animates.
+      ["overflow", "height"],
       { attribute: { type: "text", default: "data-open", cssProperty: "--kui-attribute" } },
       deferPrepare(prepareAutoHeight)
     ),
     layoutPrimitive(
       "flip-indicator",
-      ["translate", "layout"],
+      // The bar's landing spot (`translate`) and its `width`, matched to the selected tab.
+      ["translate", "width"],
       {
         follow: { type: "text", default: "", cssProperty: "--kui-follow" },
         attribute: { type: "text", default: "aria-selected", cssProperty: "--kui-attribute" }
@@ -12066,26 +13081,25 @@ var kuinetic = (() => {
   var NAV_JS_PRIMITIVES = [
     navPrimitive(
       "header-shrink",
-      // `'shadow'` alongside `'layout'`: `header-shrink`'s host rule also transitions `box-shadow`
-      // (navigation.css), which `layout` alone does not cover — see `header-shrink`'s own
-      // `Preset.transitions` below and `channel-properties.ts`'s `layout` entry for why the two
-      // interpolated properties (`padding-block`/`font-size`) stay on `layout` while this one moves
-      // to the channel that already owns every other box-shadow writer (`lift-shadow`,
-      // `border-glow`). Composing `header-shrink` with either of those is now a refused conflict
-      // instead of a silent clobber on the same property — the self-consistency bug this closes.
-      ["layout", "shadow"],
+      // The three properties its host rule writes (navigation.css): the two it interpolates from
+      // `--kui-shrink`, `padding-block` and `font-size`, each under its own name, and `box-shadow`
+      // on the channel that already owns every other box-shadow writer (`lift-shadow`,
+      // `border-glow`), so composing `header-shrink` with either of those is a refused conflict
+      // instead of a silent clobber. The two used to sit in the shared `'layout'` bucket, which also
+      // refused `header-shrink, pin-until` — a sticky header that shrinks — over nothing they share.
+      ["padding", "font-size", "shadow", attributeChannel("data-kui-shrunk")],
       { offset: { type: "number", default: "120", cssProperty: "--kui-offset" } },
       deferPrepare(prepareHeaderShrink)
     ),
     navPrimitive(
       "header-hide-on-scroll",
-      [CHANNEL.translate],
+      [CHANNEL.translate, attributeChannel("data-kui-hidden")],
       { offset: { type: "number", default: "8", cssProperty: "--kui-offset" } },
       deferPrepare(prepareHeaderHide)
     ),
     navPrimitive(
       "back-to-top-fade",
-      [CHANNEL.opacity, CHANNEL.translate],
+      [CHANNEL.opacity, CHANNEL.translate, attributeChannel("data-kui-visible")],
       { offset: { type: "number", default: "400", cssProperty: "--kui-offset" } },
       deferPrepare(prepareBackToTop)
     )
@@ -12648,7 +13662,10 @@ var kuinetic = (() => {
   var SCROLL_PRIMITIVES = [
     scrollPrimitive({
       id: "pin",
-      channels: ["layout", "progress"],
+      // `position: sticky` and its `top` (`installSticky`): the host's position is what it holds. The
+      // spacer it can insert is a sibling, not a child, so the host's subtree is not claimed. And the
+      // `data-kui-pinned` flag it publishes while holding.
+      channels: ["position", "progress", attributeChannel("data-kui-pinned")],
       parameters: {
         ...distanceParam2,
         ...stickyParams
@@ -12658,7 +13675,13 @@ var kuinetic = (() => {
     }),
     scrollPrimitive({
       id: "scroll-progress",
-      channels: ["progress"],
+      // `data-kui-step` beside `progress`: with `steps:` this publishes the same index attribute (and
+      // its `--kui-step` twin) a `carousel` does, so the two on one element would overwrite each
+      // other's step every frame. The claim is static, so it holds with `steps:0` too — a list can't
+      // be composed or refused per param value. One claim covers both writes: every primitive that
+      // writes the `--kui-step` index also writes the attribute, so a separate channel for the
+      // property could never change a decision.
+      channels: ["progress", attributeChannel("data-kui-step")],
       parameters: {
         ...distanceParam2,
         steps: { type: "number", default: "0", cssProperty: "--kui-steps" },
@@ -12694,7 +13717,8 @@ var kuinetic = (() => {
     }),
     scrollPrimitive({
       id: "media-scrub",
-      channels: ["media", "progress"],
+      // `position`: it holds its host the way a pin does (`position: sticky` and its `top`).
+      channels: ["media", "progress", "position"],
       parameters: {
         ...distanceParam2,
         // A scrub is a hold, so it needs the same two knobs a pin does. Declaring them here is what
@@ -12713,7 +13737,7 @@ var kuinetic = (() => {
     }),
     scrollPrimitive({
       id: "scroll-spy",
-      channels: ["state"],
+      channels: [attributeChannel("data-kui-active")],
       parameters: {
         // `distance`: the per-section form only. `offset-top`: the container form only. Each is a
         // no-op — warned, not silent — in the other; see `prepareScrollSpySingle` and
@@ -12739,8 +13763,8 @@ var kuinetic = (() => {
     scrollPrimitive({
       id: "smooth-scroll",
       /*
-       * Its own channel, not the `'layout'` it used to share with `pin`, `stacking-cards` and
-       * `scroll-snap`. The channel model exists to stop two effects fighting over the same CSS
+       * Its own channel, not the `'layout'` bucket it used to share with `pin`, `stacking-cards` and
+       * `scroll-snap` (a bucket since split into the properties each writes). The channel model exists to stop two effects fighting over the same CSS
        * property, and this one writes exactly `scroll-behavior` — a property that describes how a
        * *user-or-script-initiated* scroll is performed, and that no other primitive touches.
        *
@@ -12761,7 +13785,11 @@ var kuinetic = (() => {
     }),
     scrollPrimitive({
       id: "scroll-snap",
-      channels: ["layout"],
+      // `scroll-snap-type`, and with `target:` the container it makes of the host (`installSnapContainer`):
+      // `overflow`, and `display: flex` on the x axis — `discrete`'s property. A claim is static, so
+      // it holds without `target:` too. The subtree likewise: with no `target:` the host's children
+      // are the snap items, each given a `scroll-snap-align`.
+      channels: ["scroll-snap-type", "overflow", "discrete", SUBTREE_CHANNEL],
       parameters: {
         axis: { type: "keyword", default: "y", cssProperty: "--kui-axis", keywords: ["x", "y"] },
         strictness: {
@@ -13103,7 +14131,7 @@ var kuinetic = (() => {
     return children.filter((child) => child.textContent.trim() === "");
   }
   function withIconParts(inner) {
-    return (el, params, ctx) => {
+    return inheritTimingContract(inner, (el, params, ctx) => {
       if (!el.querySelector(".kui-bar")) {
         const bars = findBars(el);
         if (bars.length > 0) {
@@ -13122,7 +14150,7 @@ var kuinetic = (() => {
         }
       }
       return inner(el, params, ctx);
-    };
+    });
   }
 
   // src/effects/svg/index.ts
@@ -13161,18 +14189,18 @@ var kuinetic = (() => {
     };
     let current = 0;
     const enter = () => drive(1);
-    const leave = () => drive(0);
+    const leave2 = () => drive(0);
     el.addEventListener("pointerenter", enter, { passive: true });
     el.addEventListener("focusin", enter, { passive: true });
-    el.addEventListener("pointerleave", leave, { passive: true });
-    el.addEventListener("focusout", leave, { passive: true });
+    el.addEventListener("pointerleave", leave2, { passive: true });
+    el.addEventListener("focusout", leave2, { passive: true });
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
       el.removeEventListener("pointerenter", enter);
       el.removeEventListener("focusin", enter);
-      el.removeEventListener("pointerleave", leave);
-      el.removeEventListener("focusout", leave);
+      el.removeEventListener("pointerleave", leave2);
+      el.removeEventListener("focusout", leave2);
       path2.setAttribute("d", startPath);
     };
   }
@@ -13193,7 +14221,16 @@ var kuinetic = (() => {
   var ICON_TOGGLE_PRIMITIVE = {
     id: "icon-toggle",
     renderer: "javascript",
-    channels: [CHANNEL.translate, CHANNEL.rotate, CHANNEL.scale, CHANNEL.opacity, CHANNEL.clip],
+    // The subtree too: with no `.kui-bar` markup the host's own children are the bars
+    // (`icon-parts.ts` stamps them), so a deck or widget beside it would have its children moved.
+    channels: [
+      CHANNEL.translate,
+      CHANNEL.rotate,
+      CHANNEL.scale,
+      CHANNEL.opacity,
+      CHANNEL.clip,
+      SUBTREE_CHANNEL
+    ],
     parameters: {
       duration: { type: "time", default: "260ms", cssProperty: "--kui-duration" },
       // The state flip is the start moment: `aria-expanded` goes true and the bars begin to move.
@@ -13391,8 +14428,10 @@ var kuinetic = (() => {
     // `'discrete'` alongside `rotate`: the unconditional `[data-kui-fx~='flip-card']` rule pins
     // `display: grid` so the two faces stack in one cell instead of flowing as normal block
     // siblings — unrelated to `catalog/discrete.ts`'s show/hide use of the same physical property,
-    // but `display` is tracked as one channel regardless of the value written into it.
-    channels: [CHANNEL.rotate, "discrete"],
+    // but `display` is tracked as one channel regardless of the value written into it. The subtree
+    // because the host's children are the two faces (`flip-parts.ts` marks them, and injects the
+    // toggle button when none is authored).
+    channels: [CHANNEL.rotate, "discrete", SUBTREE_CHANNEL],
     parameters: {
       duration: { type: "time", default: "700ms", cssProperty: "--kui-duration" },
       // The turn has a start moment — the click, or the pointer arriving — so a delay before it is
@@ -13530,8 +14569,8 @@ var kuinetic = (() => {
   function snapTo(projected) {
     return Math.round(projected) + 0;
   }
-  function wrapPlace(place2, total) {
-    return total > 0 ? (place2 % total + total) % total : 0;
+  function wrapPlace(place3, total) {
+    return total > 0 ? (place3 % total + total) % total : 0;
   }
   var KEY_DELTAS = {
     ArrowRight: 1,
@@ -13543,8 +14582,26 @@ var kuinetic = (() => {
     Home: null,
     End: null
   };
-  function createRingDrag(request) {
-    const { el, ctx, enabled, travelPx, total, positionOf, moveTo, setDragging } = request;
+  function holdSelection(doc) {
+    let ledger;
+    const release2 = () => {
+      ledger?.restore();
+      ledger = void 0;
+    };
+    return {
+      hold() {
+        release2();
+        doc.getSelection()?.removeAllRanges();
+        ledger = createStyleLedger(doc.documentElement);
+        ledger.claim("user-select");
+        ledger.claim("-webkit-user-select");
+        ledger.set("user-select", "none");
+        ledger.set("-webkit-user-select", "none");
+      },
+      release: release2
+    };
+  }
+  function guardClicks(el, enabled) {
     let suppressClick = false;
     const onClickCapture = (event) => {
       if (!suppressClick) return;
@@ -13552,19 +14609,49 @@ var kuinetic = (() => {
       event.stopPropagation();
       event.preventDefault();
     };
+    const onPressCapture = () => {
+      suppressClick = false;
+    };
+    const onNativeDrag = (event) => {
+      event.preventDefault();
+    };
+    el.addEventListener("click", onClickCapture, true);
+    el.addEventListener("pointerdown", onPressCapture, true);
+    if (enabled) el.addEventListener("dragstart", onNativeDrag);
+    return {
+      arm() {
+        suppressClick = true;
+      },
+      release() {
+        el.removeEventListener("click", onClickCapture, true);
+        el.removeEventListener("pointerdown", onPressCapture, true);
+        el.removeEventListener("dragstart", onNativeDrag);
+      }
+    };
+  }
+  function createRingDrag(request) {
+    const { el, ctx, enabled, travelPx, total, positionOf, moveTo, setDragging } = request;
+    const clicks = guardClicks(el, enabled);
+    let dragFrom = 0;
+    let sign = 1;
+    const selection = holdSelection(el.ownerDocument);
     const stopRecognising = enabled ? recognise(
       el,
       {
         onStart() {
+          dragFrom = positionOf();
+          sign = request.travelSign();
+          selection.hold();
           setDragging(true);
         },
         onMove(vector) {
-          moveTo(positionOf() - vector.dx / travelPx);
+          moveTo(dragFrom - sign * vector.dx / travelPx);
         },
         onEnd(vector) {
+          selection.release();
           setDragging(false);
-          suppressClick = true;
-          const settled = snapTo(projectRelease(positionOf(), vector.vx, travelPx));
+          clicks.arm();
+          const settled = snapTo(projectRelease(positionOf(), sign * vector.vx, travelPx));
           moveTo(wrapPlace(settled, total()));
         }
       },
@@ -13573,7 +14660,15 @@ var kuinetic = (() => {
       // threshold than `recognise`'s own default of 4px is what buys that — a ring occupies a
       // large slab of a phone screen, and a scroll that begins with a two-pixel horizontal wobble
       // should not capture the pointer away from the page.
-      { axis: "x", threshold: DRAG_THRESHOLD_PX }
+      //
+      // Capture only once the press becomes a drag (`'drag'`), never on `pointerdown`. Held from
+      // the press, capture retargets the `click` that ends a plain tap at this host instead of the
+      // card under the pointer — found by the `lightbox:true` browser tier, where a real click on
+      // a card arrived as a click on the ring and opened nothing. The same retargeting made every
+      // link and button inside a card dead in a real browser while jsdom (which has no capture)
+      // stayed green. The host never moves under the pointer — its cards do — so the press has
+      // nothing to stay captured for until it is a drag, and a drag's click is swallowed above.
+      { axis: "x", threshold: DRAG_THRESHOLD_PX, capturePointer: "drag" }
     ) : () => {
     };
     if (enabled) ctx.style.set("touch-action", "pan-y");
@@ -13592,39 +14687,460 @@ var kuinetic = (() => {
     const grantedFocus = el.getAttribute("tabindex") === null;
     if (grantedFocus) el.setAttribute("tabindex", "0");
     el.addEventListener("keydown", onKeyDown);
-    el.addEventListener("click", onClickCapture, true);
     return () => {
       stopRecognising();
+      selection.release();
       el.removeEventListener("keydown", onKeyDown);
-      el.removeEventListener("click", onClickCapture, true);
+      clicks.release();
       if (grantedFocus) el.removeAttribute("tabindex");
     };
   }
 
-  // src/effects/carousel/index.ts
+  // src/effects/carousel/deck.ts
   var DRAGGING_ATTR = "data-kui-ring-dragging";
+  var SPATIAL_DECK_CHANNELS = [
+    SUBTREE_CHANNEL,
+    attributeChannel("data-kui-step"),
+    attributeChannel(DRAGGING_ATTR),
+    attributeChannel("tabindex")
+  ];
+  var SPINNING_ATTR = "data-kui-ring-spinning";
   var FACE_ATTR = "data-kui-ring-face";
+  var WRAP_ATTR = "data-kui-ring-wrap";
+  function commitStyle(win, node) {
+    return win.getComputedStyle?.(node).transform;
+  }
+  function travelSign(liveX, nextX, previousX) {
+    if (nextX !== null) return nextX < liveX ? -1 : 1;
+    if (previousX !== null) return previousX > liveX ? -1 : 1;
+    return 1;
+  }
+  function offsetWrapped(previous, next, count) {
+    return Math.abs(next - previous) > count / 2;
+  }
+  function snapPosition(position, total) {
+    if (total <= 0) return { step: 0, drift: 0 };
+    const nearest = Math.round(position);
+    return { step: (nearest % total + total) % total, drift: position - nearest };
+  }
+  var DECK_PARAMETERS = {
+    duration: { type: "time", default: "620ms", cssProperty: "--kui-duration" },
+    ...TRIGGER_DELAY_PARAM,
+    ease: { type: "easing", default: "cubic-bezier(0.22, 1, 0.36, 1)", cssProperty: "--kui-ease" },
+    /** Whether a pointer can move the deck by hand. */
+    grab: { type: "keyword", default: "true", cssProperty: "--kui-grab", keywords: ["true", "false"] },
+    /*
+     * How far the pointer travels, in pixels, to move the deck one place.
+     *
+     * A pixels-per-step mapping rather than pixels-per-degree, because a step is the unit everything
+     * else here is in — the index, the offset, the snap — and a degree is not: the same drag would
+     * move a six-item ring one place and a sixty-item ring ten, purely because the spacing changed.
+     */
+    travel: { type: "number", default: "220", cssProperty: "--kui-travel", finite: true, minimum: 1 },
+    /** Which elements are the slides. Unset means this element's own children. */
+    target: { type: "text", default: "", cssProperty: "--kui-target" },
+    /** Optional controls, resolved exactly as `step-progress` resolves its own. */
+    next: { type: "text", default: "", cssProperty: "--kui-next" },
+    prev: { type: "text", default: "", cssProperty: "--kui-prev" },
+    jump: { type: "text", default: "", cssProperty: "--kui-jump" },
+    /** A control that pauses and resumes `spin:`/`autoplay:`. See `PAUSE_PARAM` (`auto-motion.ts`). */
+    pause: PAUSE_PARAM,
+    /** `hover:none`: a resting pointer no longer pauses `spin:`/`autoplay:`. See `HOVER_PARAM`. */
+    hover: HOVER_PARAM,
+    /*
+     * Continuous rotation: how long one full cycle of the deck takes. `0s` is off.
+     *
+     * A period rather than a speed because a period is what a designer can picture ("one turn every
+     * forty seconds") and it is a `time`, which the attribute grammar already reads, clamps and
+     * documents. A full cycle is every slide passing once — one revolution of a full ring — so adding a
+     * card does not change how fast the ring turns. **Negative runs the other way**: `spin:-40s`. A
+     * signed value rather than a `direction:` keyword so one row can say everything about its motion
+     * in one token, which is what three rows at three speeds on one page want.
+     */
+    spin: { type: "time", default: "0s", cssProperty: "--kui-spin" },
+    /*
+     * Stepped motion: how long the deck rests on each slide. When both are set `spin:` wins, because a
+     * deck cannot be both gliding and resting. See `AUTOPLAY_PARAM` (`auto-motion.ts`).
+     */
+    autoplay: AUTOPLAY_PARAM,
+    /*
+     * `lightbox:true`: a click on a card opens every card of this deck in the shared lightbox gallery,
+     * at the card clicked. A drag still only moves the deck — its click is swallowed before it can
+     * reach a card (`drag.ts`). The gallery itself lives in the showcase module; see
+     * `core/deck-viewer.ts` for how a deck reaches it without importing it.
+     */
+    lightbox: DECK_LIGHTBOX_PARAM,
+    scope: SCOPE_PARAM
+  };
+  function ledgerFor(store, node) {
+    let ledger = store.attributes.get(node);
+    if (!ledger) {
+      ledger = createAttributeLedger(node);
+      store.attributes.set(node, ledger);
+    }
+    return ledger;
+  }
+  function measureItem(styles, slots) {
+    const first = slots[0];
+    if (!first) return;
+    if (first.offsetWidth > 0) styles.set("--kui-item-width", `${first.offsetWidth}px`);
+    if (first.offsetHeight > 0) styles.set("--kui-item-height", `${first.offsetHeight}px`);
+  }
+  function prepareSpatialDeck(el, params, ctx, layout) {
+    const { label } = layout;
+    mirrorTimingToCss(layout.id, ALL_TIMING_TOKENS, params, ctx);
+    const selector = resolveTarget(params.text("target"), ctx, label);
+    const scope = scopeParam(params, "self");
+    const resolveSlots = () => selector ? queryScoped(el, ctx, selector, scope) : el.children;
+    const marker = createStepMarker(resolveSlots, (message) => ctx.warn(`${label} ${message}`));
+    const total = () => countSteps(params, resolveSlots);
+    const hostAttributes = createAttributeLedger(el);
+    const hostStyles = createStyleLedger(el);
+    for (const [name, value] of Object.entries(layout.hostAttributes ?? {})) hostAttributes.set(name, value);
+    const slots = { attributes: /* @__PURE__ */ new Map() };
+    const attachment = layout.attach?.(hostStyles);
+    let position = 0;
+    let rendered = { step: -1, count: 1, nodes: [] };
+    const lastOffsets = /* @__PURE__ */ new WeakMap();
+    const settleWrapped = (nodes, count) => {
+      for (const node of nodes) {
+        const raw = Number(node.getAttribute("data-kui-step-offset"));
+        const offset = layout.placeOf ? layout.placeOf(raw, count) : raw;
+        const previous = lastOffsets.get(node);
+        lastOffsets.set(node, offset);
+        if (previous === void 0 || !offsetWrapped(previous, offset, count)) continue;
+        const flag = createAttributeLedger(node);
+        flag.set(WRAP_ATTR, "true");
+        commitStyle(ctx.win, node);
+        flag.restore();
+      }
+    };
+    const markFaces = (nodes, count, drift2) => {
+      for (const node of nodes) {
+        const offset = Number(node.getAttribute("data-kui-step-offset"));
+        const face = layout.faceOf(offset - drift2, offset, count);
+        if (node.getAttribute(FACE_ATTR) !== face) ledgerFor(slots, node).set(FACE_ATTR, face);
+      }
+    };
+    const publishPosition = (step, drift2) => {
+      hostStyles.set("--kui-step-position", (step + drift2).toFixed(4));
+    };
+    const render = () => {
+      const count = total();
+      const { step, drift: drift2 } = snapPosition(position, count);
+      hostAttributes.set("data-kui-step", String(step));
+      hostStyles.set("--kui-step", String(step));
+      hostStyles.set("--kui-item-count", String(count));
+      publishPosition(step, drift2);
+      marker.mark(step);
+      const nodes = [...resolveSlots()];
+      if (layout.measure) measureItem(hostStyles, nodes);
+      markFaces(nodes, count, drift2);
+      settleWrapped(nodes, count);
+      attachment?.render(nodes, count);
+      rendered = { step, count, nodes };
+    };
+    const renderFrame = () => {
+      const { step, drift: drift2 } = snapPosition(position, rendered.count);
+      if (step !== rendered.step) {
+        render();
+        return;
+      }
+      publishPosition(step, drift2);
+      markFaces(rendered.nodes, rendered.count, drift2);
+    };
+    const { motion, pause, release: releaseMotion } = createDeckMotion({
+      el,
+      ctx,
+      params,
+      label,
+      settleMs: effectDurationMs(params, 620),
+      step(direction) {
+        const count = total();
+        const { step } = snapPosition(position, count);
+        position = direction > 0 ? nextStep(step, count) : prevStep(step, count);
+        render();
+      },
+      spin: {
+        advance(cycles) {
+          position = wrapPlace(position + cycles * rendered.count, rendered.count);
+          renderFrame();
+        },
+        setSpinning: (spinning) => hostAttributes.set(SPINNING_ATTR, String(spinning))
+      }
+    });
+    const goTo = (next) => {
+      motion.interrupt();
+      position = next;
+      render();
+    };
+    const request = { el, ctx, params, label };
+    const groups = [
+      bindControl(request, "next", () => goTo(nextStep(snapPosition(position, total()).step, total()))),
+      bindControl(request, "prev", () => goTo(prevStep(snapPosition(position, total()).step, total()))),
+      bindControl(request, "jump", (_node, at) => {
+        if (at >= 0) goTo(at);
+      }),
+      pause
+    ].filter((group) => group !== null);
+    const releaseControls = delegateControls({ el, ctx, groups });
+    const screenTravel = () => {
+      const centres = /* @__PURE__ */ new Map();
+      for (const node of rendered.nodes) {
+        const offset = Number(node.getAttribute("data-kui-step-offset"));
+        if (Math.abs(offset) > 1) continue;
+        const box = node.getBoundingClientRect();
+        centres.set(offset, box.left + box.width / 2);
+      }
+      return travelSign(centres.get(0) ?? 0, centres.get(1) ?? null, centres.get(-1) ?? null);
+    };
+    const releaseDrag = createRingDrag({
+      el,
+      ctx,
+      enabled: params.is("grab"),
+      travelPx: params.num("travel", 220),
+      total,
+      positionOf: () => position,
+      travelSign: screenTravel,
+      moveTo: goTo,
+      setDragging: (dragging) => {
+        hostAttributes.set(DRAGGING_ATTR, String(dragging));
+        motion.hold(dragging);
+      }
+    });
+    const releaseViewer = deckLightbox(
+      params.is("lightbox"),
+      { host: el, cards: resolveSlots, doc: ctx.doc, reducedMotion: ctx.reducedMotion },
+      (message) => ctx.warn(`${label} ${message}`)
+    );
+    render();
+    return () => {
+      releaseViewer();
+      releaseMotion();
+      releaseDrag();
+      releaseControls();
+      marker.restore();
+      for (const ledger of slots.attributes.values()) ledger.restore();
+      slots.attributes.clear();
+      attachment?.release();
+      hostAttributes.restore();
+      hostStyles.restore();
+    };
+  }
+
+  // src/effects/carousel/fit.ts
+  var RING_FIT_PROPERTY = "--kui-ring-fit";
+  var SAMPLE_DEG = 0.25;
+  var SEARCH_CEILING_PX = 1e5;
+  var SEARCH_STEPS = 34;
+  var RAD = Math.PI / 180;
+  function reachableAngles(arcDeg, count) {
+    if (Math.abs(arcDeg) >= 360) return { fromDeg: -180, toDeg: 180 };
+    const places = Math.max(1, count);
+    const spacing = arcDeg / places;
+    const high = Math.floor(places / 2);
+    const low = high - places + 1;
+    const ends = [(low - 0.5) * spacing, (high + 0.5) * spacing];
+    return { fromDeg: Math.min(...ends), toDeg: Math.max(...ends) };
+  }
+  function place2(point, { sinA, cosA, sinT, cosT }) {
+    const [x, y, z] = point;
+    const x1 = x * cosA + z * sinA;
+    const z1 = -x * sinA + z * cosA;
+    return [x1, y * cosT - z1 * sinT, y * sinT + z1 * cosT];
+  }
+  function cardFits(g, r, rotation) {
+    const z0 = (g.inside ? -1 : 1) * r;
+    const centre = place2([0, 0, z0], rotation);
+    const hw = g.width / 2;
+    const hh = g.height / 2;
+    for (const [cx, cy] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]]) {
+      const [x, , z] = g.facing === "camera" ? [centre[0] + cx, centre[1] + cy, centre[2]] : place2([cx, cy, z0], rotation);
+      if (z >= g.perspective - 1) return false;
+      const scale = Number.isFinite(g.perspective) ? g.perspective / (g.perspective - z) : 1;
+      const screen2 = (g.originOffset + x) * scale;
+      if (screen2 < g.minX || screen2 > g.maxX) return false;
+    }
+    return true;
+  }
+  function fitsAt(g, r, angles) {
+    const sinT = Math.sin(g.tiltDeg * RAD);
+    const cosT = Math.cos(g.tiltDeg * RAD);
+    return angles.every((angle) => cardFits(g, r, { sinA: Math.sin(angle * RAD), cosA: Math.cos(angle * RAD), sinT, cosT }));
+  }
+  function sampleAngles(g) {
+    const from = g.inside ? Math.max(g.fromDeg, -90) : g.fromDeg;
+    const to = g.inside ? Math.min(g.toDeg, 90) : g.toDeg;
+    const steps = Math.max(1, Math.ceil((to - from) / SAMPLE_DEG));
+    return Array.from({ length: steps + 1 }, (_, i) => from + (to - from) * i / steps);
+  }
+  function solveRingFit(g) {
+    const angles = sampleAngles(g);
+    if (!fitsAt(g, 0, angles)) return 0;
+    if (fitsAt(g, SEARCH_CEILING_PX, angles)) return Infinity;
+    let low = 0;
+    let high = SEARCH_CEILING_PX;
+    for (let i = 0; i < SEARCH_STEPS; i++) {
+      const mid = (low + high) / 2;
+      if (fitsAt(g, mid, angles)) low = mid;
+      else high = mid;
+    }
+    return Math.floor(low * 100) / 100;
+  }
+  function fitBounds(el, win) {
+    const doc = el.ownerDocument;
+    for (let node = el.parentElement; node && node !== doc.body && node !== doc.documentElement; node = node.parentElement) {
+      const overflow = win.getComputedStyle(node).overflowX;
+      if (overflow === "clip" || overflow === "hidden") return null;
+      if (overflow === "auto" || overflow === "scroll") {
+        const left2 = node.getBoundingClientRect().left + node.clientLeft;
+        return { left: left2, right: left2 + node.clientWidth };
+      }
+    }
+    const left = -win.scrollX;
+    return { left, right: left + doc.documentElement.clientWidth };
+  }
+  function pixels(value, fallback) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  function createRingFit(options) {
+    const { el, ctx, styles } = options;
+    if (typeof ctx.win.getComputedStyle !== "function" || typeof ctx.win.addEventListener !== "function") {
+      return { render() {
+      }, release() {
+      } };
+    }
+    const tiltDeg = Math.min(80, Math.max(-80, -options.tiltParamDeg));
+    let card;
+    let count = 1;
+    const solve = () => {
+      const bounds = fitBounds(el, ctx.win);
+      if (!bounds || !card || card.offsetWidth === 0) {
+        styles.set(RING_FIT_PROPERTY, "");
+        return;
+      }
+      const style = ctx.win.getComputedStyle(el);
+      const host = el.getBoundingClientRect();
+      const originX = host.left + pixels(style.perspectiveOrigin, host.width / 2);
+      const fit = solveRingFit({
+        width: card.offsetWidth,
+        height: card.offsetHeight,
+        perspective: pixels(style.perspective, Infinity),
+        tiltDeg,
+        // The stylesheet's own selector for the concave placement, read rather than threaded through
+        // as a parameter: the name is what `carousel.css` branches on, so it is what this must too.
+        inside: el.matches("[data-kui-fx~='carousel-3d-inside']"),
+        // `facing:camera` counter-rotates the slot's element *children* (`carousel.css`); a slot with
+        // none — bare text — is drawn at its radial angle, and is fitted as the radial card it is.
+        facing: card.firstElementChild ? options.facing : "radial",
+        ...reachableAngles(options.arcDeg, count),
+        originOffset: host.left + host.width / 2 - originX,
+        minX: bounds.left - originX,
+        maxX: bounds.right - originX
+      });
+      styles.set(RING_FIT_PROPERTY, Number.isFinite(fit) ? `${fit}px` : "");
+    };
+    const frame = frameScheduler(ctx.win, solve);
+    const watch = watchElementSize(ctx.win, frame.request);
+    watch.observe(el);
+    watch.observe(el.ownerDocument.documentElement);
+    return {
+      render(nodes, total) {
+        const first = nodes[0];
+        if (first === card && total === count) return;
+        card = first;
+        count = total;
+        solve();
+      },
+      release() {
+        watch.disconnect();
+        frame.cancel();
+      }
+    };
+  }
+
+  // src/effects/carousel/stack.ts
+  function stackFace(offset, drift2, count, depth) {
+    const ahead = stackPlace(offset, count) - drift2;
+    return ahead > -0.5 && ahead < depth + 1 ? "front" : "back";
+  }
+  function stackPlace(offset, count) {
+    return wrapPlace(offset + 1, count) - 1;
+  }
+  var STACK_PARAMETERS = {
+    ...DECK_PARAMETERS,
+    /*
+     * How far each card behind the front one steps sideways. Positive is to the right, negative to
+     * the left. A length rather than a percentage because the host reserves `depth × shift` of room
+     * on that side (cards moved by a transform take no layout space) and a padding percentage would
+     * resolve against a different box than a translate percentage does.
+     */
+    shift: { type: "length", default: "48px", cssProperty: "--kui-stack-shift" },
+    /** How far each card behind steps upward. Negative recedes downward instead. */
+    rise: { type: "length", default: "36px", cssProperty: "--kui-stack-rise" },
+    /** Scale lost per place behind the front: `0.08` makes the third card back 76% size. */
+    shrink: { type: "number", default: "0.08", cssProperty: "--kui-stack-shrink", finite: true, minimum: 0, maximum: 0.3 },
+    /** Blur added per place behind the front. The front card is always sharp. */
+    blur: { type: "length", default: "2px", cssProperty: "--kui-stack-blur" },
+    /** Opacity lost per place behind the front. */
+    fade: { type: "number", default: "0.2", cssProperty: "--kui-stack-fade", finite: true, minimum: 0, maximum: 1 },
+    /*
+     * How many cards show behind the front one. The rest wait, hidden, at the back — `visibility`,
+     * not only `opacity`, so a card nobody can see is also not a tab stop or a click target.
+     */
+    depth: { type: "number", default: "3", cssProperty: "--kui-stack-depth", integer: true, minimum: 1, maximum: 8 }
+  };
+  function prepareSpatialStack(el, params, ctx) {
+    const depth = params.num("depth", 3);
+    return prepareSpatialDeck(el, params, ctx, {
+      id: "spatial-stack",
+      label: "carousel-stack",
+      faceOf: (place3, offset, count) => stackFace(offset, offset - place3, count, depth),
+      placeOf: stackPlace,
+      measure: false
+    });
+  }
+  var SPATIAL_STACK_PRIMITIVE = {
+    id: "spatial-stack",
+    renderer: "javascript",
+    // What `deck.ts` writes on the host: the cards (the subtree), the step index, the drag.
+    channels: [CHANNEL.skew, "discrete", CHANNEL.opacity, CHANNEL.filter, ...SPATIAL_DECK_CHANNELS],
+    parameters: STACK_PARAMETERS,
+    supportedTimelines: ["time"],
+    supportedActivations: ["load", "enter", "click", "manual"],
+    defaultActivation: "load",
+    perfClass: "compositor",
+    reducedMotion: "shorten",
+    prepare: deferPrepare(prepareSpatialStack)
+  };
+  var STACK_PRESETS = [
+    {
+      name: "carousel-stack",
+      primitive: "spatial-stack",
+      requiresOwnSubtree: true,
+      phase: "idle"
+    }
+  ];
+
+  // src/effects/carousel/index.ts
   var QUARTER_TURN_DEG = 90;
   var FLATTENING = [
     ["overflow", (value) => value !== "" && value !== "visible"],
     ["clip-path", (value) => value !== "" && value !== "none"],
     ["opacity", (value) => value !== "" && Number(value) < 1],
     ["filter", (value) => value !== "" && value !== "none"],
-    ["backdrop-filter", (value) => value !== "" && value !== "none"]
+    ["backdrop-filter", (value) => value !== "" && value !== "none"],
+    ["isolation", (value) => value === "isolate"],
+    ["mix-blend-mode", (value) => value !== "" && value !== "normal"],
+    ["mask-image", (value) => value !== "" && value !== "none"]
   ];
-  function warnFlatteningAncestor(el, ctx) {
-    const body = el.ownerDocument.body;
-    let node = el.parentElement;
-    while (node && node !== body) {
-      const found = flatteningDeclaration(node, ctx);
-      if (found) {
-        ctx.warn(
-          `carousel: an ancestor <${node.localName}> has ${found.property}: ${found.value}, which flattens transform-style: preserve-3d \u2014 the ring will render as flat overlapping cards. Move the ring out of it, or drop that property on the ancestor.`
-        );
-        return;
-      }
-      node = node.parentElement;
-    }
+  function warnFlattenedHost(el, ctx) {
+    const found = flatteningDeclaration(el, ctx);
+    if (!found) return;
+    ctx.warn(
+      `carousel: the ring's own <${el.localName}> has ${found.property}: ${found.value}, which flattens transform-style: preserve-3d \u2014 the ring will render as flat overlapping cards. Move that property to a wrapper around the ring: an ancestor does not flatten it.`
+    );
   }
   function flatteningDeclaration(node, ctx) {
     const style = ctx.win.getComputedStyle?.(node);
@@ -13635,19 +15151,6 @@ var kuinetic = (() => {
     }
     return null;
   }
-  function ledgersFor(store, node) {
-    let attributes = store.attributes.get(node);
-    if (!attributes) {
-      attributes = createAttributeLedger(node);
-      store.attributes.set(node, attributes);
-    }
-    let styles = store.styles.get(node);
-    if (!styles) {
-      styles = createStyleLedger(node);
-      store.styles.set(node, styles);
-    }
-    return { attributes, styles };
-  }
   function faceAt(angleDeg) {
     return Math.abs(normaliseDegrees(angleDeg)) >= QUARTER_TURN_DEG ? "back" : "front";
   }
@@ -13655,15 +15158,8 @@ var kuinetic = (() => {
     const wrapped2 = (angleDeg % 360 + 360) % 360;
     return wrapped2 > 180 ? wrapped2 - 360 : wrapped2;
   }
-  function snapPosition(position, total) {
-    if (total <= 0) return { step: 0, drift: 0 };
-    const nearest = Math.round(position);
-    return { step: (nearest % total + total) % total, drift: position - nearest };
-  }
   var RING_PARAMETERS = {
-    duration: { type: "time", default: "620ms", cssProperty: "--kui-duration" },
-    ...TRIGGER_DELAY_PARAM,
-    ease: { type: "easing", default: "cubic-bezier(0.22, 1, 0.36, 1)", cssProperty: "--kui-ease" },
+    ...DECK_PARAMETERS,
     /*
      * A real CSS `<angle>`, not a normalised scalar.
      *
@@ -13700,7 +15196,11 @@ var kuinetic = (() => {
      * differently.
      *
      * The width half of that has to come from JavaScript: CSS can compute with a measurement but
-     * cannot take one. See `measureItemWidth`.
+     * cannot take one. See `measureItem` in `deck.ts`.
+     *
+     * Authored or derived, a depth ring's radius is a ceiling: a ring that would push its page
+     * sideways is pulled in exactly as far as it has to be (`fit.ts`, `--kui-ring-fit`), and one that
+     * already fits — or sits inside an ancestor that clips it — keeps this radius to the pixel.
      */
     radius: { type: "length", default: "", cssProperty: "--kui-radius" },
     /** Breathing room between neighbours, spent by the derived radius above. */
@@ -13726,104 +15226,79 @@ var kuinetic = (() => {
       cssProperty: "--kui-facing",
       keywords: ["radial", "camera"]
     },
-    /** Whether a pointer can spin the ring by hand. */
-    grab: { type: "keyword", default: "true", cssProperty: "--kui-grab", keywords: ["true", "false"] },
     /*
-     * How far the pointer travels, in pixels, to move the ring one place.
+     * Which plane the ring lies in: `depth` (the default — a carousel you look *at*, turning about a
+     * vertical pole) or `screen` (a clock face, turning about the axis that points at you).
      *
-     * A pixels-per-step mapping rather than pixels-per-degree, because a step is the unit everything
-     * else here is in — the index, the offset, the snap — and a degree is not: the same drag would
-     * move a six-item ring one place and a sixty-item ring ten, purely because the spacing changed.
+     * ## Why a parameter of this primitive, and not a new one
+     *
+     * A flat ring of cards around a centred word is the same object as the 3D ring seen from its
+     * pole: N slots, evenly spaced by `arc / count`, placed from `--kui-offset` and the shared drift,
+     * advanced by the same drag, keys, controls and `spin:`. Every number this primitive publishes
+     * means the same thing in both planes; only the three transform functions that turn a place into
+     * a position differ, and those live in `carousel.css` anyway. A second primitive would have
+     * duplicated the whole index to change one stylesheet rule and one face test.
+     *
+     * It is a parameter rather than only a name (unlike convex/concave, which differ in every
+     * default and so earned two names) because the runtime has to know it: a flat slot is never
+     * turned away from the viewer, so the quarter-turn face test that stops the back of a 3D ring
+     * swallowing clicks would, on a clock face, disable every card in the bottom half. The name that
+     * ships it, `carousel-orbit`, sets it; the stylesheet gates on the published attribute rather
+     * than the name, so `carousel-3d plane:screen` is equally honoured — same rule as `facing:`.
+     *
+     * `facing:` keeps its meaning here. `radial` turns each card with the ring, top edge outward like
+     * the numerals on a watch bezel; `camera` keeps every card upright. In the screen plane upright
+     * needs no child counter-rotation at all — the slot is *translated* to its place on the circle
+     * instead of rotated there — so it costs no extra markup, unlike the 3D billboard.
      */
-    travel: { type: "number", default: "220", cssProperty: "--kui-travel", finite: true, minimum: 1 },
-    /** Which elements sit on the ring. Unset means this element's own children. */
-    target: { type: "text", default: "", cssProperty: "--kui-target" },
-    /** Optional controls, resolved exactly as `step-progress` resolves its own. */
-    next: { type: "text", default: "", cssProperty: "--kui-next" },
-    prev: { type: "text", default: "", cssProperty: "--kui-prev" },
-    jump: { type: "text", default: "", cssProperty: "--kui-jump" },
-    scope: SCOPE_PARAM
-  };
-  function measureItemWidth(styles, slots) {
-    for (const slot of slots) {
-      const width = slot.offsetWidth;
-      if (width > 0) styles.set("--kui-item-width", `${width}px`);
-      return;
+    plane: {
+      type: "keyword",
+      default: "depth",
+      cssProperty: "--kui-ring-plane",
+      keywords: ["depth", "screen"]
     }
-  }
+  };
   function prepareSpatialRing(el, params, ctx) {
-    warnFlatteningAncestor(el, ctx);
-    mirrorTimingToCss("spatial-ring", ALL_TIMING_TOKENS, params, ctx);
-    const selector = resolveTarget(params.text("target"), ctx, "carousel");
-    const scope = scopeParam(params, "self");
-    const resolveSlots = () => selector ? queryScoped(el, ctx, selector, scope) : el.children;
-    const marker = createStepMarker(resolveSlots, (message) => ctx.warn(`carousel ${message}`));
-    const total = () => countSteps(params, resolveSlots);
-    const hostAttributes = createAttributeLedger(el);
-    const hostStyles = createStyleLedger(el);
-    hostAttributes.set("data-kui-ring-facing", params.text("facing", "radial"));
-    const slots = { attributes: /* @__PURE__ */ new Map(), styles: /* @__PURE__ */ new Map() };
-    const derivesRadius = params.text("radius") === "";
-    let position = 0;
+    const plane = params.text("plane", "depth");
+    if (plane === "depth") warnFlattenedHost(el, ctx);
     const arcDeg = degreesOf(params.text("arc", "360deg"), 360);
-    const render = () => {
-      const count = total();
-      const { step, drift: drift2 } = snapPosition(position, count);
-      hostAttributes.set("data-kui-step", String(step));
-      hostStyles.set("--kui-step", String(step));
-      hostStyles.set("--kui-step-position", (step + drift2).toFixed(4));
-      marker.mark(step);
-      const slotNodes = [...resolveSlots()];
-      if (derivesRadius) measureItemWidth(hostStyles, slotNodes);
-      const spacing = arcDeg / count;
-      for (const node of slotNodes) {
-        const offset = Number(node.getAttribute("data-kui-step-offset"));
-        const angle = (offset - drift2) * spacing;
-        ledgersFor(slots, node).attributes.set(FACE_ATTR, faceAt(angle));
-      }
-    };
-    const goTo = (next) => {
-      position = next;
-      render();
-    };
-    const groups = [];
-    const bindControl = (param, run) => {
-      const control2 = resolveTarget(params.text(param), ctx, `carousel ${param}`);
-      if (!control2) return false;
-      if (queryScoped(el, ctx, control2, scope).length === 0) {
-        ctx.warn(`carousel ${param} "${control2}" matched nothing`);
-      }
-      groups.push({ selector: control2, run });
-      return true;
-    };
-    bindControl("next", () => goTo(nextStep(snapPosition(position, total()).step, total())));
-    bindControl("prev", () => goTo(prevStep(snapPosition(position, total()).step, total())));
-    bindControl("jump", (_node, at) => {
-      if (at >= 0) goTo(at);
+    const faceOf = (place3, _offset, count) => plane === "screen" ? "front" : faceAt(place3 * (arcDeg / count));
+    return prepareSpatialDeck(el, params, ctx, {
+      id: "spatial-ring",
+      label: "carousel",
+      faceOf,
+      /*
+       * A derived radius needs a card width; a flat ring also needs a card's size to reserve its own
+       * circle (the host is sized to it, since transformed slots take no layout space), so it measures
+       * even when the author named a radius.
+       */
+      measure: params.text("radius") === "" || plane === "screen",
+      hostAttributes: {
+        /*
+         * `facing:` and `plane:` reach CSS as attributes, not only as the custom properties their
+         * specs declare. A stylesheet cannot select on the *value* of a custom property — `@container
+         * style(--kui-facing: camera)` can, and is not supported widely enough to hang a documented
+         * parameter on — so the one thing a selector needs is published in the one form a selector
+         * can read. Same pairing, for the same reason, as the number/attribute pair `step-marking.ts`
+         * publishes for the ring place.
+         */
+        "data-kui-ring-facing": params.text("facing", "radial"),
+        "data-kui-ring-plane": plane
+      },
+      /*
+       * The fit to the page (`fit.ts`). Depth plane only: a flat ring already reserves and clamps to
+       * its own square (`carousel.css`, `[data-kui-ring-plane='screen']`), and its cards never leave
+       * the plane that square is measured in.
+       */
+      attach: plane === "depth" ? (styles) => createRingFit({
+        el,
+        ctx,
+        styles,
+        arcDeg,
+        tiltParamDeg: degreesOf(params.text("tilt", "0deg"), 0),
+        facing: params.text("facing", "radial") === "camera" ? "camera" : "radial"
+      }) : void 0
     });
-    const releaseControls = delegateControls({ el, ctx, scope, groups });
-    const releaseDrag = createRingDrag({
-      el,
-      ctx,
-      enabled: params.is("grab"),
-      travelPx: params.num("travel", 220),
-      total,
-      positionOf: () => position,
-      moveTo: goTo,
-      setDragging: (dragging) => hostAttributes.set(DRAGGING_ATTR, String(dragging))
-    });
-    render();
-    return () => {
-      releaseDrag();
-      releaseControls();
-      marker.restore();
-      for (const ledger of slots.attributes.values()) ledger.restore();
-      for (const ledger of slots.styles.values()) ledger.restore();
-      slots.attributes.clear();
-      slots.styles.clear();
-      hostAttributes.restore();
-      hostStyles.restore();
-    };
   }
   function degreesOf(value, fallbackDeg) {
     const match = /^(-?[\d.]+)(deg|rad|turn|grad)?$/i.exec(value.trim());
@@ -13844,7 +15319,15 @@ var kuinetic = (() => {
   var SPATIAL_RING_PRIMITIVE = {
     id: "spatial-ring",
     renderer: "javascript",
-    channels: [CHANNEL.skew, "discrete"],
+    // What `deck.ts` writes on the host (the cards, the step index, the drag), then the two
+    // attributes only the ring's own layout publishes.
+    channels: [
+      CHANNEL.skew,
+      "discrete",
+      ...SPATIAL_DECK_CHANNELS,
+      attributeChannel("data-kui-ring-facing"),
+      attributeChannel("data-kui-ring-plane")
+    ],
     parameters: RING_PARAMETERS,
     supportedTimelines: ["time"],
     // `load`, not `enter`: a carousel that only wires its arrows once scrolled into view is broken,
@@ -13855,7 +15338,7 @@ var kuinetic = (() => {
     reducedMotion: "shorten",
     prepare: deferPrepare(prepareSpatialRing)
   };
-  var CAROUSEL_PRIMITIVES = [SPATIAL_RING_PRIMITIVE];
+  var CAROUSEL_PRIMITIVES = [SPATIAL_RING_PRIMITIVE, SPATIAL_STACK_PRIMITIVE];
   var CAROUSEL_PRESETS = [
     {
       name: "carousel-3d",
@@ -13892,10 +15375,31 @@ var kuinetic = (() => {
       params: { arc: "120deg", facing: "camera", perspective: "900px" },
       requiresOwnSubtree: true,
       phase: "idle"
+    },
+    /*
+     * The flat ring: cards on a clock face around whatever sits in the middle of the host (a word, a
+     * logo — anything the `target:` does not name stays centred and off the ring). `plane:screen` is
+     * the whole difference; see the parameter's note for why that is a parameter of this primitive and
+     * not a new one.
+     *
+     * Named for what it does rather than which way it goes — `orbit` is the motion, and it has no
+     * direction to name (the directional-naming rule, "named by travel", is about entrances that
+     * *have* one; a ring's direction is the sign of `spin:`). Not `carousel-3d-*`, because it is not
+     * three-dimensional, and a name that promised depth would send people looking for a `tilt:`.
+     *
+     * `facing:camera` by default: upright cards read as a set of things; radially turned ones read as
+     * a dial, which is the less common ask and one keyword away.
+     */
+    {
+      name: "carousel-orbit",
+      primitive: "spatial-ring",
+      params: { plane: "screen", facing: "camera" },
+      requiresOwnSubtree: true,
+      phase: "idle"
     }
   ];
   function registerCarousel(registry) {
-    return registry.registerPrimitives(CAROUSEL_PRIMITIVES).registerPresets(CAROUSEL_PRESETS);
+    return registry.registerPrimitives(CAROUSEL_PRIMITIVES).registerPresets(CAROUSEL_PRESETS).registerPresets(STACK_PRESETS);
   }
 
   // src/effects/tween/properties.ts
@@ -14451,7 +15955,10 @@ var kuinetic = (() => {
       keywords: [...DEVICE_FRAME_KINDS]
     },
     color: { type: "color", default: "#111", cssProperty: "--kui-device-color" },
-    radius: { type: "length", default: RADIUS_UNSET, cssProperty: "--kui-device-radius" }
+    radius: { type: "length", default: RADIUS_UNSET, cssProperty: "--kui-device-radius" },
+    // Its own knob rather than a reading of `radius:`: the frame's corner and the screen's are two
+    // shapes, and the derived screen value already follows `radius:` when this is left unwritten.
+    "screen-radius": { type: "length", default: RADIUS_UNSET, cssProperty: "--kui-device-screen-radius" }
   };
   function prepareDeviceFrame(el, params) {
     const state = createAttributeLedger(el);
@@ -14464,8 +15971,9 @@ var kuinetic = (() => {
       // Exclusive ownership of the frame chrome. Its static box-model declarations are outside
       // the channel-property audit, as they are for the existing catalog. The chrome also reaches
       // into the direct media child (`object-fit: cover` etc.); that is a `requiresOwnSubtree`
-      // question, as with the other showcase widgets.
-      channels: ["frame"],
+      // question, as with the other showcase widgets. The frame kind it stamps on the host is an
+      // attribute it writes, so it claims that too.
+      channels: ["frame", attributeChannel("data-kui-device")],
       parameters: deviceFrameParams,
       // `'layout'`: the bezel's `border`+`padding` are box-model properties added once, at
       // activation, which is a real (if one-time) layout — not the "transform/opacity only" budget
@@ -14500,10 +16008,12 @@ var kuinetic = (() => {
     state.lock = ledger;
   }
   function clearContent(state) {
-    state.current?.onClose?.();
+    const closing = state.current;
+    closing?.onClose?.();
     state.current = void 0;
     state.currentOwner = void 0;
     state.slot?.replaceChildren();
+    if (closing?.opener) announceViewer(state.doc, closing.opener, false);
   }
   function onClose(state) {
     state.dialog?.classList.remove("is-open");
@@ -14522,11 +16032,9 @@ var kuinetic = (() => {
     }, state.current.reducedMotion ? 0 : state.current.duration);
   }
   function clickedOutside(state, target) {
-    const content = state.current.node;
-    if (content.classList.contains("kui-lightbox-gallery")) {
-      return !content.contains(target) || !target.matches("img") && !target.closest("button");
-    }
-    return !content.contains(target) && !target.closest("button");
+    const { node, inside } = state.current;
+    if (inside) return !inside(target);
+    return !node.contains(target) && !target.closest("button");
   }
   function forceReflow(element) {
     return element.offsetWidth;
@@ -14576,6 +16084,7 @@ var kuinetic = (() => {
     dialog.scrollTop = 0;
     forceReflow(dialog);
     dialog.classList.add("is-open");
+    if (content.opener) announceViewer(state.doc, content.opener, true);
   }
   function closeNow(state) {
     if (state.timer !== void 0) clearTimeout(state.timer);
@@ -14655,24 +16164,31 @@ var kuinetic = (() => {
   }
 
   // src/showcase/lightbox.ts
+  var DEFAULT_DURATION_MS = 280;
+  var DEFAULT_SCALE = "0.965";
+  var DEFAULT_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
   var paramsSchema = {
-    media: { type: "keyword", default: "image", cssProperty: "--kui-lightbox-media", keywords: ["image", "video"] },
+    media: { type: "keyword", default: "image", cssProperty: "--kui-lightbox-media", keywords: ["image", "video", "mixed"] },
     target: { type: "text", default: "", cssProperty: "--kui-target" },
     scope: SCOPE_PARAM,
-    scale: { type: "number", default: "0.965", cssProperty: "--kui-from-scale", finite: true, minimum: 0 },
-    duration: { type: "time", default: "280ms", cssProperty: "--kui-lightbox-duration" },
-    ease: { type: "easing", default: "cubic-bezier(0.22, 1, 0.36, 1)", cssProperty: "--kui-lightbox-ease" },
+    scale: { type: "number", default: DEFAULT_SCALE, cssProperty: "--kui-from-scale", finite: true, minimum: 0 },
+    duration: { type: "time", default: `${DEFAULT_DURATION_MS}ms`, cssProperty: "--kui-lightbox-duration" },
+    ease: { type: "easing", default: DEFAULT_EASE, cssProperty: "--kui-lightbox-ease" },
     loop: { type: "keyword", default: "true", cssProperty: "--kui-lightbox-loop", keywords: ["true", "false"] },
-    aspect: { type: "keyword", default: "", cssProperty: "--kui-lightbox-aspect", keywords: ["wide", "tall", "square"] }
+    aspect: { type: "keyword", default: "", cssProperty: "--kui-lightbox-aspect", keywords: ["wide", "tall", "square"] },
+    caption: { type: "keyword", default: "figcaption", cssProperty: "--kui-lightbox-caption", keywords: ["figcaption", "alt", "title", "none"] }
   };
   function defaultTargets(el, media) {
-    if (el.matches("a[href]") || media === "image" && el.matches("img")) return [el];
+    if (el.matches("a[href]") || media !== "video" && el.matches("img")) return [el];
     return [...el.querySelectorAll(media === "video" ? ":scope a[href]" : ":scope a[href], :scope img")];
+  }
+  function effectName(media) {
+    return media === "video" ? "video-lightbox" : "lightbox";
   }
   function targets(el, params, ctx, media) {
     const authored = params.text("target");
     if (!authored) return defaultTargets(el, media);
-    const selector = resolveTarget(authored, ctx, media === "video" ? "video-lightbox" : "lightbox");
+    const selector = resolveTarget(authored, ctx, effectName(media));
     return selector ? queryScoped(el, ctx, selector, scopeParam(params, "self")) : [];
   }
   function imageTrigger(target) {
@@ -14681,49 +16197,139 @@ var kuinetic = (() => {
   function imageIn(trigger) {
     return trigger instanceof HTMLImageElement ? trigger : trigger.querySelector("img");
   }
-  function imageItem(trigger) {
+  function captionFor(trigger, image, source) {
+    if (source === "none") return "";
+    const alt = image?.alt ?? "";
+    if (source === "alt") return alt;
+    if (source === "title") return titleOf(trigger, image);
+    return trigger.closest("figure")?.querySelector("figcaption")?.textContent?.trim() || alt;
+  }
+  function titleOf(trigger, image) {
+    return (trigger.getAttribute("title") || image?.title || "").trim();
+  }
+  function imageItem(trigger, captionSource) {
     const image = imageIn(trigger);
     if (!image) return null;
     const link = trigger instanceof HTMLAnchorElement ? trigger : null;
-    const caption = trigger.closest("figure")?.querySelector("figcaption")?.textContent?.trim();
     return {
+      kind: "image",
       trigger,
       image,
       src: link?.href ?? (image.currentSrc || image.src),
-      caption: caption || image.alt
+      caption: captionFor(trigger, image, captionSource)
     };
   }
-  function imageItems(targets2) {
-    const seen = /* @__PURE__ */ new Set();
-    const items = [];
-    for (const target of targets2) {
-      const trigger = imageTrigger(target);
-      if (seen.has(trigger)) continue;
-      const item = imageItem(trigger);
-      if (!item) continue;
-      seen.add(trigger);
-      items.push(item);
+  function videoTitle(link, poster) {
+    return link.title || poster?.getAttribute("alt") || link.getAttribute("aria-label")?.trim() || link.textContent?.trim() || "Video";
+  }
+  function videoItem(link, captionSource) {
+    const source = resolveMediaSource(link.getAttribute("href") ?? "");
+    if (!source) return null;
+    const poster = link.querySelector("img");
+    return { kind: "video", trigger: link, source, title: videoTitle(link, poster), caption: captionFor(link, poster, captionSource) };
+  }
+  function itemFor(trigger, media, captionSource) {
+    if (media !== "image" && trigger instanceof HTMLAnchorElement) {
+      const video = videoItem(trigger, captionSource);
+      if (video || media === "video") return video;
     }
-    return items;
+    return imageItem(trigger, captionSource);
+  }
+  function triggersFor(found, media) {
+    const seen = /* @__PURE__ */ new Set();
+    const triggers = [];
+    for (const target of found) {
+      const trigger = media === "video" ? target : imageTrigger(target);
+      if (seen.has(trigger)) continue;
+      if (!usable(trigger, media)) continue;
+      seen.add(trigger);
+      triggers.push(trigger);
+    }
+    return triggers;
+  }
+  function usable(trigger, media) {
+    const link = trigger instanceof HTMLAnchorElement;
+    if (media === "video") return link;
+    const image = imageIn(trigger) !== null;
+    return media === "image" ? image : link || image;
   }
   function modalOptions(params, ctx) {
     return {
-      duration: params.timing.durationMs ?? params.ms("duration", 280),
-      scale: params.text("scale", "0.965"),
-      ease: params.timing.easing ?? params.text("ease", "cubic-bezier(0.22, 1, 0.36, 1)"),
+      duration: params.timing.durationMs ?? params.ms("duration", DEFAULT_DURATION_MS),
+      scale: params.text("scale", DEFAULT_SCALE),
+      ease: params.timing.easing ?? params.text("ease", DEFAULT_EASE),
       reducedMotion: ctx.reducedMotion
     };
   }
-  function showImage(item, view, caption) {
+  function showImage(item, view) {
     view.src = item.src;
     view.alt = item.image.alt;
-    caption.textContent = item.caption;
-    caption.hidden = item.caption === "";
     const ratio = item.image.naturalWidth ? item.image.naturalHeight / item.image.naturalWidth : 1;
     view.className = ratio > 1.5 ? "is-tall" : "is-fit";
   }
+  function videoFrame(item, aspect, doc) {
+    const frame = doc.createElement("div");
+    frame.className = `kui-lightbox-frame kui-lightbox-frame--${aspect || item.source.aspect}`;
+    if (item.source.kind === "file") {
+      const video = doc.createElement("video");
+      video.src = item.source.embedUrl;
+      video.controls = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.setAttribute("aria-label", item.title);
+      frame.append(video);
+    } else {
+      const iframe = doc.createElement("iframe");
+      iframe.src = item.source.embedUrl;
+      iframe.title = item.title;
+      iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      iframe.allowFullscreen = true;
+      frame.append(iframe);
+    }
+    return frame;
+  }
+  function pauseVideo(video) {
+    if (video.readyState > 0) video.pause();
+  }
+  function stopMedia(frame) {
+    const video = frame.querySelector("video");
+    if (video) {
+      pauseVideo(video);
+      video.removeAttribute("src");
+    }
+    frame.replaceChildren();
+  }
+  function leave(state, node) {
+    if (node === state.view) return;
+    const video = node.querySelector("video");
+    if (video) pauseVideo(video);
+    else node.replaceChildren();
+  }
+  function land(state, item) {
+    if (item.kind === "image") {
+      showImage(item, state.view);
+      return state.view;
+    }
+    const cached2 = state.players.get(item);
+    if (cached2) {
+      void cached2.querySelector("video").play().catch(() => {
+      });
+      return cached2;
+    }
+    const frame = videoFrame(item, state.aspect, state.figure.ownerDocument);
+    if (item.source.kind === "file") state.players.set(item, frame);
+    return frame;
+  }
   function renderGallery(state, focus) {
-    showImage(state.items[state.index], state.view, state.caption);
+    const item = state.items[state.index];
+    if (state.shown?.item !== item) {
+      if (state.shown) leave(state, state.shown.node);
+      const node = land(state, item);
+      state.shown = { item, node };
+      state.caption.textContent = item.caption;
+      state.caption.hidden = item.caption === "";
+      state.figure.replaceChildren(node, state.caption);
+    }
     state.counter.textContent = `${state.index + 1} of ${state.items.length}`;
     state.previous.disabled = !state.loop && state.index === 0;
     state.next.disabled = !state.loop && state.index === state.items.length - 1;
@@ -14741,6 +16347,7 @@ var kuinetic = (() => {
   }
   function galleryKey(state, event) {
     if (state.items.length < 2) return;
+    if (event.target.closest("video")) return;
     if (event.key === "ArrowLeft") moveGallery(state, -1, true);
     else if (event.key === "ArrowRight") moveGallery(state, 1, true);
     else if (event.key === "Home") {
@@ -14752,8 +16359,40 @@ var kuinetic = (() => {
     } else return;
     event.preventDefault();
   }
-  function galleryContent(items, initial, loop2, options) {
-    const doc = items[initial].image.ownerDocument;
+  function swipeGallery(state, box) {
+    const viewport = box.ownerDocument.defaultView?.visualViewport ?? null;
+    const zoomed = () => (viewport?.scale ?? 1) > 1.01;
+    const sync = () => {
+      box.classList.toggle("is-swipeable", !zoomed());
+    };
+    sync();
+    viewport?.addEventListener("resize", sync);
+    const stop = recognise(box, {
+      onSwipe(direction) {
+        if (direction === "left" || direction === "right") moveGallery(state, swipeStep(direction), false);
+      }
+    }, {
+      // A press on a button still clicks it: capture is taken only once the finger has moved.
+      capturePointer: "drag",
+      accept: (event) => event.pointerType !== "mouse" && !zoomed() && event.target.closest("video") === null
+    });
+    return () => {
+      stop();
+      viewport?.removeEventListener("resize", sync);
+    };
+  }
+  function closeViewer(state) {
+    state.view.removeAttribute("src");
+    for (const frame of state.players.values()) stopMedia(frame);
+    if (state.shown && state.shown.node !== state.view) stopMedia(state.shown.node);
+  }
+  function vocabulary(items) {
+    const kinds = new Set(items.map((item) => item.kind));
+    if (kinds.size > 1) return { noun: "item", label: "Media viewer" };
+    return kinds.has("video") ? { noun: "video", label: "Video viewer" } : { noun: "image", label: "Image viewer" };
+  }
+  function galleryContent(items, initial, options) {
+    const doc = items[initial].trigger.ownerDocument;
     const box = doc.createElement("div");
     box.className = "kui-lightbox-gallery";
     const figure = doc.createElement("figure");
@@ -14761,7 +16400,6 @@ var kuinetic = (() => {
     const view = doc.createElement("img");
     view.decoding = "async";
     const caption = doc.createElement("figcaption");
-    figure.append(view, caption);
     box.append(figure);
     const counter = doc.createElement("span");
     counter.className = "kui-lightbox-counter";
@@ -14771,149 +16409,244 @@ var kuinetic = (() => {
     previous.type = next.type = "button";
     previous.textContent = "\u2039";
     next.textContent = "\u203A";
-    previous.setAttribute("aria-label", "Previous image");
-    next.setAttribute("aria-label", "Next image");
+    const { noun, label } = vocabulary(items);
+    previous.setAttribute("aria-label", `Previous ${noun}`);
+    next.setAttribute("aria-label", `Next ${noun}`);
     previous.className = "kui-lightbox-prev";
     next.className = "kui-lightbox-next";
-    const state = { items, index: initial, loop: loop2, figure, view, caption, counter, previous, next };
+    const state = {
+      items,
+      index: initial,
+      loop: options.loop,
+      aspect: options.aspect,
+      figure,
+      view,
+      caption,
+      counter,
+      previous,
+      next,
+      players: /* @__PURE__ */ new Map()
+    };
     if (items.length > 1) {
       box.append(previous, next, counter);
       previous.addEventListener("click", () => clickGallery(state, -1, previous));
       next.addEventListener("click", () => clickGallery(state, 1, next));
     }
     renderGallery(state, false);
+    const unswipe = items.length > 1 ? swipeGallery(state, box) : void 0;
+    const { duration, scale, ease, reducedMotion } = options;
     return {
-      ...options,
+      duration,
+      scale,
+      ease,
+      reducedMotion,
       node: box,
-      label: "Image viewer",
-      onClose: () => view.removeAttribute("src"),
+      label,
+      // The media and the controls keep the viewer open; the empty figure around them closes it.
+      inside: (target) => box.contains(target) && target.closest("img, video, iframe, button") !== null,
+      onClose: () => {
+        unswipe?.();
+        closeViewer(state);
+      },
       onKey: (event) => galleryKey(state, event)
     };
-  }
-  function stopMedia(frame) {
-    const video = frame.querySelector("video");
-    if (video) {
-      if (video.readyState > 0) video.pause();
-      video.removeAttribute("src");
-    }
-    frame.replaceChildren();
-  }
-  function videoContent(link, source, options, aspect) {
-    const doc = link.ownerDocument;
-    const frame = doc.createElement("div");
-    frame.className = `kui-lightbox-frame kui-lightbox-frame--${aspect}`;
-    const poster = link.querySelector("img");
-    const title = link.title || poster?.getAttribute("alt") || link.textContent?.trim() || "Video";
-    if (source.kind === "file") {
-      const video = doc.createElement("video");
-      video.src = source.embedUrl;
-      video.controls = true;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.setAttribute("aria-label", title);
-      frame.append(video);
-    } else {
-      const iframe = doc.createElement("iframe");
-      iframe.src = source.embedUrl;
-      iframe.title = title;
-      iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-      iframe.allowFullscreen = true;
-      frame.append(iframe);
-    }
-    return { ...options, node: frame, label: "Video viewer", onClose: () => stopMedia(frame) };
   }
   function primaryClick(event) {
     return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
   }
-  function wireImages(items, wiring, loop2) {
+  function openAt(triggers, trigger, wiring) {
+    const items = [];
+    let initial = -1;
+    for (const candidate of triggers) {
+      const item = itemFor(candidate, wiring.media, wiring.captionSource);
+      if (!item) continue;
+      if (candidate === trigger) initial = items.length;
+      items.push(item);
+    }
+    if (initial < 0) {
+      const href = trigger.getAttribute("href") ?? "";
+      if (!wiring.warned.has(href)) wiring.ctx.warn(`${effectName(wiring.media)} cannot embed "${href}"; the link will navigate normally`);
+      wiring.warned.add(href);
+      return false;
+    }
+    wiring.shell.open({ ...galleryContent(items, initial, wiring.options), opener: trigger });
+    return true;
+  }
+  function wireTriggers(triggers, wiring) {
     const restore = [];
-    items.forEach((item, index) => {
-      const bare = item.trigger === item.image;
+    for (const trigger of triggers) {
+      const bare = trigger instanceof HTMLImageElement;
       if (bare) {
-        const attrs = createAttributeLedger(item.image);
+        const attrs = createAttributeLedger(trigger);
         attrs.set("role", "button");
         attrs.set("tabindex", "0");
-        attrs.set("aria-label", item.image.alt ? `Open larger image: ${item.image.alt}` : "Open larger image");
+        attrs.set("aria-label", trigger.alt ? `Open larger image: ${trigger.alt}` : "Open larger image");
         restore.push(() => attrs.restore());
-        item.image.addEventListener("keydown", (event) => {
+        trigger.addEventListener("keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
-          wiring.shell.open(galleryContent(items, index, loop2, wiring.options));
+          openAt(triggers, trigger, wiring);
         }, { signal: wiring.signal });
       }
-      item.trigger.addEventListener("click", (event) => {
+      trigger.addEventListener("click", (event) => {
         if (!primaryClick(event)) return;
-        if (!bare) event.preventDefault();
-        wiring.shell.open(galleryContent(items, index, loop2, wiring.options));
-      }, { signal: wiring.signal });
-    });
-    return restore;
-  }
-  function wireVideos(targets2, wiring, aspect, ctx) {
-    const warned = /* @__PURE__ */ new Set();
-    for (const target of targets2) {
-      if (!(target instanceof HTMLAnchorElement)) continue;
-      target.addEventListener("click", (event) => {
-        if (!primaryClick(event)) return;
-        const href = target.getAttribute("href") ?? "";
-        const source = resolveMediaSource(href);
-        if (!source) {
-          if (!warned.has(href)) ctx.warn(`video-lightbox cannot embed "${href}"; the link will navigate normally`);
-          warned.add(href);
-          return;
-        }
-        event.preventDefault();
-        wiring.shell.open(videoContent(target, source, wiring.options, aspect || source.aspect));
+        if (openAt(triggers, trigger, wiring)) event.preventDefault();
       }, { signal: wiring.signal });
     }
+    return restore;
+  }
+  function cardItem(card) {
+    const link = card.matches("a[href]") ? card : card.querySelector("a[href]");
+    return link && itemFor(link, "mixed", "figcaption") || itemFor(card, "mixed", "figcaption");
+  }
+  var OWN_CLICK = "button, input, select, textarea, label, summary, [contenteditable]";
+  function attachDeckLightbox(request) {
+    const { host, cards, doc, reducedMotion } = request;
+    const shell = acquireModalShell(doc);
+    const options = {
+      duration: DEFAULT_DURATION_MS,
+      scale: DEFAULT_SCALE,
+      ease: DEFAULT_EASE,
+      reducedMotion,
+      loop: true,
+      aspect: ""
+    };
+    const turnedAway = (card) => card.getAttribute("data-kui-ring-face") === "back";
+    const openAt2 = (pick, faceChecked = false) => {
+      const all = [...cards()];
+      const card = all.find(pick);
+      if (!card || !faceChecked && turnedAway(card)) return false;
+      const items = [];
+      let initial = -1;
+      for (const candidate of all) {
+        const item = cardItem(candidate);
+        if (!item) continue;
+        if (candidate === card) initial = items.length;
+        items.push(item);
+      }
+      if (initial < 0) return false;
+      shell.open({ ...galleryContent(items, initial, options), opener: card });
+      return true;
+    };
+    let pressed = null;
+    const cardUnder = (event) => {
+      const all = [...cards()];
+      const hits = typeof doc.elementsFromPoint === "function" ? doc.elementsFromPoint(event.clientX, event.clientY) : [];
+      for (const node of [...hits, event.target]) {
+        const card = all.find((candidate) => candidate.contains(node));
+        if (card) return turnedAway(card) ? null : { card, node };
+      }
+      return null;
+    };
+    const onPress = (event) => {
+      pressed = event.button === 0 ? cardUnder(event) : null;
+    };
+    const onClick = (event) => {
+      const press = event.detail > 0 ? pressed : null;
+      pressed = null;
+      const target = event.target;
+      if (event.defaultPrevented || !primaryClick(event) || target.closest(OWN_CLICK)) return;
+      if (press?.node.closest(OWN_CLICK)) return;
+      const opened = press ? openAt2((card) => card === press.card, true) : openAt2((card) => card.contains(target));
+      if (opened) event.preventDefault();
+    };
+    const onKeyDown = (event) => {
+      const key = event.key;
+      if (event.target !== host || key !== "Enter" && key !== " ") return;
+      if (openAt2((card) => card.getAttribute(STEP_STATE_ATTR) === "active")) event.preventDefault();
+    };
+    host.addEventListener("pointerdown", onPress);
+    host.addEventListener("click", onClick);
+    host.addEventListener("keydown", onKeyDown);
+    return () => {
+      host.removeEventListener("pointerdown", onPress);
+      host.removeEventListener("click", onClick);
+      host.removeEventListener("keydown", onKeyDown);
+      shell.release();
+    };
   }
   function prepareLightbox(el, params, ctx) {
     const media = params.text("media", "image");
-    const found = targets(el, params, ctx, media);
-    if (found.length === 0) return () => {
+    const triggers = triggersFor(targets(el, params, ctx, media), media);
+    if (triggers.length === 0) return () => {
     };
     const controller = new AbortController();
     const shell = acquireModalShell(ctx.doc);
-    const wiring = { shell, options: modalOptions(params, ctx), signal: controller.signal };
-    let restore = [];
-    if (media === "video") {
-      wireVideos(found, wiring, params.text("aspect"), ctx);
-    } else {
-      const items = imageItems(found);
-      restore = wireImages(items, wiring, params.is("loop"));
-    }
+    const options = { ...modalOptions(params, ctx), loop: params.is("loop"), aspect: params.text("aspect") };
+    const restore = wireTriggers(triggers, {
+      shell,
+      options,
+      signal: controller.signal,
+      media,
+      captionSource: params.text("caption", "figcaption"),
+      ctx,
+      warned: /* @__PURE__ */ new Set()
+    });
     return continuousSetup(() => {
       controller.abort();
       for (const undo of restore) undo();
       shell.release();
     });
   }
+  var TRIGGERS_CHANNEL = "lightbox:triggers";
   var LIGHTBOX_PRIMITIVE = widgetPrimitive(
     "lightbox",
-    { channels: ["widget"], parameters: paramsSchema, perfClass: "paint" },
+    { channels: [TRIGGERS_CHANNEL], parameters: paramsSchema, perfClass: "paint" },
     withTimingContract("lightbox", { honours: ["duration", "ease"], because: "the dialog opens immediately, so it has no delay phase" }, deferPrepare(prepareLightbox))
   );
   var LIGHTBOX_PRESETS = [
     { name: "lightbox", primitive: "lightbox", params: { media: "image" } },
-    { name: "video-lightbox", primitive: "lightbox", params: { media: "video" } }
+    // A video row has never shown captions; `caption:figcaption` opts one in.
+    { name: "video-lightbox", primitive: "lightbox", params: { media: "video", caption: "none" } }
   ];
 
   // src/showcase/compare.ts
   var COMPARE_AXES = ["x", "y"];
   var COMPARE_AXIS_ATTR = "data-kui-compare-axis";
+  var COMPARE_DIVIDERS_ATTR = "data-kui-compare-dividers";
   var compareParams = {
     position: {
       type: "percentage",
       default: "50%",
       cssProperty: "--kui-compare"
     },
+    /*
+     * Where each divider of a three-or-more frame starts, as one quoted, space-separated list —
+     * `positions:'20% 45% 80%'` — because a comma would start a new step, not a new value. Default
+     * (empty) is an even split. `position:` stays the two-media spelling: it is a single percentage
+     * and every existing page relies on it validating as one.
+     */
+    positions: { type: "text", default: "", cssProperty: "--kui-compare-positions" },
     axis: {
       type: "keyword",
       default: "x",
       cssProperty: "--kui-compare-axis",
       keywords: [...COMPARE_AXES]
-    }
+    },
+    /*
+     * The auto-drag, in `background-media`'s words (`src/effects/catalog/media.ts`): `always` starts
+     * at load, `in-view` the first time the slider is on screen, `never` (default) not at all.
+     *
+     * Not `on:load` / `on:enter`, because the activation grammar already has a job here: it is what
+     * *builds* the slider, and a widget accepts only `on:load` (`src/showcase/shared.ts`) so the
+     * control exists before a keyboard user tabs to it. `on:enter` would defer the widget, not the
+     * motion — so the motion's start is its own parameter.
+     */
+    autoplay: {
+      type: "keyword",
+      default: "never",
+      cssProperty: "--kui-compare-autoplay",
+      keywords: ["never", "in-view", "always"]
+    },
+    /** One edge-to-edge sweep. The positional spelling (`compare 4s`) means the same thing. */
+    duration: { type: "time", default: "3s", cssProperty: "--kui-compare-duration" },
+    /** Head toward 0% first instead of 100%. */
+    reverse: { type: "keyword", default: "false", cssProperty: "--kui-compare-reverse", keywords: ["true", "false"] },
+    /** Sweep back and forth until someone takes the handle, instead of one pass. */
+    loop: { type: "keyword", default: "false", cssProperty: "--kui-compare-loop", keywords: ["true", "false"] }
   };
+  var MIN_SWEEP_MS = 250;
+  var MAX_FRAME_MS2 = 100;
   var VERTICAL_KEY_DELTA = { ArrowUp: -1, ArrowDown: 1 };
   function getMediaName(item, fallback) {
     const alt = item.localName === "picture" ? item.querySelector("img")?.getAttribute("alt") : item.getAttribute("alt");
@@ -14929,21 +16662,359 @@ var kuinetic = (() => {
     }
     return "Compare";
   }
-  function createCompareElements(doc, label, initialPercent, axis) {
+  function createRange(doc, label, value, axis) {
     const range = doc.createElement("input");
     range.type = "range";
     range.className = "kui-compare-range";
     range.min = "0";
     range.max = "100";
     range.step = "1";
-    range.value = String(initialPercent);
-    range.setAttribute("aria-label", label);
-    range.setAttribute("aria-valuetext", `${initialPercent}% after`);
+    range.value = String(value);
+    range.setAttribute("aria-label", label.name);
+    range.setAttribute("aria-valuetext", label.valueText);
     if (axis === "y") range.setAttribute("aria-orientation", "vertical");
+    return range;
+  }
+  function createHandle(doc) {
     const handle = doc.createElement("span");
     handle.className = "kui-compare-handle";
     handle.setAttribute("aria-hidden", "true");
-    return { range, handle };
+    return handle;
+  }
+  function verticalKeys(range, axis, onInput) {
+    return (event) => {
+      const delta = VERTICAL_KEY_DELTA[event.key];
+      if (axis !== "y" || delta === void 0) return;
+      event.preventDefault();
+      if (delta < 0) range.stepDown();
+      else range.stepUp();
+      onInput();
+    };
+  }
+  function sweepPercent(phase) {
+    return 50 - 50 * Math.cos(Math.PI * phase / 100);
+  }
+  function startPhase(percent, reverse) {
+    const outbound = 100 / Math.PI * Math.acos(1 - percent / 50);
+    return reverse ? 200 - outbound : outbound;
+  }
+  function sweepDuration(params, ctx) {
+    const authored = params.timing.durationMs ?? params.ms("duration", 3e3);
+    if (authored >= MIN_SWEEP_MS) return authored;
+    ctx.warn(`compare duration: minimum is ${MIN_SWEEP_MS}ms; clamped to ${MIN_SWEEP_MS}ms`);
+    return MIN_SWEEP_MS;
+  }
+  function bindAutoDrag(options) {
+    const { host, grab, ctx, mode, loop: loop2 } = options;
+    if (mode === "never" || ctx.reducedMotion) return () => {
+    };
+    const run = runAutoDrag(options, () => stop());
+    let observer = null;
+    if (mode === "in-view" || loop2) {
+      observer = observeOnscreen(ctx.win, host, run.setOnscreen);
+    }
+    const stop = () => {
+      run.stop();
+      observer?.disconnect();
+      observer = null;
+      for (const target of grab) {
+        target.removeEventListener("pointerdown", stop);
+        target.removeEventListener("focus", stop);
+      }
+    };
+    for (const target of grab) {
+      target.addEventListener("pointerdown", stop);
+      target.addEventListener("focus", stop);
+    }
+    run.setOnscreen(mode === "always" || observer === null);
+    return stop;
+  }
+  function sweepPlan(options) {
+    const { write, homes, bounds, durationMs, reverse, loop: loop2 } = options;
+    const order = homes.map((_, index) => index);
+    if (reverse) order.reverse();
+    const cycleMs = 2 * durationMs;
+    const totalMs = cycleMs * order.length;
+    const phases = homes.map((home, index) => {
+      const [lo, hi] = bounds[index];
+      return hi > lo ? startPhase(100 * (home - lo) / (hi - lo), reverse) : 0;
+    });
+    const park = (slot2) => write(order[slot2], homes[order[slot2]]);
+    let slot = 0;
+    return {
+      show(elapsed) {
+        if (!loop2 && elapsed >= totalMs) {
+          park(slot);
+          return false;
+        }
+        const into = elapsed % totalMs;
+        const next = Math.floor(into / cycleMs);
+        if (next !== slot) park(slot);
+        slot = next;
+        const index = order[slot];
+        const [lo, hi] = bounds[index];
+        const phase = phases[index] + 100 * (into - slot * cycleMs) / durationMs;
+        write(index, lo + (hi - lo) * sweepPercent(phase) / 100);
+        return true;
+      }
+    };
+  }
+  function observeOnscreen(win, host, onChange) {
+    const Observer = win.IntersectionObserver;
+    if (!Observer) return null;
+    const observer = new Observer((entries) => {
+      for (const entry of entries) onChange(entry.isIntersecting);
+    });
+    observer.observe(host);
+    return observer;
+  }
+  function runAutoDrag(options, finish) {
+    const win = options.ctx.win;
+    const plan = sweepPlan(options);
+    let elapsed = 0;
+    let lastFrameAt = null;
+    let frame = 0;
+    let done = false;
+    let onscreen = false;
+    const update = () => {
+      const active = !done && onscreen;
+      if (active && frame === 0) {
+        lastFrameAt = null;
+        frame = win.requestAnimationFrame(tick);
+      } else if (!active && frame !== 0) {
+        win.cancelAnimationFrame(frame);
+        frame = 0;
+      }
+    };
+    function tick(now) {
+      frame = 0;
+      if (lastFrameAt !== null) elapsed += Math.min(now - lastFrameAt, MAX_FRAME_MS2);
+      lastFrameAt = now;
+      if (plan.show(elapsed)) frame = win.requestAnimationFrame(tick);
+      else finish();
+    }
+    return {
+      setOnscreen(next) {
+        onscreen = next;
+        update();
+      },
+      stop() {
+        done = true;
+        update();
+      }
+    };
+  }
+  function buildPair({ el, media, params, ctx, axis, timing: timing3 }) {
+    const initialPercent = Math.round(params.num("position", 0.5) * 100);
+    const style = createStyleLedger(el);
+    style.set("--kui-compare", params.text("position", "50%"));
+    const doc = el.ownerDocument;
+    const range = createRange(
+      doc,
+      { name: resolveCompareLabel(el, media), valueText: `${initialPercent}% after` },
+      initialPercent,
+      axis
+    );
+    const handle = createHandle(doc);
+    const onInput = () => {
+      const val = range.value;
+      style.set("--kui-compare", `${val}%`);
+      range.setAttribute("aria-valuetext", `${val}% after`);
+    };
+    const writeAuto = (_index, percent) => {
+      range.value = String(Math.round(percent));
+      style.set("--kui-compare", `${Number(percent.toFixed(3))}%`);
+      range.setAttribute("aria-valuetext", `${range.value}% after`);
+    };
+    const onKeyDown = verticalKeys(range, axis, onInput);
+    range.addEventListener("input", onInput);
+    range.addEventListener("keydown", onKeyDown);
+    el.appendChild(range);
+    el.appendChild(handle);
+    const stopAutoDrag = bindAutoDrag({
+      ...timing3,
+      host: el,
+      grab: [range],
+      ctx,
+      write: writeAuto,
+      homes: [params.num("position", 0.5) * 100],
+      bounds: [[0, 100]]
+    });
+    return () => {
+      stopAutoDrag();
+      range.removeEventListener("input", onInput);
+      range.removeEventListener("keydown", onKeyDown);
+      range.remove();
+      handle.remove();
+      style.restore();
+    };
+  }
+  var PERCENT_TOKEN = /^(\d+(?:\.\d+)?)%$/;
+  function resolvePositions(authored, count, warn) {
+    const even = Array.from({ length: count }, (_, k) => Math.round(100 * (k + 1) / (count + 1)));
+    if (authored.trim() === "") return even;
+    const tokens = authored.trim().split(/\s+/);
+    const values = tokens.map((token) => PERCENT_TOKEN.exec(token)?.[1]);
+    const numbers = values.map(Number);
+    const usable2 = tokens.length === count && values.every((value) => value !== void 0) && numbers.every((value, k) => value <= 100 && (k === 0 || value >= numbers[k - 1]));
+    if (usable2) return numbers.map(Math.round);
+    const example = even.map((value) => String(value) + "%").join(" ");
+    warn(
+      `compare positions: expected ${count} ascending percentages between 0% and 100% for ${count + 1} media (e.g. positions:'${example}'); using an even split`
+    );
+    return even;
+  }
+  function buildMulti({ el, media, params, ctx, axis, timing: timing3 }) {
+    if (params.text("position", "50%") !== "50%") {
+      ctx.warn(`compare position: sets the one divider of two media; with ${media.length}, use positions:`);
+    }
+    const positions = resolvePositions(params.text("positions", ""), media.length - 1, ctx.warn);
+    const homes = [...positions];
+    const attrs = createAttributeLedger(el);
+    attrs.set(COMPARE_DIVIDERS_ATTR, String(homes.length));
+    const dividers = createDividers(el, media, axis, positions);
+    const surface = bindSurface(el, axis, dividers);
+    const stopAutoDrag = bindAutoDrag({
+      ...timing3,
+      host: el,
+      grab: [surface.node, ...dividers.ranges],
+      ctx,
+      write: dividers.render,
+      homes,
+      bounds: homes.map((_, k) => boundsOf(homes, k))
+    });
+    return () => {
+      stopAutoDrag();
+      surface.destroy();
+      dividers.destroy();
+      attrs.restore();
+    };
+  }
+  function boundsOf(positions, k) {
+    return [k > 0 ? positions[k - 1] : 0, k < positions.length - 1 ? positions[k + 1] : 100];
+  }
+  function dividerLabel(el, media, k) {
+    const count = media.length - 1;
+    const authored = el.getAttribute("aria-label")?.trim();
+    if (authored) return `${authored}: divider ${k + 1} of ${count}`;
+    const before = getMediaName(media[k], `Image ${k + 1}`);
+    const after = getMediaName(media[k + 1], `Image ${k + 2}`);
+    return `Divider ${k + 1} of ${count}: ${before} / ${after}`;
+  }
+  function createDividers(el, media, axis, positions) {
+    const doc = el.ownerDocument;
+    const count = positions.length;
+    const clip = axis === "y" ? "inset(var(--kui-compare) 0 0 0)" : "inset(0 0 0 var(--kui-compare))";
+    const mediaStyles = media.slice(1).map((item) => createStyleLedger(item));
+    for (const ledger of mediaStyles) ledger.set("clip-path", clip);
+    const ranges = [];
+    const handles = [];
+    const cleanups = [];
+    const render = (k, shown) => {
+      positions[k] = Math.round(shown);
+      const css = `${Number(shown.toFixed(3))}%`;
+      handles[k].style.setProperty("--kui-compare", css);
+      mediaStyles[k].set("--kui-compare", css);
+      ranges[k].value = String(positions[k]);
+      ranges[k].setAttribute("aria-valuetext", `${positions[k]}%`);
+      if (k > 0) ranges[k - 1].max = String(positions[k]);
+      if (k < count - 1) ranges[k + 1].min = String(positions[k]);
+    };
+    for (let k = 0; k < count; k++) {
+      const range = createRange(doc, { name: dividerLabel(el, media, k), valueText: `${positions[k]}%` }, positions[k], axis);
+      const handle = createHandle(doc);
+      ranges.push(range);
+      handles.push(handle);
+      el.append(range, handle);
+      const onInput = () => render(k, Number(range.value));
+      const onKeyDown = verticalKeys(range, axis, onInput);
+      range.addEventListener("input", onInput);
+      range.addEventListener("keydown", onKeyDown);
+      cleanups.push(() => {
+        range.removeEventListener("input", onInput);
+        range.removeEventListener("keydown", onKeyDown);
+      });
+    }
+    for (let k = 0; k < count; k++) {
+      const [lo, hi] = boundsOf(positions, k);
+      ranges[k].min = String(lo);
+      ranges[k].max = String(hi);
+      render(k, positions[k]);
+    }
+    return {
+      ranges,
+      render,
+      moveTo(k, percent) {
+        const [lo, hi] = boundsOf(positions, k);
+        render(k, Math.min(hi, Math.max(lo, percent)));
+      },
+      nearest: (percent) => nearestDivider(positions, percent),
+      destroy() {
+        for (const cleanup of cleanups) cleanup();
+        for (const node of [...ranges, ...handles]) node.remove();
+        for (const ledger of mediaStyles) ledger.restore();
+      }
+    };
+  }
+  function nearestDivider(positions, percent) {
+    let best = 0;
+    for (let k = 1; k < positions.length; k++) {
+      const distance3 = Math.abs(positions[k] - percent);
+      const bestDistance = Math.abs(positions[best] - percent);
+      if (distance3 < bestDistance || distance3 === bestDistance && percent >= positions[k]) best = k;
+    }
+    return best;
+  }
+  function bindSurface(el, axis, dividers) {
+    const surface = el.ownerDocument.createElement("div");
+    surface.className = "kui-compare-surface";
+    surface.setAttribute("aria-hidden", "true");
+    el.appendChild(surface);
+    let dragging = -1;
+    let pointerId = null;
+    const percentAt = (event) => {
+      const rect = el.getBoundingClientRect();
+      const along = axis === "y" ? event.clientY - rect.top : event.clientX - rect.left;
+      const size = axis === "y" ? rect.height : rect.width;
+      return size > 0 ? 100 * along / size : 0;
+    };
+    const onPointerDown = (event) => {
+      if (event.button > 0 || pointerId !== null) return;
+      pointerId = event.pointerId;
+      const percent = percentAt(event);
+      dragging = dividers.nearest(percent);
+      event.preventDefault();
+      surface.setPointerCapture?.(event.pointerId);
+      dividers.ranges[dragging].focus({ preventScroll: true });
+      dividers.moveTo(dragging, percent);
+    };
+    const onPointerMove = (event) => {
+      if (dragging >= 0 && event.pointerId === pointerId) dividers.moveTo(dragging, percentAt(event));
+    };
+    const onPointerUp = (event) => {
+      if (event.pointerId !== pointerId) return;
+      dragging = -1;
+      pointerId = null;
+    };
+    const onLostCapture = (event) => {
+      if (event.target !== surface) return;
+      onPointerUp(event);
+    };
+    const listeners = [
+      ["pointerdown", onPointerDown],
+      ["pointermove", onPointerMove],
+      ["pointerup", onPointerUp],
+      ["pointercancel", onPointerUp],
+      ["lostpointercapture", onLostCapture]
+    ];
+    for (const [type, listener] of listeners) surface.addEventListener(type, listener);
+    return {
+      node: surface,
+      destroy() {
+        for (const [type, listener] of listeners) surface.removeEventListener(type, listener);
+        surface.remove();
+      }
+    };
   }
   function prepareCompare(el, params, ctx) {
     const media = Array.from(el.querySelectorAll(":scope > :is(img, picture, video)"));
@@ -14953,52 +17024,40 @@ var kuinetic = (() => {
     const axis = params.text("axis", "x");
     const attrs = createAttributeLedger(el);
     attrs.set(COMPARE_AXIS_ATTR, axis);
-    const initialPercent = Math.round(params.num("position", 0.5) * 100);
-    const style = createStyleLedger(el);
-    style.set("--kui-compare", params.text("position", "50%"));
-    const { range, handle } = createCompareElements(
-      el.ownerDocument,
-      resolveCompareLabel(el, media),
-      initialPercent,
-      axis
-    );
-    const onInput = () => {
-      const val = range.value;
-      style.set("--kui-compare", `${val}%`);
-      range.setAttribute("aria-valuetext", `${val}% after`);
-    };
-    const onKeyDown = (event) => {
-      const delta = VERTICAL_KEY_DELTA[event.key];
-      if (axis !== "y" || delta === void 0) return;
-      event.preventDefault();
-      if (delta < 0) range.stepDown();
-      else range.stepUp();
-      onInput();
-    };
-    range.addEventListener("input", onInput);
-    range.addEventListener("keydown", onKeyDown);
-    el.appendChild(range);
-    el.appendChild(handle);
+    const build2 = media.length > 2 ? buildMulti : buildPair;
+    const teardown = build2({
+      el,
+      media,
+      params,
+      ctx,
+      axis,
+      timing: {
+        mode: params.text("autoplay", "never"),
+        durationMs: sweepDuration(params, ctx),
+        reverse: params.is("reverse"),
+        loop: params.is("loop")
+      }
+    });
     return continuousSetup(() => {
-      range.removeEventListener("input", onInput);
-      range.removeEventListener("keydown", onKeyDown);
-      range.remove();
-      handle.remove();
+      teardown();
       attrs.restore();
-      style.restore();
     });
   }
   var COMPARE_PRIMITIVE = widgetPrimitive(
     "compare",
     {
-      channels: ["clip", "widget"],
+      // The layers it stacks and the range, handle and surface it appends; the axis and divider
+      // markers it writes on the host. Not `clip`: its `clip-path` is on the after layer, never the
+      // host, so a `wipe-up` revealing the whole slider is not a fight over one property.
+      channels: [SUBTREE_CHANNEL, attributeChannel(COMPARE_AXIS_ATTR), attributeChannel(COMPARE_DIVIDERS_ATTR)],
       parameters: compareParams,
       perfClass: "paint"
     },
     withTimingContract(
       "compare",
       {
-        because: "it builds an interactive before/after slider; there is no motion to time"
+        honours: ["duration"],
+        because: "its only motion is the autoplay: sweep, which starts on autoplay: rather than after a delay and eases into each edge on its own curve"
       },
       deferPrepare(prepareCompare)
     )
@@ -15172,7 +17231,8 @@ var kuinetic = (() => {
   var HOTSPOTS_PRIMITIVE = widgetPrimitive(
     "hotspots",
     {
-      channels: ["widget"],
+      // The marker buttons it appends, placed in percent of the host, and the marker style it writes.
+      channels: [SUBTREE_CHANNEL, attributeChannel("data-kui-hotspot-marker")],
       parameters: hotspotsParams,
       perfClass: "layout"
     },
@@ -15376,7 +17436,7 @@ var kuinetic = (() => {
       hovered = true;
       update();
     };
-    const leave = () => {
+    const leave2 = () => {
       hovered = false;
       update();
     };
@@ -15393,7 +17453,7 @@ var kuinetic = (() => {
       update();
     };
     el.addEventListener("pointerenter", enter);
-    el.addEventListener("pointerleave", leave);
+    el.addEventListener("pointerleave", leave2);
     el.addEventListener("focusin", focus);
     el.addEventListener("focusout", blur);
     ctx.doc.addEventListener("visibilitychange", update);
@@ -15402,7 +17462,7 @@ var kuinetic = (() => {
     return () => {
       if (timer !== null) clearTimeout(timer);
       el.removeEventListener("pointerenter", enter);
-      el.removeEventListener("pointerleave", leave);
+      el.removeEventListener("pointerleave", leave2);
       el.removeEventListener("focusin", focus);
       el.removeEventListener("focusout", blur);
       ctx.doc.removeEventListener("visibilitychange", update);
@@ -15434,7 +17494,7 @@ var kuinetic = (() => {
     return recognise(el, { onSwipe: (direction) => {
       if (direction === "left") index.next();
       if (direction === "right") index.prev();
-    } }, { axis: "x", capturePointer: false });
+    } }, { axis: "x", capturePointer: "drag" });
   }
   function prepareSlideshow(el, params, ctx) {
     const selector = resolveTarget(
@@ -15468,7 +17528,6 @@ var kuinetic = (() => {
       el,
       params,
       ctx,
-      scope,
       resolveSteps,
       name: "slideshow",
       clickFallback: false,
@@ -15496,7 +17555,19 @@ var kuinetic = (() => {
   }
   var SLIDESHOW_PRIMITIVE = widgetPrimitive(
     "slideshow",
-    { channels: ["widget"], parameters: slideshowParams, perfClass: "layout" },
+    // The controls it inserts, then what it writes on the host: `createStepIndex`'s `data-kui-step`,
+    // as every step deck does, and `decorateHost`'s mode and carousel roles.
+    {
+      channels: [
+        SUBTREE_CHANNEL,
+        attributeChannel("data-kui-step"),
+        attributeChannel(SLIDE_MODE_ATTR),
+        attributeChannel("role"),
+        attributeChannel("aria-roledescription")
+      ],
+      parameters: slideshowParams,
+      perfClass: "layout"
+    },
     withTimingContract(
       "slideshow",
       { honours: ["duration", "ease"], because: "the slideshow has no delayed start" },
@@ -15658,7 +17729,14 @@ var kuinetic = (() => {
   }
   var SCROLL_STORY_PRIMITIVE = widgetPrimitive(
     "scroll-story",
-    { channels: ["widget"], parameters: scrollStoryParams, perfClass: "layout" },
+    // Its stylesheet lays out the host's first and last child, so nothing else may insert one. The
+    // step index on the host (`applyStep`) is claimed so a `carousel` or `scroll-progress` beside it
+    // is refused rather than left to overwrite it.
+    {
+      channels: [SUBTREE_CHANNEL, attributeChannel("data-kui-step"), attributeChannel(STORY_SIDE_ATTR)],
+      parameters: scrollStoryParams,
+      perfClass: "layout"
+    },
     withTimingContract(
       "scroll-story",
       { because: "scroll position" },
@@ -15761,7 +17839,8 @@ var kuinetic = (() => {
   }
   var SLOW_MO_PRIMITIVE = widgetPrimitive(
     "slow-mo",
-    { channels: ["widget"], parameters: slowMoParams, perfClass: "compositor" },
+    // The toggle it prepends into the host, and the time scale it writes there.
+    { channels: [SUBTREE_CHANNEL, attributeChannel(TIME_SCALE_ATTR)], parameters: slowMoParams, perfClass: "compositor" },
     withTimingContract(
       "slow-mo",
       { because: "it changes playback rate rather than defining an animation timeline" },
@@ -15790,6 +17869,7 @@ var kuinetic = (() => {
     ...SLOW_MO_PRESETS
   ];
   function registerShowcase(target) {
+    provideDeckViewer(attachDeckLightbox);
     return registerInto(target, SHOWCASE_PRIMITIVES, SHOWCASE_PRESETS, "Showcase");
   }
 
@@ -15818,6 +17898,16 @@ var kuinetic = (() => {
     return new Animator({ registry: createRegistry(), ...options });
   }
   var src_default = kuinetic;
+  var catalog;
+  function describe2(name, options = {}) {
+    return describeEffect(options.registry ?? (catalog ??= createRegistry()), name, options.notes);
+  }
+  function describeSteps(value, options = {}) {
+    return describeAttribute(options.registry ?? (catalog ??= createRegistry()), value, options.notes);
+  }
+  function describeElement(value, options = {}) {
+    return describeElementAttribute(options.registry ?? (catalog ??= createRegistry()), value, options.notes);
+  }
   return __toCommonJS(src_exports);
 })();
 
@@ -15903,17 +17993,24 @@ var __kuineticBoot = (() => {
     }
   }
   function guarded(runtime, original, core, options) {
+    const wantsShared = !options || Object.entries(options).every(([key, value]) => key === "observe" && value === true);
+    if (runtime.manual) {
+      const made = original.call(core, options);
+      adoptManual(runtime, made);
+      return made;
+    }
     if (!runtime.started) {
       const replacement = original.call(core, options);
       adopt(runtime, replacement);
-      warnManualCall(
-        runtime,
-        "yours is now the one this page uses, exactly as it would have been before the script tag started one, so the call is safe to delete"
-      );
+      if (wantsShared) {
+        warnManualCall(
+          runtime,
+          "yours is now the one this page uses, exactly as it would have been before the script tag started one, so the call is safe to delete"
+        );
+      }
       return replacement;
     }
     const shared = runtime.animator;
-    const wantsShared = !options || Object.entries(options).every(([key, value]) => key === "observe" && value === true);
     if (shared && wantsShared) {
       warnManualCall(runtime, "you have been handed the one it already made, so this call is safe to delete");
       return shared;
@@ -15939,6 +18036,40 @@ var __kuineticBoot = (() => {
     };
     runtime.animator = animator;
     globalScope().__kuinetic = animator;
+  }
+  function adoptManual(runtime, animator) {
+    if (!runtime.animator) adopt(runtime, animator);
+    const entry = { animator, started: false };
+    const list = runtime.handBuilt ??= [];
+    list.push(entry);
+    const start = animator.start.bind(animator);
+    animator.start = () => {
+      entry.started = true;
+      return start();
+    };
+    if (typeof animator.destroy === "function") {
+      const destroy = animator.destroy.bind(animator);
+      animator.destroy = () => {
+        const at = list.indexOf(entry);
+        if (at >= 0) list.splice(at, 1);
+        return destroy();
+      };
+    }
+    for (const tier of runtime.pending) registerTier(tier, animator);
+  }
+  function registerTier(entry, animator) {
+    try {
+      entry.register(animator);
+    } catch (error) {
+      warn(`the "${entry.tier}" tier failed to register: ${String(error)}`);
+    }
+  }
+  function enlistOnManual(runtime, entry) {
+    runtime.pending.push(entry);
+    for (const { animator, started } of [...runtime.handBuilt ?? []]) {
+      registerTier(entry, animator);
+      if (started) recompile(animator);
+    }
   }
   function createAnimator(runtime, core) {
     adopt(runtime, core.kuinetic({ observe: true }));
@@ -15969,13 +18100,7 @@ var __kuineticBoot = (() => {
   }
   function drain(runtime, animator) {
     const pending = runtime.pending.splice(0, runtime.pending.length);
-    for (const entry of pending) {
-      try {
-        entry.register(animator);
-      } catch (error) {
-        warn(`the "${entry.tier}" tier failed to register: ${String(error)}`);
-      }
-    }
+    for (const entry of pending) registerTier(entry, animator);
     return pending.length;
   }
   function runBoot(runtime) {
@@ -15997,13 +18122,6 @@ var __kuineticBoot = (() => {
     }
     if (registered) recompile(animator);
   }
-  function optedOut(runtime, options) {
-    if (taggedManual()) {
-      if (options.core) runtime.manual = true;
-      return true;
-    }
-    return runtime.manual;
-  }
   function enlist(runtime, options) {
     if (options.core) {
       if (runtime.animator) return;
@@ -16017,7 +18135,17 @@ var __kuineticBoot = (() => {
     if (typeof document === "undefined" || typeof globalThis === "undefined") return;
     const runtime = getRuntime();
     checkVersion(runtime, options.tier);
-    if (optedOut(runtime, options)) return;
+    if (taggedManual()) {
+      if (options.core) {
+        runtime.manual = true;
+        installGuard(runtime, options.core, options.globalName);
+      }
+      return;
+    }
+    if (runtime.manual) {
+      if (options.register) enlistOnManual(runtime, { tier: options.tier, register: options.register });
+      return;
+    }
     enlist(runtime, options);
     schedule(runtime);
   }
@@ -16031,7 +18159,7 @@ __kuineticBoot.boot({ tier: 'core', core: kuinetic, globalName: 'kuinetic' });
   if (!document.getElementById('kuinetic-styles')) {
     var style = document.createElement('style')
     style.id = 'kuinetic-styles'
-    style.textContent = "/* src/css/base.css */\n@layer kui.tokens, kui.presets, kui.effects, kui.policy, kui.cloak;\n@layer kui.tokens {\n  :root {\n    --kui-ease-expo-in: cubic-bezier(0.7, 0, 0.84, 0);\n    --kui-ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);\n    --kui-ease-expo-in-out: cubic-bezier(0.87, 0, 0.13, 1);\n    --kui-ease-back-in: cubic-bezier(0.36, 0, 0.66, -0.56);\n    --kui-ease-back-out: cubic-bezier(0.34, 1.56, 0.64, 1);\n    --kui-ease-back-in-out: cubic-bezier(0.68, -0.6, 0.32, 1.6);\n    --kui-ease-quart-out: cubic-bezier(0.25, 1, 0.5, 1);\n    --kui-ease-circ-out: cubic-bezier(0, 0.55, 0.45, 1);\n    --kui-ease-spring: linear(0, 0.4 12%, 0.9 25%, 1.06 38%, 1.01 62%, 1);\n    --kui-ease-bounce: linear(0, 0.5 10%, 1.2 30%, 0.9 50%, 1.08 68%, 0.97 82%, 1.02 92%, 1);\n  }\n  [data-kui-fx] {\n    --kui-dir: 1;\n    --kui-i: 0;\n    --kui-motion-path: initial;\n    --kui-motion-rotate: initial;\n    --kui-motion-anchor: initial;\n    --kui-motion-from: initial;\n    --kui-motion-to: initial;\n    --kui-wide-sm: initial;\n    --kui-narrow-sm: initial;\n    --kui-wide-md: initial;\n    --kui-narrow-md: initial;\n    --kui-wide-lg: initial;\n    --kui-narrow-lg: initial;\n    --kui-wide-xl: initial;\n    --kui-narrow-xl: initial;\n    --kui-wide-2xl: initial;\n    --kui-narrow-2xl: initial;\n  }\n  :dir(rtl) [data-kui-fx] {\n    --kui-dir: -1;\n  }\n  :root {\n    --kui-above-sm: none;\n    --kui-below-sm: initial;\n    --kui-above-md: none;\n    --kui-below-md: initial;\n    --kui-above-lg: none;\n    --kui-below-lg: initial;\n    --kui-above-xl: none;\n    --kui-below-xl: initial;\n    --kui-above-2xl: none;\n    --kui-below-2xl: initial;\n  }\n  @media (min-width: 40rem) {\n    :root {\n      --kui-above-sm: initial;\n      --kui-below-sm: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    :root {\n      --kui-above-md: initial;\n      --kui-below-md: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    :root {\n      --kui-above-lg: initial;\n      --kui-below-lg: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    :root {\n      --kui-above-xl: initial;\n      --kui-below-xl: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    :root {\n      --kui-above-2xl: initial;\n      --kui-below-2xl: none;\n    }\n  }\n  @container (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-narrow-sm: none;\n    }\n  }\n  @container not (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-wide-sm: none;\n    }\n  }\n  @container (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-narrow-md: none;\n    }\n  }\n  @container not (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-wide-md: none;\n    }\n  }\n  @container (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-narrow-lg: none;\n    }\n  }\n  @container not (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-wide-lg: none;\n    }\n  }\n  @container (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-narrow-xl: none;\n    }\n  }\n  @container not (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-wide-xl: none;\n    }\n  }\n  @container (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-narrow-2xl: none;\n    }\n  }\n  @container not (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-wide-2xl: none;\n    }\n  }\n  [data-kui-container] {\n    container-type: inline-size;\n  }\n}\n@layer kui.effects {\n  :where([data-kui-fx]) {\n    --kui-transition: initial;\n    transition: var(--kui-transition);\n  }\n}\n@layer kui.policy {\n  html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) {\n    opacity: 0 !important;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm],\n    [data-kui-rm]::before,\n    [data-kui-rm]::after,\n    [data-kui-rm] .kui-odometer-strip,\n    [data-kui-rm][data-kui-fx~=label-float] ~ label,\n    [data-kui-rm][data-kui-fx~=input-underline-grow] ~ .kui-underline,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb,\n    [data-kui-rm][data-kui-fx~=checkbox-draw] ~ svg path,\n    [data-kui-rm][data-kui-fx~=radio-fill] ~ .kui-dot,\n    [data-kui-rm][data-kui-fx~=strength-meter] ~ .kui-meter > *,\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] .kui-bar,\n    [data-kui-rm][data-kui-fx~=play-to-pause] .kui-bar,\n    [data-kui-rm][data-kui-fx~=plus-to-minus] .kui-bar,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-front,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-back,\n    [data-kui-rm][data-kui-fx~=step-progress] > [data-kui-step-state] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n    [data-kui-rm=shorten],\n    [data-kui-rm=shorten]::before,\n    [data-kui-rm=shorten]::after {\n      animation-duration: 1ms !important;\n      animation-delay: 0ms !important;\n    }\n    [data-kui-rm=crossfade] {\n      animation-name: kui-in !important;\n      animation-duration: 200ms !important;\n    }\n    [data-kui-rm=disable] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n  @media print {\n    [data-kui-fx],\n    [data-kui-reveal] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n}\n\n/* src/css/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=accordion-height] {\n    --kui-auto-height-duration: 400ms;\n    --kui-auto-height-delay: 0ms;\n    --kui-auto-height-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-bottom] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-left] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-right] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=aurora] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=back-in-down] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=back-in-up] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=badge-pop] {\n    --kui-feedback-pop-duration: 420ms;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=beam-border] {\n    --kui-beam-border-duration: 220ms;\n    --kui-beam-border-delay: 0ms;\n  }\n  [data-kui-fx~=beam-border-auto] {\n    --kui-beam-border-auto-duration: 220ms;\n  }\n  [data-kui-fx~=before-after-wipe] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=blob-morph] {\n    --kui-path-morph-duration: 800ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=blur-in] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-out] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-up] {\n    --kui-media-blur-up-duration: 600ms;\n    --kui-media-blur-up-delay: 0ms;\n    --kui-media-blur-up-ease: ease-out;\n  }\n  [data-kui-fx~=bob] {\n    --kui-ambient-float-duration: 2s;\n    --kui-distance: 8px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=book-page-turn] {\n    --kui-from-angle: -160deg;\n    --kui-flip-face-duration: 900ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=bookmark-fill] {\n    --kui-shape-fill-duration: 360ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=border-draw] {\n    --kui-border-draw-duration: 220ms;\n    --kui-border-draw-delay: 0ms;\n    --kui-border-draw-ease: ease-out;\n  }\n  [data-kui-fx~=border-glow] {\n    --kui-border-glow-duration: 220ms;\n    --kui-border-glow-delay: 0ms;\n    --kui-border-glow-ease: ease-out;\n  }\n  [data-kui-fx~=bounce-in] {\n    --kui-from-scale: 0.3;\n    --kui-scale-ease: var(--kui-ease-bounce, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-down] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-up] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=card-flip-x] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=card-flip-y] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=carousel] {\n    --kui-scope: self;\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=carousel-3d] {\n    --kui-tilt: 12deg;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-high] {\n    --kui-tilt: 30deg;\n    --kui-perspective: 1200px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-inside] {\n    --kui-arc: 120deg;\n    --kui-facing: camera;\n    --kui-perspective: 900px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-low] {\n    --kui-tilt: -18deg;\n    --kui-perspective: 1800px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=chart-area-fill] {\n    --kui-shape-fill-duration: 900ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    --kui-bar-grow-duration: 700ms;\n    --kui-bar-grow-ease: var(--kui-ease-back-out, ease-out);\n    --kui-bar-grow-delay: 0ms;\n  }\n  [data-kui-fx~=chart-line-draw] {\n    --kui-path-draw-duration: 1200ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=checkmark-draw] {\n    --kui-path-draw-duration: 320ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=confetti-burst] {\n    --kui-feedback-burst-duration: 900ms;\n    --kui-pop-scale: 1.15;\n    --kui-feedback-burst-delay: 0ms;\n    --kui-feedback-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=copy-confirm] {\n    --kui-feedback-confirm-duration: 1400ms;\n    --kui-feedback-confirm-delay: 0ms;\n    --kui-feedback-confirm-ease: linear;\n  }\n  [data-kui-fx~=count-bump] {\n    --kui-feedback-pop-duration: 280ms;\n    --kui-pop-scale: 1.3;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=count-compact] {\n    --kui-from: 0;\n    --kui-to: 128400;\n    --kui-format: compact;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-currency] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-format: currency;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-down] {\n    --kui-from: 100;\n    --kui-to: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-percent] {\n    --kui-from: 0;\n    --kui-to: 0.82;\n    --kui-format: percent;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-up] {\n    --kui-from: 0;\n    --kui-to: 100;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=cross-draw] {\n    --kui-path-draw-duration: 260ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=cube-rotate] {\n    --kui-from-angle: 90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=cursor-follow] {\n    --kui-stiffness: 300;\n    --kui-damping: 30;\n  }\n  [data-kui-fx~=cursor-invert] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-label] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-lag] {\n    --kui-stiffness: 80;\n    --kui-damping: 14;\n  }\n  [data-kui-fx~=curtain-reveal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=curtain-wipe] {\n    --kui-wipe-duration: 800ms;\n    --kui-wipe-delay: 0ms;\n    --kui-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=decode] {\n    --kui-charset: binary;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=depth-layer] {\n    --kui-distance: 200px;\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=donut-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=drag-inertia] {\n    --kui-inertia: true;\n  }\n  [data-kui-fx~=drag-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=drag-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=draw-signature] {\n    --kui-path-draw-duration: 1600ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-stroke] {\n    --kui-path-draw-duration: 800ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-underline] {\n    --kui-path-draw-duration: 420ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=drawer-slide] {\n    --kui-drawer-slide-duration: 600ms;\n    --kui-drawer-slide-delay: 0ms;\n    --kui-drawer-slide-ease: ease-out;\n  }\n  [data-kui-fx~=drop-open] {\n    --kui-drop-open-duration: 240ms;\n    --kui-drop-open-delay: 0ms;\n    --kui-drop-open-ease: ease-out;\n  }\n  [data-kui-fx~=dropdown-open] {\n    --kui-panel-reveal-duration: 600ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=duotone-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=elastic-pull] {\n    --kui-return: true;\n    --kui-bounds: 80;\n  }\n  [data-kui-fx~=expand-to-modal] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 500ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-in] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-up] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-in] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-open] {\n    --kui-fade-open-duration: 240ms;\n    --kui-fade-open-delay: 0ms;\n    --kui-fade-open-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=flip-card] {\n    --kui-card-toggle-duration: 700ms;\n    --kui-card-toggle-delay: 0ms;\n    --kui-card-toggle-ease: ease-in-out;\n  }\n  [data-kui-fx~=flip-filter] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-reorder] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-shuffle] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-sort] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=float] {\n    --kui-ambient-float-duration: 4s;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-ambient-float-duration: 6s;\n    --kui-distance: 10px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=focus-ring-grow] {\n    --kui-focus-ring-duration: 600ms;\n    --kui-focus-ring-delay: 0ms;\n    --kui-focus-ring-ease: ease-out;\n  }\n  [data-kui-fx~=fold-panel] {\n    --kui-from-angle: -90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=gauge-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=glitch] {\n    --kui-charset: symbols;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-ambient-pulse-duration: 2.2s;\n    --kui-ambient-pulse-delay: 0ms;\n    --kui-ambient-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-mesh] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    --kui-text-shimmer-duration: 600ms;\n    --kui-text-shimmer-delay: 0ms;\n    --kui-text-shimmer-ease: ease-out;\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-path-draw-duration: 2400ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-sweep] {\n    --kui-text-gradient-sweep-duration: 600ms;\n    --kui-text-gradient-sweep-delay: 0ms;\n    --kui-text-gradient-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=grayscale-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=grid-to-list] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=group-dim] {\n    --kui-group-dim-duration: 260ms;\n    --kui-group-dim-delay: 0ms;\n    --kui-group-dim-ease: ease-out;\n  }\n  [data-kui-fx~=hamburger-to-x] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=heart-burst] {\n    --kui-feedback-heart-burst-duration: 700ms;\n    --kui-pop-scale: 1.4;\n    --kui-feedback-heart-burst-delay: 0ms;\n    --kui-feedback-heart-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=heart-fill] {\n    --kui-shape-fill-duration: 420ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=highlight-sweep] {\n    --kui-sweep-color: gold;\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=hover-intent] {\n    --kui-hover-intent-duration: 160ms;\n    --kui-hover-intent-delay: 1000ms;\n    --kui-hover-intent-ease: ease-out;\n  }\n  [data-kui-fx~=icon-bounce] {\n    --kui-icon-bounce-duration: 220ms;\n    --kui-icon-bounce-delay: 0ms;\n    --kui-icon-bounce-ease: ease-out;\n  }\n  [data-kui-fx~=icon-morph] {\n    --kui-path-morph-duration: 300ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=icon-spin] {\n    --kui-icon-spin-duration: 220ms;\n    --kui-icon-spin-delay: 0ms;\n  }\n  [data-kui-fx~=icon-wiggle] {\n    --kui-icon-wiggle-duration: 220ms;\n    --kui-icon-wiggle-delay: 0ms;\n    --kui-icon-wiggle-ease: ease-out;\n  }\n  [data-kui-fx~=image-parallax-frame] {\n    --kui-media-parallax-frame-duration: 600ms;\n    --kui-media-parallax-frame-delay: 0ms;\n    --kui-media-parallax-frame-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns-out] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=lift] {\n    --kui-lift-duration: 220ms;\n    --kui-lift-delay: 0ms;\n    --kui-lift-ease: ease-out;\n  }\n  [data-kui-fx~=lift-shadow] {\n    --kui-lift-shadow-duration: 220ms;\n    --kui-lift-shadow-delay: 0ms;\n    --kui-lift-shadow-ease: ease-out;\n  }\n  [data-kui-fx~=lightbox-open] {\n    --kui-media-lightbox-duration: 600ms;\n    --kui-media-lightbox-delay: 0ms;\n    --kui-media-lightbox-ease: ease-out;\n  }\n  [data-kui-fx~=line-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=loading-bar] {\n    --kui-bar-duration: 600ms;\n    --kui-bar-delay: 0ms;\n    --kui-bar-ease: ease-out;\n  }\n  [data-kui-fx~=logo-build] {\n    --kui-logo-assemble-duration: 520ms;\n    --kui-logo-assemble-ease: var(--kui-ease-back-out, ease-out);\n    --kui-logo-assemble-delay: 0ms;\n  }\n  [data-kui-fx~=long-press] {\n    --kui-pressable-duration: 500ms;\n  }\n  [data-kui-fx~=magnetic-snap] {\n    --kui-strength: 0.6;\n    --kui-radius: 160;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=marquee-scroll-linked] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=mask-reveal] {\n    --kui-media-mask-duration: 600ms;\n    --kui-media-mask-delay: 0ms;\n    --kui-media-mask-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masonry-reflow] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=mega-menu-drop] {\n    --kui-panel-reveal-duration: 550ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=menu-fullscreen] {\n    --kui-menu-fullscreen-duration: 600ms;\n    --kui-menu-fullscreen-delay: 0ms;\n    --kui-menu-fullscreen-ease: ease-out;\n  }\n  [data-kui-fx~=menu-stagger-open] {\n    --kui-nav-reveal-duration: 600ms;\n    --kui-nav-reveal-delay: 0ms;\n    --kui-nav-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=motion-path] {\n    --kui-motion-path: \"M 0 0 L 120 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-delay: 0ms;\n    --kui-motion-path-ease: ease-out;\n  }\n  [data-kui-fx~=odometer-roll] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-count-odometer-duration: 1600ms;\n    --kui-count-odometer-delay: 0ms;\n  }\n  [data-kui-fx~=orbit] {\n    --kui-ambient-orbit-duration: 3.5s;\n    --kui-ambient-orbit-delay: 0ms;\n    --kui-ambient-orbit-ease: linear;\n  }\n  [data-kui-fx~=page-fade] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=page-slide] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-rotate] {\n    --kui-parallax-rotate-duration: 600ms;\n    --kui-parallax-rotate-delay: 0ms;\n    --kui-parallax-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-scale] {\n    --kui-parallax-scale-duration: 600ms;\n    --kui-parallax-scale-delay: 0ms;\n    --kui-parallax-scale-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-x] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-y] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=path-arc] {\n    --kui-motion-path: \"M 0 0 C 40 -70 120 -70 160 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-loop] {\n    --kui-motion-path: \"M 0 0 C 0 -70 110 -70 110 0 C 110 70 0 70 0 0\";\n    --kui-motion-path-duration: 2400ms;\n    --kui-motion-path-ease: linear;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-swoop] {\n    --kui-motion-path: \"M -120 70 C -70 70 -25 25 0 0\";\n    --kui-motion-path-duration: 900ms;\n    --kui-motion-path-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-wave] {\n    --kui-motion-path: \"M 0 0 C 45 -45 105 45 150 0\";\n    --kui-motion-path-duration: 1600ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=pin-section] {\n    --kui-distance: 100vh;\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-spacer] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-until] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=play-to-pause] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=plus-to-minus] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=pop] {\n    --kui-pop-duration: 220ms;\n    --kui-pop-delay: 0ms;\n    --kui-pop-ease: ease-out;\n  }\n  [data-kui-fx~=pop-in] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-out, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=pop-open] {\n    --kui-pop-open-duration: 240ms;\n    --kui-pop-open-delay: 0ms;\n    --kui-pop-open-ease: ease-out;\n  }\n  [data-kui-fx~=pop-out] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-in, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=press-depth] {\n    --kui-press-duration: 120ms;\n    --kui-press-delay: 0ms;\n    --kui-press-ease: ease-out;\n  }\n  [data-kui-fx~=progress-bar] {\n    --kui-meter-bar-duration: 600ms;\n    --kui-meter-bar-delay: 0ms;\n    --kui-meter-bar-ease: ease-out;\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    --kui-feedback-progress-track-duration: 1.4s;\n    --kui-feedback-progress-track-delay: 0ms;\n    --kui-feedback-progress-track-ease: ease-in-out;\n  }\n  [data-kui-fx~=progress-ring] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=progress-segments] {\n    --kui-meter-segments-duration: 600ms;\n    --kui-meter-segments-delay: 0ms;\n    --kui-meter-segments-ease: ease-out;\n  }\n  [data-kui-fx~=proximity-glow] {\n    --kui-proximity-glow-duration: 200ms;\n    --kui-proximity-glow-ease: ease-out;\n  }\n  [data-kui-fx~=pull-to-refresh] {\n    --kui-feedback-pull-duration: 900ms;\n    --kui-feedback-pull-ease: ease-out;\n    --kui-feedback-pull-delay: 0ms;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-range-fill-duration: 400ms;\n    --kui-range-fill-delay: 0ms;\n    --kui-range-fill-ease: ease-out;\n  }\n  [data-kui-fx~=redaction-reveal] {\n    --kui-redaction-reveal-duration: 600ms;\n    --kui-redaction-reveal-delay: 0ms;\n    --kui-redaction-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=reveal-once] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=ripple] {\n    --kui-feedback-ripple-duration: 600ms;\n    --kui-feedback-ripple-delay: 0ms;\n    --kui-feedback-ripple-ease: ease-out;\n  }\n  [data-kui-fx~=roll-in] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=roll-out] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-left] {\n    --kui-from-angle: -45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-right] {\n    --kui-from-angle: 45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-out] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rubber-band] {\n    --kui-return: true;\n    --kui-bounds: 120;\n  }\n  [data-kui-fx~=saturate-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=scale-open] {\n    --kui-scale-open-duration: 240ms;\n    --kui-scale-open-delay: 0ms;\n    --kui-scale-open-ease: ease-out;\n  }\n  [data-kui-fx~=scanline] {\n    --kui-ambient-tint-duration: 3.5s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=scramble] {\n    --kui-charset: upper;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=scroll-desaturate] {\n    --kui-desaturate-duration: 600ms;\n    --kui-desaturate-delay: 0ms;\n    --kui-desaturate-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-fade] {\n    --kui-scroll-fade-duration: 600ms;\n    --kui-scroll-fade-delay: 0ms;\n    --kui-scroll-fade-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar-y] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    --kui-progress-stroke-duration: 600ms;\n    --kui-progress-stroke-delay: 0ms;\n    --kui-progress-stroke-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-skew] {\n    --kui-skew-duration: 600ms;\n    --kui-skew-delay: 0ms;\n    --kui-skew-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-snap-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=scroll-snap-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=scrollytelling-step] {\n    --kui-steps: 4;\n  }\n  [data-kui-fx~=search-expand] {\n    --kui-search-expand-duration: 260ms;\n    --kui-search-expand-delay: 0ms;\n    --kui-search-expand-ease: ease-out;\n  }\n  [data-kui-fx~=sequence-scrub] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=shake-error] {\n    --kui-feedback-shake-duration: 500ms;\n    --kui-feedback-shake-delay: 0ms;\n    --kui-feedback-shake-ease: linear;\n  }\n  [data-kui-fx~=shine-sweep] {\n    --kui-shine-sweep-duration: 220ms;\n    --kui-shine-sweep-delay: 0ms;\n    --kui-shine-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=skeleton-shimmer] {\n    --kui-feedback-shimmer-duration: 1.6s;\n    --kui-feedback-shimmer-delay: 0ms;\n    --kui-feedback-shimmer-ease: linear;\n  }\n  [data-kui-fx~=skeleton-to-content] {\n    --kui-feedback-fade-duration: 600ms;\n    --kui-feedback-fade-delay: 0ms;\n    --kui-feedback-fade-ease: ease-out;\n  }\n  [data-kui-fx~=slat-assemble] {\n    --kui-slat-assemble-duration: 500ms;\n    --kui-slat-assemble-delay: 0ms;\n    --kui-slat-assemble-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-down] {\n    --kui-slide-open-down-duration: 240ms;\n    --kui-slide-open-down-delay: 0ms;\n    --kui-slide-open-down-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-up] {\n    --kui-slide-open-up-duration: 240ms;\n    --kui-slide-open-up-delay: 0ms;\n    --kui-slide-open-up-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=snap-back] {\n    --kui-return: true;\n    --kui-stiffness: 260;\n  }\n  [data-kui-fx~=sparkline-draw] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=spinner] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=spinner-dots] {\n    --kui-feedback-dot-pulse-duration: 1.2s;\n    --kui-feedback-dot-pulse-delay: 0ms;\n    --kui-feedback-dot-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=spinner-ring] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=split-chars] {\n    --kui-unit: chars;\n    --kui-direction: fade;\n    --kui-stagger: 30ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-flap] {\n    --kui-split-flap-duration: 220ms;\n    --kui-split-flap-delay: 0ms;\n    --kui-split-flap-ease: ease-out;\n  }\n  [data-kui-fx~=split-lines] {\n    --kui-unit: lines;\n    --kui-direction: fade;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-words] {\n    --kui-unit: words;\n    --kui-direction: fade;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=spotlight-follow] {\n    --kui-ambient-tint-duration: 9s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=stacking-cards] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=star-rating-fill] {\n    --kui-meter-stars-duration: 600ms;\n    --kui-meter-stars-delay: 0ms;\n    --kui-meter-stars-ease: ease-out;\n  }\n  [data-kui-fx~=starfield] {\n    --kui-ambient-tint-duration: 40s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=step-progress] {\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=strength-meter] {\n    --kui-strength-meter-duration: 400ms;\n    --kui-strength-meter-delay: 0ms;\n    --kui-strength-meter-ease: ease-out;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] {\n    --kui-submit-flow-duration: 400ms;\n    --kui-submit-flow-delay: 0ms;\n    --kui-submit-flow-ease: ease-out;\n  }\n  [data-kui-fx~=swing-in] {\n    --kui-from-angle: -15deg;\n    --kui-rotate-ease: var(--kui-ease-back-out, ease-out);\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n  }\n  [data-kui-fx~=swipe-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=tab-indicator-slide] {\n    --kui-flip-indicator-duration: 300ms;\n    --kui-flip-indicator-delay: 0ms;\n    --kui-flip-indicator-ease: ease-out;\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    --kui-text-3d-extrude-duration: 600ms;\n    --kui-text-3d-extrude-delay: 0ms;\n    --kui-text-3d-extrude-ease: ease-out;\n  }\n  [data-kui-fx~=text-jitter] {\n    --kui-motion: jitter;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=text-outline-fill] {\n    --kui-text-outline-fill-duration: 600ms;\n    --kui-text-outline-fill-delay: 0ms;\n    --kui-text-outline-fill-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-down] {\n    --kui-unit: words;\n    --kui-direction: down;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-mask] {\n    --kui-unit: lines;\n    --kui-direction: mask;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-up] {\n    --kui-unit: words;\n    --kui-direction: up;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-wave] {\n    --kui-motion: wave;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=throwable] {\n    --kui-inertia: true;\n    --kui-damping: 18;\n  }\n  [data-kui-fx~=toast-slide-in] {\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n    --kui-feedback-toast-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=toast-slide-out] {\n    --kui-feedback-toast-ease: ease-in;\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n  }\n  [data-kui-fx~=tween] {\n    --kui-tween-duration: 600ms;\n    --kui-tween-delay: 0ms;\n    --kui-tween-ease: ease-out;\n  }\n  [data-kui-fx~=tween-from] {\n    --kui-tween-from-duration: 600ms;\n    --kui-tween-from-delay: 0ms;\n    --kui-tween-from-ease: ease-out;\n  }\n  [data-kui-fx~=typewriter] {\n    --kui-loop: false;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=typewriter-loop] {\n    --kui-loop: true;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=underline-center] {\n    --kui-underline-center-duration: 220ms;\n    --kui-underline-center-delay: 0ms;\n    --kui-underline-center-ease: ease-out;\n  }\n  [data-kui-fx~=underline-draw] {\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=underline-slide] {\n    --kui-underline-slide-duration: 220ms;\n    --kui-underline-slide-delay: 0ms;\n    --kui-underline-slide-ease: ease-out;\n  }\n  [data-kui-fx~=validate-check] {\n    --kui-validate-check-duration: 600ms;\n    --kui-validate-check-delay: 0ms;\n    --kui-validate-check-ease: ease-out;\n  }\n  [data-kui-fx~=validate-shake] {\n    --kui-validate-shake-duration: 600ms;\n    --kui-validate-shake-delay: 0ms;\n    --kui-validate-shake-ease: ease-out;\n  }\n  [data-kui-fx~=var-axis] {\n    --kui-var-axis-duration: 600ms;\n    --kui-var-axis-delay: 0ms;\n    --kui-var-axis-ease: ease-out;\n  }\n  [data-kui-fx~=var-slant] {\n    --kui-var-slant-duration: 600ms;\n    --kui-var-slant-delay: 0ms;\n    --kui-var-slant-ease: ease-out;\n  }\n  [data-kui-fx~=var-weight] {\n    --kui-var-weight-duration: 600ms;\n    --kui-var-weight-delay: 0ms;\n    --kui-var-weight-ease: ease-out;\n  }\n  [data-kui-fx~=var-width] {\n    --kui-var-width-duration: 600ms;\n    --kui-var-width-delay: 0ms;\n    --kui-var-width-ease: ease-out;\n  }\n  [data-kui-fx~=video-backdrop] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n  }\n  [data-kui-fx~=video-hero] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n    --kui-autoplay: always;\n  }\n  [data-kui-fx~=view-swap] {\n    --kui-view-swap-delay: 0ms;\n  }\n  [data-kui-fx~=wave-blob] {\n    --kui-ambient-tint-duration: 12s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=wipe-circle] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-diagonal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-down] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-left] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-right] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-up] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wobble] {\n    --kui-feedback-wobble-duration: 600ms;\n    --kui-feedback-wobble-ease: ease-in-out;\n    --kui-feedback-wobble-delay: 0ms;\n  }\n  [data-kui-fx~=word-cycler] {\n    --kui-word-cycler-delay: 0ms;\n  }\n  [data-kui-fx~=zoom-in] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-down] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-up] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-out] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n}\n@layer kui.cloak {\n  html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n    opacity: 0;\n    animation: kui-cloak-release 1ms linear 2s forwards;\n  }\n  @keyframes kui-cloak-release {\n    to {\n      opacity: 1;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:sm\"], [data-kui~=\"above:sm,\"], [data-kui~=\",above:sm\"], [data-kui~=\",above:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:sm\"], [data-kui~=\"below:sm,\"], [data-kui~=\",below:sm\"], [data-kui~=\",below:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:md\"], [data-kui~=\"above:md,\"], [data-kui~=\",above:md\"], [data-kui~=\",above:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:md\"], [data-kui~=\"below:md,\"], [data-kui~=\",below:md\"], [data-kui~=\",below:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:lg\"], [data-kui~=\"above:lg,\"], [data-kui~=\",above:lg\"], [data-kui~=\",above:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:lg\"], [data-kui~=\"below:lg,\"], [data-kui~=\",below:lg\"], [data-kui~=\",below:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:xl\"], [data-kui~=\"above:xl,\"], [data-kui~=\",above:xl\"], [data-kui~=\",above:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:xl\"], [data-kui~=\"below:xl,\"], [data-kui~=\",below:xl\"], [data-kui~=\",below:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:2xl\"], [data-kui~=\"above:2xl,\"], [data-kui~=\",above:2xl\"], [data-kui~=\",above:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:2xl\"], [data-kui~=\"below:2xl,\"], [data-kui~=\",below:2xl\"], [data-kui~=\",below:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n}\n\n/* src/css/entrance.css */\n@layer kui.effects {\n  @keyframes kui-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n  }\n  @keyframes kui-out {\n    to {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-in-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-in-down {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-in-left {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-right {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-up {\n    to {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-out-down {\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-out-left {\n    to {\n      opacity: 0;\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-right {\n    to {\n      opacity: 0;\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-inline-start {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1)) 0;\n    }\n  }\n  @keyframes kui-in-inline-end {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1) * -1) 0;\n    }\n  }\n  @keyframes kui-zoom-in {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-out {\n    to {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-in-up {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-zoom-in-down {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-flip-in-x {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-in-y {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-rotate-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-rotate-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-swing-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -15deg));\n    }\n  }\n  @keyframes kui-roll-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-roll-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-blur-in {\n    from {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-blur-out {\n    to {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  [data-kui-fx*=flip-] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready] {\n    opacity: 0;\n  }\n}\n\n/* src/css/scroll.css */\n@layer kui.effects {\n  @keyframes kui-parallax-y {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 100px));\n    }\n  }\n  @keyframes kui-parallax-x {\n    from {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1) 0;\n    }\n    to {\n      translate: var(--kui-gate-distance, var(--kui-distance, 100px)) 0;\n    }\n  }\n  @keyframes kui-parallax-scale {\n    from {\n      scale: var(--kui-from-scale, 1);\n    }\n    to {\n      scale: var(--kui-to-scale, 1.2);\n    }\n  }\n  @keyframes kui-parallax-rotate {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, 0deg));\n    }\n    to {\n      rotate: var(--kui-to-angle, 12deg);\n    }\n  }\n  @keyframes kui-scroll-fade {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-desaturate {\n    from {\n      filter: grayscale(var(--kui-from-grayscale, 100%));\n    }\n    to {\n      filter: grayscale(var(--kui-to-grayscale, 0%));\n    }\n  }\n  @keyframes kui-scroll-skew {\n    from {\n      transform: skewY(var(--kui-from-skew, 8deg));\n    }\n    to {\n      transform: skewY(var(--kui-to-skew, 0deg));\n    }\n  }\n  @keyframes kui-progress-x {\n    from {\n      scale: 0 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-y {\n    from {\n      scale: 1 0;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    stroke-dasharray: var(--kui-path-length, 100);\n  }\n  [data-kui-fx~=sequence-scrub]:has(> [data-kui-step-state]),\n  [data-kui-fx~=video-scrub]:has(> [data-kui-step-state]),\n  .kui-frame-stack {\n    position: relative;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state],\n  .kui-frame-stack > [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    width: 100%;\n    height: 100%;\n    object-fit: cover;\n    opacity: 0;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state=active],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state=active],\n  .kui-frame-stack > [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @supports (animation-timeline: view()) {\n    [data-kui-timeline] {\n      animation-range: var(--kui-range, entry 0% cover 60%);\n    }\n  }\n  [data-kui~=horizontal-scroll] {\n    position: relative;\n  }\n}\n\n/* src/css/three-d.css */\n@layer kui.effects {\n  @keyframes kui-card-flip-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-card-flip-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-cube-rotate {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-book-page-turn {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, -160deg)));\n    }\n  }\n  @keyframes kui-fold-panel {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, -90deg)));\n    }\n  }\n  [data-kui-fx~=card-flip-x],\n  [data-kui-fx~=card-flip-y],\n  [data-kui-fx~=cube-rotate],\n  [data-kui-fx~=book-page-turn],\n  [data-kui-fx~=fold-panel] {\n    transform-style: preserve-3d;\n    perspective: var(--kui-perspective, 1200px);\n  }\n  [data-kui-fx~=card-flip-x]:not(:has(> :nth-child(2))),\n  [data-kui-fx~=card-flip-y]:not(:has(> :nth-child(2))) {\n    --kui-from-angle: 360deg;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) {\n    display: grid;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: x 180deg;\n  }\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=book-page-turn] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=fold-panel] {\n    transform-origin: top center;\n  }\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-page-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-page-slide {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 40px));\n    }\n  }\n  @keyframes kui-curtain-wipe {\n    from {\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-loading-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n  }\n  [data-kui-fx~=loading-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front,\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front,\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui~=flip-card] > .kui-face-front,\n  [data-kui~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n}\n\n/* src/css/carousel.css */\n@layer kui.effects {\n  [data-kui-fx~=carousel-3d],\n  [data-kui-fx~=carousel-3d-high],\n  [data-kui-fx~=carousel-3d-low],\n  [data-kui-fx~=carousel-3d-inside] {\n    display: grid;\n    place-items: center;\n    perspective: var(--kui-perspective, 1600px);\n    transform-style: preserve-3d;\n    --kui-ring-tilt: clamp(-80deg, calc(-1 * var(--kui-tilt, 0deg)), 80deg);\n    --kui-ring-drift: calc(var(--kui-step-position, 0) - var(--kui-step, 0));\n  }\n  [data-kui-fx~=carousel-3d] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset] {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    --kui-ring-spacing: calc(var(--kui-arc, 360deg) / max(1, var(--kui-item-count, 1)));\n    --kui-ring-angle: calc((var(--kui-offset, 0) - var(--kui-ring-drift)) * var(--kui-ring-spacing));\n    --kui-ring-radius: var( --kui-radius, calc( (var(--kui-item-width, 260px) + var(--kui-gap, 24px)) / (2 * tan(clamp(0.5deg, var(--kui-ring-spacing) / 2, 60deg))) ) );\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(var(--kui-ring-radius));\n    transition: transform var(--kui-spatial-ring-duration, 620ms) var(--kui-spatial-ring-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--kui-spatial-ring-delay, 0ms);\n  }\n  [data-kui-ring-dragging=true] [data-kui-step-offset] {\n    transition: none;\n  }\n  [data-kui-ring-face=back] {\n    pointer-events: none;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-ring-face=back] {\n    visibility: hidden;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera] [data-kui-step-offset] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera] [data-kui-step-offset] > * {\n    transform: rotateY(calc(-1 * var(--kui-ring-angle))) rotateX(calc(-1 * var(--kui-ring-tilt)));\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset] {\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(calc(-1 * var(--kui-ring-radius)));\n  }\n  [data-kui~=carousel-3d],\n  [data-kui~=carousel-3d-high],\n  [data-kui~=carousel-3d-low],\n  [data-kui~=carousel-3d-inside] {\n    display: grid;\n    place-items: center;\n  }\n  [data-kui~=carousel-3d] > *,\n  [data-kui~=carousel-3d-high] > *,\n  [data-kui~=carousel-3d-low] > *,\n  [data-kui~=carousel-3d-inside] > * {\n    grid-area: 1 / 1;\n  }\n}\n\n/* src/css/media.css */\n@layer kui.effects {\n  @keyframes kui-wipe-up {\n    from {\n      clip-path: inset(100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-down {\n    from {\n      clip-path: inset(0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-left {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-right {\n    from {\n      clip-path: inset(0 0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-circle {\n    from {\n      clip-path: circle(0 at 50% 50%);\n    }\n    to {\n      clip-path: circle(75% at 50% 50%);\n    }\n  }\n  @keyframes kui-wipe-diagonal {\n    from {\n      clip-path: polygon(0 0, 0 0, 0 0);\n    }\n    to {\n      clip-path: polygon(0 0, 200% 0, 0 200%);\n    }\n  }\n  @keyframes kui-curtain-reveal {\n    from {\n      clip-path: inset(0 50%);\n    }\n    to {\n      clip-path: inset(0 0);\n    }\n  }\n  @keyframes kui-before-after-wipe {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-mask-reveal {\n    from {\n      mask-position: 100% 0;\n    }\n    to {\n      mask-position: 0 0;\n    }\n  }\n  [data-kui-fx~=mask-reveal] {\n    mask-image:\n      linear-gradient(\n        90deg,\n        #000 0 45%,\n        transparent 55% 100%);\n    mask-size: 220% 100%;\n  }\n  @keyframes kui-ken-burns {\n    from {\n      scale: 1;\n      translate: 0 0;\n    }\n    to {\n      scale: var(--kui-to-scale, 1.12);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -0.5);\n    }\n  }\n  @keyframes kui-ken-burns-out {\n    from {\n      scale: var(--kui-to-scale, 1.12);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n    to {\n      scale: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-blur-up {\n    from {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 16px));\n    }\n    to {\n      translate: 0 0;\n      filter: blur(0);\n    }\n  }\n  @keyframes kui-duotone-hover {\n    from {\n      filter: grayscale(1) sepia(0.7) hue-rotate(330deg) saturate(2);\n    }\n    to {\n      filter: none;\n    }\n  }\n  @keyframes kui-grayscale-hover {\n    from {\n      filter: grayscale(1);\n    }\n    to {\n      filter: grayscale(0);\n    }\n  }\n  @keyframes kui-saturate-hover {\n    from {\n      filter: saturate(0.45);\n    }\n    to {\n      filter: saturate(1.35);\n    }\n  }\n  @keyframes kui-image-parallax-frame {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-lightbox-open {\n    from {\n      opacity: 0;\n      scale: var(--kui-from-scale, 0.92);\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n    }\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=duotone-hover]:active,\n    [data-kui-fx~=grayscale-hover]:active,\n    [data-kui-fx~=saturate-hover]:active {\n      filter: none;\n    }\n  }\n  .kui-slat-stage {\n    position: absolute;\n    overflow: clip;\n  }\n  .kui-slat-item {\n    position: absolute;\n    inset: 0;\n    background-repeat: no-repeat;\n    background-size: 100% 100%;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 60ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-slat-stage.kui-slat-animating .kui-slat-item {\n    will-change: transform;\n  }\n  .kui-slat-item:nth-child(odd) {\n    --kui-slat-sign: -1;\n  }\n  .kui-slat-item:nth-child(even) {\n    --kui-slat-sign: 1;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] {\n    perspective: 1200px;\n  }\n  .kui-slat-stage:not([data-kui-slat-fold=true]) .kui-slat-item {\n    animation-name: kui-slat-assemble;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] .kui-slat-item {\n    animation-name: kui-slat-assemble-fold;\n  }\n  @keyframes kui-slat-assemble {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-slat-assemble-fold {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 calc(var(--kui-slat-sign, 1) * 38deg);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 0deg;\n    }\n  }\n}\n\n/* src/css/text.css */\n@layer kui.effects {\n  .kui-sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  .kui-split-decorative {\n    display: inline;\n  }\n  .kui-split-item {\n    display: inline-block;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 30ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-split-word {\n    display: inline-block;\n  }\n  .kui-split-line {\n    display: block;\n  }\n  [data-kui-split-fx=fade] .kui-split-item {\n    animation-name: kui-split-reveal-fade;\n  }\n  [data-kui-split-fx=up] .kui-split-item {\n    animation-name: kui-split-reveal-up;\n  }\n  [data-kui-split-fx=down] .kui-split-item {\n    animation-name: kui-split-reveal-down;\n  }\n  [data-kui-split-fx=mask] .kui-split-item {\n    animation-name: kui-split-reveal-mask;\n    padding-block: var(--kui-mask-bleed, 0px);\n    margin-block: calc(-1 * var(--kui-mask-bleed, 0px));\n  }\n  [data-kui-state=finished] > [data-kui-split-fx] .kui-split-line {\n    animation-name: none;\n    opacity: 1;\n    clip-path: none;\n    translate: none;\n  }\n  @keyframes kui-split-reveal-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-split-reveal-up {\n    from {\n      opacity: 0;\n      translate: 0 0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-down {\n    from {\n      opacity: 0;\n      translate: 0 -0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-mask {\n    from {\n      opacity: 0;\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-split-fx=wave] .kui-split-item {\n    animation-name: kui-split-wave;\n    animation-duration: 1400ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n  }\n  [data-kui-split-fx=jitter] .kui-split-item {\n    animation-name: kui-split-jitter;\n    animation-duration: 220ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n    animation-direction: alternate;\n  }\n  @keyframes kui-split-wave {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 -0.35em;\n    }\n  }\n  @keyframes kui-split-jitter {\n    from {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    to {\n      translate: 0 0.08em;\n      rotate: 3deg;\n    }\n  }\n  .kui-typewriter::after {\n    content: \"\";\n    display: inline-block;\n    width: 0.08em;\n    margin-inline-start: 0.05em;\n    height: 1em;\n    vertical-align: -0.15em;\n    background: currentColor;\n    animation: kui-caret-blink 1s steps(1) infinite;\n  }\n  @keyframes kui-caret-blink {\n    50% {\n      opacity: 0;\n    }\n  }\n  .kui-scramble {\n    font-variant-numeric: tabular-nums;\n  }\n  [data-kui-fx~=word-cycler] {\n    display: inline-block;\n  }\n  [data-kui-fx~=word-cycler].kui-word-cycler-swap {\n    opacity: 0;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    background-image:\n      linear-gradient(\n        100deg,\n        currentColor 40%,\n        color-mix(in srgb, currentColor 35%, transparent) 50%,\n        currentColor 60%);\n    background-size: 220% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n    --kui-fx-gradient-shimmer-iterations: infinite;\n  }\n  @keyframes kui-gradient-shimmer {\n    from {\n      background-position: 200% 0;\n    }\n    to {\n      background-position: -200% 0;\n    }\n  }\n  [data-kui-fx~=gradient-sweep] {\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-sweep-color, currentColor) 70%, transparent) 50%,\n        transparent 70%);\n    background-size: 260% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-gradient-sweep {\n    from {\n      background-position: 220% 0;\n    }\n    to {\n      background-position: -60% 0;\n    }\n  }\n  [data-kui-fx~=highlight-sweep] {\n    background-image: linear-gradient(90deg, color-mix(in srgb, var(--kui-sweep-color, currentColor) 55%, transparent) 0 100%);\n    background-repeat: no-repeat;\n    background-size: 0% 100%;\n    padding: 0 0.05em;\n  }\n  @keyframes kui-highlight-sweep {\n    to {\n      background-size: 100% 100%;\n    }\n  }\n  [data-kui-fx~=underline-draw] {\n    background-image: linear-gradient(var(--kui-sweep-color, currentColor), var(--kui-sweep-color, currentColor));\n    background-repeat: no-repeat;\n    background-position: 0 100%;\n    background-size: 0% 2px;\n    padding-bottom: 0.15em;\n  }\n  @keyframes kui-underline-draw {\n    to {\n      background-size: 100% 2px;\n    }\n  }\n  [data-kui-fx~=text-outline-fill] {\n    -webkit-text-stroke: 1px currentColor;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-text-outline-fill {\n    to {\n      -webkit-text-fill-color: currentColor;\n    }\n  }\n  @keyframes kui-var-weight {\n    from {\n      font-weight: var(--kui-from-weight, 100);\n    }\n    to {\n      font-weight: var(--kui-to-weight, 800);\n    }\n  }\n  @keyframes kui-var-width {\n    from {\n      font-stretch: var(--kui-from-width, 75%);\n    }\n    to {\n      font-stretch: var(--kui-to-width, 125%);\n    }\n  }\n  @keyframes kui-var-slant {\n    from {\n      font-style: oblique var(--kui-from-slant, 0deg);\n    }\n    to {\n      font-style: oblique var(--kui-to-slant, 10deg);\n    }\n  }\n  @keyframes kui-var-axis {\n    from {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-from-axis, 100);\n    }\n    to {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-to-axis, 900);\n    }\n  }\n  [data-kui-fx~=marquee],\n  [data-kui-fx~=marquee-scroll-linked] {\n    display: flex;\n    width: max-content;\n    will-change: translate;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-fx-marquee-iterations: infinite;\n  }\n  @keyframes kui-marquee {\n    to {\n      translate: -50% 0;\n    }\n  }\n  @property --kui-redaction-x { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=redaction-reveal] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=redaction-reveal]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background: var(--kui-bar-color, #111);\n    clip-path: inset(0 0 0 var(--kui-redaction-x));\n  }\n  @keyframes kui-redaction-reveal {\n    to {\n      --kui-redaction-x: 100%;\n    }\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    display: inline-block;\n    text-shadow:\n      1px 1px 0 color-mix(in srgb, currentColor 70%, transparent),\n      2px 2px 0 color-mix(in srgb, currentColor 60%, transparent),\n      3px 3px 0 color-mix(in srgb, currentColor 50%, transparent),\n      4px 4px 0 color-mix(in srgb, currentColor 40%, transparent),\n      5px 5px 0 color-mix(in srgb, currentColor 30%, transparent),\n      6px 6px 8px rgb(0 0 0 / 0.35);\n  }\n  @keyframes kui-text-3d-extrude {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -20deg));\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 32px));\n    }\n    to {\n      rotate: 0deg;\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/navigation.css */\n@layer kui.effects {\n  @keyframes kui-nav-reveal {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 16px));\n    }\n  }\n  @keyframes kui-menu-fullscreen {\n    from {\n      opacity: 0;\n      clip-path: circle(0% at var(--kui-origin, 100% 0%));\n    }\n    to {\n      opacity: 1;\n      clip-path: circle(150% at var(--kui-origin, 100% 0%));\n    }\n  }\n  @keyframes kui-panel-reveal {\n    from {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n  }\n  @keyframes kui-drawer-slide-right {\n    from {\n      translate: 100% 0;\n    }\n  }\n  [data-kui-fx~=header-shrink] {\n    --kui-shrink: 0;\n    padding-block: calc(1.4rem - 0.7rem * var(--kui-shrink, 0));\n    font-size: calc(1rem - 0.15rem * var(--kui-shrink, 0));\n  }\n  [data-kui-fx~=header-shrink][data-kui-shrunk=true] {\n    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);\n  }\n  [data-kui-fx~=header-hide-on-scroll][data-kui-hidden=true] {\n    translate: 0 -100%;\n  }\n  [data-kui-fx~=back-to-top-fade] {\n    opacity: 0;\n    translate: 0 12px;\n    pointer-events: none;\n  }\n  [data-kui-fx~=back-to-top-fade][data-kui-visible=true] {\n    opacity: 1;\n    translate: 0 0;\n    pointer-events: auto;\n  }\n}\n\n/* src/css/forms.css */\n@layer kui.effects {\n  [data-kui-fx~=label-float] ~ label {\n    transition: translate 180ms ease-out, scale 180ms ease-out;\n    transform-origin: left center;\n  }\n  [data-kui-fx~=label-float]:focus ~ label,\n  [data-kui-fx~=label-float]:not(:placeholder-shown) ~ label {\n    translate: 0 -1.35rem;\n    scale: 0.82;\n  }\n  [data-kui-fx~=input-underline-grow] ~ .kui-underline {\n    display: block;\n    height: 2px;\n    background: currentColor;\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale 220ms ease-out;\n  }\n  [data-kui-fx~=input-underline-grow]:focus ~ .kui-underline {\n    scale: 1 1;\n  }\n  @keyframes kui-focus-ring-grow {\n    from {\n      box-shadow: 0 0 0 0 var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n    to {\n      box-shadow: 0 0 0 5px var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=focus-ring-grow] {\n      animation: none;\n    }\n    [data-kui-fx~=focus-ring-grow]:focus {\n      outline: 3px solid Highlight;\n      outline-offset: 2px;\n    }\n  }\n  @keyframes kui-validate-shake {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  [data-kui-fx~=validate-check] {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n  }\n  @keyframes kui-validate-check {\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n    background: var(--kui-meter-off, currentColor);\n    opacity: 0.2;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n    opacity: 1;\n    background: var(--kui-meter-on, #2e9e5b);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n      background: Highlight;\n    }\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track {\n    display: inline-block;\n    width: calc(40px * var(--kui-toggle-scale, 1));\n    height: calc(22px * var(--kui-toggle-scale, 1));\n    border-radius: 999px;\n    background: var(--muted, #9a8d80);\n    transition: background-color 200ms ease-out;\n    position: relative;\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb {\n    position: absolute;\n    top: calc(2px * var(--kui-toggle-scale, 1));\n    left: calc(2px * var(--kui-toggle-scale, 1));\n    width: calc(18px * var(--kui-toggle-scale, 1));\n    height: calc(18px * var(--kui-toggle-scale, 1));\n    border-radius: 50%;\n    background: var(--kui-thumb-color, #fff);\n    translate: 0 0;\n    transition: translate 200ms ease-out;\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track {\n    background: var(--accent, #d2691e);\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track .kui-thumb {\n    translate: calc(18px * var(--kui-toggle-scale, 1)) 0;\n  }\n  [data-kui-fx~=checkbox-draw] ~ svg path {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n    transition: stroke-dashoffset 220ms ease-out;\n  }\n  [data-kui-fx~=checkbox-draw]:checked ~ svg path {\n    stroke-dashoffset: 0;\n  }\n  [data-kui-fx~=radio-fill] ~ .kui-dot {\n    display: inline-block;\n    width: calc(10px * var(--kui-radio-scale, 1));\n    height: calc(10px * var(--kui-radio-scale, 1));\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n    scale: 0;\n    transition: scale 180ms ease-out;\n  }\n  [data-kui-fx~=radio-fill]:checked ~ .kui-dot {\n    scale: 1;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-fill: 0%;\n    accent-color: var(--accent, #d2691e);\n    background:\n      linear-gradient(\n        to right,\n        var(--accent, #d2691e) var(--kui-fill, 0%),\n        var(--border, #2a2422) var(--kui-fill, 0%));\n    height: 4px;\n    border-radius: 999px;\n    appearance: none;\n    outline: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=range-fill] {\n      background:\n        linear-gradient(\n          to right,\n          Highlight var(--kui-fill, 0%),\n          ButtonFace var(--kui-fill, 0%));\n    }\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-done {\n    display: none;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=idle] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=loading] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=done] .kui-stage-done {\n    display: inline-flex;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-spinner {\n    width: 1em;\n    height: 1em;\n    border-radius: 50%;\n    border: 2px solid currentColor;\n    border-top-color: transparent;\n    animation: kui-spin 700ms linear infinite;\n  }\n  @keyframes kui-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=step-progress] {\n    cursor: pointer;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state],\n  .kui-step-track > [data-kui-step-state] {\n    background: var(--muted, #9a8d80);\n    opacity: 0.35;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n  [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n  .kui-step-track > [data-kui-step-state=before],\n  .kui-step-track > [data-kui-step-state=active] {\n    opacity: 1;\n    background: var(--accent, #d2691e);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=step-progress] > [data-kui-step-state],\n    .kui-step-track > [data-kui-step-state] {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n    [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n    .kui-step-track > [data-kui-step-state=before],\n    .kui-step-track > [data-kui-step-state=active] {\n      background: Highlight;\n    }\n  }\n}\n\n/* src/css/ambient.css */\n@layer kui.effects {\n  [data-kui-fx~=gradient-mesh] {\n    background-image:\n      radial-gradient(\n        at 15% 20%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #7c3aed)) 55%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 85% 15%,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #06b6d4)) 50%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 50% 85%,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #f97316)) 45%, transparent),\n        transparent 55%);\n    background-size: 200% 200%;\n    --kui-fx-gradient-mesh-iterations: infinite;\n  }\n  @keyframes kui-gradient-mesh {\n    0%, 100% {\n      background-position:\n        0% 0%,\n        100% 0%,\n        50% 100%;\n    }\n    50% {\n      background-position:\n        25% 35%,\n        75% 30%,\n        35% 70%;\n    }\n  }\n  [data-kui-fx~=aurora] {\n    background-image:\n      linear-gradient(\n        120deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #34d399)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        240deg,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #60a5fa)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #c084fc)) 40%, transparent),\n        transparent 50%);\n    background-size: 260% 260%;\n    --kui-fx-aurora-iterations: infinite;\n  }\n  @keyframes kui-aurora {\n    0%, 100% {\n      background-position:\n        0% 50%,\n        100% 50%,\n        50% 0%;\n    }\n    50% {\n      background-position:\n        60% 30%,\n        40% 70%,\n        55% 60%;\n    }\n  }\n  [data-kui-fx~=wave-blob] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #22d3ee)) 50%, transparent),\n        transparent 60%);\n    background-size: 140% 140%;\n    background-repeat: no-repeat;\n    --kui-fx-wave-blob-iterations: infinite;\n  }\n  @keyframes kui-wave-blob {\n    0%, 100% {\n      background-position: 20% 30%;\n      background-size: 140% 140%;\n    }\n    33% {\n      background-position: 70% 20%;\n      background-size: 160% 160%;\n    }\n    66% {\n      background-position: 50% 75%;\n      background-size: 120% 120%;\n    }\n  }\n  [data-kui-fx~=spotlight-follow] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #fde68a)) 65%, transparent),\n        transparent 65%);\n    background-size: 55% 55%;\n    background-repeat: no-repeat;\n    --kui-fx-spotlight-follow-iterations: infinite;\n  }\n  @keyframes kui-spotlight-follow {\n    0%, 100% {\n      background-position: 10% 15%;\n    }\n    25% {\n      background-position: 85% 20%;\n    }\n    50% {\n      background-position: 80% 80%;\n    }\n    75% {\n      background-position: 15% 75%;\n    }\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)),\n        var(--kui-ambient-c2, var(--kui-c2, #60a5fa)),\n        var(--kui-ambient-c3, var(--kui-c3, #34d399)),\n        var(--kui-ambient-c4, var(--kui-c4, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)));\n    background-size: 300% 100%;\n    padding: 3px;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-rotate-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-rotate-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=gradient-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)),\n        var(--kui-ambient-c2, var(--kui-c2, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)));\n    background-size: 300% 100%;\n    padding: var(--kui-gradient-border-width, 3px);\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=scanline] {\n    background-image:\n      linear-gradient(\n        to bottom,\n        transparent,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 35%, transparent) 50%,\n        transparent);\n    background-size: 100% 220%;\n    background-repeat: no-repeat;\n    --kui-fx-scanline-iterations: infinite;\n  }\n  @keyframes kui-scanline {\n    from {\n      background-position: 0 -120%;\n    }\n    to {\n      background-position: 0 120%;\n    }\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 45%, transparent) 1.5px,\n        transparent 1.5px);\n    background-size: 22px 22px;\n    --kui-fx-dot-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-dot-grid-drift {\n    from {\n      background-position: 0 0;\n    }\n    to {\n      background-position: 22px 22px;\n    }\n  }\n  [data-kui-fx~=line-grid-drift] {\n    background-image:\n      repeating-linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px),\n      repeating-linear-gradient(\n        90deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px);\n    --kui-fx-line-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-line-grid-drift {\n    from {\n      background-position: 0 0, 0 0;\n    }\n    to {\n      background-position: 0 26px, 26px 0;\n    }\n  }\n  [data-kui-fx~=starfield] {\n    background-image:\n      radial-gradient(\n        1.5px 1.5px at 22% 34%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 45%, transparent) 0 0.45px,\n        transparent 100%),\n      radial-gradient(\n        2.6px 2.6px at 68% 12%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 92%, transparent) 0 1px,\n        transparent 100%),\n      radial-gradient(\n        1.6px 1.6px at 41% 77%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 50%, transparent) 0 0.5px,\n        transparent 100%),\n      radial-gradient(\n        1.7px 1.7px at 85% 58%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 58%, transparent) 0 0.55px,\n        transparent 100%),\n      radial-gradient(\n        2.2px 2.2px at 12% 88%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 78%, transparent) 0 0.8px,\n        transparent 100%),\n      radial-gradient(\n        3px 3px at 57% 45%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 100%, transparent) 0 1.2px,\n        transparent 100%),\n      radial-gradient(\n        1.9px 1.9px at 33% 63%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 68%, transparent) 0 0.65px,\n        transparent 100%);\n    background-size:\n      170px 170px,\n      190px 190px,\n      210px 210px,\n      230px 230px,\n      250px 250px,\n      270px 270px,\n      290px 290px;\n    background-repeat: repeat;\n    --kui-fx-starfield-iterations: infinite;\n  }\n  @keyframes kui-starfield {\n    from {\n      background-position:\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0;\n    }\n    to {\n      background-position:\n        170px 170px,\n        380px 380px,\n        210px 210px,\n        230px 230px,\n        250px 250px,\n        540px 540px,\n        290px 290px;\n    }\n  }\n  [data-kui-fx~=orbit] {\n    --kui-fx-orbit-iterations: infinite;\n  }\n  @keyframes kui-orbit {\n    to {\n      rotate: var(--kui-to-angle, 360deg);\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=gradient-mesh],\n    [data-kui-fx~=aurora],\n    [data-kui-fx~=wave-blob],\n    [data-kui-fx~=spotlight-follow],\n    [data-kui-fx~=scanline],\n    [data-kui-fx~=dot-grid-drift],\n    [data-kui-fx~=line-grid-drift],\n    [data-kui-fx~=starfield] {\n      background-image: none;\n    }\n    [data-kui-fx~=gradient-rotate-border],\n    [data-kui-fx~=gradient-border] {\n      background-image: none;\n      background-color: CanvasText;\n    }\n  }\n  [data-kui-fx~=float] {\n    --kui-fx-float-iterations: infinite;\n  }\n  @keyframes kui-float {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 14px)) * -1);\n    }\n  }\n  [data-kui-fx~=bob] {\n    --kui-fx-bob-iterations: infinite;\n  }\n  @keyframes kui-bob {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 8px)) * -1);\n    }\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-fx-floating-shapes-iterations: infinite;\n  }\n  @keyframes kui-floating-shapes {\n    0%, 100% {\n      translate: 0 0;\n    }\n    33% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * 0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n    66% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.4);\n    }\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-fx-glow-pulse-iterations: infinite;\n  }\n  @keyframes kui-glow-pulse {\n    0%, 100% {\n      scale: 1;\n      opacity: 0.6;\n    }\n    50% {\n      scale: var(--kui-pulse-scale, 1.15);\n      opacity: 1;\n    }\n  }\n}\n\n/* src/css/feedback.css */\n@layer kui.effects {\n  [data-kui-fx~=skeleton-shimmer] {\n    background-color: var(--kui-skeleton-base, #2a2422);\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-skeleton-highlight, #ffffff) 18%, transparent) 50%,\n        transparent 70%);\n    background-size: 200% 100%;\n    --kui-fx-skeleton-shimmer-iterations: infinite;\n  }\n  @keyframes kui-skeleton-shimmer {\n    from {\n      background-position: 150% 0;\n    }\n    to {\n      background-position: -50% 0;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=skeleton-shimmer] {\n      background-image: none;\n    }\n  }\n  @keyframes kui-skeleton-to-content {\n    from {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=spinner] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px solid color-mix(in srgb, currentColor 20%, transparent);\n    border-top-color: currentColor;\n    --kui-fx-spinner-iterations: infinite;\n  }\n  @keyframes kui-spinner-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-ring] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px dashed color-mix(in srgb, currentColor 55%, transparent);\n    --kui-fx-spinner-ring-iterations: infinite;\n  }\n  @keyframes kui-spinner-ring-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-dots] {\n    display: inline-block;\n    width: var(--kui-dot-size, 8px);\n    height: var(--kui-dot-size, 8px);\n    border-radius: 50%;\n    background: currentColor;\n    box-shadow: calc(var(--kui-dot-size, 8px) * -2) 0 currentColor, calc(var(--kui-dot-size, 8px) * 2) 0 currentColor;\n    --kui-fx-spinner-dots-iterations: infinite;\n  }\n  @keyframes kui-spinner-dots {\n    0%, 80%, 100% {\n      scale: 0.7;\n      opacity: 0.5;\n    }\n    40% {\n      scale: 1.15;\n      opacity: 1;\n    }\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    transform-origin: 0% 50%;\n    background: currentColor;\n    border-radius: inherit;\n    --kui-fx-progress-indeterminate-iterations: infinite;\n  }\n  @keyframes kui-progress-indeterminate {\n    0% {\n      translate: -100% 0;\n      scale: 0.4 1;\n    }\n    50% {\n      scale: 1 1;\n    }\n    100% {\n      translate: 100% 0;\n      scale: 0.4 1;\n    }\n  }\n  @keyframes kui-toast-slide-in {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-toast-slide-out {\n    from {\n      opacity: 1;\n      translate: 0 0;\n    }\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-shake-error {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  @keyframes kui-wobble {\n    0% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    15% {\n      translate: -6px 0;\n      rotate: -6deg;\n    }\n    30% {\n      translate: 4px 0;\n      rotate: 4deg;\n    }\n    45% {\n      translate: -3px 0;\n      rotate: -3deg;\n    }\n    60% {\n      translate: 2px 0;\n      rotate: 2deg;\n    }\n    75% {\n      translate: -1px 0;\n      rotate: -1deg;\n    }\n    100% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n  }\n  @property --kui-ripple-progress { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-ripple-alpha { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  [data-kui-fx~=ripple] {\n    position: relative;\n  }\n  [data-kui-fx~=ripple]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: 50%;\n    background: var(--kui-ripple-color, currentColor);\n    pointer-events: none;\n    opacity: var(--kui-ripple-alpha);\n    scale: calc(var(--kui-ripple-start, 0.2) + (var(--kui-ripple-scale, 4) - var(--kui-ripple-start, 0.2)) * var(--kui-ripple-progress));\n  }\n  @keyframes kui-ripple {\n    0% {\n      --kui-ripple-progress: 0;\n      --kui-ripple-alpha: 0;\n    }\n    8% {\n      --kui-ripple-alpha: var(--kui-ripple-opacity, 0.6);\n    }\n    100% {\n      --kui-ripple-progress: 1;\n      --kui-ripple-alpha: 0;\n    }\n  }\n  @keyframes kui-badge-pop {\n    0% {\n      scale: 0.4;\n    }\n    60% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @keyframes kui-count-bump {\n    0%, 100% {\n      scale: 1;\n    }\n    50% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n  }\n  [data-kui-fx~=heart-burst] {\n    color: var(--kui-heart-color, #f43f5e);\n  }\n  @keyframes kui-heart-burst {\n    0% {\n      scale: 1;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    55% {\n      scale: 0.9;\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @property --kui-confetti-travel { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-confetti-fade { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=confetti-burst] {\n    position: relative;\n  }\n  [data-kui-fx~=confetti-burst]::after {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-confetti-spill, 24px));\n    pointer-events: none;\n    --kui-confetti-alpha: clamp(0%, var(--kui-confetti-fade), 100%);\n    background-image:\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c1, var(--kui-c1, #f43f5e)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c2, var(--kui-c2, #fbbf24)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c3, var(--kui-c3, #34d399)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c4, var(--kui-c4, #60a5fa)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c5, var(--kui-c5, #c084fc)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%);\n    background-repeat: no-repeat;\n    background-size: var(--kui-confetti-size, 6px) var(--kui-confetti-size, 6px);\n    background-position:\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.9 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.55 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.72 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.86 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.18 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.62 * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.72 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.1 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 1.05 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel));\n  }\n  @keyframes kui-confetti-burst {\n    0% {\n      scale: 1;\n      --kui-confetti-travel: 0;\n      --kui-confetti-fade: 0%;\n    }\n    14% {\n      --kui-confetti-fade: 100%;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    70% {\n      scale: 1;\n      --kui-confetti-fade: 100%;\n    }\n    100% {\n      scale: 1;\n      --kui-confetti-travel: 1;\n      --kui-confetti-fade: 0%;\n    }\n  }\n  @keyframes kui-copy-confirm {\n    0% {\n      opacity: 0;\n    }\n    15% {\n      opacity: 1;\n    }\n    85% {\n      opacity: 1;\n    }\n    100% {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-pull-to-refresh {\n    0% {\n      translate: 0 0;\n    }\n    45% {\n      translate: 0 var(--kui-pull-distance, 36px);\n    }\n    100% {\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/numbers.css */\n@layer kui.effects {\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-gauge-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-donut-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-sparkline-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 1000);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=progress-ring],\n  [data-kui-fx~=gauge-sweep],\n  [data-kui-fx~=donut-sweep],\n  [data-kui-fx~=sparkline-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-progress-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-progress-segments {\n    from {\n      opacity: 0.18;\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-star-rating-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 calc(100% - var(--kui-fill, 100%)) 0 0);\n    }\n  }\n  .kui-count-decorative {\n    display: inline-flex;\n    align-items: baseline;\n  }\n  .kui-odometer-col {\n    display: inline-block;\n    overflow: hidden;\n    height: 1em;\n    line-height: 1;\n    vertical-align: baseline;\n  }\n  .kui-odometer-strip {\n    display: flex;\n    flex-direction: column;\n    translate: 0 calc(var(--kui-o, 0) * -1em);\n    transition: translate 220ms ease-out;\n  }\n  .kui-odometer-strip > span {\n    height: 1em;\n    line-height: 1;\n  }\n}\n\n/* src/css/interaction.css */\n@layer kui.effects {\n  @property --kui-border-angle { syntax: \"<angle>\"; inherits: false; initial-value: 0deg; }\n  @property --kui-border-pct { syntax: \"<percentage>\"; inherits: false; initial-value: 0%; }\n  [data-kui-fx~=lift]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n  }\n  [data-kui-fx~=pop]:focus-visible {\n    scale: var(--kui-pop-scale, 1.06);\n    --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n  }\n  [data-kui-fx~=lift-shadow]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n    --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n  }\n  [data-kui-fx~=shine-sweep] {\n    position: relative;\n    overflow: hidden;\n  }\n  [data-kui-fx~=shine-sweep]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background:\n      linear-gradient(\n        var(--kui-shine-sweep-angle, 115deg),\n        transparent calc(50% - var(--kui-shine-sweep-width, 0.2) * 50%),\n        var(--kui-shine-sweep-color, var(--kui-c1, rgb(255 255 255 / 0.35))) 50%,\n        transparent calc(50% + var(--kui-shine-sweep-width, 0.2) * 50%));\n    background-size: 220% 100%;\n    background-position: 120% 0;\n    pointer-events: none;\n  }\n  [data-kui-fx~=shine-sweep]:focus-visible::after {\n    animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n  }\n  @keyframes kui-shine-sweep {\n    from {\n      background-position: 120% 0;\n    }\n    to {\n      background-position: -20% 0;\n    }\n  }\n  [data-kui-fx~=split-flap] {\n    display: inline-block;\n    perspective: var(--kui-split-flap-perspective, 600px);\n  }\n  [data-kui-fx~=split-flap]:focus-visible {\n    animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n  }\n  @keyframes kui-split-flap {\n    0%, 100% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(0) rotateX(0deg);\n    }\n    50% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(calc(var(--kui-split-flap-perspective, 600px) * 0.16)) rotateX(-32deg);\n    }\n  }\n  [data-kui-fx~=border-draw] {\n    position: relative;\n  }\n  [data-kui-fx~=border-draw]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-border-draw-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-border-draw-width, 2px);\n    background:\n      conic-gradient(\n        from -90deg,\n        var(--kui-border-draw-color, var(--accent, #d2691e)) 0 var(--kui-border-pct, 0%),\n        transparent 0);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    pointer-events: none;\n  }\n  [data-kui-fx~=border-draw]:focus-visible {\n    --kui-border-pct: 100%;\n    --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n  }\n  [data-kui-fx~=border-glow]:focus-visible {\n    box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n    --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n  }\n  [data-kui-fx~=beam-border],\n  [data-kui-fx~=beam-border-auto] {\n    position: relative;\n  }\n  [data-kui-fx~=beam-border]::before,\n  [data-kui-fx~=beam-border-auto]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-beam-border-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-beam-border-width, 3px);\n    --kui-beam-arc-span: var(--kui-beam-border-arc, 100deg);\n    --kui-beam-arc-start: calc(360deg - var(--kui-beam-arc-span));\n    --kui-beam-arc-ramp: calc(var(--kui-beam-arc-span) * var(--kui-beam-border-softness, 0.22));\n    --kui-beam-arc-stop1: calc(var(--kui-beam-arc-start) + var(--kui-beam-arc-ramp));\n    --kui-beam-arc-stop4: calc(360deg - var(--kui-beam-arc-span) * 0.06);\n    --kui-beam-arc-step: calc((var(--kui-beam-arc-stop4) - var(--kui-beam-arc-stop1)) / 3);\n    background:\n      conic-gradient(\n        from var(--kui-border-angle, 0deg),\n        transparent 0deg,\n        transparent var(--kui-beam-arc-start),\n        var(--kui-beam-border-c1, #ff5f6d) var(--kui-beam-arc-stop1),\n        var(--kui-beam-border-c2, var(--kui-beam-border-c1, #ffc371)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step)),\n        var(--kui-beam-border-c3, var(--kui-beam-border-c1, #4facfe)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step) * 2),\n        var(--kui-beam-border-c4, var(--kui-beam-border-c1, #a855f7)) var(--kui-beam-arc-stop4),\n        transparent 360deg);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask-composite: exclude;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-beam-border-fade-duration, 200ms) ease-out;\n  }\n  [data-kui-fx~=beam-border]:focus-visible::before {\n    opacity: 1;\n    transition-delay: var(--kui-beam-border-delay, 0ms);\n    animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n  }\n  [data-kui-fx~=beam-border-auto]::before {\n    opacity: 1;\n    animation: kui-beam-rotate var(--kui-beam-border-auto-duration, 4260ms) linear infinite;\n  }\n  @keyframes kui-beam-rotate {\n    to {\n      --kui-border-angle: 360deg;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      animation: none;\n      --kui-border-angle: 45deg;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=border-draw]:focus-visible::before,\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      background: CanvasText;\n    }\n  }\n  @media (forced-colors: active) and (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=border-draw]:hover::before,\n    [data-kui-fx~=beam-border]:hover::before {\n      background: CanvasText;\n    }\n  }\n  [data-kui-fx~=underline-slide] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-slide]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-slide-color, currentcolor);\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale var(--kui-underline-slide-duration, 260ms) var(--kui-underline-slide-ease, ease-out);\n  }\n  [data-kui-fx~=underline-slide]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-slide-delay, 0ms);\n  }\n  [data-kui-fx~=underline-center] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-center]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-center-color, currentcolor);\n    scale: 0 1;\n    transform-origin: center;\n    transition: scale var(--kui-underline-center-duration, 260ms) var(--kui-underline-center-ease, ease-out);\n  }\n  [data-kui-fx~=underline-center]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-center-delay, 0ms);\n  }\n  [data-kui-fx~=icon-wiggle]:focus-visible {\n    animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n  }\n  @keyframes kui-icon-wiggle {\n    0%, 100% {\n      rotate: 0deg;\n    }\n    20% {\n      rotate: -12deg;\n    }\n    40% {\n      rotate: 10deg;\n    }\n    60% {\n      rotate: -6deg;\n    }\n    80% {\n      rotate: 4deg;\n    }\n  }\n  [data-kui-fx~=icon-spin]:focus-visible {\n    animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n  }\n  @keyframes kui-icon-spin {\n    from {\n      rotate: 0deg;\n    }\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=icon-bounce]:focus-visible {\n    animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n  }\n  @keyframes kui-icon-bounce {\n    0%, 100% {\n      translate: 0 0;\n    }\n    30% {\n      translate: 0 -7px;\n    }\n    55% {\n      translate: 0 1px;\n    }\n    75% {\n      translate: 0 -3px;\n    }\n  }\n  [data-kui-fx~=press-depth]:active {\n    scale: var(--kui-press-scale, 0.96);\n    box-shadow: 0 var(--kui-press-shadow-depth, 2px) calc(var(--kui-press-shadow-depth, 2px) * 2) calc(var(--kui-press-shadow-depth, 2px) * -1) var(--kui-press-shadow-color, rgb(0 0 0 / 0.35));\n    --kui-tx-delay-press-depth: var(--kui-press-delay, 0ms);\n  }\n  [data-kui-fx~=group-dim] > * {\n    transition: opacity var(--kui-group-dim-duration, 260ms) var(--kui-group-dim-ease, ease-out);\n  }\n  [data-kui-fx~=group-dim]:has(:focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n    opacity: var(--kui-group-dim-opacity, 0.4);\n    transition-delay: var(--kui-group-dim-delay, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=group-dim]:has(> :hover, :focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n      opacity: var(--kui-group-dim-opacity, 0.4);\n      transition-delay: var(--kui-group-dim-delay, 0ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=group-dim] > * {\n      transition-duration: 1ms;\n    }\n  }\n  [data-kui-fx~=masked-label-swap],\n  [data-kui-fx~=masked-label-swap-x],\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    display: inline-grid;\n    place-items: center;\n    overflow: hidden;\n    --kui-label-swap-shown: 0;\n    --kui-label-swap-lag: 0ms;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-dx: 0%;\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: 0%;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap]:focus-visible,\n  [data-kui-fx~=masked-label-swap-x]:focus-visible,\n  [data-kui-fx~=masked-label-swap-diagonal]:focus-visible {\n    --kui-label-swap-shown: 1;\n    --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n  }\n  [data-kui-swap] {\n    grid-area: 1 / 1;\n    translate: calc(var(--kui-label-swap-dx, 0%) * var(--kui-label-swap-shown, 0)) calc(var(--kui-label-swap-dy, 0%) * var(--kui-label-swap-shown, 0));\n    transition: translate var(--kui-label-swap-duration, 320ms) var(--kui-label-swap-ease, ease-out) var(--kui-label-swap-lag, 0ms);\n  }\n  [data-kui-swap=to] {\n    translate: calc(var(--kui-label-swap-dx, 0%) * (var(--kui-label-swap-shown, 0) - 1)) calc(var(--kui-label-swap-dy, 0%) * (var(--kui-label-swap-shown, 0) - 1));\n  }\n  [data-kui-fx~=hover-intent] {\n    position: relative;\n    --kui-hover-intent-shown: 0;\n    --kui-hover-intent-lag: 0ms;\n  }\n  [data-kui-fx~=hover-intent]:focus-visible,\n  [data-kui-fx~=hover-intent]:has(:focus-visible) {\n    --kui-hover-intent-shown: 1;\n    --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n  }\n  [data-kui-hint] {\n    position: absolute;\n    bottom: 100%;\n    left: 50%;\n    margin-bottom: var(--kui-hover-intent-gap, 8px);\n    opacity: var(--kui-hover-intent-shown, 0);\n    translate: -50% calc(var(--kui-hover-intent-distance, 4px) * (1 - var(--kui-hover-intent-shown, 0)));\n    pointer-events: none;\n    transition: opacity var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms), translate var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=masked-label-swap]:active,\n    [data-kui-fx~=masked-label-swap-x]:active,\n    [data-kui-fx~=masked-label-swap-diagonal]:active {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:active {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-swap],\n    [data-kui-hint],\n    [data-kui-preview],\n    [data-kui-search-field] {\n      transition-duration: 1ms;\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=lift]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n    }\n    [data-kui-fx~=pop]:hover {\n      scale: var(--kui-pop-scale, 1.06);\n      --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n    }\n    [data-kui-fx~=lift-shadow]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n      --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n    }\n    [data-kui-fx~=shine-sweep]:hover::after {\n      animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n    }\n    [data-kui-fx~=split-flap]:hover {\n      animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n    }\n    [data-kui-fx~=border-draw]:hover {\n      --kui-border-pct: 100%;\n      --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n    }\n    [data-kui-fx~=border-glow]:hover {\n      box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n      --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n    }\n    [data-kui-fx~=beam-border]:hover::before {\n      opacity: 1;\n      transition-delay: var(--kui-beam-border-delay, 0ms);\n      animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n    }\n    [data-kui-fx~=underline-slide]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-slide-delay, 0ms);\n    }\n    [data-kui-fx~=underline-center]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-center-delay, 0ms);\n    }\n    [data-kui-fx~=icon-wiggle]:hover {\n      animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n    }\n    [data-kui-fx~=icon-spin]:hover {\n      animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n    }\n    [data-kui-fx~=icon-bounce]:hover {\n      animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n    }\n    [data-kui-fx~=masked-label-swap]:hover,\n    [data-kui-fx~=masked-label-swap-x]:hover,\n    [data-kui-fx~=masked-label-swap-diagonal]:hover {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:hover {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  [data-kui-fx~=tilt-3d],\n  [data-kui-fx~=tilt-parallax] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=cursor-spotlight]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: inherit;\n    pointer-events: none;\n    opacity: var(--kui-spotlight-opacity, 0);\n    transition: opacity 200ms ease-out;\n    background:\n      radial-gradient(\n        circle 160px at var(--kui-x, 50%) var(--kui-y, 50%),\n        color-mix(in srgb, var(--accent, #d2691e) 30%, transparent),\n        transparent 70%);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=cursor-spotlight]::before {\n      background: none;\n    }\n  }\n  .kui-cursor-dot {\n    position: fixed;\n    top: 0;\n    left: 0;\n    z-index: 9999;\n    display: grid;\n    place-items: center;\n    pointer-events: none;\n    opacity: 0;\n    transition: opacity 160ms ease-out;\n  }\n  .kui-cursor-dot-active {\n    opacity: 1;\n  }\n  .kui-cursor-dot-follow,\n  .kui-cursor-dot-lag,\n  .kui-cursor-dot-invert {\n    width: 14px;\n    height: 14px;\n    margin: -7px 0 0 -7px;\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n  }\n  .kui-cursor-dot-invert {\n    background: var(--kui-invert-color, #fff);\n    mix-blend-mode: difference;\n    forced-color-adjust: none;\n  }\n  .kui-cursor-dot-label {\n    margin: -1.4em 0 0 -1.4em;\n    padding: 0.4em 0.8em;\n    border-radius: 999px;\n    background: var(--accent, #d2691e);\n    color: var(--kui-label-color, #000);\n    font-size: 0.75rem;\n    font-family:\n      ui-monospace,\n      Menlo,\n      monospace;\n    white-space: nowrap;\n  }\n  @media (pointer: coarse) {\n    .kui-cursor-dot {\n      display: none;\n    }\n  }\n  [data-kui-fx~=anchored-preview],\n  [data-kui-fx~=anchored-preview-bottom],\n  [data-kui-fx~=anchored-preview-left],\n  [data-kui-fx~=anchored-preview-right] {\n    position: relative;\n    --kui-anchored-preview-shown: 0;\n    --kui-anchored-preview-lag: 0ms;\n  }\n  [data-kui-fx~=anchored-preview] {\n    --kui-anchored-preview-inset: auto auto calc(100% + var(--kui-anchored-preview-gap, 10px)) 50%;\n    --kui-anchored-preview-travel: -50% calc(var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-bottom] {\n    --kui-anchored-preview-inset: calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto 50%;\n    --kui-anchored-preview-travel: -50% calc(-1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-left] {\n    --kui-anchored-preview-inset: 50% calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto;\n    --kui-anchored-preview-travel: calc( var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) -50%;\n  }\n  [data-kui-fx~=anchored-preview-right] {\n    --kui-anchored-preview-inset: 50% auto auto calc(100% + var(--kui-anchored-preview-gap, 10px));\n    --kui-anchored-preview-travel: calc( -1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) -50%;\n  }\n  [data-kui-fx~=anchored-preview]:focus-visible,\n  [data-kui-fx~=anchored-preview]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-bottom]:focus-visible,\n  [data-kui-fx~=anchored-preview-bottom]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-left]:focus-visible,\n  [data-kui-fx~=anchored-preview-left]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-right]:focus-visible,\n  [data-kui-fx~=anchored-preview-right]:has(:focus-visible) {\n    --kui-anchored-preview-shown: 1;\n    --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n  }\n  [data-kui-preview] {\n    position: absolute;\n    inset: var(--kui-anchored-preview-inset, auto);\n    translate: var(--kui-anchored-preview-travel, 0 0);\n    opacity: var(--kui-anchored-preview-shown, 0);\n    scale: calc(var(--kui-anchored-preview-scale, 0.85) + (1 - var(--kui-anchored-preview-scale, 0.85)) * var(--kui-anchored-preview-shown, 0));\n    pointer-events: none;\n    transition:\n      opacity var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      scale var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      translate var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=anchored-preview]:active,\n    [data-kui-fx~=anchored-preview-bottom]:active,\n    [data-kui-fx~=anchored-preview-left]:active,\n    [data-kui-fx~=anchored-preview-right]:active {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=anchored-preview]:hover,\n    [data-kui-fx~=anchored-preview-bottom]:hover,\n    [data-kui-fx~=anchored-preview-left]:hover,\n    [data-kui-fx~=anchored-preview-right]:hover {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  [data-kui-fx~=proximity-glow] {\n    position: relative;\n  }\n  [data-kui-fx~=proximity-glow]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-proximity-glow-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-proximity-glow-width, 1px);\n    background:\n      radial-gradient(\n        circle var(--kui-proximity-glow-radius, 220px) at var(--kui-proximity-x, -9999px) var(--kui-proximity-y, -9999px),\n        var(--kui-proximity-glow-color, var(--accent, #d2691e)),\n        transparent 70%);\n    background-attachment: fixed;\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    opacity: var(--kui-proximity-opacity, 0);\n    transition: opacity var(--kui-proximity-glow-duration, 200ms) var(--kui-proximity-glow-ease, ease-out);\n    pointer-events: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=proximity-glow]::before {\n      background: none;\n    }\n  }\n  [data-kui-fx~=search-expand] {\n    display: inline-flex;\n    align-items: center;\n    overflow: hidden;\n    inline-size: var(--kui-search-expand-collapsed, 2.5em);\n    --kui-search-expand-shown: 0;\n    --kui-search-expand-lag: 0ms;\n  }\n  [data-kui-fx~=search-expand]:focus-visible,\n  [data-kui-fx~=search-expand]:has(:focus-visible),\n  [data-kui-fx~=search-expand]:has(input:not(:placeholder-shown)) {\n    inline-size: var(--kui-search-expand-width, 240px);\n    --kui-search-expand-shown: 1;\n    --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=search-expand]:active {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n  [data-kui-search-field] {\n    flex: 1 1 auto;\n    min-inline-size: 0;\n    opacity: var(--kui-search-expand-shown, 0);\n    transition: opacity var(--kui-search-expand-duration, 260ms) var(--kui-search-expand-ease, ease-out) var(--kui-search-expand-lag, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=search-expand]:hover {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n}\n\n/* src/css/discrete.css */\n@layer kui.effects {\n  [data-kui-fx~=fade-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-fade-open: var(--kui-fade-open-delay, 0ms);\n    opacity: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=fade-open] {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=fade-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    display: none;\n  }\n  [data-kui-fx~=pop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-pop-open: var(--kui-pop-open-delay, 0ms);\n    opacity: 1;\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=pop-open] {\n      opacity: 0;\n      scale: var(--kui-pop-open-scale, 0.92);\n    }\n  }\n  [data-kui-fx~=pop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    scale: var(--kui-pop-open-scale, 0.92);\n    display: none;\n  }\n  [data-kui-fx~=scale-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-scale-open: var(--kui-scale-open-delay, 0ms);\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=scale-open] {\n      scale: var(--kui-scale-open-scale, 0.85);\n    }\n  }\n  [data-kui-fx~=scale-open]:not(:popover-open):not([open]):not([data-open]) {\n    scale: var(--kui-scale-open-scale, 0.85);\n    display: none;\n  }\n  [data-kui-fx~=drop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-drop-open: var(--kui-drop-open-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=drop-open] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    }\n  }\n  [data-kui-fx~=drop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-up] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-up: var(--kui-slide-open-up-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-up] {\n      opacity: 0;\n      translate: 0 var(--kui-slide-open-up-distance, 16px);\n    }\n  }\n  [data-kui-fx~=slide-open-up]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 var(--kui-slide-open-up-distance, 16px);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-down] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-down: var(--kui-slide-open-down-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-down] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    }\n  }\n  [data-kui-fx~=slide-open-down]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    display: none;\n  }\n}\n\n/* src/css/layout.css */\n@layer kui.effects {\n  [data-kui-fx~=accordion-height] {\n    overflow: hidden;\n  }\n  [data-kui-fx~=accordion-height]:not([data-open]) {\n    height: 0;\n  }\n}\n\n/* src/css/svg.css */\n@layer kui.effects {\n  @keyframes kui-draw-stroke {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-signature {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-underline {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-checkmark-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-cross-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-chart-line-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=draw-stroke],\n  [data-kui-fx~=draw-signature],\n  [data-kui-fx~=draw-underline],\n  [data-kui-fx~=checkmark-draw],\n  [data-kui-fx~=cross-draw],\n  [data-kui-fx~=chart-line-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-gradient-stroke {\n    from {\n      stroke: var(--kui-stroke-from, currentColor);\n    }\n    50% {\n      stroke: var(--kui-stroke-via, currentColor);\n    }\n    to {\n      stroke: var(--kui-stroke-to, currentColor);\n    }\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-fx-gradient-stroke-iterations: infinite;\n  }\n  @keyframes kui-heart-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-bookmark-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-chart-area-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-fx~=heart-fill][data-kui-state=ready],\n  [data-kui-fx~=bookmark-fill][data-kui-state=ready],\n  [data-kui-fx~=chart-area-fill][data-kui-state=ready] {\n    clip-path: none !important;\n    opacity: 0;\n  }\n  @keyframes kui-chart-bar-grow {\n    from {\n      scale: 1 var(--kui-gate-bar-from, var(--kui-bar-from, 0));\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    transform-origin: bottom center;\n  }\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-logo-build {\n    from {\n      opacity: 0;\n      scale: 0.62;\n      rotate: -8deg;\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n      rotate: 0deg;\n    }\n  }\n  [data-kui-fx~=hamburger-to-x] .kui-bar {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(1) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(2) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(3) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] .kui-bar {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(1) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(2) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar:nth-child(2) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] {\n    rotate: 90deg;\n    --kui-tx-delay-plus-to-minus: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar:nth-child(1) {\n    scale: 0;\n  }\n}\n\n/* src/css/tween.css */\n@layer kui.effects {\n  @keyframes kui-tween-to-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n    }\n    to {\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-from-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-to-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n    }\n    to {\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-from-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-to-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n    }\n    to {\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-from-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-to-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n    }\n    to {\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-from-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-to-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n    }\n    to {\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-from-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-to-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n    }\n    to {\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-from-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-to-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n    }\n    to {\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-from-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-keys2-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys3-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys4-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys5-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-5, var(--kui-tween-x, 0)) var(--kui-tween-y-5, var(--kui-tween-y, 0)) var(--kui-tween-z-5, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys2-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys3-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys4-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys5-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-5, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys2-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys3-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys4-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys5-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-5, var(--kui-tween-scale-x, var(--kui-tween-scale-5, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-5, var(--kui-tween-scale-y, var(--kui-tween-scale-5, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys2-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys3-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys4-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys5-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-5, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys2-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys3-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys4-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys5-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-5, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-5, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-5, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-5, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-5, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-5, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-5, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-5, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys2-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys3-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys4-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys5-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-5, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys2-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys3-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys4-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys5-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-5, var(--kui-tween-background-color, transparent));\n    }\n  }\n}\n\n/* src/css/motion-path.css */\n@layer kui.effects {\n  @keyframes kui-motion-travel {\n    from {\n      offset-distance: var(--kui-motion-from, 0%);\n    }\n    to {\n      offset-distance: var(--kui-motion-to, 100%);\n    }\n  }\n  [data-kui-fx~=motion-path],\n  [data-kui-fx~=path-arc],\n  [data-kui-fx~=path-wave],\n  [data-kui-fx~=path-loop],\n  [data-kui-fx~=path-swoop] {\n    offset-path: path(var(--kui-motion-path));\n    offset-rotate: var(--kui-motion-rotate, 0deg);\n    offset-anchor: var(--kui-motion-anchor, 0 0);\n  }\n}\n\n/* src/css/view-transitions.css */\n@layer kui.effects {\n  @supports (view-transition-name: none) {\n    :root {\n      --kui-vt-duration: 400ms;\n      --kui-vt-delay: 0ms;\n      --kui-vt-ease: cubic-bezier(0.4, 0, 0.2, 1);\n      --kui-vt-distance: 40px;\n    }\n    :root::view-transition-group(*) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-old(root) {\n      animation-name: kui-vt-fade-out;\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-new(root) {\n      animation-name: kui-vt-fade-in;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-old(root) {\n      animation-name: kui-vt-slide-out;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-new(root) {\n      animation-name: kui-vt-slide-in;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-old(root) {\n      animation-name: kui-vt-hold;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-new(root) {\n      animation-name: kui-vt-wipe-in;\n      z-index: 1;\n    }\n    :root::view-transition-old(root),\n    :root::view-transition-new(root) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n      animation-fill-mode: both;\n    }\n    @keyframes kui-vt-fade-out {\n      to {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-fade-in {\n      from {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-slide-out {\n      to {\n        opacity: 0;\n        translate: 0 calc(-1 * var(--kui-vt-distance, 40px));\n      }\n    }\n    @keyframes kui-vt-slide-in {\n      from {\n        opacity: 0;\n        translate: 0 var(--kui-vt-distance, 40px);\n      }\n    }\n    @keyframes kui-vt-hold {\n      from, to {\n        opacity: 1;\n      }\n    }\n    @keyframes kui-vt-wipe-in {\n      from {\n        clip-path: inset(0 0 100% 0);\n      }\n      to {\n        clip-path: inset(0 0 0 0);\n      }\n    }\n    @media (prefers-reduced-motion: reduce) {\n      :root::view-transition-group(*),\n      :root::view-transition-old(*),\n      :root::view-transition-new(*) {\n        animation-duration: 1ms !important;\n        animation-delay: 0ms !important;\n      }\n    }\n  }\n}\n\n/* src/css/glass.css */\n@layer kui.effects {\n  [data-kui-fx~=glass] {\n    backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    -webkit-backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    background-color: color-mix(in srgb, var(--kui-glass-tint, #ffffff) calc(var(--kui-glass-opacity, 0.12) * 100%), transparent);\n    background-image:\n      linear-gradient(\n        var(--kui-glass-sheen-angle, 180deg),\n        color-mix(in srgb, var(--kui-glass-sheen-color, var(--kui-glass-rim, #ffffff)) calc(var(--kui-glass-sheen, 0.16) * 100%), transparent) 0%,\n        transparent 62%);\n    border-width: var(--kui-glass-rim-width, 1px);\n    border-style: solid;\n    border-color: var(--kui-glass-rim, rgb(255 255 255 / 0.22));\n    border-radius: var(--kui-glass-radius, 16px);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=glass] {\n      backdrop-filter: none;\n      -webkit-backdrop-filter: none;\n      background-image: none;\n    }\n  }\n}\n\n/* src/css/ready-gates.css */\n@layer kui.effects {\n  @property --kui-gate-distance { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-from-angle { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-bar-from { syntax: \"*\"; inherits: false; }\n  [data-kui-fx][data-kui-state=ready] {\n    --kui-gate-distance: 0px;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready],\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready],\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    --kui-gate-from-angle: 0deg;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready],\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready],\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    --kui-gate-bar-from: 1;\n  }\n}\n\n/* src/css/flip-card-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=control][data-kui-part~=injected] {\n    grid-area: 1 / 1;\n    align-self: end;\n    justify-self: end;\n    z-index: 1;\n    margin: .75rem;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=quiet]:not(:focus-visible) {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(1 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 0deg;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(2 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 180deg;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=front],\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=back] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/css/icon-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=hamburger-to-x] [data-kui-part=bar] {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(3 of [data-kui-part=bar]) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] [data-kui-part=bar] {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    scale: 0;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=play-to-pause] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/showcase/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=carousel-fade] {\n    --kui-slideshow-transition: fade;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=carousel-slide] {\n    --kui-slideshow-transition: slide;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=lightbox] {\n    --kui-lightbox-media: image;\n    --kui-lightbox-duration: 280ms;\n    --kui-lightbox-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=video-hero-slideshow] {\n    --kui-slideshow-transition: fade;\n    --kui-slideshow-autoplay: 7s;\n    --kui-slideshow-controls: dots;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=video-lightbox] {\n    --kui-lightbox-media: video;\n    --kui-lightbox-duration: 280ms;\n    --kui-lightbox-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n}\n@layer kui.cloak {\n}\n\n/* src/showcase/showcase.css */\n@layer kui.effects {\n  .kui-slowmo-toggle {\n    display: inline-block;\n    margin-block-end: 0.75rem;\n    padding: 0.4em 0.8em;\n    border: 1px solid currentColor;\n    border-radius: 0.4em;\n    background: Canvas;\n    color: CanvasText;\n    font: inherit;\n    cursor: pointer;\n  }\n  .kui-slowmo-toggle:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-device] {\n    position: relative;\n    display: inline-block;\n    box-sizing: border-box;\n    overflow: hidden;\n    border: 1px solid color-mix(in srgb, var(--kui-device-color, #111) 55%, transparent);\n    border-radius: var(--kui-device-radius, 18px);\n    padding: 14px;\n    background: var(--kui-device-color, #111);\n  }\n  [data-kui-device] > img,\n  [data-kui-device] > video {\n    display: block;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n  }\n  [data-kui-device=browser] {\n    padding: 30px 14px 14px;\n    border-radius: var(--kui-device-radius, 10px);\n  }\n  [data-kui-device=browser]::before {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 10px;\n    inset-inline-start: 15px;\n    inline-size: 44px;\n    block-size: 10px;\n    background-image:\n      radial-gradient(\n        circle,\n        #ff5f57 0 45%,\n        transparent 46%),\n      radial-gradient(\n        circle,\n        #febc2e 0 45%,\n        transparent 46%),\n      radial-gradient(\n        circle,\n        #28c840 0 45%,\n        transparent 46%);\n    background-size: 10px 10px;\n    background-position:\n      0 0,\n      17px 0,\n      34px 0;\n    background-repeat: no-repeat;\n  }\n  [data-kui-device=phone] {\n    padding: 16px 8px;\n    border-radius: var(--kui-device-radius, 36px);\n    aspect-ratio: 9 / 19.5;\n    max-inline-size: 20rem;\n    margin-inline: auto;\n  }\n  [data-kui-device=phone]::after {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 0;\n    inset-inline-start: 50%;\n    translate: -50% 0;\n    inline-size: 38%;\n    block-size: 16px;\n    background-image: radial-gradient(circle, #000 0 100%);\n    background-size: 100% 100%;\n    border-radius: 0 0 12px 12px;\n  }\n  [data-kui-device=tablet] {\n    padding: 18px;\n    border-radius: var(--kui-device-radius, 22px);\n    aspect-ratio: 3 / 4;\n    max-inline-size: 28rem;\n    margin-inline: auto;\n  }\n  [data-kui-device=laptop] {\n    padding: 10px 10px 34px;\n    border-radius: var(--kui-device-radius, 12px) var(--kui-device-radius, 12px) 4px 4px;\n    aspect-ratio: 16 / 10;\n  }\n  [data-kui-device=laptop]::after {\n    content: \"\";\n    position: absolute;\n    inset-block-end: 14px;\n    inset-inline-start: 50%;\n    translate: -50% 0;\n    inline-size: 15%;\n    block-size: 6px;\n    background-image: radial-gradient(circle, color-mix(in srgb, var(--kui-device-color, #111) 55%, #fff) 0 100%);\n    background-size: 100% 100%;\n    border-radius: 3px;\n  }\n  [data-kui-fx~=compare] {\n    position: relative;\n    display: grid;\n    grid-template-columns: 1fr;\n    grid-template-rows: 1fr auto;\n    overflow: hidden;\n    user-select: none;\n  }\n  [data-kui-fx~=compare] > :is(img, picture, video) {\n    grid-area: 1 / 1;\n    display: block;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n  }\n  [data-kui-fx~=compare] > :is(img, picture, video):nth-child(2 of :is(img, picture, video)) {\n    clip-path: inset(0 0 0 var(--kui-compare, 50%));\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > :is(img, picture, video):nth-child(2 of :is(img, picture, video)) {\n    clip-path: inset(var(--kui-compare, 50%) 0 0 0);\n  }\n  [data-kui-fx~=compare] > .kui-compare-range {\n    grid-area: 1 / 1;\n    position: relative;\n    z-index: 2;\n    inline-size: 100%;\n    block-size: 100%;\n    margin: 0;\n    padding: 0;\n    opacity: 0;\n    cursor: ew-resize;\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-range {\n    writing-mode: vertical-lr;\n    direction: ltr;\n    cursor: ns-resize;\n    touch-action: pan-x;\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle {\n    grid-area: 1 / 1;\n    position: relative;\n    z-index: 1;\n    inline-size: 100%;\n    block-size: 100%;\n    pointer-events: none;\n    translate: calc(var(--kui-compare, 50%) - 100%) 0;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle {\n    translate: 0 calc(var(--kui-compare, 50%) - 100%);\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle::after {\n    content: \"\";\n    position: absolute;\n    inset-block: 0;\n    inset-inline-end: 0;\n    inline-size: 2px;\n    background: #fff;\n    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);\n    border-inline-start: 2px solid CanvasText;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle::after {\n    inset-block: auto 0;\n    inset-inline: 0;\n    inline-size: 100%;\n    block-size: 2px;\n    border-inline-start: none;\n    border-block-start: 2px solid CanvasText;\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle::before {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 50%;\n    inset-inline-end: -14px;\n    translate: 0 -50%;\n    inline-size: 28px;\n    block-size: 28px;\n    border-radius: 50%;\n    background: #fff;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    border: 1px solid rgba(0, 0, 0, 0.15);\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle::before {\n    inset-block-start: auto;\n    inset-block-end: -14px;\n    inset-inline-start: 50%;\n    inset-inline-end: auto;\n    translate: -50% 0;\n  }\n  [data-kui-fx~=compare] > .kui-compare-range:focus-visible + .kui-compare-handle {\n    outline: 2px solid Highlight;\n    outline-offset: -2px;\n  }\n  [data-kui-fx~=compare] > .kui-compare-range:focus-visible + .kui-compare-handle::before {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=hotspots] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=hotspots] > img {\n    display: block;\n    inline-size: 100%;\n    block-size: auto;\n  }\n  [data-kui-fx~=hotspots] > :is(ol, ul) {\n    margin: 0;\n    padding: 0;\n    block-size: 0;\n  }\n  [data-kui-fx~=hotspots] .kui-hotspot {\n    position: absolute;\n    left: var(--kui-x);\n    top: var(--kui-y);\n    translate: -50% -50%;\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    box-sizing: border-box;\n    padding: 0;\n    margin: 0;\n    border: 2px solid #fff;\n    border-radius: 50%;\n    background: var(--kui-hotspot-color, #111);\n    color: #fff;\n    font-size: 12px;\n    font-weight: 600;\n    line-height: 1;\n    cursor: pointer;\n    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);\n    touch-action: manipulation;\n    user-select: none;\n    inline-size: 24px;\n    block-size: 24px;\n  }\n  [data-kui-fx~=hotspots][data-kui-hotspot-marker=dot] .kui-hotspot {\n    inline-size: 14px;\n    block-size: 14px;\n  }\n  [data-kui-fx~=hotspots] .kui-hotspot:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=hotspots] [popover] {\n    margin: 0;\n    padding: 8px 12px;\n    border-radius: 8px;\n    border: 1px solid rgba(255, 255, 255, 0.15);\n    background: #1e1e1e;\n    color: #fff;\n    font-size: 13px;\n    line-height: 1.4;\n    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n    max-inline-size: min(18rem, calc(100vw - 16px));\n    max-block-size: calc(100vh - 16px);\n    overflow: auto;\n    overflow-wrap: anywhere;\n    transition:\n      opacity 150ms ease,\n      translate 150ms ease,\n      display 150ms allow-discrete,\n      overlay 150ms allow-discrete;\n    opacity: 0;\n    translate: 0 4px;\n  }\n  [data-kui-fx~=hotspots] [popover]:popover-open {\n    opacity: 1;\n    translate: 0 0;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) {\n    position: relative;\n    overflow: hidden;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] {\n    display: grid;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] > [data-kui-step-state] {\n    grid-area: 1 / 1;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-slideshow-duration, 500ms) var(--kui-slideshow-ease, ease);\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] > [data-kui-step-state=active] {\n    opacity: 1;\n    pointer-events: auto;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=slide] [data-kui-slideshow-list] {\n    display: flex;\n    translate: calc(var(--kui-step, 0) * -100%) 0;\n    transition: translate var(--kui-slideshow-duration, 500ms) var(--kui-slideshow-ease, ease);\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=slide] [data-kui-slideshow-list] > [data-kui-step-state] {\n    flex: 0 0 100%;\n    min-inline-size: 0;\n  }\n  [data-kui-fx~=carousel-fade] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=carousel-slide] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=video-hero-slideshow] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls {\n    position: relative;\n    z-index: 1;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    gap: 0.5rem;\n    padding: 0.75rem;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button {\n    display: inline-grid;\n    place-items: center;\n    min-inline-size: 2.75rem;\n    min-block-size: 2.75rem;\n    border: 1px solid currentColor;\n    border-radius: 999px;\n    background: Canvas;\n    color: CanvasText;\n    cursor: pointer;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Previous slide\"]::before {\n    content: \"\\2190\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Next slide\"]::before {\n    content: \"\\2192\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Pause slideshow\"]::before {\n    content: \"\\2161\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Play slideshow\"]::before {\n    content: \"\\25b6\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot {\n    min-inline-size: 1rem;\n    min-block-size: 1rem;\n    padding: 0;\n    border-width: 2px;\n    background: transparent;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot[aria-current=true] {\n    background: currentColor;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=scroll-story] {\n    position: relative;\n    box-sizing: border-box;\n  }\n  [data-kui-fx~=scroll-story] > :first-child {\n    position: sticky;\n    inset-block-start: 0;\n    z-index: 1;\n    display: grid;\n    block-size: 45svh;\n    overflow: hidden;\n  }\n  [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 300ms ease;\n  }\n  [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state=active] {\n    opacity: 1;\n    pointer-events: auto;\n  }\n  [data-kui-fx~=scroll-story] > :last-child {\n    position: relative;\n    z-index: 2;\n    margin: 0;\n    padding: 0;\n    list-style: none;\n  }\n  [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n    min-block-size: 60vh;\n    box-sizing: border-box;\n    opacity: var(--kui-story-dim, 0.45);\n    transition: opacity 300ms ease;\n    background: Canvas;\n  }\n  [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @media (min-width: 48rem) {\n    [data-kui-fx~=scroll-story] {\n      display: grid;\n      grid-template-columns: 1fr 1fr;\n      gap: clamp(1.5rem, 3vw, 4rem);\n      align-items: start;\n    }\n    [data-kui-fx~=scroll-story] > :first-child {\n      inset-block-start: 0;\n      block-size: 100vh;\n      block-size: 100svh;\n      align-content: center;\n    }\n    [data-kui-fx~=scroll-story] > :first-child > [data-kui-step-state] {\n      position: relative;\n      inset: auto;\n      grid-area: 1 / 1;\n      block-size: auto;\n      aspect-ratio: 16 / 10;\n    }\n    [data-kui-fx~=scroll-story]:not([data-kui-story-side=start]) > :first-child {\n      grid-column: 2;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story]:not([data-kui-story-side=start]) > :last-child {\n      grid-column: 1;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story][data-kui-story-side=start] > :first-child {\n      grid-column: 1;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story][data-kui-story-side=start] > :last-child {\n      grid-column: 2;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      background: transparent;\n    }\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) {\n    display: block;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :first-child {\n    position: static;\n    display: block;\n    block-size: auto;\n    overflow: visible;\n    aspect-ratio: auto;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :first-child * {\n    position: static;\n    inset: auto;\n    grid-area: auto;\n    inline-size: auto;\n    block-size: auto;\n    aspect-ratio: auto;\n    opacity: 1;\n    pointer-events: auto;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :last-child * {\n    min-block-size: 0;\n    opacity: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=hotspots] [popover]:popover-open {\n      opacity: 0;\n      translate: 0 4px;\n    }\n  }\n  @media (forced-colors: active) {\n    :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button {\n      border-color: CanvasText;\n      color: CanvasText;\n    }\n    :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot[aria-current=true] {\n      background: Highlight;\n    }\n    [data-kui-device] {\n      border-color: CanvasText;\n      background: Canvas;\n    }\n    [data-kui-device=browser]::before,\n    [data-kui-device=phone]::after,\n    [data-kui-device=laptop]::after {\n      background-image: none;\n    }\n    [data-kui-fx~=compare] > .kui-compare-handle::before {\n      border: 2px solid CanvasText;\n      background: Canvas;\n    }\n    [data-kui-fx~=hotspots] .kui-hotspot {\n      border-color: CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n    [data-kui-fx~=hotspots] [popover] {\n      border-color: CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n  }\n  dialog.kui-lightbox {\n    display: none;\n  }\n  dialog.kui-lightbox[open] {\n    position: fixed;\n    inset: 0;\n    inline-size: 100%;\n    block-size: 100%;\n    max-inline-size: none;\n    max-block-size: none;\n    box-sizing: border-box;\n    margin: 0;\n    border: 0;\n    padding: clamp(1rem, 4vw, 3rem);\n    overflow: auto;\n    overscroll-behavior: contain;\n    display: grid;\n    place-items: center;\n    color: #fff;\n    background: rgb(8 9 10 / 0.58);\n    opacity: 0;\n    transition: opacity var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  dialog.kui-lightbox::backdrop {\n    background: transparent;\n    -webkit-backdrop-filter: blur(7px);\n    backdrop-filter: blur(7px);\n    opacity: 0;\n    transition: opacity var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  dialog.kui-lightbox[open].is-open {\n    opacity: 1;\n  }\n  dialog.kui-lightbox[open].is-open::backdrop {\n    opacity: 1;\n  }\n  .kui-lightbox-slot {\n    display: contents;\n  }\n  .kui-lightbox-gallery,\n  .kui-lightbox-frame {\n    opacity: 0;\n    scale: var(--kui-from-scale, 0.965);\n    translate: 0 8px;\n    transition:\n      opacity var(--kui-lightbox-duration, 280ms) ease,\n      scale var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease),\n      translate var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  .kui-lightbox.is-open .kui-lightbox-gallery,\n  .kui-lightbox.is-open .kui-lightbox-frame {\n    opacity: 1;\n    scale: none;\n    translate: none;\n  }\n  .kui-lightbox-gallery {\n    display: grid;\n    place-items: center;\n    gap: 0.75rem;\n  }\n  .kui-lightbox-gallery figure {\n    margin: 0;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    gap: 0.75rem;\n  }\n  .kui-lightbox-gallery img {\n    display: block;\n    border-radius: 10px;\n    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);\n    background: #0b0c0d;\n  }\n  .kui-lightbox-gallery img.is-fit {\n    max-inline-size: min(100%, 1400px);\n    max-block-size: 86dvh;\n    inline-size: auto;\n    block-size: auto;\n  }\n  .kui-lightbox-gallery img.is-tall {\n    inline-size: min(100%, 760px);\n    block-size: auto;\n  }\n  .kui-lightbox-gallery figcaption {\n    max-inline-size: 60ch;\n    text-align: center;\n    font-size: 0.85rem;\n    line-height: 1.5;\n    color: rgb(255 255 255 / 0.72);\n  }\n  .kui-lightbox-close,\n  .kui-lightbox-prev,\n  .kui-lightbox-next {\n    border: 1px solid rgb(255 255 255 / 0.45);\n    border-radius: 50%;\n    color: #fff;\n    background: rgb(8 9 10 / 0.7);\n    cursor: pointer;\n  }\n  .kui-lightbox-close {\n    position: fixed;\n    inset-block-start: clamp(0.75rem, 2vw, 1.25rem);\n    inset-inline-end: clamp(0.75rem, 2vw, 1.25rem);\n    z-index: 1;\n    inline-size: 40px;\n    block-size: 40px;\n    font-size: 1.5rem;\n  }\n  .kui-lightbox-prev,\n  .kui-lightbox-next {\n    position: fixed;\n    inset-block-start: 50%;\n    inline-size: 40px;\n    block-size: 40px;\n    font-size: 2rem;\n  }\n  .kui-lightbox-prev {\n    inset-inline-start: 0.75rem;\n  }\n  .kui-lightbox-next {\n    inset-inline-end: 0.75rem;\n  }\n  .kui-lightbox-counter {\n    font-size: 0.85rem;\n    color: rgb(255 255 255 / 0.8);\n  }\n  .kui-lightbox button:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  .kui-lightbox-frame {\n    inline-size: min(92vw, 1100px);\n    aspect-ratio: 16 / 9;\n    border-radius: 12px;\n    overflow: clip;\n    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);\n    background: #000;\n  }\n  .kui-lightbox-frame--tall {\n    inline-size: min(80vw, 420px);\n    aspect-ratio: 9 / 16;\n  }\n  .kui-lightbox-frame--square {\n    inline-size: min(80vw, 720px);\n    aspect-ratio: 1;\n  }\n  .kui-lightbox-frame iframe,\n  .kui-lightbox-frame video {\n    display: block;\n    inline-size: 100%;\n    block-size: 100%;\n    border: 0;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    dialog.kui-lightbox,\n    .kui-lightbox-gallery,\n    .kui-lightbox-frame {\n      transition-duration: 1ms;\n    }\n    .kui-lightbox-gallery,\n    .kui-lightbox-frame {\n      scale: none;\n      translate: none;\n    }\n    [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state],\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      transition-duration: 1ms;\n    }\n  }\n  @media (forced-colors: active) {\n    dialog.kui-lightbox {\n      border: 1px solid CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n    dialog.kui-lightbox::backdrop {\n      -webkit-backdrop-filter: none;\n      backdrop-filter: none;\n    }\n    .kui-lightbox-close,\n    .kui-lightbox-prev,\n    .kui-lightbox-next {\n      border-color: CanvasText;\n      color: CanvasText;\n      background: Canvas;\n    }\n    .kui-lightbox-frame {\n      border: 1px solid CanvasText;\n    }\n    [data-kui-fx~=scroll-story] > :first-child,\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      border: 1px solid CanvasText;\n    }\n  }\n}\n\n/* src/css/index.css */\n"
+    style.textContent = "/* src/css/base.css */\n@layer kui.tokens, kui.presets, kui.effects, kui.policy, kui.cloak;\n@layer kui.tokens {\n  :root {\n    --kui-ease-expo-in: cubic-bezier(0.7, 0, 0.84, 0);\n    --kui-ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);\n    --kui-ease-expo-in-out: cubic-bezier(0.87, 0, 0.13, 1);\n    --kui-ease-back-in: cubic-bezier(0.36, 0, 0.66, -0.56);\n    --kui-ease-back-out: cubic-bezier(0.34, 1.56, 0.64, 1);\n    --kui-ease-back-in-out: cubic-bezier(0.68, -0.6, 0.32, 1.6);\n    --kui-ease-quart-out: cubic-bezier(0.25, 1, 0.5, 1);\n    --kui-ease-circ-out: cubic-bezier(0, 0.55, 0.45, 1);\n    --kui-ease-spring: linear(0, 0.4 12%, 0.9 25%, 1.06 38%, 1.01 62%, 1);\n    --kui-ease-bounce: linear(0, 0.5 10%, 1.2 30%, 0.9 50%, 1.08 68%, 0.97 82%, 1.02 92%, 1);\n  }\n  [data-kui-fx] {\n    --kui-dir: 1;\n    --kui-i: 0;\n    --kui-motion-path: initial;\n    --kui-motion-rotate: initial;\n    --kui-motion-anchor: initial;\n    --kui-motion-from: initial;\n    --kui-motion-to: initial;\n    --kui-wide-sm: initial;\n    --kui-narrow-sm: initial;\n    --kui-wide-md: initial;\n    --kui-narrow-md: initial;\n    --kui-wide-lg: initial;\n    --kui-narrow-lg: initial;\n    --kui-wide-xl: initial;\n    --kui-narrow-xl: initial;\n    --kui-wide-2xl: initial;\n    --kui-narrow-2xl: initial;\n  }\n  :dir(rtl) [data-kui-fx] {\n    --kui-dir: -1;\n  }\n  :root {\n    --kui-above-sm: none;\n    --kui-below-sm: initial;\n    --kui-above-md: none;\n    --kui-below-md: initial;\n    --kui-above-lg: none;\n    --kui-below-lg: initial;\n    --kui-above-xl: none;\n    --kui-below-xl: initial;\n    --kui-above-2xl: none;\n    --kui-below-2xl: initial;\n  }\n  @media (min-width: 40rem) {\n    :root {\n      --kui-above-sm: initial;\n      --kui-below-sm: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    :root {\n      --kui-above-md: initial;\n      --kui-below-md: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    :root {\n      --kui-above-lg: initial;\n      --kui-below-lg: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    :root {\n      --kui-above-xl: initial;\n      --kui-below-xl: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    :root {\n      --kui-above-2xl: initial;\n      --kui-below-2xl: none;\n    }\n  }\n  @container (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-narrow-sm: none;\n    }\n  }\n  @container not (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-wide-sm: none;\n    }\n  }\n  @container (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-narrow-md: none;\n    }\n  }\n  @container not (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-wide-md: none;\n    }\n  }\n  @container (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-narrow-lg: none;\n    }\n  }\n  @container not (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-wide-lg: none;\n    }\n  }\n  @container (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-narrow-xl: none;\n    }\n  }\n  @container not (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-wide-xl: none;\n    }\n  }\n  @container (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-narrow-2xl: none;\n    }\n  }\n  @container not (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-wide-2xl: none;\n    }\n  }\n  [data-kui-container] {\n    container-type: inline-size;\n  }\n}\n@layer kui.effects {\n  :where([data-kui-fx]) {\n    --kui-transition: initial;\n    transition: var(--kui-transition);\n  }\n}\n@layer kui.policy {\n  html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) {\n    opacity: 0 !important;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm],\n    [data-kui-rm]::before,\n    [data-kui-rm]::after,\n    [data-kui-rm] .kui-odometer-strip,\n    [data-kui-rm][data-kui-fx~=label-float] ~ label,\n    [data-kui-rm][data-kui-fx~=input-underline-grow] ~ .kui-underline,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb,\n    [data-kui-rm][data-kui-fx~=checkbox-draw] ~ svg path,\n    [data-kui-rm][data-kui-fx~=radio-fill] ~ .kui-dot,\n    [data-kui-rm][data-kui-fx~=strength-meter] ~ .kui-meter > *,\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] .kui-bar,\n    [data-kui-rm][data-kui-fx~=play-to-pause] .kui-bar,\n    [data-kui-rm][data-kui-fx~=plus-to-minus] .kui-bar,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-front,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-back,\n    [data-kui-rm][data-kui-fx~=step-progress] > [data-kui-step-state] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n    [data-kui-rm=shorten],\n    [data-kui-rm=shorten]::before,\n    [data-kui-rm=shorten]::after {\n      animation-duration: 1ms !important;\n      animation-delay: 0ms !important;\n    }\n    [data-kui-rm=crossfade] {\n      animation-name: kui-in !important;\n      animation-duration: 200ms !important;\n    }\n    [data-kui-rm=disable] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n  @media print {\n    [data-kui-fx],\n    [data-kui-reveal] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n}\n\n/* src/css/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=accordion-height] {\n    --kui-auto-height-duration: 400ms;\n    --kui-auto-height-delay: 0ms;\n    --kui-auto-height-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-bottom] {\n    --kui-anchored-preview-place: bottom;\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-left] {\n    --kui-anchored-preview-place: left;\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-right] {\n    --kui-anchored-preview-place: right;\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=aurora] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=back-in-down] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=back-in-up] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=badge-pop] {\n    --kui-feedback-pop-duration: 420ms;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=beam-border] {\n    --kui-beam-border-duration: 220ms;\n    --kui-beam-border-delay: 0ms;\n  }\n  [data-kui-fx~=beam-border-auto] {\n    --kui-beam-border-auto-duration: 220ms;\n  }\n  [data-kui-fx~=before-after-wipe] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=blob-morph] {\n    --kui-path-morph-duration: 800ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=blur-in] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-out] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-up] {\n    --kui-media-blur-up-duration: 600ms;\n    --kui-media-blur-up-delay: 0ms;\n    --kui-media-blur-up-ease: ease-out;\n  }\n  [data-kui-fx~=bob] {\n    --kui-ambient-float-duration: 2s;\n    --kui-distance: 8px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=book-page-turn] {\n    --kui-from-angle: -160deg;\n    --kui-flip-face-duration: 900ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=bookmark-fill] {\n    --kui-shape-fill-duration: 360ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=border-draw] {\n    --kui-border-draw-duration: 220ms;\n    --kui-border-draw-delay: 0ms;\n    --kui-border-draw-ease: ease-out;\n  }\n  [data-kui-fx~=border-glow] {\n    --kui-border-glow-duration: 220ms;\n    --kui-border-glow-delay: 0ms;\n    --kui-border-glow-ease: ease-out;\n  }\n  [data-kui-fx~=bounce-in] {\n    --kui-from-scale: 0.3;\n    --kui-scale-ease: var(--kui-ease-bounce, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-down] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-up] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=card-flip-x] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=card-flip-y] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=carousel] {\n    --kui-scope: self;\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=carousel-3d] {\n    --kui-tilt: 12deg;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-high] {\n    --kui-tilt: 30deg;\n    --kui-perspective: 1200px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-inside] {\n    --kui-arc: 120deg;\n    --kui-facing: camera;\n    --kui-perspective: 900px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-low] {\n    --kui-tilt: -18deg;\n    --kui-perspective: 1800px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-orbit] {\n    --kui-ring-plane: screen;\n    --kui-facing: camera;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-stack] {\n    --kui-spatial-stack-duration: 620ms;\n    --kui-spatial-stack-delay: 0ms;\n    --kui-spatial-stack-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=chart-area-fill] {\n    --kui-shape-fill-duration: 900ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    --kui-bar-grow-duration: 700ms;\n    --kui-bar-grow-ease: var(--kui-ease-back-out, ease-out);\n    --kui-bar-grow-delay: 0ms;\n  }\n  [data-kui-fx~=chart-line-draw] {\n    --kui-path-draw-duration: 1200ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=checkmark-draw] {\n    --kui-path-draw-duration: 320ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=confetti-burst] {\n    --kui-feedback-burst-duration: 900ms;\n    --kui-pop-scale: 1.15;\n    --kui-feedback-burst-delay: 0ms;\n    --kui-feedback-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=copy-confirm] {\n    --kui-feedback-confirm-duration: 1400ms;\n    --kui-feedback-confirm-delay: 0ms;\n    --kui-feedback-confirm-ease: linear;\n  }\n  [data-kui-fx~=count-bump] {\n    --kui-feedback-pop-duration: 280ms;\n    --kui-pop-scale: 1.3;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=count-compact] {\n    --kui-from: 0;\n    --kui-to: 128400;\n    --kui-format: compact;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-currency] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-format: currency;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-down] {\n    --kui-from: 100;\n    --kui-to: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-percent] {\n    --kui-from: 0;\n    --kui-to: 0.82;\n    --kui-format: percent;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-up] {\n    --kui-from: 0;\n    --kui-to: 100;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=cross-draw] {\n    --kui-path-draw-duration: 260ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=cube-rotate] {\n    --kui-from-angle: 90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=cursor-follow] {\n    --kui-stiffness: 300;\n    --kui-damping: 30;\n  }\n  [data-kui-fx~=cursor-invert] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-label] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-lag] {\n    --kui-stiffness: 80;\n    --kui-damping: 14;\n  }\n  [data-kui-fx~=curtain-reveal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=curtain-wipe] {\n    --kui-wipe-duration: 800ms;\n    --kui-wipe-delay: 0ms;\n    --kui-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=decode] {\n    --kui-charset: binary;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=depth-layer] {\n    --kui-distance: 200px;\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=donut-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=drag-inertia] {\n    --kui-inertia: true;\n  }\n  [data-kui-fx~=drag-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=drag-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=draw-signature] {\n    --kui-path-draw-duration: 1600ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-stroke] {\n    --kui-path-draw-duration: 800ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-underline] {\n    --kui-path-draw-duration: 420ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=drawer-slide] {\n    --kui-drawer-slide-duration: 600ms;\n    --kui-drawer-slide-delay: 0ms;\n    --kui-drawer-slide-ease: ease-out;\n  }\n  [data-kui-fx~=drop-open] {\n    --kui-drop-open-duration: 240ms;\n    --kui-drop-open-delay: 0ms;\n    --kui-drop-open-ease: ease-out;\n  }\n  [data-kui-fx~=dropdown-open] {\n    --kui-panel-reveal-duration: 600ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=duotone-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=elastic-pull] {\n    --kui-return: true;\n    --kui-bounds: 80;\n  }\n  [data-kui-fx~=expand-to-modal] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 500ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-in] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-up] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-in] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-open] {\n    --kui-fade-open-duration: 240ms;\n    --kui-fade-open-delay: 0ms;\n    --kui-fade-open-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=flip-card] {\n    --kui-card-toggle-duration: 700ms;\n    --kui-card-toggle-delay: 0ms;\n    --kui-card-toggle-ease: ease-in-out;\n  }\n  [data-kui-fx~=flip-filter] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-reorder] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-shuffle] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-sort] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=float] {\n    --kui-ambient-float-duration: 4s;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-ambient-float-duration: 6s;\n    --kui-distance: 10px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=focus-ring-grow] {\n    --kui-focus-ring-duration: 600ms;\n    --kui-focus-ring-delay: 0ms;\n    --kui-focus-ring-ease: ease-out;\n  }\n  [data-kui-fx~=fold-panel] {\n    --kui-from-angle: -90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=gauge-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=glitch] {\n    --kui-charset: symbols;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-ambient-pulse-duration: 2.2s;\n    --kui-ambient-pulse-delay: 0ms;\n    --kui-ambient-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-mesh] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    --kui-text-shimmer-duration: 600ms;\n    --kui-text-shimmer-delay: 0ms;\n    --kui-text-shimmer-ease: ease-out;\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-path-draw-duration: 2400ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-sweep] {\n    --kui-text-gradient-sweep-duration: 600ms;\n    --kui-text-gradient-sweep-delay: 0ms;\n    --kui-text-gradient-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=grayscale-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=grid-to-list] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=group-dim] {\n    --kui-group-dim-duration: 260ms;\n    --kui-group-dim-delay: 0ms;\n    --kui-group-dim-ease: ease-out;\n  }\n  [data-kui-fx~=hamburger-to-x] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=heart-burst] {\n    --kui-feedback-heart-burst-duration: 700ms;\n    --kui-pop-scale: 1.4;\n    --kui-feedback-heart-burst-delay: 0ms;\n    --kui-feedback-heart-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=heart-fill] {\n    --kui-shape-fill-duration: 420ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=highlight-sweep] {\n    --kui-sweep-color: gold;\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=hover-intent] {\n    --kui-hover-intent-duration: 160ms;\n    --kui-hover-intent-delay: 1000ms;\n    --kui-hover-intent-ease: ease-out;\n  }\n  [data-kui-fx~=icon-bounce] {\n    --kui-icon-bounce-duration: 220ms;\n    --kui-icon-bounce-delay: 0ms;\n    --kui-icon-bounce-ease: ease-out;\n  }\n  [data-kui-fx~=icon-morph] {\n    --kui-path-morph-duration: 300ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=icon-spin] {\n    --kui-icon-spin-duration: 220ms;\n    --kui-icon-spin-delay: 0ms;\n  }\n  [data-kui-fx~=icon-wiggle] {\n    --kui-icon-wiggle-duration: 220ms;\n    --kui-icon-wiggle-delay: 0ms;\n    --kui-icon-wiggle-ease: ease-out;\n  }\n  [data-kui-fx~=image-parallax-frame] {\n    --kui-media-parallax-frame-duration: 600ms;\n    --kui-media-parallax-frame-delay: 0ms;\n    --kui-media-parallax-frame-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns-out] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=lift] {\n    --kui-lift-duration: 220ms;\n    --kui-lift-delay: 0ms;\n    --kui-lift-ease: ease-out;\n  }\n  [data-kui-fx~=lift-shadow] {\n    --kui-lift-shadow-duration: 220ms;\n    --kui-lift-shadow-delay: 0ms;\n    --kui-lift-shadow-ease: ease-out;\n  }\n  [data-kui-fx~=lightbox-open] {\n    --kui-media-lightbox-duration: 600ms;\n    --kui-media-lightbox-delay: 0ms;\n    --kui-media-lightbox-ease: ease-out;\n  }\n  [data-kui-fx~=line-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=loading-bar] {\n    --kui-bar-duration: 600ms;\n    --kui-bar-delay: 0ms;\n    --kui-bar-ease: ease-out;\n  }\n  [data-kui-fx~=logo-build] {\n    --kui-logo-assemble-duration: 520ms;\n    --kui-logo-assemble-ease: var(--kui-ease-back-out, ease-out);\n    --kui-logo-assemble-delay: 0ms;\n  }\n  [data-kui-fx~=long-press] {\n    --kui-pressable-duration: 500ms;\n  }\n  [data-kui-fx~=magnetic-snap] {\n    --kui-strength: 0.6;\n    --kui-radius: 160;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=marquee-scroll-linked] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=mask-reveal] {\n    --kui-media-mask-duration: 600ms;\n    --kui-media-mask-delay: 0ms;\n    --kui-media-mask-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masonry-reflow] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=mega-menu-drop] {\n    --kui-panel-reveal-duration: 550ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=menu-fullscreen] {\n    --kui-menu-fullscreen-duration: 600ms;\n    --kui-menu-fullscreen-delay: 0ms;\n    --kui-menu-fullscreen-ease: ease-out;\n  }\n  [data-kui-fx~=menu-stagger-open] {\n    --kui-nav-reveal-duration: 600ms;\n    --kui-nav-reveal-delay: 0ms;\n    --kui-nav-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=motion-path] {\n    --kui-motion-path: \"M 0 0 L 120 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-delay: 0ms;\n    --kui-motion-path-ease: ease-out;\n  }\n  [data-kui-fx~=odometer-roll] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-count-odometer-duration: 1600ms;\n    --kui-count-odometer-delay: 0ms;\n  }\n  [data-kui-fx~=orbit] {\n    --kui-ambient-orbit-duration: 3.5s;\n    --kui-ambient-orbit-delay: 0ms;\n    --kui-ambient-orbit-ease: linear;\n  }\n  [data-kui-fx~=page-fade] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=page-slide] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-rotate] {\n    --kui-parallax-rotate-duration: 600ms;\n    --kui-parallax-rotate-delay: 0ms;\n    --kui-parallax-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-scale] {\n    --kui-parallax-scale-duration: 600ms;\n    --kui-parallax-scale-delay: 0ms;\n    --kui-parallax-scale-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-x] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-y] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=path-arc] {\n    --kui-motion-path: \"M 0 0 C 40 -70 120 -70 160 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-loop] {\n    --kui-motion-path: \"M 0 0 C 0 -70 110 -70 110 0 C 110 70 0 70 0 0\";\n    --kui-motion-path-duration: 2400ms;\n    --kui-motion-path-ease: linear;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-swoop] {\n    --kui-motion-path: \"M -120 70 C -70 70 -25 25 0 0\";\n    --kui-motion-path-duration: 900ms;\n    --kui-motion-path-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-wave] {\n    --kui-motion-path: \"M 0 0 C 45 -45 105 45 150 0\";\n    --kui-motion-path-duration: 1600ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=pin-section] {\n    --kui-distance: 100vh;\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-spacer] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-until] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=play-to-pause] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=plus-to-minus] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=pop] {\n    --kui-pop-duration: 220ms;\n    --kui-pop-delay: 0ms;\n    --kui-pop-ease: ease-out;\n  }\n  [data-kui-fx~=pop-in] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-out, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=pop-open] {\n    --kui-pop-open-duration: 240ms;\n    --kui-pop-open-delay: 0ms;\n    --kui-pop-open-ease: ease-out;\n  }\n  [data-kui-fx~=pop-out] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-in, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=press-depth] {\n    --kui-press-duration: 120ms;\n    --kui-press-delay: 0ms;\n    --kui-press-ease: ease-out;\n  }\n  [data-kui-fx~=progress-bar] {\n    --kui-meter-bar-duration: 600ms;\n    --kui-meter-bar-delay: 0ms;\n    --kui-meter-bar-ease: ease-out;\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    --kui-feedback-progress-track-duration: 1.4s;\n    --kui-feedback-progress-track-delay: 0ms;\n    --kui-feedback-progress-track-ease: ease-in-out;\n  }\n  [data-kui-fx~=progress-ring] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=progress-segments] {\n    --kui-meter-segments-duration: 600ms;\n    --kui-meter-segments-delay: 0ms;\n    --kui-meter-segments-ease: ease-out;\n  }\n  [data-kui-fx~=proximity-glow] {\n    --kui-proximity-glow-duration: 200ms;\n    --kui-proximity-glow-ease: ease-out;\n  }\n  [data-kui-fx~=pull-to-refresh] {\n    --kui-feedback-pull-duration: 900ms;\n    --kui-feedback-pull-ease: ease-out;\n    --kui-feedback-pull-delay: 0ms;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-range-fill-duration: 400ms;\n    --kui-range-fill-delay: 0ms;\n    --kui-range-fill-ease: ease-out;\n  }\n  [data-kui-fx~=redaction-reveal] {\n    --kui-redaction-reveal-duration: 600ms;\n    --kui-redaction-reveal-delay: 0ms;\n    --kui-redaction-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=reveal-once] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=ripple] {\n    --kui-feedback-ripple-duration: 600ms;\n    --kui-feedback-ripple-delay: 0ms;\n    --kui-feedback-ripple-ease: ease-out;\n  }\n  [data-kui-fx~=roll-in] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=roll-out] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-left] {\n    --kui-from-angle: -45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-right] {\n    --kui-from-angle: 45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-out] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rubber-band] {\n    --kui-return: true;\n    --kui-bounds: 120;\n  }\n  [data-kui-fx~=saturate-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=scale-open] {\n    --kui-scale-open-duration: 240ms;\n    --kui-scale-open-delay: 0ms;\n    --kui-scale-open-ease: ease-out;\n  }\n  [data-kui-fx~=scanline] {\n    --kui-ambient-tint-duration: 3.5s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=scramble] {\n    --kui-charset: upper;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=scroll-desaturate] {\n    --kui-desaturate-duration: 600ms;\n    --kui-desaturate-delay: 0ms;\n    --kui-desaturate-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-fade] {\n    --kui-scroll-fade-duration: 600ms;\n    --kui-scroll-fade-delay: 0ms;\n    --kui-scroll-fade-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar-y] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    --kui-progress-stroke-duration: 600ms;\n    --kui-progress-stroke-delay: 0ms;\n    --kui-progress-stroke-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-skew] {\n    --kui-skew-duration: 600ms;\n    --kui-skew-delay: 0ms;\n    --kui-skew-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-snap-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=scroll-snap-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=scrollytelling-step] {\n    --kui-steps: 4;\n  }\n  [data-kui-fx~=search-expand] {\n    --kui-search-expand-duration: 260ms;\n    --kui-search-expand-delay: 0ms;\n    --kui-search-expand-ease: ease-out;\n  }\n  [data-kui-fx~=sequence-scrub] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=shake-error] {\n    --kui-feedback-shake-duration: 500ms;\n    --kui-feedback-shake-delay: 0ms;\n    --kui-feedback-shake-ease: linear;\n  }\n  [data-kui-fx~=shine-sweep] {\n    --kui-shine-sweep-duration: 220ms;\n    --kui-shine-sweep-delay: 0ms;\n    --kui-shine-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=skeleton-shimmer] {\n    --kui-feedback-shimmer-duration: 1.6s;\n    --kui-feedback-shimmer-delay: 0ms;\n    --kui-feedback-shimmer-ease: linear;\n  }\n  [data-kui-fx~=skeleton-to-content] {\n    --kui-feedback-fade-duration: 600ms;\n    --kui-feedback-fade-delay: 0ms;\n    --kui-feedback-fade-ease: ease-out;\n  }\n  [data-kui-fx~=slat-assemble] {\n    --kui-slat-assemble-duration: 500ms;\n    --kui-slat-assemble-delay: 0ms;\n    --kui-slat-assemble-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-down] {\n    --kui-slide-open-down-duration: 240ms;\n    --kui-slide-open-down-delay: 0ms;\n    --kui-slide-open-down-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-up] {\n    --kui-slide-open-up-duration: 240ms;\n    --kui-slide-open-up-delay: 0ms;\n    --kui-slide-open-up-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=snap-back] {\n    --kui-return: true;\n    --kui-stiffness: 260;\n  }\n  [data-kui-fx~=sparkline-draw] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=spinner] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=spinner-dots] {\n    --kui-feedback-dot-pulse-duration: 1.2s;\n    --kui-feedback-dot-pulse-delay: 0ms;\n    --kui-feedback-dot-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=spinner-ring] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=split-chars] {\n    --kui-unit: chars;\n    --kui-direction: fade;\n    --kui-stagger: 30ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-flap] {\n    --kui-split-flap-duration: 220ms;\n    --kui-split-flap-delay: 0ms;\n    --kui-split-flap-ease: ease-out;\n  }\n  [data-kui-fx~=split-lines] {\n    --kui-unit: lines;\n    --kui-direction: fade;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-words] {\n    --kui-unit: words;\n    --kui-direction: fade;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=spotlight-follow] {\n    --kui-ambient-tint-duration: 9s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=stacking-cards] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=star-rating-fill] {\n    --kui-meter-stars-duration: 600ms;\n    --kui-meter-stars-delay: 0ms;\n    --kui-meter-stars-ease: ease-out;\n  }\n  [data-kui-fx~=starfield] {\n    --kui-ambient-tint-duration: 40s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=step-progress] {\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=strength-meter] {\n    --kui-strength-meter-duration: 400ms;\n    --kui-strength-meter-delay: 0ms;\n    --kui-strength-meter-ease: ease-out;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] {\n    --kui-submit-flow-duration: 400ms;\n    --kui-submit-flow-delay: 0ms;\n    --kui-submit-flow-ease: ease-out;\n  }\n  [data-kui-fx~=swing-in] {\n    --kui-from-angle: -15deg;\n    --kui-rotate-ease: var(--kui-ease-back-out, ease-out);\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n  }\n  [data-kui-fx~=swipe-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=swipe-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=tab-indicator-slide] {\n    --kui-flip-indicator-duration: 300ms;\n    --kui-flip-indicator-delay: 0ms;\n    --kui-flip-indicator-ease: ease-out;\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    --kui-text-3d-extrude-duration: 600ms;\n    --kui-text-3d-extrude-delay: 0ms;\n    --kui-text-3d-extrude-ease: ease-out;\n  }\n  [data-kui-fx~=text-jitter] {\n    --kui-motion: jitter;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=text-outline-fill] {\n    --kui-text-outline-fill-duration: 600ms;\n    --kui-text-outline-fill-delay: 0ms;\n    --kui-text-outline-fill-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-down] {\n    --kui-unit: words;\n    --kui-direction: down;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-mask] {\n    --kui-unit: lines;\n    --kui-direction: mask;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-up] {\n    --kui-unit: words;\n    --kui-direction: up;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-wave] {\n    --kui-motion: wave;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=throwable] {\n    --kui-inertia: true;\n    --kui-damping: 18;\n  }\n  [data-kui-fx~=toast-slide-in] {\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n    --kui-feedback-toast-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=toast-slide-out] {\n    --kui-feedback-toast-ease: ease-in;\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n  }\n  [data-kui-fx~=tween] {\n    --kui-tween-duration: 600ms;\n    --kui-tween-delay: 0ms;\n    --kui-tween-ease: ease-out;\n  }\n  [data-kui-fx~=tween-from] {\n    --kui-tween-from-duration: 600ms;\n    --kui-tween-from-delay: 0ms;\n    --kui-tween-from-ease: ease-out;\n  }\n  [data-kui-fx~=typewriter] {\n    --kui-loop: false;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=typewriter-loop] {\n    --kui-loop: true;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=underline-center] {\n    --kui-underline-center-duration: 220ms;\n    --kui-underline-center-delay: 0ms;\n    --kui-underline-center-ease: ease-out;\n  }\n  [data-kui-fx~=underline-draw] {\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=underline-slide] {\n    --kui-underline-slide-duration: 220ms;\n    --kui-underline-slide-delay: 0ms;\n    --kui-underline-slide-ease: ease-out;\n  }\n  [data-kui-fx~=validate-check] {\n    --kui-validate-check-duration: 600ms;\n    --kui-validate-check-delay: 0ms;\n    --kui-validate-check-ease: ease-out;\n  }\n  [data-kui-fx~=validate-shake] {\n    --kui-validate-shake-duration: 600ms;\n    --kui-validate-shake-delay: 0ms;\n    --kui-validate-shake-ease: ease-out;\n  }\n  [data-kui-fx~=var-axis] {\n    --kui-var-axis-duration: 600ms;\n    --kui-var-axis-delay: 0ms;\n    --kui-var-axis-ease: ease-out;\n  }\n  [data-kui-fx~=var-slant] {\n    --kui-var-slant-duration: 600ms;\n    --kui-var-slant-delay: 0ms;\n    --kui-var-slant-ease: ease-out;\n  }\n  [data-kui-fx~=var-weight] {\n    --kui-var-weight-duration: 600ms;\n    --kui-var-weight-delay: 0ms;\n    --kui-var-weight-ease: ease-out;\n  }\n  [data-kui-fx~=var-width] {\n    --kui-var-width-duration: 600ms;\n    --kui-var-width-delay: 0ms;\n    --kui-var-width-ease: ease-out;\n  }\n  [data-kui-fx~=video-backdrop] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n  }\n  [data-kui-fx~=video-hero] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n    --kui-autoplay: always;\n  }\n  [data-kui-fx~=view-swap] {\n    --kui-view-swap-delay: 0ms;\n  }\n  [data-kui-fx~=wave-blob] {\n    --kui-ambient-tint-duration: 12s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=wipe-circle] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-diagonal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-down] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-left] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-right] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-up] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wobble] {\n    --kui-feedback-wobble-duration: 600ms;\n    --kui-feedback-wobble-ease: ease-in-out;\n    --kui-feedback-wobble-delay: 0ms;\n  }\n  [data-kui-fx~=word-cycler] {\n    --kui-word-cycler-delay: 0ms;\n  }\n  [data-kui-fx~=zoom-in] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-down] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-up] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-out] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n}\n@layer kui.cloak {\n  html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n    opacity: 0;\n    animation: kui-cloak-release 1ms linear 2s forwards;\n  }\n  @keyframes kui-cloak-release {\n    to {\n      opacity: 1;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:sm\"], [data-kui~=\"above:sm,\"], [data-kui~=\",above:sm\"], [data-kui~=\",above:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:sm\"], [data-kui~=\"below:sm,\"], [data-kui~=\",below:sm\"], [data-kui~=\",below:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:md\"], [data-kui~=\"above:md,\"], [data-kui~=\",above:md\"], [data-kui~=\",above:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:md\"], [data-kui~=\"below:md,\"], [data-kui~=\",below:md\"], [data-kui~=\",below:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:lg\"], [data-kui~=\"above:lg,\"], [data-kui~=\",above:lg\"], [data-kui~=\",above:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:lg\"], [data-kui~=\"below:lg,\"], [data-kui~=\",below:lg\"], [data-kui~=\",below:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:xl\"], [data-kui~=\"above:xl,\"], [data-kui~=\",above:xl\"], [data-kui~=\",above:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:xl\"], [data-kui~=\"below:xl,\"], [data-kui~=\",below:xl\"], [data-kui~=\",below:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:2xl\"], [data-kui~=\"above:2xl,\"], [data-kui~=\",above:2xl\"], [data-kui~=\",above:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:2xl\"], [data-kui~=\"below:2xl,\"], [data-kui~=\",below:2xl\"], [data-kui~=\",below:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n}\n\n/* src/css/entrance.css */\n@layer kui.effects {\n  @keyframes kui-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n  }\n  @keyframes kui-out {\n    to {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-in-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-in-down {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-in-left {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-right {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-up {\n    to {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-out-down {\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-out-left {\n    to {\n      opacity: 0;\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-right {\n    to {\n      opacity: 0;\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-inline-start {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1)) 0;\n    }\n  }\n  @keyframes kui-in-inline-end {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1) * -1) 0;\n    }\n  }\n  @keyframes kui-zoom-in {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-out {\n    to {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-in-up {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-zoom-in-down {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-flip-in-x {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-in-y {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-rotate-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-rotate-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-swing-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -15deg));\n    }\n  }\n  @keyframes kui-roll-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-roll-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-blur-in {\n    from {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-blur-out {\n    to {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  [data-kui-fx*=flip-] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready] {\n    opacity: 0;\n  }\n}\n\n/* src/css/scroll.css */\n@layer kui.effects {\n  @keyframes kui-parallax-y {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 100px));\n    }\n  }\n  @keyframes kui-parallax-x {\n    from {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1) 0;\n    }\n    to {\n      translate: var(--kui-gate-distance, var(--kui-distance, 100px)) 0;\n    }\n  }\n  @keyframes kui-parallax-scale {\n    from {\n      scale: var(--kui-from-scale, 1);\n    }\n    to {\n      scale: var(--kui-to-scale, 1.2);\n    }\n  }\n  @keyframes kui-parallax-rotate {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, 0deg));\n    }\n    to {\n      rotate: var(--kui-to-angle, 12deg);\n    }\n  }\n  @keyframes kui-scroll-fade {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-desaturate {\n    from {\n      filter: grayscale(var(--kui-from-grayscale, 100%));\n    }\n    to {\n      filter: grayscale(var(--kui-to-grayscale, 0%));\n    }\n  }\n  @keyframes kui-scroll-skew {\n    from {\n      transform: skewY(var(--kui-from-skew, 8deg));\n    }\n    to {\n      transform: skewY(var(--kui-to-skew, 0deg));\n    }\n  }\n  @keyframes kui-progress-x {\n    from {\n      scale: 0 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-y {\n    from {\n      scale: 1 0;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    stroke-dasharray: var(--kui-path-length, 100);\n  }\n  [data-kui-fx~=sequence-scrub]:has(> [data-kui-step-state]),\n  [data-kui-fx~=video-scrub]:has(> [data-kui-step-state]),\n  .kui-frame-stack {\n    position: relative;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state],\n  .kui-frame-stack > [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    width: 100%;\n    height: 100%;\n    object-fit: cover;\n    opacity: 0;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state=active],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state=active],\n  .kui-frame-stack > [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @supports (animation-timeline: view()) {\n    [data-kui-timeline] {\n      animation-range: var(--kui-range, entry 0% cover 60%);\n    }\n  }\n  [data-kui~=horizontal-scroll] {\n    position: relative;\n  }\n}\n\n/* src/css/three-d.css */\n@layer kui.effects {\n  @keyframes kui-card-flip-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-card-flip-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-cube-rotate {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-book-page-turn {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, -160deg)));\n    }\n  }\n  @keyframes kui-fold-panel {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, -90deg)));\n    }\n  }\n  [data-kui-fx~=card-flip-x],\n  [data-kui-fx~=card-flip-y],\n  [data-kui-fx~=cube-rotate],\n  [data-kui-fx~=book-page-turn],\n  [data-kui-fx~=fold-panel] {\n    transform-style: preserve-3d;\n    perspective: var(--kui-perspective, 1200px);\n  }\n  [data-kui-fx~=card-flip-x]:not(:has(> :nth-child(2))),\n  [data-kui-fx~=card-flip-y]:not(:has(> :nth-child(2))) {\n    --kui-from-angle: 360deg;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) {\n    display: grid;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: x 180deg;\n  }\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=book-page-turn] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=fold-panel] {\n    transform-origin: top center;\n  }\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-page-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-page-slide {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 40px));\n    }\n  }\n  @keyframes kui-curtain-wipe {\n    from {\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-loading-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n  }\n  [data-kui-fx~=loading-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front,\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front,\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui~=flip-card] > .kui-face-front,\n  [data-kui~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n}\n\n/* src/css/carousel.css */\n@layer kui.effects {\n  [data-kui-fx~=carousel-3d],\n  [data-kui-fx~=carousel-3d-high],\n  [data-kui-fx~=carousel-3d-low],\n  [data-kui-fx~=carousel-3d-inside],\n  [data-kui-fx~=carousel-orbit] {\n    display: grid;\n    place-items: center;\n    perspective: var(--kui-perspective, 1600px);\n    transform-style: preserve-3d;\n    --kui-ring-tilt: clamp(-80deg, calc(-1 * var(--kui-tilt, 0deg)), 80deg);\n    --kui-ring-drift: calc(var(--kui-step-position, 0) - var(--kui-step, 0));\n    --kui-ring-fit: initial;\n  }\n  [data-kui-fx~=carousel-3d] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset],\n  [data-kui-fx~=carousel-orbit] [data-kui-step-offset] {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    --kui-ring-spacing: calc(var(--kui-arc, 360deg) / max(1, var(--kui-item-count, 1)));\n    --kui-ring-angle: calc((var(--kui-offset, 0) - var(--kui-ring-drift)) * var(--kui-ring-spacing));\n    --kui-ring-wanted: var( --kui-radius, calc( (var(--kui-item-width, 260px) + var(--kui-gap, 24px)) / (2 * tan(clamp(0.5deg, var(--kui-ring-spacing) / 2, 60deg))) ) );\n    --kui-ring-radius: min(var(--kui-ring-wanted), var(--kui-ring-fit, var(--kui-ring-wanted)));\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(var(--kui-ring-radius));\n    transition: transform var(--kui-spatial-ring-duration, 620ms) var(--kui-spatial-ring-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--kui-spatial-ring-delay, 0ms);\n  }\n  [data-kui-ring-face=back] {\n    pointer-events: none;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-ring-face=back] {\n    visibility: hidden;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset],\n  [data-kui-fx~=carousel-orbit][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-orbit][data-kui-ring-facing=camera]:not([data-kui-ring-plane=screen]) [data-kui-step-offset] > * {\n    transform: rotateY(calc(-1 * var(--kui-ring-angle))) rotateX(calc(-1 * var(--kui-ring-tilt)));\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset] {\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(calc(-1 * var(--kui-ring-radius)));\n  }\n  [data-kui-ring-plane=screen] {\n    container-type: inline-size;\n    aspect-ratio: 1;\n    margin-inline: auto;\n    --kui-orbit-extent: max(var(--kui-item-width, 260px), var(--kui-item-height, 0px));\n    --kui-orbit-radius: var( --kui-radius, calc( (var(--kui-item-width, 260px) + var(--kui-gap, 24px)) / (2 * sin(clamp(0.5deg, var(--kui-arc, 360deg) / max(1, var(--kui-item-count, 1)) / 2, 90deg))) ) );\n    max-inline-size: calc(2 * var(--kui-orbit-radius) + var(--kui-orbit-extent));\n  }\n  [data-kui-ring-plane=screen] [data-kui-step-offset] {\n    --kui-ring-radius: max( 0px, min(var(--kui-orbit-radius), calc(50cqi - var(--kui-orbit-extent) / 2)) );\n    transform: rotate(var(--kui-ring-angle)) translateY(calc(-1 * var(--kui-ring-radius)));\n  }\n  [data-kui-ring-plane=screen][data-kui-ring-facing=camera] [data-kui-step-offset] {\n    transform: rotate(var(--kui-ring-angle)) translateY(calc(-1 * var(--kui-ring-radius))) rotate(calc(-1 * var(--kui-ring-angle)));\n  }\n  [data-kui-fx~=carousel-stack] {\n    display: grid;\n    place-items: center;\n    --kui-ring-drift: calc(var(--kui-step-position, 0) - var(--kui-step, 0));\n    --kui-stack-reach-x: calc(var(--kui-stack-depth, 3) * var(--kui-stack-shift, 48px));\n    --kui-stack-reach-y: calc(var(--kui-stack-depth, 3) * var(--kui-stack-rise, 36px));\n    padding-top: max(0px, var(--kui-stack-reach-y));\n    padding-bottom: max(0px, -1 * var(--kui-stack-reach-y));\n    padding-right: max(0px, var(--kui-stack-reach-x));\n    padding-left: max(0px, -1 * var(--kui-stack-reach-x));\n  }\n  [data-kui-fx~=carousel-stack] [data-kui-step-offset] {\n    grid-area: 1 / 1;\n    --kui-stack-place: calc( mod(var(--kui-offset, 0) + 1, max(1, var(--kui-item-count, 1))) - 1 - var(--kui-ring-drift) );\n    --kui-stack-behind: max(0, var(--kui-stack-place));\n    --kui-stack-gone: max(0, -1 * var(--kui-stack-place));\n    transform: translate(calc(var(--kui-stack-place) * var(--kui-stack-shift, 48px)), calc(-1 * var(--kui-stack-place) * var(--kui-stack-rise, 36px))) scale(max(0.05, 1 - var(--kui-stack-place) * var(--kui-stack-shrink, 0.08)));\n    filter: blur(calc(var(--kui-stack-behind) * var(--kui-stack-blur, 2px)));\n    opacity: clamp(0, min(1 - var(--kui-stack-behind) * var(--kui-stack-fade, 0.2), var(--kui-stack-depth, 3) + 1 - var(--kui-stack-place), 1 - 2 * var(--kui-stack-gone)), 1);\n    z-index: calc(100 - var(--kui-stack-place) * 10);\n    transition-property:\n      transform,\n      opacity,\n      filter,\n      z-index,\n      visibility;\n    transition-duration: var(--kui-spatial-stack-duration, 620ms);\n    transition-timing-function: var(--kui-spatial-stack-ease, cubic-bezier(0.22, 1, 0.36, 1));\n    transition-delay: var(--kui-spatial-stack-delay, 0ms);\n  }\n  [data-kui-fx~=carousel-stack] [data-kui-ring-face=back] {\n    visibility: hidden;\n  }\n  [data-kui~=carousel-3d],\n  [data-kui~=carousel-3d-high],\n  [data-kui~=carousel-3d-low],\n  [data-kui~=carousel-3d-inside],\n  [data-kui~=carousel-orbit],\n  [data-kui~=carousel-stack] {\n    display: grid;\n    place-items: center;\n  }\n  [data-kui~=carousel-3d] > *,\n  [data-kui~=carousel-3d-high] > *,\n  [data-kui~=carousel-3d-low] > *,\n  [data-kui~=carousel-3d-inside] > *,\n  [data-kui~=carousel-orbit] > *,\n  [data-kui~=carousel-stack] > * {\n    grid-area: 1 / 1;\n  }\n  [data-kui-ring-dragging=true] [data-kui-step-offset],\n  [data-kui-ring-spinning=true] [data-kui-step-offset],\n  [data-kui-step-offset][data-kui-ring-wrap=true] {\n    transition: none;\n  }\n}\n\n/* src/css/media.css */\n@layer kui.effects {\n  @keyframes kui-wipe-up {\n    from {\n      clip-path: inset(100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-down {\n    from {\n      clip-path: inset(0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-left {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-right {\n    from {\n      clip-path: inset(0 0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-circle {\n    from {\n      clip-path: circle(0 at 50% 50%);\n    }\n    to {\n      clip-path: circle(75% at 50% 50%);\n    }\n  }\n  @keyframes kui-wipe-diagonal {\n    from {\n      clip-path: polygon(0 0, 0 0, 0 0);\n    }\n    to {\n      clip-path: polygon(0 0, 200% 0, 0 200%);\n    }\n  }\n  @keyframes kui-curtain-reveal {\n    from {\n      clip-path: inset(0 50%);\n    }\n    to {\n      clip-path: inset(0 0);\n    }\n  }\n  @keyframes kui-before-after-wipe {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-mask-reveal {\n    from {\n      mask-position: 100% 0;\n    }\n    to {\n      mask-position: 0 0;\n    }\n  }\n  [data-kui-fx~=mask-reveal] {\n    mask-image:\n      linear-gradient(\n        90deg,\n        #000 0 45%,\n        transparent 55% 100%);\n    mask-size: 220% 100%;\n  }\n  @keyframes kui-ken-burns {\n    from {\n      scale: 1;\n      translate: 0 0;\n    }\n    to {\n      scale: var(--kui-to-scale, 1.12);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -0.5);\n    }\n  }\n  @keyframes kui-ken-burns-out {\n    from {\n      scale: var(--kui-to-scale, 1.12);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n    to {\n      scale: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-blur-up {\n    from {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 16px));\n    }\n    to {\n      translate: 0 0;\n      filter: blur(0);\n    }\n  }\n  @keyframes kui-duotone-hover {\n    from {\n      filter: grayscale(1) sepia(0.7) hue-rotate(330deg) saturate(2);\n    }\n    to {\n      filter: none;\n    }\n  }\n  @keyframes kui-grayscale-hover {\n    from {\n      filter: grayscale(1);\n    }\n    to {\n      filter: grayscale(0);\n    }\n  }\n  @keyframes kui-saturate-hover {\n    from {\n      filter: saturate(0.45);\n    }\n    to {\n      filter: saturate(1.35);\n    }\n  }\n  @keyframes kui-image-parallax-frame {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-lightbox-open {\n    from {\n      opacity: 0;\n      scale: var(--kui-from-scale, 0.92);\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n    }\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=duotone-hover]:active,\n    [data-kui-fx~=grayscale-hover]:active,\n    [data-kui-fx~=saturate-hover]:active {\n      filter: none;\n    }\n  }\n  .kui-slat-stage {\n    position: absolute;\n    overflow: clip;\n  }\n  .kui-slat-item {\n    position: absolute;\n    inset: 0;\n    background-repeat: no-repeat;\n    background-size: 100% 100%;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 60ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-slat-stage.kui-slat-animating .kui-slat-item {\n    will-change: transform;\n  }\n  .kui-slat-item:nth-child(odd) {\n    --kui-slat-sign: -1;\n  }\n  .kui-slat-item:nth-child(even) {\n    --kui-slat-sign: 1;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] {\n    perspective: 1200px;\n  }\n  .kui-slat-stage:not([data-kui-slat-fold=true]) .kui-slat-item {\n    animation-name: kui-slat-assemble;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] .kui-slat-item {\n    animation-name: kui-slat-assemble-fold;\n  }\n  @keyframes kui-slat-assemble {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-slat-assemble-fold {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 calc(var(--kui-slat-sign, 1) * 38deg);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 0deg;\n    }\n  }\n}\n\n/* src/css/text.css */\n@layer kui.effects {\n  .kui-sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  .kui-split-decorative {\n    display: inline;\n  }\n  .kui-split-item {\n    display: inline-block;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 30ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-split-word {\n    display: inline-block;\n  }\n  .kui-split-line {\n    display: block;\n  }\n  [data-kui-split-fx=fade] .kui-split-item {\n    animation-name: kui-split-reveal-fade;\n  }\n  [data-kui-split-fx=up] .kui-split-item {\n    animation-name: kui-split-reveal-up;\n  }\n  [data-kui-split-fx=down] .kui-split-item {\n    animation-name: kui-split-reveal-down;\n  }\n  [data-kui-split-fx=mask] .kui-split-item {\n    animation-name: kui-split-reveal-mask;\n    padding-block: var(--kui-mask-bleed, 0px);\n    margin-block: calc(-1 * var(--kui-mask-bleed, 0px));\n  }\n  [data-kui-state=finished] > [data-kui-split-fx] .kui-split-line {\n    animation-name: none;\n    opacity: 1;\n    clip-path: none;\n    translate: none;\n  }\n  @keyframes kui-split-reveal-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-split-reveal-up {\n    from {\n      opacity: 0;\n      translate: 0 0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-down {\n    from {\n      opacity: 0;\n      translate: 0 -0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-mask {\n    from {\n      opacity: 0;\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-split-fx=wave] .kui-split-item {\n    animation-name: kui-split-wave;\n    animation-duration: 1400ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n  }\n  [data-kui-split-fx=jitter] .kui-split-item {\n    animation-name: kui-split-jitter;\n    animation-duration: 220ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n    animation-direction: alternate;\n  }\n  @keyframes kui-split-wave {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 -0.35em;\n    }\n  }\n  @keyframes kui-split-jitter {\n    from {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    to {\n      translate: 0 0.08em;\n      rotate: 3deg;\n    }\n  }\n  .kui-typewriter::after {\n    content: \"\";\n    display: inline-block;\n    width: 0.08em;\n    margin-inline-start: 0.05em;\n    height: 1em;\n    vertical-align: -0.15em;\n    background: currentColor;\n    animation: kui-caret-blink 1s steps(1) infinite;\n  }\n  @keyframes kui-caret-blink {\n    50% {\n      opacity: 0;\n    }\n  }\n  .kui-scramble {\n    font-variant-numeric: tabular-nums;\n  }\n  [data-kui-fx~=word-cycler] {\n    display: inline-block;\n  }\n  [data-kui-fx~=word-cycler].kui-word-cycler-swap {\n    opacity: 0;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    background-image:\n      linear-gradient(\n        100deg,\n        currentColor 40%,\n        color-mix(in srgb, currentColor 35%, transparent) 50%,\n        currentColor 60%);\n    background-size: 220% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n    --kui-fx-gradient-shimmer-iterations: infinite;\n  }\n  @keyframes kui-gradient-shimmer {\n    from {\n      background-position: 200% 0;\n    }\n    to {\n      background-position: -200% 0;\n    }\n  }\n  [data-kui-fx~=gradient-sweep] {\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-sweep-color, currentColor) 70%, transparent) 50%,\n        transparent 70%);\n    background-size: 260% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-gradient-sweep {\n    from {\n      background-position: 220% 0;\n    }\n    to {\n      background-position: -60% 0;\n    }\n  }\n  [data-kui-fx~=highlight-sweep] {\n    background-image: linear-gradient(90deg, color-mix(in srgb, var(--kui-sweep-color, currentColor) 55%, transparent) 0 100%);\n    background-repeat: no-repeat;\n    background-size: 0% 100%;\n    padding: 0 0.05em;\n  }\n  @keyframes kui-highlight-sweep {\n    to {\n      background-size: 100% 100%;\n    }\n  }\n  [data-kui-fx~=underline-draw] {\n    background-image: linear-gradient(var(--kui-sweep-color, currentColor), var(--kui-sweep-color, currentColor));\n    background-repeat: no-repeat;\n    background-position: 0 100%;\n    background-size: 0% 2px;\n    padding-bottom: 0.15em;\n  }\n  @keyframes kui-underline-draw {\n    to {\n      background-size: 100% 2px;\n    }\n  }\n  [data-kui-fx~=text-outline-fill] {\n    -webkit-text-stroke: 1px currentColor;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-text-outline-fill {\n    to {\n      -webkit-text-fill-color: currentColor;\n    }\n  }\n  @keyframes kui-var-weight {\n    from {\n      font-weight: var(--kui-from-weight, 100);\n    }\n    to {\n      font-weight: var(--kui-to-weight, 800);\n    }\n  }\n  @keyframes kui-var-width {\n    from {\n      font-stretch: var(--kui-from-width, 75%);\n    }\n    to {\n      font-stretch: var(--kui-to-width, 125%);\n    }\n  }\n  @keyframes kui-var-slant {\n    from {\n      font-style: oblique var(--kui-from-slant, 0deg);\n    }\n    to {\n      font-style: oblique var(--kui-to-slant, 10deg);\n    }\n  }\n  @keyframes kui-var-axis {\n    from {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-from-axis, 100);\n    }\n    to {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-to-axis, 900);\n    }\n  }\n  [data-kui-fx~=marquee],\n  [data-kui-fx~=marquee-scroll-linked] {\n    display: flex;\n    width: max-content;\n    will-change: translate;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-fx-marquee-iterations: infinite;\n  }\n  @keyframes kui-marquee {\n    to {\n      translate: -50% 0;\n    }\n  }\n  @property --kui-redaction-x { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=redaction-reveal] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=redaction-reveal]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background: var(--kui-bar-color, #111);\n    clip-path: inset(0 0 0 var(--kui-redaction-x));\n  }\n  @keyframes kui-redaction-reveal {\n    to {\n      --kui-redaction-x: 100%;\n    }\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    display: inline-block;\n    text-shadow:\n      1px 1px 0 color-mix(in srgb, currentColor 70%, transparent),\n      2px 2px 0 color-mix(in srgb, currentColor 60%, transparent),\n      3px 3px 0 color-mix(in srgb, currentColor 50%, transparent),\n      4px 4px 0 color-mix(in srgb, currentColor 40%, transparent),\n      5px 5px 0 color-mix(in srgb, currentColor 30%, transparent),\n      6px 6px 8px rgb(0 0 0 / 0.35);\n  }\n  @keyframes kui-text-3d-extrude {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -20deg));\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 32px));\n    }\n    to {\n      rotate: 0deg;\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/navigation.css */\n@layer kui.effects {\n  @keyframes kui-nav-reveal {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 16px));\n    }\n  }\n  @keyframes kui-menu-fullscreen {\n    from {\n      opacity: 0;\n      clip-path: circle(0% at var(--kui-origin, 100% 0%));\n    }\n    to {\n      opacity: 1;\n      clip-path: circle(150% at var(--kui-origin, 100% 0%));\n    }\n  }\n  @keyframes kui-panel-reveal {\n    from {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n  }\n  @keyframes kui-drawer-slide-right {\n    from {\n      translate: 100% 0;\n    }\n  }\n  [data-kui-fx~=header-shrink] {\n    --kui-shrink: 0;\n    padding-block: calc(1.4rem - 0.7rem * var(--kui-shrink, 0));\n    font-size: calc(1rem - 0.15rem * var(--kui-shrink, 0));\n  }\n  [data-kui-fx~=header-shrink][data-kui-shrunk=true] {\n    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);\n  }\n  [data-kui-fx~=header-hide-on-scroll][data-kui-hidden=true] {\n    translate: 0 -100%;\n  }\n  [data-kui-fx~=back-to-top-fade] {\n    opacity: 0;\n    translate: 0 12px;\n    pointer-events: none;\n  }\n  [data-kui-fx~=back-to-top-fade][data-kui-visible=true] {\n    opacity: 1;\n    translate: 0 0;\n    pointer-events: auto;\n  }\n}\n\n/* src/css/forms.css */\n@layer kui.effects {\n  [data-kui-fx~=label-float] ~ label {\n    transition: translate 180ms ease-out, scale 180ms ease-out;\n    transform-origin: left center;\n  }\n  [data-kui-fx~=label-float]:focus ~ label,\n  [data-kui-fx~=label-float]:not(:placeholder-shown) ~ label {\n    translate: 0 -1.35rem;\n    scale: 0.82;\n  }\n  [data-kui-fx~=input-underline-grow] ~ .kui-underline {\n    display: block;\n    height: 2px;\n    background: currentColor;\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale 220ms ease-out;\n  }\n  [data-kui-fx~=input-underline-grow]:focus ~ .kui-underline {\n    scale: 1 1;\n  }\n  @keyframes kui-focus-ring-grow {\n    from {\n      box-shadow: 0 0 0 0 var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n    to {\n      box-shadow: 0 0 0 5px var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=focus-ring-grow] {\n      animation: none;\n    }\n    [data-kui-fx~=focus-ring-grow]:focus {\n      outline: 3px solid Highlight;\n      outline-offset: 2px;\n    }\n  }\n  @keyframes kui-validate-shake {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  [data-kui-fx~=validate-check] {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n  }\n  @keyframes kui-validate-check {\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n    background: var(--kui-meter-off, currentColor);\n    opacity: 0.2;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n    opacity: 1;\n    background: var(--kui-meter-on, #2e9e5b);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n      background: Highlight;\n    }\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track {\n    display: inline-block;\n    width: calc(40px * var(--kui-toggle-scale, 1));\n    height: calc(22px * var(--kui-toggle-scale, 1));\n    border-radius: 999px;\n    background: var(--muted, #9a8d80);\n    transition: background-color 200ms ease-out;\n    position: relative;\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb {\n    position: absolute;\n    top: calc(2px * var(--kui-toggle-scale, 1));\n    left: calc(2px * var(--kui-toggle-scale, 1));\n    width: calc(18px * var(--kui-toggle-scale, 1));\n    height: calc(18px * var(--kui-toggle-scale, 1));\n    border-radius: 50%;\n    background: var(--kui-thumb-color, #fff);\n    translate: 0 0;\n    transition: translate 200ms ease-out;\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track {\n    background: var(--accent, #d2691e);\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track .kui-thumb {\n    translate: calc(18px * var(--kui-toggle-scale, 1)) 0;\n  }\n  [data-kui-fx~=checkbox-draw] ~ svg path {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n    transition: stroke-dashoffset 220ms ease-out;\n  }\n  [data-kui-fx~=checkbox-draw]:checked ~ svg path {\n    stroke-dashoffset: 0;\n  }\n  [data-kui-fx~=radio-fill] ~ .kui-dot {\n    display: inline-block;\n    width: calc(10px * var(--kui-radio-scale, 1));\n    height: calc(10px * var(--kui-radio-scale, 1));\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n    scale: 0;\n    transition: scale 180ms ease-out;\n  }\n  [data-kui-fx~=radio-fill]:checked ~ .kui-dot {\n    scale: 1;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-fill: 0%;\n    accent-color: var(--accent, #d2691e);\n    background:\n      linear-gradient(\n        to right,\n        var(--accent, #d2691e) var(--kui-fill, 0%),\n        var(--border, #2a2422) var(--kui-fill, 0%));\n    height: 4px;\n    border-radius: 999px;\n    appearance: none;\n    outline: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=range-fill] {\n      background:\n        linear-gradient(\n          to right,\n          Highlight var(--kui-fill, 0%),\n          ButtonFace var(--kui-fill, 0%));\n    }\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-done {\n    display: none;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=idle] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=loading] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=done] .kui-stage-done {\n    display: inline-flex;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-spinner {\n    width: 1em;\n    height: 1em;\n    border-radius: 50%;\n    border: 2px solid currentColor;\n    border-top-color: transparent;\n    animation: kui-spin 700ms linear infinite;\n  }\n  @keyframes kui-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=step-progress] {\n    cursor: pointer;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state],\n  .kui-step-track > [data-kui-step-state] {\n    background: var(--muted, #9a8d80);\n    opacity: 0.35;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n  [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n  .kui-step-track > [data-kui-step-state=before],\n  .kui-step-track > [data-kui-step-state=active] {\n    opacity: 1;\n    background: var(--accent, #d2691e);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=step-progress] > [data-kui-step-state],\n    .kui-step-track > [data-kui-step-state] {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n    [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n    .kui-step-track > [data-kui-step-state=before],\n    .kui-step-track > [data-kui-step-state=active] {\n      background: Highlight;\n    }\n  }\n}\n\n/* src/css/ambient.css */\n@layer kui.effects {\n  [data-kui-fx~=gradient-mesh] {\n    background-image:\n      radial-gradient(\n        at 15% 20%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #7c3aed)) 55%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 85% 15%,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #06b6d4)) 50%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 50% 85%,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #f97316)) 45%, transparent),\n        transparent 55%);\n    background-size: 200% 200%;\n    --kui-fx-gradient-mesh-iterations: infinite;\n  }\n  @keyframes kui-gradient-mesh {\n    0%, 100% {\n      background-position:\n        0% 0%,\n        100% 0%,\n        50% 100%;\n    }\n    50% {\n      background-position:\n        25% 35%,\n        75% 30%,\n        35% 70%;\n    }\n  }\n  [data-kui-fx~=aurora] {\n    background-image:\n      linear-gradient(\n        120deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #34d399)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        240deg,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #60a5fa)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #c084fc)) 40%, transparent),\n        transparent 50%);\n    background-size: 260% 260%;\n    --kui-fx-aurora-iterations: infinite;\n  }\n  @keyframes kui-aurora {\n    0%, 100% {\n      background-position:\n        0% 50%,\n        100% 50%,\n        50% 0%;\n    }\n    50% {\n      background-position:\n        60% 30%,\n        40% 70%,\n        55% 60%;\n    }\n  }\n  [data-kui-fx~=wave-blob] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #22d3ee)) 50%, transparent),\n        transparent 60%);\n    background-size: 140% 140%;\n    background-repeat: no-repeat;\n    --kui-fx-wave-blob-iterations: infinite;\n  }\n  @keyframes kui-wave-blob {\n    0%, 100% {\n      background-position: 20% 30%;\n      background-size: 140% 140%;\n    }\n    33% {\n      background-position: 70% 20%;\n      background-size: 160% 160%;\n    }\n    66% {\n      background-position: 50% 75%;\n      background-size: 120% 120%;\n    }\n  }\n  [data-kui-fx~=spotlight-follow] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #fde68a)) 65%, transparent),\n        transparent 65%);\n    background-size: 55% 55%;\n    background-repeat: no-repeat;\n    --kui-fx-spotlight-follow-iterations: infinite;\n  }\n  @keyframes kui-spotlight-follow {\n    0%, 100% {\n      background-position: 10% 15%;\n    }\n    25% {\n      background-position: 85% 20%;\n    }\n    50% {\n      background-position: 80% 80%;\n    }\n    75% {\n      background-position: 15% 75%;\n    }\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)),\n        var(--kui-ambient-c2, var(--kui-c2, #60a5fa)),\n        var(--kui-ambient-c3, var(--kui-c3, #34d399)),\n        var(--kui-ambient-c4, var(--kui-c4, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)));\n    background-size: 300% 100%;\n    padding: 3px;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-rotate-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-rotate-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=gradient-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)),\n        var(--kui-ambient-c2, var(--kui-c2, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)));\n    background-size: 300% 100%;\n    padding: var(--kui-gradient-border-width, 3px);\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=scanline] {\n    background-image:\n      linear-gradient(\n        to bottom,\n        transparent,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 35%, transparent) 50%,\n        transparent);\n    background-size: 100% 220%;\n    background-repeat: no-repeat;\n    --kui-fx-scanline-iterations: infinite;\n  }\n  @keyframes kui-scanline {\n    from {\n      background-position: 0 -120%;\n    }\n    to {\n      background-position: 0 120%;\n    }\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 45%, transparent) 1.5px,\n        transparent 1.5px);\n    background-size: 22px 22px;\n    --kui-fx-dot-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-dot-grid-drift {\n    from {\n      background-position: 0 0;\n    }\n    to {\n      background-position: 22px 22px;\n    }\n  }\n  [data-kui-fx~=line-grid-drift] {\n    background-image:\n      repeating-linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px),\n      repeating-linear-gradient(\n        90deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px);\n    --kui-fx-line-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-line-grid-drift {\n    from {\n      background-position: 0 0, 0 0;\n    }\n    to {\n      background-position: 0 26px, 26px 0;\n    }\n  }\n  [data-kui-fx~=starfield] {\n    background-image:\n      radial-gradient(\n        1.5px 1.5px at 22% 34%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 45%, transparent) 0 0.45px,\n        transparent 100%),\n      radial-gradient(\n        2.6px 2.6px at 68% 12%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 92%, transparent) 0 1px,\n        transparent 100%),\n      radial-gradient(\n        1.6px 1.6px at 41% 77%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 50%, transparent) 0 0.5px,\n        transparent 100%),\n      radial-gradient(\n        1.7px 1.7px at 85% 58%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 58%, transparent) 0 0.55px,\n        transparent 100%),\n      radial-gradient(\n        2.2px 2.2px at 12% 88%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 78%, transparent) 0 0.8px,\n        transparent 100%),\n      radial-gradient(\n        3px 3px at 57% 45%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 100%, transparent) 0 1.2px,\n        transparent 100%),\n      radial-gradient(\n        1.9px 1.9px at 33% 63%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 68%, transparent) 0 0.65px,\n        transparent 100%);\n    background-size:\n      170px 170px,\n      190px 190px,\n      210px 210px,\n      230px 230px,\n      250px 250px,\n      270px 270px,\n      290px 290px;\n    background-repeat: repeat;\n    --kui-fx-starfield-iterations: infinite;\n  }\n  @keyframes kui-starfield {\n    from {\n      background-position:\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0;\n    }\n    to {\n      background-position:\n        170px 170px,\n        380px 380px,\n        210px 210px,\n        230px 230px,\n        250px 250px,\n        540px 540px,\n        290px 290px;\n    }\n  }\n  [data-kui-fx~=orbit] {\n    --kui-fx-orbit-iterations: infinite;\n  }\n  @keyframes kui-orbit {\n    to {\n      rotate: var(--kui-to-angle, 360deg);\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=gradient-mesh],\n    [data-kui-fx~=aurora],\n    [data-kui-fx~=wave-blob],\n    [data-kui-fx~=spotlight-follow],\n    [data-kui-fx~=scanline],\n    [data-kui-fx~=dot-grid-drift],\n    [data-kui-fx~=line-grid-drift],\n    [data-kui-fx~=starfield] {\n      background-image: none;\n    }\n    [data-kui-fx~=gradient-rotate-border],\n    [data-kui-fx~=gradient-border] {\n      background-image: none;\n      background-color: CanvasText;\n    }\n  }\n  [data-kui-fx~=float] {\n    --kui-fx-float-iterations: infinite;\n  }\n  @keyframes kui-float {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 14px)) * -1);\n    }\n  }\n  [data-kui-fx~=bob] {\n    --kui-fx-bob-iterations: infinite;\n  }\n  @keyframes kui-bob {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 8px)) * -1);\n    }\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-fx-floating-shapes-iterations: infinite;\n  }\n  @keyframes kui-floating-shapes {\n    0%, 100% {\n      translate: 0 0;\n    }\n    33% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * 0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n    66% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.4);\n    }\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-fx-glow-pulse-iterations: infinite;\n  }\n  @keyframes kui-glow-pulse {\n    0%, 100% {\n      scale: 1;\n      opacity: 0.6;\n    }\n    50% {\n      scale: var(--kui-pulse-scale, 1.15);\n      opacity: 1;\n    }\n  }\n}\n\n/* src/css/feedback.css */\n@layer kui.effects {\n  [data-kui-fx~=skeleton-shimmer] {\n    background-color: var(--kui-skeleton-base, #2a2422);\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-skeleton-highlight, #ffffff) 18%, transparent) 50%,\n        transparent 70%);\n    background-size: 200% 100%;\n    --kui-fx-skeleton-shimmer-iterations: infinite;\n  }\n  @keyframes kui-skeleton-shimmer {\n    from {\n      background-position: 150% 0;\n    }\n    to {\n      background-position: -50% 0;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=skeleton-shimmer] {\n      background-image: none;\n    }\n  }\n  @keyframes kui-skeleton-to-content {\n    from {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=spinner] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px solid color-mix(in srgb, currentColor 20%, transparent);\n    border-top-color: currentColor;\n    --kui-fx-spinner-iterations: infinite;\n  }\n  @keyframes kui-spinner-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-ring] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px dashed color-mix(in srgb, currentColor 55%, transparent);\n    --kui-fx-spinner-ring-iterations: infinite;\n  }\n  @keyframes kui-spinner-ring-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-dots] {\n    display: inline-block;\n    width: var(--kui-dot-size, 8px);\n    height: var(--kui-dot-size, 8px);\n    border-radius: 50%;\n    background: currentColor;\n    box-shadow: calc(var(--kui-dot-size, 8px) * -2) 0 currentColor, calc(var(--kui-dot-size, 8px) * 2) 0 currentColor;\n    --kui-fx-spinner-dots-iterations: infinite;\n  }\n  @keyframes kui-spinner-dots {\n    0%, 80%, 100% {\n      scale: 0.7;\n      opacity: 0.5;\n    }\n    40% {\n      scale: 1.15;\n      opacity: 1;\n    }\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    transform-origin: 0% 50%;\n    background: currentColor;\n    border-radius: inherit;\n    --kui-fx-progress-indeterminate-iterations: infinite;\n  }\n  @keyframes kui-progress-indeterminate {\n    0% {\n      translate: -100% 0;\n      scale: 0.4 1;\n    }\n    50% {\n      scale: 1 1;\n    }\n    100% {\n      translate: 100% 0;\n      scale: 0.4 1;\n    }\n  }\n  @keyframes kui-toast-slide-in {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-toast-slide-out {\n    from {\n      opacity: 1;\n      translate: 0 0;\n    }\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-shake-error {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  @keyframes kui-wobble {\n    0% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    15% {\n      translate: -6px 0;\n      rotate: -6deg;\n    }\n    30% {\n      translate: 4px 0;\n      rotate: 4deg;\n    }\n    45% {\n      translate: -3px 0;\n      rotate: -3deg;\n    }\n    60% {\n      translate: 2px 0;\n      rotate: 2deg;\n    }\n    75% {\n      translate: -1px 0;\n      rotate: -1deg;\n    }\n    100% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n  }\n  @property --kui-ripple-progress { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-ripple-alpha { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  [data-kui-fx~=ripple] {\n    position: relative;\n  }\n  [data-kui-fx~=ripple]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: 50%;\n    background: var(--kui-ripple-color, currentColor);\n    pointer-events: none;\n    opacity: var(--kui-ripple-alpha);\n    scale: calc(var(--kui-ripple-start, 0.2) + (var(--kui-ripple-scale, 4) - var(--kui-ripple-start, 0.2)) * var(--kui-ripple-progress));\n  }\n  @keyframes kui-ripple {\n    0% {\n      --kui-ripple-progress: 0;\n      --kui-ripple-alpha: 0;\n    }\n    8% {\n      --kui-ripple-alpha: var(--kui-ripple-opacity, 0.6);\n    }\n    100% {\n      --kui-ripple-progress: 1;\n      --kui-ripple-alpha: 0;\n    }\n  }\n  @keyframes kui-badge-pop {\n    0% {\n      scale: 0.4;\n    }\n    60% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @keyframes kui-count-bump {\n    0%, 100% {\n      scale: 1;\n    }\n    50% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n  }\n  [data-kui-fx~=heart-burst] {\n    color: var(--kui-heart-color, #f43f5e);\n  }\n  @keyframes kui-heart-burst {\n    0% {\n      scale: 1;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    55% {\n      scale: 0.9;\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @property --kui-confetti-travel { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-confetti-fade { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=confetti-burst] {\n    position: relative;\n  }\n  [data-kui-fx~=confetti-burst]::after {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-confetti-spill, 24px));\n    pointer-events: none;\n    --kui-confetti-alpha: clamp(0%, var(--kui-confetti-fade), 100%);\n    background-image:\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c1, var(--kui-c1, #f43f5e)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c2, var(--kui-c2, #fbbf24)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c3, var(--kui-c3, #34d399)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c4, var(--kui-c4, #60a5fa)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c5, var(--kui-c5, #c084fc)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%);\n    background-repeat: no-repeat;\n    background-size: var(--kui-confetti-size, 6px) var(--kui-confetti-size, 6px);\n    background-position:\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.9 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.55 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.72 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.86 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.18 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.62 * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.72 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.1 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 1.05 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel));\n  }\n  @keyframes kui-confetti-burst {\n    0% {\n      scale: 1;\n      --kui-confetti-travel: 0;\n      --kui-confetti-fade: 0%;\n    }\n    14% {\n      --kui-confetti-fade: 100%;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    70% {\n      scale: 1;\n      --kui-confetti-fade: 100%;\n    }\n    100% {\n      scale: 1;\n      --kui-confetti-travel: 1;\n      --kui-confetti-fade: 0%;\n    }\n  }\n  @keyframes kui-copy-confirm {\n    0% {\n      opacity: 0;\n    }\n    15% {\n      opacity: 1;\n    }\n    85% {\n      opacity: 1;\n    }\n    100% {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-pull-to-refresh {\n    0% {\n      translate: 0 0;\n    }\n    45% {\n      translate: 0 var(--kui-pull-distance, 36px);\n    }\n    100% {\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/numbers.css */\n@layer kui.effects {\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-gauge-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-donut-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-sparkline-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 1000);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=progress-ring],\n  [data-kui-fx~=gauge-sweep],\n  [data-kui-fx~=donut-sweep],\n  [data-kui-fx~=sparkline-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-progress-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-progress-segments {\n    from {\n      opacity: 0.18;\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-star-rating-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 calc(100% - var(--kui-fill, 100%)) 0 0);\n    }\n  }\n  .kui-count-decorative {\n    display: inline-flex;\n    align-items: baseline;\n  }\n  .kui-odometer-col {\n    display: inline-block;\n    overflow: hidden;\n    height: 1em;\n    line-height: 1;\n    vertical-align: baseline;\n  }\n  .kui-odometer-strip {\n    display: flex;\n    flex-direction: column;\n    translate: 0 calc(var(--kui-o, 0) * -1em);\n    transition: translate 220ms ease-out;\n  }\n  .kui-odometer-strip > span {\n    height: 1em;\n    line-height: 1;\n  }\n}\n\n/* src/css/interaction.css */\n@layer kui.effects {\n  @property --kui-border-angle { syntax: \"<angle>\"; inherits: false; initial-value: 0deg; }\n  @property --kui-border-pct { syntax: \"<percentage>\"; inherits: false; initial-value: 0%; }\n  [data-kui-fx~=lift]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n  }\n  [data-kui-fx~=pop]:focus-visible {\n    scale: var(--kui-pop-scale, 1.06);\n    --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n  }\n  [data-kui-fx~=lift-shadow]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n    --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n  }\n  [data-kui-fx~=shine-sweep] {\n    position: relative;\n    overflow: hidden;\n  }\n  [data-kui-fx~=shine-sweep]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background:\n      linear-gradient(\n        var(--kui-shine-sweep-angle, 115deg),\n        transparent calc(50% - var(--kui-shine-sweep-width, 0.2) * 50%),\n        var(--kui-shine-sweep-color, var(--kui-c1, rgb(255 255 255 / 0.35))) 50%,\n        transparent calc(50% + var(--kui-shine-sweep-width, 0.2) * 50%));\n    background-size: 220% 100%;\n    background-position: 120% 0;\n    pointer-events: none;\n  }\n  [data-kui-fx~=shine-sweep]:focus-visible::after {\n    animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n  }\n  @keyframes kui-shine-sweep {\n    from {\n      background-position: 120% 0;\n    }\n    to {\n      background-position: -20% 0;\n    }\n  }\n  [data-kui-fx~=split-flap] {\n    display: inline-block;\n    perspective: var(--kui-split-flap-perspective, 600px);\n  }\n  [data-kui-fx~=split-flap]:focus-visible {\n    animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n  }\n  @keyframes kui-split-flap {\n    0%, 100% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(0) rotateX(0deg);\n    }\n    50% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(calc(var(--kui-split-flap-perspective, 600px) * 0.16)) rotateX(-32deg);\n    }\n  }\n  [data-kui-fx~=border-draw] {\n    position: relative;\n  }\n  [data-kui-fx~=border-draw]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-border-draw-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-border-draw-width, 2px);\n    background:\n      conic-gradient(\n        from -90deg,\n        var(--kui-border-draw-color, var(--accent, #d2691e)) 0 var(--kui-border-pct, 0%),\n        transparent 0);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    pointer-events: none;\n  }\n  [data-kui-fx~=border-draw]:focus-visible {\n    --kui-border-pct: 100%;\n    --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n  }\n  [data-kui-fx~=border-glow]:focus-visible {\n    box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n    --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n  }\n  [data-kui-fx~=beam-border],\n  [data-kui-fx~=beam-border-auto] {\n    position: relative;\n  }\n  [data-kui-fx~=beam-border]::before,\n  [data-kui-fx~=beam-border-auto]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-beam-border-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-beam-border-width, 3px);\n    --kui-beam-arc-span: var(--kui-beam-border-arc, 100deg);\n    --kui-beam-arc-start: calc(360deg - var(--kui-beam-arc-span));\n    --kui-beam-arc-ramp: calc(var(--kui-beam-arc-span) * var(--kui-beam-border-softness, 0.22));\n    --kui-beam-arc-stop1: calc(var(--kui-beam-arc-start) + var(--kui-beam-arc-ramp));\n    --kui-beam-arc-stop4: calc(360deg - var(--kui-beam-arc-span) * 0.06);\n    --kui-beam-arc-step: calc((var(--kui-beam-arc-stop4) - var(--kui-beam-arc-stop1)) / 3);\n    background:\n      conic-gradient(\n        from var(--kui-border-angle, 0deg),\n        transparent 0deg,\n        transparent var(--kui-beam-arc-start),\n        var(--kui-beam-border-c1, #ff5f6d) var(--kui-beam-arc-stop1),\n        var(--kui-beam-border-c2, var(--kui-beam-border-c1, #ffc371)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step)),\n        var(--kui-beam-border-c3, var(--kui-beam-border-c1, #4facfe)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step) * 2),\n        var(--kui-beam-border-c4, var(--kui-beam-border-c1, #a855f7)) var(--kui-beam-arc-stop4),\n        transparent 360deg);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask-composite: exclude;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-beam-border-fade-duration, 200ms) ease-out;\n  }\n  [data-kui-fx~=beam-border]:focus-visible::before {\n    opacity: 1;\n    transition-delay: var(--kui-beam-border-delay, 0ms);\n    animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n  }\n  [data-kui-fx~=beam-border-auto]::before {\n    opacity: 1;\n    animation: kui-beam-rotate var(--kui-beam-border-auto-duration, 4260ms) linear infinite;\n  }\n  @keyframes kui-beam-rotate {\n    to {\n      --kui-border-angle: 360deg;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      animation: none;\n      --kui-border-angle: 45deg;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=border-draw]:focus-visible::before,\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      background: CanvasText;\n    }\n  }\n  @media (forced-colors: active) and (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=border-draw]:hover::before,\n    [data-kui-fx~=beam-border]:hover::before {\n      background: CanvasText;\n    }\n  }\n  [data-kui-fx~=underline-slide] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-slide]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-slide-color, currentcolor);\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale var(--kui-underline-slide-duration, 260ms) var(--kui-underline-slide-ease, ease-out);\n  }\n  [data-kui-fx~=underline-slide]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-slide-delay, 0ms);\n  }\n  [data-kui-fx~=underline-center] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-center]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-center-color, currentcolor);\n    scale: 0 1;\n    transform-origin: center;\n    transition: scale var(--kui-underline-center-duration, 260ms) var(--kui-underline-center-ease, ease-out);\n  }\n  [data-kui-fx~=underline-center]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-center-delay, 0ms);\n  }\n  [data-kui-fx~=icon-wiggle]:focus-visible {\n    animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n  }\n  @keyframes kui-icon-wiggle {\n    0%, 100% {\n      rotate: 0deg;\n    }\n    20% {\n      rotate: -12deg;\n    }\n    40% {\n      rotate: 10deg;\n    }\n    60% {\n      rotate: -6deg;\n    }\n    80% {\n      rotate: 4deg;\n    }\n  }\n  [data-kui-fx~=icon-spin]:focus-visible {\n    animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n  }\n  @keyframes kui-icon-spin {\n    from {\n      rotate: 0deg;\n    }\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=icon-bounce]:focus-visible {\n    animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n  }\n  @keyframes kui-icon-bounce {\n    0%, 100% {\n      translate: 0 0;\n    }\n    30% {\n      translate: 0 -7px;\n    }\n    55% {\n      translate: 0 1px;\n    }\n    75% {\n      translate: 0 -3px;\n    }\n  }\n  [data-kui-fx~=press-depth]:active {\n    scale: var(--kui-press-scale, 0.96);\n    box-shadow: 0 var(--kui-press-shadow-depth, 2px) calc(var(--kui-press-shadow-depth, 2px) * 2) calc(var(--kui-press-shadow-depth, 2px) * -1) var(--kui-press-shadow-color, rgb(0 0 0 / 0.35));\n    --kui-tx-delay-press-depth: var(--kui-press-delay, 0ms);\n  }\n  [data-kui-fx~=group-dim] > * {\n    transition: opacity var(--kui-group-dim-duration, 260ms) var(--kui-group-dim-ease, ease-out);\n  }\n  [data-kui-fx~=group-dim]:has(:focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n    opacity: var(--kui-group-dim-opacity, 0.4);\n    transition-delay: var(--kui-group-dim-delay, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=group-dim]:has(> :hover, :focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n      opacity: var(--kui-group-dim-opacity, 0.4);\n      transition-delay: var(--kui-group-dim-delay, 0ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=group-dim] > * {\n      transition-duration: 1ms;\n    }\n  }\n  [data-kui-fx~=masked-label-swap],\n  [data-kui-fx~=masked-label-swap-x],\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    display: inline-grid;\n    place-items: center;\n    overflow: hidden;\n    --kui-label-swap-shown: 0;\n    --kui-label-swap-lag: 0ms;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-dx: 0%;\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: 0%;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap]:focus-visible,\n  [data-kui-fx~=masked-label-swap-x]:focus-visible,\n  [data-kui-fx~=masked-label-swap-diagonal]:focus-visible {\n    --kui-label-swap-shown: 1;\n    --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n  }\n  [data-kui-swap] {\n    grid-area: 1 / 1;\n    translate: calc(var(--kui-label-swap-dx, 0%) * var(--kui-label-swap-shown, 0)) calc(var(--kui-label-swap-dy, 0%) * var(--kui-label-swap-shown, 0));\n    transition: translate var(--kui-label-swap-duration, 320ms) var(--kui-label-swap-ease, ease-out) var(--kui-label-swap-lag, 0ms);\n  }\n  [data-kui-swap=to] {\n    translate: calc(var(--kui-label-swap-dx, 0%) * (var(--kui-label-swap-shown, 0) - 1)) calc(var(--kui-label-swap-dy, 0%) * (var(--kui-label-swap-shown, 0) - 1));\n  }\n  [data-kui-fx~=hover-intent] {\n    position: relative;\n    --kui-hover-intent-shown: 0;\n    --kui-hover-intent-lag: 0ms;\n    --kui-hover-intent-top: auto;\n    --kui-hover-intent-bottom: 100%;\n    --kui-hover-intent-dir: 1;\n    --kui-hover-intent-shift: 0px;\n  }\n  [data-kui-fx][data-kui-hint-tease] {\n    --kui-hover-intent-shown: 1;\n    --kui-hover-intent-lag: 0ms;\n  }\n  [data-kui-fx][data-kui-hint-place=bottom] {\n    --kui-hover-intent-top: 100%;\n    --kui-hover-intent-bottom: auto;\n    --kui-hover-intent-dir: -1;\n  }\n  [data-kui-fx~=hover-intent]:focus-visible,\n  [data-kui-fx~=hover-intent]:has(:focus-visible) {\n    --kui-hover-intent-shown: 1;\n    --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n  }\n  [data-kui-hint] {\n    position: absolute;\n    top: var(--kui-hover-intent-top, auto);\n    bottom: var(--kui-hover-intent-bottom, 100%);\n    left: 50%;\n    z-index: 1;\n    inline-size: max-content;\n    max-inline-size: min(16rem, 70vw);\n    margin-block: var(--kui-hover-intent-gap, 8px);\n    padding: 0.5em 0.75em;\n    border-radius: var(--kui-hover-intent-radius, 12px);\n    background-color: var(--kui-hover-intent-bg-color, #111111);\n    color: var(--kui-hover-intent-color, #f4f4f0);\n    opacity: var(--kui-hover-intent-shown, 0);\n    translate: calc(-50% + var(--kui-hover-intent-shift, 0px)) calc(var(--kui-hover-intent-distance, 4px) * var(--kui-hover-intent-dir, 1) * (1 - var(--kui-hover-intent-shown, 0)));\n    pointer-events: none;\n    transition: opacity var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms), translate var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=masked-label-swap]:active,\n    [data-kui-fx~=masked-label-swap-x]:active,\n    [data-kui-fx~=masked-label-swap-diagonal]:active {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:active {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-swap],\n    [data-kui-hint],\n    [data-kui-preview],\n    [data-kui-search-field] {\n      transition-duration: 1ms;\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=lift]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n    }\n    [data-kui-fx~=pop]:hover {\n      scale: var(--kui-pop-scale, 1.06);\n      --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n    }\n    [data-kui-fx~=lift-shadow]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n      --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n    }\n    [data-kui-fx~=shine-sweep]:hover::after {\n      animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n    }\n    [data-kui-fx~=split-flap]:hover {\n      animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n    }\n    [data-kui-fx~=border-draw]:hover {\n      --kui-border-pct: 100%;\n      --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n    }\n    [data-kui-fx~=border-glow]:hover {\n      box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n      --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n    }\n    [data-kui-fx~=beam-border]:hover::before {\n      opacity: 1;\n      transition-delay: var(--kui-beam-border-delay, 0ms);\n      animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n    }\n    [data-kui-fx~=underline-slide]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-slide-delay, 0ms);\n    }\n    [data-kui-fx~=underline-center]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-center-delay, 0ms);\n    }\n    [data-kui-fx~=icon-wiggle]:hover {\n      animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n    }\n    [data-kui-fx~=icon-spin]:hover {\n      animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n    }\n    [data-kui-fx~=icon-bounce]:hover {\n      animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n    }\n    [data-kui-fx~=masked-label-swap]:hover,\n    [data-kui-fx~=masked-label-swap-x]:hover,\n    [data-kui-fx~=masked-label-swap-diagonal]:hover {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:hover {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  [data-kui-fx~=tilt-3d],\n  [data-kui-fx~=tilt-parallax] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=cursor-spotlight]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: inherit;\n    pointer-events: none;\n    opacity: var(--kui-spotlight-opacity, 0);\n    transition: opacity 200ms ease-out;\n    background:\n      radial-gradient(\n        circle 160px at var(--kui-x, 50%) var(--kui-y, 50%),\n        color-mix(in srgb, var(--accent, #d2691e) 30%, transparent),\n        transparent 70%);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=cursor-spotlight]::before {\n      background: none;\n    }\n  }\n  .kui-cursor-dot {\n    position: fixed;\n    top: 0;\n    left: 0;\n    z-index: 9999;\n    display: grid;\n    place-items: center;\n    pointer-events: none;\n    opacity: 0;\n    transition: opacity 160ms ease-out;\n  }\n  .kui-cursor-dot-active {\n    opacity: 1;\n  }\n  .kui-cursor-dot-follow,\n  .kui-cursor-dot-lag,\n  .kui-cursor-dot-invert {\n    width: 14px;\n    height: 14px;\n    margin: -7px 0 0 -7px;\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n  }\n  .kui-cursor-dot-invert {\n    background: var(--kui-invert-color, #fff);\n    mix-blend-mode: difference;\n    forced-color-adjust: none;\n  }\n  .kui-cursor-dot-label {\n    margin: -1.4em 0 0 -1.4em;\n    padding: 0.4em 0.8em;\n    border-radius: 999px;\n    background: var(--accent, #d2691e);\n    color: var(--kui-label-color, #000);\n    font-size: 0.75rem;\n    font-family:\n      ui-monospace,\n      Menlo,\n      monospace;\n    white-space: nowrap;\n  }\n  @media (pointer: coarse) {\n    .kui-cursor-dot {\n      display: none;\n    }\n  }\n  [data-kui-fx~=anchored-preview],\n  [data-kui-fx~=anchored-preview-bottom],\n  [data-kui-fx~=anchored-preview-left],\n  [data-kui-fx~=anchored-preview-right] {\n    position: relative;\n    --kui-anchored-preview-shown: 0;\n    --kui-anchored-preview-lag: 0ms;\n    --kui-anchored-preview-shift: 0px;\n  }\n  [data-kui-fx~=anchored-preview],\n  [data-kui-fx][data-kui-preview-place=top] {\n    --kui-anchored-preview-inset: auto auto calc(100% + var(--kui-anchored-preview-gap, 10px)) 50%;\n    --kui-anchored-preview-travel: calc(-50% + var(--kui-anchored-preview-shift, 0px)) calc(var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-bottom],\n  [data-kui-fx][data-kui-preview-place=bottom] {\n    --kui-anchored-preview-inset: calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto 50%;\n    --kui-anchored-preview-travel: calc(-50% + var(--kui-anchored-preview-shift, 0px)) calc(-1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-left],\n  [data-kui-fx][data-kui-preview-place=left] {\n    --kui-anchored-preview-inset: 50% calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto;\n    --kui-anchored-preview-travel: calc( var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) calc(-50% + var(--kui-anchored-preview-shift, 0px));\n  }\n  [data-kui-fx~=anchored-preview-right],\n  [data-kui-fx][data-kui-preview-place=right] {\n    --kui-anchored-preview-inset: 50% auto auto calc(100% + var(--kui-anchored-preview-gap, 10px));\n    --kui-anchored-preview-travel: calc( -1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) calc(-50% + var(--kui-anchored-preview-shift, 0px));\n  }\n  [data-kui-fx~=anchored-preview]:focus-visible,\n  [data-kui-fx~=anchored-preview]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-bottom]:focus-visible,\n  [data-kui-fx~=anchored-preview-bottom]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-left]:focus-visible,\n  [data-kui-fx~=anchored-preview-left]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-right]:focus-visible,\n  [data-kui-fx~=anchored-preview-right]:has(:focus-visible) {\n    --kui-anchored-preview-shown: 1;\n    --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n  }\n  [data-kui-fx][data-kui-preview-tease] {\n    --kui-anchored-preview-shown: 1;\n    --kui-anchored-preview-lag: 0ms;\n  }\n  [data-kui-preview] {\n    position: absolute;\n    inset: var(--kui-anchored-preview-inset, auto);\n    border-radius: var(--kui-anchored-preview-radius, 0px);\n    background-color: var(--kui-anchored-preview-bg-color, transparent);\n    color: var(--kui-anchored-preview-color, currentcolor);\n    translate: var(--kui-anchored-preview-travel, 0 0);\n    opacity: var(--kui-anchored-preview-shown, 0);\n    scale: calc(var(--kui-anchored-preview-scale, 0.85) + (1 - var(--kui-anchored-preview-scale, 0.85)) * var(--kui-anchored-preview-shown, 0));\n    pointer-events: none;\n    transition:\n      opacity var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      scale var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      translate var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=anchored-preview]:active,\n    [data-kui-fx~=anchored-preview-bottom]:active,\n    [data-kui-fx~=anchored-preview-left]:active,\n    [data-kui-fx~=anchored-preview-right]:active {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=anchored-preview]:hover,\n    [data-kui-fx~=anchored-preview-bottom]:hover,\n    [data-kui-fx~=anchored-preview-left]:hover,\n    [data-kui-fx~=anchored-preview-right]:hover {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  [data-kui-fx~=proximity-glow] {\n    position: relative;\n  }\n  [data-kui-fx~=proximity-glow]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-proximity-glow-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-proximity-glow-width, 1px);\n    background:\n      radial-gradient(\n        circle var(--kui-proximity-glow-radius, 220px) at var(--kui-proximity-x, -9999px) var(--kui-proximity-y, -9999px),\n        var(--kui-proximity-glow-color, var(--accent, #d2691e)),\n        transparent 70%);\n    background-attachment: fixed;\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    opacity: var(--kui-proximity-opacity, 0);\n    transition: opacity var(--kui-proximity-glow-duration, 200ms) var(--kui-proximity-glow-ease, ease-out);\n    pointer-events: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=proximity-glow]::before {\n      background: none;\n    }\n  }\n  [data-kui-fx~=search-expand] {\n    display: inline-flex;\n    align-items: center;\n    overflow: hidden;\n    inline-size: var(--kui-search-expand-collapsed, 2.5em);\n    --kui-search-expand-shown: 0;\n    --kui-search-expand-lag: 0ms;\n  }\n  [data-kui-fx~=search-expand]:focus-visible,\n  [data-kui-fx~=search-expand]:has(:focus-visible),\n  [data-kui-fx~=search-expand]:has(input:not(:placeholder-shown)) {\n    inline-size: var(--kui-search-expand-width, 240px);\n    --kui-search-expand-shown: 1;\n    --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=search-expand]:active {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n  [data-kui-search-field] {\n    flex: 1 1 auto;\n    min-inline-size: 0;\n    opacity: var(--kui-search-expand-shown, 0);\n    transition: opacity var(--kui-search-expand-duration, 260ms) var(--kui-search-expand-ease, ease-out) var(--kui-search-expand-lag, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=search-expand]:hover {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n}\n\n/* src/css/discrete.css */\n@layer kui.effects {\n  [data-kui-fx~=fade-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-fade-open: var(--kui-fade-open-delay, 0ms);\n    opacity: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=fade-open] {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=fade-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    display: none;\n  }\n  [data-kui-fx~=pop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-pop-open: var(--kui-pop-open-delay, 0ms);\n    opacity: 1;\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=pop-open] {\n      opacity: 0;\n      scale: var(--kui-pop-open-scale, 0.92);\n    }\n  }\n  [data-kui-fx~=pop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    scale: var(--kui-pop-open-scale, 0.92);\n    display: none;\n  }\n  [data-kui-fx~=scale-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-scale-open: var(--kui-scale-open-delay, 0ms);\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=scale-open] {\n      scale: var(--kui-scale-open-scale, 0.85);\n    }\n  }\n  [data-kui-fx~=scale-open]:not(:popover-open):not([open]):not([data-open]) {\n    scale: var(--kui-scale-open-scale, 0.85);\n    display: none;\n  }\n  [data-kui-fx~=drop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-drop-open: var(--kui-drop-open-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=drop-open] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    }\n  }\n  [data-kui-fx~=drop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-up] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-up: var(--kui-slide-open-up-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-up] {\n      opacity: 0;\n      translate: 0 var(--kui-slide-open-up-distance, 16px);\n    }\n  }\n  [data-kui-fx~=slide-open-up]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 var(--kui-slide-open-up-distance, 16px);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-down] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-down: var(--kui-slide-open-down-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-down] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    }\n  }\n  [data-kui-fx~=slide-open-down]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    display: none;\n  }\n}\n\n/* src/css/layout.css */\n@layer kui.effects {\n  [data-kui-fx~=accordion-height] {\n    overflow: hidden;\n  }\n  [data-kui-fx~=accordion-height]:not([data-open]) {\n    height: 0;\n  }\n}\n\n/* src/css/svg.css */\n@layer kui.effects {\n  @keyframes kui-draw-stroke {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-signature {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-underline {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-checkmark-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-cross-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-chart-line-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=draw-stroke],\n  [data-kui-fx~=draw-signature],\n  [data-kui-fx~=draw-underline],\n  [data-kui-fx~=checkmark-draw],\n  [data-kui-fx~=cross-draw],\n  [data-kui-fx~=chart-line-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-gradient-stroke {\n    from {\n      stroke: var(--kui-stroke-from, currentColor);\n    }\n    50% {\n      stroke: var(--kui-stroke-via, currentColor);\n    }\n    to {\n      stroke: var(--kui-stroke-to, currentColor);\n    }\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-fx-gradient-stroke-iterations: infinite;\n  }\n  @keyframes kui-heart-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-bookmark-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-chart-area-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-fx~=heart-fill][data-kui-state=ready],\n  [data-kui-fx~=bookmark-fill][data-kui-state=ready],\n  [data-kui-fx~=chart-area-fill][data-kui-state=ready] {\n    clip-path: none !important;\n    opacity: 0;\n  }\n  @keyframes kui-chart-bar-grow {\n    from {\n      scale: 1 var(--kui-gate-bar-from, var(--kui-bar-from, 0));\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    transform-origin: bottom center;\n  }\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-logo-build {\n    from {\n      opacity: 0;\n      scale: 0.62;\n      rotate: -8deg;\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n      rotate: 0deg;\n    }\n  }\n  [data-kui-fx~=hamburger-to-x] .kui-bar {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(1) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(2) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(3) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] .kui-bar {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(1) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(2) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar:nth-child(2) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] {\n    rotate: 90deg;\n    --kui-tx-delay-plus-to-minus: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar:nth-child(1) {\n    scale: 0;\n  }\n}\n\n/* src/css/tween.css */\n@layer kui.effects {\n  @keyframes kui-tween-to-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n    }\n    to {\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-from-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-to-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n    }\n    to {\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-from-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-to-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n    }\n    to {\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-from-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-to-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n    }\n    to {\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-from-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-to-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n    }\n    to {\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-from-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-to-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n    }\n    to {\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-from-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-to-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n    }\n    to {\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-from-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-keys2-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys3-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys4-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys5-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-5, var(--kui-tween-x, 0)) var(--kui-tween-y-5, var(--kui-tween-y, 0)) var(--kui-tween-z-5, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys2-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys3-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys4-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys5-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-5, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys2-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys3-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys4-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys5-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-5, var(--kui-tween-scale-x, var(--kui-tween-scale-5, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-5, var(--kui-tween-scale-y, var(--kui-tween-scale-5, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys2-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys3-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys4-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys5-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-5, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys2-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys3-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys4-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys5-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-5, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-5, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-5, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-5, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-5, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-5, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-5, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-5, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys2-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys3-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys4-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys5-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-5, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys2-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys3-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys4-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys5-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-5, var(--kui-tween-background-color, transparent));\n    }\n  }\n}\n\n/* src/css/motion-path.css */\n@layer kui.effects {\n  @keyframes kui-motion-travel {\n    from {\n      offset-distance: var(--kui-motion-from, 0%);\n    }\n    to {\n      offset-distance: var(--kui-motion-to, 100%);\n    }\n  }\n  [data-kui-fx~=motion-path],\n  [data-kui-fx~=path-arc],\n  [data-kui-fx~=path-wave],\n  [data-kui-fx~=path-loop],\n  [data-kui-fx~=path-swoop] {\n    offset-path: path(var(--kui-motion-path));\n    offset-rotate: var(--kui-motion-rotate, 0deg);\n    offset-anchor: var(--kui-motion-anchor, 0 0);\n  }\n}\n\n/* src/css/view-transitions.css */\n@layer kui.effects {\n  @supports (view-transition-name: none) {\n    :root {\n      --kui-vt-duration: 400ms;\n      --kui-vt-delay: 0ms;\n      --kui-vt-ease: cubic-bezier(0.4, 0, 0.2, 1);\n      --kui-vt-distance: 40px;\n    }\n    :root::view-transition-group(*) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-old(root) {\n      animation-name: kui-vt-fade-out;\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-new(root) {\n      animation-name: kui-vt-fade-in;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-old(root) {\n      animation-name: kui-vt-slide-out;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-new(root) {\n      animation-name: kui-vt-slide-in;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-old(root) {\n      animation-name: kui-vt-hold;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-new(root) {\n      animation-name: kui-vt-wipe-in;\n      z-index: 1;\n    }\n    :root::view-transition-old(root),\n    :root::view-transition-new(root) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n      animation-fill-mode: both;\n    }\n    @keyframes kui-vt-fade-out {\n      to {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-fade-in {\n      from {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-slide-out {\n      to {\n        opacity: 0;\n        translate: 0 calc(-1 * var(--kui-vt-distance, 40px));\n      }\n    }\n    @keyframes kui-vt-slide-in {\n      from {\n        opacity: 0;\n        translate: 0 var(--kui-vt-distance, 40px);\n      }\n    }\n    @keyframes kui-vt-hold {\n      from, to {\n        opacity: 1;\n      }\n    }\n    @keyframes kui-vt-wipe-in {\n      from {\n        clip-path: inset(0 0 100% 0);\n      }\n      to {\n        clip-path: inset(0 0 0 0);\n      }\n    }\n    @media (prefers-reduced-motion: reduce) {\n      :root::view-transition-group(*),\n      :root::view-transition-old(*),\n      :root::view-transition-new(*) {\n        animation-duration: 1ms !important;\n        animation-delay: 0ms !important;\n      }\n    }\n  }\n}\n\n/* src/css/glass.css */\n@layer kui.effects {\n  [data-kui-fx~=glass] {\n    backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    -webkit-backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    background-color: color-mix(in srgb, var(--kui-glass-tint, #ffffff) calc(var(--kui-glass-opacity, 0.12) * 100%), transparent);\n    background-image:\n      linear-gradient(\n        var(--kui-glass-sheen-angle, 180deg),\n        color-mix(in srgb, var(--kui-glass-sheen-color, var(--kui-glass-rim, #ffffff)) calc(var(--kui-glass-sheen, 0.16) * 100%), transparent) 0%,\n        transparent 62%);\n    border-width: var(--kui-glass-rim-width, 1px);\n    border-style: solid;\n    border-color: var(--kui-glass-rim, rgb(255 255 255 / 0.22));\n    border-radius: var(--kui-glass-radius, 16px);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=glass] {\n      backdrop-filter: none;\n      -webkit-backdrop-filter: none;\n      background-image: none;\n    }\n  }\n}\n\n/* src/css/ready-gates.css */\n@layer kui.effects {\n  @property --kui-gate-distance { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-from-angle { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-bar-from { syntax: \"*\"; inherits: false; }\n  [data-kui-fx][data-kui-state=ready] {\n    --kui-gate-distance: 0px;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready],\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready],\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    --kui-gate-from-angle: 0deg;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready],\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready],\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    --kui-gate-bar-from: 1;\n  }\n}\n\n/* src/css/flip-card-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=control][data-kui-part~=injected] {\n    grid-area: 1 / 1;\n    align-self: end;\n    justify-self: end;\n    z-index: 1;\n    margin: .75rem;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=quiet]:not(:focus-visible) {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(1 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 0deg;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(2 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 180deg;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=front],\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=back] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/css/icon-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=hamburger-to-x] [data-kui-part=bar] {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(3 of [data-kui-part=bar]) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] [data-kui-part=bar] {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    scale: 0;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=play-to-pause] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/showcase/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=carousel-fade] {\n    --kui-slideshow-transition: fade;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=carousel-slide] {\n    --kui-slideshow-transition: slide;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=compare] {\n    --kui-compare-duration: 3s;\n  }\n  [data-kui-fx~=lightbox] {\n    --kui-lightbox-media: image;\n    --kui-lightbox-duration: 280ms;\n    --kui-lightbox-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=video-hero-slideshow] {\n    --kui-slideshow-transition: fade;\n    --kui-slideshow-autoplay: 7s;\n    --kui-slideshow-controls: dots;\n    --kui-slideshow-duration: 500ms;\n    --kui-slideshow-ease: ease;\n  }\n  [data-kui-fx~=video-lightbox] {\n    --kui-lightbox-media: video;\n    --kui-lightbox-caption: none;\n    --kui-lightbox-duration: 280ms;\n    --kui-lightbox-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n}\n@layer kui.cloak {\n}\n\n/* src/showcase/showcase.css */\n@layer kui.effects {\n  .kui-slowmo-toggle {\n    display: inline-block;\n    margin-block-end: 0.75rem;\n    padding: 0.4em 0.8em;\n    border: 1px solid currentColor;\n    border-radius: 0.4em;\n    background: Canvas;\n    color: CanvasText;\n    font: inherit;\n    cursor: pointer;\n  }\n  .kui-slowmo-toggle:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-device] {\n    --kui-device-outer-top: var(--kui-device-radius, 18px);\n    --kui-device-outer-bottom: var(--kui-device-outer-top);\n    --kui-device-pad-top: 14px;\n    --kui-device-pad-bottom: 14px;\n    --kui-device-pad-side: 14px;\n    --kui-device-screen-floor: min(var(--kui-device-outer-top), 8px);\n    position: relative;\n    display: inline-block;\n    box-sizing: border-box;\n    overflow: hidden;\n    border: 1px solid color-mix(in srgb, var(--kui-device-color, #111) 55%, transparent);\n    border-radius: var(--kui-device-outer-top) var(--kui-device-outer-top) var(--kui-device-outer-bottom) var(--kui-device-outer-bottom);\n    padding: var(--kui-device-pad-top) var(--kui-device-pad-side) var(--kui-device-pad-bottom);\n    background: var(--kui-device-color, #111);\n  }\n  [data-kui-device] > * {\n    box-sizing: border-box;\n    inline-size: 100%;\n    block-size: 100%;\n    overflow: hidden;\n    border-radius: var( --kui-device-screen-radius, max( var(--kui-device-screen-floor), var(--kui-device-outer-top) - min(var(--kui-device-pad-side), var(--kui-device-pad-top)) - 1px ) max( var(--kui-device-screen-floor), var(--kui-device-outer-top) - min(var(--kui-device-pad-side), var(--kui-device-pad-top)) - 1px ) max( var(--kui-device-screen-floor), var(--kui-device-outer-bottom) - min(var(--kui-device-pad-side), var(--kui-device-pad-bottom)) - 1px ) max( var(--kui-device-screen-floor), var(--kui-device-outer-bottom) - min(var(--kui-device-pad-side), var(--kui-device-pad-bottom)) - 1px ) );\n  }\n  [data-kui-device] > :is(img, video, iframe, picture) {\n    display: block;\n    border: 0;\n    object-fit: cover;\n  }\n  [data-kui-device] > picture > img {\n    display: block;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n  }\n  [data-kui-device=browser] {\n    --kui-device-outer-top: var(--kui-device-radius, 10px);\n    --kui-device-pad-top: 30px;\n  }\n  [data-kui-device=browser]::before {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 10px;\n    inset-inline-start: 15px;\n    inline-size: 44px;\n    block-size: 10px;\n    background-image:\n      radial-gradient(\n        circle,\n        #ff5f57 0 45%,\n        transparent 46%),\n      radial-gradient(\n        circle,\n        #febc2e 0 45%,\n        transparent 46%),\n      radial-gradient(\n        circle,\n        #28c840 0 45%,\n        transparent 46%);\n    background-size: 10px 10px;\n    background-position:\n      0 0,\n      17px 0,\n      34px 0;\n    background-repeat: no-repeat;\n  }\n  [data-kui-device=phone] {\n    --kui-device-outer-top: var(--kui-device-radius, 36px);\n    --kui-device-pad-top: 16px;\n    --kui-device-pad-bottom: 16px;\n    --kui-device-pad-side: 8px;\n    aspect-ratio: 9 / 19.5;\n    max-inline-size: 20rem;\n    margin-inline: auto;\n  }\n  [data-kui-device=phone]::after {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 0;\n    inset-inline-start: 50%;\n    translate: -50% 0;\n    inline-size: 38%;\n    block-size: 16px;\n    background-image: radial-gradient(circle, #000 0 100%);\n    background-size: 100% 100%;\n    border-radius: 0 0 12px 12px;\n  }\n  [data-kui-device=tablet] {\n    --kui-device-outer-top: var(--kui-device-radius, 22px);\n    --kui-device-pad-top: 18px;\n    --kui-device-pad-bottom: 18px;\n    --kui-device-pad-side: 18px;\n    aspect-ratio: 3 / 4;\n    max-inline-size: 28rem;\n    margin-inline: auto;\n  }\n  [data-kui-device=laptop] {\n    --kui-device-outer-top: var(--kui-device-radius, 12px);\n    --kui-device-outer-bottom: 4px;\n    --kui-device-pad-top: 10px;\n    --kui-device-pad-bottom: 34px;\n    --kui-device-pad-side: 10px;\n    aspect-ratio: 16 / 10;\n  }\n  [data-kui-device=laptop]::after {\n    content: \"\";\n    position: absolute;\n    inset-block-end: 14px;\n    inset-inline-start: 50%;\n    translate: -50% 0;\n    inline-size: 15%;\n    block-size: 6px;\n    background-image: radial-gradient(circle, color-mix(in srgb, var(--kui-device-color, #111) 55%, #fff) 0 100%);\n    background-size: 100% 100%;\n    border-radius: 3px;\n  }\n  [data-kui-fx~=compare] {\n    position: relative;\n    display: grid;\n    grid-template-columns: 1fr;\n    grid-template-rows: 1fr auto;\n    overflow: hidden;\n    user-select: none;\n  }\n  [data-kui-fx~=compare] > :is(img, picture, video) {\n    grid-area: 1 / 1;\n    display: block;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n  }\n  [data-kui-fx~=compare] > :is(img, picture, video):nth-child(2 of :is(img, picture, video)) {\n    clip-path: inset(0 0 0 var(--kui-compare, 50%));\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > :is(img, picture, video):nth-child(2 of :is(img, picture, video)) {\n    clip-path: inset(var(--kui-compare, 50%) 0 0 0);\n  }\n  [data-kui-fx~=compare] > .kui-compare-range {\n    grid-area: 1 / 1;\n    position: relative;\n    z-index: 2;\n    inline-size: 100%;\n    block-size: 100%;\n    margin: 0;\n    padding: 0;\n    opacity: 0;\n    cursor: ew-resize;\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-range {\n    writing-mode: vertical-lr;\n    direction: ltr;\n    cursor: ns-resize;\n    touch-action: pan-x;\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle {\n    grid-area: 1 / 1;\n    position: relative;\n    z-index: 1;\n    inline-size: 100%;\n    block-size: 100%;\n    pointer-events: none;\n    translate: calc(var(--kui-compare, 50%) - 100%) 0;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle {\n    translate: 0 calc(var(--kui-compare, 50%) - 100%);\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle::after {\n    content: \"\";\n    position: absolute;\n    inset-block: 0;\n    inset-inline-end: 0;\n    inline-size: 2px;\n    background: #fff;\n    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);\n    border-inline-start: 2px solid CanvasText;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle::after {\n    inset-block: auto 0;\n    inset-inline: 0;\n    inline-size: 100%;\n    block-size: 2px;\n    border-inline-start: none;\n    border-block-start: 2px solid CanvasText;\n  }\n  [data-kui-fx~=compare] > .kui-compare-handle::before {\n    content: \"\";\n    position: absolute;\n    inset-block-start: 50%;\n    inset-inline-end: -14px;\n    translate: 0 -50%;\n    inline-size: 28px;\n    block-size: 28px;\n    border-radius: 50%;\n    background: #fff;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    border: 1px solid rgba(0, 0, 0, 0.15);\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-handle::before {\n    inset-block-start: auto;\n    inset-block-end: -14px;\n    inset-inline-start: 50%;\n    inset-inline-end: auto;\n    translate: -50% 0;\n  }\n  [data-kui-fx~=compare] > .kui-compare-range:focus-visible + .kui-compare-handle {\n    outline: 2px solid Highlight;\n    outline-offset: -2px;\n  }\n  [data-kui-fx~=compare] > .kui-compare-range:focus-visible + .kui-compare-handle::before {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=compare][data-kui-compare-dividers] > .kui-compare-range {\n    pointer-events: none;\n  }\n  [data-kui-fx~=compare] > .kui-compare-surface {\n    grid-area: 1 / 1;\n    position: relative;\n    z-index: 3;\n    cursor: ew-resize;\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=compare][data-kui-compare-axis=y] > .kui-compare-surface {\n    cursor: ns-resize;\n    touch-action: pan-x;\n  }\n  [data-kui-fx~=hotspots] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=hotspots] > img {\n    display: block;\n    inline-size: 100%;\n    block-size: auto;\n  }\n  [data-kui-fx~=hotspots] > :is(ol, ul) {\n    margin: 0;\n    padding: 0;\n    block-size: 0;\n  }\n  [data-kui-fx~=hotspots] .kui-hotspot {\n    position: absolute;\n    left: var(--kui-x);\n    top: var(--kui-y);\n    translate: -50% -50%;\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    box-sizing: border-box;\n    padding: 0;\n    margin: 0;\n    border: 2px solid #fff;\n    border-radius: 50%;\n    background: var(--kui-hotspot-color, #111);\n    color: #fff;\n    font-size: 12px;\n    font-weight: 600;\n    line-height: 1;\n    cursor: pointer;\n    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);\n    touch-action: manipulation;\n    user-select: none;\n    inline-size: 24px;\n    block-size: 24px;\n  }\n  [data-kui-fx~=hotspots][data-kui-hotspot-marker=dot] .kui-hotspot {\n    inline-size: 14px;\n    block-size: 14px;\n  }\n  [data-kui-fx~=hotspots] .kui-hotspot:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=hotspots] [popover] {\n    margin: 0;\n    padding: 8px 12px;\n    border-radius: 8px;\n    border: 1px solid rgba(255, 255, 255, 0.15);\n    background: #1e1e1e;\n    color: #fff;\n    font-size: 13px;\n    line-height: 1.4;\n    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n    max-inline-size: min(18rem, calc(100vw - 16px));\n    max-block-size: calc(100vh - 16px);\n    overflow: auto;\n    overflow-wrap: anywhere;\n    transition:\n      opacity 150ms ease,\n      translate 150ms ease,\n      display 150ms allow-discrete,\n      overlay 150ms allow-discrete;\n    opacity: 0;\n    translate: 0 4px;\n  }\n  [data-kui-fx~=hotspots] [popover]:popover-open {\n    opacity: 1;\n    translate: 0 0;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) {\n    position: relative;\n    overflow: hidden;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] {\n    display: grid;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] > [data-kui-step-state] {\n    grid-area: 1 / 1;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-slideshow-duration, 500ms) var(--kui-slideshow-ease, ease);\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=fade] [data-kui-slideshow-list] > [data-kui-step-state=active] {\n    opacity: 1;\n    pointer-events: auto;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=slide] [data-kui-slideshow-list] {\n    display: flex;\n    translate: calc(var(--kui-step, 0) * -100%) 0;\n    transition: translate var(--kui-slideshow-duration, 500ms) var(--kui-slideshow-ease, ease);\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow])[data-kui-slideshow-mode=slide] [data-kui-slideshow-list] > [data-kui-step-state] {\n    flex: 0 0 100%;\n    min-inline-size: 0;\n  }\n  [data-kui-fx~=carousel-fade] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=carousel-slide] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  [data-kui-fx~=video-hero-slideshow] [data-kui-slideshow-list] {\n    touch-action: pan-y;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls {\n    position: relative;\n    z-index: 1;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    gap: 0.5rem;\n    padding: 0.75rem;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button {\n    display: inline-grid;\n    place-items: center;\n    min-inline-size: 2.75rem;\n    min-block-size: 2.75rem;\n    border: 1px solid currentColor;\n    border-radius: 999px;\n    background: Canvas;\n    color: CanvasText;\n    cursor: pointer;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Previous slide\"]::before {\n    content: \"\\2190\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Next slide\"]::before {\n    content: \"\\2192\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Pause slideshow\"]::before {\n    content: \"\\2161\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button[aria-label=\"Play slideshow\"]::before {\n    content: \"\\25b6\";\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot {\n    min-inline-size: 1rem;\n    min-block-size: 1rem;\n    padding: 0;\n    border-width: 2px;\n    background: transparent;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot[aria-current=true] {\n    background: currentColor;\n  }\n  :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  [data-kui-fx~=scroll-story] {\n    position: relative;\n    box-sizing: border-box;\n  }\n  [data-kui-fx~=scroll-story] > :first-child {\n    position: sticky;\n    inset-block-start: 0;\n    z-index: 1;\n    display: grid;\n    block-size: 45svh;\n    overflow: hidden;\n  }\n  [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    inline-size: 100%;\n    block-size: 100%;\n    object-fit: cover;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 300ms ease;\n  }\n  [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state=active] {\n    opacity: 1;\n    pointer-events: auto;\n  }\n  [data-kui-fx~=scroll-story] > :last-child {\n    position: relative;\n    z-index: 2;\n    margin: 0;\n    padding: 0;\n    list-style: none;\n  }\n  [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n    min-block-size: 60vh;\n    box-sizing: border-box;\n    opacity: var(--kui-story-dim, 0.45);\n    transition: opacity 300ms ease;\n    background: Canvas;\n  }\n  [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @media (min-width: 48rem) {\n    [data-kui-fx~=scroll-story] {\n      display: grid;\n      grid-template-columns: 1fr 1fr;\n      gap: clamp(1.5rem, 3vw, 4rem);\n      align-items: start;\n    }\n    [data-kui-fx~=scroll-story] > :first-child {\n      inset-block-start: 0;\n      block-size: 100vh;\n      block-size: 100svh;\n      align-content: center;\n    }\n    [data-kui-fx~=scroll-story] > :first-child > [data-kui-step-state] {\n      position: relative;\n      inset: auto;\n      grid-area: 1 / 1;\n      block-size: auto;\n      aspect-ratio: 16 / 10;\n    }\n    [data-kui-fx~=scroll-story]:not([data-kui-story-side=start]) > :first-child {\n      grid-column: 2;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story]:not([data-kui-story-side=start]) > :last-child {\n      grid-column: 1;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story][data-kui-story-side=start] > :first-child {\n      grid-column: 1;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story][data-kui-story-side=start] > :last-child {\n      grid-column: 2;\n      grid-row: 1;\n    }\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      background: transparent;\n    }\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) {\n    display: block;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :first-child {\n    position: static;\n    display: block;\n    block-size: auto;\n    overflow: visible;\n    aspect-ratio: auto;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :first-child * {\n    position: static;\n    inset: auto;\n    grid-area: auto;\n    inline-size: auto;\n    block-size: auto;\n    aspect-ratio: auto;\n    opacity: 1;\n    pointer-events: auto;\n  }\n  [data-kui-fx~=scroll-story]:not([data-kui-step]) > :last-child * {\n    min-block-size: 0;\n    opacity: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=hotspots] [popover]:popover-open {\n      opacity: 0;\n      translate: 0 4px;\n    }\n  }\n  @media (forced-colors: active) {\n    :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls button {\n      border-color: CanvasText;\n      color: CanvasText;\n    }\n    :is([data-kui-fx~=carousel-fade], [data-kui-fx~=carousel-slide], [data-kui-fx~=video-hero-slideshow]) .kui-slideshow-controls .kui-slideshow-dot[aria-current=true] {\n      background: Highlight;\n    }\n    [data-kui-device] {\n      border-color: CanvasText;\n      background: Canvas;\n    }\n    [data-kui-device=browser]::before,\n    [data-kui-device=phone]::after,\n    [data-kui-device=laptop]::after {\n      background-image: none;\n    }\n    [data-kui-fx~=compare] > .kui-compare-handle::before {\n      border: 2px solid CanvasText;\n      background: Canvas;\n    }\n    [data-kui-fx~=hotspots] .kui-hotspot {\n      border-color: CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n    [data-kui-fx~=hotspots] [popover] {\n      border-color: CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n  }\n  dialog.kui-lightbox {\n    display: none;\n  }\n  dialog.kui-lightbox[open] {\n    position: fixed;\n    inset: 0;\n    inline-size: 100%;\n    block-size: 100%;\n    max-inline-size: none;\n    max-block-size: none;\n    box-sizing: border-box;\n    margin: 0;\n    border: 0;\n    padding: clamp(1rem, 4vw, 3rem);\n    overflow: auto;\n    overscroll-behavior: contain;\n    display: grid;\n    place-items: center;\n    color: #fff;\n    background: rgb(8 9 10 / 0.58);\n    opacity: 0;\n    transition: opacity var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  dialog.kui-lightbox::backdrop {\n    background: transparent;\n    -webkit-backdrop-filter: blur(7px);\n    backdrop-filter: blur(7px);\n    opacity: 0;\n    transition: opacity var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  dialog.kui-lightbox[open].is-open {\n    opacity: 1;\n  }\n  dialog.kui-lightbox[open].is-open::backdrop {\n    opacity: 1;\n  }\n  .kui-lightbox-slot {\n    display: contents;\n  }\n  .kui-lightbox-gallery {\n    opacity: 0;\n    scale: var(--kui-from-scale, 0.965);\n    translate: 0 8px;\n    transition:\n      opacity var(--kui-lightbox-duration, 280ms) ease,\n      scale var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease),\n      translate var(--kui-lightbox-duration, 280ms) var(--kui-lightbox-ease, ease);\n  }\n  .kui-lightbox.is-open .kui-lightbox-gallery {\n    opacity: 1;\n    scale: none;\n    translate: none;\n  }\n  .kui-lightbox-gallery {\n    display: grid;\n    grid-template-columns: minmax(0, 1fr);\n    grid-template-rows: minmax(0, auto);\n    align-content: center;\n    justify-items: center;\n    gap: 0.75rem;\n    align-self: stretch;\n    justify-self: stretch;\n    min-block-size: 0;\n  }\n  .kui-lightbox-gallery:has(> figure > img.is-tall) {\n    align-self: safe center;\n  }\n  .kui-lightbox-gallery.is-swipeable {\n    touch-action: pan-y pinch-zoom;\n  }\n  .kui-lightbox-gallery figure {\n    margin: 0;\n    display: grid;\n    grid-template-columns: minmax(0, 1fr);\n    grid-template-rows: minmax(0, auto);\n    justify-items: center;\n    gap: 0.75rem;\n    justify-self: stretch;\n    min-block-size: 0;\n  }\n  .kui-lightbox-gallery img {\n    display: block;\n    border-radius: 10px;\n    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);\n    background: #0b0c0d;\n  }\n  .kui-lightbox-gallery img.is-fit {\n    max-inline-size: min(100%, 1400px);\n    max-block-size: 100%;\n    inline-size: auto;\n    block-size: auto;\n  }\n  .kui-lightbox-gallery img.is-tall {\n    inline-size: min(100%, 760px);\n    block-size: auto;\n  }\n  .kui-lightbox-gallery figcaption {\n    max-inline-size: 60ch;\n    text-align: center;\n    font-size: 0.85rem;\n    line-height: 1.5;\n    color: rgb(255 255 255 / 0.72);\n  }\n  .kui-lightbox-close,\n  .kui-lightbox-prev,\n  .kui-lightbox-next {\n    border: 1px solid rgb(255 255 255 / 0.45);\n    border-radius: 50%;\n    color: #fff;\n    background: rgb(8 9 10 / 0.7);\n    cursor: pointer;\n  }\n  .kui-lightbox-close {\n    position: fixed;\n    inset-block-start: clamp(0.75rem, 2vw, 1.25rem);\n    inset-inline-end: clamp(0.75rem, 2vw, 1.25rem);\n    z-index: 1;\n    inline-size: 40px;\n    block-size: 40px;\n    font-size: 1.5rem;\n  }\n  .kui-lightbox-prev,\n  .kui-lightbox-next {\n    position: fixed;\n    inset-block-start: 50%;\n    inline-size: 40px;\n    block-size: 40px;\n    font-size: 2rem;\n  }\n  .kui-lightbox-prev {\n    inset-inline-start: 0.75rem;\n  }\n  .kui-lightbox-next {\n    inset-inline-end: 0.75rem;\n  }\n  .kui-lightbox-counter {\n    font-size: 0.85rem;\n    color: rgb(255 255 255 / 0.8);\n  }\n  .kui-lightbox button:focus-visible {\n    outline: 2px solid Highlight;\n    outline-offset: 2px;\n  }\n  .kui-lightbox-frame {\n    --kui-frame-w: 16;\n    --kui-frame-h: 9;\n    container-type: size;\n    display: grid;\n    place-items: center;\n    inline-size: min(100%, 1100px);\n    aspect-ratio: var(--kui-frame-w) / var(--kui-frame-h);\n    max-block-size: 100%;\n  }\n  .kui-lightbox-frame--tall {\n    --kui-frame-w: 9;\n    --kui-frame-h: 16;\n    inline-size: min(100%, 420px);\n  }\n  .kui-lightbox-frame--square {\n    --kui-frame-w: 1;\n    --kui-frame-h: 1;\n    inline-size: min(100%, 720px);\n  }\n  .kui-lightbox-frame iframe,\n  .kui-lightbox-frame video {\n    display: block;\n    inline-size: min(100cqi, 100cqb * var(--kui-frame-w) / var(--kui-frame-h));\n    aspect-ratio: var(--kui-frame-w) / var(--kui-frame-h);\n    block-size: auto;\n    border: 0;\n    border-radius: 12px;\n    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);\n    background: #000;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    dialog.kui-lightbox,\n    .kui-lightbox-gallery {\n      transition-duration: 1ms;\n    }\n    .kui-lightbox-gallery {\n      scale: none;\n      translate: none;\n    }\n    [data-kui-fx~=scroll-story] > :first-child [data-kui-step-state],\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      transition-duration: 1ms;\n    }\n  }\n  @media (forced-colors: active) {\n    dialog.kui-lightbox {\n      border: 1px solid CanvasText;\n      background: Canvas;\n      color: CanvasText;\n    }\n    dialog.kui-lightbox::backdrop {\n      -webkit-backdrop-filter: none;\n      backdrop-filter: none;\n    }\n    .kui-lightbox-close,\n    .kui-lightbox-prev,\n    .kui-lightbox-next {\n      border-color: CanvasText;\n      color: CanvasText;\n      background: Canvas;\n    }\n    .kui-lightbox-frame iframe,\n    .kui-lightbox-frame video {\n      border: 1px solid CanvasText;\n    }\n    [data-kui-fx~=scroll-story] > :first-child,\n    [data-kui-fx~=scroll-story] > :last-child [data-kui-step-state] {\n      border: 1px solid CanvasText;\n    }\n  }\n}\n\n/* src/css/index.css */\n"
     document.head.appendChild(style)
   }
 })()
