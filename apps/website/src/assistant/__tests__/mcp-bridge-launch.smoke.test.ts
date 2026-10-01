@@ -102,7 +102,7 @@ function writePackagedAppStandIn(dir: string): string {
 test("a packaged desktop app's bridge answers initialize within 5 s", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-bridge-smoke-"));
   try {
-    const injection = resolveMcpJsonInjection("http://127.0.0.1:9", {
+    const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", {
       execPath: writePackagedAppStandIn(dir),
       electronVersion: "43.6.0",
       env: { ELECTRON_RUN_AS_NODE: "1" },
@@ -123,7 +123,7 @@ test("the real Electron binary, given the entry's env, runs the bridge as Node a
     t.skip("no electron package installed under apps/desktop");
     return;
   }
-  const injection = resolveMcpJsonInjection("http://127.0.0.1:9", { execPath: electronBinary, electronVersion: "43.6.0", env: {} });
+  const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", { execPath: electronBinary, electronVersion: "43.6.0", env: {} });
   const entry = buildMcpJsonServerEntry("bridge-smoke", injection, "smoke-token");
 
   assertJiniInitializeReply(await initializeReply(entry.command, entry.args, entry.env));

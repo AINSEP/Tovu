@@ -172,6 +172,7 @@ import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-failure-redaction";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
+import { createRunScopedCredentials } from "#src/assistant/run-scoped-credential";
 import type { RunPageContext } from "#src/assistant/run-page-context";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
@@ -621,7 +622,9 @@ const agentExecutor = createAgentExecutor({
   // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
   getAgentDef,
   resolveAgentLaunch,
-  mcpJsonInjection: resolveMcpJsonInjection(daemonUrl),
+  // Each run's bridge gets its own credential, resolved back to that run's principal; see
+  // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
+  mcpJsonInjection: resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint(runId)),
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
   // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
@@ -646,6 +649,9 @@ const agentExecutor = createAgentExecutor({
  * terminal transition on purpose: the exempt `/api/delegated-tool-calls` route's remaining defence
  * is that a `runId` only resolves while its run is in flight (`daemon-auth.ts`). */
 const principalByRunId = new Map<string, Principal>();
+/** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
+ * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
+const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId)?.id });
 
 /**
  * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
@@ -810,6 +816,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal(run.id).finally(() => {
     principalByRunId.delete(run.id);
+    runCredentials.revoke(run.id);
     runActiveContexts.forget(run.id);
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
     // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
@@ -1110,7 +1117,10 @@ const app = express();
 // and which sends no `Authorization` header. Gating it would break tool execution outright; it is
 // instead covered by `resolvePrincipal`'s fail-closed live-`runId` check below. Full rationale and
 // residual-risk statement: `daemon-auth.ts`'s `DELEGATED_TOOL_CALLS_PATH`.
-app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH] }));
+// `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
+// bridge's routes and stands for that run's principal, never one the caller asserts
+// (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
+app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH], runScopedCallers: runCredentials }));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
 // (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after

@@ -11,11 +11,12 @@ const SERVE_JS = realpathSync(
   fileURLToPath(new URL("../../../../../node_modules/@jini-ai/mcp/dist/bin/serve.js", import.meta.url)),
 );
 const DAEMON_URL = "http://127.0.0.1:4242";
+const mintStub = (runId: string): string => `minted-for-${runId}`;
 
 // 2026-10-01 desktop incident: inside the packaged app `execPath` is the Tovu Electron binary. Without
 // ELECTRON_RUN_AS_NODE it boots as a GUI app, never speaks MCP, and every run gets zero Tovu tools.
 test("under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, {
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
     execPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
     electronVersion: "33.2.0",
     env: {},
@@ -28,7 +29,7 @@ test("under Electron, launches the bridge with the app binary and ELECTRON_RUN_A
 });
 
 test("treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, {
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
     execPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
     electronVersion: undefined,
     env: { ELECTRON_RUN_AS_NODE: "1" },
@@ -38,7 +39,7 @@ test("treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.
 });
 
 test("under plain Node, launches the bridge with node and adds no env", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, {
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
     execPath: "/usr/local/bin/node",
     electronVersion: undefined,
     env: { PATH: "/usr/bin" },
@@ -51,9 +52,32 @@ test("under plain Node, launches the bridge with node and adds no env", () => {
 });
 
 test("defaults to this process's own runtime", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL);
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub);
 
   assert.equal(injection.command, process.execPath);
   // The test runner is plain Node.
   assert.equal("env" in injection, false);
+});
+
+// 2026-10-01: the bridge used to receive TOVU_AGENT_DAEMON_TOKEN, the proxy's own boot-wide token.
+// It now gets the per-run credential the daemon mints, which resolves to that run's principal only.
+test("hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token", async () => {
+  const minted: string[] = [];
+  const injection = resolveMcpJsonInjection(DAEMON_URL, (runId) => {
+    minted.push(runId);
+    return `run-token-${runId}`;
+  });
+  const bootToken = "b".repeat(64);
+  const saved = process.env.TOVU_AGENT_DAEMON_TOKEN;
+  process.env.TOVU_AGENT_DAEMON_TOKEN = bootToken;
+  try {
+    const credential = await injection.credential?.("run-42");
+
+    assert.equal(credential, "run-token-run-42");
+    assert.notEqual(credential, bootToken);
+    assert.deepEqual(minted, ["run-42"]);
+  } finally {
+    if (saved === undefined) delete process.env.TOVU_AGENT_DAEMON_TOKEN;
+    else process.env.TOVU_AGENT_DAEMON_TOKEN = saved;
+  }
 });

@@ -2,6 +2,8 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 
 import type { NextFunction, Request, Response } from "express";
 
+import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+
 /**
  * @file Tovu's own bearer gate for the standalone agent daemon
  * (`src/assistant/agent-daemon-server.ts`), plus the token-minting helper `src/index.ts` calls at
@@ -29,6 +31,9 @@ import type { NextFunction, Request, Response } from "express";
  *   refuses to serve rather than serving unauthenticated callers.
  * - missing / malformed / wrong token -> **401**.
  * - exact match -> `next()`.
+ * - a live run's own credential (`run-scoped-credential.ts`, when the mount site opts in) -> `next()`
+ *   on the bridge's own routes only, with the principal header overwritten server-side; **403**
+ *   anywhere else.
  *
  * How it relates to the project:
  * `src/index.ts`'s `main()` calls {@link ensureAgentDaemonToken} as its first statement, so the
@@ -109,6 +114,33 @@ export function ensureAgentDaemonToken(env: NodeJS.ProcessEnv = process.env): st
  */
 export const DELEGATED_TOOL_CALLS_PATH = "/api/delegated-tool-calls";
 
+/**
+ * The routes a spawned `jini-mcp` bridge calls (`@jini-ai/mcp`'s run, tool-catalog, component-
+ * catalog and active-context tools), and so the only ones a run-scoped credential may reach. Every
+ * other route stays proxy-only: run start (a bridge must not start runs, least of all under a
+ * principal it wrote into `contextRef`), the full event stream, the unscoped run list, federation
+ * reload/admissions, and the browser-facing frontend/MCP-UI/A2UI channels.
+ */
+const RUN_SCOPED_ROUTES: readonly { method: string; path: RegExp }[] = [
+  { method: "GET", path: /^\/api\/runs\/[^/]+$/ },
+  { method: "POST", path: /^\/api\/runs\/[^/]+\/cancel$/ },
+  { method: "GET", path: /^\/api\/tools\/[^/]+$/ },
+  { method: "GET", path: /^\/api\/components\/[^/]+$/ },
+  { method: "GET", path: /^\/api\/active$/ },
+  { method: "GET", path: /^\/api\/agents$/ },
+  { method: "POST", path: /^\/api\/delegated-tool-calls$/ },
+];
+
+/** Whether a run-scoped credential may call `method path`. `path` is Express's `req.path`: no query string. */
+export function isRunScopedRoute(method: string, path: string): boolean {
+  return RUN_SCOPED_ROUTES.some((route) => route.method === method && route.path.test(path));
+}
+
+/** Resolves a run-scoped bearer to the principal of the live run it was minted for (`run-scoped-credential.ts`). */
+export interface RunScopedCallerResolver {
+  resolvePrincipal(token: string): string | undefined;
+}
+
 export interface AgentDaemonTokenGateOptions {
   /** Defaults to `process.env`. Injected only so tests can drive the gate without mutating real process env. */
   env?: NodeJS.ProcessEnv;
@@ -119,6 +151,13 @@ export interface AgentDaemonTokenGateOptions {
    * starts with an exempt one stays gated.
    */
   exemptPaths?: readonly string[];
+  /**
+   * Accepts per-run credentials besides the proxy token. A caller presenting one is a run's own
+   * `jini-mcp` bridge: it may reach only {@link isRunScopedRoute} routes (403 elsewhere), and its
+   * `x-tovu-principal-id` is overwritten with the principal the credential resolves to, so the
+   * ownership checks downstream never see a caller-chosen value. Omitted = proxy token only.
+   */
+  runScopedCallers?: RunScopedCallerResolver;
 }
 
 /**
@@ -155,14 +194,29 @@ export function requireAgentDaemonToken(options: AgentDaemonTokenGateOptions = {
 
     // Deliberately no loopback/peer-address exemption — see this file's header.
     const presented = BEARER_PATTERN.exec(req.get("authorization") ?? "");
-    if (!presented || !tokensMatch(presented[1], expected)) {
+    if (presented && tokensMatch(presented[1], expected)) {
+      next();
+      return;
+    }
+
+    const runPrincipal = presented ? options.runScopedCallers?.resolvePrincipal(presented[1]) : undefined;
+    if (runPrincipal === undefined) {
       res.status(401).json({
         error: `Authorization: Bearer <${AGENT_DAEMON_TOKEN_ENV_VAR}> is required`,
         code: "UNAUTHENTICATED",
       });
       return;
     }
-
-    next();
+    admitRunScopedCaller(req, res, next, runPrincipal);
   };
+}
+
+/** A resolved run credential: route allowlist first, then the server-derived principal replaces whatever header the caller sent. */
+function admitRunScopedCaller(req: Request, res: Response, next: NextFunction, principalId: string): void {
+  if (!isRunScopedRoute(req.method, req.path)) {
+    res.status(403).json({ error: `a run-scoped credential cannot call ${req.method} ${req.path}`, code: "FORBIDDEN" });
+    return;
+  }
+  req.headers[RUN_PRINCIPAL_HEADER] = principalId;
+  next();
 }

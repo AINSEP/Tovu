@@ -19,19 +19,14 @@
  * `jini-mcp` child's every callback to `/api/tools/search`, `/api/tools/:id`, and
  * `/api/delegated-tool-calls` hit `daemon-auth.ts`'s `requireAgentDaemonToken` gate with no
  * `Authorization` header and failed — so neither Forms nor Identity tools were ever reachable by
- * a spawned Claude Code or Codex CLI, despite being correctly registered and tested. Floor-tier
- * fix, disclosed as such: this reuses `TOVU_AGENT_DAEMON_TOKEN`, the single boot-wide token
- * `ensureAgentDaemonToken` mints — NOT the genuinely per-run, narrowly-scoped credential the
- * upstream doc comment on `McpJsonInjectionOptions.credential` asks for ("Never hand this the
- * host's own inbound API token... its credential should authorize its own callback route and
- * nothing else"). Tovu's daemon currently has only one token tier, so this is what's available;
- * a real per-run credential (minted per `runId`, checked only against that run's own delegated
- * routes) is the correct follow-up, not a drive-by here.
+ * a spawned Claude Code or Codex CLI, despite being correctly registered and tested. That fix
+ * reused `TOVU_AGENT_DAEMON_TOKEN`, the proxy's boot-wide token; since 2026-10-01 the bridge gets
+ * the per-run credential `run-scoped-credential.ts` mints instead, which resolves to its own run's
+ * principal and reaches only the bridge's own routes (`daemon-auth.ts`'s `isRunScopedRoute`).
  */
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth.js";
 
 const require = createRequire(import.meta.url);
 
@@ -49,8 +44,14 @@ const currentRuntime = (): BridgeRuntime => ({
   env: process.env,
 });
 
+/**
+ * @param mintRunCredential - Mints the bridge's per-run credential (`run-scoped-credential.ts`).
+ *   Required, with no fallback to the proxy's boot-wide token: that token makes a caller's principal
+ *   header trusted, which a model-driven bridge must never be.
+ */
 export function resolveMcpJsonInjection(
   daemonUrl: string,
+  mintRunCredential: (runId: string) => string,
   runtime: BridgeRuntime = currentRuntime(),
 ): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");
@@ -65,12 +66,6 @@ export function resolveMcpJsonInjection(
     args: [script],
     ...(underElectron ? { env: { ELECTRON_RUN_AS_NODE: "1" } } : {}),
     daemonUrl,
-    credential: () => {
-      const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-      if (!token) {
-        throw new Error(`mcp-injection: ${AGENT_DAEMON_TOKEN_ENV_VAR} is unset — the daemon should have minted it before this ever runs`);
-      }
-      return token;
-    },
+    credential: mintRunCredential,
   };
 }
