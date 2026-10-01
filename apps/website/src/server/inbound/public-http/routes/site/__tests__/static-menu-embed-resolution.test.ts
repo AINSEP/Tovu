@@ -6,7 +6,8 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
+import { resolveStaticMenusForRender } from "../pages.js";
 import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -128,6 +129,7 @@ test("GET /about: a static theme's own menu marker resolves through a real seede
   assert.equal(res.status, 200, "the marketing page must still render even though it now carries a real menu marker");
   const html = await res.text();
   assert.ok(html.includes("about"), "the theme page's own body content must still be present");
+  assertResolvedPrimaryMenu(html);
 });
 
 test("GET /: the home route's own resolveStaticMenusForRender call also resolves a real menu marker on theme.pages.index", async (t) => {
@@ -142,6 +144,7 @@ test("GET /: the home route's own resolveStaticMenusForRender call also resolves
 
   const res = await fetch(baseUrl);
   assert.equal(res.status, 200, "home must render successfully with a real menu marker resolved");
+  assertResolvedPrimaryMenu(await res.text());
 });
 
 test("GET /about: a marker naming the menu's raw id (not its slug) falls back to findById — a theme marker predating the 2026-08-10 slug convention", async (t) => {
@@ -159,10 +162,11 @@ test("GET /about: a marker naming the menu's raw id (not its slug) falls back to
 
   const res = await fetch(`${baseUrl}/about`);
   assert.equal(res.status, 200, "a marker naming the menu's raw id must still resolve via the findById fallback");
+  assertResolvedPrimaryMenu(await res.text());
 });
 
 test("GET /about: a marker naming a menu id that matches nothing (bad slug AND bad id) degrades to no entry, not a crash", async (t) => {
-  const unknownMarker = `<div data-embed-config='{"type":"menu","id":"no-such-menu-anywhere"}'></div>`;
+  const unknownMarker = `<div data-embed-config='{"type":"menu","id":"no-such-menu-anywhere"}'><span>Ordinary fallback</span></div>`;
   const theme: DiscoveredTheme = {
     ...themeWithMenuMarker("about"),
     pages: {
@@ -176,6 +180,7 @@ test("GET /about: a marker naming a menu id that matches nothing (bad slug AND b
 
   const res = await fetch(`${baseUrl}/about`);
   assert.equal(res.status, 200, "an unresolvable menu marker must degrade to the theme's own authored fallback, not 500");
+  assert.match(await res.text(), /<span>Ordinary fallback<\/span>/);
 });
 
 /**
@@ -192,7 +197,7 @@ test("GET /about: a marker naming a menu id that matches nothing (bad slug AND b
 const DOCS_SIDEBAR_SENTINEL_ID = "docs-current-page-sidebar";
 
 function themeWithSentinelSidebarPages(): DiscoveredTheme {
-  const sentinelMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SIDEBAR_SENTINEL_ID}"}'></div>`;
+  const sentinelMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SIDEBAR_SENTINEL_ID}"}'><span>Sidebar fallback</span></div>`;
   return {
     manifest: {
       id: "static-sentinel-sidebar-test-theme",
@@ -290,6 +295,7 @@ test("GET /doc-a: the docs-sidebar sentinel degrades to the theme's authored fal
 
   const res = await fetch(`${baseUrl}/doc-a`);
   assert.equal(res.status, 200, "an unauthored per-page sidebar menu must degrade to the fallback, not 500");
+  assert.match(await res.text(), /<span>Sidebar fallback<\/span>/);
 });
 
 /**
@@ -368,7 +374,7 @@ function headerNavMenuWithDocsSubtree(): NavMenuEntry {
 }
 
 function themeWithDocsSectionPages(): DiscoveredTheme {
-  const sectionMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SECTION_SENTINEL_ID}","variant":"tree"}'></div>`;
+  const sectionMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SECTION_SENTINEL_ID}","variant":"tree"}'><span>Section fallback</span></div>`;
   return {
     manifest: {
       id: "static-docs-section-test-theme",
@@ -418,6 +424,8 @@ test("GET /quickstart: docs-section resolves to the header nav's Docs subtree on
   const html = await res.text();
 
   assert.ok(html.includes("Get started"), "the current page's own group must be present");
+  assert.match(liTagFor(html, "Get started"), /\bis-active\b/);
+  assert.doesNotMatch(liTagFor(html, "Build your site"), /\bis-active\b/);
   assert.ok(html.includes("Build your site"), "sibling groups must also render (full tree, not just the active branch)");
   assert.ok(!html.includes(">Docs<"), "the Docs item itself must NOT render — only its children (the groups)");
   assert.ok(!html.includes(">Pricing<") && !html.includes(">Blog<"), "sibling top-level header items must NOT leak into the docs sidebar");
@@ -513,6 +521,7 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
 
   const res = await fetch(`${baseUrl}/quickstart`);
   assert.equal(res.status, 200, "no /docs item on the header nav must degrade to the fallback, not 500");
+  assert.match(await res.text(), /<span>Section fallback<\/span>/);
 });
 
 test("GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav does not exist at all", async (t) => {
@@ -532,6 +541,7 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
 
   const res = await fetch(`${baseUrl}/quickstart`);
   assert.equal(res.status, 200, "a missing menu-header-nav must degrade to the fallback, not 500");
+  assert.match(await res.text(), /<span>Section fallback<\/span>/);
 });
 
 /**
@@ -542,7 +552,7 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
 const DOCS_PREV_NEXT_SENTINEL_ID = "docs-prev-next";
 
 function themeWithDocsPagerPages(): DiscoveredTheme {
-  const pagerMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_PREV_NEXT_SENTINEL_ID}","variant":"tree"}'></div>`;
+  const pagerMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_PREV_NEXT_SENTINEL_ID}","variant":"tree"}'><span>Pager fallback</span></div>`;
   return {
     manifest: {
       id: "static-docs-pager-test-theme",
@@ -596,6 +606,8 @@ test("GET /quickstart: docs-prev-next has no Previous (first page in the subtree
 
   assert.ok(html.includes("docs-pager-next"), "Next must be present");
   assert.ok(html.includes(">Install<"), "Next must be Install");
+  assert.match(liTagFor(html, "Install"), /\bdocs-pager-next\b/);
+  assert.match(anchorTagFor(html, "Install"), /href="\/install"/);
   assert.ok(!html.includes("docs-pager-prev"), "Quickstart is the first page in the subtree — no Previous");
 });
 
@@ -619,6 +631,8 @@ test("GET /install: docs-prev-next crosses the group boundary — Previous is Qu
   const html = await res.text();
 
   assert.ok(liTagFor(html, "Quickstart").includes("docs-pager-prev"), "Previous must be Quickstart");
+  assert.match(anchorTagFor(html, "Quickstart"), /href="\/quickstart"/);
+  assert.match(anchorTagFor(html, "Pages"), /href="\/pages"/);
   assert.ok(liTagFor(html, "Pages").includes("docs-pager-next"), "Next must cross into the next group (Pages, in Build your site)");
 });
 
@@ -639,4 +653,57 @@ test("GET /not-a-doc-page: docs-prev-next degrades to the theme's authored fallb
 
   const res = await fetch(`${baseUrl}/not-a-doc-page`);
   assert.equal(res.status, 200, "a page outside the Docs subtree must degrade to the fallback, not 500");
+  assert.match(await res.text(), /<span>Pager fallback<\/span>/);
+});
+
+
+function assertResolvedPrimaryMenu(html: string): void {
+  assert.match(anchorTagFor(html, "Linked post"), /href="\/linked-post"/);
+  assert.match(anchorTagFor(html, "External"), /href="https:\/\/example\.com\/docs"/);
+  assert.doesNotMatch(html, />Category<|>Unregistered route</);
+}
+
+test("menu resolution renders exact links for slugs and legacy ids without HTTP", async () => {
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([publishedPost()]), menuRepo: new InMemoryMenuRepo([menuEntry()]) };
+  for (const id of [MENU_SLUG, "menu-primary-nav-id"]) {
+    const theme = themeWithMenuMarker("about");
+    theme.pages.about = theme.pages.about!.replace(MENU_SLUG, id);
+    const menus = await resolveStaticMenusForRender(deps, theme, "/about");
+    const html = renderStaticPage({ theme, pageId: "about", menus });
+    assert.ok(html);
+    assertResolvedPrimaryMenu(html);
+  }
+});
+
+test("reserved menu markers preserve authored fallback and mark the correct group and pager links", async () => {
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]) };
+  const section = themeWithDocsSectionPages();
+  const sectionMenus = await resolveStaticMenusForRender(deps, section, "/quickstart");
+  const html = renderStaticPage({ theme: section, pageId: "quickstart", menus: sectionMenus });
+  assert.ok(html);
+  assert.match(liTagFor(html, "Get started"), /\bis-active\b/);
+  assert.doesNotMatch(liTagFor(html, "Build your site"), /\bis-active\b/);
+  const pager = themeWithDocsPagerPages();
+  const pagerMenus = await resolveStaticMenusForRender(deps, pager, "/install");
+  const pagerHtml = renderStaticPage({ theme: pager, pageId: "install", menus: pagerMenus });
+  assert.ok(pagerHtml);
+  assert.match(liTagFor(pagerHtml, "Quickstart"), /\bdocs-pager-prev\b/);
+  assert.match(anchorTagFor(pagerHtml, "Quickstart"), /href="\/quickstart"/);
+  assert.match(liTagFor(pagerHtml, "Pages"), /\bdocs-pager-next\b/);
+  assert.match(anchorTagFor(pagerHtml, "Pages"), /href="\/pages"/);
+
+  const ordinary = themeWithMenuMarker("about");
+  ordinary.pages.about = `<html><body><div data-embed-config='{"type":"menu","id":"missing-menu"}'><span>Ordinary fallback</span></div></body></html>`;
+  const outsideMenus = await resolveStaticMenusForRender(deps, pager, "/not-a-doc-page");
+  assert.ok(renderStaticPage({ theme: pager, pageId: "not-a-doc-page", menus: outsideMenus })!.includes("<span>Pager fallback</span>"));
+  for (const [theme, pageId, fallback] of [
+    [ordinary, "about", "Ordinary"],
+    [themeWithSentinelSidebarPages(), "doc-a", "Sidebar"],
+    [section, "quickstart", "Section"],
+    [pager, "not-a-doc-page", "Pager"],
+  ] as const) {
+    const missingDeps = { ...deps, menuRepo: new InMemoryMenuRepo([]) };
+    const menus = await resolveStaticMenusForRender(missingDeps, theme, `/${pageId}`);
+    assert.ok(renderStaticPage({ theme, pageId, menus })!.includes(`<span>${fallback} fallback</span>`));
+  }
 });

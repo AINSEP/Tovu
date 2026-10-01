@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { scanHtmlEmbeds } from "#src/features/widgets/html-embeds";
-import { extractHtmlEntryRefs } from "../extractor.js";
+import { extractEntryRefs, extractHtmlEntryRefs } from "../extractor.js";
 
 /**
  * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser (2026-08-10 unification).
@@ -51,12 +51,34 @@ test("canary: an indexable marker produces a row with the right target kind", ()
   assert.equal(rows[0].targetKind, "entry");
   assert.equal(rows[0].targetId, WIDGET);
   assert.equal(rows[0].sourceKind, "page-html-embed");
+  assert.equal(rows[0].workspaceId, WORKSPACE);
+  assert.equal(rows[0].sourceEntryId, SOURCE);
 });
 
 test("canary: media targets a different storage domain and keeps its own target kind", () => {
   const rows = extract(`<div data-embed-config='{"type":"media","id":"${ASSET}","variant":"thumb"}'></div>`);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].targetKind, "asset");
+  assert.equal(rows[0].workspaceId, WORKSPACE);
+  assert.equal(rows[0].sourceEntryId, SOURCE);
+});
+
+test("canary: structured references retain their workspace and source", () => {
+  for (const bodyJson of [
+    { placements: [{ widgetEntryId: WIDGET }] },
+    { type: "doc", content: [{ type: "widgetEmbed", attrs: { widgetEntryId: WIDGET } }] },
+    null,
+  ]) {
+    const rows = extractEntryRefs({
+      workspaceId: WORKSPACE, sourceEntryId: SOURCE, sourceEntryType: "widget",
+      bodyJson, fieldsExt: { widget: { config: { formDefinitionId: WIDGET } } },
+    });
+    assert.equal(rows.length, bodyJson === null ? 1 : 2);
+    for (const row of rows) {
+      assert.equal(row.workspaceId, WORKSPACE);
+      assert.equal(row.sourceEntryId, SOURCE);
+    }
+  }
 });
 
 test("canary: a REJECTED marker is LOUD — never a silent drop", () => {
@@ -129,4 +151,6 @@ test("canary: the index and the renderer agree on what counts as a reference", (
   const indexed = extract(html).map((r) => r.targetId);
   const rendered = scanHtmlEmbeds(html).filter((r) => r.type !== "partial" && r.id !== null).map((r) => r.id);
   assert.deepEqual(indexed, rendered);
+  assert.deepEqual(indexed, [WIDGET, ASSET]);
+  assert.deepEqual(rendered, [WIDGET, ASSET]);
 });

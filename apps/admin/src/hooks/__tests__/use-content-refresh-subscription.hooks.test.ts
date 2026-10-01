@@ -65,3 +65,15 @@ describe("resubscription", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
+
+it("uses the latest onRefresh callback for the same resource", () => {
+  const oldRefresh = vi.fn();
+  const newRefresh = vi.fn();
+  const { rerender } = renderHook(({ onRefresh }) => useContentRefreshSubscription("posts", onRefresh), {
+    initialProps: { onRefresh: oldRefresh },
+  });
+  rerender({ onRefresh: newRefresh });
+  publishContentRefresh(["posts"]);
+  expect(oldRefresh).not.toHaveBeenCalled();
+  expect(newRefresh).toHaveBeenCalledTimes(1);
+});

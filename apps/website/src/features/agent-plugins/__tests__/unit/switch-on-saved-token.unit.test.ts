@@ -10,6 +10,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
+import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 import { switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
@@ -87,5 +88,32 @@ test("no activation record reads as on and writes nothing", async () => {
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });
     assert.equal(Object.hasOwn((await readAgentPluginActivations(workspaceRoot)).plugins, PLUGIN), false);
+  });
+});
+
+
+test("the production fallback enables an untouched saved-token row with the installed plugin's declared grants", async () => {
+  await withAgentPluginsDir(async (workspaceRoot) => {
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    const repo = new InMemoryExternalMcpServerRepo();
+    const keyring = new InMemoryKeyring();
+    const sealer = new AesGcmSecretSealer(keyring);
+    const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+    await saveExternalMcpServer({ repo, sealer, keyring, clock }, {
+      workspaceId: WORKSPACE, serverId: "supabase", transport: "streamable_http", authMode: "static_env",
+      enabled: false, command: "", url: "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging",
+      args: "", allowedToolNames: "", writeAllowedToolNames: "", accessToken: "saved-test-token",
+      principalId: "owner", provisionedByPluginId: "supabase",
+    });
+    const before = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.supabase?.enabled, false);
+    assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, externalMcpServerRepo: repo, clock }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
+    const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
+    assert.equal(row.enabled, true);
+    assert.ok(JSON.parse(row.allowedToolNames).includes("list_projects"));
+    assert.deepEqual(JSON.parse(row.writeAllowedToolNames), ["confirm_cost", "create_project", "pause_project", "restore_project"]);
+    assert.equal(row.writeGrantsUpdatedByPrincipalId, "system:connect-defaults");
+    assert.deepEqual(row.sealedOAuth, before.sealedOAuth);
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.supabase?.enabled, true);
   });
 });

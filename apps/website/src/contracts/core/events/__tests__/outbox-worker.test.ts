@@ -55,6 +55,7 @@ test("processOutbox publishes pending events and marks delivered", async () => {
   const processed = await processOutbox({ outbox, bus, clock });
   assert.equal(processed, 1);
   assert.equal(handled, 1);
+  assert.deepEqual(await outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
 });
 
 test("processOutbox respects optional batchSize", async () => {
@@ -173,7 +174,7 @@ test("processOutbox schedules the exact deterministic backoff delay for a first 
   // one exists.
   await processOutbox({ outbox, bus, clock }, { random: () => 0 });
 
-  const expectedDelayMs = computeOutboxBackoffMs(1, { random: () => 0 });
+  const expectedDelayMs = 15_000;
   const expectedNextAttemptAt = new Date(Date.parse(startIso) + expectedDelayMs).toISOString();
 
   const justBefore = new Date(Date.parse(expectedNextAttemptAt) - 1).toISOString();
@@ -188,12 +189,23 @@ test("MAX_OUTBOX_ATTEMPTS is a positive, finite cap (2026-09-06 fix)", () => {
   assert.equal(MAX_OUTBOX_ATTEMPTS, 6);
 });
 
-test("the claim lease outlasts a full default batch whose every delivery runs to the delivery timeout (2026-09-14)", () => {
-  // 20 is processOutbox's default batchSize. With a shorter lease a second drain could reclaim a row
-  // that a live batch simply has not reached yet, and that row would be delivered twice.
+test("the claim lease outlasts a full default batch whose every delivery runs to the delivery timeout (2026-09-14)", async () => {
+  let claimedBatchSize = 0;
+  const outbox = new InMemoryOutbox();
+  await processOutbox({
+    outbox: {
+      enqueue: outbox.enqueue.bind(outbox),
+      markDelivered: outbox.markDelivered.bind(outbox),
+      markFailed: outbox.markFailed.bind(outbox),
+      claimPending: async (limit) => { claimedBatchSize = limit; return []; },
+    },
+    bus: new InMemoryEventBus(),
+    clock: { nowIso: () => "2026-02-21T00:00:00.000Z" },
+  });
+  assert.ok(claimedBatchSize > 0);
   assert.equal(DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS, 60_000);
   assert.equal(DEFAULT_OUTBOX_CLAIM_LEASE_MS, 30 * 60_000);
-  assert.ok(DEFAULT_OUTBOX_CLAIM_LEASE_MS > 20 * DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS);
+  assert.ok(DEFAULT_OUTBOX_CLAIM_LEASE_MS > claimedBatchSize * DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS);
 });
 
 test("computeOutboxBackoffMs stays within [half, full] of the exponential step and respects the cap", () => {
@@ -201,6 +213,11 @@ test("computeOutboxBackoffMs stays within [half, full] of the exponential step a
   const upper = computeOutboxBackoffMs(1, { random: () => 1 });
   assert.ok(lower > 0);
   assert.ok(upper > lower);
+  for (const [index, step] of [30_000, 60_000, 120_000, 240_000, 480_000, 960_000, 1_800_000].entries()) {
+    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 0 }), step / 2);
+    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 0.5 }), step * 0.75);
+    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 1 }), step);
+  }
 
   // At a high attempt count the exponential step is clamped, so the lower/upper bounds stop
   // growing — proves the cap is real, not just a large-but-still-exponential number. With
@@ -208,7 +225,9 @@ test("computeOutboxBackoffMs stays within [half, full] of the exponential step a
   // (30s * 2^6 = 960s < 1800s cap is attempts=6 still uncapped; attempts=7 -> 1920s, clamped).
   const cappedLower = computeOutboxBackoffMs(20, { random: () => 0 });
   const cappedUpper = computeOutboxBackoffMs(20, { random: () => 1 });
+  assert.equal(cappedLower, 900_000);
   assert.equal(cappedLower, computeOutboxBackoffMs(7, { random: () => 0 }));
+  assert.equal(cappedUpper, 1_800_000);
   assert.equal(cappedUpper, computeOutboxBackoffMs(7, { random: () => 1 }));
 });
 

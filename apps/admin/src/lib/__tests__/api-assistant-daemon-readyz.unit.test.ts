@@ -14,6 +14,8 @@ import { ApiError, REQUEST_TIMEOUT_CODE, api } from "../api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 function stubFetch(impl: () => Promise<Response>): void {
@@ -97,6 +99,32 @@ test("a request that times out rejects with the shared REQUEST_TIMEOUT ApiError,
 
   const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
 
+  expect(error).toBeInstanceOf(ApiError);
+  expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
+});
+
+test("the configured deadline aborts a pending fetch and translates its signal reason", async () => {
+  vi.useFakeTimers();
+  const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException("signal timed out", "TimeoutError")), ms);
+    return controller.signal;
+  });
+  let signal: AbortSignal | undefined;
+  vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    signal = init?.signal ?? undefined;
+    signal?.addEventListener("abort", () => reject(signal!.reason), { once: true });
+  })));
+  let settled = false;
+  const pending = api.getAssistantDaemonReadyz().catch((error: unknown) => { settled = true; return error; });
+  expect(timeout).toHaveBeenCalledWith(60_000);
+  expect(signal).toBeInstanceOf(AbortSignal);
+  await vi.advanceTimersByTimeAsync(59_999);
+  expect(signal!.aborted).toBe(false);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(signal!.aborted).toBe(true);
+  const error = await pending;
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
 });

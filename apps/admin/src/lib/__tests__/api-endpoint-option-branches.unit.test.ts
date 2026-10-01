@@ -69,7 +69,7 @@ test("listRecentAnalyticsHits omits the limit query param when none is given", a
 test("listRecentAnalyticsHits appends ?limit= when a limit is given", async () => {
   const { calls } = stubFetchCapturing();
   await api.listRecentAnalyticsHits({ limit: 50 });
-  expect(calls[0].url).toMatch(/[?&]limit=50/);
+  expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("50");
 });
 
 // --- Menus -----------------------------------------------------------------
@@ -112,6 +112,11 @@ test("pauseIntegrationSubscription sends the same request whether or not the unu
   expect(withArg[0].url).toBe(withoutArg[0].url);
   expect(withArg[0].init?.body).toBe(withoutArg[0].init?.body);
   expect(withArg[0].url).toContain("/subscriptions/s1/pause");
+  for (const call of [withoutArg[0], withArg[0]]) {
+    expect(call.init?.method).toBe("POST");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ paused: true });
+    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1/pause");
+  }
 });
 
 // --- Media -----------------------------------------------------------------
@@ -172,6 +177,10 @@ test("resetUserPassword sends the same request whether or not the unused options
   await api.resetUserPassword({ principalId: "p1", password: "pw" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toContain("/reset-password");
+  for (const call of [a[0], b[0]]) {
+    expect(call.init?.method).toBe("POST");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ password: "pw" });
+  }
 });
 
 test("assignRole sends the same request whether or not the unused options arg is passed", async () => {
@@ -311,7 +320,7 @@ test("listFormSubmissions sets cursor in the query when given", async () => {
 test("listFormSubmissions sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
   await api.listFormSubmissions({ formId: "f1" }, { limit: 10 });
-  expect(calls[0].url).toContain("limit=10");
+  expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("10");
 });
 
 test("getFormSubmission sends the same request whether or not the unused options arg is passed", async () => {
@@ -326,14 +335,15 @@ test("getFormSubmission sends the same request whether or not the unused options
 
 // --- AI Assistant -----------------------------------------------------------------
 
-test("restartAssistantDaemon rethrows a non-ApiError failure untouched", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => {
-      throw new TypeError("Failed to fetch");
-    })
-  );
+test("restartAssistantDaemon preserves the API-unreachable translation for a network TypeError", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
   await expect(api.restartAssistantDaemon()).rejects.toThrow(ApiError);
+});
+
+test("restartAssistantDaemon rethrows a non-ApiError failure untouched", async () => {
+  const failure = new RangeError("unexpected fetch failure");
+  vi.stubGlobal("fetch", vi.fn(async () => { throw failure; }));
+  await expect(api.restartAssistantDaemon()).rejects.toBe(failure);
 });
 
 test("restartAssistantDaemon rethrows an ApiError whose body has no string reason", async () => {
@@ -414,7 +424,7 @@ test("listEntries has no ?type query param when no type filter is given", async 
 test("getDatabaseTimeline sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
   await api.getDatabaseTimeline({ limit: 25 });
-  expect(calls[0].url).toContain("limit=25");
+  expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("25");
 });
 
 // Pinned 2026-09-05 (`fix-apienc` dispatch, coverage-gap-fill TASK 2) — every existing call in the
@@ -453,6 +463,10 @@ test("confirmMigrateForward sends the same request whether or not the unused opt
   await api.confirmMigrateForward({ planId: "p1", planHash: "h1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toBe(`/api/admin/v1/database/migrate-forward/confirm`);
+  for (const call of [a[0], b[0]]) {
+    expect(call.init?.method).toBe("POST");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ planId: "p1", planHash: "h1" });
+  }
 });
 
 // --- Comments -----------------------------------------------------------------
@@ -478,7 +492,7 @@ test("listCommentsQueue sets cursor in the query when given", async () => {
 test("listCommentsQueue sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
   await api.listCommentsQueue({ limit: 20 });
-  expect(calls[0].url).toContain("limit=20");
+  expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("20");
 });
 
 test("moderateComment omits note from the body when the caller doesn't pass one", async () => {
@@ -548,12 +562,18 @@ test("updateWidget sends the same request whether or not the unused options arg 
 });
 
 test("mutateWidgetRegionPlacements sends the same request whether or not the unused options arg is passed", async () => {
+  const placements = [{ placementId: "pl1", widgetEntryId: "w1", enabled: true }];
   const { calls: a } = stubFetchCapturing();
-  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements: [] });
+  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements: [] }, {});
+  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
+  for (const call of [a[0], b[0]]) {
+    expect(call.init?.method).toBe("PUT");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1, placements });
+    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/widgets/regions/sidebar");
+  }
 });
 
 test("insertWidgetEmbed sends the same request whether or not the unused options arg is passed", async () => {
@@ -564,6 +584,11 @@ test("insertWidgetEmbed sends the same request whether or not the unused options
   await api.insertWidgetEmbed({ hostEntryId: "e1", baseVersion: 1, widgetEntryId: "w1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].init?.method).toBe("POST");
+  for (const call of [a[0], b[0]]) {
+    expect(call.init?.method).toBe("POST");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1, widgetEntryId: "w1" });
+    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/entries/e1/widget-embeds");
+  }
 });
 
 test("removeWidgetEmbed sends the same request whether or not the unused options arg is passed", async () => {
@@ -574,6 +599,11 @@ test("removeWidgetEmbed sends the same request whether or not the unused options
   await api.removeWidgetEmbed({ hostEntryId: "e1", placementId: "pl1", baseVersion: 1 }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].init?.method).toBe("DELETE");
+  for (const call of [a[0], b[0]]) {
+    expect(call.init?.method).toBe("DELETE");
+    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1 });
+    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/entries/e1/widget-embeds/pl1");
+  }
 });
 
 // --- Deployment / static export / publish -----------------------------------------------------------------

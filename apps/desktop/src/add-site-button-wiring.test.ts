@@ -131,6 +131,7 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
   const siteDir = siteFixture("my-real-website");
   const { handlers, projectsPath } = registerRealHandlers(siteDir);
   const before = fs.readdirSync(siteDir).sort();
+  const beforeBytes = before.map((name) => fs.readFileSync(path.join(siteDir, name)));
 
   // Invoked exactly as Electron would: the handler for the preload's channel, with an event object
   // and no argument (main owns the dialog).
@@ -149,6 +150,7 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
   assert.equal(record.deleteErasesFiles, false);
   // 4. Pointer semantics, proven rather than promised: the folder is byte-for-byte as it was found.
   assert.deepEqual(fs.readdirSync(siteDir).sort(), before);
+  assert.deepEqual(before.map((name) => fs.readFileSync(path.join(siteDir, name))), beforeBytes);
 });
 
 test("CLICKING the button REFUSES an empty folder and creates nothing in it", async () => {

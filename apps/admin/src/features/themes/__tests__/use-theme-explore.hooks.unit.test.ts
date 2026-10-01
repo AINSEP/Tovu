@@ -378,6 +378,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
     const params = new URLSearchParams(window.location.search);
     expect(params.get("page")).toBe("about");
     expect(params.get("file")).toBeNull();
+    expect(params.get("theme")).toBe("basic");
     expect(result.current.selected).toBe("render/pages/about.html");
   });
 
@@ -392,6 +393,7 @@ describe("useThemeExplore — select writes the selection back to the address ba
     const params = new URLSearchParams(window.location.search);
     expect(params.get("file")).toBe("css/theme.css");
     expect(params.get("page")).toBeNull();
+    expect(params.get("theme")).toBe("basic");
   });
 
   it("clears a stale ?file= when selecting a page, so the two links in the URL can never disagree", async () => {

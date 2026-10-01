@@ -262,12 +262,14 @@ test("an invalid config bag is rejected with the schema attached for retry", asy
 });
 
 test("widgets_reorder_embeds rejects a count mismatch before writing anything", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, entryRepo } = fakeRouteDeps();
   const host = await makeHostEntry(deps);
+  const before = structuredClone(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id }));
   await assert.rejects(
     () => wired("widgets_reorder_embeds", deps).handler(executionContext({ hostEntryId: host.id, baseVersion: host.version, orderedWidgetEntryIds: ["nonexistent"] })),
     /reorder must supply exactly one widgetEntryId per existing embed slot/,
   );
+  assert.deepEqual(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id }), before);
 });
 
 // ---------------------------------------------------------------------------
@@ -388,7 +390,7 @@ test("workflow: create a widget instance, bind a region, place the widget into i
 });
 
 test("workflow: insert an inline embed referencing a freshly-created widget, then remove it — the host entry's version advances consistently across both calls", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, entryRepo, entryRefsRepo } = fakeRouteDeps();
   const instance = await seedInstance(deps, "Sidebar CTA");
   const host = await makeHostEntry(deps);
 
@@ -398,10 +400,46 @@ test("workflow: insert an inline embed referencing a freshly-created widget, the
   assert.equal(inserted.entryId, host.id);
   assert.ok(inserted.entryVersion > host.version, "the host entry's version must have advanced after the insert");
   assert.ok(inserted.placementId.length > 0);
+  const stored = await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  assert.deepEqual(stored?.bodyJson, { type: "doc", content: [{ type: "widgetEmbed", attrs: { widgetEntryId: instance.id, placementId: inserted.placementId } }] });
+  const refs = await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0].targetId, instance.id);
+  assert.equal(refs[0].sourceKind, "widget-embed");
 
   const removed = (await wired("widgets_remove_embed", deps).handler(
     executionContext({ hostEntryId: host.id, baseVersion: inserted.entryVersion, placementId: inserted.placementId }),
   )) as { entryId: string; entryVersion: number };
   assert.equal(removed.entryId, host.id);
   assert.ok(removed.entryVersion > inserted.entryVersion, "removing the embed must advance the version again, chained off the insert's own returned version");
+  assert.deepEqual((await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id }))?.bodyJson, { type: "doc", content: [] });
+  assert.deepEqual(await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id }), []);
+});
+
+test("widgets_update_instance persists the new config and advances its version", async () => {
+  const { deps } = fakeRouteDeps();
+  const instance = await seedInstance(deps);
+  const config = { body: "Updated announcement" };
+  const updated = await wired("widgets_update_instance", deps).handler(executionContext({ widgetInstanceId: instance.id, baseVersion: instance.version, config })) as { instance: { id: string; version: number; config: unknown } };
+  assert.equal(updated.instance.id, instance.id);
+  assert.equal(updated.instance.version, instance.version + 1);
+  assert.deepEqual(updated.instance.config, config);
+  const read = await wired("content_read.widget_instance", deps).handler(executionContext({ widgetInstanceId: instance.id })) as { instance: unknown };
+  assert.deepEqual(read.instance, updated.instance);
+});
+
+test("widgets_reorder_embeds persists the requested order of two distinct widgets", async () => {
+  const { deps, entryRepo, entryRefsRepo } = fakeRouteDeps();
+  const first = await seedInstance(deps, "First");
+  const second = await seedInstance(deps, "Second");
+  const host = await makeHostEntry(deps);
+  const inserted = await wired("widgets_insert_embed", deps).handler(executionContext({ hostEntryId: host.id, baseVersion: host.version, widgetEntryId: first.id })) as { entryVersion: number };
+  const inserted2 = await wired("widgets_insert_embed", deps).handler(executionContext({ hostEntryId: host.id, baseVersion: inserted.entryVersion, widgetEntryId: second.id })) as { entryVersion: number };
+  const reordered = await wired("widgets_reorder_embeds", deps).handler(executionContext({ hostEntryId: host.id, baseVersion: inserted2.entryVersion, orderedWidgetEntryIds: [second.id, first.id] })) as { entryVersion: number };
+  assert.equal(reordered.entryVersion, inserted2.entryVersion + 1);
+  const stored = await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  const content = (stored?.bodyJson as { content: { attrs: { widgetEntryId: string; placementId: string } }[] }).content;
+  assert.deepEqual(content.map(node => node.attrs.widgetEntryId), [second.id, first.id]);
+  assert.equal(new Set(content.map(node => node.attrs.placementId)).size, 2);
+  assert.deepEqual((await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id })).map(ref => ref.targetId), [second.id, first.id]);
 });

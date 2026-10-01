@@ -478,6 +478,13 @@ test("workflow: create a taxonomy, create two terms, assign both to a post, plan
   assert.equal(plan.details.overlapLossDisclosed, true);
   assert.ok(plan.planId.length > 0);
   assert.ok(plan.planHash.length > 0);
+  const planInput = { fromTermId: term1.term.id, intoTermId: term2.term.id };
+  const repeated = await wired("taxonomy_plan_merge_term", deps).handler(executionContext(planInput)) as typeof plan;
+  assert.equal(repeated.planHash, plan.planHash, "identical overlap produces the same confirmation hash");
+  await wired("taxonomy_unassign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [term2.term.id] }));
+  const changed = await wired("taxonomy_plan_merge_term", deps).handler(executionContext(planInput)) as typeof plan;
+  assert.equal(changed.details.overlappingContentCount, 0);
+  assert.notEqual(changed.planHash, plan.planHash, "an overlap change invalidates the confirmed hash");
 
   // Step 5: rename term2 (the merge survivor) — proves an ordinary write still works mid-workflow,
   // chained off the SAME term id the earlier steps minted, not a fresh lookup.
@@ -506,14 +513,14 @@ test("workflow: create a taxonomy, create two terms, assign both to a post, plan
 const MERGE_TOOL = "taxonomy_execute_merge_term";
 
 /** Two terms, a post tagged with the first — the state a merge acts on. */
-async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string }> {
+async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string; postId: string }> {
   const created = (await wired("taxonomy_create_taxonomy", deps).handler(executionContext({ name: "Topic", hierarchical: false }))) as { taxonomy: { id: string } };
   const taxonomyId = created.taxonomy.id;
   const from = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId, name: "Alpha" }))) as { term: { id: string } };
   const into = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId, name: "Beta" }))) as { term: { id: string } };
   const postId = await seedPost(deps);
   await wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [from.term.id] }));
-  return { taxonomyId, fromTermId: from.term.id, intoTermId: into.term.id };
+  return { taxonomyId, fromTermId: from.term.id, intoTermId: into.term.id, postId };
 }
 
 /**
@@ -554,14 +561,31 @@ test(`${MERGE_TOOL}: the human confirms in the dialog, then the merge runs — a
 });
 
 test(`${MERGE_TOOL}: the human cancels — notConfirmedResult comes back and nothing is merged`, async () => {
-  const { deps, entryTermRepo } = fakeRouteDeps();
-  const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
+  const { deps, entryTermRepo, termRepo } = fakeRouteDeps();
+  const { taxonomyId, fromTermId, intoTermId } = await seedMergeableTerms(deps);
+  const beforeTerms = structuredClone(await termRepo.listByTaxonomy({ taxonomyId }));
+  // This adapter has no assignment read port; snapshot its complete backing state.
+  const beforeAssignments = JSON.stringify(entryTermRepo);
 
   const { pending, answer } = await startMerge(deps, { fromTermId, intoTermId });
   answer(PRINCIPAL_ID, "cancel");
 
   assert.deepEqual(await pending, { merged: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 1);
+  assert.deepEqual(await termRepo.listByTaxonomy({ taxonomyId }), beforeTerms);
+  assert.equal(JSON.stringify(entryTermRepo), beforeAssignments);
+});
+
+test(`${MERGE_TOOL}: overlapping assignments merge into exactly one survivor assignment`, async () => {
+  const { deps, entryTermRepo } = fakeRouteDeps();
+  const { fromTermId, intoTermId, postId } = await seedMergeableTerms(deps);
+  await wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [intoTermId] }));
+  const { pending, answer } = await startMerge(deps, { fromTermId, intoTermId });
+  assert.deepEqual(answer(PRINCIPAL_ID, "confirm"), { ok: true });
+  assert.equal((await pending as { merged: boolean }).merged, true);
+  assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 0);
+  assert.equal(await entryTermRepo.countByTerm({ termId: intoTermId }), 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(entryTermRepo)), { rows: [{ contentType: "post", contentId: postId, termId: intoTermId, addedAt: NOW }] });
 });
 
 test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog`, async () => {

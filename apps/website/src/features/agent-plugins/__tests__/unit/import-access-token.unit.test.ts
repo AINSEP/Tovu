@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
+import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -102,6 +103,7 @@ test("a token is sealed onto a row with no credential, and the plugin is switche
   const row = await readRow();
   assert.equal(row?.authMode, "static_env");
   assert.ok(row?.sealedOAuth, "the token must be sealed on the row");
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, row)).staticAccessToken, TOKEN);
   assert.ok(!JSON.stringify(row).includes(TOKEN), "the token must never be stored in plaintext");
   assert.deepEqual(connected, ["supabase"]);
 });
@@ -186,12 +188,18 @@ test("set retired env vars are named as no longer used; unset ones are not", asy
   assert.ok(!(logs.info[0] ?? "").includes("TOVU_SUPABASE_MCP_PROJECT_REF"));
 });
 
-test("env import never throws: a failed save is a warning", async () => {
-  const { deps, logs, log } = await setup();
-  const broken: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, resolveInstalledPlugin: async () => null };
-  await importAgentPluginAccessTokensFromEnv(broken, { [ENV_VAR]: TOKEN }, log);
+test("env import never throws: a failed save is a warning", async (t) => {
+  const { deps, readRow, connected, logs, log } = await setup();
+  const before = await readRow();
+  const seal = t.mock.method(deps.siteAssistantSecretSealer, "seal", async () => { throw new Error("secret store unavailable"); });
+  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+  assert.equal(seal.mock.callCount(), 1, "the actual credential save must reach the sealer");
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
+  assert.match(logs.warn[0] ?? "", /secret store unavailable/);
+  assert.deepEqual(await readRow(), before);
+  assert.deepEqual(connected, []);
+  assert.deepEqual(logs.info, [], "a failed save must never claim a successful copy");
 });
 
 test("env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret", async () => {

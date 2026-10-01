@@ -92,7 +92,7 @@ describe("hierarchical parentId handling", () => {
     );
     const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }), { wrapper });
     act(() => {
-      result.current.setName("Child");
+      result.current.setName("  Child  ");
       result.current.setParentId("stale-parent-id");
     });
 
@@ -102,6 +102,8 @@ describe("hierarchical parentId handling", () => {
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.parentId).toBeNull();
+    expect(body).toEqual({ name: "Child", parentId: null });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/v1/taxonomy/tax1/terms");
   });
 
   it("sends the chosen parentId for a hierarchical taxonomy", async () => {
@@ -110,7 +112,7 @@ describe("hierarchical parentId handling", () => {
     );
     const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(true), onCreated: vi.fn() }), { wrapper });
     act(() => {
-      result.current.setName("Child");
+      result.current.setName("  Child  ");
       result.current.setParentId("p1");
     });
 
@@ -120,6 +122,8 @@ describe("hierarchical parentId handling", () => {
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.parentId).toBe("p1");
+    expect(body).toEqual({ name: "Child", parentId: "p1" });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/v1/taxonomy/tax1/terms");
   });
 
   it("sends parentId: null for a hierarchical taxonomy when no parent was chosen (top level)", async () => {
@@ -147,7 +151,7 @@ describe("success and failure", () => {
     const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(true), onCreated }), { wrapper });
     act(() => {
       result.current.setOpen(true);
-      result.current.setName("Child");
+      result.current.setName("  Child  ");
       result.current.setParentId("p1");
     });
 
@@ -155,6 +159,8 @@ describe("success and failure", () => {
       await result.current.submit(formEvent());
     });
 
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/v1/taxonomy/tax1/terms");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ name: "Child", parentId: "p1" });
     expect(result.current.name).toBe("");
     expect(result.current.parentId).toBe("");
     expect(result.current.open).toBe(false);
@@ -208,7 +214,7 @@ describe("useNewTermForm — injected port", () => {
 
     const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }, port, "en"), { wrapper });
     act(() => {
-      result.current.setName("Child");
+      result.current.setName("  Child  ");
       result.current.setParentId("p1");
     });
     await act(async () => {
@@ -217,6 +223,7 @@ describe("useNewTermForm — injected port", () => {
 
     expect(result.current.name).toBe("");
     expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(port.created).toEqual([{ taxonomyId: "tax1", name: "Child", parentId: "p1" }]);
     expect(networkMock).not.toHaveBeenCalled();
   });
 

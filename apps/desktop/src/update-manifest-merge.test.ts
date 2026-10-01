@@ -10,6 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseUpdateInfo } from "electron-updater/out/providers/Provider.js";
 
 import { mergeMacManifests } from "./update-manifest-merge.ts";
 
@@ -95,6 +96,15 @@ test("the CLI writes a YAML manifest electron-updater's parser reads back, and f
   assert.match(text, /^version: 0\.2\.0$/m);
   assert.match(text, /url: Tovu-mac-arm64\.zip/);
   assert.match(text, /^path: Tovu-mac-x64\.zip$/m);
+  const parsed = parseUpdateInfo(text, 'latest-mac.yml', new URL('https://updates.example/latest-mac.yml'));
+  assert.deepEqual(parsed.files, [
+    { url: 'Tovu-mac-arm64.zip', sha512: 'zip-arm64', size: 100 },
+    { url: 'Tovu-mac-x64.zip', sha512: 'zip-x64', size: 100 },
+  ]);
+  assert.equal(parsed.version, '0.2.0');
+  assert.equal(parsed.path, 'Tovu-mac-x64.zip');
+  assert.equal(parsed.sha512, 'zip-x64');
+  assert.equal(parsed.releaseDate, '2026-09-23T11:00:00.000Z');
 
   const bad = spawnSync(process.execPath, [script, out, path.join(dir, "arm.yml"), path.join(dir, "arm.yml")], { encoding: "utf8" });
   assert.equal(bad.status, 1);

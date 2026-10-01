@@ -20,6 +20,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { createRequire } from "node:module";
 import type { SpawnOptions } from "node:child_process";
+import { spawn } from "node:child_process";
 
 import {
   parseBootLine,
@@ -189,6 +190,9 @@ test("buildServeEnv sets ELECTRON_RUN_AS_NODE so the Electron binary runs the CL
 test("buildServeEnv mints a daemon token, because `tovu serve` never does and the gate is fail-closed", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
   assert.match(env.TOVU_AGENT_DAEMON_TOKEN!, /^[0-9a-f]{64}$/);
+  const other = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
+  assert.match(other.TOVU_AGENT_DAEMON_TOKEN!, /^[0-9a-f]{64}$/);
+  assert.notEqual(env.TOVU_AGENT_DAEMON_TOKEN, other.TOVU_AGENT_DAEMON_TOKEN);
 });
 
 test("buildServeEnv keeps an operator-set daemon token instead of replacing it", () => {
@@ -431,7 +435,7 @@ test("startTovuServer resolves with the admin URL for the port the child reports
   const started = startTovuServer({
     repoRoot: root,
     siteDir: "/tmp/site",
-    port: 3601,
+    port: 3602,
     baseEnv: {},
     mirror: silentMirror(),
     spawnFn: () => child,
@@ -603,6 +607,80 @@ test("startTovuServer times out and kills the child when no boot line ever arriv
   await assert.rejects(started, /did not report a port within 20ms/);
   assert.deepEqual(child.killed, ["SIGTERM"]);
 });
+
+async function assertPidGone(pid: number): Promise<void> {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    try { process.kill(pid, 0); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') return;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.fail(`child ${pid} survived shutdown`);
+}
+
+test('boot timeout leaves a real controlled child dead', { skip: process.platform === 'win32', timeout: 6000 }, async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    await assert.rejects(startTovuServer({
+      repoRoot: makeTempRepo(), siteDir: '/tmp/site', port: 3601, baseEnv: {},
+      mirror: silentMirror(), spawnFn: () => child, readyTimeoutMs: 200, stopGraceMs: 100,
+    }), /did not report a port within 200ms/);
+    await assertPidGone(child.pid!);
+  } finally {
+    try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
+  }
+});
+
+for (const mode of ['boot-timeout', 'stop'] as const) {
+  test(`POSIX ${mode} escalation reaps an unresponsive child AND its descendant`,
+    { skip: process.platform === 'win32', timeout: 10000 }, async () => {
+      // Both processes install their SIGTERM handler before announcing readiness. A direct-child
+      // SIGKILL would leave the descendant alive, so observing both PIDs protects the group kill.
+      const descendantCode = "process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000);";
+      const parentCode = `
+        const { spawn } = require('node:child_process');
+        process.on('SIGTERM', () => {});
+        const descendant = spawn(process.execPath, ['-e', ${JSON.stringify(descendantCode)}], { stdio: ['ignore', 'pipe', 'ignore'] });
+        descendant.stdout.once('data', () => console.log('descendant:' + descendant.pid));
+        setInterval(() => {}, 1000);
+      `;
+      const child = spawn(process.execPath, ['-e', parentCode], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      let descendantPid: number | undefined;
+      try {
+        const ready = new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('fixture did not announce its descendant')), 3000);
+          let output = '';
+          child.stdout.on('data', (chunk) => {
+            output += chunk.toString();
+            const match = /descendant:(\d+)/.exec(output);
+            if (match) { descendantPid = Number(match[1]); clearTimeout(timer); resolve(); }
+          });
+          child.once('error', reject);
+        });
+        await ready;
+        const started = startTovuServer({
+          repoRoot: makeTempRepo(), siteDir: '/tmp/site', port: 3601, baseEnv: {},
+          mirror: silentMirror(), spawnFn: () => child, readyTimeoutMs: 100, stopGraceMs: 100,
+          killTree: () => assert.fail('POSIX must not call the Windows tree killer'),
+        });
+        if (mode === 'boot-timeout') await assert.rejects(started, /did not report a port within 100ms/);
+        else {
+          child.stdout.emit('data', Buffer.from(REAL_BOOT_LINE));
+          const handle = await started;
+          await handle.stop();
+        }
+        await assertPidGone(child.pid!);
+        await assertPidGone(descendantPid!);
+        assert.equal(child.signalCode, 'SIGKILL', 'the child ignored SIGTERM and must reach escalation');
+      } finally {
+        try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
+        if (descendantPid !== undefined) { try { process.kill(descendantPid, 'SIGKILL'); } catch {} }
+      }
+    });
+}
 
 // win32 has no process groups (plan §3, W7): `process.kill(-pid, "SIGKILL")` would throw there
 // (caught, but the agent-daemon grandchild is left orphaned). The two tests below inject the

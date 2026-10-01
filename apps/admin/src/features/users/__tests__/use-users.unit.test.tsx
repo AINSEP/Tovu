@@ -140,6 +140,10 @@ describe("onCreate", () => {
       await result.current.onCreate({ preventDefault: () => {} } as unknown as React.FormEvent);
     });
 
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(writes).toHaveLength(1);
+    expect(writes[0][0]).toBe("/api/admin/v1/workspaces/workspace-local/users");
+    expect(JSON.parse(String(writes[0][1].body))).toEqual({ username: "bob", password: "hunter22", email: "bob@example.com" });
     expect(result.current.username).toBe("");
     expect(result.current.email).toBe("");
     expect(result.current.password).toBe("");
@@ -220,6 +224,10 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
       await result.current.onAssignRole(USER_A.principalId);
     });
 
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(writes).toHaveLength(1);
+    expect(writes[0][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1/roles");
+    expect(JSON.parse(String(writes[0][1].body))).toEqual({ roleId: ROLE.id });
     expect(result.current.pendingRoleId).toBe("");
     expect(result.current.grantSaving).toBe(false);
     expect(result.current.grantError).toBeNull();
@@ -273,16 +281,29 @@ describe("onSaveEmail", () => {
     const { result } = await renderLoaded();
     act(() => result.current.setEditEmail("alice+new@example.com"));
 
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ user: { ...USER_A, email: "alice+new@example.com" } }))
-      .mockResolvedValueOnce(jsonResponse({ users: [{ ...USER_A, email: "alice+new@example.com" }] }))
-      .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
-      .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
+    let storedUser = { ...USER_A };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        expect(url).toBe("/api/admin/v1/workspaces/workspace-local/users/u1");
+        const patch = JSON.parse(String(init.body));
+        expect(patch).toEqual({ email: "alice+new@example.com" });
+        storedUser = { ...storedUser, ...patch };
+        return jsonResponse({ user: storedUser });
+      }
+      if (url.endsWith("/users")) return jsonResponse({ users: [storedUser] });
+      if (url.endsWith("/roles")) return jsonResponse({ roles: [ROLE] });
+      if (url.endsWith("/policies")) return jsonResponse({ policies: [POLICY] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
 
     await act(async () => {
       await result.current.onSaveEmail(USER_A.principalId);
     });
 
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(writes).toHaveLength(1);
+    expect(writes[0][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1");
+    expect(JSON.parse(String(writes[0][1].body))).toEqual({ email: "alice+new@example.com" });
     expect(result.current.emailSaving).toBe(false);
     expect(result.current.grantError).toBeNull();
     // `waitFor`: the reload triggered by `invalidates: [KEYS.list]` is a separate, un-awaited
@@ -339,6 +360,10 @@ describe("onToggleStatus — toggleSavingId is the busy row's id, not a plain bo
 
     const enableCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/enable"));
     expect(enableCall).toBeTruthy();
+    expect(enableCall![0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1/enable");
+    expect(enableCall![1]?.method).toBe("POST");
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/enable"))).toHaveLength(1);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/disable"))).toBe(false);
   });
 
   it("on failure, sets toggleError and clears toggleSavingId", async () => {
@@ -428,6 +453,24 @@ describe("openResetPassword / confirmResetPassword", () => {
     });
   });
 
+  it("refuses to change a reset target or its draft while a status toggle is pending", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    let release!: (value: { user: AdminIdentityUser }) => void;
+    const enable = vi.spyOn(port, "enableUser").mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+    act(() => result.current.openResetPassword(USER_A));
+    act(() => result.current.setNewPassword("keep-this-draft"));
+    let toggling!: Promise<void>;
+    act(() => { toggling = result.current.onToggleStatus({ ...USER_B, status: "disabled" }); });
+    await waitFor(() => expect(enable).toHaveBeenCalledTimes(1));
+    expect(result.current.toggleSavingId).toBe(USER_B.principalId);
+    act(() => result.current.openResetPassword(USER_B));
+    expect(result.current.resetPasswordFor).toEqual(USER_A);
+    expect(result.current.newPassword).toBe("keep-this-draft");
+    await act(async () => { release({ user: USER_B }); await toggling; });
+  });
+
   it("confirmResetPassword is a no-op with no user pending or an empty password", async () => {
     const { result } = await renderLoaded();
     const callsBefore = fetchMock.mock.calls.length;
@@ -435,6 +478,14 @@ describe("openResetPassword / confirmResetPassword", () => {
       await result.current.confirmResetPassword();
     });
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    act(() => result.current.setNewPassword("nonempty-without-user"));
+    await act(async () => { await result.current.confirmResetPassword(); });
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    act(() => result.current.openResetPassword(USER_A));
+    expect(result.current.newPassword).toBe("");
+    await act(async () => { await result.current.confirmResetPassword(); });
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    expect(result.current.resetPasswordFor).toEqual(USER_A);
   });
 
   it("on success: sets a notice, closes the dialog, and clears the password field", async () => {

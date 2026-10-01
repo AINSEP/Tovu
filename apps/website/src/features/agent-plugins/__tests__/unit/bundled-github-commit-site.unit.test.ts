@@ -34,19 +34,21 @@ type MockStep =
   | { match: RegExp; method?: string; throw: unknown }
   | { match: RegExp; method?: string; hang: true };
 
+type FetchCall = { method: string; url: string; headers: Headers; body: string | undefined };
+
 /** Installs a sequential, order-verifying fake for `global.fetch` — each call must match the NEXT
  *  queued step's URL pattern (and method, when given) or the mock fails loudly rather than silently
  *  answering the wrong step. Restores the real `fetch` via the returned `restore()`, always called in
  *  `finally` so a failing assertion never leaks a stubbed `fetch` into a later test. */
-function installMockFetch(steps: MockStep[]): { restore: () => void; callLog: { method: string; url: string }[]; remaining: () => number } {
+function installMockFetch(steps: MockStep[]): { restore: () => void; callLog: FetchCall[]; remaining: () => number } {
   const originalFetch = globalThis.fetch;
   const remaining = [...steps];
-  const callLog: { method: string; url: string }[] = [];
+  const callLog: FetchCall[] = [];
 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const url = String(input);
-    callLog.push({ method, url });
+    callLog.push({ method, url, headers: new Headers(init?.headers), body: init?.body === undefined ? undefined : String(init.body) });
 
     const step = remaining.shift();
     if (!step) throw new Error(`unexpected fetch call (no more mock steps queued): ${method} ${url}`);
@@ -104,6 +106,16 @@ test("commit: existing branch, real content change — advances the branch, neve
     const refCall = mock.callLog.find((c) => c.url.includes("/git/refs/heads/main"));
     assert.ok(refCall);
     assert.equal(refCall!.method, "PATCH", "an existing branch must be advanced with PATCH, matching a plain non-force ref update");
+    assert.equal(mock.callLog[0]!.headers.get("Authorization"), `Bearer ${TOKEN}`);
+    assert.equal(refCall!.headers.get("Authorization"), `Bearer ${TOKEN}`);
+    const blob = JSON.parse(mock.callLog.find((c) => c.url.endsWith("/git/blobs"))!.body!);
+    assert.equal(blob.encoding, "base64");
+    assert.equal(Buffer.from(blob.content, "base64").toString("utf8"), "<html></html>");
+    const tree = JSON.parse(mock.callLog.find((c) => c.url.endsWith("/git/trees"))!.body!);
+    assert.deepEqual(tree.tree[0], { path: "index.html", mode: "100644", type: "blob", sha: "blob-sha-1" });
+    const commit = JSON.parse(mock.callLog.find((c) => c.url.endsWith("/git/commits"))!.body!);
+    assert.deepEqual(commit, { message: "content update", tree: "new-tree-sha", parents: ["parent-sha"] });
+    assert.equal(mock.remaining(), 0);
   } finally {
     mock.restore();
   }
@@ -152,6 +164,10 @@ test("commit: branch does not exist yet — CREATEs the ref, reports branchCreat
     // steps were queued (repo, ref-404, content blob, manifest blob, tree, commit, ref-create) and all
     // were consumed in order (no "/git/commits/<sha>" GET or "/contents/..." GET step exists in this
     // queue at all — a brand-new branch has no parent tree or prior manifest to read).
+    const commitBody = JSON.parse(mock.callLog.find(c => c.url.endsWith("/git/commits"))!.body!);
+    assert.deepEqual(commitBody, { message: "x", tree: "new-tree-sha", parents: [] });
+    const refBody = JSON.parse(mock.callLog.find(c => c.url.endsWith("/git/refs"))!.body!);
+    assert.deepEqual(refBody, { ref: "refs/heads/feature-x", sha: "new-commit-sha" });
     assert.equal(mock.remaining(), 0);
   } finally {
     mock.restore();
@@ -331,7 +347,9 @@ test("NETWORK_UNREACHABLE on the irreversible ref-write call itself is STILL rep
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
     { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
     { match: /\/git\/refs\/heads\/main$/, method: "PATCH", networkError: "socket hang up" },
@@ -339,7 +357,12 @@ test("NETWORK_UNREACHABLE on the irreversible ref-write call itself is STILL rep
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
     assert.equal(result.ok, false);
-    if (!result.ok) assert.equal(result.code, "network-unreachable");
+    if (!result.ok) {
+      assert.equal(result.code, "network-unreachable");
+      assert.match(result.message, /socket hang up/);
+    }
+    assert.equal(mock.callLog.at(-1)!.method, "PATCH");
+    assert.equal(mock.remaining(), 0);
   } finally {
     mock.restore();
   }
@@ -812,11 +835,13 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
   // This test keeps this file's original intent (prove stale-page deletion actually works) but with the
   // now-required mechanism: a v2 manifest entry whose recorded sha still matches live content.
   const OLD_PAGE_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555"; // a plausible git blob sha — see GIT_SHA_PATTERN
-  const PRE_EXISTING_WORLD = new Map<string, string>([
+  const INDEX_SHA = "1111222233334444555566667777888899990000";
+  const MANIFEST_SHA = "2222333344445555666677778888999900001111";
+  let PRE_EXISTING_WORLD = new Map<string, string>([
     ["README.md", "readme-blob-sha"],
     ["old-page.html", OLD_PAGE_SHA], // previously exported by Tovu, unmodified since, no longer part of this export
   ]);
-  const PREVIOUS_MANIFEST = { version: 2, files: [{ path: "old-page.html", sha: OLD_PAGE_SHA }] };
+  let PREVIOUS_MANIFEST = { version: 2, files: [{ path: "old-page.html", sha: OLD_PAGE_SHA }] };
   let resultingWorld: Map<string, string> | undefined;
   let manifestBlobContent: string | undefined;
 
@@ -835,11 +860,12 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     // The candidate deletion's live-content verification GET — 'old-page.html' still has EXACTLY the
     // sha Tovu itself recorded writing, so this deletion is provably safe.
     if (/\/contents\/old-page\.html/.test(url)) return new Response(JSON.stringify({ sha: OLD_PAGE_SHA }), { status: 200 });
+    if (/\/contents\/index\.html/.test(url)) return new Response(JSON.stringify({ sha: PRE_EXISTING_WORLD.get("index.html") }), { status: 200 });
     if (/\/git\/blobs$/.test(url) && method === "POST") {
       const parsedBody = JSON.parse(String(init?.body)) as { content: string; encoding: string };
       const decoded = Buffer.from(parsedBody.content, "base64").toString("utf8");
       if (decoded.includes('"files"')) manifestBlobContent = decoded; // the manifest write, identified by shape
-      return new Response(JSON.stringify({ sha: `blob-${Math.random().toString(36).slice(2)}` }), { status: 201 });
+      return new Response(JSON.stringify({ sha: decoded.includes('"files"') ? MANIFEST_SHA : INDEX_SHA }), { status: 201 });
     }
     if (/\/git\/trees$/.test(url) && method === "POST") {
       const body = JSON.parse(String(init?.body)) as { base_tree?: string; tree: { path: string; sha: string | null }[] };
@@ -874,7 +900,17 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     assert.equal(newManifest.version, 2);
     assert.equal(newManifest.files.length, 1, "the new manifest must reflect only what THIS export actually produced");
     assert.equal(newManifest.files[0]!.path, "index.html");
-    assert.match(newManifest.files[0]!.sha, /^blob-/, "each tracked path must carry the real blob sha this adapter itself just wrote");
+    assert.equal(newManifest.files[0]!.sha, INDEX_SHA, "the manifest records the index content blob, never another blob's SHA");
+    assert.equal(resultingWorld!.get("index.html"), INDEX_SHA);
+    assert.equal(resultingWorld!.get(".tovu/managed-files.json"), MANIFEST_SHA);
+    PREVIOUS_MANIFEST = newManifest;
+    PRE_EXISTING_WORLD = new Map(resultingWorld!);
+    const next = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "remove index", files: [] });
+    assert.ok(next.ok);
+    assert.equal(next.filesDeleted, 1);
+    assert.deepEqual(next.divergedPaths, []);
+    assert.equal(resultingWorld!.has("index.html"), false);
+    assert.equal(resultingWorld!.get("README.md"), "readme-blob-sha");
   } finally {
     globalThis.fetch = originalFetch;
   }

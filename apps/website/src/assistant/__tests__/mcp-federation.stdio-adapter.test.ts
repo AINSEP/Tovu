@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ScriptedMcpStdioChannel, type CapturedRpcMessage } from "../mcp-federation/adapter.memory.js";
-import { connectMcpStdioSession } from "../mcp-federation/adapter.stdio.js";
+import { connectMcpStdioSession, spawnMcpStdioChannel } from "../mcp-federation/adapter.stdio.js";
 
 /**
  * @file Tests for the REAL MCP client in `mcp-federation/adapter.stdio.ts`, driven against
@@ -204,8 +204,7 @@ test("a late reply to a timed-out request never resolves a different, later call
     respond: (message) => {
       if (message.method === "initialize") return { jsonrpc: "2.0", id: message.id, result: INIT_RESULT };
       if (message.method !== "tools/call") return undefined;
-      // The server answers 'fast' and stalls forever on 'slow'.
-      if (message.params?.name === "fast") return { jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: "CORRECT" }] } };
+      // Hold both calls so the stale response arrives while the newer one is pending.
       abandoned.push(message);
       return undefined;
     },
@@ -218,10 +217,15 @@ test("a late reply to a timed-out request never resolves a different, later call
   assert.equal(typeof staleId, "number");
 
   // The server finally answers the abandoned id, claiming a wildly different result — and does so
-  // while a genuine second call is about to be issued.
+  // while a genuine second call is already pending.
+  const pending = session.callTool({ name: "fast", arguments: {} });
+  const currentId = abandoned[1]?.id;
+  assert.equal(typeof currentId, 'number');
+  assert.notEqual(currentId, staleId);
   channel.deliver({ jsonrpc: "2.0", id: staleId, result: { content: [{ type: "text", text: "STALE" }] } });
+  channel.deliver({ jsonrpc: '2.0', id: currentId, result: { content: [{ type: 'text', text: 'CORRECT' }] } });
 
-  const result = await session.callTool({ name: "fast", arguments: {} });
+  const result = await pending;
   assert.deepEqual(result.content, [{ type: "text", text: "CORRECT" }], "the stale reply must not have settled this call");
 });
 
@@ -300,4 +304,47 @@ test("close() shuts the channel down and makes further calls fail fast", async (
 
   assert.equal(channel.closedReason, "closed by Tovu");
   await assert.rejects(() => session.callTool({ name: "x", arguments: {} }), /session is closed/);
+});
+
+test('real stdout framing reassembles a split reply and drains two replies in one write', { timeout: 5000 }, async () => {
+  const script = `
+    const readline = require('node:readline');
+    const replies = [];
+    readline.createInterface({ input: process.stdin }).on('line', (line) => {
+      const message = JSON.parse(line);
+      if (message.method === 'initialize') {
+        const reply = JSON.stringify({ jsonrpc: '2.0', id: message.id, result: ${JSON.stringify(INIT_RESULT)} });
+        process.stdout.write('  ' + reply.slice(0, 30));
+        setTimeout(() => process.stdout.write(reply.slice(30) + ' \\r\\n'), 30);
+      } else if (message.method === 'tools/call') {
+        replies.push(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { content: [{ type: 'text', text: message.params.name }] } }));
+        if (replies.length === 2) process.stdout.write('\\n  ' + replies[0] + ' \\n\\t' + replies[1] + '\\r\\n');
+      }
+    });
+  `;
+  const channel = spawnMcpStdioChannel({ command: process.execPath, args: ['-e', script], env: {}, launchEnv: {} });
+  try {
+    const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 2000 });
+    const results = await Promise.all([
+      session.callTool({ name: 'first', arguments: {} }),
+      session.callTool({ name: 'second', arguments: {} }),
+    ]);
+    assert.deepEqual(results.map((result) => result.content), [
+      [{ type: 'text', text: 'first' }], [{ type: 'text', text: 'second' }],
+    ]);
+  } finally {
+    channel.close();
+  }
+});
+
+test('real stdout framing closes on an unterminated message over the 4 MiB cap', { timeout: 5000 }, async () => {
+  const channel = spawnMcpStdioChannel({ command: process.execPath,
+    args: ['-e', "process.stdout.write('x'.repeat(4 * 1024 * 1024 + 1)); setInterval(() => {}, 1000);"], env: {}, launchEnv: {} });
+  try {
+    const reason = await new Promise<string>((resolve) => channel.onClose(resolve));
+    assert.equal(reason, 'inbound message exceeded the size cap');
+    assert.throws(() => channel.send('{}'), /closed stdio channel/);
+  } finally {
+    channel.close();
+  }
 });

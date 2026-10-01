@@ -288,6 +288,21 @@ for (const word of WRITE_SHAPED_INPUT_WORDS) {
     assert.ok(card, `'${word}' must show the card`);
     assert.deepEqual(card.buttonIds, ["confirm", "cancel"], "nothing to remember: it asks every time");
     assert.match(card.html, new RegExp(word));
+    for (const choice of ['always', 'chat'] as const) {
+      const isolated = memoryStores();
+      if (choice === 'always') {
+        await isolated.always.upsert({ workspaceId: WORKSPACE_ID, serverId: 'acme', toolName: 'run_thing', fingerprint,
+          grantedByPrincipalId: PRINCIPAL_ID, grantedAt: '2026-09-28T00:00:00.000Z' });
+      } else {
+        await isolated.chat.grant({ conversationId: 'chat-a', principalId: PRINCIPAL_ID, connectionId: 'acme',
+          toolName: 'run_thing', fingerprint }, '2026-09-28T00:00:00.000Z');
+      }
+      const isolatedHarness = harness(isolated, [tool]);
+      const isolatedCard = await cardFor(isolatedHarness, 'run_thing', { [word]: 'x' });
+      assert.ok(isolatedCard, `${word} must ask with ${choice} approval alone`);
+      assert.deepEqual(isolatedCard.buttonIds, ['confirm', 'cancel']);
+      assert.deepEqual(isolatedHarness.sent, [], 'no remote call may run before confirmation');
+    }
   });
 }
 

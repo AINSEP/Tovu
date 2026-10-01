@@ -52,13 +52,27 @@ afterEach(() => {
 describe("useAssistantChats.persistUserTurn", () => {
   it("writes the message through the port, awaited, before anything else touches it", async () => {
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
-    const { result } = await mountWith(port);
-
-    await act(async () => {
-      await result.current.persistUserTurn("fake-seed", userTurn("u1", "save this before you dispatch"));
+    const save = port.saveMessage.bind(port);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async (conversationId, turn) => {
+      await pending;
+      await save(conversationId, turn);
     });
+    const { result } = await mountWith(port);
+    const turn = userTurn("u1", "save this before you dispatch");
+    let settled = false;
+    let persisting!: Promise<void>;
+    await act(async () => {
+      persisting = result.current.persistUserTurn("fake-seed", turn).then(() => { settled = true; });
+    });
+    expect(saveSpy).toHaveBeenCalledExactlyOnceWith("fake-seed", turn);
+    expect(settled).toBe(false);
+    expect(port.saved.get("fake-seed") ?? []).toEqual([]);
 
-    expect(port.saved.get("fake-seed")?.map((m) => m.id)).toEqual(["u1"]);
+    await act(async () => { release(); await persisting; });
+    expect(settled).toBe(true);
+    expect(port.saved.get("fake-seed")).toEqual([turn]);
   });
 
   it("does NOT write the same message a second time when the delta-driven flush sees it", async () => {

@@ -74,6 +74,9 @@ describe("deploy plugin module contract (vercel)", () => {
     await vi.advanceTimersByTimeAsync(2_000);
     expect((await publishing).url).toBe("https://demo.vercel.app");
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("teamId=team_1");
+    const apiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith("https://api.vercel.com/"));
+    expect(apiCalls).toHaveLength(2);
+    for (const [, init] of apiCalls) expect(new Headers((init as RequestInit).headers).get("Authorization")).toBe("Bearer tok");
   });
 
   it("validateConfig refuses a blank teamId with the exact legacy text, accepts none or a real one", () => {
@@ -84,6 +87,31 @@ describe("deploy plugin module contract (vercel)", () => {
 
   it("serves from the root", () => {
     expect(loaded.default.basePath?.({ target: "vercel" })).toBeUndefined();
+  });
+
+  it("verifyCredential authenticates the user probe and classifies failures without reading an account label", async () => {
+    for (const status of [401, 403, 500]) {
+      const fetchSpy = vi.fn(async () => jsonResponse(status, { user: { username: "must-not-be-used" } }));
+      vi.stubGlobal("fetch", fetchSpy);
+      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({
+        ok: false, reason: status === 500 ? "unreachable" : "rejected", statusCode: status,
+      });
+      expect(fetchSpy.mock.calls).toHaveLength(1);
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://api.vercel.com/v2/user");
+      expect(new Headers((fetchSpy.mock.calls[0]?.[1] as RequestInit).headers).get("Authorization")).toBe("Bearer tok");
+    }
+  });
+
+  it("verifyCredential takes its public account label only from user.username", async () => {
+    for (const [body, accountLabel] of [
+      [{ user: { username: "public-name", email: "private@example.com", name: "Private Name" }, username: "wrong-root" }, "public-name"],
+      [{ user: { email: "private@example.com", name: "Private Name" }, username: "wrong-root" }, undefined],
+      [{ user: { username: "" } }, undefined],
+      [{ user: { username: 42 } }, undefined],
+    ] as const) {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(200, body)));
+      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel });
+    }
   });
 });
 
@@ -204,7 +232,10 @@ describe('VercelDeployTarget.publish', () => {
     expect(result.url).toBe('https://demo-abc123.vercel.app');
   });
 
-  it('bounds both the create-deployment call and the status-poll call with a timeout signal, so a stalled Vercel response cannot hang a publish forever', async () => {
+  it('bounds both the create-deployment call and the status-poll call with a timeout signal, so a stalled Vercel response cannot hang a publish forever', async (t) => {
+    const deadlines: number[] = [];
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    t.mock.method(AbortSignal, 'timeout', (ms: number) => { deadlines.push(ms); return timeout(ms); });
     const createBody = { id: 'dpl_1', readyState: 'QUEUED', url: 'demo-abc123.vercel.app' };
     const readyBody = { id: 'dpl_1', readyState: 'READY', url: 'demo-abc123.vercel.app' };
     let createSignal: AbortSignal | null | undefined;
@@ -213,10 +244,12 @@ describe('VercelDeployTarget.publish', () => {
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
       if (init?.method === 'POST') {
         createSignal = init?.signal;
+        expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok');
         return jsonResponse(200, createBody);
       }
       if (String(input).includes('/v13/deployments/dpl_1')) {
         pollSignal = init?.signal;
+        expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer tok');
         return jsonResponse(200, readyBody);
       }
       // Reachability probe against the deployment URL — a different, already-protected call site.
@@ -229,6 +262,36 @@ describe('VercelDeployTarget.publish', () => {
 
     expect(createSignal).toBeInstanceOf(AbortSignal);
     expect(pollSignal).toBeInstanceOf(AbortSignal);
+    expect(deadlines.slice(0, 2)).toEqual([120_000, 30_000]);
+  });
+
+  it('aborts stalled create and poll requests at the host-kit timeout bounds', async () => {
+    for (const stalled of ['create', 'poll']) {
+      let signal: AbortSignal | null | undefined;
+      const kit = createDeployHostKit({
+        timeouts: { QUICK: 10, DEPLOY: 20, UPLOAD: 30 },
+        fetchFn: async (_url, init) => {
+          if (stalled === 'poll' && init?.method === 'POST') return jsonResponse(200, { id: 'dpl_stalled', readyState: 'QUEUED' });
+          signal = init?.signal;
+          return new Promise<Response>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => reject(signal?.reason), { once: true });
+          });
+        },
+      });
+      const { VercelDeployTarget: BoundedTarget } = loaded.bindVercel({ ...kit, sleep: async () => {} });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const publishing = new BoundedTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
+        const watchdog = new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('Vercel request exceeded its bound')), 1000);
+        });
+        await expect(Promise.race([publishing, watchdog])).rejects.toThrow(`fetch timed out after ${stalled === 'create' ? 30 : 20}ms:`);
+        expect(signal?.aborted).toBe(true);
+        expect(signal?.reason.name).toBe('TimeoutError');
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   });
 
   it('throws DeployError when Vercel reports readyState ERROR', async () => {
@@ -453,16 +516,34 @@ describe('VercelDeployTarget.publish', () => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         if (String(input).includes('/v13/deployments/dpl_3')) return jsonResponse(200, createBody);
         probed.push(String(input));
-        return new Response('', { status: 200 });
+        return new Response('', { status: String(input) === 'https://from-url.example/' ? 200 : 503 });
       }),
     );
 
     const target = new VercelDeployTarget({ token: 'tok' });
-    await target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
+    const result = await target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
 
-    // The first probed candidate wins (waitForReachableDeploymentUrl tries them in order); assert
-    // the full candidate set was actually assembled by checking the winning one is among them.
+    // Failed candidates get both HEAD and GET probes; the final alias is the first reachable one.
     expect(probed[0]).toMatch(/^https:\/\/(primary\.vercel\.app|alias-one\.vercel\.app|from-domain\.example|from-url\.example)/);
+    expect(probed).toEqual([
+      'https://primary.vercel.app/', 'https://primary.vercel.app/',
+      'https://alias-one.vercel.app/', 'https://alias-one.vercel.app/',
+      'https://from-domain.example/', 'https://from-domain.example/', 'https://from-url.example/',
+    ]);
+    expect(result.url).toBe('https://from-url.example');
+  });
+
+  it('returns each object alias when it is the only reachable production URL', async () => {
+    for (const alias of [{ domain: 'domain-only.example' }, { url: 'url-only.example' }]) {
+      const expected = 'https://' + ('domain' in alias ? alias.domain : alias.url);
+      vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+        if (init?.method === 'POST') return jsonResponse(200, { readyState: 'READY', url: 'unreachable.vercel.app', aliases: [alias] });
+        return new Response('', { status: String(input) === expected + '/' ? 200 : 503 });
+      }));
+      const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
+      expect(result.url).toBe(expected);
+      expect(result.status).toBe('ready');
+    }
   });
 
   it('keeps polling past a status-check response that fails to parse as JSON instead of treating it as a hard failure', async () => {
@@ -537,20 +618,45 @@ describe('VercelDeployTarget.publish', () => {
     const target = new VercelDeployTarget({ token: 'tok' });
     const result = await target.checkReachability('https://demo.vercel.app');
     expect(result.reachable).toBe(true);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401, headers: { 'set-cookie': '_vercel_sso_nonce=dummy' } })));
+    const protectedResult = await target.checkReachability('https://demo.vercel.app');
+    expect(protectedResult.reachable).toBe(false);
+    expect(protectedResult.status).toBe('protected');
+  });
+
+  it('publish reports a Deployment Protection auth wall as protected', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+      ? jsonResponse(200, { readyState: 'READY', url: 'protected.vercel.app' })
+      : new Response('', { status: 401, headers: { 'set-cookie': '_vercel_sso_nonce=dummy' } })));
+    const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
+    expect(result.status).toBe('protected');
+    expect(result.url).toBe('https://protected.vercel.app');
   });
 
   it('includes teamId (preferred over teamSlug) or teamSlug in the query string when configured', async () => {
-    const fetchSpy = vi.fn(async (_input: string, _init?: RequestInit) => jsonResponse(200, { url: 'demo.vercel.app' }));
+    const fetchSpy = vi.fn(async (_input: string, _init?: RequestInit) => jsonResponse(200, { id: 'dpl_scoped', readyState: 'READY', url: 'demo.vercel.app' }));
     vi.stubGlobal('fetch', fetchSpy);
 
     const withTeamId = new VercelDeployTarget({ token: 'tok', teamId: 'team_1', teamSlug: 'ignored-slug' });
     await withTeamId.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('teamId=team_1');
+    const teamIdQuery = new URL(String(fetchSpy.mock.calls[0]?.[0])).searchParams;
+    expect(teamIdQuery.get('teamId')).toBe('team_1');
+    expect(teamIdQuery.has('slug')).toBe(false);
+    const idApiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/'));
+    expect(idApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v13/deployments', '/v13/deployments/dpl_scoped']);
+    for (const [url] of idApiCalls) expect([...new URL(String(url)).searchParams]).toEqual([['teamId', 'team_1']]);
 
     fetchSpy.mockClear();
     const withTeamSlug = new VercelDeployTarget({ token: 'tok', teamSlug: 'my-team' });
     await withTeamSlug.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('slug=my-team');
+    const teamSlugQuery = new URL(String(fetchSpy.mock.calls[0]?.[0])).searchParams;
+    expect(teamSlugQuery.get('slug')).toBe('my-team');
+    expect(teamSlugQuery.has('teamId')).toBe(false);
+    const slugApiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/'));
+    expect(slugApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v13/deployments', '/v13/deployments/dpl_scoped']);
+    for (const [url] of slugApiCalls) expect([...new URL(String(url)).searchParams]).toEqual([['slug', 'my-team']]);
   });
 
   it('falls back to a random project name when the caller-supplied projectName sanitizes to nothing', async () => {

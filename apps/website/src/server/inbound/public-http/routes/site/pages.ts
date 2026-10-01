@@ -1757,6 +1757,8 @@ export async function resolveMarketingPageOrOverride(
     postPreviewsAccess,
   });
 
+  if (!staticHtml) return { kind: "fallthrough" };
+
   // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own marketing
   // page directly via `renderStaticPage`, the same `pageShell`-bypassing shape the static-tier
   // home route already had `injectExtraHeadIntoStaticPage` wired for in `9e7786b9`; this call

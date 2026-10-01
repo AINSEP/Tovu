@@ -7,6 +7,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { posts, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
@@ -62,7 +64,7 @@ test("convert-legacy-doc-pages-to-html: a dry run against a not-yet-migrated con
 
   assert.throws(
     () => runScript(dbPath),
-    /Command failed/,
+    /no such table: posts/,
     "a dry run against an unmigrated db must fail loudly (no such table: posts), not silently succeed"
   );
 
@@ -90,4 +92,47 @@ test("convert-legacy-doc-pages-to-html: a mistyped --db path fails loudly and cr
   assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+
+test("convert-legacy-doc-pages-to-html: dry run preserves authored pages; apply converts exact HTML and is idempotent", () => {
+  const scratch = tmpDir("convert-legacy-doc-pages-content-");
+  const dbPath = path.join(scratch, "content.db");
+  try {
+    const db = openContentDb(dbPath);
+    const now = "2026-09-30T00:00:00.000Z";
+    db.insert(workspaces).values({ id: "ws-test", name: "Test", slug: "test", createdAt: now }).run();
+    const doc = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello & goodbye" }] }] });
+    const slugs = ["terms-of-service", "privacy-policy", "contact", "team", "faq", "untitled", "untitled-2", "untitled-3", "untitled-4", "our-story"];
+    for (const slug of slugs) {
+      db.insert(posts).values({ id: slug, workspaceId: "ws-test", title: `Title ${slug}`, slug, kind: "page", status: "published", bodyFormat: "doc", bodyJson: doc, updatedAt: now, version: 1 }).run();
+    }
+    db.$client.close();
+    const readRows = () => {
+      const witness = new Database(dbPath, { readonly: true, fileMustExist: true });
+      try { return witness.prepare("SELECT * FROM posts ORDER BY id").all() as Array<Record<string, unknown>>; }
+      finally { witness.close(); }
+    };
+    const before = readRows();
+    const bytes = fs.readFileSync(dbPath);
+    assert.match(runScript(dbPath), /DRY RUN: 'contact' would convert/);
+    assert.deepEqual(readRows(), before);
+    assert.deepEqual(fs.readFileSync(dbPath), bytes);
+    assert.match(runScript(dbPath, ["--apply"]), /CONVERTED: 'contact'/);
+    const after = readRows();
+    for (const row of after) {
+      const original = before.find((prior) => prior.id === row.id)!;
+      if (row.slug === "our-story") {
+        assert.deepEqual(row, original, "a page outside the allowlist stays untouched");
+      } else {
+        assert.equal(row.body_format, "html");
+        assert.equal(row.body_html, "<p>Hello &amp; goodbye</p>");
+        assert.equal(row.body_json, null);
+        assert.equal(row.version, 2);
+        for (const key of ["id", "workspace_id", "slug", "title", "kind", "status", "ext"]) assert.equal(row[key], original[key]);
+      }
+    }
+    assert.match(runScript(dbPath, ["--apply"]), /ALREADY HTML: 'contact'/);
+    assert.deepEqual(readRows(), after);
+  } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
 });

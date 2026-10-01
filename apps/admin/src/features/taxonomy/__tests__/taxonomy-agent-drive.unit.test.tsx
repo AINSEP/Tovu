@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
@@ -96,6 +96,8 @@ function renderTaxonomy(overrides: Partial<TaxonomyController> = {}) {
   return { controller, container };
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 interface FoundElement {
   handle: string;
   role?: string;
@@ -141,6 +143,14 @@ describe("driving per-taxonomy forms through page.* verbs", () => {
 
 describe("driving the new-taxonomy form through page.* verbs", () => {
   it("page.fill on the name field reaches React state, and page.click toggles Hierarchical", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective")) return new Response(JSON.stringify({ data: [] }));
+      if (String(url) === "/api/admin/v1/taxonomy" && init?.method === "POST") {
+        return new Response(JSON.stringify({ taxonomy: taxonomyMeta({ name: "Series", hierarchical: true }) }));
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const { container } = renderTaxonomy({ formOpen: true });
     await screen.findByLabelText(/^New taxonomy$/);
     const driver = createDomPageDriver({ root: container, pages: {} });
@@ -154,6 +164,13 @@ describe("driving the new-taxonomy form through page.* verbs", () => {
     expect(checkbox.checked).toBe(true);
 
     expect(await handlesOf(driver)).toContain("taxonomy-new-submit");
+    await executePageCapability(driver, "page.click", { handle: "taxonomy-new-submit" });
+    await waitFor(() => {
+      const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+      expect(writes).toHaveLength(1);
+      expect(writes[0][0]).toBe("/api/admin/v1/taxonomy");
+      expect(JSON.parse(String(writes[0][1]?.body))).toEqual({ name: "Series", hierarchical: true });
+    });
   });
 });
 
@@ -265,5 +282,6 @@ describe("driving the term-level RowMenu through page.* verbs", () => {
     expect(await handlesOf(bodyDriver)).toContain("taxonomy-term-t-alpha-menu-item-delete");
     // Beta's own menu stays closed — its item never appears from Alpha's click.
     expect(after).not.toContain("taxonomy-term-t-beta-menu-item-delete");
+    expect(await handlesOf(bodyDriver)).not.toContain("taxonomy-term-t-beta-menu-item-delete");
   });
 });

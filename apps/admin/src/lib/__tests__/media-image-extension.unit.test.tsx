@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import type { NodeViewProps } from "@tiptap/react";
+import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../api";
@@ -185,10 +185,43 @@ describe("MediaImage — real @tiptap/core Editor integration", () => {
       const json = editor.getJSON();
       const imageNode = json.content?.find((n) => n.type === "image" && n.attrs?.src === "https://example.com/legacy.png");
 
-      expect(imageNode?.attrs?.assetId ?? null).toBeNull();
-      expect(imageNode?.attrs?.transformName ?? null).toBeNull();
+      expect(imageNode).toBeDefined();
+      expect(imageNode!.attrs).toMatchObject({ src: "https://example.com/legacy.png", assetId: null, transformName: null });
     } finally {
       editor.destroy();
     }
+  });
+});
+
+describe("MediaImage mounted node view and HTML serialization", () => {
+  it("Replace updates a legacy image's document and preview, clearing stored URLs", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
+    const editor = new Editor({ extensions: [StarterKit, MediaImage], content: { type: "doc", content: [
+      { type: "image", attrs: { src: "https://example.com/old.png", title: "Old title", alt: "Old" } }, { type: "paragraph" },
+    ] } });
+    const mounted = render(<EditorContent editor={editor} />);
+    try {
+      const user = userEvent.setup();
+      expect(await screen.findByAltText("Old")).toHaveAttribute("src", "https://example.com/old.png");
+      await user.click(screen.getByRole("button", { name: "Replace" }));
+      await user.click(await screen.findByTitle("New pick"));
+      expect(editor.getJSON().content?.find((node) => node.type === "image")?.attrs).toEqual({
+        assetId: "asset-new", transformName: "public", alt: "New alt", src: null, title: null, width: null, height: null,
+      });
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl("asset-new"));
+      expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
+    } finally { mounted.unmount(); editor.destroy(); }
+  });
+
+  it.each([
+    { src: "https://example.com/legacy.png", alt: "Legacy", title: "A title", assetId: null, transformName: null, width: null, height: null },
+    { src: null, alt: "Ref", title: null, assetId: "asset-1", transformName: "public", width: null, height: null },
+  ])("HTML export and import preserve image attrs: $alt", (attrs) => {
+    const editor = new Editor({ extensions: [StarterKit, MediaImage], content: { type: "doc", content: [{ type: "image", attrs }] } });
+    const reparsed = new Editor({ extensions: [StarterKit, MediaImage] });
+    try {
+      reparsed.commands.setContent(editor.getHTML());
+      expect(reparsed.getJSON().content?.find((node) => node.type === "image")?.attrs).toEqual(attrs);
+    } finally { editor.destroy(); reparsed.destroy(); }
   });
 });

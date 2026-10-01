@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../agent-session-binding.js";
+import { resolveResumeSessionField } from "../agent-session-resume.js";
+import { createConversationStartLock } from "../conversation-start-lock.js";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -17,6 +22,107 @@ import test, { describe } from "node:test";
  */
 
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+
+/** Execute the real handler's AST with isolated ports; importing the entrypoint would boot a daemon. */
+function sessionHarness() {
+  const source = ts.createSourceFile("daemon.ts", DAEMON_ENTRY_SOURCE, ts.ScriptTarget.Latest, true);
+  let initializer: ts.Expression | undefined;
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.name.text === "onStarted") initializer = declaration.initializer;
+    }
+  }
+  assert.ok(initializer, "the actual onStarted function must exist");
+  const compiled = ts.transpileModule(`const onStarted = ${initializer.getText(source)};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  let stored: string | null = null;
+  let minted = 0;
+  let writes = 0;
+  let releaseWrite!: () => void;
+  const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+  const launches: { runId: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
+  const failures: unknown[][] = [];
+  const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {} };
+  const onStarted = runInNewContext(`${compiled}\nonStarted`, {
+    parseRunStartContextRef: () => ({ prompt: "hello", principalId: "principal-1", conversationId: "conv-1", attachmentIds: [], pluginRefIds: [] }),
+    assemblePromptWithPluginPrefix: (prompt: string) => prompt,
+    buildPageContextPromptBlock: () => "",
+    principalByRunId: new Map(), runOwners: { record() {} },
+    // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
+    liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
+    frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
+    resolveAttachmentRunFields: async () => ({}), resolveAgentPluginPromptPrefix: async () => "",
+    buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
+    routeDeps: { workspaceId: "ws-1", agentSessions: {
+      getSessionId: async (conversationId: string, agentId: string) => {
+        assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
+        return stored;
+      },
+      setSessionId: async (conversationId: string, agentId: string, id: string) => {
+        assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
+        writes += 1;
+        await writeGate;
+        stored = id;
+      },
+    } },
+    conversationStartLock: createConversationStartLock(),
+    agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField,
+    randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
+    waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
+    agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,
+    agentExecutor: { run: async (input: { runId: string; newSessionId?: string; resumeSessionId?: string }) => {
+      launches.push({ runId: input.runId, newSessionId: input.newSessionId, resumeSessionId: input.resumeSessionId, stored });
+    } },
+    process: { env: {}, cwd: () => "/isolated" }, resolvePermissionMode: () => "default",
+    ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
+    resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
+    console: { error: (...args: unknown[]) => failures.push(args), log() {} },
+  }) as (input: unknown) => void;
+  return {
+    start: (runId: string) => onStarted({ request: { agentId: "claude" }, run: { id: runId }, lifecycle }),
+    flush: () => new Promise<void>((resolve) => setImmediate(resolve)),
+    releaseWrite, launches, failures,
+    get stored() { return stored; }, get minted() { return minted; }, get writes() { return writes; },
+  };
+}
+
+test("runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn", async () => {
+  const harness = sessionHarness();
+  harness.start("first");
+  await harness.flush();
+  assert.equal(harness.writes, 1, "dispatch must actually write the binding");
+  assert.deepEqual(harness.launches, [], "the executor must wait for the unfinished store write");
+  harness.releaseWrite();
+  await harness.flush();
+  assert.deepEqual(harness.launches, [{ runId: "first", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" }]);
+  harness.start("next");
+  await harness.flush();
+  assert.deepEqual(harness.launches[1], { runId: "next", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" });
+  assert.equal(harness.minted, 1);
+  assert.deepEqual(harness.failures, []);
+});
+
+test("runtime: concurrent dispatches serialize the lookup and pending write, minting only one session", async () => {
+  const harness = sessionHarness();
+  harness.start("first");
+  harness.start("second");
+  await harness.flush();
+  assert.equal(harness.minted, 1, "the second lookup must wait for the first pending write");
+  assert.equal(harness.writes, 1);
+  assert.deepEqual(harness.launches, []);
+  harness.releaseWrite();
+  await harness.flush();
+  assert.equal(harness.minted, 1);
+  assert.equal(harness.writes, 1);
+  assert.equal(harness.stored, "minted-1");
+  assert.deepEqual(harness.launches, [
+    { runId: "first", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" },
+    { runId: "second", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" },
+  ]);
+  assert.deepEqual(harness.failures, []);
+});
 
 const ON_STARTED_INDEX = DAEMON_ENTRY_SOURCE.indexOf("const onStarted: RunStartHandler");
 const onStartedSource = (() => {

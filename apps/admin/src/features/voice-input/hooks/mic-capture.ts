@@ -2,9 +2,9 @@
  * @file The one impure piece of this feature: actual microphone capture via the Web Audio API,
  * and the one call out to `VoiceInputPort.transcribe`. `use-push-to-talk.hooks.ts` takes this
  * behind an injectable `PushToTalkCapture` interface so its own orchestration (state transitions,
- * error handling, calling `onTranscript`) is testable against a fake — this file itself is not
- * unit-tested, since jsdom (this repo's test environment) has no real `getUserMedia`/`AudioContext`
- * to exercise. See this feature's handoff notes for exactly what was hand-verified instead.
+ * error handling, calling `onTranscript`) is testable against a fake. This file's capture,
+ * transcription and cleanup paths are tested with Web Audio boundary fakes in
+ * `mic-capture.unit.test.ts`; no real microphone is opened by that test.
  *
  * Uses `ScriptProcessorNode` rather than an `AudioWorklet`. It is the deprecated API, kept here
  * deliberately for this first cut: an `AudioWorklet` needs its processor module loaded from a
@@ -57,19 +57,30 @@ export function createMicPushToTalkCapture(voicePort: VoiceInputPort): PushToTal
   let chunks: Float32Array[] = [];
 
   async function start(): Promise<void> {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    processor = audioContext.createScriptProcessor(CAPTURE_BUFFER_SIZE, CAPTURE_CHANNEL_COUNT, CAPTURE_CHANNEL_COUNT);
-    chunks = [];
-    processor.onaudioprocess = (audioEvent) => {
-      // Copy out of the input buffer — it is reused by the audio graph after this callback returns.
-      chunks.push(new Float32Array(audioEvent.inputBuffer.getChannelData(0)));
-    };
-    source.connect(processor);
-    // Some browsers only fire `onaudioprocess` once the node is in the graph's path to the
-    // destination, even though this app never plays the captured audio back.
-    processor.connect(audioContext.destination);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      processor = audioContext.createScriptProcessor(CAPTURE_BUFFER_SIZE, CAPTURE_CHANNEL_COUNT, CAPTURE_CHANNEL_COUNT);
+      chunks = [];
+      processor.onaudioprocess = (audioEvent) => {
+        // Copy out of the input buffer — it is reused by the audio graph after this callback returns.
+        chunks.push(new Float32Array(audioEvent.inputBuffer.getChannelData(0)));
+      };
+      source.connect(processor);
+      // Some browsers only fire `onaudioprocess` once the node is in the graph's path to the
+      // destination, even though this app never plays the captured audio back.
+      processor.connect(audioContext.destination);
+    } catch (error) {
+      processor?.disconnect();
+      stream?.getTracks().forEach((track) => track.stop());
+      await audioContext?.close();
+      stream = null;
+      audioContext = null;
+      processor = null;
+      chunks = [];
+      throw error;
+    }
   }
 
   async function stopAndTranscribe(): Promise<string> {

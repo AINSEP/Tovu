@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminTrashItem } from "@/lib/api";
 import { Trash } from "../Trash";
-import type { TrashController } from "../hooks/use-trash.hooks";
+import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
+import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 
 /**
  * @file The Trash screen's markup, mounted over a stub controller through its `useTrashHook` seam.
@@ -59,6 +61,67 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
 }
 
 describe("Trash screen", () => {
+  function renderRealTrash(port: ReturnType<typeof createFakeTrashPort>) {
+    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale: "en" })} /></FetchQueryProvider>);
+  }
+
+  it("opens confirmation from the toolbar and purges only after Confirm, never after Cancel", async () => {
+    const user = userEvent.setup();
+    const port = createFakeTrashPort({ items: [item()] });
+    renderRealTrash(port);
+    await user.click(await screen.findByRole("checkbox", { name: 'Select "A deleted post"' }));
+    const purge = screen.getByRole("button", { name: "Delete permanently" });
+    await user.click(purge);
+    const dialog = screen.getByRole("dialog", { name: "Delete permanently?" });
+    expect(dialog).toHaveAttribute("open");
+    expect(port.purgeCalls).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+    expect(port.purgeCalls).toEqual([]);
+    await user.click(purge);
+    expect(dialog).toHaveAttribute("open");
+    expect(port.purgeCalls).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
+    await waitFor(() => expect(port.purgeCalls).toEqual([{ ids: ["trash-1"] }]));
+    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+  });
+
+  it("restores the selected row through the real controller", async () => {
+    const user = userEvent.setup();
+    const port = createFakeTrashPort({ items: [item(), item({ id: "trash-2", entityId: "post-2", title: "Second post" })] });
+    renderRealTrash(port);
+    await user.click(await screen.findByRole("checkbox", { name: 'Select "Second post"' }));
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(port.restoreCalls).toEqual([{ items: [{ entityType: "post", entityId: "post-2" }] }]));
+    expect(port.purgeCalls).toEqual([]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Restore" })).toBeDisabled());
+  });
+
+  it("select-all toggles every visible row and Load more appends the next page", async () => {
+    const user = userEvent.setup();
+    const port = createFakeTrashPort({ items: [item()], nextCursor: "next-page" });
+    const list = port.listTrash;
+    port.listTrash = async (options) => {
+      const page = await list(options);
+      return options.cursor ? { items: [item({ id: "trash-2", entityId: "post-2", title: "Second post" })], nextCursor: null } : page;
+    };
+    renderRealTrash(port);
+    await screen.findByRole("checkbox", { name: 'Select "A deleted post"' });
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    const second = await screen.findByRole("checkbox", { name: 'Select "Second post"' });
+    expect(port.listCalls).toEqual([{}, { cursor: "next-page" }]);
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+    const all = screen.getByRole("checkbox", { name: "Select every item shown" });
+    await user.click(all);
+    expect(all).toBeChecked();
+    expect(second).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: 'Select "A deleted post"' })).toBeChecked();
+    await user.click(all);
+    expect(all).not.toBeChecked();
+    expect(second).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeDisabled();
+  });
+
   it("names the two sections it does NOT cover, on an EMPTY Trash", () => {
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
 

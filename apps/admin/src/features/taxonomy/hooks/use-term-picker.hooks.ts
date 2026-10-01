@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -65,7 +65,7 @@ export interface TermPickerController {
   newTermName: (taxonomyId: string) => string;
   setNewTermName: (taxonomyId: string, name: string) => void;
   /** Enter adds what was typed; so does a comma in a tag box. Escape closes an opened category input. */
-  onNewTermKeyDown: (taxonomyId: string, event: { key: string; preventDefault(): void }) => void;
+  onNewTermKeyDown: (taxonomyId: string, event: { key: string; nativeEvent?: { isComposing: boolean }; preventDefault(): void }) => void;
   /** Ticks the typed name's existing term, or creates it and ticks it. */
   addTerm: (taxonomyId: string) => Promise<void>;
   /** A term is being created in this taxonomy. */
@@ -106,6 +106,11 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   const assigned = new Set(assignedQuery.data ?? NO_TERMS);
   const [draft, setDraft] = useState<Set<string> | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // A draft belongs to one content ref; changing the query key must also drop its local edits.
+  useEffect(() => {
+    setDraft(null);
+    setMessage(null);
+  }, [props.contentType, props.contentId]);
   const selected = draft ?? assigned;
   const permissionsQuery = useFetchQuery({ key: KEYS.permissions, fetch: () => port.me() });
   const canCreate = hasPermission(permissionsQuery.data?.effectivePermissions ?? [], TAXONOMY_MANAGE_PERMISSION);
@@ -174,7 +179,9 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     setAddOpen(taxonomyId, false);
   }
 
-  function onNewTermKeyDown(taxonomyId: string, event: { key: string; preventDefault(): void }) {
+  function onNewTermKeyDown(taxonomyId: string, event: { key: string; nativeEvent?: { isComposing: boolean }; preventDefault(): void }) {
+    // Enter/comma can belong to the IME conversion rather than to the term picker.
+    if (event.nativeEvent?.isComposing) return;
     const hierarchical = groupOf(taxonomyId)?.taxonomy.hierarchical ?? true;
     if (event.key === "Escape") {
       // Closes a category box's opened input; one that is always shown just stays.

@@ -10,6 +10,8 @@ import { HeuristicSpamCheck } from "../spam.heuristic.js";
 import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "../types.js";
 import type { CommentsSettings, CommentSubmission } from "../types.js";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { CommentHookRegistry } from "../hooks.js";
+import type { SpamCheckPort } from "../ports.js";
 
 /** @file SPEC-033 — `CommentIngressPolicy`, one rejection reason at a time. */
 
@@ -52,18 +54,21 @@ function makePolicy(overrides: {
   entryLookup?: (required: { workspaceId: string; entryId: string }) => Promise<EntryLookupResult | null>;
   rateLimiter?: RateLimiter;
   repo?: InMemoryCommentRepo;
+  hooks?: CommentHookRegistry;
+  spamCheck?: SpamCheckPort;
+  outbox?: InMemoryOutbox;
 } = {}) {
   const repo = overrides.repo ?? new InMemoryCommentRepo();
   return createCommentIngressPolicy({
     repo,
-    spamCheck: new HeuristicSpamCheck(),
-    hooks: createCommentHookRegistry(),
+    spamCheck: overrides.spamCheck ?? new HeuristicSpamCheck(),
+    hooks: overrides.hooks ?? createCommentHookRegistry(),
     clock: { nowIso: () => "2026-07-16T00:00:00.000Z" },
     idGen: { newId: () => `comment-${Math.random().toString(36).slice(2)}` },
     getSettings: async () => defaultSettings(overrides.settings),
     entryLookup: overrides.entryLookup ?? (async () => OPEN_ENTRY),
     rateLimiter: overrides.rateLimiter ?? alwaysAllowRateLimiter(),
-    outbox: new InMemoryOutbox(),
+    outbox: overrides.outbox ?? new InMemoryOutbox(),
   });
 }
 
@@ -198,6 +203,101 @@ test("too-many-links", async () => {
   const result = await policy.submit(makeSubmission({ bodyRaw: manyLinks }));
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.reason, "too-many-links");
+});
+
+test("body and link caps accept the limit and reject one above it", async () => {
+  for (const [bodyRaw, expected] of [
+    ["x".repeat(10_000), { ok: true }],
+    ["x".repeat(10_001), { ok: false, reason: "body-too-large" }],
+    [Array.from({ length: 5 }, (_, i) => `https://example.com/${i}`).join(" "), { ok: true }],
+    [Array.from({ length: 6 }, (_, i) => `https://example.com/${i}`).join(" "), { ok: false, reason: "too-many-links" }],
+  ] as const) {
+    const result = await makePolicy().submit(makeSubmission({ bodyRaw }));
+    assert.equal(result.ok, expected.ok);
+    if (!result.ok && !expected.ok) assert.equal(result.reason, expected.reason);
+  }
+});
+
+test("rate-limit buckets use the submission's author IP hash independently", async () => {
+  const calls: string[] = [];
+  const counts = new Map<string, number>();
+  const policy = makePolicy({ rateLimiter: { check: (key) => {
+    calls.push(key);
+    const count = (counts.get(key) ?? 0) + 1;
+    counts.set(key, count);
+    return count <= 1 ? { allowed: true } : { allowed: false, retryAfterSeconds: 60 };
+  } } });
+  assert.equal((await policy.submit(makeSubmission())).ok, true);
+  assert.deepEqual(await policy.submit(makeSubmission()), { ok: false, reason: "rate-limited" });
+  assert.equal((await policy.submit(makeSubmission({ ingressContext: { authorIpHash: "hash-2" } }))).ok, true);
+  assert.equal((await policy.submit(makeSubmission({ ingressContext: {} }))).ok, true);
+  assert.deepEqual(calls, ["hash-1", "hash-1", "hash-2", "unknown"]);
+});
+
+test("spam classification respects configured thresholds and equality", async () => {
+  for (const [threshold, score, status] of [[1, 0, "pending"], [1, 0.7, "pending"], [0, 0, "spam"], [0.75, 0.75, "spam"], [0.75, 0.74, "pending"]] as const) {
+    const policy = makePolicy({ settings: { spamAutoRejectScore: threshold }, spamCheck: {
+      check: async () => ({ score, isSpam: score >= 0.5, provider: "fixture" }), report: async () => {},
+    } });
+    const result = await policy.submit(makeSubmission());
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.autoClassified, status);
+      assert.equal(result.comment.status, status);
+    }
+  }
+});
+
+test("before-submit transformations reach persistence and the spam checker", async () => {
+  const hooks = createCommentHookRegistry();
+  hooks.registerBeforeSubmitHook(async ({ submission }) => ({ submission: { ...submission, bodyRaw: "Filtered body", authorName: "Filtered visitor" } }));
+  const repo = new InMemoryCommentRepo();
+  let checkedBody = "";
+  const policy = makePolicy({ hooks, repo, spamCheck: {
+    check: async (submission) => { checkedBody = submission.bodyRaw; return { score: 0, isSpam: false, provider: "fixture" }; }, report: async () => {},
+  } });
+  const result = await policy.submit(makeSubmission());
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(checkedBody, "Filtered body");
+  assert.equal(result.comment.bodyText, "Filtered body");
+  assert.equal(result.comment.authorName, "Filtered visitor");
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: result.comment.id }), result.comment);
+});
+
+for (const mode of ["veto", "throw"] as const) {
+  test(`before-submit ${mode} rejects without persistence or events`, async () => {
+    const hooks = createCommentHookRegistry();
+    hooks.registerBeforeSubmitHook(async () => {
+      if (mode === "throw") throw new Error("filter failed");
+      return { reject: "invalid" };
+    });
+    let laterHookRan = false;
+    hooks.registerBeforeSubmitHook(async ({ submission }) => { laterHookRan = true; return { submission }; });
+    const repo = new InMemoryCommentRepo();
+    const outbox = new InMemoryOutbox();
+    assert.deepEqual(await makePolicy({ hooks, repo, outbox }).submit(makeSubmission()), { ok: false, reason: "invalid" });
+    assert.equal(laterHookRan, false, "must stop after rejection");
+    for (const status of ["pending", "approved", "spam"] as const) assert.equal(await repo.countByStatus({ workspaceId: WORKSPACE_ID, status }), 0);
+    assert.deepEqual(await outbox.claimPending(10, "2026-07-16T00:00:00.000Z"), []);
+  });
+}
+
+test("successful submissions enqueue a scoped comments.submitted event with their classification", async () => {
+  for (const status of ["pending", "approved", "spam"] as const) {
+    const outbox = new InMemoryOutbox();
+    const policy = makePolicy({ outbox, settings: { requireModeration: status !== "approved", spamAutoRejectScore: status === "spam" ? 0 : 1 } });
+    const result = await policy.submit(makeSubmission());
+    assert.equal(result.ok, true);
+    if (!result.ok) continue;
+    const events = (await outbox.claimPending(10, "2026-07-16T00:00:00.000Z")).map((row) => row.event);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].name, "comments.submitted");
+    assert.equal(events[0].workspaceId, WORKSPACE_ID);
+    assert.equal(events[0].aggregateId, result.comment.id);
+    assert.equal(events[0].occurredAt, "2026-07-16T00:00:00.000Z");
+    assert.deepEqual(events[0].payload, { commentId: result.comment.id, entryId: "entry-1", status });
+  }
 });
 
 test("honeypot-tripped", async () => {

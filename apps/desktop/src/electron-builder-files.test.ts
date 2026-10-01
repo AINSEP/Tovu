@@ -40,7 +40,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import yaml from "js-yaml";
-import { Minimatch } from "minimatch";
+import os from "node:os";
+import { getMainFileMatchers, getNodeModuleFileMatcher, getFileMatchers, copyFiles } from "app-builder-lib/out/fileMatcher.js";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG_PATH = path.join(DESKTOP_ROOT, "electron-builder.yml");
@@ -49,30 +50,15 @@ const CONFIG_PATH = path.join(DESKTOP_ROOT, "electron-builder.yml");
  *  it. Do not "fix" this fixture — it is the bug, preserved on purpose. */
 const PRE_FIX_PATTERNS = ["main.ts", "package.json", "dist/**", "src/**", "!**/*.map", "!src/**/*.test.js", "!src/**/*.test.ts"];
 
-/**
- * Whether `relPath` survives `patterns`, using electron-builder's own last-match-wins ordering.
- *
- * Mirrors `app-builder-lib`'s matcher closely enough for this assertion: positive patterns include,
- * `!` patterns exclude, and the last pattern that matches decides. The conditional `(all-files glob)`
- * default is applied on the same condition the real matcher applies it — only when the list is
- * empty or holds nothing but negations.
- *
- * @complexity O(n) in the pattern count.
- */
-function shipsPath(patterns: readonly string[], relPath: string): boolean {
-  const containsOnlyIgnore = patterns.length > 0 && patterns.every((pattern) => pattern.startsWith("!"));
-  const effective = patterns.length === 0 || containsOnlyIgnore ? ["**/*", ...patterns] : patterns;
+/** Use the production matcher builder, including its built-in exclusions. */
+function matcherPackager(patterns: readonly string[]) {
+  return { config: { files: [...patterns] }, projectDir: DESKTOP_ROOT, buildResourcesDir: "build", debugLogger: { isEnabled: false } };
+}
 
-  let included = false;
-  for (const pattern of effective) {
-    const negated = pattern.startsWith("!");
-    const body = negated ? pattern.slice(1) : pattern;
-    // A bare directory entry in electron-builder means the directory and everything under it.
-    const matcher = new Minimatch(body, { dot: true });
-    const directoryMatcher = new Minimatch(`${body}/**/*`, { dot: true });
-    if (matcher.match(relPath) || directoryMatcher.match(relPath)) included = !negated;
-  }
-  return included;
+function shipsPath(patterns: readonly string[], relPath: string): boolean {
+  const matchers = getMainFileMatchers(DESKTOP_ROOT, "/fixture-dest", (value: string) => value, {},
+    { info: matcherPackager(patterns) } as never, path.join(DESKTOP_ROOT, "release"), false)!;
+  return matchers[0].createFilter()(path.join(DESKTOP_ROOT, relPath), { isDirectory: () => false } as fs.Stats);
 }
 
 function configuredFilePatterns(): string[] {
@@ -109,17 +95,14 @@ test("the files: list still excludes test files it is meant to exclude", () => {
 /**
  * Whether `relPath` under `node_modules/` survives `patterns`.
  *
- * node_modules is filtered by a SECOND, differently-built matcher —
- * `getNodeModuleFileMatcher` (`app-builder-lib/out/fileMatcher.js:177-220`) — which keeps only the
- * `!` entries of `files:` and then `prependPattern("**{{/}}*")`. Positive patterns are dropped
- * entirely, which is why `node_modules` ships despite never being named in `files:`, and why a
- * negation is the only lever there is over it. {@link shipsPath} mirrors the MAIN matcher and would
- * answer this question wrongly.
+ * Uses electron-builder's separate node-module matcher, which applies the files negations.
+ * Positive shell paths do not control which dependency files ship.
  *
  * @complexity O(n) in the pattern count.
  */
 function shipsNodeModulePath(patterns: readonly string[], relPath: string): boolean {
-  return shipsPath(["**/*", ...patterns.filter((pattern) => pattern.startsWith("!"))], relPath);
+  const matcher = getNodeModuleFileMatcher(DESKTOP_ROOT, "/fixture-dest", (value: string) => value, {}, matcherPackager(patterns) as never);
+  return matcher.createFilter()(path.join(DESKTOP_ROOT, relPath), { isDirectory: () => false } as fs.Stats);
 }
 
 test("the packaged shell does NOT ship the Bun runtimes or the Rollup natives", () => {
@@ -193,4 +176,43 @@ test("npm's own node_modules ships as a SEPARATE extraResources entry, not folde
     npmModulesEntry,
     "electron-builder.yml's extraResources has no `staging/npm/node_modules -> npm/node_modules` entry."
   );
+});
+
+test("production extraResources copies the npm CLIs, dependencies and Tovu payload", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-builder-fixture-"));
+  const output = path.join(root, "resources");
+  const required = [
+    ["staging/npm/bin/npx-cli.js", "npm/bin/npx-cli.js"],
+    ["staging/npm/bin/npm-cli.js", "npm/bin/npm-cli.js"],
+    ["staging/npm/package.json", "npm/package.json"],
+    ["staging/npm/node_modules/@npmcli/arborist/lib/index.js", "npm/node_modules/@npmcli/arborist/lib/index.js"],
+    ["staging/npm/node_modules/semver/index.js", "npm/node_modules/semver/index.js"],
+    ["staging/tovu-payload/package.json", "tovu/package.json"],
+    ["staging/tovu-payload/dist/src/cli/main.js", "tovu/dist/src/cli/main.js"],
+    ["staging/tovu-payload/apps/admin/dist/index.html", "tovu/apps/admin/dist/index.html"],
+    ["staging/tovu-payload/apps/site-chat/dist/index.html", "tovu/apps/site-chat/dist/index.html"],
+    ["staging/tovu-payload/node_modules/better-sqlite3/build/Release/better_sqlite3.node", "tovu/node_modules/better-sqlite3/build/Release/better_sqlite3.node"],
+  ];
+  try {
+    for (const [from] of required) {
+      fs.mkdirSync(path.dirname(path.join(root, from)), { recursive: true });
+      fs.writeFileSync(path.join(root, from), `fixture:${from}`);
+    }
+    const config = yaml.load(fs.readFileSync(CONFIG_PATH, "utf8")) as Record<string, unknown>;
+    const matchers = getFileMatchers(config, "extraResources", output, {
+      defaultSrc: root, macroExpander: (value: string) => value,
+      customBuildOptions: {}, globalOutDir: path.join(root, "release"),
+    });
+    await copyFiles(matchers, undefined, false);
+    for (const [from, to] of required) {
+      assert.equal(fs.readFileSync(path.join(output, to), "utf8"), `fixture:${from}`, `${to} must ship`);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("production files includes every shell runtime entry point", () => {
+  for (const filename of ["main.ts", "bin/mcp-bridge.ts", "src/sites-mcp-registration.ts", "src/tovu-server.ts",
+    "dist/preload/preload.mjs", "dist/speech/preload-speech.cjs", "dist/contracts/project.js", "dist/renderer/index.html"]) {
+    assert.equal(shipsPath(configuredFilePatterns(), filename), true, `${filename} must ship`);
+  }
 });

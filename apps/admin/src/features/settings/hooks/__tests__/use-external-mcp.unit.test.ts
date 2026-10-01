@@ -476,12 +476,16 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
     const { result } = renderHook(() => useExternalMcp());
 
     await act(async () => {
-      await result.current.dependencies.port.addSource({
+      expect(await result.current.dependencies.port.addSource({
         fields: { id: "hosted", transport: "streamable_http", url: "https://mcp.example.com/mcp", authMode: "oauth", oauthGrant: "authorization_code" },
-      });
+      })).toMatchObject({ ok: true });
     });
 
-    expect(saveExternalMcpServer).toHaveBeenCalled();
+    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith("hosted", {
+      transport: "streamable_http", enabled: true, command: "", url: "https://mcp.example.com/mcp",
+      args: "", allowedToolNames: "", writeAllowedToolNames: "", authMode: "oauth",
+      oauth: { grant: "authorization_code", clientId: "", scopes: "", tokenEnvName: "" },
+    });
   });
 
   it("accepts an OAuth draft that names a provider id, and carries the oauth block through to the write", async () => {

@@ -42,7 +42,12 @@ describe("createChatStoreFactory", () => {
     const alice: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "alice" };
     const bob: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "bob" };
 
-    await factory(alice).create({ id: "c-alice" });
+    const first = factory(alice);
+    const created = await first.create({ id: "c-alice" });
+    const second = factory(alice);
+    assert.notEqual(second, first);
+    assert.deepEqual(await second.get("c-alice"), created);
+    assert.deepEqual(db.prepare("SELECT id, owner_id FROM ai_chats").all(), [{ id: "c-alice", owner_id: "alice" }]);
     const bobList = await factory(bob).list();
 
     assert.deepEqual(bobList, [], "a second call for a different principal must not see the first principal's row");
@@ -87,5 +92,7 @@ describe("createInMemoryChatStoreFactory", () => {
     // deletion — this is the exact regression the module's own comment warns about.
     const listed = await store.list();
     assert.deepEqual(listed, []);
+    await store.create({ id: "c1" });
+    assert.deepEqual(await store.messages("c1"), [], "no orphaned messages may reappear when the conversation id is reused");
   });
 });

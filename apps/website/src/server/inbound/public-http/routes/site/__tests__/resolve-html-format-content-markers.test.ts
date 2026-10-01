@@ -118,6 +118,11 @@ test("GUARD 3: a mutually-referencing chain (A embeds B, B embeds A) terminates"
 
   assert.equal(typeof result, "string");
   assert.ok(callCount() <= MAX_CONTENT_EMBED_DEPTH + 1, `expected bounded fetch count, got ${callCount()}`);
+  assert.equal(callCount(), MAX_CONTENT_EMBED_DEPTH + 1);
+  assert.equal(result,
+    "<main>" + "<div>".repeat(MAX_CONTENT_EMBED_DEPTH) +
+    '<div class="widget widget-placeholder" aria-hidden="true"></div>' +
+    "</div>".repeat(MAX_CONTENT_EMBED_DEPTH) + "</main>");
 });
 
 test("GUARD 3: depth alone bounds a self-reference to a FIXED fetch count, never growing with more recursion", () => {
@@ -165,13 +170,17 @@ test("GUARD 3 (resource bound): a WIDE branching structure exceeding the fetch b
   }
   const { repo, callCount } = countingPostRepo(rows);
 
-  await withTimeout(
+  const result = await withTimeout(
     resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES }),
     5000,
     "wide-branch resolution"
   );
 
   assert.equal(callCount(), MAX_CONTENT_EMBED_FETCHES, "the shared budget must cap total fetches, not the branch count");
+  assert.equal((result.match(/<p>leaf<\/p>/g) ?? []).length, MAX_CONTENT_EMBED_FETCHES);
+  for (let i = MAX_CONTENT_EMBED_FETCHES; i < branchCount; i++) {
+    assert.ok(result.includes(`data-embed-config='{"type":"content","id":"leaf-${i}"}'`));
+  }
 });
 
 test("a non-recursive, non-cyclic html-format reference resolves normally and splices real content in", async () => {
@@ -296,4 +305,30 @@ test("GUARD 2 (slug twin): a slug naming a DRAFT html-format page is not spliced
   );
 
   assert.ok(!result.includes("Draft secret"));
+});
+
+
+test("GUARD 3: nested branches share the recursive splice budget", async () => {
+  const width = 40;
+  const rows: PostRecord[] = [];
+  let startHtml = "";
+  for (let branch = 0; branch < 2; branch++) {
+    let bodyHtml = "";
+    for (let leaf = 0; leaf < width; leaf++) {
+      const id = `branch-${branch}-leaf-${leaf}`;
+      rows.push(postRecord({ id, bodyHtml: `<p>${id}</p>` }));
+      bodyHtml += `<div data-embed-config='{"type":"content","id":"${id}"}'></div>`;
+    }
+    rows.push(postRecord({ id: `branch-${branch}`, bodyHtml }));
+    startHtml += `<section data-embed-config='{"type":"content","id":"branch-${branch}"}'></section>`;
+  }
+  const { repo, callCount } = countingPostRepo(rows);
+  const budget = { remaining: MAX_CONTENT_EMBED_FETCHES };
+  const result = await withTimeout(resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, budget), 5000, "nested branches");
+  assert.equal(budget.remaining, 0);
+  // Two parent fetches use the same allowance as their children. The registry then fetches
+  // the remaining html-format leaves once to render placeholders, without recursing into them.
+  assert.equal((result.match(/<p>branch-\d-leaf-\d+<\/p>/g) ?? []).length, MAX_CONTENT_EMBED_FETCHES - 2);
+  assert.equal((result.match(/widget-placeholder/g) ?? []).length, 2 * width - (MAX_CONTENT_EMBED_FETCHES - 2));
+  assert.equal(callCount(), 2 + 2 * width);
 });

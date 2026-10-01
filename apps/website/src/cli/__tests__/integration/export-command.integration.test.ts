@@ -74,6 +74,22 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
   assert.ok(fs.existsSync(path.join(outDir, "404.html")), "404 page written at the output root");
   const home = fs.readFileSync(path.join(outDir, "index.html"), "utf8");
   assert.match(home, /<!doctype html>/i);
+  assert.match(home, /href="\/welcome"/, "the seeded welcome post must appear in the exported home page");
+  assert.match(fs.readFileSync(path.join(outDir, "welcome", "index.html"), "utf8"), /Welcome/);
+  const counts = result.stdout.match(/wrote (\d+)\/(\d+) routes and (\d+)\/(\d+) assets/);
+  assert.ok(counts);
+  const [, routesWritten, routesTotal, assetsWritten, assetsTotal] = counts.map(Number);
+  assert.ok(routesWritten > 0);
+  assert.ok(assetsWritten > 0);
+  assert.equal(routesWritten, routesTotal);
+  assert.equal(assetsWritten, assetsTotal);
+  const files = (fs.readdirSync(outDir, { recursive: true }) as string[]).filter(file => fs.statSync(path.join(outDir, file)).isFile());
+  const assetFiles = files.filter(file => /^(theme-assets|agent-icons|m)\//.test(file));
+  assert.equal(assetFiles.length, assetsWritten, "reported assets match independently inspected files");
+  assert.equal(files.length - assetFiles.length, routesWritten, "reported routes match independently inspected files");
+  const assetUrls = [...home.matchAll(/(?:href|src)="(\/theme-assets\/[^"?#]+)"/g)].map(match => match[1]);
+  assert.ok(assetUrls.length > 0);
+  for (const url of assetUrls) assert.ok(fs.statSync(path.join(outDir, url.slice(1))).size > 0, `${url} must be exported with content`);
 });
 
 test("tovu export: a non-empty --out is refused (EXPORT_OUTPUT_NOT_EMPTY, exit 3) unless --clean is passed", (t) => {
@@ -105,6 +121,9 @@ test("tovu export --base-path <path>: rewrites root-relative links and prints th
 
   assert.equal(runCli(["init", installDir]).status, 0);
 
+  const homePath = path.join(installDir, "themes", "static", "tovu-starter", "render", "pages", "index.html");
+  const probes = '<link id="audit-css" rel="stylesheet" href="/theme-assets/tovu-starter/css/theme.css"><script id="audit-js" src="/theme-assets/tovu-starter/scripts/main.js"></script><img id="audit-image" src="/theme-assets/tovu-starter/assets/logo.png">';
+  fs.writeFileSync(homePath, fs.readFileSync(homePath, "utf8").replace("</body>", `${probes}</body>`));
   const result = runCli(["export", installDir, "--out", outDir, "--base-path", "/my-repo"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   assert.match(result.stdout, /rewrote root-relative links\/assets for base path '\/my-repo'/);
@@ -112,6 +131,10 @@ test("tovu export --base-path <path>: rewrites root-relative links and prints th
 
   const home = fs.readFileSync(path.join(outDir, "index.html"), "utf8");
   assert.match(home, /href="\/my-repo\//, "at least one internal link must carry the base path");
+  assert.match(home, /id="audit-css" rel="stylesheet" href="\/my-repo\/theme-assets\/tovu-starter\/css\/theme.css"/);
+  assert.match(home, /id="audit-js" src="\/my-repo\/theme-assets\/tovu-starter\/scripts\/main.js"/);
+  assert.match(home, /id="audit-image" src="\/my-repo\/theme-assets\/tovu-starter\/assets\/logo.png"/);
+  assert.doesNotMatch(home, /\b(?:href|src)=["']\/(?!\/|my-repo(?:\/|["']))/, "all root-relative href/src values must carry the requested base path");
 });
 
 test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory when --out is omitted", (t) => {

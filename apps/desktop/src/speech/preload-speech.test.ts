@@ -105,12 +105,19 @@ test("the compiled preload's inlined IPC_CHANNEL_TRANSCRIBE literal matches spee
  *  Electron 43.6.0 framework's `sandbox_bundle`) compiles every preload as a function of
  *  `require, process, exports, module, …` and calls it with a fresh `{}` and `{ exports }`. Any
  *  OTHER free identifier the compiled output grows still throws here, as it would there. */
-function exposedGlobalsAt(pathname: string): string[] {
-  const exposed: string[] = [];
+function preloadAt(pathname: string) {
+  const exposed: Record<string, any> = {};
+  const invokes: unknown[][] = [];
+  const files: unknown[] = [];
+  const availability = { available: true };
+  const transcription = { text: "hello", elapsedMs: 7 };
   const electron = {
-    contextBridge: { exposeInMainWorld: (key: string) => void exposed.push(key) },
-    ipcRenderer: { invoke: async () => undefined },
-    webUtils: { getPathForFile: () => "" },
+    contextBridge: { exposeInMainWorld: (key: string, value: unknown) => { exposed[key] = value; } },
+    ipcRenderer: { invoke: async (channel: string, ...args: unknown[]) => {
+      invokes.push([channel, ...args]);
+      return channel === IPC_CHANNEL_IS_AVAILABLE ? availability : transcription;
+    } },
+    webUtils: { getPathForFile: (file: unknown) => { files.push(file); return "/tmp/dropped/file.txt"; } },
   };
   const requireStub = (specifier: string) => {
     assert.equal(specifier, "electron");
@@ -119,7 +126,11 @@ function exposedGlobalsAt(pathname: string): string[] {
   const moduleExports = {};
   const context = { require: requireStub, exports: moduleExports, module: { exports: moduleExports }, window: { location: { pathname } } };
   vm.runInNewContext(compiledText, context, { filename: COMPILED_PATH });
-  return exposed;
+  return { exposed, invokes, files, availability, transcription };
+}
+
+function exposedGlobalsAt(pathname: string): string[] {
+  return Object.keys(preloadAt(pathname).exposed);
 }
 
 test("window.tovuFiles is exposed on the admin surface — /admin and every path under /admin/", () => {
@@ -133,5 +144,25 @@ test("window.tovuFiles is NOT exposed to same-origin public pages, previews, or 
   // in-window navigation, and a `<webview>` guest confined only to its origin, all reach them.
   for (const pathname of ["/", "/about", "/blog/hello-world", "/theme-assets/site.css", "/administrator", "/admin-old/"]) {
     assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice"], `at ${pathname}`);
+  }
+});
+
+
+test("compiled voice bridge forwards the channels, sample object and sample rate and returns IPC results", async () => {
+  const f = preloadAt("/admin");
+  assert.equal(await f.exposed.tovuVoice.isAvailable(), f.availability);
+  const samples = new Float32Array([0.1, -0.2]);
+  assert.equal(await f.exposed.tovuVoice.transcribe(samples, 16000), f.transcription);
+  assert.deepEqual(f.invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 16000]]);
+  assert.equal(f.invokes[1][1], samples);
+});
+
+test("compiled admin file bridge delegates to webUtils and returns the resolved path", () => {
+  for (const pathname of ["/admin", "/admin/", "/admin/posts/42"]) {
+    const f = preloadAt(pathname);
+    const file = { name: "file.txt" };
+    assert.equal(f.exposed.tovuFiles.getPathForFile(file), "/tmp/dropped/file.txt");
+    assert.deepEqual(f.files, [file]);
+    assert.equal(f.files[0], file);
   }
 });

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
+import { cardOpenProps, closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
@@ -104,4 +104,25 @@ test("a card whose folder is missing does not open — there is no site to start
   const record = (fields: Partial<SiteRecord>) => ({ status: "stopped", folderMissing: false, ...fields }) as SiteRecord;
   assert.equal(isCardOpenable(record({}), false), true);
   assert.equal(isCardOpenable(record({ folderMissing: true }), false), false);
+});
+
+test("cardOpenProps opens only for accepted keys on the card and leaves descendant controls alone", () => {
+  for (const [key, target, expected] of [
+    ["Enter", card, 1], [" ", card, 1], ["Escape", card, 0],
+    ["Enter", descendantControl, 0], [" ", descendantControl, 0],
+  ] as const) {
+    let opened = 0;
+    let prevented = 0;
+    const props = cardOpenProps(true, () => opened++);
+    assert.equal(props.role, "button");
+    assert.equal(props.tabIndex, 0);
+    props.onKeyDown!({ key, target, currentTarget: card, preventDefault: () => prevented++ });
+    assert.equal(opened, expected, key);
+    assert.equal(prevented, expected, key);
+  }
+  let opened = 0;
+  cardOpenProps(true, () => opened++).onClick!();
+  assert.equal(opened, 1);
+  assert.deepEqual(cardOpenProps(false, () => opened++), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
+  assert.equal(opened, 1);
 });

@@ -34,6 +34,16 @@ test("explicit TOVU_RUNTIME_MODE=local resolves local", () => {
 });
 
 test("default (no options argument) reads the real process.env without throwing", () => {
-  const result = resolveRuntimeMode();
-  assert.ok(result === "production" || result === "local");
+  const previous = process.env.TOVU_RUNTIME_MODE;
+  try {
+    process.env.TOVU_RUNTIME_MODE = "production";
+    assert.equal(resolveRuntimeMode(), "production");
+    process.env.TOVU_RUNTIME_MODE = "local";
+    assert.equal(resolveRuntimeMode(), "local");
+    delete process.env.TOVU_RUNTIME_MODE;
+    assert.equal(resolveRuntimeMode(), "local");
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE;
+    else process.env.TOVU_RUNTIME_MODE = previous;
+  }
 });

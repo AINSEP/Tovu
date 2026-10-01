@@ -29,6 +29,19 @@ function runCli(args: string[]): { status: number | null; stdout: string; stderr
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
+function snapshotTree(dir: string): Record<string, string | null> {
+  const snapshot: Record<string, string | null> = {};
+  function walk(relative: string): void {
+    for (const entry of fs.readdirSync(path.join(dir, relative), { withFileTypes: true })) {
+      const name = path.join(relative, entry.name);
+      snapshot[name] = entry.isDirectory() ? null : fs.readFileSync(path.join(dir, name)).toString("hex");
+      if (entry.isDirectory()) walk(name);
+    }
+  }
+  walk("");
+  return snapshot;
+}
+
 function writeValidV1DeclarativeTheme(dir: string): void {
   fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
   fs.writeFileSync(
@@ -50,27 +63,39 @@ test("tovu theme migrate <dir>: migrates a valid v1 declarative theme in place a
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   assert.match(result.stdout, /migrated to schema v2/);
   assert.ok(fs.existsSync(path.join(dir, "css/theme.css")));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8")).apiVersion, 2);
+  assert.equal(fs.readFileSync(path.join(dir, "css/theme.css"), "utf8"), "body{}");
+  assert.equal(fs.readFileSync(path.join(dir, "tokens.json"), "utf8"), "{}");
+  for (const page of ["home", "entry"]) assert.equal(fs.readFileSync(path.join(dir, "render", "pages", `${page}.json`), "utf8"), '{"type":"doc","content":[]}');
+  const validated = runCli(["theme", "validate", dir]);
+  assert.equal(validated.status, 0, `migrated theme must validate: ${validated.stdout} ${validated.stderr}`);
 });
 
 test("tovu theme migrate <dir> --dry-run --json: prints the machine-readable staged result, real dir untouched", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-migrate-dryrun-"));
   writeValidV1DeclarativeTheme(dir);
 
+  const before = snapshotTree(dir);
   const result = runCli(["theme", "migrate", dir, "--dry-run", "--json"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.status, "staged-dry-run");
   assert.ok(!fs.existsSync(path.join(dir, "css")), "dry run must never touch the real theme directory");
+  assert.deepEqual(snapshotTree(dir), before, "dry run preserves every original directory and file byte");
 });
 
 test("tovu theme migrate <dir>: an already-migrated theme is a no-op and exits 0", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-migrate-already-"));
   writeValidV1DeclarativeTheme(dir);
-  runCli(["theme", "migrate", dir]);
+  const first = runCli(["theme", "migrate", dir]);
+  assert.equal(first.status, 0, `first migration failed: ${first.stderr}`);
+  assert.match(first.stdout, /migrated to schema v2/);
+  const before = snapshotTree(dir);
 
   const second = runCli(["theme", "migrate", dir]);
   assert.equal(second.status, 0, `stderr: ${second.stderr}`);
   assert.match(second.stdout, /already schema v2/);
+  assert.deepEqual(snapshotTree(dir), before, "a second migration preserves every migrated file byte");
 });
 
 test("tovu theme migrate <dir>: a theme that fails staged-output verification exits 1 and prints validator + loadTheme findings plus the staged output path", () => {

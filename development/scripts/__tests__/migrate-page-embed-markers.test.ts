@@ -7,6 +7,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { posts, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
@@ -64,7 +66,7 @@ test("migrate-page-embed-markers: a dry run against a not-yet-migrated content.d
 
   assert.throws(
     () => runScript(dbPath),
-    /Command failed/,
+    /no such table: posts/,
     "a dry run against an unmigrated db must fail loudly (no such table: posts), not silently succeed"
   );
 
@@ -93,4 +95,42 @@ test("migrate-page-embed-markers: a mistyped --db path fails loudly and creates 
   assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+
+test("migrate-page-embed-markers: dry run preserves content; apply rewrites only the marker, indexes references, and is idempotent", () => {
+  const scratch = tmpDir("migrate-page-embed-markers-content-");
+  const dbPath = path.join(scratch, "content.db");
+  try {
+    const db = openContentDb(dbPath);
+    const now = "2026-09-30T00:00:00.000Z";
+    db.insert(workspaces).values({ id: "ws-test", name: "Test", slug: "test", createdAt: now }).run();
+    const beforeHtml = '<p>Before &amp; after</p><section class="authored" data-embed-type="widget" data-embed-id="widget-1">Keep me</section><p>Tail</p>';
+    const expectedHtml = `<p>Before &amp; after</p><section class="authored" data-embed-config='{"type":"widget","id":"widget-1"}'>Keep me</section><p>Tail</p>`;
+    for (const [id, bodyHtml] of [["page-1", beforeHtml], ["untouched", "<p>Untouched sibling</p>"]]) {
+      db.insert(posts).values({ id, workspaceId: "ws-test", title: id, slug: id, kind: "page", status: "published", bodyFormat: "html", bodyHtml, bodyJson: null, updatedAt: now, version: 1 }).run();
+    }
+    db.$client.close();
+    const read = () => {
+      const witness = new Database(dbPath, { readonly: true, fileMustExist: true });
+      try { return { pages: witness.prepare("SELECT * FROM posts ORDER BY id").all() as Array<Record<string, unknown>>, refs: witness.prepare("SELECT * FROM entry_refs ORDER BY id").all() as Array<Record<string, unknown>> }; }
+      finally { witness.close(); }
+    };
+    const before = read();
+    const bytes = fs.readFileSync(dbPath);
+    assert.match(runScript(dbPath), /Would write 1 page body/);
+    assert.deepEqual(read(), before);
+    assert.deepEqual(fs.readFileSync(dbPath), bytes);
+    assert.match(runScript(dbPath, ["--apply"]), /WROTE 1 page body/);
+    const after = read();
+    assert.deepEqual(after.pages, before.pages.map((row) => row.id === "page-1" ? { ...row, body_html: expectedHtml } : row));
+    assert.equal(after.refs.length, 1);
+    assert.equal(after.refs[0].source_entry_id, "page-1");
+    assert.equal(after.refs[0].target_id, "widget-1");
+    assert.equal(after.refs[0].target_kind, "entry");
+    assert.match(runScript(dbPath, ["--apply"]), /no stored Page body carries/);
+    const rerun = read();
+    assert.deepEqual(rerun.pages, after.pages);
+    assert.deepEqual(rerun.refs.map(({ id, ...ref }) => ref), after.refs.map(({ id, ...ref }) => ref));
+  } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
 });

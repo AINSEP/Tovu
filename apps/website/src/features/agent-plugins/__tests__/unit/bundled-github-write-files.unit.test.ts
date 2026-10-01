@@ -109,6 +109,7 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
       ],
     },
   });
+  assert.equal(client.calls[0]!.headers.Authorization, buildAuthorizationHeader(CONNECTION));
   assert.equal(client.remainingCount(), 0);
 });
 
@@ -119,11 +120,12 @@ test("plan: one directory listing serves every file planned under it, never one 
     // A single directory listing must answer for BOTH files below — a per-file GET for either path
     // (in particular one over the http client's own 1 MB response cap, for a large file) would
     // never be queued here, so the fake throws loudly if the implementation regresses to one.
-    { match: /\/contents\/docs\?ref=main$/, method: "GET", status: 200, json: [{ name: "big.bin", type: "file" }] },
+    { match: /\/contents\/docs\?ref=main$/, method: "GET", status: 200, json: [{ name: "big.bin", type: "file" }, { name: "other.txt", type: "file" }] },
   ]);
-  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "docs/big.bin", content: "x" }]));
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "docs/big.bin", content: "x" }, { path: "docs/other.txt", content: "other" }, { path: "docs/new.txt", content: "new" }]));
   assert.equal(result.ok, true);
-  assert.deepEqual((result as { plan: GitHubWriteFilesPlan }).plan.fileStates, [{ path: "docs/big.bin", exists: true }]);
+  assert.deepEqual((result as { plan: GitHubWriteFilesPlan }).plan.fileStates, [{ path: "docs/big.bin", exists: true }, { path: "docs/other.txt", exists: true }, { path: "docs/new.txt", exists: false }]);
+  assert.equal(client.calls.filter(call => call.url.includes("/contents/docs?")).length, 1);
   assert.equal(client.remainingCount(), 0, "no further calls (in particular no per-file GET) should remain queued");
 });
 
@@ -237,6 +239,13 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
   ]);
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "app = 'demo'" }]), PLAN);
   assert.deepEqual(result, { ok: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha" });
+  for (const call of client.calls) assert.equal(call.headers.Authorization, buildAuthorizationHeader(CONNECTION));
+  const blobBody = JSON.parse(client.calls[0]!.body!);
+  assert.equal(blobBody.encoding, "base64");
+  assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), "app = 'demo'");
+  const commitBody = JSON.parse(client.calls.find((c) => c.url.endsWith("/git/commits"))!.body!);
+  assert.deepEqual(commitBody, { message: "deploy", tree: "new-tree-sha", parents: ["parent-sha"] });
+  assert.equal(client.remainingCount(), 0);
 
   const treeCall = client.calls.find((c) => c.url.endsWith("/git/trees"));
   assert.ok(treeCall, "the tree-creation call must have been made");

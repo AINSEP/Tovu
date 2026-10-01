@@ -18,7 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CANCELLED_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
+import { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
+import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -104,12 +105,15 @@ test("re-adding a tracked website REPLACES its row instead of showing a second c
   const existing = siteRecord('/sites/a', '2026-01-01T00:00:00.000Z');
   const other = siteRecord('/sites/b');
 
-  const merged = mergeAddedSite([existing, other], siteRecord('/sites/a', '2026-05-05T00:00:00.000Z'));
+  const added = siteRecord('/sites/a', '2026-05-05T00:00:00.000Z');
+  const merged = mergeAddedSite([existing, other], added);
 
   // The duplicate case is real, not defensive: `addSitePointer` is idempotent and returns the
   // EXISTING record, so a plain append would show two identical cards for one website until the
   // next poll quietly removed one.
   assert.equal(merged.length, 2);
+  assert.deepEqual(merged, [added, other]);
+  assert.equal(merged[1], other);
   assert.deepEqual(
     merged.map((project) => project.id),
     ['/sites/a', '/sites/b'],
@@ -131,6 +135,50 @@ test("the add logic lives in a hook, not in App.tsx — this repo keeps logic ou
   // The component must not reach the bridge itself.
   assert.doesNotMatch(appTsx, /addSite\(\)\s*;/);
   assert.match(appTsx, /import \{ useAddSite \} from '\.\/use-add-site\.hooks\.js'/);
+});
+
+test('the add hook holds pending state, applies the returned row, and clears a prior refusal', async () => {
+  const harness = hookHarness();
+  const other = siteRecord('/sites/b');
+  let projects: readonly SiteRecord[] = [siteRecord('/sites/a'), other];
+  let resolve!: (record: SiteRecord) => void;
+  let calls = 0;
+  const useAdd = sourceFunction(hookSource, 'useAddSite', {
+    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite,
+    runnerInventoryBridge: () => ({ addSite: () => {
+      calls++;
+      if (calls === 1) return Promise.reject(new Error('choose a site folder'));
+      return new Promise<SiteRecord>((done) => { resolve = done; });
+    } }),
+  });
+  const setProjects = (update: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => { projects = update(projects); };
+  const render = () => harness.render(() => useAdd(setProjects));
+  await render().addSite();
+  assert.equal(render().addError, 'choose a site folder');
+  assert.equal(render().adding, false);
+  const adding = render().addSite();
+  assert.equal(render().adding, true);
+  assert.equal(render().addError, null);
+  const added = siteRecord('/sites/a', '2026-05-05T00:00:00.000Z');
+  resolve(added);
+  await adding;
+  assert.equal(calls, 2);
+  assert.deepEqual(projects, [added, other]);
+  assert.equal(render().adding, false);
+});
+
+test('the add hook suppresses picker cancellation and reports an absent bridge', async () => {
+  for (const bridge of [undefined, { addSite: async () => { throw new Error(CANCELLED_MESSAGE); } }]) {
+    const harness = hookHarness();
+    const useAdd = sourceFunction(hookSource, 'useAddSite', {
+      ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite,
+      runnerInventoryBridge: () => bridge,
+    });
+    const render = () => harness.render(() => useAdd(() => assert.fail('no row should be added')));
+    await render().addSite();
+    assert.equal(render().addError, bridge === undefined ? NO_BRIDGE_MESSAGE : null);
+    assert.equal(render().adding, false);
+  }
 });
 
 test("the Projects header renders the Add Tovu Website button, wired and disableable", () => {
@@ -158,6 +206,18 @@ test("a refused add is reported ALONGSIDE the grid, never in place of it", () =>
   const addRender = ownBody.indexOf('{addError &&');
   assert.ok(addRender !== -1, 'addError is not rendered at all');
   assert.doesNotMatch(ownBody.slice(addRender, ownBody.indexOf('<SiteGrid')), /\breturn\b/);
+  const projects = [siteRecord('/sites/a'), siteRecord('/sites/b')];
+  let gridProps: any;
+  const renderBody = sourceFunction(appTsx, 'ProjectsBody', {
+    SiteGrid: (props: any) => { gridProps = props; return null; },
+    NoWebsitesYet: () => assert.fail('existing websites must remain visible'),
+  });
+  const onOpen = () => {};
+  const rendered = elements(renderBody({ projectsLoading: false, loadError: null,
+    rescanError: null, addError: 'choose a site folder', projects, onOpen }));
+  assert.ok(rendered.some((element) => element.props.children === 'choose a site folder'));
+  assert.deepEqual(gridProps?.projects, projects);
+  assert.equal(gridProps.onOpen, onOpen, 'existing cards must remain openable');
 });
 
 test("the redundant dashed add tile is GONE from the grid", () => {

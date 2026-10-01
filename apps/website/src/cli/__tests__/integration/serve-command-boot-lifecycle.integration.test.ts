@@ -101,8 +101,8 @@ function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_
   return { status: result.status, stderr: result.stderr };
 }
 
-function spawnServe(args: string[], env: NodeJS.ProcessEnv = {}): ChildProcessWithoutNullStreams {
-  return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], {
+function spawnServe(args: string[], env: NodeJS.ProcessEnv = {}, imports: string[] = []): ChildProcessWithoutNullStreams {
+  return spawn(process.execPath, ["--import", TSX_LOADER, ...imports.flatMap(file => ["--import", file]), CLI_MAIN, "serve", ...args], {
     env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
   }) as ChildProcessWithoutNullStreams;
 }
@@ -227,7 +227,19 @@ test("tovu serve refuses to serve when a critical boot module genuinely rejects:
   sqlite.close();
 
   const port = await getFreePort();
-  const child = spawnServe([dir, "--port", String(port)]);
+  const listensPath = path.join(parent, "listen-attempts.jsonl");
+  const monitorPath = path.join(parent, "listen-monitor.mjs");
+  fs.writeFileSync(monitorPath, `
+import net from 'node:net';
+import { appendFileSync } from 'node:fs';
+const listen = net.Server.prototype.listen;
+net.Server.prototype.listen = function (...args) {
+  const port = typeof args[0] === 'object' ? args[0]?.port : args[0];
+  if (Number(port) === ${port}) appendFileSync(${JSON.stringify(listensPath)}, JSON.stringify({ port }));
+  return Reflect.apply(listen, this, args);
+};
+`);
+  const child = spawnServe([dir, "--port", String(port)], {}, [monitorPath]);
   let stdoutBuf = "";
   let stderrBuf = "";
   child.stdout.on("data", (chunk: Buffer) => {
@@ -247,6 +259,7 @@ test("tovu serve refuses to serve when a critical boot module genuinely rejects:
       });
     });
 
+    assert.equal(fs.existsSync(listensPath), false, "the requested port must never be listened on, including briefly before the process exits");
     assert.notEqual(exitCode, 0, `expected a non-zero exit when a critical boot module rejects (stderr: ${stderrBuf})`);
     assert.ok(
       !stdoutBuf.includes("tovu serve: dir="),

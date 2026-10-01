@@ -254,6 +254,13 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
     const { deps, commentRepo, authorizeCalls } = await fakeRouteDeps();
     await commentRepo.create(seedComment());
     authorizeCalls.length = 0;
+    const order: string[] = [];
+    const authorize = deps.authorize;
+    deps.authorize = async (params) => { order.push('authorize'); return authorize(params); };
+    const findById = commentRepo.findById.bind(commentRepo);
+    commentRepo.findById = async (params) => { order.push('read'); return findById(params); };
+    const applyModeration = commentRepo.applyModeration.bind(commentRepo);
+    commentRepo.applyModeration = async (params) => { order.push('moderate'); return applyModeration(params); };
 
     await wired(toolId, deps).handler(executionContext({ commentId: "comment-1", expectedVersion: 1 }));
 
@@ -263,6 +270,9 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
     assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
     assert.equal(authorizeCalls[0].entityType, "comment");
     assert.equal(authorizeCalls[0].entityId, "comment-1");
+    assert.equal(order[0], 'authorize', `unexpected read order: ${order.join(', ')}`);
+    assert.ok(order.includes('moderate'));
+    assert.ok(order.every((entry, index) => entry !== 'read' || order.indexOf('authorize') < index));
   });
 
   test(`${toolId}: a denied principal is refused with ForbiddenError and the comment is left unchanged`, async () => {
@@ -374,6 +384,10 @@ test("comments_update_settings: persists a partial patch and leaves omitted fiel
   assert.equal(result.settings.maxDepth, 2);
   assert.equal(result.settings.requireModeration, false);
   assert.equal(result.settings.enabled, true, "omitted field keeps its default/prior value");
+  const fresh = (await wired('comments_get_settings', deps).handler(executionContext({}))) as typeof result;
+  assert.equal(fresh.settings.maxDepth, 2);
+  assert.equal(fresh.settings.requireModeration, false);
+  assert.equal(fresh.settings.enabled, true);
 });
 
 // ---------------------------------------------------------------------------

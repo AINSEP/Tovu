@@ -63,7 +63,7 @@ const FILES: DeployFile[] = [
   { file: "robots.txt", data: "User-agent: *" },
 ];
 
-type Call = { url: string; method: string; headers: Headers };
+type Call = { url: string; method: string; headers: Headers; bodyBytes?: Promise<Buffer> };
 
 /**
  * Installs a recording fake for `globalThis.fetch`, restored by the caller. `respond` decides the
@@ -76,7 +76,7 @@ type Call = { url: string; method: string; headers: Headers };
  * `.d.ts`. So method/headers must be read off the `Request` object itself, never off a second `init`
  * argument, which `checkDeploymentUrl`'s own unsigned probes never pass either.
  */
-function installFakeFetch(respond: (call: Call) => Response) {
+function installFakeFetch(respond: (call: Call) => Response | Promise<Response>) {
   const calls: Call[] = [];
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -84,6 +84,7 @@ function installFakeFetch(respond: (call: Call) => Response) {
       input instanceof Request
         ? { url: input.url, method: input.method, headers: input.headers }
         : { url: typeof input === "string" ? input : input.toString(), method: init?.method ?? "GET", headers: new Headers(init?.headers) };
+    if (input instanceof Request && input.method === "PUT") call.bodyBytes = input.clone().arrayBuffer().then(bytes => Buffer.from(bytes));
     calls.push(call);
     return respond(call);
   }) as typeof fetch;
@@ -143,16 +144,22 @@ test("publish: signs and PUTs every file to a path-style object URL, then report
   const fake = installFakeFetch(respondIgnoringManifest);
   try {
     const target = new S3CompatibleDeployTarget(CONFIG);
-    const result = await target.publish({ files: FILES, projectName: "demo" });
+    const files = [...FILES, { file: "asset.bin", data: new Uint8Array([0, 255, 128, 65]) }];
+    const result = await target.publish({ files, projectName: "demo" });
 
     assert.equal(result.targetId, "s3-compatible");
     assert.equal(result.url, CONFIG.publicUrl);
     assert.equal(result.status, "ready");
 
-    // 3 file uploads + 1 managed-keys manifest write (always written last, see this target's own
+    // 4 file uploads + 1 managed-keys manifest write (always written last, see this target's own
     // CRITICAL fix note) + 1 reachability HEAD probe against publicUrl.
     const uploadCalls = fake.calls.filter((c) => c.method === "PUT" && !c.url.endsWith("managed-keys.json"));
-    assert.equal(uploadCalls.length, 3);
+    assert.equal(uploadCalls.length, 4);
+    for (const file of files) {
+      const call = uploadCalls.find(c => c.url.endsWith(`/my-bucket/${file.file}`));
+      assert.ok(call, `missing upload for ${file.file}`);
+      assert.deepEqual(await call.bodyBytes, Buffer.from(file.data));
+    }
 
     const indexCall = uploadCalls.find((c) => c.url.endsWith("/my-bucket/index.html"));
     assert.ok(indexCall, `expected a PUT to .../my-bucket/index.html, got: ${uploadCalls.map((c) => c.url).join(", ")}`);
@@ -325,11 +332,15 @@ test("CRITICAL: publish deletes a previously-published key that is no longer par
 
 test("CRITICAL: the managed-keys manifest is updated to the new export set ONLY AFTER upload and delete both succeed — never before", async () => {
   const STALE_ETAG = '"stale-etag"';
-  const fake = installFakeFetch((call) => {
+  const INDEX_ETAG = '"index-etag"';
+  let manifest = JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] });
+  const fake = installFakeFetch(async (call) => {
     if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
-      return new Response(JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] }), { status: 200 });
+      return new Response(manifest, { status: 200 });
     }
     if (call.method === "HEAD" && call.url.endsWith("/stale.html")) return new Response("", { status: 200, headers: { etag: STALE_ETAG } });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY)) manifest = (await call.bodyBytes!).toString("utf8");
+    if ((call.method === "PUT" || call.method === "HEAD") && call.url.endsWith("/index.html")) return new Response("", { headers: { etag: INDEX_ETAG } });
     return okResponse();
   });
   try {
@@ -344,11 +355,16 @@ test("CRITICAL: the managed-keys manifest is updated to the new export set ONLY 
     assert.ok(staleDelete, "the stale, no-longer-exported, etag-verified key must be deleted");
     assert.ok(manifestPut, "the manifest must be rewritten to the new export set");
 
+    assert.deepEqual(JSON.parse((await manifestPut!.bodyBytes!).toString("utf8")), { version: 2, keys: [{ key: "index.html", etag: INDEX_ETAG }] });
     const manifestIndex = fake.calls.indexOf(manifestPut!);
     const indexPutIndex = fake.calls.indexOf(indexPut!);
     const staleDeleteIndex = fake.calls.indexOf(staleDelete!);
     assert.ok(manifestIndex > indexPutIndex, "the manifest write must happen AFTER the upload, never before");
     assert.ok(manifestIndex > staleDeleteIndex, "the manifest write must happen AFTER the delete, never before");
+    const callsBefore = fake.calls.length;
+    await target.publish({ files: [], projectName: "demo" });
+    assert.deepEqual(fake.calls.slice(callsBefore).filter(c => c.method === "DELETE").map(c => new URL(c.url).pathname), ["/my-bucket/index.html"]);
+    assert.deepEqual(JSON.parse(manifest), { version: 2, keys: [] });
   } finally {
     fake.restore();
   }
@@ -968,14 +984,31 @@ test("publish: when two uploads fail concurrently, only the FIRST recorded failu
     { file: "a.html", data: "a" },
     { file: "b.html", data: "b" },
   ];
-  const fake = installFakeFetch((call) => (call.method === "PUT" ? new Response("nope", { status: 500 }) : okResponse()));
+  let failA!: (response: Response) => void;
+  let failB!: (response: Response) => void;
+  const a = new Promise<Response>(resolve => { failA = resolve; });
+  const b = new Promise<Response>(resolve => { failB = resolve; });
+  let bothStarted!: () => void;
+  const started = new Promise<void>(resolve => { bothStarted = resolve; });
+  let uploads = 0;
+  const fake = installFakeFetch(call => {
+    if (call.method !== "PUT") return okResponse();
+    if (++uploads === 2) bothStarted();
+    return call.url.endsWith("/a.html") ? a : b;
+  });
   try {
     const target = new S3CompatibleDeployTarget(CONFIG);
+    const publishing = target.publish({ files, projectName: "demo" });
+    await started;
+    failB(new Response("first failure", { status: 403 }));
+    await new Promise<void>(resolve => setImmediate(resolve));
+    failA(new Response("second failure", { status: 401 }));
     await assert.rejects(
-      () => target.publish({ files, projectName: "demo" }),
+      publishing,
       (err: unknown) => {
         assert.ok(err instanceof DeployError);
-        assert.match(err.message, /a\.html|b\.html/);
+        assert.match(err.message, /b\.html.*403/);
+        assert.doesNotMatch(err.message, /a\.html/);
         return true;
       }
     );
@@ -1268,5 +1301,34 @@ test("module contract: no config fields, served from the root, and responseHeade
     assert.deepEqual(uploads, ["https://s3.us-east-1.amazonaws.com/my-bucket/index.html"]);
   } finally {
     fake.restore();
+  }
+});
+
+
+test("module verifyCredential signs HeadBucket and classifies each provider response", async () => {
+  for (const endpoint of [undefined, "https://account.r2.cloudflarestorage.com/ "]) {
+    for (const status of [200, 401, 403, 429, 500]) {
+      const fake = installFakeFetch(() => new Response("", { status }));
+      try {
+        const result = await loaded.default.verifyCredential!({ credential: { ...CREDENTIAL, ...(endpoint ? { endpoint } : {}) }, kit: createDeployHostKit() });
+        assert.deepEqual(result, status === 200 ? { ok: true } : { ok: false, reason: status === 401 || status === 403 ? "rejected" : "unreachable", statusCode: status });
+        assert.equal(fake.calls.length, 1);
+        assert.equal(fake.calls[0]!.url, endpoint ? "https://account.r2.cloudflarestorage.com/my-bucket" : "https://s3.us-east-1.amazonaws.com/my-bucket");
+        assert.equal(fake.calls[0]!.method, "HEAD");
+        assert.match(fake.calls[0]!.headers.get("authorization") ?? "", /Credential=AKIAEXAMPLE\/.*\/us-east-1\/s3\/aws4_request/);
+      } finally { fake.restore(); }
+    }
+  }
+});
+
+test("module hostingSetup selects provider guidance and requires bucket and region", () => {
+  for (const [endpoint, provider] of [["", "aws"], ["https://s3.amazonaws.com", "aws"], ["https://a.r2.cloudflarestorage.com", "cloudflare-r2"], ["https://s3.us-west.backblazeb2.com", "backblaze-b2"], ["https://nyc3.digitaloceanspaces.com", "digitalocean-spaces"], ["https://s3.wasabisys.com", "wasabi"], ["https://minio.example", "minio"], ["https://storage.example", "generic"]]) {
+    const setup = loaded.default.hostingSetup!({ fields: { bucket: " my-bucket ", region: " us-east-1 ", endpoint: endpoint! } });
+    assert.equal(setup.provider, provider);
+    assert.ok(setup.steps.length > 0);
+    assert.match(JSON.stringify(setup.steps), /my-bucket/);
+  }
+  for (const field of ["bucket", "region"]) {
+    assert.throws(() => loaded.default.hostingSetup!({ fields: { bucket: "b", region: "r", [field]: " " } }), new RegExp(`'${field}'.*required`));
   }
 });

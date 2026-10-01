@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash, createHmac } from "node:crypto";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -283,12 +284,15 @@ test("verifyPublishCredential: dispatches each provider to its own documented en
   for (const { target, url } of cases) {
     const cache = new InMemoryPublishCredentialVerificationCache();
     const requested: string[] = [];
-    const fetchFn = (async (input: RequestInfo | URL) => {
+    const authentication: (string | null)[] = [];
+    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
       requested.push(String(input));
+      authentication.push(new Headers(init?.headers).get("authorization"));
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
     await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
     assert.equal(requested[0], url, `${target} must be checked against its own documented endpoint`);
+    assert.deepEqual(authentication, ["Bearer tok"], target);
   }
 });
 
@@ -503,19 +507,72 @@ test("verifyPublishCredentialById: no such row returns null, makes no network ca
   assert.equal(fetchCalls, 0);
 });
 
+test("verifyPublishCredentialById cannot probe another workspace's row or alter either cache", async () => {
+  const writeDeps = makeWriteDeps();
+  const row = await createPublishCredential(writeDeps, { workspaceId: "ws-other", label: "foreign", connection: { providerId: "github-pages", token: "foreign-secret" } });
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  const cached = { status: "valid" as const, message: "existing", checkedAt: NOW };
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, cached);
+  cache.set({ workspaceId: "ws-other", target: "github-pages" }, cached);
+  let probes = 0;
+  let decryptions = 0;
+  const sealer = { seal: writeDeps.sealer.seal.bind(writeDeps.sealer), open: async () => { decryptions++; assert.fail("must not decrypt a foreign row"); } };
+  const result = await verifyPublishCredentialById({ ...writeDeps, sealer, cache, clock, fetchFn: (async () => { probes++; assert.fail("no foreign probe"); }) as typeof fetch }, { workspaceId: WORKSPACE, id: row.id });
+  assert.equal(result, null);
+  assert.equal(probes, 0);
+  assert.equal(decryptions, 0);
+  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), cached);
+  assert.deepEqual(cache.get({ workspaceId: "ws-other", target: "github-pages" }), cached);
+});
+
+test("verifyPublishCredentialById handles removed hosts and changed token fields without probing", async () => {
+  for (const isDefault of [true, false]) {
+    const writeDeps = makeWriteDeps();
+    await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github-pages", token: "default-token" } });
+    const row = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "chosen", connection: { providerId: "github-pages", token: "chosen-token" }, isDefault });
+    for (const mode of ["removed", "missing-token"] as const) {
+      const cache = new InMemoryPublishCredentialVerificationCache();
+      const stale = { status: "valid" as const, message: "cached default", checkedAt: NOW };
+      cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, stale);
+      const bundled = await loadBundledDeployTargets(WORKSPACE);
+      const hosts = bundled.list().filter((host) => mode !== "removed" || host.descriptor.id !== "github-pages").map((host) => host.descriptor.id !== "github-pages" ? host : {
+        ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
+      });
+      let probes = 0;
+      const result = await verifyPublishCredentialById({ ...writeDeps, cache, clock,
+        loadDeployTargets: async () => ({ get: (id) => hosts.find((host) => host.descriptor.id === id), list: () => hosts, refusals: [] }),
+        fetchFn: (async () => { probes++; assert.fail("must not probe an unprojectable row"); }) as typeof fetch,
+      }, { workspaceId: WORKSPACE, id: row.id });
+      assert.equal(probes, 0);
+      if (mode === "removed") {
+        assert.equal(result, null);
+      } else {
+        assert.equal(result?.status, "unreachable");
+        assert.match(result!.message, /has no newToken/);
+      }
+      assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), mode === "missing-token" && isDefault ? result : stale);
+    }
+  }
+});
+
 test("verifyPublishCredentialById: the provider's DEFAULT row updates the shared (workspaceId, target) cache", async () => {
   const writeDeps = makeWriteDeps();
   const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "real-secret" } });
   assert.equal(summary.isDefault, true, "first row for a provider auto-defaults");
 
   const cache = new InMemoryPublishCredentialVerificationCache();
-  const fetchFn = (async () => new Response("", { status: 401 })) as typeof fetch;
+  let authentication: string | null = null;
+  const fetchFn = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    authentication = new Headers(init?.headers).get("authorization");
+    return new Response("", { status: 401 });
+  }) as typeof fetch;
 
   const result = await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "invalid");
   assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result, "the default row's result IS the target's ready-signal");
+  assert.equal(authentication, "Bearer real-secret");
 });
 
 test("verifyPublishCredentialById: a NON-default row's own result is returned but does NOT overwrite the default row's cached ready-signal", async () => {
@@ -535,12 +592,17 @@ test("verifyPublishCredentialById: a NON-default row's own result is returned bu
   // test is that checking the unrelated SECOND row must never clobber this.
   cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { status: "valid", message: "default row is fine", checkedAt: NOW });
 
-  const fetchFn = (async () => new Response("", { status: 401 })) as typeof fetch; // the second row is BAD
+  let authentication: string | null = null;
+  const fetchFn = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    authentication = new Headers(init?.headers).get("authorization");
+    return new Response("", { status: 401 });
+  }) as typeof fetch; // the second row is BAD
 
   const result = await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: secondRow.id });
 
   assert.ok(result);
   assert.equal(result!.status, "invalid", "the row that was actually checked (the second, bad one) still gets an honest own result");
+  assert.equal(authentication, "Bearer second-secret");
   assert.equal(
     cache.get({ workspaceId: WORKSPACE, target: "github-pages" })?.message,
     "default row is fine",
@@ -565,8 +627,10 @@ test("verifyPublishCredentialById: an s3-compatible row is mapped through toChec
   });
   const cache = new InMemoryPublishCredentialVerificationCache();
   let seenUrl = "";
-  const fetchFn = (async (input: RequestInfo | URL) => {
+  let signedRequest: Request | undefined;
+  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     seenUrl = input instanceof Request ? input.url : String(input);
+    signedRequest = new Request(seenUrl, init);
     return new Response("", { status: 200 });
   }) as typeof fetch;
 
@@ -575,6 +639,17 @@ test("verifyPublishCredentialById: an s3-compatible row is mapped through toChec
   assert.ok(result);
   assert.equal(result!.status, "valid");
   assert.equal(seenUrl, "https://r2.example.com/my-bucket");
+  assert.ok(signedRequest);
+  const authorization = signedRequest.headers.get("authorization")!;
+  const match = /^AWS4-HMAC-SHA256 Credential=AKIA\/(\d{8}\/auto\/s3\/aws4_request), SignedHeaders=([^,]+), Signature=([a-f0-9]{64})$/.exec(authorization);
+  assert.ok(match, "the saved access key and region must be used");
+  const names = match[2].split(";");
+  const canonicalHeaders = names.map((name) => `${name}:${name === "host" ? new URL(seenUrl).host : signedRequest!.headers.get(name)}`).join("\n");
+  const canonicalRequest = ["HEAD", "/my-bucket", "", `${canonicalHeaders}\n`, match[2], signedRequest.headers.get("x-amz-content-sha256")!].join("\n");
+  const stringToSign = ["AWS4-HMAC-SHA256", signedRequest.headers.get("x-amz-date"), match[1], createHash("sha256").update(canonicalRequest).digest("hex")].join("\n");
+  let signingKey = Buffer.from("AWS4s3cr3t-must-not-leak");
+  for (const part of match[1].split("/")) signingKey = createHmac("sha256", signingKey).update(part).digest();
+  assert.equal(match[3], createHmac("sha256", signingKey).update(stringToSign).digest("hex"), "the signature must authenticate with the independently expected saved secret");
   assert.equal(JSON.stringify(result).includes("s3cr3t-must-not-leak"), false);
 });
 

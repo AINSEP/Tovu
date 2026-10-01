@@ -79,13 +79,13 @@ test("refusals: invalid and unsupported stop the create with the plugin's name; 
 });
 
 test("firstNewSiteTokenRefusal names the first refused plugin and never carries a token", async () => {
-  const checked: string[] = [];
-  const refusal = await firstNewSiteTokenRefusal(async ({ pluginId }) => {
-    checked.push(pluginId);
+  const checked: { pluginId: string; token: string }[] = [];
+  const refusal = await firstNewSiteTokenRefusal(async ({ pluginId, token }) => {
+    checked.push({ pluginId, token });
     return pluginId === "b" ? "invalid" : "ok";
   }, { a: "tok-a", b: "tok-b", c: "tok-c" });
   assert.equal(refusal?.pluginId, "b");
-  assert.deepEqual(checked, ["a", "b"], "checking stops at the first refusal");
+  assert.deepEqual(checked, [{ pluginId: "a", token: "tok-a" }, { pluginId: "b", token: "tok-b" }], "checking stops at the first refusal");
   assert.ok(!JSON.stringify(refusal).includes("tok-b"));
   assert.equal(await firstNewSiteTokenRefusal(async () => "ok", { a: "x" }), null);
 });

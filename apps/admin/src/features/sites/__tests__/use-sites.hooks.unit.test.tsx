@@ -63,8 +63,13 @@ describe("useSites — list", () => {
 
 describe("useSites — create", () => {
   it("creates through the port, clears the field, and names what it made", async () => {
-    const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } });
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const snapshot = snapshotFixture();
+    const gamma = { name: "gamma", dir: "/repo/sites/gamma", displayName: "Gamma", createdAt: "2026-03-01T00:00:00.000Z", active: false };
+    const createSite = vi.fn().mockImplementation(async () => {
+      snapshot.sites.push(gamma);
+      return { site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } };
+    });
+    const port = createFakeSitesPort(() => Promise.resolve({ ...snapshot, sites: [...snapshot.sites] }), { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -79,6 +84,7 @@ describe("useSites — create", () => {
     // Hidden creation (R1f): the admin never sends a storage choice; only `tovu init --storage` sets one.
     expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name"]);
     expect(result.current.createName).toBe("");
+    await waitFor(() => expect(result.current.sites).toEqual([...snapshotFixture().sites, gamma]));
   });
 
   it("refuses to submit an invalid name — the port is never called", async () => {

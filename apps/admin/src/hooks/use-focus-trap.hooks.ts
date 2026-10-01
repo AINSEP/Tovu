@@ -29,8 +29,18 @@ const activeTraps: Array<RefObject<HTMLElement | null>> = [];
  *
  * @complexity O(n) in the number of elements inside the container (one `querySelectorAll`).
  */
+function isAvailableForFocus(element: HTMLElement): boolean {
+  if (element.matches(":disabled") || element.closest("[hidden], [inert]")) return false;
+  const visibility = getComputedStyle(element).visibility;
+  if (visibility === "hidden" || visibility === "collapse") return false;
+  for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) {
+    if (getComputedStyle(ancestor).display === "none") return false;
+  }
+  return true;
+}
+
 function redirectTarget(container: HTMLElement, shiftKey: boolean): HTMLElement | null {
-  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
+  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isAvailableForFocus);
   if (focusable.length === 0) return null;
   const first = focusable[0]!;
   const last = focusable[focusable.length - 1]!;

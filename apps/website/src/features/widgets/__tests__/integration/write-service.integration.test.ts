@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
+import { buildWidgetInstanceFieldsJson, toWidgetInstanceEntry } from "../../entry-payload.js";
 import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import type { WidgetTypeKey } from "../../types.js";
@@ -13,6 +13,8 @@ import {
   updateWidgetInstance,
   type WidgetTrashDeps,
 } from "../../write-service.js";
+import { WidgetForbiddenError, WidgetVersionConflictError } from "../../errors.js";
+import { WIDGET_CONTENT_TYPE } from "../../types.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
 /**
@@ -70,10 +72,11 @@ test("AC-01/REQ-01: creating a text widget instance with valid config succeeds w
 });
 
 test("AC-02/REQ-02: creating a recent-entries widget with maxItems above the registered clamp is rejected, nothing persisted", async () => {
+  const deps = makeDeps();
   await assert.rejects(
     () =>
       createWidgetInstance({
-        deps: makeDeps(),
+        deps,
         input: {
           workspaceId: WORKSPACE_ID,
           actor: ACTOR,
@@ -84,13 +87,15 @@ test("AC-02/REQ-02: creating a recent-entries widget with maxItems above the reg
       }),
     /WidgetConfigValidationError/
   );
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), []);
 });
 
 test("AC-03/REQ-03: creating a widget of an unregistered type is rejected, nothing persisted", async () => {
+  const deps = makeDeps();
   await assert.rejects(
     () =>
       createWidgetInstance({
-        deps: makeDeps(),
+        deps,
         input: {
           workspaceId: WORKSPACE_ID,
           actor: ACTOR,
@@ -102,6 +107,7 @@ test("AC-03/REQ-03: creating a widget of an unregistered type is rejected, nothi
       }),
     /WidgetTypeUnregisteredError/
   );
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), []);
 });
 
 test("AC-04/REQ-06: two concurrent updates against the same baseVersion — exactly one succeeds, the other gets a typed conflict", async () => {
@@ -145,6 +151,14 @@ test("AC-04/REQ-06: two concurrent updates against the same baseVersion — exac
   const rejected = settled.filter((r) => r.status === "rejected");
   assert.equal(fulfilled.length, 1, "exactly one concurrent update must succeed");
   assert.equal(rejected.length, 1, "exactly one concurrent update must be rejected as a version conflict");
+  assert.ok(rejected[0].reason instanceof WidgetVersionConflictError);
+  const winnerIndex = settled.findIndex((r) => r.status === "fulfilled");
+  const expectedConfig = { body: winnerIndex === 0 ? "updated copy A" : "updated copy B" };
+  assert.deepEqual(fulfilled[0].value.instance.config, expectedConfig);
+  const stored = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: created.id });
+  assert.ok(stored);
+  assert.deepEqual(toWidgetInstanceEntry(stored).config, expectedConfig);
+  assert.equal(stored.version, created.version + 1);
 });
 
 // REQ-42/43 (superseded 2026-09-21, generic Trash): the reference-gated "purge" rung and its
@@ -295,3 +309,44 @@ test("REQ-05/06: updating an instance whose stored widgetType is no longer regis
     }
   );
 });
+
+for (const permission of ["widgets.create", "widgets.update", "widgets.place"] as const) {
+  test(`${permission}: a denied principal receives a typed refusal and writes nothing`, async () => {
+    const deps = makeDeps();
+    const regionDeps = makeRegionDeps(deps);
+    const { instance } = await createWidgetInstance({
+      deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Original", config: { body: "original" } },
+    });
+    const { areaEntry } = await bindWidgetArea({ deps: regionDeps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+    const beforeWidget = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id });
+    const beforeArea = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id });
+    const beforeBindings = await regionDeps.bindingRepo.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "footer" });
+    const beforeEntries = await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE });
+    const beforeRefs = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: instance.id });
+    const calls: unknown[] = [];
+    const outboxWrites: unknown[] = [];
+    const deny = async (input: Parameters<WidgetTrashDeps["authorize"]>[0]) => {
+      calls.push(input);
+      return { allowed: input.permission !== permission, reason: "test denial" };
+    };
+    const deniedDeps = { ...deps, authorize: deny, outbox: { enqueue: async (input: unknown) => { outboxWrites.push(input); } } };
+    const deniedRegionDeps = { ...regionDeps, authorize: deny, outbox: deniedDeps.outbox };
+    const operation = permission === "widgets.create"
+      ? createWidgetInstance({ deps: deniedDeps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Unauthorized", config: { body: "new" } } })
+      : permission === "widgets.update"
+        ? updateWidgetInstance({ deps: deniedDeps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: instance.id, baseVersion: instance.version, config: { body: "unauthorized" } } })
+        : mutateWidgetAreaPlacements({ deps: deniedRegionDeps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements: [{ placementId: "p1", widgetEntryId: instance.id, enabled: true }] } });
+    await assert.rejects(operation, (error: unknown) => {
+      assert.ok(error instanceof WidgetForbiddenError);
+      assert.equal(error.message, `principal '${ACTOR.principalId}' lacks permission '${permission}' (test denial)`);
+      return true;
+    });
+    assert.deepEqual(calls, [{ principalId: ACTOR.principalId, workspaceId: WORKSPACE_ID, permission }]);
+    assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), beforeWidget);
+    assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id }), beforeArea);
+    assert.deepEqual(await regionDeps.bindingRepo.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "footer" }), beforeBindings);
+    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), beforeEntries);
+    assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: instance.id }), beforeRefs);
+    assert.deepEqual(outboxWrites, []);
+  });
+}

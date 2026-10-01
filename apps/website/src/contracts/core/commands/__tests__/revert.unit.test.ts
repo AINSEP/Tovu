@@ -289,6 +289,14 @@ test("enqueues a change-set.reverted event on the outbox when one is provided", 
 
   const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } });
 
+  const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
+  assert.equal(persisted?.changeSet.status, "reverted");
+  assert.equal(persisted?.changeSet.revertedAt, clock.nowIso());
+  await assert.rejects(
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    ChangeSetInvalidStatusError,
+  );
+
   assert.equal(enqueued.length, 1);
   assert.deepEqual(enqueued[0], {
     id: "id-1",
@@ -311,6 +319,14 @@ test("completes without enqueuing anything when no outbox is provided", async ()
   const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
 
   const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } });
+
+  const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
+  assert.equal(persisted?.changeSet.status, "reverted");
+  assert.equal(persisted?.changeSet.revertedAt, clock.nowIso());
+  await assert.rejects(
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    ChangeSetInvalidStatusError,
+  );
 
   assert.equal(reverted.status, "reverted");
   assert.equal(reverted.revertedAt, "2026-08-21T00:00:00.000Z");
@@ -489,4 +505,41 @@ test("an agent principal WITHOUT force reverts normally — the restriction is f
   });
 
   assert.equal(reverted.status, "reverted");
+});
+
+test("checks every item's version before applying any inverse or emitting/saving a reverted record", async () => {
+  const changeSet = baseChangeSet();
+  // Descending order visits the valid item first, then encounters the stale item.
+  const items = [
+    baseItem({ id: "valid", entityId: "valid", position: 1 }),
+    baseItem({ id: "stale", entityId: "stale", position: 0 }),
+  ];
+  const changeSets = new InMemoryChangeSetRepo([changeSet], items);
+  const saves: ChangeSetRecord[] = [];
+  const originalSave = changeSets.save.bind(changeSets);
+  changeSets.save = async (record) => { saves.push(record); await originalSave(record); };
+  const applied: string[] = [];
+  const enqueued: DomainEvent[] = [];
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", {
+    currentVersion: async ({ entityId }) => entityId === "valid" ? 1 : 2,
+    applyInverse: async ({ item }) => { applied.push(item.entityId); },
+  });
+  const outbox: OutboxPort = {
+    enqueue: async (event) => { enqueued.push(event); },
+    claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {},
+  };
+  await assert.rejects(() => revertChangeSet({
+    deps: { changeSets, registry, clock, idGen, outbox },
+    input: { workspaceId: WS, changeSetId: changeSet.id },
+  }), (error: unknown) => {
+    assert.ok(error instanceof RevertConflictError);
+    assert.equal(error.entityId, "stale");
+    return true;
+  });
+  assert.deepEqual(applied, []);
+  assert.deepEqual(saves, []);
+  assert.deepEqual(enqueued, []);
+  const persisted = await changeSets.findById({ workspaceId: WS, id: changeSet.id });
+  assert.deepEqual(persisted?.changeSet, changeSet);
 });

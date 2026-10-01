@@ -447,23 +447,36 @@ test("a reader polling throughout a save never observes a half-replaced map", as
   const BEFORE = "grok:2222,openai:1111";
   const AFTER = "grok:4444,openai:3333";
 
-  let saving = true;
   const observations: string[] = [];
-  const observer = (async () => {
-    for (let turn = 0; turn < 5000 && saving; turn += 1) {
+  const observingRepo = Object.create(repo) as typeof repo;
+  observingRepo.replaceWorkspace = async (input) => {
+    // Start after sealing, at the replacement boundary, so crypto cannot consume the
+    // observer's budget before the writes begin. Keep sampling until replacement settles.
+    let replacing = true;
+    observations.push(await tailsNow());
+    const observer = (async () => {
+      while (replacing) {
+        observations.push(await tailsNow());
+        await Promise.resolve();
+      }
+    })();
+    try {
+      return await repo.replaceWorkspace(input);
+    } finally {
+      replacing = false;
+      await observer;
       observations.push(await tailsNow());
-      await Promise.resolve();
     }
-  })();
+  };
 
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ ...deps, repo: observingRepo }, {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: "sk-new-3333" }, grok: { apiKey: "xai-new-4444" } },
   });
-  saving = false;
-  await observer;
-
   assert.ok(observations.length > 1, "the observer must actually have run while the save was in flight");
+  assert.equal(observations[0], BEFORE);
+  assert.equal(observations.at(-1), AFTER);
+  assert.equal(await tailsNow(), AFTER);
   for (const observed of observations) {
     assert.ok(
       observed === BEFORE || observed === AFTER,
@@ -590,10 +603,9 @@ test("a freshly saved key is sealed with AAD bound to (workspaceId, providerId) 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed — proof the seal really
   // bound an aad, not merely that the field was set.
   await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
-  const opened = await deps.sealer.open({
-    sealed: row!.sealed!,
-    aad: buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }),
-  });
+  const aad = "media-provider-credential:v1:workspace-1:openai";
+  assert.equal(buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }), aad);
+  const opened = await deps.sealer.open({ sealed: row!.sealed!, aad });
   assert.equal(opened, "sk-aad-bound-1234");
 });
 
@@ -614,6 +626,21 @@ test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact
 
   const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
   assert.deepEqual(resolved, { apiKey: "sk-legacy-no-aad-5678", baseUrl: null, model: null });
+});
+
+test("a metadata-only save preserves a legacy no-AAD seal and its version", async () => {
+  const { repo, deps } = makeDeps();
+  const sealed = await deps.sealer.seal({ plaintext: "sk-legacy-kept-5678", key: await deps.keyring.activeKey() });
+  await repo.upsert({ workspaceId: WORKSPACE, providerId: "openai", baseUrl: null, model: null,
+    sealed, keyTail: "5678", aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE,
+    providers: { openai: { baseUrl: "https://proxy.example/v1", model: "new-model" } } });
+  const [row] = await repo.listByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 0);
+  assert.deepEqual(row?.sealed, sealed);
+  assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), {
+    apiKey: "sk-legacy-kept-5678", baseUrl: "https://proxy.example/v1", model: "new-model",
+  });
 });
 
 test("AAD binding: swapping one provider's ciphertext onto another provider's row fails closed (adversarial cross-row transplant)", async () => {
@@ -638,5 +665,16 @@ test("AAD binding: swapping one provider's ciphertext onto another provider's ro
   await assert.rejects(
     () => resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }),
     MediaProviderCredentialSecretStoreUnconfiguredError
+  );
+});
+
+test("AAD binding: the same provider's ciphertext cannot be transplanted to another workspace", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-workspace-bound-1234" } } });
+  const [row] = await repo.listByWorkspaceId(WORKSPACE);
+  await repo.upsert({ ...row!, workspaceId: "workspace-2" });
+  await assert.rejects(
+    () => resolveMediaProviderCredential(deps, { workspaceId: "workspace-2", providerId: "openai" }),
+    MediaProviderCredentialSecretStoreUnconfiguredError,
   );
 });

@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import ts from 'typescript';
+import * as React from 'react';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -103,4 +105,37 @@ test('the icons are drawn inline in icons.tsx, with no icon package', () => {
   assert.match(icons, /export function NavIcon\(/);
   assert.doesNotMatch(appTsx, /lucide/);
   assert.doesNotMatch(icons, /lucide/);
+});
+
+test('rendered toolbar buttons pair each accessible name with its own command and history flag', () => {
+  const ast = ts.createSourceFile('App.tsx', appTsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'SiteWorkspace');
+  assert.ok(node);
+  const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
+  for (const history of [{ canGoBack: true, canGoForward: false }, { canGoBack: false, canGoForward: true }]) {
+    const calls: string[] = [];
+    const workspace = { history, goBack: () => calls.push('back'), goForward: () => calls.push('forward'), reload: () => calls.push('reload'),
+      failed: false, loaded: true, stalled: false, surface: 'admin', displayUrl: 'http://localhost/admin/', src: 'http://localhost/admin/', guestRef: () => {}, reloadNonce: 0 };
+    const deps = { React, useSiteWorkspace: () => workspace, useComposedGuestRef: () => () => {},
+      SITE_SURFACES: ['admin', 'site'], NavIcon: () => null, ExpandToggle: () => null, Spinner: () => null, SiteStartPanel: () => null };
+    const SiteWorkspace = new Function(...Object.keys(deps), `${executable}; return SiteWorkspace;`)(...Object.values(deps));
+    const tree = SiteWorkspace({ project: { id: 's1', status: 'running' }, hidden: false, expanded: false });
+    const buttons = new Map<string, Record<string, any>>();
+    function visit(child: React.ReactNode) {
+      if (!React.isValidElement(child)) return;
+      const element = child as React.ReactElement<Record<string, any>>;
+      if (element.type === 'button' && element.props['aria-label']) buttons.set(element.props['aria-label'], element.props);
+      React.Children.forEach(element.props.children, visit);
+    }
+    visit(tree);
+    const back = buttons.get('Back');
+    const forward = buttons.get('Forward');
+    const reload = buttons.get('Reload');
+    assert.ok(back && forward && reload);
+    assert.equal(back.disabled, !history.canGoBack);
+    assert.equal(forward.disabled, !history.canGoForward);
+    assert.equal(reload.disabled, false);
+    back.onClick(); forward.onClick(); reload.onClick();
+    assert.deepEqual(calls, ['back', 'forward', 'reload']);
+  }
 });

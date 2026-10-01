@@ -20,6 +20,8 @@ import {
   registerAdminThemeFileResetRoute,
   registerAdminThemeFileCopyRoute,
   registerAdminThemeFileRenameRoute,
+  registerAdminThemeFileDeleteRoute,
+  registerAdminThemePagePublishRoute,
 } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -49,6 +51,7 @@ function makeThemesRoot(): string {
   fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
   fs.mkdirSync(path.join(dir, "css"), { recursive: true });
   fs.writeFileSync(path.join(dir, "pages", "index.html"), "<html><body>x</body></html>", "utf8");
+  fs.writeFileSync(path.join(dir, "pages", "about.html"), "<html><body>about</body></html>", "utf8");
   fs.writeFileSync(path.join(dir, "css", "styles.css"), "body{}", "utf8");
   fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
   fs.writeFileSync(
@@ -85,7 +88,25 @@ function buildTestApp(
   registerAdminThemeFileResetRoute(app, deps);
   registerAdminThemeFileCopyRoute(app, deps);
   registerAdminThemeFileRenameRoute(app, deps);
+  registerAdminThemeFileDeleteRoute(app, deps);
+  registerAdminThemePagePublishRoute(app, deps);
   return app;
+}
+
+const denyExpectedThemeAccess: ContentRouteDeps["authorize"] = async (request) => {
+  assert.deepEqual(request, {
+    principalId: "test-principal", permission: "theme.set", workspaceId: WORKSPACE_ID, entityType: "presentation",
+  });
+  return { allowed: false, reason: "no_grant" };
+};
+
+function themeFiles(themesDir: string): Record<string, string> {
+  return Object.fromEntries(fs.readdirSync(themesDir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const file = path.join(entry.parentPath, entry.name);
+      return [path.relative(themesDir, file), fs.readFileSync(file).toString("base64")];
+    }));
 }
 
 const BASE = (themeId: string) => `/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/${themeId}`;
@@ -103,7 +124,7 @@ test("workspace-path-param mismatch 404s before any theme lookup happens", async
 
 test("a principal denied 'theme.set' gets 403 with the authorize() reason echoed back", async (t) => {
   const themesDir = makeThemesRoot();
-  const app = buildTestApp(themesDir, async () => ({ allowed: false, reason: "no_grant" }));
+  const app = buildTestApp(themesDir, denyExpectedThemeAccess);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE("plain")}`);
@@ -121,11 +142,52 @@ const ROUTES: { name: string; method: string; suffix: string; body?: Record<stri
   { name: "reset", method: "POST", suffix: "/file/reset", body: { path: "pages/index.html" } },
   { name: "copy", method: "POST", suffix: "/file/copy", body: { path: "pages/index.html" } },
   { name: "rename", method: "POST", suffix: "/file/rename", body: { path: "pages/index.html", name: "index2.html" } },
+  { name: "delete", method: "POST", suffix: "/file/delete", body: { path: "pages/about.html" } },
+  { name: "publish", method: "POST", suffix: "/page/publish", body: { page: "about", published: true } },
 ];
+
+test("direct handlers: every access gate and missing-theme response leaves the disk untouched", async (t) => {
+  const themesDir = makeThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const before = themeFiles(themesDir);
+  for (const route of [{ name: "detail", method: "GET", suffix: "", body: undefined }, ...ROUTES]) {
+    for (const scenario of ["wrong-workspace", "denied", "missing-theme"]) {
+      let authorizations = 0;
+      const app = buildTestApp(themesDir, async (request) => {
+        authorizations += 1;
+        assert.deepEqual(request, {
+          principalId: "test-principal", permission: "theme.set", workspaceId: WORKSPACE_ID, entityType: "presentation",
+        });
+        return { allowed: scenario !== "denied", reason: "no_grant" };
+      });
+      const suffix = new URL(`http://example.test/${route.suffix.replace(/^\//, "")}`);
+      const handler = extractRouteHandler(app, route.method.toLowerCase() as "get" | "post" | "put",
+        `/api/admin/v1/workspaces/:workspaceId/themes/:themeId${suffix.pathname === "/" ? "" : suffix.pathname}`);
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = { id: "test-principal" };
+      await handler({
+        params: { workspaceId: scenario === "wrong-workspace" ? "other-workspace" : WORKSPACE_ID,
+          themeId: scenario === "missing-theme" ? "does-not-exist" : "plain" },
+        query: Object.fromEntries(suffix.searchParams), body: route.body,
+      }, res);
+      assert.equal(capture.statusCode, scenario === "denied" ? 403 : 404, `${route.name}: ${scenario}`);
+      assert.equal(authorizations, scenario === "wrong-workspace" ? 0 : 1);
+      if (scenario === "denied") {
+        const body = capture.jsonBody as { code: string; details: { permission: string; reason: string } };
+        assert.equal(body.code, "FORBIDDEN");
+        assert.deepEqual(body.details, { permission: "theme.set", reason: "no_grant" });
+      } else {
+        assert.deepEqual(capture.jsonBody, { error: scenario === "wrong-workspace" ? "workspace was not found" : "theme 'does-not-exist' was not found" });
+      }
+      assert.deepEqual(themeFiles(themesDir), before, `${route.name}: ${scenario} must not mutate files`);
+    }
+  }
+});
 
 for (const route of ROUTES) {
   test(`${route.name}: workspace-path-param mismatch 404s before any theme lookup happens`, async (t) => {
     const themesDir = makeThemesRoot();
+    const before = themeFiles(themesDir);
     const app = buildTestApp(themesDir);
     const baseUrl = await startTestServer(app, t);
 
@@ -140,11 +202,13 @@ for (const route of ROUTES) {
     assert.equal(res.status, 404);
     const body = (await res.json()) as { error: string };
     assert.equal(body.error, "workspace was not found");
+    assert.deepEqual(themeFiles(themesDir), before, "workspace denial must leave the theme untouched");
   });
 
   test(`${route.name}: a principal denied 'theme.set' gets 403 with the authorize() reason echoed back`, async (t) => {
     const themesDir = makeThemesRoot();
-    const app = buildTestApp(themesDir, async () => ({ allowed: false, reason: "no_grant" }));
+    const before = themeFiles(themesDir);
+    const app = buildTestApp(themesDir, denyExpectedThemeAccess);
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${BASE("plain")}${route.suffix}`, {
@@ -157,28 +221,38 @@ for (const route of ROUTES) {
     assert.equal(body.code, "FORBIDDEN");
     assert.equal(body.details.permission, "theme.set");
     assert.equal(body.details.reason, "no_grant");
+    assert.deepEqual(themeFiles(themesDir), before, "permission denial must leave the theme untouched");
   });
 }
 
 test("GET detail on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}`);
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
   assert.match(((await res.json()) as { error: string }).error, /was not found/);
 });
 
 test("GET file on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}/file?path=pages/index.html`);
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
 });
 
 test("PUT file on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}/file`, {
@@ -187,10 +261,14 @@ test("PUT file on a missing theme 404s", async (t) => {
     body: JSON.stringify({ path: "pages/index.html", content: "x" }),
   });
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
 });
 
 test("reset on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}/file/reset`, {
@@ -199,10 +277,14 @@ test("reset on a missing theme 404s", async (t) => {
     body: JSON.stringify({ path: "pages/index.html" }),
   });
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
 });
 
 test("copy on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}/file/copy`, {
@@ -211,10 +293,14 @@ test("copy on a missing theme 404s", async (t) => {
     body: JSON.stringify({ path: "pages/index.html" }),
   });
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
 });
 
 test("rename on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
+  const before = themeFiles(themesDir);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${BASE("does-not-exist")}/file/rename`, {
@@ -223,6 +309,9 @@ test("rename on a missing theme 404s", async (t) => {
     body: JSON.stringify({ path: "pages/index.html", name: "index2.html" }),
   });
   assert.equal(res.status, 404);
+  const responseBody = await res.clone().json();
+  assert.deepEqual(responseBody, { error: "theme 'does-not-exist' was not found" });
+  assert.deepEqual(themeFiles(themesDir), before, "missing-theme requests must leave the disk untouched");
 });
 
 test("workspaceId/themeId params can never actually be undefined through real routing (a matched `:param` segment is always a populated string) -- `authorizeThemeAccess`'s and `findThemeOrRespond`'s `?? \"\"` fallbacks are reached by calling the real (detail-route) handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need; both are shared by all six routes, so this one route's handler exercises the fallback for every caller", async (t) => {

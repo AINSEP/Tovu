@@ -51,9 +51,10 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
 
   test(`[${label}] list() returns hits newest-first`, async () => {
     const sink = makeSink();
-    await sink.accept(makeHit({ path: "/a" }));
-    await sink.accept(makeHit({ path: "/b" }));
-    await sink.accept(makeHit({ path: "/c" }));
+    // "Newest" means acceptance order (SQL id), including delayed/out-of-order timestamps.
+    await sink.accept(makeHit({ path: "/a", occurredAt: "2026-07-16T00:03:00.000Z" }));
+    await sink.accept(makeHit({ path: "/b", occurredAt: "2026-07-16T00:01:00.000Z" }));
+    await sink.accept(makeHit({ path: "/c", occurredAt: "2026-07-16T00:02:00.000Z" }));
     assert.deepEqual(
       (await sink.list()).map((h) => h.path),
       ["/c", "/b", "/a"]
@@ -62,8 +63,10 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
 
   test(`[${label}] acceptBatch() persists every hit in the batch`, async () => {
     const sink = makeSink();
-    await sink.acceptBatch([makeHit({ path: "/a" }), makeHit({ path: "/b" })]);
+    const hits = [makeHit({ path: "/a", visitorHash: "visitor-a", referrerHost: "referrer.example" }), makeHit({ path: "/b", visitorHash: "visitor-b", kind: "event", eventName: "signup", eventProps: { plan: "pro" } })];
+    await sink.acceptBatch(hits);
     assert.equal((await sink.list()).length, 2);
+    assert.deepEqual(await sink.list(), [...hits].reverse());
   });
 
   test(`[${label}] list() honors an explicit limit`, async () => {
@@ -72,6 +75,7 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
       await sink.accept(makeHit({ path: `/p${i}` }));
     }
     assert.equal((await sink.list({ limit: 3 })).length, 3);
+    assert.deepEqual((await sink.list({ limit: 3 })).map(hit => hit.path), ["/p9", "/p8", "/p7"]);
   });
 
   test(`[${label}] a hit with a populated eventProps bag round-trips`, async () => {

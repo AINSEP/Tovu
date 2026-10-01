@@ -2706,6 +2706,16 @@ test("renderWidgetIr('post-content'): a body with NO title node falls back to pr
   assert.ok(html.includes("<p>Body.</p>"));
 });
 
+test("renderWidgetIr('post-content'): serialized transform and asset metadata render a sized ref image", () => {
+  const html = renderWidgetIr({ componentId: "post-content", props: {
+    title: "Photo", header: false,
+    bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "asset-photo", transformName: "public", alt: "Photo" } }] },
+    mediaTransformVersions: { public: 7 },
+    mediaAssetMetadata: { "asset-photo": { slug: "photo", width: 400, height: 300, cssClass: "hero", contentType: "image/png" } },
+  } });
+  assert.equal(html, '<div class="post-detail-body"><img src="/m/photo/public.v7/image.jpg" alt="Photo" width="400" height="300" class="hero" loading="lazy"></div>');
+});
+
 test("renderWidgetIr('post-content'): a body WITH a title node renders the node's own text/marks as the <h1>, not props.title", () => {
   const html = renderWidgetIr({
     componentId: "post-content",

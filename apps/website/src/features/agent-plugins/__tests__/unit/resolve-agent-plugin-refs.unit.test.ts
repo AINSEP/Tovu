@@ -399,7 +399,7 @@ test("pointer mode names the proxied bridge call, because the plugin tool is not
     // and burned five discovery hops finding that route. A pointer naming only the bare tool would
     // name something that does not exist from the agent's side.
     assert.ok(result.promptPrefix.includes("agent_plugin_ui_ux_design({})"));
-    assert.ok(result.promptPrefix.includes("mcp__jini__execute_delegated_tool"));
+    assert.ok(result.promptPrefix.includes('mcp__jini__execute_delegated_tool({ "toolId": "agent_plugin_ui_ux_design", "input": {} })'));
   } finally {
     await forceRemove(cwd);
   }

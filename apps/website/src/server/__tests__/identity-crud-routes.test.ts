@@ -68,6 +68,7 @@ test("AC-32: DISABLE_PRINCIPAL route disables a non-owner user, and refuses OWNE
   assert.equal(disabled.status, 200);
   const body = (await disabled.json()) as { user: { status: string } };
   assert.equal(body.user.status, "disabled");
+  assert.equal((await loginAs(baseUrl, "disableme", "disableme-p4ssw0rd!")).res.status, 401);
 
   // The seeded owner (whoami) can never be disabled.
   const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
@@ -92,6 +93,7 @@ test("AC-27: ENABLE_PRINCIPAL route re-activates a disabled user", async (t) => 
     method: "POST",
     headers: { cookie },
   });
+  assert.equal((await loginAs(baseUrl, "enableme", "enableme-p4ssw0rd!")).res.status, 401);
 
   const enabled = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users/${targetId}/enable`, {
     method: "POST",
@@ -100,6 +102,7 @@ test("AC-27: ENABLE_PRINCIPAL route re-activates a disabled user", async (t) => 
   assert.equal(enabled.status, 200);
   const body = (await enabled.json()) as { user: { status: string } };
   assert.equal(body.user.status, "active");
+  assert.equal((await loginAs(baseUrl, "enableme", "enableme-p4ssw0rd!")).res.status, 200);
 });
 
 test("AC-28: UPDATE_USER route sets email, ignores username/password fields in the body", async (t) => {
@@ -113,12 +116,18 @@ test("AC-28: UPDATE_USER route sets email, ignores username/password fields in t
   const updated = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users/${targetId}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ email: "new@example.com", username: "should-be-ignored" }),
+    body: JSON.stringify({ email: "new@example.com", username: "should-be-ignored", password: "should-also-be-ignored" }),
   });
   assert.equal(updated.status, 200);
   const body = (await updated.json()) as { user: { email?: string; username: string } };
   assert.equal(body.user.email, "new@example.com");
   assert.equal(body.user.username, "updateme", "username unchanged");
+  const reread = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users`, { headers: { cookie } });
+  assert.equal(reread.status, 200);
+  const roster = await reread.json() as { users: Array<{ principalId: string; email?: string }> };
+  assert.equal(roster.users.find((user) => user.principalId === targetId)?.email, "new@example.com");
+  assert.equal((await loginAs(baseUrl, "updateme", "updateme-p4ssw0rd!")).res.status, 200);
+  assert.equal((await loginAs(baseUrl, "updateme", "should-also-be-ignored")).res.status, 401);
 });
 
 test("AC-29: RESET_USER_PASSWORD route returns 204 and the new password authenticates a fresh login", async (t) => {
@@ -169,6 +178,7 @@ test("AC-30: UPDATE_ROLE and UPDATE_POLICY routes rename a custom role/policy, r
   const rolesList = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/roles`, { headers: { cookie } });
   const rolesListBody = (await rolesList.json()) as { roles: Array<{ id: string; name: string }> };
   const viewerRole = rolesListBody.roles.find((r) => r.name === "viewer");
+  assert.equal(rolesListBody.roles.find((r) => r.id === roleBody.role.id)?.name, "new-role-name");
   const builtinRename = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/roles/${viewerRole!.id}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
@@ -190,6 +200,12 @@ test("AC-30: UPDATE_ROLE and UPDATE_POLICY routes rename a custom role/policy, r
   assert.equal(policyUpdated.status, 200);
   const policyUpdatedBody = (await policyUpdated.json()) as { policy: { name: string; description?: string } };
   assert.equal(policyUpdatedBody.policy.name, "new-policy-name");
+  const policiesList = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/policies`, { headers: { cookie } });
+  assert.equal(policiesList.status, 200);
+  const policies = await policiesList.json() as { policies: Array<{ id: string; name: string; description?: string }> };
+  assert.deepEqual(policies.policies.find((p) => p.id === policyBody.policy.id), {
+    ...policyUpdatedBody.policy, id: policyBody.policy.id,
+  });
 });
 
 test("AC-31: DELETE_ROLE and DELETE_POLICY routes delete unused rows and refuse still-referenced ones (409)", async (t) => {

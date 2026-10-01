@@ -32,18 +32,21 @@ import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
 
 const WORKSPACE = "ws-1";
 
-function findBySlugSpy(inner: PostRepoPort): { repo: PostRepoPort; findBySlugCalls: number[] } {
+function findBySlugSpy(inner: PostRepoPort): { repo: PostRepoPort; findBySlugCalls: number[]; otherReadCalls: string[] } {
   const calls: number[] = [];
-  const repo: PostRepoPort = {
-    findById: (r) => inner.findById(r),
-    findBySlug: (r) => {
-      calls.push(1);
-      return inner.findBySlug(r);
+  const otherReadCalls: string[] = [];
+  const repo = new Proxy(inner, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== "function") return value;
+      return (...args: unknown[]) => {
+        if (property === "findBySlug") calls.push(1);
+        else if (property !== "findById" && /^(find|list|read)/.test(String(property))) otherReadCalls.push(String(property));
+        return Reflect.apply(value, target, args);
+      };
     },
-    list: (r) => inner.list(r),
-    save: (record) => inner.save(record),
-  };
-  return { repo, findBySlugCalls: calls as unknown as number[] };
+  });
+  return { repo, findBySlugCalls: calls, otherReadCalls };
 }
 
 function buildAppliedChangeSet(): { changeSet: ChangeSetRecord; item: ChangeSetItemRecord } {
@@ -87,7 +90,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
       version: 2,
     },
   ]);
-  const { repo: postRepo, findBySlugCalls } = findBySlugSpy(inner);
+  const { repo: postRepo, findBySlugCalls, otherReadCalls } = findBySlugSpy(inner);
 
   const { changeSet, item } = buildAppliedChangeSet();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
@@ -108,6 +111,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
     input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
   });
 
+  assert.deepEqual(otherReadCalls, [], "restoring an update must not perform any other save-path read");
   assert.equal(
     findBySlugCalls.length,
     0,
@@ -117,42 +121,49 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
   );
 });
 
-test("AC-17 (existing, correct baseline — regression guard): reverting a post-update change set still restores bodyJson/title/slug/status and increments version by exactly 1", async () => {
-  const postRepo = new InMemoryPostRepo([
-    {
-      id: "post-1",
-      workspaceId: WORKSPACE,
-      title: "Edited Title",
-      slug: "edited-slug",
-      bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
-      status: "draft",
-      kind: "post",
-      updatedAt: "2026-07-28T00:00:00.000Z",
-      version: 2,
-    },
-  ]);
-  const { changeSet, item } = buildAppliedChangeSet();
-  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "historical" } }]) {
+  test(`AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and ${inverseExt ? "restores historical ext" : "removes newly introduced ext"}`, async () => {
+    const postRepo = new InMemoryPostRepo([
+      {
+        id: "post-1",
+        workspaceId: WORKSPACE,
+        title: "Edited Title",
+        slug: "edited-slug",
+        bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
+        status: "published",
+        ext: { "word-count": { words: 999 }, "new-plugin": { added: true } },
+        kind: "post",
+        updatedAt: "2026-07-28T00:00:00.000Z",
+        version: 2,
+      },
+    ]);
+    const { changeSet, item } = buildAppliedChangeSet();
+    if (inverseExt !== undefined) item.inversePayload = { ...item.inversePayload as Record<string, unknown>, ext: inverseExt };
+    const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
 
-  const reverterDeps: PostReverterDeps = {
-    postRepo,
-    clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
-    outbox: { enqueue: async () => {} },
-  };
-
-  await revertChangeSet({
-    deps: {
-      changeSets,
-      registry: createPostRevertRegistry(reverterDeps),
+    const reverterDeps: PostReverterDeps = {
+      postRepo,
       clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
-      idGen: { newId: () => "id-1" },
-    },
-    input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
-  });
+      outbox: { enqueue: async () => {} },
+    };
 
-  const restored = await postRepo.findById({ workspaceId: WORKSPACE, id: "post-1" });
-  assert.equal(restored?.title, "Original Title");
-  assert.equal(restored?.slug, "original-slug");
-  assert.equal(restored?.status, "draft");
-  assert.equal(restored?.version, 3, "AC-17: version increments by exactly 1 on revert, even though the write is a restore");
-});
+    await revertChangeSet({
+      deps: {
+        changeSets,
+        registry: createPostRevertRegistry(reverterDeps),
+        clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
+        idGen: { newId: () => "id-1" },
+      },
+      input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
+    });
+
+    const restored = await postRepo.findById({ workspaceId: WORKSPACE, id: "post-1" });
+    assert.equal(restored?.title, "Original Title");
+    assert.equal(restored?.slug, "original-slug");
+    assert.equal(restored?.status, "draft");
+    assert.deepEqual(restored?.bodyJson, { type: "doc", content: [] });
+    assert.deepEqual(restored?.ext, inverseExt);
+    if (inverseExt === undefined) assert.equal(Object.hasOwn(restored!, "ext"), false, "newly introduced extension data must be removed");
+    assert.equal(restored?.version, 3, "AC-17: version increments by exactly 1 on revert, even though the write is a restore");
+  });
+}

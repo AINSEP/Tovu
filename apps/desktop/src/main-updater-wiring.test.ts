@@ -8,6 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,4 +48,45 @@ test("only the quit that ends the app consults the updater, and may be held by i
 
 test("will-quit removes this instance's presence record", () => {
   assert.match(source, /app\.on\("will-quit", \(\) => \{\s*autoUpdate\?\.willQuit\(\);\s*\}\);/);
+});
+
+test("the actual startup helper starts the created controller, and boot catches a startup rejection", async () => {
+  const ast = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
+  const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === "startAutoUpdater");
+  assert.ok(node);
+  const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText;
+  const calls: string[] = [];
+  const updater = {};
+  const deps = {
+    require: (name: string) => { assert.equal(name, "electron-updater"); return { default: { autoUpdater: updater } }; },
+    app: { isPackaged: true, getPath: () => "/user-data", quit: () => {} },
+    process: { windowsStore: false, platform: "darwin", env: {}, pid: 42 }, SELFTEST: false,
+    updaterSkipReason: () => null,
+    presenceDirPath: (dir: string) => `${dir}/presence`,
+    promptUpdateReady: () => {}, explainOthersOpen: () => {},
+    createAutoUpdateController: (options: { updater: unknown; presenceDir: string }) => {
+      assert.equal(options.updater, updater);
+      assert.equal(options.presenceDir, "/user-data/presence");
+      calls.push("create"); return { start: () => calls.push("start") };
+    }, console: { log: () => {} },
+  };
+  const start = new Function(...Object.keys(deps), `let autoUpdate; ${executable}; return startAutoUpdater;`)(...Object.values(deps));
+  await start();
+  assert.deepEqual(calls, ["create", "start"]);
+  calls.length = 0;
+  const skipped = { ...deps, updaterSkipReason: () => "disabled" };
+  await new Function(...Object.keys(skipped), `let autoUpdate; ${executable}; return startAutoUpdater;`)(...Object.values(skipped))();
+  assert.deepEqual(calls, []);
+
+  let bootStatement: ts.ExpressionStatement | undefined;
+  function visit(part: ts.Node) {
+    if (ts.isExpressionStatement(part) && part.getText(ast).startsWith("startAutoUpdater().catch(")) bootStatement = part;
+    ts.forEachChild(part, visit);
+  }
+  visit(ast);
+  assert.ok(bootStatement);
+  const bootCode = ts.transpileModule(`return ${bootStatement.getText(ast)}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const errors: string[] = [];
+  await new Function("startAutoUpdater", "console", bootCode)(() => Promise.reject(new Error("updater unavailable")), { error: (message: string) => errors.push(message) });
+  assert.deepEqual(errors, ["[tovu-desktop] auto-update not started: updater unavailable"]);
 });

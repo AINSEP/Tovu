@@ -43,3 +43,17 @@ test("resolvePathWithin: still refuses a traversal payload under a trailing-sepa
   const root = path.join(path.sep, "tovu-export-test-containment") + path.sep;
   assert.equal(resolvePathWithin(root, "../../../etc/passwd"), null);
 });
+
+test("resolvePathWithin: refuses a sibling whose name shares the root prefix", () => {
+  const root = path.join(path.sep, "a", "export");
+  assert.equal(resolvePathWithin(root, "../export-evil/x"), null);
+  assert.equal(resolvePathWithin(root + path.sep, "../export-evil/x"), null);
+  assert.equal(resolvePathWithin(root, "x"), path.join(root, "x"));
+});
+
+test("resolvePathWithin: refuses absolute segments and paths resolving to the root itself", () => {
+  const root = path.join(path.sep, "a", "export");
+  for (const segment of [path.join(root, "x"), path.join(path.sep, "etc", "passwd"), "..", ".", "child/..", ""]) {
+    assert.equal(resolvePathWithin(root, segment), null, segment);
+  }
+});

@@ -33,6 +33,11 @@ test("normalizeIngestContext is deterministic for the same (salt, ip, ua)", () =
   assert.equal(first.deviceClass, "desktop");
   assert.equal(first.browserFamily, "chrome");
   assert.equal(first.osFamily, "windows");
+  assert.equal(first.visitorHash, "7cee99de1d956ba97078c93445df99b3f9cfeb3a6f1b4e8eb30f7743834a232d");
+  const safari = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: "Safari/605.1.15", siteHost: "example.com" }, dailySalt: salt });
+  const otherHost = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "other.example" }, dailySalt: salt });
+  assert.notEqual(first.visitorHash, safari.visitorHash);
+  assert.notEqual(first.visitorHash, otherHost.visitorHash);
 });
 
 test("normalizeIngestContext produces a different hash when the day (salt) rotates", () => {
@@ -478,19 +483,35 @@ test("validateEventProps rejects an email-shaped value", () => {
 
 test("validateEventProps rejects a PII-suggestive key name", () => {
   assert.throws(() => validateEventProps({ email: "not-actually-an-email" }), AnalyticsPiiRejectedError);
+  for (const key of ["phone", "ssn", "socialSecurity", "social-security", "social_security", "password", "creditCard", "credit-card", "credit_card", "streetAddress", "street-address", "street_address", "fullName", "full-name", "full_name", "firstName", "first-name", "first_name", "lastName", "last-name", "last_name"]) {
+    assert.throws(() => validateEventProps({ [key]: "redacted" }), AnalyticsPiiRejectedError, key);
+  }
 });
 
 test("validateEventProps rejects a property bag over the key-count bound", () => {
   const tooMany: JsonObject = {};
   for (let i = 0; i < 25; i += 1) tooMany[`k${i}`] = i;
   assert.throws(() => validateEventProps(tooMany), AnalyticsPiiRejectedError);
+  const atLimit = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`k${i}`, i]));
+  assert.deepEqual(validateEventProps(atLimit), atLimit);
+  assert.throws(() => validateEventProps({ ...atLimit, k20: 20 }), AnalyticsPiiRejectedError);
 });
 
 test("validateEventProps rejects an over-length string value", () => {
+  assert.deepEqual(validateEventProps({ note: "x".repeat(200) }), { note: "x".repeat(200) });
+  assert.throws(() => validateEventProps({ note: "x".repeat(201) }), AnalyticsPiiRejectedError);
   assert.throws(
     () => validateEventProps({ note: "x".repeat(500) }),
     AnalyticsPiiRejectedError
   );
+});
+
+test("validateEventProps rejects PII in nested objects and arrays", () => {
+  for (const props of [{ meta: { contact: "a@b.com" } }, { tags: ["a@b.com"] }, { meta: { phone: 123 } }]) {
+    assert.throws(() => validateEventProps(props), AnalyticsPiiRejectedError);
+  }
+  const clean = { meta: { plan: "pro" }, tags: ["docs", "hero"] };
+  assert.deepEqual(validateEventProps(clean), clean);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -597,6 +618,23 @@ test("ingestHit never lets the raw ip or user-agent reach the stored NormalizedH
   assert.equal(Object.prototype.hasOwnProperty.call(hit, "userAgent"), false);
 });
 
+test("ingestHit sessions are stable within a window and separate across windows and visitors", async () => {
+  const { deps, sink } = makeDeps();
+  for (const context of [
+    makeContext(),
+    makeContext({ receivedAt: "2026-07-10T12:29:59.999Z" }),
+    makeContext({ receivedAt: "2026-07-10T12:30:00.000Z" }),
+    makeContext({ ip: "203.0.114.77" }),
+  ]) {
+    assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(), context }, deps }), { accepted: true });
+  }
+  const hits = sink.all();
+  assert.equal(hits.length, 4);
+  assert.equal(hits[0].sessionId, hits[1].sessionId);
+  assert.notEqual(hits[0].sessionId, hits[2].sessionId);
+  assert.notEqual(hits[0].sessionId, hits[3].sessionId);
+});
+
 test("ingestHit produces a different visitorHash on a different UTC day (salt rotation end-to-end)", async () => {
   const { deps: depsDay1, sink: sinkDay1 } = makeDeps();
   const { deps: depsDay2, sink: sinkDay2 } = makeDeps();
@@ -680,6 +718,19 @@ test("ingestHit drops a hit for an excluded path", async () => {
   assert.equal(sink.all().length, 0);
 });
 
+test("ingestHit applies DNT and GPC independently according to operator settings", async () => {
+  for (const [config, beacon, expected] of [
+    [{ honorDoNotTrack: false }, { dnt: true }, { accepted: true }],
+    [{ honorGlobalPrivacyControl: false }, { gpc: true }, { accepted: true }],
+    [{ honorDoNotTrack: false }, { gpc: true }, { accepted: false, reason: "gpc" }],
+    [{ honorGlobalPrivacyControl: false }, { dnt: true }, { accepted: false, reason: "dnt" }],
+  ] as const) {
+    const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig(config)) });
+    assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(beacon), context: makeContext() }, deps }), expected);
+    assert.equal(sink.all().length, expected.accepted ? 1 : 0);
+  }
+});
+
 test("ingestHit drops a hit for an excluded IP range (CIDR)", async () => {
   const { deps, sink } = makeDeps();
 
@@ -711,6 +762,30 @@ test("ingestHit rejects PII-shaped custom event properties", async () => {
   assert.equal(result.accepted, false);
   assert.equal(result.reason, "pii_rejected");
   assert.equal(sink.all().length, 0);
+});
+
+test("ingestHit stores the transformed result of beforeIngest", async () => {
+  let transformed;
+  const { deps, sink } = makeDeps({ hooks: { beforeIngest: async (hit) => {
+    transformed = { ...hit, path: "/redacted", referrerHost: null };
+    return transformed;
+  } } });
+  assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(), context: makeContext() }, deps }), { accepted: true });
+  assert.deepEqual(sink.all(), [transformed]);
+});
+
+test("ingestHit respects CIDR boundaries for /16, /20, /24 and /32", async () => {
+  for (const [range, inside, outside] of [
+    ["10.0.0.0/16", "10.0.255.9", "10.1.0.0"],
+    ["10.0.16.0/20", "10.0.31.255", "10.0.32.0"],
+    ["10.0.0.0/24", "10.0.0.255", "10.0.1.1"],
+    ["10.0.0.1/32", "10.0.0.1", "10.0.0.2"],
+  ]) {
+    const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: [range] })) });
+    assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(), context: makeContext({ ip: inside }) }, deps }), { accepted: false, reason: "excluded_ip" }, range);
+    assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(), context: makeContext({ ip: outside }) }, deps }), { accepted: true }, range);
+    assert.equal(sink.all().length, 1);
+  }
 });
 
 test("ingestHit lets a beforeIngest hook drop a hit", async () => {
@@ -794,6 +869,14 @@ test("ingestHit does not exclude an IPv6 address against an IPv4 CIDR excludedIp
   assert.equal(result.accepted, true);
   assert.equal(sink.all().length, 1);
 });
+
+for (const range of ["10.0.0.0/24", "10.0.0.42"]) {
+  test(`ingestHit excludes IPv4-mapped socket addresses against ${range}`, async () => {
+    const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: [range] })) });
+    assert.deepEqual(await ingestHit({ input: { beacon: makeBeacon(), context: makeContext({ ip: "::ffff:10.0.0.42" }) }, deps }), { accepted: false, reason: "excluded_ip" });
+    assert.equal(sink.all().length, 0);
+  });
+}
 
 test("ingestHit does not exclude an IP against an excludedIpRanges CIDR entry whose range address is IPv6", async () => {
   const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["::1/64"] })) });
@@ -909,7 +992,7 @@ test("ingestHit extracts allowlisted UTM params from a query string present on b
   const result = await ingestHit({
     input: {
       beacon: makeBeacon({
-        path: "/blog/hello-world?utm_source=newsletter&utm_medium=email&utm_campaign=launch&utm_term=tovu&utm_content=header",
+        path: "/blog/hello-world?utm_source=newsletter&utm_medium=email&utm_campaign=launch&utm_term=tovu&utm_content=header&token=private-token&email=alice@example.com#private-fragment",
       }),
       context: makeContext(),
     },
@@ -925,6 +1008,10 @@ test("ingestHit extracts allowlisted UTM params from a query string present on b
     term: "tovu",
     content: "header",
   });
+  assert.equal(hit.path, "/blog/hello-world");
+  assert.equal(JSON.stringify(hit).includes("private-token"), false);
+  assert.equal(JSON.stringify(hit).includes("alice@example.com"), false);
+  assert.equal(JSON.stringify(hit).includes("private-fragment"), false);
 });
 
 test("ingestHit does not exclude an IP against a CIDR excludedIpRanges entry whose range address itself has an invalid octet", async () => {

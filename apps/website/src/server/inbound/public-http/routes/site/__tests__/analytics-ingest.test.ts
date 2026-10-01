@@ -19,7 +19,7 @@ import type { IngestHitDeps } from "#src/features/analytics/ingest";
  * for malformed/rejected input.
  */
 
-function buildApp(sink: LocalBufferSink = new LocalBufferSink()): { app: express.Express; sink: LocalBufferSink } {
+function buildApp(sink: LocalBufferSink = new LocalBufferSink(), overrides: Partial<IngestHitDeps> = {}): { app: express.Express; sink: LocalBufferSink } {
   const base = createRouteDeps();
   const deps: IngestHitDeps = {
     clock: base.clock,
@@ -28,6 +28,7 @@ function buildApp(sink: LocalBufferSink = new LocalBufferSink()): { app: express
     config: base.analyticsConfig,
     resolveWorkspaceForHost: async () => base.workspaceId,
     rootKeySeed: "test-seed",
+    ...overrides,
   };
   const app = express();
   app.use(express.json());
@@ -90,13 +91,61 @@ test("analytics-ingest: a minimal pageview beacon is accepted and normalized", a
   assert.equal(hits[0].kind, "pageview");
 });
 
+test("analytics-ingest: disabled analytics and configured path/IP exclusions still 204 without recording", async (t) => {
+  const base = createRouteDeps();
+  const cases = [
+    { enabled: false },
+    { enabled: true, excludedPaths: ["/excluded"] },
+    { enabled: true, excludedIpRanges: ["127.0.0.1", "::ffff:127.0.0.1", "::1"] },
+  ];
+  for (const policy of cases) {
+    const { app, sink } = buildApp(undefined, {
+      config: { get: async (input) => ({ ...await base.analyticsConfig.get(input), ...policy }) },
+    });
+    const res = await postBeacon(t, app, { host: "example.com", path: "/excluded" });
+    assert.equal(res.status, 204);
+    assert.deepEqual(sink.all(), [], JSON.stringify(policy));
+    if (policy.excludedPaths) {
+      assert.equal((await postBeacon(t, app, { host: "example.com", path: "/allowed" })).status, 204);
+      assert.deepEqual(sink.all().map((hit) => hit.path), ["/allowed"]);
+    }
+  }
+});
+
+test("analytics-ingest: beforeIngest can transform or drop the normalized hit while the route keeps 204", async (t) => {
+  let transformed: ReturnType<LocalBufferSink["all"]>[number] | undefined;
+  const { app, sink } = buildApp(undefined, {
+    hooks: { beforeIngest: async (hit) => {
+      assert.equal(hit.path, "/original");
+      transformed = { ...hit, path: "/annotated", eventProps: { source: "hook" } };
+      return transformed;
+    } },
+  });
+  assert.equal((await postBeacon(t, app, { host: "example.com", path: "/original" })).status, 204);
+  assert.ok(transformed, "the configured hook must run");
+  assert.deepEqual(sink.all(), [transformed]);
+
+  let dropped = 0;
+  const dropApp = buildApp(undefined, {
+    hooks: { beforeIngest: async () => { dropped++; return null; } },
+  });
+  assert.equal((await postBeacon(t, dropApp.app, { host: "example.com", path: "/original" })).status, 204);
+  assert.equal(dropped, 1);
+  assert.deepEqual(dropApp.sink.all(), []);
+});
+
 test("analytics-ingest: host absent falls back to the request's own hostname, and the hit still lands", async (t) => {
-  const { app, sink } = buildApp();
+  let resolvedHost: string | undefined;
+  const base = createRouteDeps();
+  const { app, sink } = buildApp(undefined, {
+    resolveWorkspaceForHost: async (host) => {
+      resolvedHost = host;
+      return host === "127.0.0.1" ? base.workspaceId : null;
+    },
+  });
   const res = await postBeacon(t, app, { path: "/no-host" });
   assert.equal(res.status, 204);
-  // `host` itself isn't part of NormalizedHit (it's consumed for workspace resolution/salting
-  // only) -- the observable proof the fallback worked is that resolveWorkspaceForHost still
-  // received SOME non-empty host string and the hit was accepted rather than excluded.
+  assert.equal(resolvedHost, new URL(res.url).hostname);
   assert.equal(sink.all().length, 1);
 });
 
@@ -124,10 +173,14 @@ test("analytics-ingest: an unrecognized 'kind' value falls back to pageview", as
 
 test("analytics-ingest: a string referrer is captured; an absent referrer stays null", async (t) => {
   const { app, sink } = buildApp();
-  await postBeacon(t, app, { host: "example.com", path: "/with-ref", referrer: "https://google.com/" });
-  await postBeacon(t, app, { host: "example.com", path: "/no-ref" });
+  assert.equal((await postBeacon(t, app, { host: "example.com", path: "/with-ref", referrer: "https://google.com/" })).status, 204);
+  assert.equal((await postBeacon(t, app, { host: "example.com", path: "/no-ref" })).status, 204);
   const hits = sink.all();
   assert.equal(hits.length, 2);
+  assert.deepEqual(hits.map(({ path, referrerHost }) => ({ path, referrerHost })), [
+    { path: "/with-ref", referrerHost: "google.com" },
+    { path: "/no-ref", referrerHost: null },
+  ]);
 });
 
 test("analytics-ingest: a plain-object eventProps is accepted; an array/string eventProps is dropped", async (t) => {
@@ -139,6 +192,7 @@ test("analytics-ingest: a plain-object eventProps is accepted; an array/string e
   const res3 = await postBeacon(t, app, { host: "example.com", path: "/x", kind: "event", eventProps: "not-an-object" });
   assert.equal(res3.status, 204);
   assert.equal(sink.all().length, 3);
+  assert.deepEqual(sink.all().map((hit) => hit.eventProps), [{ plan: "pro" }, null, null]);
 });
 
 test("analytics-ingest: a literal null eventProps is dropped, not treated as a valid object (`isJsonObject`'s `value !== null` check -- `typeof null === \"object\"` in JS, so the array/string test above does not exercise this sub-case)", async (t) => {
@@ -148,6 +202,7 @@ test("analytics-ingest: a literal null eventProps is dropped, not treated as a v
   const hits = sink.all();
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "event");
+  assert.equal(hits[0].eventProps, null);
 });
 
 test("analytics-ingest: dnt:true (real boolean) is honored end-to-end -- the hit is excluded, never reaches the sink", async (t) => {
@@ -158,6 +213,19 @@ test("analytics-ingest: dnt:true (real boolean) is honored end-to-end -- the hit
   assert.equal(sink.all().length, 0, "a real DNT:true beacon must never be recorded");
 });
 
+test("analytics-ingest: standalone GPC excludes a hit when the policy is enabled", async (t) => {
+  const base = createRouteDeps();
+  const { app, sink } = buildApp(undefined, {
+    config: { get: async (input) => ({ ...await base.analyticsConfig.get(input), enabled: true, honorGlobalPrivacyControl: true }) },
+  });
+  const res = await postBeacon(t, app, { host: "example.com", path: "/gpc", dnt: false, gpc: true });
+  assert.equal(res.status, 204);
+  assert.deepEqual(sink.all(), []);
+  // A control proves that GPC, rather than an unrelated exclusion, dropped the first hit.
+  assert.equal((await postBeacon(t, app, { host: "example.com", path: "/gpc", dnt: false, gpc: false })).status, 204);
+  assert.deepEqual(sink.all().map((hit) => hit.path), ["/gpc"]);
+});
+
 test("analytics-ingest: a malformed (non-boolean) dnt/gpc coerces to false via `=== true`, so the hit is NOT excluded", async (t) => {
   const { app, sink } = buildApp();
   const res = await postBeacon(t, app, { host: "example.com", path: "/y", dnt: "yes", gpc: 1 });
@@ -166,11 +234,15 @@ test("analytics-ingest: a malformed (non-boolean) dnt/gpc coerces to false via `
 });
 
 test("analytics-ingest: an over-long host/path/referrer/eventName is truncated, never rejected", async (t) => {
-  const { app, sink } = buildApp();
+  let resolvedHost: string | undefined;
+  const base = createRouteDeps();
+  const { app, sink } = buildApp(undefined, {
+    resolveWorkspaceForHost: async (host) => { resolvedHost = host; return base.workspaceId; },
+  });
   const res = await postBeacon(t, app, {
     host: "h".repeat(1000),
     path: "/" + "p".repeat(5000),
-    referrer: "r".repeat(5000),
+    referrer: "https://google.com/" + "r".repeat(5000),
     kind: "event",
     eventName: "e".repeat(1000),
   });
@@ -179,6 +251,15 @@ test("analytics-ingest: an over-long host/path/referrer/eventName is truncated, 
   assert.ok(hit, "an over-long beacon must still be accepted (bounded, not rejected)");
   assert.ok(hit.path.length <= 2048, `path must be truncated to MAX_PATH_LENGTH, got ${hit.path.length}`);
   assert.ok((hit.eventName?.length ?? 0) <= 200, `eventName must be truncated to MAX_EVENT_NAME_LENGTH, got ${hit.eventName?.length}`);
+  assert.equal(resolvedHost, "h".repeat(253));
+  assert.equal(hit.path, "/" + "p".repeat(2047));
+  assert.equal(hit.eventName, "e".repeat(200));
+  assert.equal(hit.referrerHost, "google.com");
+  // Put the boundary inside the hostname so normalized output observes the raw URL cap.
+  assert.equal((await postBeacon(t, app, {
+    host: "example.com", path: "/long-referrer", referrer: "https://" + "r".repeat(5000),
+  })).status, 204);
+  assert.equal(sink.all()[1].referrerHost, "r".repeat(2048 - "https://".length));
 });
 
 test("analytics-ingest: a caller that sends no User-Agent/Accept-Language (real clients do this) still 204s and classifies as unknown device", async (t) => {
@@ -338,4 +419,59 @@ test("analytics-ingest: a sink failure is swallowed — still 204s, never leaks 
   const { app } = buildApp(sink);
   const res = await postBeacon(t, app, { host: "example.com", path: "/x" });
   assert.equal(res.status, 204);
+});
+
+
+test("analytics-ingest: PII-shaped props reject the whole hit and a valid retry still lands", async () => {
+  const { app, sink } = buildApp();
+  const status = await invokeBeacon(app, {
+    host: "example.com", path: "/rejected", kind: "event", eventProps: { value: "x".repeat(300) },
+  });
+  assert.equal(status, 204);
+  assert.deepEqual(sink.all(), []);
+  assert.equal(await invokeBeacon(app, {
+    host: "example.com", path: "/retry", kind: "event", eventProps: { plan: "pro" },
+  }), 204);
+  assert.deepEqual(sink.all().map(({ path, eventProps }) => ({ path, eventProps })), [
+    { path: "/retry", eventProps: { plan: "pro" } },
+  ]);
+});
+
+test("analytics-ingest: an unresolved workspace never loads policy or records a hit", async () => {
+  let policyReads = 0;
+  const { app, sink } = buildApp(undefined, {
+    resolveWorkspaceForHost: async () => null,
+    config: { get: async () => { policyReads++; assert.fail("unresolved workspace must stop before config"); } },
+  });
+  assert.equal(await invokeBeacon(app, { host: "unknown.example", path: "/ignored" }), 204);
+  assert.equal(policyReads, 0);
+  assert.deepEqual(sink.all(), []);
+});
+
+
+async function invokeBeacon(app: express.Express, body: unknown): Promise<number | undefined> {
+  let status: number | undefined;
+  const res = { status(code: number) { status = code; return res; }, end() { return res; } };
+  await extractHandler(app, "/_analytics/e")({
+    body, hostname: "example.com", ip: "127.0.0.1", socket: { remoteAddress: "127.0.0.1" }, get: () => undefined,
+  }, res);
+  return status;
+}
+
+
+test("analytics-ingest: boundary clipping retains exact host, path, event name and referrer prefixes", async () => {
+  let resolvedHost: string | undefined;
+  const base = createRouteDeps();
+  const { app, sink } = buildApp(undefined, {
+    resolveWorkspaceForHost: async (host) => { resolvedHost = host; return base.workspaceId; },
+  });
+  assert.equal(await invokeBeacon(app, {
+    host: "h".repeat(1000), path: "/" + "p".repeat(5000), kind: "event", eventName: "e".repeat(1000),
+    referrer: "https://" + "r".repeat(5000),
+  }), 204);
+  assert.equal(resolvedHost, "h".repeat(253));
+  assert.equal(sink.all().length, 1);
+  assert.equal(sink.all()[0].path, "/" + "p".repeat(2047));
+  assert.equal(sink.all()[0].eventName, "e".repeat(200));
+  assert.equal(sink.all()[0].referrerHost, "r".repeat(2048 - "https://".length));
 });

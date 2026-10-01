@@ -213,6 +213,7 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
 
   // ---- Escaping, proven against the REAL rendered resource from a REAL tool call. ----
   expect(resourceText!.includes(HOSTILE_TITLE), "the raw hostile title leaked verbatim into the surface").toBe(false);
+  expect(resourceText).toContain("&lt;/script&gt;&lt;script&gt;alert(document.cookie)&lt;/script&gt;");
   const scriptBlocks = [...resourceText!.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   expect(scriptBlocks.length).toBeGreaterThanOrEqual(2);
   for (const script of scriptBlocks) {

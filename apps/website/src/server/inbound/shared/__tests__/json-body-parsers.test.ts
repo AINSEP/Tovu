@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Readable } from "node:stream";
+import type { Request, Response } from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -8,6 +10,9 @@ import {
   jsonBodyLimitForAuthenticatedRequest,
   LARGE_UPLOAD_JSON_BODY_LIMIT,
   AUTHENTICATED_JSON_BODY_LIMIT,
+  parseAuthenticatedJsonBody,
+  parsePublicJsonBody,
+  respondToOversizedBody,
 } from "../json-body-parsers.js";
 
 /**
@@ -77,6 +82,11 @@ test("an authenticated ordinary admin route accepts 1 MB but rejects 16 MB with 
 test("login stays reachable (parsed at the public limit, ahead of the gate)", async (t) => {
   const baseUrl = await boot(t);
   assert.notEqual(await loginAsOwner(baseUrl), "");
+  const oversized = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: jsonOfSize(200 * 1024),
+  });
+  assert.equal(oversized.status, 413);
+  assert.deepEqual(await oversized.json(), TOO_LARGE);
 });
 
 test("isAuthenticatedBodyPath matches every session-gated prefix on a segment boundary, case-insensitively", () => {
@@ -95,4 +105,65 @@ test("jsonBodyLimitForAuthenticatedRequest gives the upload limit only to the th
   assert.equal(jsonBodyLimitForAuthenticatedRequest("PATCH", "/api/admin/v1/workspaces/w/media"), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/admin/v1/workspaces/w/media/1/extra"), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/runs"), AUTHENTICATED_JSON_BODY_LIMIT);
+});
+
+
+/** A real request stream exercises body-parser without needing a listening socket. */
+async function parseBody(path: string, body: string, publicRoute = false, declaredBytes = Buffer.byteLength(body)) {
+  const req = Object.assign(Readable.from([Buffer.from(body)]), {
+    method: "POST", path, baseUrl: "",
+    headers: { "content-type": "application/json", "content-length": String(declaredBytes) },
+  }) as unknown as Request;
+  const error = await new Promise<unknown>((resolve) => {
+    (publicRoute ? parsePublicJsonBody : parseAuthenticatedJsonBody)(req, {} as Response, (err) => resolve(err));
+  });
+  return { req, error };
+}
+
+test("authenticated parsers deliver the complete 20 MB upload and 1 MB ordinary JSON to downstream handlers", async () => {
+  for (const [path, bytes] of [
+    ["/api/admin/v1/workspaces/ws/media", 20 * 1024 * 1024],
+    ["/api/admin/v1/workspaces/ws/redirects", 1024 * 1024],
+  ] as const) {
+    const body = jsonOfSize(bytes);
+    const { req, error } = await parseBody(path, body);
+    assert.equal(error, undefined);
+    assert.deepEqual(Object.keys(req.body), ["pad"]);
+    assert.equal(req.body.pad.length, bytes - '{"pad":"'.length - '"}'.length);
+  }
+});
+
+test("login's public parser refuses 200 KB before authentication", async () => {
+  const { error } = await parseBody("/api/admin/v1/auth/login", jsonOfSize(200 * 1024), true);
+  assert.equal((error as { type: string }).type, "entity.too.large");
+});
+
+test("an authenticated upload declared above 75 MB takes the JSON 413 error path", async () => {
+  // raw-body rejects an oversized Content-Length before buffering the advertised upload.
+  const { error } = await parseBody("/api/admin/v1/workspaces/ws/media", "{}", false, 76 * 1024 * 1024);
+  assert.equal((error as { type: string }).type, "entity.too.large");
+  let status: number | undefined;
+  let body: unknown;
+  const res = {
+    headersSent: false,
+    status(code: number) { status = code; return res; },
+    json(value: unknown) { body = value; return res; },
+  } as unknown as Response;
+  respondToOversizedBody(error, {} as Request, res, () => assert.fail("oversized body should be answered"));
+  assert.equal(status, 413);
+  assert.deepEqual(body, TOO_LARGE);
+});
+
+test("malformed authenticated JSON and errors after headers are sent are forwarded unchanged", async () => {
+  for (const path of ["/api/admin/v1/workspaces/ws/media", "/api/admin/v1/workspaces/ws/redirects"]) {
+    const { error } = await parseBody(path, "{not json");
+    assert.equal((error as { type: string }).type, "entity.parse.failed");
+    let forwarded: unknown;
+    respondToOversizedBody(error, {} as Request, { headersSent: false } as Response, (err) => { forwarded = err; });
+    assert.equal(forwarded, error);
+  }
+  const oversized = { type: "entity.too.large" };
+  let forwarded: unknown;
+  respondToOversizedBody(oversized, {} as Request, { headersSent: true } as Response, (err) => { forwarded = err; });
+  assert.equal(forwarded, oversized);
 });

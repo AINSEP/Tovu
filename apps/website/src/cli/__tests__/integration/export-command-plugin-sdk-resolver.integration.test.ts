@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
@@ -70,12 +71,25 @@ function runCliSync(args: string[]): { status: number | null; stderr: string } {
  * `PluginSdkResolverAlreadyRegisteredError`. That is only possible if something before it (i.e.
  * `runExportCommand()` itself) already registered the hook once.
  */
-function buildProbeScript(dir: string, outDir: string, resultPath: string): string {
+function buildProbeScript(dir: string, outDir: string, resultPath: string, pluginPath: string): string {
   // Writes its result to a FILE, not stdout: `runExportCommand()`'s own success path
   // (`printExportReport`) writes real report lines straight to `process.stdout`, which would
   // otherwise collide with (and precede) this probe's own output on the same stream.
   return [
     "import { writeFileSync } from 'node:fs';",
+    "import { mock } from 'node:test';",
+    `const bootUrl = ${JSON.stringify(pathToFileURL(path.resolve(import.meta.dirname, "../../../platform/site-dir/boot-site-dir.ts")).href)};`,
+    "const boot = await import(bootUrl);",
+    `const resolver = await import(${JSON.stringify(PLUGIN_SDK_RESOLVER_MODULE)});`,
+    "let sdkAtBoot = false;",
+    // Import at the first boot boundary, where plugin-loading dependencies become reachable.
+    // Stop at this boundary after the import; the later crawl is irrelevant to boot ordering.
+    "mock.module(bootUrl, { namedExports: { ...boot, bootSiteDir: async () => {",
+    `  const plugin = await import(${JSON.stringify(pathToFileURL(pluginPath).href)});`,
+    "  const runtimeSdk = await import((await import('node:url')).pathToFileURL(resolver.resolveDefaultSdkModulePath()).href);",
+    "  sdkAtBoot = plugin.sdk === runtimeSdk;",
+    "  throw new Error('boot boundary observed');",
+    "} } });",
     `const { runExportCommand } = await import(${JSON.stringify(EXPORT_COMMAND_MODULE)});`,
     `const { registerPluginSdkResolver, PluginSdkResolverAlreadyRegisteredError } = await import(${JSON.stringify(PLUGIN_SDK_RESOLVER_MODULE)});`,
     "try {",
@@ -90,7 +104,7 @@ function buildProbeScript(dir: string, outDir: string, resultPath: string): stri
     "} catch (error) {",
     "  alreadyRegistered = error instanceof PluginSdkResolverAlreadyRegisteredError;",
     "}",
-    `writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ alreadyRegistered }), 'utf8');`,
+    `writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ alreadyRegistered, sdkAtBoot }), 'utf8');`,
     "",
   ].join("\n");
 }
@@ -105,9 +119,17 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu export's runExportCommand() must regis
 
     const probeScriptPath = path.join(parent, "probe.mjs");
     const resultPath = path.join(parent, "probe-result.json");
-    fs.writeFileSync(probeScriptPath, buildProbeScript(dir, outDir, resultPath), "utf8");
+    const pluginDir = path.join(parent, "plugin", "server");
+    const plantedSdkDir = path.join(parent, "plugin", "node_modules", "@tovu", "sdk");
+    fs.mkdirSync(pluginDir, { recursive: true });
+    fs.mkdirSync(plantedSdkDir, { recursive: true });
+    fs.writeFileSync(path.join(plantedSdkDir, "package.json"), JSON.stringify({ name: "@tovu/sdk", type: "module", main: "index.mjs" }));
+    fs.writeFileSync(path.join(plantedSdkDir, "index.mjs"), "export const planted = true;");
+    const pluginPath = path.join(pluginDir, "index.mjs");
+    fs.writeFileSync(pluginPath, "import * as sdk from '@tovu/sdk'; export { sdk };");
+    fs.writeFileSync(probeScriptPath, buildProbeScript(dir, outDir, resultPath, pluginPath), "utf8");
 
-    const probe = spawnSync(process.execPath, ["--import", TSX_LOADER, probeScriptPath], {
+    const probe = spawnSync(process.execPath, ["--import", TSX_LOADER, "--experimental-test-module-mocks", probeScriptPath], {
       encoding: "utf8",
       env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
       timeout: 60000,
@@ -115,7 +137,8 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu export's runExportCommand() must regis
     assert.equal(probe.status, 0, `probe script must run to completion (stderr: ${probe.stderr})`);
     assert.ok(fs.existsSync(resultPath), `probe script must write its result file (stderr: ${probe.stderr})`);
 
-    const observed = JSON.parse(fs.readFileSync(resultPath, "utf8")) as { alreadyRegistered: boolean };
+    const observed = JSON.parse(fs.readFileSync(resultPath, "utf8")) as { alreadyRegistered: boolean; sdkAtBoot: boolean };
+    assert.equal(observed.sdkAtBoot, true, "a plugin import at the first boot boundary must use the runtime SDK before export proceeds");
     assert.equal(
       observed.alreadyRegistered,
       true,

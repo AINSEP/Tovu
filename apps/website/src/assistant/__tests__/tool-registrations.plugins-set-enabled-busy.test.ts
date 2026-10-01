@@ -44,7 +44,7 @@ mock.module("#src/features/agent-plugins/exclusive-file-lock", {
 
 const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
-const { readAgentPluginActivations } = await import("#src/features/agent-plugins/activation");
+const { readAgentPluginActivations, setAgentPluginActivation } = await import("#src/features/agent-plugins/activation");
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
 const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
 const { InMemoryExternalMcpServerRepo } = await import("#src/assistant/index");
@@ -102,6 +102,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
     });
     return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
   } finally {
+    behavior = real.withExclusiveFileLock;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -193,6 +194,8 @@ test("plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:ac
 
 test("plugins_set_enabled: a busy lock on DISABLE returns the same changed:false/reason:activations-busy result", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: true, actor: "test-operator" });
+    const before = await readAgentPluginActivations(workspaceRoot);
     behavior = timeoutBehavior(9202);
     const { deps } = fakeRouteDeps();
     const tool = setEnabledTool(deps, createSurfaceExchangeStore());
@@ -209,6 +212,20 @@ test("plugins_set_enabled: a busy lock on DISABLE returns the same changed:false
       note: busyNoteFor(AGENT_PLUGIN_ID, false),
     });
     const activations = await readAgentPluginActivations(workspaceRoot);
-    assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, undefined, "nothing may be written when the lock is busy");
+    assert.deepEqual(activations, before, "busy disable preserves the complete enabled activation record");
   });
 });
+
+for (const enabled of [true, false]) {
+  test(`plugins_set_enabled: a permission failure on ${enabled ? "ENABLE" : "DISABLE"} is not reported as activations-busy`, async () => {
+    await withInstalledAgentPlugin(async (workspaceRoot) => {
+      const failure = Object.assign(new Error("permission denied taking activation lock"), { code: "EACCES" });
+      behavior = async () => { throw failure; };
+      const { deps } = fakeRouteDeps();
+      const emitted: unknown[] = [];
+      await assert.rejects(() => call(setEnabledTool(deps, createSurfaceExchangeStore()), { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async surface => void emitted.push(surface)), error => error === failure);
+      assert.deepEqual(emitted, []);
+      assert.deepEqual((await readAgentPluginActivations(workspaceRoot)).plugins, {});
+    });
+  });
+}

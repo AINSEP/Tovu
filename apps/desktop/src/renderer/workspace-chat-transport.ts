@@ -363,11 +363,15 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       // the first events can be pushed while this promise is still in flight; without the record
       // already in place they would arrive with nowhere to go.
       const { subscriptionId, record } = open(handlers);
-      input.signal.addEventListener('abort', () => detach(subscriptionId), { once: true });
+      const alreadyDetached = input.signal.aborted;
+      if (alreadyDetached) records.delete(subscriptionId);
+      else input.signal.addEventListener('abort', () => detach(subscriptionId), { once: true });
 
       try {
         const { runId } = await bridge.chatStart(buildChatStartPayload(subscriptionId, agentId, input));
         record.runId = runId;
+        // Main now owns the subscription; a pane that was already gone must detach it too.
+        if (alreadyDetached) void bridge.chatDetach(subscriptionId).catch(() => {});
         wireCancelSignal(bridge, input.cancelSignal, runId);
         return { runId };
       } catch (error) {

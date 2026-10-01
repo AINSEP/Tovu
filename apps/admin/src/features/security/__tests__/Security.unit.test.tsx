@@ -109,18 +109,23 @@ describe("Security — page shell", () => {
   it("handleTabChange navigates to the clicked tab's own URL, replacing history", async () => {
     const user = userEvent.setup();
     renderPage({ canManageSiteToken: true });
+    const historyLength = window.history.length;
     await user.click(screen.getByRole("tab", { name: /Access Tokens/ }));
+    expect(window.history.length).toBe(historyLength);
     expect(window.location.pathname).toBe("/admin/access-tokens");
     expect(window.location.search).toBe("?tab=access-tokens");
   });
 
   describe("Site Token tab — gated on admin.security.tokens.manage (2026-09-10)", () => {
     it("shows the Site Token tab and its panel for a principal WITH the permission", () => {
-      renderPage({ tabId: "site-token", canManageSiteToken: true });
+      const { container } = renderPage({ tabId: "site-token", canManageSiteToken: true });
       const tablist = screen.getByRole("tablist");
       expect(within(tablist).getAllByRole("tab")).toHaveLength(2);
       const tab = within(tablist).getByRole("tab", { name: /Site Token/ });
       expect(tab).toHaveAttribute("aria-selected", "true");
+      const panel = container.querySelector<HTMLElement>('[data-agent-element="security-site-token"]')!;
+      expect(panel).toBeInTheDocument();
+      expect(within(panel).getByText("Loading…")).toBeInTheDocument();
     });
 
     it("publishes the Site Token tab's agent label describing the corrected site-token wording", () => {

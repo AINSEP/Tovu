@@ -58,6 +58,12 @@ test("the transcribe handler encodes the incoming samples to WAV before handing 
   // 44-byte WAV header + 3 samples * 2 bytes each.
   assert.equal(receivedWav!.length, 44 + 6);
   assert.equal(receivedWav!.toString("ascii", 0, 4), "RIFF");
+  for (const sampleRate of [16000, 48000]) {
+    await ipcMain.handlers.get(IPC_CHANNEL_TRANSCRIBE)!(TRUSTED_EVENT, [0, 0.5, -0.5], sampleRate);
+    assert.equal(receivedWav!.readUInt32LE(24), sampleRate);
+    assert.equal(receivedWav!.readUInt32LE(28), sampleRate * 2);
+    assert.deepEqual([0, 1, 2].map((index) => receivedWav!.readInt16LE(44 + index * 2)), [0, 16383, -16384]);
+  }
 });
 
 test("a rejected transcribe from the port propagates to the IPC caller rather than being swallowed", async () => {
@@ -131,9 +137,13 @@ test("the sender check sees the sending frame's url, exactly", async () => {
 
 test("a nonsensical sample rate is refused before any samples are read", async () => {
   const { calls, transcribe } = registerRecording();
+  const samples = [0];
+  let reads = 0;
+  Object.defineProperty(samples, 0, { get: () => { reads++; throw new Error('samples read before rate validation'); } });
   for (const sampleRate of [Number.NaN, 0, -48000, 7999, 192001, 44100.5, Number.POSITIVE_INFINITY, "48000", undefined]) {
-    await rejectsWith(() => transcribe(TRUSTED_EVENT, [0], sampleRate), RATE_REFUSED);
+    await rejectsWith(() => transcribe(TRUSTED_EVENT, samples, sampleRate), RATE_REFUSED);
   }
+  assert.equal(reads, 0);
   assert.deepEqual(calls, []);
 });
 

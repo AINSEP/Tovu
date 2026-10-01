@@ -357,6 +357,8 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
    * then never go out at all.
    */
   const runStubWrittenRef = useRef<Map<string, Set<string>>>(new Map());
+  /** Terminal writes wait for their earlier stub, so a slow stub cannot overwrite the answer. */
+  const runStubPendingRef = useRef<Map<string, Map<string, Promise<void>>>>(new Map());
   const activeIdRef = useRef<string | null>(null);
   /**
    * Monotonic token identifying the most recent switch intent.
@@ -721,10 +723,13 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
       for (const message of pending) written.add(messageWriteKey(message));
 
       void Promise.all(
-        pending.map(async (message) => ({
-          message,
-          outcome: await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current),
-        })),
+        pending.map(async (message) => {
+          await runStubPendingRef.current.get(conversationId)?.get(messageWriteKey(message));
+          return {
+            message,
+            outcome: await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current),
+          };
+        }),
       ).then((results) => {
         /*
          * Un-marked ONLY when the write could plausibly succeed later.
@@ -824,9 +829,15 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     // carries the OLD run id; writing that would put a stale stub over the saved answer.
     if (writtenRef.current.get(conversationId)?.has(key)) return;
     written.add(key);
-    void portRef.current.saveMessage(conversationId, message).catch(() => {
+    const pending = runStubPendingRef.current.get(conversationId) ?? new Map<string, Promise<void>>();
+    runStubPendingRef.current.set(conversationId, pending);
+    const write = portRef.current.saveMessage(conversationId, message).catch(() => {
       written.delete(key);
+    }).finally(() => {
+      pending.delete(key);
+      if (pending.size === 0) runStubPendingRef.current.delete(conversationId);
     });
+    pending.set(key, write);
   }, []);
 
   /**

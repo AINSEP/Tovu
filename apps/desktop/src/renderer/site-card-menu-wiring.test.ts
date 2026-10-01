@@ -10,6 +10,12 @@
  * prose explaining a thing rather than the thing.
  */
 import test from "node:test";
+import ts from "typescript";
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable } from "./SiteGrid.hooks.js";
+import { powerControl } from "./use-site-power.hooks.js";
+import { STATUS_LABEL } from "./site-status.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -119,4 +125,33 @@ test("main's refusal is surfaced verbatim, never paraphrased", () => {
   // Every message main raises names the fix ("remove this card and add the site again from its new
   // location"). Rewording it here would drop exactly the half the operator needs.
   assert.match(grid, /\{rename\.renameError && <p className="card__confirmerror">\{rename\.renameError\}<\/p>\}/);
+});
+
+test("a running record with a local stopping status omits Open in browser throughout the rendered card", () => {
+  const ast = ts.createSourceFile("SiteGrid.tsx", gridSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const names = ["SiteCard", "CardActions", "SiteCardMenu"];
+  const declarations = names.map((name) => {
+    const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
+    assert.ok(node, `expected ${name}`);
+    return node.getText(ast);
+  }).join("\n");
+  const executable = ts.transpileModule(declarations, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const deps = {
+    React, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL,
+    useSitePreview: () => null,
+    useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
+    MissingFolderNotice: () => null,
+  };
+  const SiteCard = new Function(...Object.keys(deps), `${executable}; return SiteCard;`)(...Object.values(deps));
+  const project = { id: "site-1", displayName: "Test site", port: 4200, status: "running", database: { kind: "sqlite" }, deleteErasesFiles: false };
+  for (const status of ["running", "stopping"]) {
+    const html = renderToStaticMarkup(React.createElement(SiteCard, {
+      project, overlay: null, deleting: false, deleteError: null, rename: { startRename: () => {} },
+      onOpen: () => {}, actions: { openInBrowser: () => {} },
+      power: { statusOf: () => status, errorOf: () => null, toggle: () => {} },
+      locate: { locatingId: null }, onRequestDelete: () => {},
+    }));
+    assert.equal(html.includes("Open in browser"), status === "running", `rendered ${status} must decide the menu`);
+    assert.ok(html.includes(`card is-${status}`));
+  }
 });

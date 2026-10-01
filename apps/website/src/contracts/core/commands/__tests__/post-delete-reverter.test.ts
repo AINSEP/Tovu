@@ -78,15 +78,21 @@ const deleteItem: ChangeSetItemRecord = {
   inversePayload: { deletedAt: null },
 } as unknown as ChangeSetItemRecord;
 
-test("the registry routes ('post','delete') and ('post','update') to two distinct reverters", () => {
+test("the registry routes ('post','delete') and ('post','update') to two distinct reverters", async () => {
   const { outbox } = recordingOutbox();
-  const deps: PostReverterDeps = { postRepo: new InMemoryPostRepo(), clock, outbox, ...recordingForget() };
+  const postRepo = new InMemoryPostRepo([seed({ deletedAt: "2026-07-29T00:00:00.000Z" })]);
+  const deps: PostReverterDeps = { postRepo, clock, outbox, ...recordingForget() };
   const registry = createPostRevertRegistry(deps);
   const deleteReverter = registry.resolve("post", "delete");
   const updateReverter = registry.resolve("post", "update");
   assert.ok(deleteReverter, "post/delete must be registered");
   assert.ok(updateReverter, "post/update must be registered");
   assert.notEqual(deleteReverter, updateReverter, "the two operations must route to different reverters");
+  await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ deletedAt: null, version: 4, updatedAt: clock.nowIso() }));
+  const inverse = { title: "Before", slug: "before", bodyJson: { type: "doc", content: [{ type: "paragraph" }] }, status: "draft" };
+  await updateReverter.applyInverse({ workspaceId: WS, item: { ...deleteItem, inversePayload: inverse } });
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ ...inverse, status: "draft", deletedAt: null, version: 5, updatedAt: clock.nowIso() }));
 });
 
 test("applyInverse clears the trash marker, restoring the row losslessly", async () => {

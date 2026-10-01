@@ -29,9 +29,9 @@ function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done
     },
     onEvent: (ev: AgentEvent) => events.push(ev),
     onError: (err: Error) => errors.push(err),
-    onDone: (finalEvents: AgentEvent[]) => {
+    onDone: vi.fn((finalEvents: AgentEvent[]) => {
       done = finalEvents;
-    },
+    }),
   } as unknown as RunHandlers & { events: AgentEvent[]; errors: Error[]; done: AgentEvent[] | null };
 }
 
@@ -496,6 +496,7 @@ describe("startRun — resume-capable agents skip resending the transcript", () 
     const body = JSON.parse(init.body as string) as { contextRef: string };
     const prompt = JSON.parse(body.contextRef).prompt as string;
     expect(prompt, "fails open to the full transcript when the capability set is not wired up").toMatch(/slow mornings/i);
+    expect(prompt).toMatch(/## user\nsearch my posts for slow mornings\s+## assistant\nOne post matched: Slow Mornings\.\s+## user\nopen it in the editor/);
   });
 
   test("a resume-capable agentId with no agentId at all on the request still gets the full transcript — nothing to look up", async () => {
@@ -509,6 +510,7 @@ describe("startRun — resume-capable agents skip resending the transcript", () 
     const body = JSON.parse(init.body as string) as { contextRef: string };
     const prompt = JSON.parse(body.contextRef).prompt as string;
     expect(prompt, "no agentId means no capability to check — must not guess").toMatch(/slow mornings/i);
+    expect(prompt).toMatch(/## user\nsearch my posts for slow mornings\s+## assistant\nOne post matched: Slow Mornings\.\s+## user\nopen it in the editor/);
   });
 });
 
@@ -610,6 +612,7 @@ describe("subscribeToRun — EventSource frame handling", () => {
     source.emit("end", "");
 
     expect(h.done).toEqual([]);
+    expect(h.onDone).toHaveBeenCalledTimes(1);
   });
 
   test("aborting the signal AFTER 'end' has already settled the run is a no-op — not a double onDone", async () => {
@@ -627,6 +630,7 @@ describe("subscribeToRun — EventSource frame handling", () => {
 
     expect(closedAtEnd).toBe(true);
     expect(h.done).toEqual([]); // unchanged by the post-settlement abort
+    expect(h.onDone).toHaveBeenCalledTimes(1);
   });
 
   test("an 'error' frame with an empty message field falls back to the generic 'agent run failed' message", async () => {

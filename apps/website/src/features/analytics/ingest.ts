@@ -94,8 +94,20 @@ export function validateEventProps(props: JsonObject | null | undefined): JsonOb
     );
   }
 
-  for (const key of keys) {
-    validateEventPropEntry(key, props[key]);
+  const pending: Record<string, unknown>[] = [props];
+  let propertyCount = 0;
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    const currentKeys = Object.keys(current);
+    propertyCount += currentKeys.length;
+    if (propertyCount > MAX_EVENT_PROP_COUNT) {
+      throw new AnalyticsPiiRejectedError(`event properties exceed the ${MAX_EVENT_PROP_COUNT}-key bound`);
+    }
+    for (const key of currentKeys) {
+      const value = current[key];
+      validateEventPropEntry(key, value);
+      if (value !== null && typeof value === "object") pending.push(value as Record<string, unknown>);
+    }
   }
 
   return props;
@@ -400,6 +412,8 @@ function isIpExcluded(ip: string, excludedRanges: readonly string[]): boolean {
 }
 
 function ipMatchesRange(ip: string, range: string): boolean {
+  const mapped = IPV4_MAPPED_IPV6_PATTERN.exec(ip);
+  if (mapped) ip = mapped[1];
   if (!range.includes("/")) return ip === range;
 
   const [rangeIp, prefixRaw] = range.split("/");
@@ -471,7 +485,7 @@ function extractUtm(pathWithMaybeQuery: string): UtmParams {
   const queryIndex = pathWithMaybeQuery.indexOf("?");
   if (queryIndex === -1) return EMPTY_UTM;
 
-  const params = new URLSearchParams(pathWithMaybeQuery.slice(queryIndex + 1));
+  const params = new URLSearchParams(pathWithMaybeQuery.slice(queryIndex + 1).split("#", 1)[0]);
   return {
     source: params.get("utm_source"),
     medium: params.get("utm_medium"),
@@ -539,7 +553,7 @@ export async function ingestHit(required: IngestHitRequired): Promise<IngestHitR
     workspaceId,
     occurredAt: context.receivedAt,
     kind: beacon.kind,
-    path: beacon.path,
+    path: beacon.path.split(/[?#]/, 1)[0],
     referrerHost: extractReferrerHost(beacon.referrer),
     utm: extractUtm(beacon.path),
     country: null,

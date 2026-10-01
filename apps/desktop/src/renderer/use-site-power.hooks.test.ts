@@ -93,6 +93,7 @@ test("'stop' calls stopSite, never startSite", async () => {
   });
 
   assert.deepEqual(calls, ['stop:/sites/b']);
+  assert.equal(result.record, RECORD, 'stop must propagate the record returned by main');
   assert.equal(result.error, undefined);
 });
 

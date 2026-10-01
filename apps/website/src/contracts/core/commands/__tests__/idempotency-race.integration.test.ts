@@ -90,6 +90,9 @@ test("concurrent executeCommand calls sharing an idempotency key: one wins, the 
 
   // Exactly one rollback fired — for whichever mutation actually lost the race.
   assert.equal(rolledBackA.count + rolledBackB.count, 1);
+  for (const [result, rollback] of [[settledA, rolledBackA], [settledB, rolledBackB]] as const) {
+    assert.equal(rollback.count, result.status === "rejected" ? 1 : 0, "only the losing mutation may be rolled back");
+  }
 
   // Only the winner's change set is durably recorded; the loser left no trace.
   const all = await changeSets.listByWorkspace({ workspaceId: WORKSPACE });

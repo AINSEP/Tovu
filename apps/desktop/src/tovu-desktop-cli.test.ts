@@ -13,6 +13,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, parseArgv, runTovuDesktopCli } from "../bin/tovu-desktop.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./tracked-sites.ts";
@@ -55,6 +57,8 @@ test("add-site adds a real site and reports the path it recorded", () => {
   // Stated in the output because the promise is load-bearing and people do not read source.
   assert.match(io.stdout(), /not moved, copied, or changed/);
   assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map(({ siteDir, origin }) => ({ siteDir, origin })),
+    [{ siteDir: path.resolve(siteDir), origin: SITE_ORIGIN.adopted }]);
 });
 
 test("add-site ALWAYS announces which app-data directory it used", () => {
@@ -68,6 +72,17 @@ test("add-site ALWAYS announces which app-data directory it used", () => {
   // app never looks. Printing the directory on every run — not just on failure — is what makes that
   // visible instead of silent.
   assert.match(io.stdout(), new RegExp(`Using app data: ${userDataDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+});
+
+test('the real CLI entry propagates success, refusal, and usage exit codes', () => {
+  const entry = fileURLToPath(new URL('../bin/tovu-desktop.ts', import.meta.url));
+  const userDataDir = tempDir();
+  for (const args of [ ['--help'], ['add-site', tempDir(), '--user-data-dir', userDataDir], ['add-site'] ]) {
+    const expected = runTovuDesktopCli(args, capture().io);
+    const child = spawnSync(process.execPath, ['--import', 'tsx', entry, ...args], { encoding: 'utf8', timeout: 5000 });
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, expected, child.stderr);
+  }
 });
 
 test("add-site EXITS NON-ZERO and writes nothing when the folder is not a site", () => {

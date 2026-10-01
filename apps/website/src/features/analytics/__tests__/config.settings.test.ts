@@ -134,6 +134,10 @@ test("createSettingsAnalyticsConfig().get() reflects a stored workspace override
   // Untouched keys still resolve to their registered defaults, proving the override is per-key.
   assert.equal(result.honorDoNotTrack, true);
   assert.equal(result.sink, "local");
+  assert.deepEqual(await config.get({ workspaceId: "workspace-2" }), {
+    workspaceId: "workspace-2", enabled: true, honorDoNotTrack: true, honorGlobalPrivacyControl: true,
+    rawRetentionDays: 30, excludedPaths: [], excludedIpRanges: [], sink: "local",
+  });
 });
 
 test("createSettingsAnalyticsConfig().get() strictly requires === true for booleans, never truthy-coerces", async () => {
@@ -152,11 +156,13 @@ test("createSettingsAnalyticsConfig().get() filters non-string entries out of a 
   const settingsRepo = new InMemorySettingsRepo();
   await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   await plantRawWorkspaceValue(settingsRepo, "excludedPaths", ["/admin", 42, null, "/preview", true]);
+  await plantRawWorkspaceValue(settingsRepo, "excludedIpRanges", ["10.0.0.0/24", 42, null, "203.0.113.99", true]);
   const config = createSettingsAnalyticsConfig({ settingsRepo });
 
   const result = await config.get({ workspaceId: WORKSPACE_ID });
 
   assert.deepEqual(result.excludedPaths, ["/admin", "/preview"]);
+  assert.deepEqual(result.excludedIpRanges, ["10.0.0.0/24", "203.0.113.99"]);
 });
 
 test("createSettingsAnalyticsConfig().get() degrades a non-array stored excludedIpRanges value to an empty array", async () => {

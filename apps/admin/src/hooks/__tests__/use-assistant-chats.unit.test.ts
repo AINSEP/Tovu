@@ -53,7 +53,12 @@ beforeEach(() => {
           conversation: { id: `new-${created}`, title: null, titleSource: "fallback", messageCount: 0 },
         });
       }
-      if (method === "PUT") return jsonResponse({ message: body });
+      if (method === "PUT") {
+        if (!body || typeof body.id !== "string" || !["user", "assistant"].includes(body.role) || typeof body.content !== "string" || !String(url).endsWith(`/messages/${encodeURIComponent(body.id)}`)) {
+          return jsonResponse({ error: "malformed message write" }, 400);
+        }
+        return jsonResponse({ message: body });
+      }
       if (String(url).endsWith("/messages")) return jsonResponse({ messages: [] });
       return jsonResponse({ conversations: [] });
     }),
@@ -230,6 +235,7 @@ describe("typing with no conversation selected", () => {
     const puts = calls.filter((c) => c.method === "PUT");
     expect(puts).toHaveLength(1);
     expect(puts[0]?.url).toContain("/new-1/messages/m1");
+    expect(puts[0]).toEqual({ url: "/api/assistant/chats/new-1/messages/m1", method: "PUT", body: { id: "m1", role: "user", content: "hello", createdAt: 1 } });
   });
 
   it("does NOT remount the pane when adopting, so a streaming reply survives", async () => {
@@ -879,7 +885,7 @@ describe("guards proven necessary by deleting them", () => {
     });
     await waitFor(() => expect(result.current.activeId).toBe("fake-1"));
     await waitFor(() =>
-      expect(result.current.conversations.find((c) => c.id === "fake-1")?.title).toBeTruthy(),
+      expect(result.current.conversations.find((c) => c.id === "fake-1")?.title).toBe("How Many Published Posts"),
     );
   });
 

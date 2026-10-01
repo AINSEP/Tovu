@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
@@ -152,6 +153,42 @@ async function raiseDialog(trashTool: ToolRegistration, input: Record<string, un
   return { pending, ui, exchangeId };
 }
 
+/** Execute the emitted dialog script against its rendered buttons and the exchange action bridge. */
+function clickRenderedConfirm(ui: UIResource, surfaceExchanges: SurfaceExchangeStore): void {
+  const clicks = new Map<string, (event: unknown) => void>();
+  const buttons = [...ui.resource.text.matchAll(/<button\b([^>]*)>([^<]*)<\/button>/g)].map(([, attrs, label]) => {
+    const action = attrs!.match(/data-mcpui-action="([^"]+)"/)?.[1];
+    assert.ok(action);
+    return { action, label, disabled: attrs!.includes("disabled"), getAttribute: () => action,
+      addEventListener: (_type: string, handler: (event: unknown) => void) => clicks.set(action, handler) };
+  });
+  const confirm = buttons.find(button => button.label === "Trash comment");
+  assert.ok(confirm, "the visible Trash comment button must exist");
+  let now = 0;
+  const timers: Array<() => void> = [];
+  const status = { textContent: "", setAttribute: () => {} };
+  const calls: unknown[] = [];
+  const scripts = [...ui.resource.text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
+  assert.equal(scripts.length, 2);
+  runInNewContext(scripts[1]![1]!, {
+    window: { jiniMcpUi: { callTool: (toolId: string, rawParams: Record<string, unknown>) => {
+      const params = JSON.parse(JSON.stringify(rawParams));
+      calls.push({ toolId, params });
+      const result = surfaceExchanges.deliver({ exchangeId: params[SURFACE_EXCHANGE_ID_PARAM], toolId, principalId: PRINCIPAL_ID, params });
+      assert.deepEqual(result, { ok: true });
+      return Promise.resolve();
+    }, requestTeardown: () => {} } },
+    document: { visibilityState: "visible", getElementById: () => status, querySelectorAll: (selector: string) => selector === "[data-mcpui-action]" ? buttons : [], addEventListener: () => {} },
+    performance: { now: () => now },
+    setTimeout: (callback: () => void) => { timers.push(callback); return timers.length; }, clearTimeout: () => {},
+  });
+  now = 60_000;
+  timers[0]!();
+  assert.equal(confirm.disabled, false, "the confirmation dwell must enable the rendered button");
+  clicks.get(confirm.action)!({ isTrusted: true, currentTarget: confirm });
+  assert.equal(calls.length, 1);
+}
+
 // ---------------------------------------------------------------------------
 // 1. The call parks, the dialog names the comment, nothing is trashed while pending
 // ---------------------------------------------------------------------------
@@ -182,7 +219,9 @@ test("the call stays open after the dialog is shown, and nothing is trashed whil
 
 test("the dialog names the author and a preview of the comment body, so consent is informed", async () => {
   const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment({ authorName: "Jamie", bodyText: "This is spam-adjacent nonsense." }));
+  const bodyText = "This is spam-adjacent nonsense. " + "Long comment content. ".repeat(10);
+  await commentRepo.create(seedComment({ authorName: "Jamie", bodyText }));
+  await commentRepo.create(seedComment({ id: "another-comment", authorName: "Wrong Author", bodyText: "Wrong body" }));
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
@@ -191,6 +230,11 @@ test("the dialog names the author and a preview of the comment body, so consent 
   assert.match(ui.resource.text, /Jamie/);
   assert.match(ui.resource.text, /spam-adjacent nonsense/);
   assert.match(ui.resource.text, /moved to the trash/i);
+  const details = ui.resource.text.match(/<dl class="mcpui-details">([\s\S]*?)<\/dl>/)?.[1];
+  assert.ok(details, "the visible dialog detail list must exist");
+  const rows = [...details.matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)<\/dd>/g)].map(([, label, value]) => [label, value]);
+  assert.deepEqual(rows, [["Author", "Jamie"], ["Comment", bodyText.slice(0, 140) + "…"], ["Current status", "pending"]]);
+  assert.doesNotMatch(details, /Wrong Author|Wrong body/);
 
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
@@ -206,9 +250,8 @@ test("confirm: the human's click trashes the comment and the SAME call reports i
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(trashTool);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  assert.deepEqual(delivered, { ok: true });
+  const { ui, pending } = await raiseDialog(trashTool);
+  clickRenderedConfirm(ui, surfaceExchanges);
 
   const result = (await pending) as { trashed: boolean; cancelled: boolean };
   assert.equal(result.trashed, true);
@@ -357,7 +400,7 @@ test("a stale expectedVersion confirmed against is rejected as a conflict, not s
 });
 
 test("a permission revoked between the dialog opening and the click still refuses the trash", async () => {
-  const { deps, commentRepo, setAllow } = await fakeRouteDeps();
+  const { deps, commentRepo, setAllow, authorizeCalls } = await fakeRouteDeps();
   await commentRepo.create(seedComment());
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
@@ -366,10 +409,12 @@ test("a permission revoked between the dialog opening and the click still refuse
   setAllow(false);
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
 
-  // requireToolPermission runs once, before the dialog is opened (mirrors content_post_delete: the
-  // gate is checked once, up front — a later revoke is not re-checked against the write itself here,
-  // since applyModeration performs no authorize() call of its own). This asserts the actual, current
-  // contract rather than assuming a re-check that does not exist.
-  const result = (await pending) as { trashed: boolean };
-  assert.equal(result.trashed, true, "documents that re-authorization is NOT re-checked at confirm time in this domain, unlike content_post_delete's executeCommand-gated write");
+  await assert.rejects(pending, (error: unknown) => { assert.ok(error instanceof ForbiddenError); return true; });
+  assert.equal(authorizeCalls.length, 2);
+  assert.equal(authorizeCalls[1]?.permission, "comments.delete");
+  assert.equal(authorizeCalls[1]?.entityId, "comment-1");
+  const row = await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" });
+  assert.equal(row?.status, "pending");
+  assert.equal(row?.version, 1);
+  assert.equal(surfaceExchanges.size(), 0);
 });

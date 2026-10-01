@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatPane } from "@jini-ai/chat/react";
@@ -120,12 +121,12 @@ describe("a released voice hold, against the real ChatPane composer", () => {
     expect(transport.startRunCalls).toHaveLength(0);
   });
 
-  it("appends onto a half-written message instead of destroying it", async () => {
+  it.each(["summarise the release notes", "summarise the release notes ", "summarise the release notes\n"])("appends onto the draft %j without destroying it or doubling whitespace", async (draft) => {
     const transport = createRecordingTransport();
     render(<VoiceComposerHarness transport={transport} transcript="and check the deploy log" />);
     const mic = await findMicButton();
 
-    fireEvent.change(composerTextarea(), { target: { value: "summarise the release notes" } });
+    fireEvent.change(composerTextarea(), { target: { value: draft } });
 
     fireEvent.pointerDown(mic);
     await flush();
@@ -152,7 +153,10 @@ describe("holding space in the composer", () => {
     await findMicButton();
     const textarea = composerTextarea();
 
-    fireEvent.keyDown(textarea, { key: " " });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
+    await user.keyboard("[Space>]");
+    expect(textarea).toHaveValue(" ");
     act(() => {
       vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS);
     });
@@ -160,10 +164,28 @@ describe("holding space in the composer", () => {
     // Recording is genuinely open — the shared indicator, not a log line, says so.
     expect(screen.getByRole("button", { name: "Recording — release to send" })).toBeInTheDocument();
 
-    fireEvent.keyUp(textarea, { key: " " });
+    await user.keyboard("[/Space]");
     await flush();
 
     expect(textarea).toHaveValue("ship it on friday");
+    expect(transport.startRunCalls).toHaveLength(0);
+  });
+
+  it("releases an engaged hold on blur and delivers its transcript to the real composer", async () => {
+    const transport = createRecordingTransport();
+    render(<VoiceComposerHarness transport={transport} transcript="released on blur" />);
+    await findMicButton();
+    const textarea = composerTextarea();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
+    await user.keyboard("[Space>]");
+    act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS));
+    await flush();
+    expect(screen.getByRole("button", { name: "Recording — release to send" })).toBeInTheDocument();
+    await act(async () => textarea.blur());
+    await flush();
+    expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
+    expect(textarea).toHaveValue("released on blur");
     expect(transport.startRunCalls).toHaveLength(0);
   });
 
@@ -173,15 +195,13 @@ describe("holding space in the composer", () => {
     await findMicButton();
     const textarea = composerTextarea();
 
-    // `fireEvent` returns false only when a handler called `preventDefault`. True here means the
-    // keystroke is left entirely to the browser, which is what types the space. (jsdom does not
-    // simulate that insertion itself, so this flag — not the textarea's value — is the real
-    // observable for "the browser was allowed to do its normal thing".)
-    const down = fireEvent.keyDown(textarea, { key: " " });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
+    await user.keyboard("[Space>]");
     act(() => {
       vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS - 50);
     });
-    fireEvent.keyUp(textarea, { key: " " });
+    await user.keyboard("[/Space]");
     // Well past the threshold: a disarmed timer must not fire late and open the mic behind the
     // operator's back.
     act(() => {
@@ -189,9 +209,8 @@ describe("holding space in the composer", () => {
     });
     await flush();
 
-    expect(down).toBe(true);
     expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
-    expect(textarea).toHaveValue("");
+    expect(textarea).toHaveValue(" ");
   });
 
   it("suppresses OS key repeat during a hold so no run of spaces is typed", async () => {
@@ -200,7 +219,11 @@ describe("holding space in the composer", () => {
     await findMicButton();
     const textarea = composerTextarea();
 
-    const first = fireEvent.keyDown(textarea, { key: " " });
+    const user = userEvent.setup({ delay: SPACE_HOLD_TO_TALK_MS + 1, advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
+    // One held gesture: repeats arrive after the engagement threshold, with insertion defaults.
+    await user.keyboard("[Space>3]");
+    expect(textarea).toHaveValue(" ");
     // Every repeat after the first is swallowed — this is the run-of-spaces failure mode the
     // gesture would otherwise have.
     const repeats = [
@@ -208,7 +231,6 @@ describe("holding space in the composer", () => {
       fireEvent.keyDown(textarea, { key: " ", repeat: true }),
     ];
 
-    expect(first).toBe(true);
     expect(repeats).toEqual([false, false]);
 
     act(() => {
@@ -220,8 +242,9 @@ describe("holding space in the composer", () => {
 
     // And a repeat DURING recording is swallowed too.
     expect(fireEvent.keyDown(textarea, { key: " ", repeat: true })).toBe(false);
+    expect(textarea).toHaveValue(" ");
 
-    fireEvent.keyUp(textarea, { key: " " });
+    await user.keyboard("[/Space]");
     await flush();
     expect(textarea).toHaveValue("one utterance");
   });
@@ -233,7 +256,10 @@ describe("holding space in the composer", () => {
     const textarea = composerTextarea();
     fireEvent.change(textarea, { target: { value: "half a sentence" } });
 
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
     const event = fireEvent.keyDown(textarea, { key: " " });
+    await user.keyboard(" ");
     act(() => {
       vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS * 4);
     });
@@ -243,6 +269,6 @@ describe("holding space in the composer", () => {
     // type this space, since there IS text here the gesture would otherwise be typing over.
     expect(event).toBe(true);
     expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
-    expect(textarea).toHaveValue("half a sentence");
+    expect(textarea).toHaveValue("half a sentence ");
   });
 });

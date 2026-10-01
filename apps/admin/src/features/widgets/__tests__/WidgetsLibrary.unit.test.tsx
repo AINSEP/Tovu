@@ -81,6 +81,8 @@ it("confirming Trash POSTs the generic trash/items route exactly once and drops 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   const trashCall = fetchMock.mock.calls[1];
   expect(String(trashCall[0])).toContain("/trash/items");
+  expect(trashCall[0]).toBe("/api/admin/v1/workspaces/workspace-local/trash/items");
+  expect(trashCall[1]?.method).toBe("POST");
   expect(trashCall[1]?.body).toBe(JSON.stringify({ type: "widget", id: "w1" }));
 
   await waitFor(() => expect(screen.queryByText("Hero banner")).not.toBeInTheDocument());
@@ -161,6 +163,24 @@ it("labels the create-type select and its options in the admin's locale", async 
     "Formulario de contacto",
   ]);
   expect(widgetTypeLabel("social-links", "es")).toBe("Enlaces sociales");
+});
+
+it("selecting a create type targets its new-widget route", async () => {
+  const user = userEvent.setup();
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [] }));
+  render(<WidgetsLibrary />);
+  const select = await screen.findByRole("combobox", { name: "Widget type to create" });
+  await user.selectOptions(select, "social-links");
+  const create = screen.getByRole("link", { name: "Add New" });
+  expect(create).toHaveAttribute("href", "/admin/widgets/new?type=social-links");
+  // Observe the target on activation without relying on jsdom's unimplemented document navigation.
+  const destinations: string[] = [];
+  create.addEventListener("click", (event) => {
+    event.preventDefault();
+    destinations.push((event.currentTarget as HTMLAnchorElement).pathname + (event.currentTarget as HTMLAnchorElement).search);
+  });
+  await user.click(create);
+  expect(destinations).toEqual(["/admin/widgets/new?type=social-links"]);
 });
 
 // Direct coverage of the two notices extracted out of `WidgetsLibrary`'s own render body under the

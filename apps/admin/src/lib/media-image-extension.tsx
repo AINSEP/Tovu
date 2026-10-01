@@ -98,6 +98,11 @@ export const MediaImage = TiptapImage.extend({
     };
   },
 
+  parseHTML() {
+    // Ref-based exports have no src; keep the parent's rules for legacy URL images.
+    return [...(this.parent?.() ?? []), { tag: "img[assetid][transformname]" }];
+  },
+
   addNodeView() {
     return ReactNodeViewRenderer(MediaImageNodeView);
   },

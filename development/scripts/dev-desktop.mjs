@@ -164,6 +164,13 @@ function waitForFileStable(filePath, { timeoutMs = 30_000, pollMs = 150, stableC
   });
 }
 
+/** Captures the freshness floor before starting the watcher, then waits on that same build. */
+export function startRendererWatch(filePath, { now = Date.now, startWatch = () => start("vite watch", ["run", "watch:renderer"]), waitStable = waitForFileStable } = {}) {
+  const sinceMs = now();
+  startWatch();
+  return waitStable(filePath, { sinceMs });
+}
+
 /**
  * Whether an env-var flag is explicitly on.
  *
@@ -327,10 +334,10 @@ const children = [];
 let shuttingDown = false;
 
 /** Kill a child's whole process group, so an `npm -> vite`/`npm -> electron` chain dies with it. */
-function killGroup(child) {
+function killGroup(child, kill = process.kill) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   try {
-    process.kill(-child.pid, "SIGTERM");
+    kill(-child.pid, "SIGTERM");
   } catch {
     try {
       child.kill("SIGTERM");
@@ -353,17 +360,17 @@ const HARD_KILL_GRACE_MS = 7_000;
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
-  for (const c of children) killGroup(c);
-  // Give groups a chance to exit cleanly (see HARD_KILL_GRACE_MS), then hard-kill anything left and go.
-  setTimeout(() => {
-    for (const c of children) {
-      try {
-        process.kill(-c.pid, "SIGKILL");
-      } catch {
-        /* gone */
-      }
+  scheduleShutdown(children, code);
+}
+
+/** Runs the graceful signal and escalation timer with replaceable process operations. */
+export function scheduleShutdown(processChildren, code, { kill = process.kill, exit = process.exit, schedule = setTimeout } = {}) {
+  for (const child of processChildren) killGroup(child, kill);
+  schedule(() => {
+    for (const child of processChildren) {
+      try { kill(-child.pid, "SIGKILL"); } catch { /* gone */ }
     }
-    process.exit(code);
+    exit(code);
   }, HARD_KILL_GRACE_MS).unref();
 }
 
@@ -473,8 +480,7 @@ async function main() {
   // Captured BEFORE the watcher spawns, so any pre-existing `index.html` from a previous run —
   // already on disk, already stable — reads as older than this run and cannot short-circuit the
   // wait below. See waitForFileStable's doc comment.
-  const rendererBuildStartedAt = Date.now();
-  start("vite watch", ["run", "watch:renderer"]);
+  const rendererReady = startRendererWatch(RENDERER_ENTRY);
 
   // Fired when the admin Vite child dies, so `waitForAdminVite` below stops waiting on a server that
   // is never going to answer (e.g. a missing `apps/admin/node_modules`).
@@ -511,7 +517,7 @@ async function main() {
   }
 
   if (!shuttingDown) {
-    if (!(await waitForFileStable(RENDERER_ENTRY, { sinceMs: rendererBuildStartedAt }))) {
+    if (!(await rendererReady)) {
       console.warn(
         "\ntovu desktop: renderer build did not settle within 30s — starting Electron anyway.\n"
       );

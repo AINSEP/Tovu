@@ -83,7 +83,10 @@ test("GET /products renders a Commerce-sourced product with its formatted price 
     version: 1,
   };
 
+  const theme = createRouteDeps().themes.find((theme) => theme.manifest.id === "fashion-modern");
+  assert.ok(theme, "the compare-at fixture must use the shipped storefront template");
   const { server, baseUrl } = await startServer({
+    themes: [theme],
     commerceProductRepo: fakeProductRepo([product]),
     commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
   });
@@ -94,6 +97,11 @@ test("GET /products renders a Commerce-sourced product with its formatted price 
   const html = await res.text();
   assert.match(html, /Classic Boxy Tee/);
   assert.match(html, /\$35\.00/);
+  const card = /<li\b[^>]*class="product-card"[^>]*>([\s\S]*?)<\/li>/.exec(html);
+  assert.ok(card, "the product must render a storefront card");
+  assert.match(card[1], /Classic Boxy Tee/);
+  assert.match(card[1], /class="product-card__price-current">\$35\.00<\/span>/);
+  assert.match(card[1], /class="product-card__price-compare">\$45\.00<\/span>/);
 });
 
 test("GET /products/:id renders the single Commerce-sourced product's detail route", async (t) => {
@@ -215,6 +223,10 @@ test("GET /products renders an empty grid, not a crash, when NEITHER Commerce NO
   // explicit `store`, so this specific combination was otherwise untested.
   const res = await fetch(`${baseUrl}/products`);
   assert.equal(res.status, 200, await res.clone().text());
+  const html = await res.text();
+  assert.match(html, /No products available yet\./);
+  assert.match(html, /class="entry-list entry-list--products"/);
+  assert.doesNotMatch(html, /href="\/products\/[^" ]+"/);
 });
 
 test("GET /products/:id returns 404 for an id that doesn't match any product", async (t) => {
@@ -462,4 +474,37 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
   const html = await res.text();
   assert.doesNotMatch(html, /Site error/);
   assert.match(html, /Classic Boxy Tee/);
+});
+
+
+test("the product handler renders the Commerce sale card and the unwired empty state", async () => {
+  const theme = createRouteDeps().themes.find((theme) => theme.manifest.id === "fashion-modern");
+  assert.ok(theme);
+  for (const populated of [true, false]) {
+    const deps = {
+      ...createRouteDeps(), ...(populated ? { themes: [theme] } : {}), store: undefined,
+      commerceProductRepo: populated ? fakeProductRepo([activeProduct("sale", "Sale Tee", "sale-tee")]) : undefined,
+      commercePriceRepo: populated ? fakePriceRepo({ sale: [{ ...activePrice("sale"), compareAtAmountCents: 4500 }] }) : undefined,
+    };
+    let html = "";
+    let status = 200;
+    const res = {
+      status(code: number) { status = code; return res; },
+      set() { return res; }, type() { return res; },
+      send(body: string) { html = body; return res; },
+    };
+    await extractHandler(createApp(deps), "/products")({ header: () => undefined, hostname: "localhost" }, res);
+    assert.equal(status, 200);
+    if (populated) {
+      const card = /<li class="product-card">([\s\S]*?)<\/li>/.exec(html);
+      assert.ok(card);
+      assert.match(card[1], /Sale Tee/);
+      assert.match(card[1], /class="product-card__price-current">\$35\.00<\/span>/);
+      assert.match(card[1], /class="product-card__price-compare">\$45\.00<\/span>/);
+    } else {
+      assert.match(html, /No products available yet\./);
+      assert.match(html, /class="entry-list entry-list--products"/);
+      assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
+    }
+  }
 });

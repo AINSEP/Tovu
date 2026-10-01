@@ -195,9 +195,13 @@ test("mayEraseSiteDirectory refuses a repo-root directory whatever the row claim
 test("mayEraseSiteDirectory refuses everything when it cannot be told where the repo root is", () => {
   const base = tempDir();
   const outside = path.join(base, "my-site");
-  fs.mkdirSync(outside);
+  writeSiteMeta(outside, "site-a");
+  const tracked = createdRow(outside, "site-a");
+  const repoRoot = path.join(base, "repo");
+  fs.mkdirSync(repoRoot);
+  assert.equal(mayEraseSiteDirectory(tracked, { repoRoot }), true, "valid root is the only missing guard input");
   for (const options of [undefined, {}, { repoRoot: "" }, { repoRoot: null }, { repoRoot: 42 }]) {
-    assert.equal(mayEraseSiteDirectory(row(outside, SITE_ORIGIN.created), options), false, `${JSON.stringify(options)} must refuse`);
+    assert.equal(mayEraseSiteDirectory(tracked, options), false, `${JSON.stringify(options)} must refuse`);
   }
 });
 

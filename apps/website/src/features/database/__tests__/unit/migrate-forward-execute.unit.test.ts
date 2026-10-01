@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executeMigrateForward } from "../../migrate-forward/execute.js";
+import { executeMigrateForward, RestorePointUnavailableError, type OperationLockPort } from "../../migrate-forward/execute.js";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /
@@ -71,26 +71,35 @@ test("REQ-08 / AC-09: executeMigrateForward refuses with RESTORE_POINT_UNAVAILAB
         gatewayRan = true;
         return { migrated: true };
       },
-    })
+    }), RestorePointUnavailableError
   );
 
   assert.equal(gatewayRan, false, "AC-09: costClass='unavailable' must refuse before any mutation runs, no override honored");
+  assert.deepEqual(lock.calls, []);
 });
 
 test("U-003-ORD1 (binding on this domain, per SPEC-019 CIC U-001-ORD1): the shared operation lock is acquired before the state machine/gateway proceeds", async () => {
   const lock = fakeLockPort({ ok: true, value: { siteId: "site-1", operationKind: "migration", acquiredAt: clock.nowIso() } });
   const order: string[] = [];
+  const handle = { siteId: "site-1", operationKind: "migration", acquiredAt: clock.nowIso() };
+  let acquireClock;
 
   await executeMigrateForward({
     siteId: "site-1",
     confirmationToken: "tok-1",
     costClass: "cheap",
     operationLock: {
-      async acquireOperationLock() {
+      async acquireOperationLock(params) {
+        assert.deepEqual(params.input, { siteId: "site-1", operationKind: "migration" });
+        assert.equal(typeof params.deps.clock.nowIso, "function");
+        acquireClock = params.deps.clock;
         order.push("lock-acquired");
-        return { ok: true, value: { siteId: "site-1", operationKind: "migration", acquiredAt: clock.nowIso() } };
+        return { ok: true, value: handle };
       },
-      async releaseOperationLock() {
+      async releaseOperationLock(params) {
+        assert.deepEqual(params.input, { siteId: "site-1", handle });
+        assert.equal(params.input.handle, handle);
+        assert.equal(params.deps.clock, acquireClock);
         order.push("lock-released");
       },
     },
@@ -126,7 +135,7 @@ test("errors.spec.md MIGRATION_ALREADY_IN_FLIGHT: a rejected lock acquire (OPERA
   assert.equal(gatewayRan, false, "the gated mutation must never run when the shared lock rejects the acquire");
 });
 
-test("AC-41: SPEC-016 REQ-11's authorize()-before-token-state ordering — this domain adds no bypass; delegated entirely to core/gated-mutations.execute() (see SPEC-016 gateway.unit.test.ts's own U-001-ORD1 test for the mechanism itself)", async () => {
+test("AC-41 delegation: executeMigrateForward calls the injected gateway exactly once", async () => {
   // This package's own contract: executeMigrateForward must not short-circuit or reorder
   // core/gated-mutations' own checks — it only wraps them with the lock + costClass guard.
   // Verified here by confirming gatewayExecute (which internally calls core/gated-mutations.execute())
@@ -146,4 +155,27 @@ test("AC-41: SPEC-016 REQ-11's authorize()-before-token-state ordering — this 
   });
 
   assert.equal(gatewayCallCount, 1);
+});
+
+test("a gateway failure propagates and releases the acquired operation handle exactly once", async () => {
+  const failure = new Error("migration failed");
+  const handle = { siteId: "site-failure", operationKind: "migration", acquiredAt: clock.nowIso() };
+  const calls: string[] = [];
+  const operationLock: OperationLockPort = {
+    acquireOperationLock: async (params) => {
+      assert.deepEqual(params.input, { siteId: "site-failure", operationKind: "migration" });
+      calls.push("acquire");
+      return { ok: true, value: handle };
+    },
+    releaseOperationLock: async (params) => {
+      assert.equal(params.input.siteId, "site-failure");
+      assert.equal(params.input.handle, handle);
+      calls.push("release");
+    },
+  };
+  await assert.rejects(() => executeMigrateForward({
+    siteId: "site-failure", confirmationToken: "tok-failure", costClass: "cheap", operationLock,
+    gatewayExecute: async () => { calls.push("gateway"); throw failure; },
+  }), (err) => err === failure);
+  assert.deepEqual(calls, ["acquire", "gateway", "release"]);
 });

@@ -165,11 +165,13 @@ describeEachChatDialect("chat history store", stores, (make) => {
     await kernel.run((db) =>
       db.insertInto("assistant_agent_sessions").values({ conversation_id: "c1", agent_id: "a", session_id: "s", updated_at: T0 }).execute()
     );
+    await kernel.run(db => db.insertInto("assistant_conversation_tool_approvals").values({ conversation_id: "c1", principal_id: "alice", connection_id: "mcp", tool_name: "read", fingerprint: "fp", granted_at: "2026-09-01T00:00:00.000Z" }).execute());
     await alice.delete("c1");
     assert.equal(await alice.get("c1"), null);
     const left = await kernel.run(async (db) => [
       ...(await db.selectFrom("ai_chat_messages").select("id").execute()),
       ...(await db.selectFrom("assistant_agent_sessions").select("conversation_id as id").execute()),
+      ...(await db.selectFrom("assistant_conversation_tool_approvals").select("conversation_id as id").execute()),
     ]);
     assert.deepEqual(left, []);
   });

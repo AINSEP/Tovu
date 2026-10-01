@@ -218,12 +218,12 @@ test('parseMarkerAttributes: drops data-embed-config even though its JSON holds 
 });
 
 test("parseMarkerAttributes: reads unquoted, single-quoted and double-quoted values as source text, never entity-decoded", () => {
-  const html = `<div title="a &amp; b" data-embed-config='{"type":"widget"}'></div>`;
+  const html = `<div title="a &amp; b" single='x &quot; y' unquoted=z&amp;q data-embed-config='{"type":"widget"}'></div>`;
   const { markers } = scanEmbedMarkers(html);
 
   const attrs = parseMarkerAttributes(markers[0]);
 
-  assert.deepEqual(attrs, [{ name: "title", value: "a &amp; b" }]);
+  assert.deepEqual(attrs, [{ name: "title", value: "a &amp; b" }, { name: "single", value: "x &quot; y" }, { name: "unquoted", value: "z&amp;q" }]);
 });
 
 test("parseMarkerAttributes: lowercases names and keeps the FIRST of a duplicate", () => {
@@ -610,10 +610,12 @@ test("normalizeEmbedMarkerQuoting: leaves a marker inside a comment or <script>,
 });
 
 test("normalizeEmbedMarkerQuoting: rewrites every marker in a document, not just the first", () => {
-  const html = `${DOM_SERIALIZED_MARKER}<p>between</p>${DOM_SERIALIZED_MARKER}`;
+  const second = `<aside class="second" data-embed-config="{&quot;type&quot;:&quot;media&quot;,&quot;id&quot;:&quot;image-2&quot;,&quot;alt&quot;:&quot;Second image&quot;}">fallback</aside>`;
+  const html = `<p>before</p>${DOM_SERIALIZED_MARKER}<p>between</p>${second}<p>after</p>`;
 
   const normalized = normalizeEmbedMarkerQuoting(html);
 
   assert.equal(normalized.includes("&quot;"), false);
   assert.equal(scanEmbedMarkers(normalized).markers.length, 2);
+  assert.equal(normalized, `<p>before</p><div data-embed-config='{"type":"widget","slug":"contact-form"}'></div><p>between</p><aside class="second" data-embed-config='{"type":"media","id":"image-2","alt":"Second image"}'>fallback</aside><p>after</p>`);
 });

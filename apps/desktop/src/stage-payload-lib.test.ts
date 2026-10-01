@@ -173,6 +173,7 @@ test("stageTransitiveDependencies: follows a multi-level dependency chain, stagi
   assert.equal(count, 2);
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "package.json")), true);
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar", "package.json")), true);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "node_modules")), false);
 });
 
 test("stageTransitiveDependencies: does not loop on a dependency cycle, staging each package exactly once", () => {
@@ -218,6 +219,18 @@ test("stageTransitiveDependencies: skips lucide-react before ever resolving it",
   assert.equal(count, 0);
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "lucide-react")), false);
 });
+
+for (const name of ['@playwright/test', '@oven/bun-darwin-aarch64', '@rollup/rollup-darwin-arm64']) {
+  test(`stageTransitiveDependencies: excludes scoped package ${name}`, () => {
+    const tmp = tempDir();
+    const pkgA = path.join(tmp, 'pkgA');
+    writePackage(pkgA, { [name]: '^1' });
+    writePackage(path.join(pkgA, 'node_modules', name));
+    const outDir = path.join(tmp, 'out');
+    assert.equal(stageTransitiveDependencies({ roots: [pkgA], outDir }), 0);
+    assert.equal(fs.existsSync(path.join(outDir, 'node_modules', name)), false);
+  });
+}
 
 test("stageTransitiveDependencies: does not re-copy a dependency whose staged destination already exists, but still walks its own dependencies", () => {
   const tmp = tempDir();
@@ -693,6 +706,7 @@ test("diskBytes: a single file returns its on-disk block size, not its apparent 
   // Reference value taken from the SAME stat call diskBytes makes, not a hardcoded block size —
   // see the file header on why this suite never assumes a filesystem's block size.
   assert.equal(diskBytes(file), fs.lstatSync(file).blocks * 512);
+  assert.ok(diskBytes(file) > fs.readFileSync(file).length, 'a tiny ordinary file occupies more disk space than its content');
 });
 
 test("diskBytes: a directory sums the on-disk size of its files, recursing into subdirectories", () => {
@@ -705,6 +719,7 @@ test("diskBytes: a directory sums the on-disk size of its files, recursing into 
 
   const expected = fs.lstatSync(top).blocks * 512 + fs.lstatSync(nested).blocks * 512;
   assert.equal(diskBytes(dir), expected);
+  assert.equal(diskBytes(dir), diskBytes(top) + diskBytes(nested));
 });
 
 test("resolveNpmLsCommand: prefers execPath + npm_execpath when npm set it, on every platform", () => {
@@ -802,6 +817,9 @@ test("stageBundledNpm copies the package tree, preserving bin/*.js and node_modu
   assert.ok(fs.existsSync(path.join(outDir, "bin", "npm-cli.js")));
   assert.ok(fs.existsSync(path.join(outDir, "node_modules", "@npmcli", "arborist", "package.json")));
   assert.ok(fs.existsSync(path.join(outDir, "package.json")));
+  for (const relative of ['bin/npx-cli.js', 'bin/npm-cli.js', 'bin/npx.cmd', 'node_modules/@npmcli/arborist/package.json', 'package.json']) {
+    assert.deepEqual(fs.readFileSync(path.join(outDir, relative)), fs.readFileSync(path.join(npmSrc, relative)), relative);
+  }
 });
 
 test("stageBundledNpm drops docs/ and man/ entirely", () => {
@@ -853,4 +871,6 @@ test("stageBundledNpm returns the staged file count and on-disk byte size", () =
 
   assert.ok(result.fileCount > 0);
   assert.ok(result.bytes > 0);
+  assert.equal(result.fileCount, 5);
+  assert.equal(result.bytes, diskBytes(outDir));
 });

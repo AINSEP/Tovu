@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TermPicker } from "../TermPicker";
-import type { TermPickerController } from "../hooks/use-term-picker.hooks";
+import { useTermPicker, type TermPickerController } from "../hooks/use-term-picker.hooks";
+import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import type { AdminTaxonomyWithTerms } from "@/lib/api";
 
 /**
@@ -64,6 +66,23 @@ function renderPicker(overrides: Partial<TermPickerController> = {}) {
   return useHook;
 }
 
+async function renderRealPickerInForm() {
+  const port = createFakeTermPickerPort({ taxonomies: [TAXONOMY] });
+  const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+  let ctrl!: TermPickerController;
+  function useHook(target: { contentType: string; contentId: string }) {
+    ctrl = useTermPicker(target, { port, locale: "en" });
+    return ctrl;
+  }
+  render(<FetchQueryProvider><form onSubmit={onSubmit}>
+    <TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} />
+    <button type="submit">Save editor</button>
+  </form></FetchQueryProvider>);
+  const input = await screen.findByRole("combobox", { name: "Term name" });
+  await waitFor(() => expect(input).toBeEnabled());
+  return { port, input, onSubmit, getController: () => ctrl };
+}
+
 describe("TermPicker", () => {
   it("passes its content ref to the hook", () => {
     const useHook = renderPicker();
@@ -99,6 +118,8 @@ describe("TermPicker", () => {
     renderPicker({ toggle });
     await user.click(screen.getByRole("checkbox", { name: "Fiction" }));
     expect(toggle).toHaveBeenCalledWith("t1");
+    await user.click(screen.getByRole("checkbox", { name: "Non-fiction" }));
+    expect(toggle.mock.calls).toEqual([["t1"], ["t2"]]);
   });
 
   it("the content's own terms show ticked; the boxes wait for them to load", () => {
@@ -170,9 +191,44 @@ describe("TermPicker", () => {
       expect(input).toHaveValue("Noir");
       await user.type(input, "x");
       expect(setNewTermName).toHaveBeenCalledWith("tax1", "Noirx");
-      expect(onNewTermKeyDown).toHaveBeenCalledWith("tax1", expect.objectContaining({ key: "x" }));
+      expect(onNewTermKeyDown).toHaveBeenCalledWith("tax1", expect.objectContaining({ key: "x", type: "keydown" }));
       await user.click(screen.getByRole("button", { name: "Add term" }));
       expect(addTerm).toHaveBeenCalledWith("tax1");
+    });
+
+    it("Enter adds the typed term on keydown and prevents the enclosing editor form from submitting", async () => {
+      const user = userEvent.setup();
+      const { port, input, onSubmit, getController } = await renderRealPickerInForm();
+      await user.type(input, "Noir");
+      const uncancelled = fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+      expect(uncancelled).toBe(false);
+      await waitFor(() => expect(getController().selected).toEqual(new Set(["fake-1"])));
+      expect(port.created).toEqual([{ taxonomyId: "tax1", name: "Noir", parentId: undefined }]);
+      expect(onSubmit).not.toHaveBeenCalled();
+      fireEvent.keyUp(input, { key: "Enter", code: "Enter" });
+      expect(port.created).toHaveLength(1);
+      // Drive implicit form submission too; a keyup-only handler cannot prevent this default.
+      await user.type(input, "Fiction{Enter}");
+      expect(screen.getByRole("checkbox", { name: "Fiction" })).toBeChecked();
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(port.calls).toEqual([]);
+    });
+
+    it.each(["Enter", ","])("%s during IME composition leaves the draft untouched until composition ends", async (key) => {
+      const user = userEvent.setup();
+      const { port, input, onSubmit, getController } = await renderRealPickerInForm();
+      await user.type(input, "小説");
+      fireEvent.compositionStart(input);
+      expect(fireEvent.keyDown(input, { key, isComposing: true })).toBe(true);
+      expect(port.created).toEqual([]);
+      expect(getController().selected).toEqual(new Set());
+      expect(input).toHaveValue("小説");
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      fireEvent.compositionEnd(input);
+      fireEvent.keyDown(input, { key: "Enter", isComposing: false });
+      await waitFor(() => expect(getController().selected).toEqual(new Set(["fake-1"])));
+      expect(port.created).toEqual([{ taxonomyId: "tax1", name: "小説", parentId: undefined }]);
     });
 
     it("Add is disabled with nothing typed", () => {

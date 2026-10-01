@@ -1,17 +1,28 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createToolRegistry, type ToolExecutionContext } from "@jini-ai/core";
+import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
+import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
+import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
+import { defaultResolveInstalledAgentPlugin } from "../../connect-tool.js";
+import { createToolExecutor } from "@jini-ai/daemon";
+import { setAgentPluginActivation } from "../../activation.js";
+import { uninstallAgentPlugin } from "../../uninstall.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import {
   buildAgentPluginToolRegistrations,
+  buildAgentPluginConnectRegistrations,
   createAgentPluginToolGate,
   loadInstalledAgentPluginToolSources,
   registerInstalledAgentPluginTools,
@@ -322,8 +333,8 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
-    await assert.rejects(() => registration.handler(fakeCtx({ skill: 123 })));
-    await assert.rejects(() => registration.handler(fakeCtx({ notASkillField: "x" })));
+    await assert.rejects(() => registration.handler(fakeCtx({ skill: 123 })), error => { assert.ok(error instanceof ToolInputError); assert.equal(error.message, "'skill' must be a string"); return true; });
+    await assert.rejects(() => registration.handler(fakeCtx({ notASkillField: "x" })), { name: "Error", message: "this tool accepts only an optional 'skill' argument — unexpected field(s): notASkillField" });
   });
 });
 
@@ -434,3 +445,48 @@ test("an empty (never-installed) workspace produces zero sources and an empty re
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+
+for (const revocation of ["disable", "uninstall", "unreadable-activation"] as const) {
+  test(`the executor denies cached guidance after ${revocation}`, async () => {
+    await withAgentPluginsDir(async () => {
+      await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, `archive-policy-${revocation}`);
+      const registry = createToolRegistry();
+      await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
+      const executor = createToolExecutor({ registry });
+      const invoke = () => executor.execute({ id: "principal-1" }, { id: "run-1" }, "agent_plugin_coffee_roastery", {});
+      assert.equal((await invoke()).status, "completed");
+      const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+      if (revocation === "disable") await setAgentPluginActivation({ workspaceRoot, pluginId: "coffee-roastery", enabled: false, actor: "owner" });
+      else if (revocation === "uninstall") await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_A, pluginId: "coffee-roastery" });
+      else await writeFile(path.join(workspaceRoot, "activations.json"), "{broken-json");
+      const after = await invoke();
+      assert.equal(after.status, "denied");
+      assert.doesNotMatch(JSON.stringify(after.output ?? null), /Coffee Roastery/);
+    });
+  });
+}
+
+
+test("the registered connect handler resolves a real installed plugin and recognizes its saved sign-in", async () => {
+  await withAgentPluginsDir(async () => {
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_A, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    const repo = new InMemoryExternalMcpServerRepo();
+    const keyring = new InMemoryKeyring();
+    const sealer = new AesGcmSecretSealer(keyring);
+    const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+    const plugin = await defaultResolveInstalledAgentPlugin(WORKSPACE_A, "supabase");
+    assert.ok(plugin);
+    await provisionAgentPluginMcpServers({ repo, keyring, sealer, clock }, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });
+    const row = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
+    await repo.upsert({ ...row, oauthStatus: "connected" });
+    const registrations = buildAgentPluginConnectRegistrations({
+      workspaceId: WORKSPACE_A, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring, clock,
+      authorize: async () => ({ allowed: true, reason: "test" }),
+      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), completeAuthorizationCallback: async () => assert.fail("no callback"), pollDeviceAuthorization: async () => assert.fail("no device flow") },
+    }, { surfaceExchanges: createSurfaceExchangeStore() });
+    const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
+    assert.ok(connect);
+    assert.deepEqual(await connect.handler(fakeCtx({ pluginId: "supabase" })), { status: "connected" });
+  });
+});

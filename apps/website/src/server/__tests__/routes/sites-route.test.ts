@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { SiteListEntry } from "#src/platform/site-dir/index";
 
@@ -80,6 +80,55 @@ test("sites: an unauthorized principal (no grants) gets 403 on create, not a cre
     body: JSON.stringify({ name: "should-not-be-created" }),
   });
   assert.equal(res.status, 403);
+});
+
+test("sites: read and write grants gate each handler before its dependencies are reached", async () => {
+  let lists = 0;
+  let pluginLists = 0;
+  let creates = 0;
+  let activations = 0;
+  const deps: RouteDeps = {
+    ...createRouteDeps(), isSiteSwitcherEnabled: () => true, siteBinding: SAMPLE_BINDING,
+    listSites: () => { lists += 1; return [SAMPLE_SITE]; },
+    listTokenSignInPlugins: async () => { pluginLists += 1; return []; },
+    createSite: async ({ name }) => { creates += 1; return { name, dir: `/repo/sites/${name}`, siteId: "test-id" }; },
+    persistActiveSite: () => { activations += 1; }, readPersistedActiveSite: () => null,
+  };
+  const app = createApp(deps);
+  await deps.identityReady;
+  await deps.principalRepo.save({ id: "bare-principal-sites", workspaceId: deps.workspaceId, kind: "user",
+    displayName: "No Grants", status: "active", createdAt: deps.clock.nowIso() });
+  const policyId = "sites-test-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.principalPolicyRepo.save({ id: "sites-test-link", workspaceId: deps.workspaceId, principalId: "bare-principal-sites", policyId });
+  for (const grant of [null, "system.read", "system.write"]) {
+    if (grant) await deps.policyPermissionRepo.save({ id: grant, workspaceId: deps.workspaceId, policyId,
+      permission: grant, resourceType: null, constraintJson: null });
+    for (const route of [
+      { method: "GET", suffix: "", permission: "system.read", status: 200 },
+      { method: "GET", suffix: "/token-sign-in-plugins", permission: "system.read", status: 200 },
+      { method: "POST", suffix: "", permission: "system.write", status: 201 },
+      { method: "POST", suffix: "/tovu-com/activate", permission: "system.write", status: 200 },
+    ]) {
+      const before = [lists, pluginLists, creates, activations];
+      const allowed = grant === "system.write" || (grant === "system.read" && route.permission === "system.read");
+      const suffix = route.suffix === "/tovu-com/activate" ? "/:name/activate" : route.suffix;
+      const handler = extractRouteHandler(app, route.method.toLowerCase() as "get" | "post",
+        `/api/admin/v1/workspaces/:workspaceId/system/sites${suffix}`);
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = { id: "bare-principal-sites" };
+      await handler({ params: { workspaceId: deps.workspaceId, name: "tovu-com" }, body: { name: "new-site" } }, res);
+      assert.equal(capture.statusCode, allowed ? route.status : 403, `${grant}: ${route.method} ${route.suffix}`);
+      if (!allowed) {
+        const body = capture.jsonBody as { code: string; details: { permission: string } };
+        assert.equal(body.code, "FORBIDDEN");
+        assert.equal(body.details.permission, route.permission);
+        assert.deepEqual([lists, pluginLists, creates, activations], before, "denied requests must not reach the site dependencies");
+      }
+    }
+  }
+  assert.equal(creates, 1);
+  assert.equal(activations, 1);
 });
 
 test("sites: List — 200 with switchingEnabled + the injected site list, regardless of the flag's value", async (t) => {

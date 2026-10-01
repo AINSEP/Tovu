@@ -61,9 +61,11 @@ interface ScriptStep {
   readonly throws?: Error;
 }
 
-function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; callCount(): number } {
+function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; callCount(): number; requests: { url: string; init: RequestInit | undefined }[] } {
   let calls = 0;
-  const fetchFn = (async (): Promise<Response> => {
+  const requests: { url: string; init: RequestInit | undefined }[] = [];
+  const fetchFn = (async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    requests.push({ url: String(url), init });
     const step = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;
     if (step.throws) throw step.throws;
@@ -72,7 +74,7 @@ function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; ca
       headers: { "content-type": "application/json" },
     });
   }) as OAuthFetch;
-  return { fetchFn, callCount: () => calls };
+  return { fetchFn, callCount: () => calls, requests };
 }
 
 function makeClock(startIso = "2026-08-25T12:00:00.000Z") {
@@ -85,7 +87,7 @@ function makeClock(startIso = "2026-08-25T12:00:00.000Z") {
   };
 }
 
-async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: string } = {}) {
+async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: string; clientAuth?: OAuthProviderDescriptor['clientAuth'] } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -124,7 +126,7 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
     pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
     fetchFn: http.fetchFn,
-    lookupProvider: () => PROVIDER,
+    lookupProvider: () => ({ ...PROVIDER, clientAuth: options.clientAuth ?? PROVIDER.clientAuth }),
   });
 
   return { repo, sealer, keyring, clock, http, service };
@@ -259,6 +261,29 @@ test("a refresh reseals the token WITHOUT losing the client secret sharing its b
   assert.equal(payload.tokens?.refreshToken, "rt-2");
   assert.equal(payload.clientSecret, "s3cr3t", "a writer that seals { tokens } alone deletes the client secret");
   assert.equal((await readRow(repo)).oauthExpiresAt, "2026-08-25T14:00:00.000Z");
+});
+
+test('refresh POST carries the saved refresh token and unsealed client secret to the token endpoint', async () => {
+  const { clock, http, service } = await makeHarness({
+    clientAuth: 'client_secret_post',
+    script: [
+      { json: { access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 } },
+      { json: { access_token: 'at-2', refresh_token: 'rt-2', expires_in: 3600 } },
+    ],
+  });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+  assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), 'at-2');
+  assert.equal(http.requests.length, 2);
+  const request = http.requests[1]!;
+  assert.equal(request.url, PROVIDER.tokenEndpoint);
+  assert.equal(request.init?.method, 'POST');
+  assert.equal(new Headers(request.init?.headers).get('content-type'), 'application/x-www-form-urlencoded');
+  const body = new URLSearchParams(String(request.init?.body));
+  assert.equal(body.get('grant_type'), 'refresh_token');
+  assert.equal(body.get('refresh_token'), 'rt-1');
+  assert.equal(body.get('client_id'), 'tovu-client');
+  assert.equal(body.get('client_secret'), 's3cr3t');
 });
 
 test("a provider answering invalid_grant transitions to needs_reauth, clears the token, and surfaces a non-retryable error", async () => {
@@ -607,7 +632,7 @@ test("the authorization-code grant with no redirect URI is refused with a messag
 });
 
 test("polling a device authorization reports pending, then connects, and stores the token", async () => {
-  const { repo, service } = await makeHarness({
+  const { repo, sealer, service } = await makeHarness({
     grant: "device_code",
     script: [
       { json: { device_code: "device-secret", user_code: "WDJB-MJHT", verification_uri: "https://auth.example.com/activate", expires_in: 900, interval: 5 } },
@@ -623,6 +648,10 @@ test("polling a device authorization reports pending, then connects, and stores 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "connected");
   assert.equal(row.oauthExpiresAt, "2026-08-25T13:00:00.000Z");
+  const payload = await openExternalMcpOAuthPayload(sealer, row);
+  assert.equal(payload.tokens?.accessToken, 'at-device');
+  assert.equal(payload.tokens?.refreshToken, 'rt-device');
+  assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), 'at-device');
 });
 
 test("a declined device authorization is terminal and drops the in-flight attempt", async () => {

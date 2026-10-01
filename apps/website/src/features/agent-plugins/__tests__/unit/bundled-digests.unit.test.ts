@@ -253,3 +253,25 @@ test("a first-ever install resolves exactly as before, ledger or no ledger", asy
     assert.deepEqual(withLedger, withoutLedger, "a ledger for an already-unambiguous id must change nothing at all");
   });
 });
+
+test("the bundled ledger selects one upgrade's content on both real resolution surfaces", async () => {
+  await withWorkspace(async ({ workspaceRoot }) => {
+    const oldMarkdown = "# Old bundled guidance\n\nUse the obsolete variant.\n";
+    const newMarkdown = "# Current bundled guidance\n\nUse the published variant.\n";
+    const old = await installRealPackage("ui-ux-design", oldMarkdown, "bundled-upgrade-old");
+    const published = await installRealPackage("ui-ux-design", newMarkdown, "bundled-upgrade-published");
+    assert.notEqual(old.archiveDigest, published.archiveDigest);
+    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "ui-ux-design", archiveDigest: published.archiveDigest }] });
+
+    const resolved = await resolveAgentPluginRefs(["ui-ux-design"], resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID));
+    assert.equal(resolved.ok, true, JSON.stringify(resolved));
+    if (!resolved.ok) throw new Error(resolved.reason);
+    assert.ok(resolved.promptPrefix.includes(newMarkdown));
+    assert.equal(resolved.promptPrefix.includes(oldMarkdown), false);
+
+    const sources = (await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID })).filter((source) => source.pluginId === "ui-ux-design");
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0]?.archiveDigest, published.archiveDigest);
+    assert.deepEqual(sources[0]?.skills.map((skill) => skill.markdown), [newMarkdown]);
+  });
+});

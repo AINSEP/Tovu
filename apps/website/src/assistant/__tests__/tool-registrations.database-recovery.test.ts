@@ -223,18 +223,36 @@ function recoveryCatalogEntry(toolId: string): RecoveryAgentToolDefinition {
   return entry;
 }
 
-/** Each read card's single member tool, so a card's expected permission is resolved from the SAME
- *  catalog entry the collapse itself copied it from rather than re-declared as a second literal
- *  here (which could then drift from what `content-read-tool.ts` actually ships). */
+/** Map collapsed read cards back to their domain catalog entries. */
 const READ_CARD_MEMBER_ID: Readonly<Record<string, string>> = {
   "content_read.database_pending_migration": "database_list_pending_migrations",
   "content_read.database_restore_point": "database_list_restore_points",
   "content_read.backup_restore_point": "backup_list_restore_points",
 };
 
+const EXPECTED_PERMISSIONS: Readonly<Record<string, string>> = {
+  database_query_timeline: "database.read",
+  "content_read.database_restore_point": "database.read",
+  database_plan_migrate_forward: "database.read",
+  database_get_health: "database.read",
+  database_get_schema_state: "database.read",
+  "content_read.database_pending_migration": "database.read",
+  database_execute_migrate_forward: "database.migrate",
+  backup_create_restore_point: "backup.create",
+  "content_read.backup_restore_point": "backup.read",
+  backup_get_capabilities: "backup.read",
+  backup_plan_restore: "backup.read",
+  backup_execute_restore: "backup.restore",
+  recovery_get_status: "backup.read",
+  recovery_resolve_deep_link: "backup.read",
+};
+
 function permissionOf(toolId: string): string {
   const id = READ_CARD_MEMBER_ID[toolId] ?? toolId;
-  return (DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)).authorization.permission;
+  const expected = EXPECTED_PERMISSIONS[toolId];
+  assert.ok(expected, `missing permission fixture for '${toolId}'`);
+  assert.equal((DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)).authorization.permission, expected);
+  return expected;
 }
 
 /** The two human-confirmed execute tools — their authorize/deny checks are in section 6, because a
@@ -544,6 +562,7 @@ test("backup_plan_restore: an unknown restorePointId is rejected with a ToolInpu
 
 test("database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns", async () => {
   const { deps, repos } = fakeRouteDeps();
+  repos.databaseIntrospection.getHealth = async () => ({ canOpenDb: false, migrationsTableReadable: false, driftStatus: "unknown" });
   const expected = await repos.databaseIntrospection.getHealth();
 
   const result = await wired(combinedRegistrations(deps), "database_get_health").handler(executionContext({}));
@@ -553,6 +572,7 @@ test("database_get_health returns exactly what routeDeps.databaseIntrospection.g
 
 test("database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns", async () => {
   const { deps, repos } = fakeRouteDeps();
+  repos.databaseIntrospection.getSchemaState = async () => ({ status: "behind", siteMeta: { version: 2, tag: "old" }, runtime: { version: 4, tag: "new" } });
   const expected = await repos.databaseIntrospection.getSchemaState();
 
   const result = await wired(combinedRegistrations(deps), "database_get_schema_state").handler(executionContext({}));
@@ -562,6 +582,7 @@ test("database_get_schema_state returns exactly what routeDeps.databaseIntrospec
 
 test("database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns", async () => {
   const { deps, repos } = fakeRouteDeps();
+  repos.databaseIntrospection.listPendingMigrations = async () => ({ items: [{ index: 3, tag: "add-comments" }, { index: 4, tag: "add-menus" }] });
   const expected = await repos.databaseIntrospection.listPendingMigrations();
 
   const result = await wired(combinedRegistrations(deps), "content_read.database_pending_migration").handler(executionContext({}));
@@ -583,6 +604,30 @@ test("database_get_health / database_get_schema_state / database_list_pending_mi
 // ---------------------------------------------------------------------------
 // 5. Multi-tool workflows — proves today's tools compose correctly in sequence
 // ---------------------------------------------------------------------------
+
+test("timeline, capabilities, recovery status and deep links return the adapter state", async () => {
+  const { deps, repos } = fakeRouteDeps();
+  const seededId = await seedRestorePoint(repos);
+  const row = { id: "ledger-seed", kind: "restore.completed", createdAt: NOW, restorePointId: seededId, outcome: "restored" };
+  await repos.databaseLedgerRepo.append(row);
+  repos.dbOps.getCapabilities = async () => ({ restorePoint: { costClass: "expensive", kind: "logical-dump" } });
+  await repos.siteStatusRepo.set(WORKSPACE_ID, "PENDING_MIGRATION");
+  const registrations = combinedRegistrations(deps);
+
+  assert.deepEqual(await wired(registrations, "database_query_timeline").handler(executionContext({})), { items: [row], nextCursor: null });
+  assert.deepEqual(await wired(registrations, "backup_get_capabilities").handler(executionContext({})), { costClass: "expensive", kind: "logical-dump" });
+  assert.deepEqual(await wired(registrations, "recovery_get_status").handler(executionContext({})), {
+    costClass: "expensive",
+    banner: {
+      kind: "pending-migration",
+      accessibleText: "This site is pending a schema migration before normal public serving can resume. Resolve it from the Database Timeline's own migration ceremony.",
+      actionKind: "deep-link-to-database-migration",
+    },
+  });
+  assert.deepEqual(await wired(registrations, "recovery_resolve_deep_link").handler(executionContext({
+    envelope: { v: 1, correlationId: "corr-seed", siteId: WORKSPACE_ID, ledgerEventId: row.id, restorePointId: seededId, drift: "in-sync", intent: "view", issuedAt: NOW },
+  })), { found: true, restorePoint: { restorePointId: seededId, capturedAt: NOW } });
+});
 
 test("workflow (Database only): database_plan_migrate_forward's reported cost class feeds backup_create_restore_point's costAck, then database_list_restore_points confirms the new point", async () => {
   const { deps } = fakeRouteDeps();
@@ -663,6 +708,35 @@ async function startExecute(deps: RouteDeps, toolId: string, input: Record<strin
 }
 
 const CANCELLED = { cancelled: true, note: "The user cancelled. Nothing was changed." };
+
+test("backup_execute_restore applies the selected artifact only after confirmation", async () => {
+  const fixture = fakeRouteDeps();
+  const selectedId = await seedRestorePoint(fixture.repos, "rp-selected");
+  await seedRestorePoint(fixture.repos, "rp-other");
+  const artifacts = new Map([
+    ["memory://restore-point/rp-selected", ["saved post", "saved menu"]],
+    ["memory://restore-point/rp-other", ["unrelated snapshot"]],
+  ]);
+  let data = ["current post"];
+  const restored: string[] = [];
+  fixture.repos.dbOps.restoreFromArtifact = async ({ artifactRef }) => {
+    const snapshot = artifacts.get(artifactRef);
+    assert.ok(snapshot, "the dispatched artifact must exist");
+    restored.push(artifactRef);
+    data = [...snapshot];
+    return { restartRequired: false };
+  };
+
+  const { pending, answer } = await startExecute(fixture.deps, "backup_execute_restore", { restorePointId: selectedId });
+  assert.deepEqual(data, ["current post"]);
+  assert.deepEqual(restored, []);
+  assert.deepEqual(answer(PRINCIPAL_ID, "confirm"), { ok: true });
+  const result = await pending as { restored: boolean; state: string };
+  assert.equal(result.restored, true);
+  assert.equal(result.state, "RESTORED");
+  assert.deepEqual(restored, ["memory://restore-point/rp-selected"]);
+  assert.deepEqual(data, ["saved post", "saved menu"]);
+});
 
 const EXECUTE_CASES = [
   {

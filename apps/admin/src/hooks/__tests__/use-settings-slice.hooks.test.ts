@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
+import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -202,7 +203,7 @@ describe("onChange debouncing", () => {
     expect(save).toHaveBeenCalledWith("v2", "v0");
   });
 
-  it("moves saveState idle -> saving -> saved, and reports idle (not saved) when nothing was actually written", async () => {
+  it("reports idle when save writes nothing", async () => {
     vi.useFakeTimers();
     const save = vi.fn(async () => [] as readonly string[]);
     const { result } = renderHook(() => useSettingsSlice({ load: () => Promise.resolve("v0"), save, defaultValue: "default" }));
@@ -976,4 +977,51 @@ describe("mergeSaveStates", () => {
     expect(mergeSaveStates([errorA, errorB])).toEqual(errorA);
     expect(mergeSaveStates([errorB, errorA])).toEqual(errorB);
   });
+});
+
+describe("same-tab settings refresh after save", () => {
+  it.each(["success", "omitted", "empty", "rejected"] as const)("publishes only a successful scoped save (%s)", async (mode) => {
+    vi.useFakeTimers();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToSettingsRefresh(listener);
+    const save = vi.fn(async () => {
+      if (mode === "rejected") throw new Error("save failed");
+      return ["language"];
+    });
+    const namespaces = mode === "omitted" ? undefined : mode === "empty" ? [] : ["core.language"];
+    const { result, unmount } = renderHook(() => useSettingsSlice({
+      load: async () => "en", save, defaultValue: "en", namespaces,
+    }));
+    try {
+      await settle();
+      act(() => result.current.onChange("de"));
+      await act(async () => { await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS); });
+      expect(save).toHaveBeenCalledWith("de", "en");
+      if (mode === "success") expect(listener).toHaveBeenCalledExactlyOnceWith(["core.language"]);
+      else expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+      unsubscribe();
+    }
+  });
+});
+
+it.each(["resolve", "reject"] as const)("ignores an obsolete initial load after StrictMode effect replay (%s)", async (outcome) => {
+  let resolveOld!: (value: string) => void;
+  let rejectOld!: (error: Error) => void;
+  const oldLoad = new Promise<string>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; });
+  const load = vi.fn().mockReturnValueOnce(oldLoad).mockResolvedValue("current");
+  const { result } = renderHook(() => useSettingsSlice({ load, save: vi.fn(), defaultValue: "default" }), {
+    reactStrictMode: true,
+  });
+  await settle();
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(result.current.value).toBe("current");
+  await act(async () => {
+    if (outcome === "resolve") resolveOld("obsolete");
+    else rejectOld(new Error("obsolete error"));
+    await Promise.resolve();
+  });
+  expect(result.current.value).toBe("current");
+  expect(result.current.loadError).toBeNull();
 });

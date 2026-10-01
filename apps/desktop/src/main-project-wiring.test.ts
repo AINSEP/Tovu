@@ -19,6 +19,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 import { resolveDesktopRoots } from "./packaged-paths.ts";
@@ -26,7 +27,15 @@ import { resolveDesktopRoots } from "./packaged-paths.ts";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const MAIN_PATH = path.join(__dirname, "..", "main.ts");
-const source = fs.readFileSync(MAIN_PATH, "utf8");
+const rawSource = fs.readFileSync(MAIN_PATH, "utf8");
+const source = rawSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+const parsedMain = ts.createSourceFile(MAIN_PATH, rawSource, ts.ScriptTarget.Latest, true);
+
+function mainFunction(name: string): ts.FunctionDeclaration {
+  const node = parsedMain.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
+  assert.ok(node && ts.isFunctionDeclaration(node), `expected ${name}`);
+  return node;
+}
 
 /** The call site's index, asserted to exist first so a renamed function fails loudly here rather
  *  than making every ordering comparison below vacuously true against two -1s. */
@@ -123,6 +132,21 @@ test("a packaged app has no dev fallback, so the seed and the migration are skip
   assert.equal(packaged.devFallbackSiteDir, null);
   assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?migrateLegacyDismissals\(/);
   assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?seedDevFallbackSite\(/);
+  const calls: ts.CallExpression[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ["migrateLegacyDismissals", "seedDevFallbackSite"].includes(node.expression.getText(parsedMain))) calls.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(parsedMain);
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    let child: ts.Node = call;
+    let contained = false;
+    for (let parent = child.parent; parent; child = parent, parent = parent.parent) {
+      if (ts.isIfStatement(parent) && parent.expression.getText(parsedMain) === "DEV_FALLBACK_SITE_DIR" && child === parent.thenStatement) contained = true;
+    }
+    assert.equal(contained, true, `${call.expression.getText(parsedMain)} must be inside the fallback guard's true arm`);
+  }
 });
 
 test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot", () => {
@@ -147,13 +171,12 @@ test("the two bulk site scans in the boot chain use the NON-throwing classifier"
 });
 
 test("describeRejectedDefault answers the 'unreadable' verdict the safe classifier can now return", () => {
-  // The unwired-call-site half of the same change: `resolveDevFallback` can now report
-  // `kind: "unreadable"`, and that arm carries no `missing` array — the existing code path does
-  // `rejectedDefault.missing.join(...)` unconditionally once past "empty", which would throw on
-  // undefined while building the very dialog that explains why the site could not be opened.
-  const body = source.slice(source.indexOf("function describeRejectedDefault("));
-  assert.match(body.slice(0, body.indexOf("\n}")), /"unreadable"/,
-    "describeRejectedDefault must handle the unreadable kind before it reaches .missing.join()");
+  const declaration = mainFunction("describeRejectedDefault");
+  const executable = ts.transpileModule(declaration.getText(parsedMain), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const describe = new Function(`${executable}; return describeRejectedDefault;`)() as (verdict: unknown) => string;
+  assert.equal(describe({ kind: "unreadable", dir: "/unreadable" }), "could not be read (check its permissions, or whether something replaced it)");
+  assert.equal(describe({ kind: "empty", dir: "/empty" }), "has no site in it yet");
+  assert.equal(describe({ kind: "incomplete", dir: "/half", missing: ["config.json"] }), "is missing config.json — it looks like a half-initialized site");
 });
 
 test("the sites home window declares width AND height minimums", () => {

@@ -170,6 +170,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     newsletterListRepo,
     newsletterSubscriptionRepo,
     newsletterSendRepo,
+    newsletterConfirmationTokenRepo,
     authorizeCalls,
     sentMail,
   };
@@ -368,11 +369,15 @@ for (const toolId of EXPECTED_TOOL_IDS) {
   });
 
   test(`${toolId}: a denied principal is refused with the real reason and writes nothing`, async () => {
-    const { deps, newsletterCampaignRepo, newsletterListRepo, newsletterSubscriptionRepo } = fakeRouteDeps({ allow: false });
+    const { deps, newsletterCampaignRepo, newsletterListRepo, newsletterSubscriptionRepo, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps({ allow: false });
     await newsletterCampaignRepo.saveCampaignRow(seedCampaign());
     await newsletterListRepo.save(seedList());
     await newsletterSubscriptionRepo.save(seedSubscription());
 
+    const tokenWrites: unknown[] = [];
+    const saveToken = newsletterConfirmationTokenRepo.save.bind(newsletterConfirmationTokenRepo);
+    newsletterConfirmationTokenRepo.save = async (row) => { tokenWrites.push(row); await saveToken(row); };
+    const beforeTokens = await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "subscription-1" });
     const beforeCampaigns = await newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID });
     const beforeLists = await newsletterListRepo.list({ workspaceId: WORKSPACE_ID });
     const beforeSubs = await newsletterSubscriptionRepo.list({ workspaceId: WORKSPACE_ID, listId: "list-1" });
@@ -395,6 +400,9 @@ for (const toolId of EXPECTED_TOOL_IDS) {
       },
     );
 
+    assert.deepEqual(tokenWrites, [], "denied tools must not mint or supersede confirmation tokens");
+    assert.deepEqual(await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "subscription-1" }), beforeTokens);
+    assert.deepEqual(sentMail, []);
     assert.deepEqual(await newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID }), beforeCampaigns);
     assert.deepEqual(await newsletterListRepo.list({ workspaceId: WORKSPACE_ID }), beforeLists);
     assert.deepEqual(await newsletterSubscriptionRepo.list({ workspaceId: WORKSPACE_ID, listId: "list-1" }), beforeSubs);
@@ -420,6 +428,7 @@ test("newsletter_remove_subscription: a subscriptionId belonging to a different 
   await newsletterListRepo.save(seedList({ id: "list-1" }));
   await newsletterListRepo.save(seedList({ id: "list-2", slug: "second" }));
   await newsletterSubscriptionRepo.save(seedSubscription({ id: "sub-1", listId: "list-1" }));
+  const before = await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" });
 
   await assert.rejects(
     () => wired("newsletter_remove_subscription", deps).handler(executionContext({ listId: "list-2", subscriptionId: "sub-1" })),
@@ -429,15 +438,61 @@ test("newsletter_remove_subscription: a subscriptionId belonging to a different 
       return true;
     },
   );
+  assert.deepEqual(await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" }), before);
 });
 
-test("newsletter_resend_confirmation: resolves {delivered:true} and sends mail for a known contact, invalidating no state", async () => {
-  const { deps, newsletterSubscriptionRepo, sentMail } = fakeRouteDeps();
+test("newsletter_resend_confirmation: sends the confirmation link, preserving the subscription while superseding prior tokens", async () => {
+  const { deps, newsletterSubscriptionRepo, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps();
   await newsletterSubscriptionRepo.save(seedSubscription({ id: "sub-1", subscriberId: "subscriber-1" }));
 
+  const before = await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" });
+  await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "sub-1" }));
+  const [prior] = await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "sub-1" });
+  sentMail.length = 0;
   const result = await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "sub-1" }));
   assert.deepEqual(result, { delivered: true });
   assert.equal(sentMail.length, 1);
+  const message = sentMail[0] as { to: { email: string }; html: string; text: string };
+  assert.equal(message.to.email, "subscriber1@example.test");
+  const link = message.html.match(/href="(https:\/\/example.test\/newsletter\/confirm\?token=[a-f0-9]{64})"/);
+  assert.ok(link);
+  assert.ok(message.text.includes(link[1]));
+  assert.deepEqual(await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" }), before);
+  assert.equal((await newsletterConfirmationTokenRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id }))?.consumedAt, NOW);
+  const tokens = await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "sub-1" });
+  assert.equal(tokens.length, 1);
+  assert.notEqual(tokens[0].id, prior.id);
+});
+
+test("newsletter_resend_confirmation: unknown subscription writes no token or mail", async () => {
+  const { deps, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps();
+  await assert.rejects(() => wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "unknown" })), /NEWSLETTER_SUBSCRIPTION_NOT_FOUND/);
+  assert.deepEqual(await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "unknown" }), []);
+  assert.deepEqual(sentMail, []);
+});
+
+test("newsletter_resend_confirmation: an already subscribed contact retains its consent and status", async () => {
+  const { deps, newsletterSubscriptionRepo } = fakeRouteDeps();
+  const before = seedSubscription({ status: "subscribed", subscribedAt: NOW, consentRevisionIdAtSubscribe: "consent-1" });
+  await newsletterSubscriptionRepo.save(before);
+  assert.deepEqual(await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: before.id })), { delivered: true });
+  assert.deepEqual(await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), before);
+});
+
+test("newsletter list tools return only rows from the requested list or campaign", async () => {
+  const { deps, newsletterSubscriptionRepo, newsletterSendRepo, newsletterCampaignRepo } = fakeRouteDeps();
+  await newsletterSubscriptionRepo.save(seedSubscription());
+  await newsletterSubscriptionRepo.save(seedSubscription({ id: "foreign-sub", listId: "list-2" }));
+  await newsletterSubscriptionRepo.save(seedSubscription({ id: "foreign-workspace", workspaceId: "other-ws" }));
+  const subscriptions = await wired("newsletter_list_subscriptions", deps).handler(executionContext({ listId: "list-1" })) as { subscriptions: { id: string }[] };
+  assert.deepEqual(subscriptions.subscriptions.map(row => row.id), ["subscription-1"]);
+  await newsletterCampaignRepo.saveCampaignRow(seedCampaign());
+  const send = { id: "send-1", workspaceId: WORKSPACE_ID, campaignId: "campaign-1", audienceSnapshotId: "snapshot-1", subscriberId: "subscriber-1", recipientEmail: "subscriber1@example.test", status: "delivered" as const, attempts: 1, idempotencyKey: "key-1", providerMessageId: "provider-1", lastError: null, nextAttemptAt: null, createdAt: NOW, updatedAt: NOW };
+  await newsletterSendRepo.save(send);
+  await newsletterSendRepo.save({ ...send, id: "foreign-send", campaignId: "campaign-2", idempotencyKey: "key-2" });
+  await newsletterSendRepo.save({ ...send, id: "foreign-workspace-send", workspaceId: "other-ws", idempotencyKey: "key-3" });
+  const result = await wired("newsletter_list_send_log", deps).handler(executionContext({ campaignId: "campaign-1" }));
+  assert.deepEqual(result, { sends: [{ id: send.id, subscriberId: send.subscriberId, recipientEmail: send.recipientEmail, status: send.status, attempts: 1, providerMessageId: send.providerMessageId, lastError: null, nextAttemptAt: null, updatedAt: NOW }] });
 });
 
 // ---------------------------------------------------------------------------

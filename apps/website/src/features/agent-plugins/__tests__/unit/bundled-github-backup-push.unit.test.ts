@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 
@@ -173,6 +174,7 @@ test("binary bytes (NUL, 0xFF, invalid UTF-8) are sent base64-encoded byte-for-b
   assert.equal(result.blob.blobSha, "blob-sha");
   assert.equal(result.blob.bytes, 7);
   assert.match(result.blob.sha256, /^[0-9a-f]{64}$/);
+  assert.equal(result.blob.sha256, createHash("sha256").update(bytes).digest("hex"));
   assert.equal(client.calls[0]!.headers.Authorization?.includes("ghp_fake_never_real"), true, "the token goes only in the header");
 });
 

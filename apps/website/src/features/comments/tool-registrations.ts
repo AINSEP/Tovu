@@ -358,6 +358,13 @@ export function buildCommentsRegistrations(
           };
         }
 
+        // Permission may have been revoked while the confirmation dialog was open.
+        await requireToolPermission(routeDeps, {
+          principalId: ctx.principal.id,
+          permission: "comments.delete",
+          entityType: "comment",
+          entityId: commentId,
+        });
         const result = await routeDeps.commentWriteService.applyModeration({
           workspaceId: routeDeps.workspaceId,
           id: commentId,

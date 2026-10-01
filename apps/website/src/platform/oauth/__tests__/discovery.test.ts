@@ -80,6 +80,27 @@ test("discovery walks resource -> protected-resource metadata -> authorization-s
   }
 });
 
+test("discovery retains a device endpoint and refuses an unsafe advertised device endpoint", async () => {
+  const origin = "http://127.0.0.1:1";
+  for (const deviceEndpoint of [`${origin}/device`, "https://169.254.169.254/device"]) {
+    const fetchFn: typeof fetch = async (url) => new Response(JSON.stringify(
+      String(url).includes("oauth-protected-resource")
+        ? { authorization_servers: [origin] }
+        : { issuer: origin, token_endpoint: `${origin}/token`, device_authorization_endpoint: deviceEndpoint },
+    ));
+    if (deviceEndpoint.startsWith(origin)) {
+      const discovered = await discoverAuthorizationServer({ fetchFn }, { resourceUrl: `${origin}/mcp` });
+      assert.equal(discovered.server.deviceAuthorizationEndpoint, deviceEndpoint);
+    } else {
+      const error = await assertOAuthRejects(
+        () => discoverAuthorizationServer({ fetchFn }, { resourceUrl: `${origin}/mcp` }),
+        "OAUTH_UNSAFE_ENDPOINT",
+      );
+      assert.equal(error.message, "discovered device authorization endpoint: provider endpoint resolves to an internal address, which is not allowed");
+    }
+  }
+});
+
 test("a supplied WWW-Authenticate header is used verbatim rather than guessing the well-known path", async () => {
   // The resource metadata lives somewhere the well-known convention would never find it, so the
   // only way this can pass is by following the header.
@@ -198,6 +219,34 @@ test("the issuer's RFC 8414 document is asked for before any OpenID Connect fall
   }
 });
 
+for (const { suffix, metadataPath, expectedPaths } of [
+  { suffix: "", metadataPath: "/.well-known/openid-configuration",
+    expectedPaths: ["/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"] },
+  { suffix: "/tenant-a", metadataPath: "/.well-known/openid-configuration/tenant-a",
+    expectedPaths: ["/.well-known/oauth-authorization-server/tenant-a", "/.well-known/openid-configuration/tenant-a"] },
+  { suffix: "/tenant-a", metadataPath: "/tenant-a/.well-known/openid-configuration",
+    expectedPaths: ["/.well-known/oauth-authorization-server/tenant-a", "/.well-known/openid-configuration/tenant-a", "/tenant-a/.well-known/openid-configuration"] },
+]) {
+  test(`OIDC-only discovery succeeds at ${metadataPath}`, async () => {
+    let origin = "";
+    const server = await startLoopbackServer((req, res) => {
+      if (req.url === metadataPath) {
+        sendJson(res, 200, { issuer: `${origin}${suffix}`, token_endpoint: `${origin}/token`, authorization_endpoint: `${origin}/authorize` });
+      } else sendJson(res, 404, {});
+    });
+    origin = server.origin;
+    try {
+      const discovered = await fetchAuthorizationServerMetadata({}, { issuer: `${origin}${suffix}` });
+      assert.equal(discovered.issuer, `${origin}${suffix}`);
+      assert.equal(discovered.tokenEndpoint, `${origin}/token`);
+      assert.equal(discovered.authorizationEndpoint, `${origin}/authorize`);
+      assert.deepEqual(server.requests.map((request) => request.url), expectedPaths);
+    } finally {
+      await server.close();
+    }
+  });
+}
+
 test("a real hosted MCP server's 401 challenge parses to its exact metadata URL and scopes", () => {
   // Verbatim from a live probe of a hosted MCP server, kept as a fixture so the parser is
   // pinned against a header a real deployment actually emits rather than a tidied one.
@@ -264,6 +313,13 @@ test("when EVERY advertised authorization server fails, the error names the reso
       error.operatorAction,
       "This server publishes no OAuth discovery document — type its OAuth endpoints in Settings → External MCP.",
     );
+    assert.deepEqual(dead.requests.map((request) => request.url), [
+      "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration",
+    ]);
+    assert.deepEqual(fixture.requests.map((request) => request.url), [
+      "/.well-known/oauth-protected-resource/mcp",
+      "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration",
+    ]);
   } finally {
     await fixture.close();
     await dead.close();
@@ -388,6 +444,44 @@ test("an authorization-server metadata document past the byte cap is a malformed
     assert.equal(error.message, "the OAuth metadata document exceeded 65536 bytes");
   } finally {
     await server.close();
+  }
+});
+
+test("oversized metadata cancels an unfinished stream as soon as the byte cap is exceeded", async () => {
+  let pulls = 0;
+  let cancelled = false;
+  let controller: ReadableStreamDefaultController<Uint8Array>;
+  const body = new ReadableStream<Uint8Array>({
+    start(value) { controller = value; },
+    pull(value) {
+      pulls += 1;
+      // Leave the stream open after a bounded supply: buffering until EOF would hang.
+      if (pulls <= 66) value.enqueue(new Uint8Array(1024).fill(120));
+    },
+    cancel() { cancelled = true; },
+  }, { highWaterMark: 0 });
+  const requests: string[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const error = await assertOAuthRejects(
+      () => Promise.race([
+        fetchAuthorizationServerMetadata({ fetchFn: async (url) => {
+          requests.push(String(url));
+          return new Response(body, { headers: { "content-type": "application/json" } });
+        } }, { issuer: "http://127.0.0.1:1" }),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error("metadata reader waited for EOF beyond the cap")), 2000);
+        }),
+      ]),
+      "OAUTH_MALFORMED_RESPONSE",
+    );
+    assert.equal(error.message, "the OAuth metadata document exceeded 65536 bytes");
+    assert.equal(cancelled, true, "overflow must cancel the still-open response body");
+    assert.equal(pulls, 65, "no more chunks may be consumed after the first byte over the cap");
+    assert.deepEqual(requests, ["http://127.0.0.1:1/.well-known/oauth-authorization-server"]);
+  } finally {
+    clearTimeout(timer);
+    if (!cancelled) controller!.close();
   }
 });
 

@@ -138,3 +138,107 @@ test("the BR-07 shutdown awaits the bounded store close before process.exit(0)",
   assert.ok(close !== -1 && exit !== -1 && close < exit, "finish must await closeWithinBound(...) before process.exit(0), or PGlite's flush and lock release are cut short");
   assert.ok(finish.slice(close, exit).includes("closeSiteDirBoot(bootResult, owned.composedStore)"), "the bounded close must close the composition's store");
 });
+
+test("runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting", async (t) => {
+  const { EventEmitter } = await import("node:events");
+  const envBefore = { ...process.env };
+  const signals = new Map<string, () => void>();
+  const listens: unknown[][] = [];
+  const composedStore = { fixture: "composed" };
+  let closeStarted = false;
+  let releaseClose: () => void = () => {};
+  let closed: Promise<void>;
+  let exitCode: number | undefined;
+  const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", db: {} };
+  const deps = { workspaceId: bootResult.workspaceId };
+  const moduleStubs = new Map<string, Record<string, unknown>>();
+  function module(relative: string, namedExports: Record<string, unknown>): void {
+    moduleStubs.set(new URL(relative, import.meta.url).href, namedExports);
+  }
+  module("../../../platform/site-dir/boot-site-dir.ts", {
+    bootSiteDir: async ({ dir }: { dir: string }) => {
+      assert.equal(process.env.TOVU_SITE_DIR, dir, "site must be pinned before boot reads it");
+      return bootResult;
+    },
+    closeSiteDirBoot: async (boot: unknown, store: unknown) => {
+      assert.equal(boot, bootResult);
+      assert.equal(store, composedStore);
+      closeStarted = true;
+      await closed;
+    },
+  });
+  module("../../../server/runtime/composition/deps.ts", {
+    createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(store: unknown): void; siteBinding: { dir: string } }) => {
+      assert.equal(dbPath, path.join(process.env.TOVU_SITE_DIR!, "content.db"));
+      assert.equal(options.siteBinding.dir, process.env.TOVU_SITE_DIR);
+      options.onStoreOpened(composedStore);
+      return deps;
+    },
+  });
+  module("../../../server/runtime/composition/serving-app.ts", {
+    createServingApp: () => ({
+      app: { listen: (...args: unknown[]) => {
+        listens.push(args);
+        const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done: () => void): void };
+        server.close = done => done();
+        queueMicrotask(() => server.emit("listening"));
+        return server;
+      } },
+      outboxDrainer: { stop: async () => {} },
+      trashSweeper: { stop: async () => {} },
+    }),
+  });
+  module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
+  module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
+  module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
+  module("../../../server/runtime/boot/root-key-boot-notice.ts", { warnIfNoRootKeyAtBoot: () => {} });
+  module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
+  module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: () => {} });
+  module("../../../server/runtime/lifecycle/boot-lifecycle.ts", { runBootLifecycle: async () => ({ ok: true, modules: [] }) });
+  module("../../../server/runtime/lifecycle/readiness-state.ts", { setReadinessSnapshot: () => {} });
+  module("../../../server/runtime/lifecycle/agent-daemon-port.ts", { ensureAgentDaemonPortResolved: async () => {} });
+  module("../../../server/runtime/boot/agent-daemon-wanted.ts", { agentDaemonWanted: async () => false });
+  module("../../../server/inbound/assistant/index.ts", { startAssistantDaemon: () => {}, shutdownAssistantDaemon: () => {} });
+  module("../../../assistant/index.ts", { ensureAgentDaemonToken: () => {} });
+  module("../../../server/inbound/admin-http/admin-dev-proxy.ts", { registerAdminDevProxyUpgrade: () => {} });
+  // Preserve other exports used by transitive imports while observing only the command's dependencies.
+  const originals = await Promise.all([...moduleStubs.keys()].map(url => import(url)));
+  let index = 0;
+  for (const [url, stub] of moduleStubs) t.mock.module(url, { namedExports: { ...originals[index++], ...stub } });
+  const once = process.once.bind(process);
+  t.mock.method(process, "once", ((event: string, listener: () => void) => {
+    if (event === "SIGINT" || event === "SIGTERM") { signals.set(event, listener); return process; }
+    return once(event, listener);
+  }) as typeof process.once);
+  t.mock.method(process, "exit", ((code: number) => { exitCode = code; }) as typeof process.exit);
+  const { runServeCommand } = await import("../../commands/serve.js");
+  try {
+    for (const scenario of [
+      { env: undefined, host: undefined, expected: "127.0.0.1" },
+      { env: "0.0.0.0", host: undefined, expected: "0.0.0.0" },
+      { env: "0.0.0.0", host: "127.0.0.1", expected: "127.0.0.1" },
+    ]) {
+      if (scenario.env === undefined) delete process.env.TOVU_HOST;
+      else process.env.TOVU_HOST = scenario.env;
+      const target = path.resolve("/tmp/tovu-serve-wiring-fixture");
+      closed = new Promise<void>(resolve => { releaseClose = resolve; });
+      closeStarted = false;
+      exitCode = undefined;
+      await runServeCommand({ dir: target, port: "4567", host: scenario.host });
+      assert.deepEqual(listens.at(-1), [4567, scenario.expected]);
+      assert.equal(process.env.TOVU_SITE_DIR, target);
+      assert.ok(signals.has("SIGTERM"));
+      signals.get("SIGTERM")!();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(closeStarted, true);
+      assert.equal(exitCode, undefined, "storage close is still pending; exit must wait");
+      releaseClose();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(exitCode, 0);
+    }
+  } finally {
+    releaseClose();
+    for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key];
+    Object.assign(process.env, envBefore);
+  }
+});

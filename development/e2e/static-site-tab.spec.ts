@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
@@ -32,8 +34,8 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  *
  * ## This suite never reaches the real internet
  *
- * `GITHUB_TOKEN`/`VERCEL_TOKEN` are never set for this harness's API server (confirmed by this
- * config's own `env` block, which does not mention either). `publishStaticSite` (`static-publish/
+ * `GITHUB_TOKEN`/`VERCEL_TOKEN` are explicitly blanked for this harness's API server, including
+ * credentials inherited from the runner. `publishStaticSite` (`static-publish/
  * adapter.ts`) resolves credentials BEFORE ever constructing a real GitHub/Vercel API client, so a
  * triggered publish with no token configured returns `NO_CREDENTIALS_CONFIGURED` and settles WITHOUT
  * any outbound call — the exact same guarantee `publish-site-route.test.ts` already proves
@@ -70,8 +72,16 @@ test.describe("Static Site tab — build export", () => {
     // The button reflects the real in-flight state — never a silent no-op.
     await expect(page.getByRole("button", { name: "Exporting…" })).toBeVisible();
 
-    // Settles to either a clean finish or an honest failure — never hangs, never fabricates.
-    await expect(page.getByText(/Export finished|Finished with failures|Export failed/)).toBeVisible({ timeout: 30_000 });
+    // This fixture must export successfully; a terminal failure is not a working build.
+    await expect(page.getByText("Export finished", { exact: true })).toBeVisible({ timeout: 30_000 });
+    const status = await page.request.get("/api/admin/v1/workspaces/workspace-local/system/export");
+    expect(status.ok()).toBe(true);
+    const snapshot = await status.json();
+    expect(snapshot.status).toBe("completed");
+    expect(snapshot.ok).toBe(true);
+    expect(snapshot.counts.routesSucceeded).toBeGreaterThan(0);
+    expect(snapshot.failedRoutes).toEqual([]);
+    expect(fs.readFileSync(path.join(snapshot.outputDir, "index.html"), "utf8")).toMatch(/<html[\s>]/i);
     await expect(page.getByRole("button", { name: "Build static export" })).toBeEnabled();
   });
 
@@ -80,6 +90,42 @@ test.describe("Static Site tab — build export", () => {
     const checkbox = page.getByRole("checkbox", { name: /overwrite existing files/i });
     await checkbox.waitFor({ state: "visible", timeout: 10_000 });
     await expect(checkbox).not.toBeChecked();
+  });
+
+  test("the overwrite checkbox sends clean and controls preservation of existing files", async ({ page }) => {
+    await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+    const checkbox = page.getByRole("checkbox", { name: /overwrite existing files/i });
+    await expect(checkbox).not.toBeChecked();
+    const exportPath = "/api/admin/v1/workspaces/workspace-local/system/export";
+    const build = async (clean: boolean) => {
+      const trigger = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === exportPath);
+      const accepted = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === exportPath);
+      await page.getByRole("button", { name: "Build static export" }).click();
+      expect((await trigger).postDataJSON().clean).toBe(clean);
+      expect((await accepted).status()).toBe(202);
+      await expect.poll(async () => {
+        const response = await page.request.get(exportPath);
+        expect(response.ok()).toBe(true);
+        return (await response.json()).status;
+      }, { timeout: 30_000 }).toBe("completed");
+      const snapshot = await (await page.request.get(exportPath)).json();
+      expect(snapshot.ok).toBe(true);
+      await expect(page.getByRole("button", { name: "Build static export" })).toBeEnabled();
+      return snapshot.outputDir as string;
+    };
+    const outputDir = await build(false);
+    const sentinel = path.join(outputDir, "e2e-clean-sentinel.txt");
+    try {
+      fs.writeFileSync(sentinel, "preserve unless overwrite is selected");
+      await build(false);
+      expect(fs.readFileSync(sentinel, "utf8")).toBe("preserve unless overwrite is selected");
+      await checkbox.check();
+      await expect(checkbox).toBeChecked();
+      await build(true);
+      expect(fs.existsSync(sentinel)).toBe(false);
+    } finally {
+      fs.rmSync(sentinel, { force: true });
+    }
   });
 });
 
@@ -139,6 +185,14 @@ test.describe("Static Site tab — preview and publish, never touching the real 
     await page.getByLabel("GitHub owner or org").fill("octocat");
     await page.getByLabel("Repository").fill("demo-repo");
 
+    const publishPath = "/api/admin/v1/workspaces/workspace-local/system/publish";
+    const before = await page.request.get(publishPath);
+    expect(before.ok()).toBe(true);
+    const beforeRun = await before.json();
+    const triggers: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === publishPath) triggers.push(request.url());
+    });
     await page.getByRole("button", { name: "Preview" }).click();
 
     await expect(page.getByText("/demo-repo")).toBeVisible();
@@ -147,6 +201,10 @@ test.describe("Static Site tab — preview and publish, never touching the real 
     // flips to the busy "Publishing…" label a real trigger would show) the whole time.
     await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Publishing…" })).toHaveCount(0);
+    const after = await page.request.get(publishPath);
+    expect(after.ok()).toBe(true);
+    expect(await after.json()).toEqual(beforeRun);
+    expect(triggers).toEqual([]);
   });
 
   test("a real Publish click for Vercel (no token configured) settles honestly to a credential failure — this can never leave the process, see this file's own header", async ({

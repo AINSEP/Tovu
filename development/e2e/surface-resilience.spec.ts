@@ -52,6 +52,7 @@ async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
     if (res.status() !== 502) return;
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
+  throw new Error("A2UI readiness probe still returned 502 after 200 attempts");
 }
 
 test.beforeAll(async ({ request }) => {
@@ -95,8 +96,10 @@ test.describe("concurrent delivery flood against exchange ids that do not exist"
   test("HELD or CONFIRMED-VULNERABLE: the daemon survives the flood and answers a completely unrelated, well-formed request immediately after", async ({
     request,
   }) => {
-    // Proves the flood above didn't degrade or wedge the process — a resilience property in its own
-    // right, distinct from each individual request being correctly refused.
+    // Keep the load and the subsequent health check in one test, including isolated retries.
+    const ids = Array.from({ length: 50 }, (_, i) => `health-flood-${i}-${Date.now()}`);
+    const flood = await Promise.all(ids.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
+    for (const response of flood) expect(response.status()).toBe(409);
     const res = await request.post(A2UI_PATH, { data: { exchangeId: "post-flood-sanity-check", message: validAction("post-flood-sanity-check") } });
     expect(res.status()).toBe(409);
   });
@@ -134,17 +137,19 @@ test.describe("malformed and oversized bodies", () => {
   test("HELD or CONFIRMED-VULNERABLE: an oversized body (well past any real payload) is rejected with 413, not silently truncated or 500", async ({
     request,
   }) => {
-    // The daemon's own body-parser limit is smaller than Tovu's proxy-level `express.json({limit:
-    // '15mb'})` (`server/modules/assistant.ts`) — confirmed by probing. Documented here as a real
-    // boundary rather than left as an accidental discovery in the test above.
-    const hugeId = "x".repeat(200_000);
-    const res = await request.post(A2UI_PATH, { data: { exchangeId: "short-real-id", message: validAction(hugeId) } });
-    expect([400, 413]).toContain(res.status());
+    // Exceed both today's 6 MB daemon limit and 15 MB authenticated admin parser limit.
+    // The envelope is otherwise valid, so removing the size gate reaches an unknown exchange (409).
+    const id = "oversized-unknown-exchange";
+    const message = validAction(id);
+    message.action.context = { padding: "x".repeat(16 * 1024 * 1024) };
+    const res = await request.post(A2UI_PATH, { data: { exchangeId: id, message } });
+    expect(res.status()).toBe(413);
   });
 
   test("HELD or CONFIRMED-VULNERABLE: an array where the route expects an object is rejected with 400", async ({ request }) => {
     const res = await request.post(A2UI_PATH, { data: [1, 2, 3] });
-    expect([400, 404]).toContain(res.status());
+    expect(res.status()).toBe(400);
+    expect(await res.json()).toEqual({ error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" });
   });
 
   test("HELD or CONFIRMED-VULNERABLE: null message is rejected with 400, not treated as a valid empty envelope", async ({ request }) => {
@@ -170,14 +175,12 @@ test.describe("malformed and oversized bodies", () => {
 // Exchange-id GUESS/enumeration resistance
 // ---------------------------------------------------------------------------
 
-test.describe("exchange id is unguessable (not a secret, but must not be enumerable)", () => {
-  test("HELD or CONFIRMED-VULNERABLE: a sequential/incrementing guess pattern across 30 attempts never hits a live exchange (none are open, but proves no id leaks a predictable shape)", async ({
+test.describe("unknown exchange ids are refused", () => {
+  test("HELD or CONFIRMED-VULNERABLE: 30 sequential unknown ids are all refused", async ({
     request,
   }) => {
-    // `surface-exchanges.ts`'s own doc says ids are `randomUUID()` — not a secret, but still meant to
-    // be unguessable in the sense that a delivery cannot land on an exchange the caller was never
-    // handed. With nothing open, every guess must 409 identically; a 200/202 anywhere in this batch
-    // would mean something is open and reachable by guesswork, which would itself be worth flagging.
+    // This HTTP check covers unknown-id refusal. Default UUIDv4 shape and live concurrent
+    // exchanges are checked in contracts/core/__tests__/tool-surface-exchanges.test.ts.
     const guesses = Array.from({ length: 30 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`);
     const results = await Promise.all(guesses.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
     for (const res of results) expect(res.status()).toBe(409);

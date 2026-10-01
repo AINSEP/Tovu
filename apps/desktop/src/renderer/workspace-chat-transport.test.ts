@@ -63,6 +63,8 @@ interface FakeBridge {
   emit: (message: WorkspaceChatEventMessage) => void;
   /** How many times the transport's teardown unsubscribed from `onChatEvent`. */
   unsubscribeCount: () => number;
+  registrationCount: () => number;
+  listenerCount: () => number;
 }
 
 function createFakeBridge(overrides: FakeBridgeOverrides = {}): FakeBridge {
@@ -72,7 +74,8 @@ function createFakeBridge(overrides: FakeBridgeOverrides = {}): FakeBridge {
     chatDetach: [] as string[],
     chatStop: [] as string[],
   };
-  let listener: ((message: WorkspaceChatEventMessage) => void) | null = null;
+  const listeners = new Set<(message: WorkspaceChatEventMessage) => void>();
+  let registrations = 0;
   let unsubscribed = 0;
   let runSeq = 0;
 
@@ -97,10 +100,11 @@ function createFakeBridge(overrides: FakeBridgeOverrides = {}): FakeBridge {
     chatStatus: (runId: string): Promise<WorkspaceChatRunSnapshot | null> =>
       overrides.chatStatus ? overrides.chatStatus(runId) : Promise.resolve(null),
     onChatEvent: (l: (message: WorkspaceChatEventMessage) => void): (() => void) => {
-      listener = l;
+      registrations += 1;
+      listeners.add(l);
       return () => {
         unsubscribed += 1;
-        listener = null;
+        listeners.delete(l);
       };
     },
   };
@@ -109,10 +113,11 @@ function createFakeBridge(overrides: FakeBridgeOverrides = {}): FakeBridge {
     bridge: chatMethods as unknown as RunnerInventoryBridge,
     calls,
     emit: (message: WorkspaceChatEventMessage): void => {
-      if (listener === null) throw new Error('fixture error: no onChatEvent listener registered yet');
-      listener(message);
+      for (const listener of listeners) listener(message);
     },
     unsubscribeCount: () => unsubscribed,
+    registrationCount: () => registrations,
+    listenerCount: () => listeners.size,
   };
 }
 
@@ -275,10 +280,12 @@ test('buildChatStartPayload flattens history through the REAL buildTranscript, s
   // this only happens if `agentId` really reaches `buildTranscript`'s `targetAgentId` option.
   const history: ChatMessage[] = [
     { id: '1', role: 'assistant', content: 'old reply', agentId: 'agent-A' },
+    { id: '0', role: 'user', content: 'earlier question' },
+    { id: 'own', role: 'assistant', content: 'agent B reply', agentId: 'agent-B' },
     { id: '2', role: 'user', content: 'hello agent B' },
   ];
   await transport.startRun(startInput({ history, agentId: 'agent-B' }), dummyHandlers());
-  assert.equal(fake.calls.chatStart[1]!.prompt, '## user\nhello agent B');
+  assert.equal(fake.calls.chatStart[1]!.prompt, '## user\nearlier question\n\n## assistant\nagent B reply\n\n## user\nhello agent B');
 });
 
 test('buildChatStartPayload carries model/reasoning from context, coerced to strings, and omits them when absent', async () => {
@@ -410,11 +417,38 @@ test('aborting the pane-lifetime signal detaches the browser side WITHOUT stoppi
   const fake = createFakeBridge();
   const transport = createWorkspaceChatTransport(fake.bridge);
   const controller = new AbortController();
-  await transport.startRun(startInput({ signal: controller.signal }), dummyHandlers());
+  const callbacks: string[] = [];
+  await transport.startRun(startInput({ signal: controller.signal }), dummyHandlers({
+    onEvent: () => callbacks.push('event'), onError: () => callbacks.push('error'), onDone: () => callbacks.push('done'),
+  }));
   const subscriptionId = fake.calls.chatStart[0]!.subscriptionId;
   controller.abort();
   assert.deepEqual(fake.calls.chatDetach, [subscriptionId]);
   assert.deepEqual(fake.calls.chatStop, []); // the run keeps going in main — only the listener leaves
+  fake.emit({ subscriptionId, kind: 'event', event: agentEvent({ type: 'text_delta', delta: 'late' }) });
+  fake.emit({ subscriptionId, kind: 'event', event: errorEvent({ message: 'late error' }) });
+  fake.emit({ subscriptionId, kind: 'closed', reason: 'unknown-run' });
+  assert.deepEqual(callbacks, [], 'an unmounted pane must receive no callbacks');
+});
+
+test('an already-aborted pane lifetime leaves no routable subscription', async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  const controller = new AbortController();
+  controller.abort();
+  const callbacks: string[] = [];
+  await transport.startRun(startInput({ signal: controller.signal }), dummyHandlers({
+    onEvent: () => callbacks.push('event'), onError: () => callbacks.push('error'), onDone: () => callbacks.push('done'),
+  }));
+  const subscriptionId = fake.calls.chatStart[0]!.subscriptionId;
+  fake.emit({ subscriptionId, kind: 'event', event: agentEvent({ type: 'text_delta', delta: 'late' }) });
+  fake.emit({ subscriptionId, kind: 'event', event: errorEvent({ message: 'late error' }) });
+  fake.emit({ subscriptionId, kind: 'closed', reason: 'unknown-run' });
+  assert.deepEqual(callbacks, []);
+  assert.deepEqual(fake.calls.chatDetach, [subscriptionId]);
+  assert.deepEqual(fake.calls.chatStop, []);
+  transport.dispose();
+  assert.deepEqual(fake.calls.chatDetach, [subscriptionId], 'dispose must not find a leaked subscription');
 });
 
 test('a rejecting chatDetach during pane-lifetime teardown never surfaces as an unhandled rejection', async () => {
@@ -434,10 +468,31 @@ test('a rejecting chatDetach during pane-lifetime teardown never surfaces as an 
 test('createWorkspaceChatTransport installs exactly ONE onChatEvent listener, however many runs start', async () => {
   const fake = createFakeBridge();
   const transport = createWorkspaceChatTransport(fake.bridge);
+  assert.equal(fake.registrationCount(), 1);
+  assert.equal(fake.listenerCount(), 1);
   await transport.startRun(startInput(), dummyHandlers());
+  assert.equal(fake.registrationCount(), 1);
+  assert.equal(fake.listenerCount(), 1);
   await transport.startRun(startInput(), dummyHandlers());
+  assert.equal(fake.registrationCount(), 1);
+  assert.equal(fake.listenerCount(), 1);
   transport.dispose();
   assert.equal(fake.unsubscribeCount(), 1);
+  assert.equal(fake.listenerCount(), 0);
+});
+
+test('startRun delivers pushed events while the chatStart invoke is still pending', async () => {
+  let resolve!: (result: WorkspaceChatStartResult) => void;
+  const fake = createFakeBridge({ chatStart: () => new Promise((done) => { resolve = done; }) });
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  const events: AgentEvent[] = [];
+  const starting = transport.startRun(startInput(), dummyHandlers({ onEvent: (event) => events.push(event) }));
+  const subscriptionId = fake.calls.chatStart[0]!.subscriptionId;
+  fake.emit({ subscriptionId, kind: 'event', event: agentEvent({ type: 'text_delta', delta: 'first token' }) });
+  assert.deepEqual(events, [{ kind: 'text', text: 'first token' }]);
+  resolve({ runId: 'early-run' });
+  assert.deepEqual(await starting, { runId: 'early-run' });
+  transport.dispose();
 });
 
 test('one shared push channel demultiplexes by subscription id and never bleeds one run into another', async () => {
@@ -752,30 +807,34 @@ test('closed:unknown-run reports a specific, actionable error before settling', 
   const fake = createFakeBridge();
   const transport = createWorkspaceChatTransport(fake.bridge);
   const errors: string[] = [];
+  const order: string[] = [];
   const doneCalls: AgentEvent[][] = [];
   await transport.startRun(
     startInput(),
-    dummyHandlers({ onError: (e) => errors.push(e.message), onDone: (e) => doneCalls.push(e) }),
+    dummyHandlers({ onError: (e) => { order.push('error'); errors.push(e.message); }, onDone: (e) => { order.push('done'); doneCalls.push(e); } }),
   );
   const sub = fake.calls.chatStart[0]!.subscriptionId;
   fake.emit({ subscriptionId: sub, kind: 'closed', reason: 'unknown-run' });
   assert.deepEqual(errors, ['Runner no longer has this run; send the message again.']);
   assert.equal(doneCalls.length, 1);
+  assert.deepEqual(order, ['error', 'done']);
 });
 
 test('closed:replay-gap reports the replay-specific error before settling', async () => {
   const fake = createFakeBridge();
   const transport = createWorkspaceChatTransport(fake.bridge);
   const errors: string[] = [];
+  const order: string[] = [];
   const doneCalls: AgentEvent[][] = [];
   await transport.startRun(
     startInput(),
-    dummyHandlers({ onError: (e) => errors.push(e.message), onDone: (e) => doneCalls.push(e) }),
+    dummyHandlers({ onError: (e) => { order.push('error'); errors.push(e.message); }, onDone: (e) => { order.push('done'); doneCalls.push(e); } }),
   );
   const sub = fake.calls.chatStart[0]!.subscriptionId;
   fake.emit({ subscriptionId: sub, kind: 'closed', reason: 'replay-gap' });
   assert.deepEqual(errors, ["Runner couldn't replay this run's history; send the message again."]);
   assert.equal(doneCalls.length, 1);
+  assert.deepEqual(order, ['error', 'done']);
 });
 
 test('a "closed" message after the run already ended does not double-fire onDone or invent an error', async () => {
@@ -856,10 +915,18 @@ test('a rejected chatReattach invoke removes the subscription and rethrows the S
   const failure = new Error('daemon unreachable');
   const fake = createFakeBridge({ chatReattach: () => Promise.reject(failure) });
   const transport = createWorkspaceChatTransport(fake.bridge);
-  await assert.rejects(transport.reattachRun('run-1', dummyHandlers()), (err: unknown) => err === failure);
+  const callbacks: string[] = [];
+  await assert.rejects(transport.reattachRun('run-1', dummyHandlers({
+    onEvent: () => callbacks.push('event'), onError: () => callbacks.push('error'), onDone: () => callbacks.push('done'),
+  })), (err: unknown) => err === failure);
   const subscriptionId = fake.calls.chatReattach[0]!.subscriptionId;
   // The dead subscription is unrouteable — must not throw.
   fake.emit({ subscriptionId, kind: 'event', event: agentEvent({ type: 'raw', line: 'x' }) });
+  fake.emit({ subscriptionId, kind: 'event', event: errorEvent({ message: 'late error' }) });
+  fake.emit({ subscriptionId, kind: 'closed', reason: 'unknown-run' });
+  assert.deepEqual(callbacks, []);
+  transport.dispose();
+  assert.deepEqual(fake.calls.chatDetach, []);
 });
 
 // ---------------------------------------------------------------------------------------------

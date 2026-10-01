@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   KEYS,
@@ -112,21 +112,18 @@ describe("redirectRowMenuItems", () => {
   });
 
   it("wires each item's onSelect to the matching handler with the rule itself", () => {
-    let toggled: AdminRedirect | undefined;
-    let deleted: AdminRedirect | undefined;
-    const items = redirectRowMenuItems(
-      BASE_RULE,
-      {
-        onToggleStatus: (rule) => (toggled = rule),
-        onRequestDelete: (rule) => (deleted = rule),
-      },
-      "en",
-    );
+    const onToggleStatus = vi.fn();
+    const onRequestDelete = vi.fn();
+    const items = redirectRowMenuItems(BASE_RULE, { onToggleStatus, onRequestDelete }, "en");
 
     items[0].onSelect?.();
+    expect(onToggleStatus).toHaveBeenCalledExactlyOnceWith(BASE_RULE);
+    expect(onRequestDelete).not.toHaveBeenCalled();
+    onToggleStatus.mockClear();
+
     items[1].onSelect?.();
-    expect(toggled).toBe(BASE_RULE);
-    expect(deleted).toBe(BASE_RULE);
+    expect(onRequestDelete).toHaveBeenCalledExactlyOnceWith(BASE_RULE);
+    expect(onToggleStatus).not.toHaveBeenCalled();
   });
 
   it("translates labels to Spanish when locale is es", () => {

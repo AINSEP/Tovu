@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminWidgetArea, type AdminWidgetPlacement } from "@/lib/api";
+import { api, ApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "@/lib/api";
 import { createFakeWidgetRegionsPort } from "../hooks/widget-regions-dependencies.hooks";
-import { useWidgetRegionEditor } from "../hooks/use-widget-region-editor.hooks";
+import { staleVersionMessage, useWidgetRegionEditor } from "../hooks/use-widget-region-editor.hooks";
 
 /**
  * @file `useWidgetRegionEditor` driven against the injected `WidgetRegionsPort`, no `fetch` stub
@@ -33,17 +33,61 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
 
   it("routes save through the injected port and bumps the area version", async () => {
     const mutateSpy = vi.spyOn(api, "mutateWidgetRegionPlacements");
-    const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT] } } });
+    const second = { ...PLACEMENT, placementId: "p2", widgetEntryId: "w2" };
+    const removed = { ...PLACEMENT, placementId: "p3", widgetEntryId: "w3" };
+    const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT, second, removed] } } });
+    const mutate = vi.spyOn(port, "mutateWidgetRegionPlacements");
     const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => {
+      result.current.toggleEnabled("p1");
+      result.current.moveAt(1, -1);
+      result.current.removeAt("p3");
+    });
+    const placements = [
+      { placementId: "p2", widgetEntryId: "w2", enabled: true },
+      { placementId: "p1", widgetEntryId: "w1", enabled: false },
+    ];
 
     await act(async () => {
       await result.current.save();
     });
 
+    expect(mutate).toHaveBeenCalledExactlyOnceWith({ regionKey: "footer", baseVersion: 1, placements });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.placements.map(({ placementId, widgetEntryId, enabled }) => ({ placementId, widgetEntryId, enabled }))).toEqual(placements);
+    expect((await port.getWidgetRegion("footer")).placements).toEqual(result.current.placements);
     expect(result.current.area?.version).toBe(2);
     expect(result.current.message).toBe("Saved · version 2");
     expect(mutateSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserves the draft and loaded baseVersion when a save conflicts", async () => {
+    const port = createFakeWidgetRegionsPort({ areas: { footer: { area: { ...AREA, version: 7 }, placements: [PLACEMENT] } } });
+    const mutate = vi.spyOn(port, "mutateWidgetRegionPlacements").mockRejectedValue(new ApiError("conflict", 409, "WIDGETS_AREA_CONFLICT"));
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.toggleEnabled("p1"));
+    await act(async () => { await result.current.save(); });
+    expect(mutate).toHaveBeenCalledExactlyOnceWith({
+      regionKey: "footer", baseVersion: 7,
+      placements: [{ placementId: "p1", widgetEntryId: "w1", enabled: false }],
+    });
+    expect(result.current.error).toBe(staleVersionMessage("en"));
+    expect(result.current.placements).toEqual([{ ...PLACEMENT, enabled: false }]);
+    expect(result.current.area?.version).toBe(7);
+    expect(result.current.saving).toBe(false);
+    expect(result.current.message).toBeNull();
+  });
+
+  it("reports a load failure and clears loading", async () => {
+    const port = createFakeWidgetRegionsPort();
+    vi.spyOn(port, "getWidgetRegion").mockRejectedValue(new ApiError("region unavailable", 503, "UNAVAILABLE"));
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("region unavailable");
+    expect(result.current.area).toBeNull();
+    expect(result.current.placements).toEqual([]);
   });
 
   it("fills a just-added placement's title and type from the widget itself, so the new row is not a nameless '()' until Save", async () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -319,18 +319,82 @@ test("findMissingSeedBlobs: REGRESSION — a regular file with the WRONG bytes a
  * state `site-title-preservation.integration.test.ts`'s AC-23/AC-24 previously had to work around by
  * recreating the three tables empty with `openChatDb` before calling `seedSite`.
  */
-test("seedSite: succeeds against a live db that has never chatted, so openContentDb already dropped the empty legacy chat tables", async () => {
+test("seedSite: succeeds against a live db that has never chatted, with explicitly absent legacy chat tables and populated sensitive data", async () => {
   const liveDir = mkdtempSync(join(tmpdir(), "tovu-seed-site-blob-check-"));
   try {
     runGit(liveDir, ["-c", "init.defaultBranch=main", "init", "-q"]);
     const liveDbPath = join(liveDir, "content.db");
-    openContentDb(liveDbPath).$client.close();
+    const db = openContentDb(liveDbPath).$client;
+    db.exec(`
+      DROP TABLE IF EXISTS ai_chat_messages;
+      DROP TABLE IF EXISTS assistant_agent_sessions;
+      DROP TABLE IF EXISTS ai_chats;
+      INSERT INTO posts (id, workspace_id, title, slug, kind, status, body_format, body_json, updated_at, version)
+        VALUES ('retained-post', 'ws-test', 'Retained title', 'retained', 'post', 'published', 'doc', '{"type":"doc","content":[]}', '2026-09-30', 1);
+      INSERT INTO identity_users (principal_id, workspace_id, username, password_hash, last_login_at)
+        VALUES ('user-1', 'ws-test', 'synthetic-user', 'synthetic-hash', '2026-09-30');
+      INSERT INTO sessions (id, workspace_id, principal_id, token_hash, created_at, expires_at, ip, user_agent)
+        VALUES ('session-1', 'ws-test', 'user-1', 'synthetic-token-hash', '2026-09-30', '2026-10-01', '192.0.2.1', 'synthetic-agent');
+      INSERT INTO api_keys (id, workspace_id, principal_id, label, key_hash, prefix, created_at)
+        VALUES ('key-1', 'ws-test', 'user-1', 'synthetic-key', 'synthetic-key-hash', 'test_', '2026-09-30');
+      INSERT INTO site_assistant_credentials (workspace_id, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, masked, created_at, updated_at)
+        VALUES ('ws-test', 'synthetic-id', 'synthetic-ciphertext', 'synthetic-nonce', 'aes-256-gcm', '••••test', '2026-09-30', '2026-09-30');
+      INSERT INTO form_definitions (id, workspace_id, name, slug, fields_json, notify_json, created_at, updated_at)
+        VALUES ('form-1', 'ws-test', 'Synthetic form', 'synthetic-form', '[]', '{}', '2026-09-30', '2026-09-30');
+      INSERT INTO form_submissions (id, workspace_id, form_definition_id, data_json, source_ip, submitted_at)
+        VALUES ('submission-1', 'ws-test', 'form-1', '{"email":"synthetic@example.invalid"}', '192.0.2.1', '2026-09-30');
+    `);
+    for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"]) {
+      assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name = ?").get(name), undefined);
+    }
+    db.close();
+    const liveBytes = readFileSync(liveDbPath);
 
     const seedDbPath = join(liveDir, "content.seed.db");
     await seedSite({ siteName: "prune-guard-test", liveDir, liveDbPath, seedDbPath });
 
     assert.ok(existsSync(seedDbPath), "seedSite must still publish content.seed.db");
+    assert.deepEqual(readFileSync(liveDbPath), liveBytes, "seedSite must not mutate the live file");
+    const witness = new Database(seedDbPath, { readonly: true, fileMustExist: true });
+    try {
+      assert.equal(witness.pragma("integrity_check", { simple: true }), "ok");
+      assert.deepEqual(witness.prepare("SELECT title, body_json FROM posts WHERE id = 'retained-post'").get(), { title: "Retained title", body_json: '{"type":"doc","content":[]}' });
+      assert.deepEqual(witness.prepare("SELECT username, password_hash, last_login_at FROM identity_users WHERE principal_id = 'user-1'").get(), { username: "synthetic-user", password_hash: "synthetic-hash", last_login_at: null });
+      for (const name of ["sessions", "api_keys", "site_assistant_credentials", "form_submissions"]) {
+        assert.equal((witness.prepare(`SELECT count(*) AS n FROM ${name}`).get() as { n: number }).n, 0, `${name} must be pruned`);
+      }
+    } finally { witness.close(); }
   } finally {
     rmSync(liveDir, { recursive: true, force: true });
   }
+});
+
+
+test("seedSite: missing and untracked blobs refuse publication and preserve an existing seed", async () => {
+  const liveDir = mkdtempSync(join(tmpdir(), "tovu-seed-site-publish-guard-"));
+  try {
+    runGit(liveDir, ["-c", "init.defaultBranch=main", "init", "-q"]);
+    const liveDbPath = join(liveDir, "content.db");
+    const seedDbPath = join(liveDir, "content.seed.db");
+    const db = openContentDb(liveDbPath).$client;
+    const untracked = writeUploadFile(liveDir, { workspaceId: "ws-test", bytes: "valid untracked bytes" });
+    const missing = { storageKey: "ws/ws-test/blobs/ff/" + "f".repeat(64), sha256: "f".repeat(64) };
+    const insert = db.prepare("INSERT INTO asset_blobs (id, workspace_id, storage_key, sha256, created_by_principal, created_at, status) VALUES (?, 'ws-test', ?, ?, 'synthetic-user', '2026-09-30', 'active')");
+    insert.run("untracked", untracked.storageKey, untracked.sha256);
+    insert.run("missing", missing.storageKey, missing.sha256);
+    db.close();
+    const liveBytes = readFileSync(liveDbPath);
+    const paths = { siteName: "blob-guard", liveDir, liveDbPath, seedDbPath };
+    await assert.rejects(() => seedSite(paths), /2 asset_blobs row\(s\)/);
+    assert.equal(existsSync(seedDbPath), false, "no seed may be published for unusable blobs");
+    const priorSeed = Buffer.from("previously published seed sentinel");
+    writeFileSync(seedDbPath, priorSeed);
+    await assert.rejects(() => seedSite(paths), (error: Error) => {
+      assert.match(error.message, /\[untracked\]/);
+      assert.match(error.message, /\[missing\]/);
+      return true;
+    });
+    assert.deepEqual(readFileSync(seedDbPath), priorSeed);
+    assert.deepEqual(readFileSync(liveDbPath), liveBytes);
+  } finally { rmSync(liveDir, { recursive: true, force: true }); }
 });

@@ -67,6 +67,8 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
 
   let counter = 0;
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  const saveActivation = pluginActivationRepo.save.bind(pluginActivationRepo);
+  pluginActivationRepo.save = async (record) => { order.push("activation.save"); await saveActivation(record); };
 
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -306,6 +308,8 @@ test("plugins_set_enabled: authorize() runs before any write", async () => {
 
   await enableWithDecision(deps, { pluginId: VALID_PLUGIN.id, enabled: true, family: "site-runtime" }, "confirm");
 
+  assert.ok(order.includes("activation.save"), "the authorized enable must persist its activation");
+  assert.ok(order.indexOf("authorize") < order.indexOf("activation.save"));
   assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
 });
 
@@ -333,6 +337,7 @@ test("plugins_set_enabled: disabling has no validity precondition — a currentl
     executionContext({ pluginId: INVALID_PLUGIN.id, enabled: false, family: "site-runtime" }),
   )) as { plugin: { enabled: boolean } };
   assert.equal(out.plugin.enabled, false);
+  assert.equal((await pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: INVALID_PLUGIN.id }))?.enabled, false);
 });
 
 // ---------------------------------------------------------------------------

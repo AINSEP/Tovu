@@ -67,3 +67,22 @@ describe("readSseFrames", () => {
     expect(frames).toEqual([{ event: "message", data: "part1" }]);
   });
 });
+
+test.each(["é", "中", "😀"])("preserves %s when its UTF-8 bytes cross stream chunks", async (character) => {
+  const bytes = new TextEncoder().encode("data: " + character + "\n\n");
+  // Every split lies inside this character, whose bytes begin after "data: ".
+  const length = new TextEncoder().encode(character).length;
+  for (let offset = 1; offset < length; offset += 1) {
+    const split = 6 + offset;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, split));
+        controller.enqueue(bytes.slice(split));
+        controller.close();
+      },
+    });
+    const frames = [];
+    for await (const frame of readSseFrames(stream)) frames.push(frame);
+    expect(frames).toEqual([{ event: "message", data: character }]);
+  }
+});

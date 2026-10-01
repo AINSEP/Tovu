@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import type { NodeViewProps } from "@tiptap/react";
+import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
@@ -185,14 +185,19 @@ describe("WidgetEmbedNodeView", () => {
 
   it("Change opens the widget picker dialog scoped to the resolved widget's own type", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ widgets: [] }), { status: 200 })));
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: { ...ACTIVE_WIDGET, widgetType: "social-links", title: "Social widget", config: { links: [] } }, whereUsed: NO_WHERE_USED });
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ widgets: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
     render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
-    await screen.findByText("Hero text");
+    await screen.findByText("Social widget");
 
     await user.click(screen.getByRole("button", { name: "Change" }));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Social Links/i })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/widgets?"))).toBe(true));
+    const listCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/widgets?"))!;
+    expect(new URL(String(listCall[0]), "http://localhost").searchParams.get("widgetType")).toBe("social-links");
   });
 
   it("Change is unavailable while the widget hasn't resolved yet (no widget to scope the dialog to)", () => {
@@ -529,6 +534,8 @@ describe("WidgetEmbedInsertControl", () => {
   });
 
   it("inserting an existing widget calls editor.commands.insertWidgetEmbed with a freshly minted placementId and the chosen widgetEntryId", async () => {
+    const uuid = vi.fn().mockReturnValueOnce("11111111-1111-4111-8111-111111111111").mockReturnValueOnce("22222222-2222-4222-8222-222222222222");
+    vi.stubGlobal("crypto", { randomUUID: uuid });
     const user = userEvent.setup();
     const insertWidgetEmbed = vi.fn().mockReturnValue(true);
     const fakeEditor = { commands: { insertWidgetEmbed } };
@@ -552,6 +559,17 @@ describe("WidgetEmbedInsertControl", () => {
     expect(attrs.widgetEntryId).toBe("w9");
     expect(attrs.placementId).toBeTruthy();
     expect(typeof attrs.placementId).toBe("string");
+    await user.click(screen.getByRole("button", { name: "Insert widget" }));
+    await user.click(await screen.findByRole("combobox", { name: /existing text widgets/i }));
+    await user.click(screen.getByRole("option", { name: "Reusable text" }));
+    await user.click(screen.getByRole("button", { name: "Use this widget" }));
+    await waitFor(() => expect(insertWidgetEmbed).toHaveBeenCalledTimes(2));
+    expect(insertWidgetEmbed.mock.calls[1][0].placementId).not.toBe(attrs.placementId);
+    expect(uuid).toHaveBeenCalledTimes(2);
+    expect(insertWidgetEmbed.mock.calls.map(([attrs]) => attrs.placementId)).toEqual([
+      "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222",
+    ]);
+
   });
 
   it("mints a Date.now()+Math.random placementId when crypto.randomUUID is unavailable", async () => {
@@ -576,5 +594,38 @@ describe("WidgetEmbedInsertControl", () => {
     await waitFor(() => expect(insertWidgetEmbed).toHaveBeenCalledTimes(1));
     const [attrs] = insertWidgetEmbed.mock.calls[0] as [{ placementId: string }];
     expect(attrs.placementId).toMatch(/^placement-\d+-[a-z0-9]+$/);
+    await user.click(screen.getByRole("button", { name: "Insert widget" }));
+    await user.click(await screen.findByRole("combobox", { name: /existing text widgets/i }));
+    await user.click(screen.getByRole("option", { name: "Another text widget" }));
+    await user.click(screen.getByRole("button", { name: "Use this widget" }));
+    await waitFor(() => expect(insertWidgetEmbed).toHaveBeenCalledTimes(2));
+    expect(insertWidgetEmbed.mock.calls[1][0].placementId).not.toBe(attrs.placementId);
+
+  });
+});
+
+describe("WidgetEmbed mounted node view", () => {
+  it("Change updates the editor document and resolved widget while preserving placement identity", async () => {
+    const replacement = { ...ACTIVE_WIDGET, id: "w2", title: "Replacement widget" };
+    vi.spyOn(api, "getWidget").mockImplementation(async (id) => ({ widget: id === "w2" ? replacement : ACTIVE_WIDGET, whereUsed: NO_WHERE_USED }));
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [replacement] });
+    const editor = new Editor({ extensions: [StarterKit, WidgetEmbed], content: { type: "doc", content: [
+      { type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }, { type: "paragraph" },
+    ] } });
+    const mounted = render(<EditorContent editor={editor} />);
+    try {
+      const user = userEvent.setup();
+      await screen.findByText("Hero text");
+      await user.click(screen.getByRole("button", { name: "Change" }));
+      await user.click(await screen.findByRole("combobox", { name: /existing text widgets/i }));
+      await user.click(screen.getByRole("option", { name: "Replacement widget" }));
+      await user.click(screen.getByRole("button", { name: "Use this widget" }));
+      expect(editor.getJSON().content?.find((node) => node.type === "widgetEmbed")?.attrs).toEqual({
+        placementId: "p1", widgetEntryId: "w2", cssClass: null, htmlAttributes: null,
+      });
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(await screen.findByText("Replacement widget")).toBeInTheDocument();
+      expect(screen.queryByText("Hero text")).not.toBeInTheDocument();
+    } finally { mounted.unmount(); editor.destroy(); }
   });
 });

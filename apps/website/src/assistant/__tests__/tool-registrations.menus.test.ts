@@ -62,7 +62,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, menuRepo, authorizeCalls };
+  return { deps: deps as unknown as RouteDeps, menuRepo, navLocationBindingRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -248,7 +248,7 @@ test("no wired Menus tool carries a confirmation-requiring actor-class rule", ()
 // ---------------------------------------------------------------------------
 
 test("workflow: create a menu, add items to it, then assign it to a location — reads reflect the whole chain under the SAME id", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, navLocationBindingRepo } = fakeRouteDeps();
 
   // Step 1: create an empty menu, published by default (see the output-projection test above for
   // why: menu-service.ts's createMenu, Jini cfd31024 2026-08-09).
@@ -279,6 +279,10 @@ test("workflow: create a menu, add items to it, then assign it to a location —
     menu: { items: Array<{ id: string; label?: string }>; version: number };
   };
   assert.deepEqual(read.menu.items.map((item) => item.id).sort(), ["about", "home"]);
+  assert.deepEqual(read.menu.items, [
+    { id: "home", label: "Home", target: { kind: "url", href: "/" } },
+    { id: "about", label: "About", target: { kind: "url", href: "/about" } },
+  ]);
   assert.equal(read.menu.version, 2);
 
   // Step 4: assign the menu (still identified by the SAME id) to a location, chaining off step 2's version.
@@ -289,6 +293,9 @@ test("workflow: create a menu, add items to it, then assign it to a location —
   assert.deepEqual(assigned.menu.locations, ["primary"]);
   assert.equal(assigned.binding.menuId, created.menu.id, "the binding must reference the SAME menu id created in step 1");
   assert.equal(assigned.menu.version, 3, "version must have advanced again from step 2's version 2");
+  assert.deepEqual(await navLocationBindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "primary" }), {
+    workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: created.menu.id, boundAt: NOW,
+  });
 
   // Step 5: list_menus must show the fully composed result of the whole chain — items, location, and final version.
   const listed = (await wired("content_read.menu", deps).handler(executionContext({}))) as {
@@ -297,6 +304,7 @@ test("workflow: create a menu, add items to it, then assign it to a location —
   const found = listed.menus.find((m) => m.id === created.menu.id);
   assert.ok(found, "the menu created in step 1 must be visible via list, under the SAME id used throughout");
   assert.equal(found.items.length, 2, "the list read must reflect step 2's item tree");
+  assert.deepEqual(found.items, read.menu.items);
   assert.deepEqual(found.locations, ["primary"], "the list read must reflect step 4's location assignment");
   assert.equal(found.version, 3, "the list read must see the final version after the whole chain, not a stale one");
 });
@@ -321,6 +329,61 @@ const EXPECTED_PERMISSIONS: Record<string, string> = {
   menus_update_menu_tree: "admin.menus.update",
   menus_assign_location: "admin.menus.assign",
 };
+
+test("content_read.menu's list arm authorizes and refuses a denied principal", async () => {
+  for (const allow of [true, false]) {
+    const { deps, authorizeCalls } = fakeRouteDeps({ allow });
+    const pending = wired("content_read.menu", deps).handler(executionContext({}));
+    if (allow) assert.deepEqual(await pending, { menus: [] });
+    else await assert.rejects(pending, /MENUS_FORBIDDEN:/);
+    assert.equal(authorizeCalls.length, 1);
+    assert.equal(authorizeCalls[0].permission, "admin.menus.read");
+    assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
+    assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+  }
+});
+
+test("a stale menu update and unknown menu mutations refuse without changing menus or bindings", async () => {
+  const { deps, menuRepo, navLocationBindingRepo } = fakeRouteDeps();
+  const { id } = await seedMenu(deps);
+  await wired("menus_assign_location", deps).handler(executionContext({ menuId: id, locationKey: "primary" }));
+  const beforeMenus = structuredClone(await menuRepo.list({ workspaceId: WORKSPACE_ID }));
+  const beforeBindings = structuredClone(await navLocationBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }));
+
+  await assert.rejects(
+    () => wired("menus_update_menu_tree", deps).handler(executionContext({ menuId: id, expectedVersion: 1, items: [] })),
+    /MENUS_CONFLICT:.*modified concurrently/,
+  );
+  for (const toolId of ["menus_update_menu_tree", "menus_assign_location"]) {
+    await assert.rejects(
+      () => wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId]("missing-menu"))),
+      /MENUS_NOT_FOUND:.*missing-menu.*not found/,
+    );
+  }
+  assert.deepEqual(await menuRepo.list({ workspaceId: WORKSPACE_ID }), beforeMenus);
+  assert.deepEqual(await navLocationBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeBindings);
+});
+
+for (const toolId of ["menus_update_menu_tree", "menus_assign_location"]) {
+  test(`${toolId}: denial preserves an existing menu and its location binding`, async () => {
+    const { deps, menuRepo, navLocationBindingRepo } = fakeRouteDeps({ allow: false });
+    const seedDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as RouteDeps;
+    const { id } = await seedMenu(seedDeps);
+    await wired("menus_update_menu_tree", seedDeps).handler(executionContext({
+      menuId: id, expectedVersion: 1, items: [{ id: "home", label: "Home", target: { kind: "url", href: "/" } }],
+    }));
+    await wired("menus_assign_location", seedDeps).handler(executionContext({ menuId: id, locationKey: "primary" }));
+    const beforeMenus = structuredClone(await menuRepo.list({ workspaceId: WORKSPACE_ID }));
+    const beforeBindings = structuredClone(await navLocationBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }));
+
+    const input = toolId === "menus_update_menu_tree"
+      ? { menuId: id, expectedVersion: 3, items: [] }
+      : { menuId: id, locationKey: "footer" };
+    await assert.rejects(() => wired(toolId, deps).handler(executionContext(input)), /MENUS_FORBIDDEN:/);
+    assert.deepEqual(await menuRepo.list({ workspaceId: WORKSPACE_ID }), beforeMenus);
+    assert.deepEqual(await navLocationBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeBindings);
+  });
+}
 
 test("every wired Menus tool has a known input fixture and expected permission — a newly wired tool must be added here, not silently skipped", () => {
   const { deps } = fakeRouteDeps();

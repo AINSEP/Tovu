@@ -295,6 +295,11 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     expect(await screen.findByText(/password reset for "alice"/i)).toBeInTheDocument();
     expect(dialog).not.toHaveAttribute("open");
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/reset-password"))).toBe(true);
+    const resets = fetchMock.mock.calls.filter(([url]) => String(url).includes("/reset-password"));
+    expect(resets).toHaveLength(1);
+    expect(resets[0][0]).toBe("/api/admin/v1/workspaces/workspace-local/users/u1/reset-password");
+    expect(resets[0][1]?.method).toBe("POST");
+    expect(JSON.parse(String(resets[0][1]?.body))).toEqual({ password: "correct-horse-battery-staple" });
   });
 
   it("keeps the dialog open and shows the error on failure, preserving the typed password", async () => {

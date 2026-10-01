@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { useFocusTrap } from "../use-focus-trap.hooks";
@@ -143,4 +143,59 @@ describe("useFocusTrap", () => {
 
     expect(event.defaultPrevented).toBe(false);
   });
+});
+
+function BoundaryDialog({ edge }: { edge: ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(ref);
+  return <div ref={ref} role="dialog" aria-modal="true">
+    {edge}
+    <button>enabled first</button>
+    <button>enabled last</button>
+    {edge}
+  </div>;
+}
+
+it.each(["button", "input", "select", "textarea"] as const)("excludes disabled %s controls at both boundaries", (tag) => {
+  const edge = tag === "button" ? <button disabled>disabled edge</button>
+    : tag === "input" ? <input disabled />
+    : tag === "select" ? <select disabled><option>edge</option></select>
+    : <textarea disabled />;
+  render(<BoundaryDialog edge={edge} />);
+  button("enabled last").focus();
+  expect(tab(button("enabled last")).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(button("enabled first"));
+  expect(tab(button("enabled first"), true).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(button("enabled last"));
+});
+
+it.each([
+  ["hidden attribute", <button hidden>hidden edge</button>],
+  ["display none", <span style={{ display: "none" }}><button>hidden edge</button></span>],
+  ["visibility hidden", <button style={{ visibility: "hidden" }}>hidden edge</button>],
+  ["inert ancestor", <span inert><button>hidden edge</button></span>],
+])("skips %s controls at both boundaries", (_kind, edge) => {
+  render(<BoundaryDialog edge={edge} />);
+  button("enabled last").focus();
+  expect(tab(button("enabled last")).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(button("enabled first"));
+  expect(tab(button("enabled first"), true).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(button("enabled last"));
+});
+
+it.each([
+  ["link", <a href="/example">edge link</a>],
+  ["select", <select aria-label="edge select"><option>edge</option></select>],
+  ["textarea", <textarea aria-label="edge textarea" />],
+  ["tabindex", <span tabIndex={0}>edge tabindex</span>],
+])("wraps between focusable %s boundaries and excludes hidden inputs", (_kind, edge) => {
+  render(<BoundaryDialog edge={<><input type="hidden" />{edge}</>} />);
+  const elements = document.querySelectorAll<HTMLElement>("a, select, textarea, [tabindex]");
+  const first = elements[0]!;
+  const last = elements[elements.length - 1]!;
+  last.focus();
+  expect(tab(last).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(first);
+  expect(tab(first, true).defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(last);
 });

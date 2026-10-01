@@ -61,7 +61,7 @@ import { withSecurityMeta } from "./static-security-headers.js";
  *
  * Assets (theme CSS/JS/images, `/agent-icons/*`, and uploads served through the `/m/` media
  * rendition route) are NOT copied from disk or read out of the DB — they are discovered by
- * crawling each successfully-rendered page's own HTML for `href`/`src` references under the known
+ * crawling each successfully-rendered page's own HTML for `href`/`src`/`srcset` references under the known
  * public asset prefixes, then fetched the identical real-HTTP way. Three reasons, not one:
  * (a) uploads have no "the uploads folder" to copy — `/m/{assetId}/{transform}.v{version}/{file}`
  *     is a rendition pipeline over DB rows, not a static-file mount, so crawling the real emitted
@@ -244,7 +244,7 @@ export interface ExportSiteOptions {
   clean?: boolean;
   /**
    * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
-   * exporter writes — HTML `href`/`src`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
+   * exporter writes — HTML `href`/`src`/`srcset`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
    * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
    * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by
    * `site-exporter.test.ts`'s own "unset is inert" regression test, not just asserted in this
@@ -389,13 +389,41 @@ function prefixRootRelativePath(value: string, basePath: string): string {
   return `${basePath}${value}`;
 }
 
-/** Rewrites every `href="…"`/`src="…"` (single- OR double-quoted, matching
+/** URL spans in a srcset, excluding descriptors. Read URLs through whitespace so a data URL's
+ * commas stay inside its URL; trailing commas and commas after descriptors separate candidates.
+ * @complexity O(n) in the attribute's length. */
+function srcsetUrlRanges(value: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  let index = 0;
+  while (index < value.length) {
+    while (index < value.length && /[\s,]/.test(value[index])) index += 1;
+    const start = index;
+    while (index < value.length && !/\s/.test(value[index])) index += 1;
+    let end = index;
+    while (end > start && value[end - 1] === ",") end -= 1;
+    if (end > start) ranges.push({ start, end });
+    if (end < index) continue;
+    // Width/density descriptors contain no URLs; skip to the next candidate.
+    while (index < value.length && value[index] !== ",") index += 1;
+  }
+  return ranges;
+}
+
+/** Rewrites every `href="…"`/`src="…"`/`srcset="…"` (single- OR double-quoted, matching
  *  `static-asset-contract.ts`'s own quote-echoing convention — `pages.ts`'s bare 404 fallback is
  *  observed to use single quotes, so both are real, not hypothetical) root-relative attribute value
  *  in one rendered HTML document. */
 function rewriteHtmlBasePath(html: string, basePath: string): string {
   if (basePath === "") return html;
-  return html.replace(/\b(href|src)=(["'])([^"']*)\2/g, (_match, attr: string, quote: string, value: string) => `${attr}=${quote}${prefixRootRelativePath(value, basePath)}${quote}`);
+  return html.replace(/\b(href|src|srcset)=(["'])([^"']*)\2/g, (_match, attr: string, quote: string, value: string) => {
+    if (attr !== "srcset") return `${attr}=${quote}${prefixRootRelativePath(value, basePath)}${quote}`;
+    // Replace backwards so offsets keep referring to the original attribute. Preserve descriptors,
+    // spacing and data/external URLs, using the same prefix/idempotency rule as href/src.
+    for (const { start, end } of srcsetUrlRanges(value).reverse()) {
+      value = value.slice(0, start) + prefixRootRelativePath(value.slice(start, end), basePath) + value.slice(end);
+    }
+    return `${attr}=${quote}${value}${quote}`;
+  });
 }
 
 /** Rewrites every `<loc>…</loc>` entry in a rendered `sitemap.xml` body. */
@@ -438,20 +466,21 @@ function renderRedirectStub(location: string): string {
   );
 }
 
-/** Regex-based `href="…"`/`src="…"` scan, not a full HTML parse — bounded and sufficient for this
+/** Regex-based `href="…"`/`src="…"`/`srcset="…"` scan, not a full HTML parse — bounded and sufficient for this
  *  exporter's one job (find asset URLs under the three known public prefixes); it does not attempt
- *  to resolve `srcset`, inline event-handler URLs, or any non-attribute reference. */
+ *  to resolve inline event-handler URLs or any non-attribute reference. */
 function extractAssetUrls(html: string): string[] {
   const found = new Set<string>();
-  const pattern = /\b(?:href|src)="([^"]+)"/g;
+  const pattern = /\b(href|src|srcset)=(["'])([^"']+)\2/g;
   for (const match of html.matchAll(pattern)) {
-    // Capture group 1 is mandatory in this pattern (`([^"]+)`, not optional) — always populated
-    // whenever the surrounding match succeeds, and this repo's tsconfig does not set
-    // `noUncheckedIndexedAccess`, so `match[1]` types as plain `string` here; no fallback needed.
-    const value = match[1];
-    if (ASSET_URL_PREFIXES.some((prefix) => value.startsWith(prefix))) {
-      // `String.prototype.split` always returns at least one element, so index 0 is always defined.
-      found.add(value.split("#")[0]);
+    const values = match[1] === "srcset"
+      ? srcsetUrlRanges(match[3]).map(({ start, end }) => match[3].slice(start, end))
+      : [match[3]];
+    for (const value of values) {
+      if (ASSET_URL_PREFIXES.some((prefix) => value.startsWith(prefix))) {
+        // `String.prototype.split` always returns at least one element, so index 0 is always defined.
+        found.add(value.split("#")[0]);
+      }
     }
   }
   return [...found];
@@ -481,7 +510,7 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
  * shared `resolvePathWithin` — the same check `theme-static-assets.ts`'s `resolveThemeDir` applies
  * to a theme id. A URL extracted from rendered HTML is still, transitively, request-shaped input,
  * not a trusted literal, and the refusal is genuinely reachable: `extractAssetUrls` is a raw
- * `href`/`src` regex scan with NO URL normalization, so a rendered page that literally embeds a
+ * `href`/`src`/`srcset` scan with NO URL normalization, so a rendered page that literally embeds a
  * `../`-laden value under an asset prefix passes its filter unchanged and reaches this function —
  * see `resolvePathWithin`'s own doc for the two escapes it refuses.
  */

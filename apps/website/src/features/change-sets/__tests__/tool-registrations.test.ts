@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
@@ -55,13 +56,14 @@ function seededPost(overrides: Partial<PostRecord> = {}): PostRecord {
   };
 }
 
-function fakeRouteDeps(options: { allow?: boolean } = {}) {
+function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[] } = {}) {
   const allow = options.allow ?? true;
   const postRepo = new InMemoryPostRepo([seededPost()]);
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   let counter = 0;
+  const authorizationCalls: Parameters<AuthorizeFn>[0][] = [];
 
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -78,10 +80,14 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
       outbox,
       forgetRemoved: async () => {},
     }),
-    authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
+    authorize: async (input: Parameters<AuthorizeFn>[0]) => {
+      authorizationCalls.push(input);
+      return allow && (!options.allowedPermissions || options.allowedPermissions.includes(input.permission))
+        ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
+    },
   };
 
-  return { deps: deps as unknown as RouteDeps, postRepo, changeSets };
+  return { deps: deps as unknown as RouteDeps, postRepo, changeSets, authorizationCalls };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
@@ -156,6 +162,46 @@ test("change_sets_revert: a newer human save after the agent's edit returns a co
 
   const afterAttempt = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(afterAttempt?.title, "Human Edited Title", "a conflicted revert must not have written anything");
+});
+
+test("change_sets_revert maps missing, reverted and non-revertible records to ToolInputError", async () => {
+  const { deps, changeSets } = fakeRouteDeps();
+  const revert = (changeSetId: string) => wired("change_sets_revert", deps).handler(executionContext({ changeSetId }));
+  await assert.rejects(() => revert("missing"), (err) => err instanceof ToolInputError && /was not found/.test(err.message));
+  await changeSets.insert({ id: "reverted", workspaceId: WORKSPACE_ID, status: "reverted", summary: "already undone", createdAt: NOW }, []);
+  await assert.rejects(() => revert("reverted"), (err) => err instanceof ToolInputError && /only 'applied'/.test(err.message));
+  await changeSets.insert({ id: "unsupported", workspaceId: WORKSPACE_ID, status: "applied", summary: "unsupported inverse", createdAt: NOW }, [
+    { id: "item-1", changeSetId: "unsupported", entityType: "unsupported", entityId: "entity-1", operation: "update", position: 0, inversePayload: {} },
+  ]);
+  await assert.rejects(() => revert("unsupported"), (err) => err instanceof ToolInputError && /no inverse applier/.test(err.message));
+  const failure = new Error("unexpected storage failure");
+  changeSets.findById = async () => { throw failure; };
+  await assert.rejects(() => revert("unsupported"), (err) => err === failure);
+});
+
+test("change-set tools enforce scoped permissions before reading or reverting", async () => {
+  for (const options of [{ allow: false }, { allowedPermissions: ["changeset.read"] }]) {
+    const { deps, postRepo, changeSets, authorizationCalls } = fakeRouteDeps(options);
+    const header = { id: "cs-denied", workspaceId: WORKSPACE_ID, status: "applied" as const, summary: "edit", createdAt: NOW };
+    await changeSets.insert(header, [{ id: "item-denied", changeSetId: header.id, entityType: "post", entityId: "post-1", operation: "update", position: 0, entityVersionAtApply: 1, inversePayload: { ...seededPost(), title: "Reverted Title" } }]);
+    const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+    await assert.rejects(() => wired("change_sets_revert", deps).handler(executionContext({ changeSetId: header.id })), ForbiddenError);
+    assert.deepEqual(authorizationCalls, [{ principalId: PRINCIPAL_ID, permission: "changeset.revert", workspaceId: WORKSPACE_ID, entityType: "change_set", entityId: header.id }]);
+    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }), before);
+    assert.equal((await changeSets.findById({ workspaceId: WORKSPACE_ID, id: header.id }))?.changeSet.status, "applied");
+    authorizationCalls.length = 0;
+    let listed = false;
+    const originalList = changeSets.listByWorkspace.bind(changeSets);
+    changeSets.listByWorkspace = async (input) => { listed = true; return originalList(input); };
+    if (options.allow === false) {
+      await assert.rejects(() => wired("change_sets_list", deps).handler(executionContext({})), ForbiddenError);
+      assert.equal(listed, false);
+    } else {
+      await wired("change_sets_list", deps).handler(executionContext({}));
+      assert.equal(listed, true);
+    }
+    assert.deepEqual(authorizationCalls, [{ principalId: PRINCIPAL_ID, permission: "changeset.read", workspaceId: WORKSPACE_ID, entityType: "change_set", entityId: undefined }]);
+  }
 });
 
 test("change_sets_revert: the published schema has no 'force' property", () => {

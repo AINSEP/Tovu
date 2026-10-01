@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildAdminViteEnv,
+  startAdminVite,
   deriveDevScheme,
   isDevTlsExplicitlyDisabled,
   resolveDevTlsActive,
@@ -56,7 +57,7 @@ test("deriveDevScheme: true -> https, false -> http", () => {
 test("resolveDevTlsActive: true only when both cert and key exist and TLS is not disabled", () => {
   const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
   assert.equal(
-    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: () => true }),
+    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: (p) => new Set([paths.certPath, paths.keyPath]).has(p) }),
     true
   );
 });
@@ -64,7 +65,7 @@ test("resolveDevTlsActive: true only when both cert and key exist and TLS is not
 test("resolveDevTlsActive: false when the cert file is missing", () => {
   const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
   assert.equal(
-    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: (p) => p !== paths.certPath }),
+    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: (p) => p === paths.keyPath }),
     false
   );
 });
@@ -102,3 +103,27 @@ test("isDevTlsExplicitlyDisabled: \"1\", \"true\", \"TRUE\" all count as disable
 test("isDevTlsExplicitlyDisabled: undefined (unset) does not count as disabled", () => {
   assert.equal(isDevTlsExplicitlyDisabled(undefined), false);
 });
+
+
+test("resolveDevTlsActive: a cert without its key is insufficient", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  assert.equal(resolveDevTlsActive({ ...paths, disableFlag: false }, { existsSync: (p) => p === paths.certPath }), false);
+});
+
+test("resolveDevTlsActive: neither file present disables TLS", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  assert.equal(resolveDevTlsActive({ ...paths, disableFlag: false }, { existsSync: () => false }), false);
+});
+
+
+for (const apiScheme of ["http", "https"]) {
+  test(`startAdminVite hands the actual child the non-default ports and ${apiScheme} scheme`, () => {
+    const calls = [];
+    startAdminVite({ apiPort: 3301, vitePort: 5274, apiScheme, extraCaCerts: apiScheme === "https" ? "/fixture/root-ca.pem" : undefined }, (...args) => calls.push(args));
+    assert.deepEqual(calls, [["admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {
+      TOVU_API_URL: `${apiScheme}://localhost:3301`,
+      TOVU_ADMIN_DEV_PORT: "5274",
+      ...(apiScheme === "https" ? { NODE_EXTRA_CA_CERTS: "/fixture/root-ca.pem" } : {}),
+    }]]);
+  });
+}

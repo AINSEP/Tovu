@@ -3,6 +3,9 @@ import test from "node:test";
 
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+import { createRouteDeps } from "../../server/runtime/composition/app.js";
+import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 
 /**
  * @file Pins the actual INCIDENT this dispatch closes, not just `TOOL_SEARCH_KEYWORDS`'/`DOC2QUERY`'s
@@ -48,6 +51,31 @@ function fakeRegistry() {
 function top3Ids(catalog: ReturnType<typeof buildToolCatalogQuery>, query: string): string[] {
   return catalog.search(query, 3).map((hit) => hit.id);
 }
+
+test('credential queries discover executable ids in the full production catalog after the read collapse', () => {
+  installFirstPartyToolContributors();
+  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  const byId = new Map(registrations.map((registration) => [registration.descriptor.id, registration]));
+  assert.equal(byId.has('custom_credential_list'), false, 'the retired list id must not be published');
+  const catalog = buildToolCatalogQuery({ list: () => registrations.map((registration) => registration.descriptor) });
+  const queries = [
+    ['what credentials do I have saved', 'content_read.custom_credential'],
+    ['list my API keys', 'content_read.custom_credential'],
+    ['what tokens do I have', 'content_read.custom_credential'],
+    ['do I have a name.com token', 'content_read.custom_credential'],
+    ['what did I save for fly.io', 'content_read.custom_credential'],
+    ['call an external API with my saved token', 'custom_credential_make_request'],
+    ['make a request to an external service', 'custom_credential_make_request'],
+    ['hit a third-party API with my saved credential', 'custom_credential_make_request'],
+    ['check if my token works', 'custom_credential_verify'],
+    ['is this API key still valid', 'custom_credential_verify'],
+  ];
+  for (const [query, id] of queries) {
+    assert.ok(byId.has(id!), `${id} must have an executable registration`);
+    const hits = top3Ids(catalog, query!);
+    assert.ok(hits.includes(id!), `${query}: expected ${id} in top-3; got ${hits.join(', ')}`);
+  }
+});
 
 test("'what credentials do I have saved' finds custom_credential_list in the top 3", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());

@@ -19,6 +19,22 @@ async function stampWatermark(db: ContentDb, n: number): Promise<void> {
   for (let i = 0; i < n; i += 1) await stamp();
 }
 
+/** Observable schema and rows, including tables outside the watermark contract. */
+function databaseState(db: Database.Database) {
+  const schema = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{ name: string; sql: string }>;
+  return schema.map(({ name, sql }) => ({
+    name, sql,
+    rows: db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all(),
+  }));
+}
+
+function seedContent(db: ContentDb): void {
+  db.$client.exec("CREATE TABLE audit_pages (id TEXT PRIMARY KEY, body TEXT); CREATE TABLE audit_assets (id TEXT PRIMARY KEY, data BLOB)");
+  db.$client.prepare("INSERT INTO audit_pages VALUES (?, ?)").run("home", "Home content");
+  db.$client.prepare("INSERT INTO audit_pages VALUES (?, ?)").run("about", "Distinct about content");
+  db.$client.prepare("INSERT INTO audit_assets VALUES (?, ?)").run("binary", Buffer.from([0, 255, 128]));
+}
+
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the dialect-neutral `db-ops` restore-point capability
  * surface, SQLite adapter (built now) + Postgres capability-evaluation logic (built now; the full
@@ -71,6 +87,8 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
   try {
     const db = await openPreparedContentDb(filePath);
     await stampWatermark(db, 2);
+    seedContent(db);
+    const before = databaseState(db.$client);
 
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const result = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
@@ -80,6 +98,8 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
     const tables = copy
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
       .all() as Array<{ name: string }>;
+    assert.deepEqual(databaseState(copy), before, "every table's schema and content must survive capture");
+    assert.deepEqual(copy.prepare("SELECT value FROM database_write_watermark WHERE id = 1").get(), { value: 2 });
     copy.close();
     assert.ok(tables.length > 0, "the artifact must be a whole-file copy containing the full schema, not a partial export");
     assert.equal(result.watermarkAtCapture, 2, "REQ-06: the captured artifact must record the watermark value at capture time");
@@ -129,6 +149,14 @@ test("AC-36: a Postgres-backed site with tooling present but non-functional (unr
   assert.equal(brokenPath.costClass, neverConfigured.costClass);
 });
 
+test("Postgres restore requires every dump prerequisite and prefers a working dump over external PITR", () => {
+  const valid = { pgDumpBinaryPath: "/usr/bin/pg_dump", credentialsPresent: true, targetParametersValid: true, externalPitrConfigured: false };
+  for (const missing of [{ credentialsPresent: false }, { pgDumpBinaryPath: null }, { targetParametersValid: false }]) {
+    assert.deepEqual(evaluatePostgresRestoreCapability({ ...valid, ...missing }), { costClass: "unavailable", kind: "logical-dump" });
+  }
+  assert.deepEqual(evaluatePostgresRestoreCapability({ ...valid, externalPitrConfigured: true }), { costClass: "expensive", kind: "logical-dump" });
+});
+
 test("AC-37: a site whose only configured restore mechanism is an externally-managed PITR/backup system reports kind='external', costClass='unavailable'", async () => {
   const caps = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: null,
@@ -142,13 +170,25 @@ test("AC-37: a site whose only configured restore mechanism is an externally-man
 });
 
 test("REQ-19: getCapabilities() is a pure, side-effect-free static check — calling it twice never mutates observable state", async () => {
-  const db = await openPreparedContentDb(":memory:");
-  const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
-
-  const first = await adapter.getCapabilities();
-  const second = await adapter.getCapabilities();
-
-  assert.deepEqual(first, second);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "db-ops-capabilities-"));
+  const filePath = path.join(tmpDir, "content.db");
+  const db = await openPreparedContentDb(filePath);
+  try {
+    seedContent(db);
+    await stampWatermark(db, 2);
+    db.$client.pragma("wal_checkpoint(TRUNCATE)");
+    const before = databaseState(db.$client);
+    const filesBefore = fs.readdirSync(tmpDir).sort().map(name => [name, fs.readFileSync(path.join(tmpDir, name))]);
+    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const first = await adapter.getCapabilities();
+    const second = await adapter.getCapabilities();
+    assert.deepEqual(first, second);
+    assert.deepEqual(databaseState(db.$client), before);
+    assert.deepEqual(fs.readdirSync(tmpDir).sort().map(name => [name, fs.readFileSync(path.join(tmpDir, name))]), filesBefore);
+  } finally {
+    db.$client.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });
 
 /**
@@ -224,7 +264,12 @@ test("restoreFromArtifact: :memory: mode is a no-op, reports restartRequired=fal
   const db = await openPreparedContentDb(":memory:");
   const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
 
+  seedContent(db);
+  await stampWatermark(db, 2);
+  const before = databaseState(db.$client);
   const result = await adapter.restoreFromArtifact({ artifactRef: "/nonexistent/does-not-matter.db" });
+  assert.deepEqual(databaseState(db.$client), before);
+  db.$client.close();
 
   assert.equal(result.restartRequired, false);
 });
@@ -236,7 +281,17 @@ test("restoreFromArtifact: a missing artifact file throws rather than silently s
     const db = await openPreparedContentDb(filePath);
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
 
-    await assert.rejects(() => adapter.restoreFromArtifact({ artifactRef: path.join(tmpDir, "does-not-exist.db") }));
+    seedContent(db);
+    await stampWatermark(db, 2);
+    db.$client.pragma("wal_checkpoint(TRUNCATE)");
+    const before = databaseState(db.$client);
+    const bytesBefore = fs.readFileSync(filePath);
+    await assert.rejects(() => adapter.restoreFromArtifact({ artifactRef: path.join(tmpDir, "does-not-exist.db") }), { code: "ENOENT" });
+    assert.deepEqual(fs.readFileSync(filePath), bytesBefore);
+    assert.deepEqual(databaseState(db.$client), before);
+    db.$client.close();
+    const reopened = new Database(filePath, { readonly: true });
+    try { assert.deepEqual(databaseState(reopened), before); } finally { reopened.close(); }
 
     // content.db itself must be untouched by a failed restore attempt.
     assert.ok(fs.existsSync(filePath));

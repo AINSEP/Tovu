@@ -10,6 +10,9 @@ import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/ind
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "#src/features/origin/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { resolveMarketingPageOrOverride } from "../pages.js";
+import { registerResolvePhase } from "#src/platform/routing/routing";
+import { registerPageHeadContributor } from "../../../http/site/page-head.js";
 
 /**
  * @file Regression coverage for the "brand-new workspace, no seeded content" 500 on the public
@@ -279,8 +282,12 @@ test("GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> 
   });
   t.after(() => closeServer(server));
 
+  registerCanonicalContextProbe();
   const res = await fetch(`${baseUrl}/broken-canonical`);
   assert.equal(res.status, 200, "the page must still render even though its own canonical URL couldn't be resolved");
+  const html = await res.text();
+  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/broken-canonical"\/>/);
+  assert.match(html, /<meta property="og:url" content="http:\/\/localhost:3000\/broken-canonical"\/>/);
 });
 
 // 2026-09-03 absolute-URL fix — reproduced on both production (`curl https://tovu.dev/documentation`)
@@ -404,6 +411,7 @@ function staticThemeWithEmptyPage(): DiscoveredTheme {
     manifest: {
       id: "static-empty-page-test-theme",
       name: "Static Empty Page Test Theme",
+      publishedPages: ["empty-page"],
       version: "1.0.0",
       tier: "static",
       engine: 1,
@@ -778,3 +786,73 @@ test("GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT 
   const fromThisFile = reportedErrors(consoleError).filter((args) => String(args[0]).startsWith("[site/pages]"));
   assert.deepEqual(fromThisFile, [], "a 404 must leave no fault report behind");
 });
+
+
+test("a published empty theme page falls through before head or assistant injection", async () => {
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]) };
+  assert.deepEqual(await resolveMarketingPageOrOverride(
+    deps, staticThemeWithEmptyPage(), "empty-page", undefined, true,
+  ), { kind: "fallthrough" });
+});
+
+
+test("GET /:slug: a failure during the not-found recovery completes an opaque 500", async (t) => {
+  const app = createApp({ ...createRouteDeps(), themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo([]) });
+  const fault = new Error("redirect lookup failed during not-found recovery");
+  const dispose = registerResolvePhase("post_content", async () => { throw fault; });
+  t.after(dispose);
+  const errors = t.mock.method(console, "error", () => {});
+  let status = 200;
+  let body: string | undefined;
+  const res = {
+    status(code: number) { status = code; return res; },
+    type() { return res; },
+    set() { return res; },
+    send(html: string) { body = html; return res; },
+  };
+  await extractSlugHandler(app)({
+    params: { slug: "missing" }, path: "/missing", query: {}, headers: {},
+    hostname: "localhost", header: () => undefined, get: () => undefined,
+  }, res, () => assert.fail("missing page must be handled"));
+  assert.equal(status, 500);
+  assert.equal(body, "<h1>Site error</h1>");
+  assert.ok(reportedErrors(errors).some((args) => args.includes(fault)));
+});
+
+
+test("GET /:slug: the canonical fallback still identifies the post when its entryRef misses", async () => {
+  const deps = createRouteDeps();
+  const post = rootHomePage(deps.workspaceId, { slug: "broken-canonical", templateChoice: "page-shell.html" });
+  const app = createApp({ ...deps, postRepo: new UnresolvableCanonicalPostRepo([post]) });
+  registerCanonicalContextProbe();
+  let status = 200;
+  let body = "";
+  const res = {
+    status(code: number) { status = code; return res; },
+    type() { return res; }, set() { return res; },
+    send(html: string) { body = html; return res; },
+  };
+  await extractSlugHandler(app)({
+    params: { slug: "broken-canonical" }, path: "/broken-canonical", query: {}, headers: {},
+    hostname: "localhost", header: () => undefined, get: () => undefined,
+  }, res, () => assert.fail("the page must render"));
+  assert.equal(status, 200);
+  assert.match(body, /<link rel="canonical" href="http:\/\/localhost:3000\/broken-canonical"\/>/);
+  assert.match(body, /<meta property="og:url" content="http:\/\/localhost:3000\/broken-canonical"\/>/);
+});
+
+
+/** The deliberately missing id also makes SEO's own independent getEntryMeta lookup throw.
+ * Observe buildExtraHead's context via the supported contributor seam, rather than confusing
+ * that separate missing-entry policy with the route's canonical fallback. */
+function registerCanonicalContextProbe(): void {
+  registerPageHeadContributor({
+    priority: 200,
+    async handle(ctx) {
+      return [
+        { kind: "link", rel: "canonical", href: ctx.canonicalUrl, priority: 120 },
+        { kind: "og", property: "og:url", content: ctx.canonicalUrl, priority: 142 },
+      ];
+    },
+  });
+}

@@ -67,16 +67,23 @@ test.describe("theme Explore — .liquid template preview", () => {
 
     // Set up the listener BEFORE the click that used to trigger it — a real browser download
     // (Chromium fires this even when the navigation that caused it happened inside an <iframe>,
-    // which is exactly the pre-fix `ThemeExplorePreview` shape). Bounded wait, not a positive
-    // assertion target: the whole point is that this must NOT resolve.
-    const downloadPromise = page.waitForEvent("download", { timeout: 10_000 }).catch(() => null);
+    // which is exactly the pre-fix `ThemeExplorePreview` shape).
+    // assertion target: the listener covers selection and the later source assertions.
+    const downloads: string[] = [];
+    page.on("download", (download) => downloads.push(download.suggestedFilename()));
+    const sourceResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/themes/storefront/file") && url.searchParams.get("path")?.endsWith("/entry.liquid") === true;
+    });
 
     // Explore opens on the "Preview" tab by default — this is the exact click the owner made
     // ("clicking a .liquid file downloads it"), no tab-switching involved.
     await fileRow.click();
 
-    const download = await downloadPromise;
-    expect(download, download ? `unexpected browser download: ${download.suggestedFilename()}` : "no download expected").toBeNull();
+    const response = await sourceResponse;
+    expect(response.ok()).toBe(true);
+    const selectedSource = await response.json();
+    expect(selectedSource.path).toMatch(/\/entry\.liquid$/);
 
     // Switch to the HTML tab to confirm the fix's actual deliverable: readable source, not just
     // "no crash". `.page-html-source` only renders once `readable` is true (binary files render a
@@ -88,15 +95,14 @@ test.describe("theme Explore — .liquid template preview", () => {
     // Real Liquid source, not an empty/placeholder textarea — `render_block` is a real tag this
     // theme's own `entry.liquid` uses (see `content/themes/templated/storefront/templates/entry.liquid`).
     await expect(sourceArea).toHaveValue(/render_block/);
+    await expect(sourceArea).toHaveValue(selectedSource.content);
+    await expect(sourceArea).toHaveValue(/Storefront — entry/);
+    expect(downloads).toEqual([]);
 
     // Read-only, matching the server's write gate (`isThemeFileWritable` — `.liquid` is not in
     // `TEXT_READABLE_EXTENSIONS`, so PUT still refuses it): this fix adds preview, not editing.
     await expect(sourceArea).toHaveAttribute("readonly", "");
 
-    await page.screenshot({
-      path: "development/e2e/theme-liquid-preview.spec.ts-snapshots/liquid-template-preview.png",
-      fullPage: true,
-    });
   });
 
   test("the Preview tab renders entry.liquid through the real theme pipeline, styled", async ({ page }) => {
@@ -117,6 +123,7 @@ test.describe("theme Explore — .liquid template preview", () => {
     // deliberately absent, so this document can never read the admin's own cookies/storage even though
     // it runs in a real browsing context.
     await expect(iframe).toHaveAttribute("sandbox", "allow-scripts");
+    await expect(iframe).toHaveAttribute("src", /\/theme-explore\/fashion-modern\/(?:template\/)?entry\?/);
 
     const frame = page.frameLocator(".theme-explore-main .page-preview-iframe");
     // Real theme markup, not an empty shell or an error comment — `fashion-modern`'s own nav renders
@@ -126,6 +133,8 @@ test.describe("theme Explore — .liquid template preview", () => {
 
     // Real CSS applied, not a bare unstyled document — `styles.css` sets the body font away from the
     // browser default serif.
+    // This entry-only layout is outside the post conditional, so it also exists with no posts.
+    await expect(frame.locator("main.wrap--article")).toHaveCount(1);
     const bodyFont = await frame.locator("body").evaluate((el) => getComputedStyle(el).fontFamily);
     expect(bodyFont).toMatch(/inter/i);
 
@@ -133,26 +142,24 @@ test.describe("theme Explore — .liquid template preview", () => {
     // render.
     await expect(page.getByText(/templated themes don't have a rendered preview yet/i)).not.toBeVisible();
 
-    await page.screenshot({
-      path: "development/e2e/theme-liquid-preview.spec.ts-snapshots/liquid-template-rendered-preview.png",
-      fullPage: true,
-    });
   });
 
-  test("a non-.liquid file in a templated theme still gets the generic 'select a file' placeholder, not the template notice", async ({ page }) => {
+  test("selecting theme.json displays its actual JSON preview", async ({ page }) => {
     await page.goto("/admin/themes/explore?theme=fashion-modern");
     await page.locator(".theme-explore").waitFor({ state: "visible", timeout: 15_000 });
 
-    // `theme.json` — a `config`-group file with no preview URL of its own (`previewSrcFor` returns
-    // `null` for it) — pins the boundary the owner's own screenshot review raised: a templated theme's
-    // OTHER files must not show template-specific copy, only the one generic message every other
-    // previewless file (CSS/JS/JSON) already shows.
+    // JSON uses the raw asset viewer, like every other non-template file.
     const fileRow = page.getByRole("button", { name: "theme.json", exact: true });
     await fileRow.waitFor({ state: "visible", timeout: 10_000 });
     await fileRow.click();
 
-    await expect(page.getByText(/^select a file to preview\.?$/i)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/^select a file to preview\.?$/i)).not.toBeVisible();
     await expect(page.getByText(/templated themes don't have a rendered preview yet/i)).not.toBeVisible();
-    await expect(page.locator(".theme-explore-main .page-preview-iframe")).toHaveCount(0);
+    const iframe = page.locator(".theme-explore-main .page-preview-iframe");
+    await expect(iframe).toHaveCount(1);
+    await expect(iframe).toHaveAttribute("src", /\/theme-assets\/fashion-modern\/theme\.json\?/);
+    const body = page.frameLocator(".theme-explore-main .page-preview-iframe").locator("body");
+    await expect(body).toContainText('"name"');
+    await expect(body).toContainText("Fashion Modern");
   });
 });

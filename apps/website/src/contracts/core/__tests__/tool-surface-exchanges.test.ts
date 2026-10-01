@@ -175,6 +175,21 @@ test("a channel with no toolId to offer (e.g. A2UI, correlating by its own surfa
   assert.deepEqual(await exchange.receive(), { status: "received", params: { message: { action: {} } } });
 });
 
+for (const channel of ["a2ui", "mcp-ui"] as const) {
+  test(`${channel}: the other answer channel cannot consume its exchange`, async () => {
+    const store = createSurfaceExchangeStore();
+    const exchange = store.open({ toolId: "t", principalId: "p", channel }, recordingEmitter().emit);
+    const pending = exchange.receive();
+    const other = channel === "a2ui" ? "mcp-ui" : "a2ui";
+    assert.deepEqual(store.deliver({ exchangeId: exchange.id, principalId: "p", channel: other, params: { wrong: true } }), { ok: false, reason: "binding-mismatch" });
+    assert.equal(store.size(), 1);
+    assert.equal(await Promise.race([pending, Promise.resolve("waiting")]), "waiting");
+    assert.deepEqual(store.deliver({ exchangeId: exchange.id, principalId: "p", channel, params: { answer: "right" } }), { ok: true });
+    assert.deepEqual(await pending, { status: "received", params: { answer: "right" } });
+    exchange.close();
+  });
+}
+
 test("omitting toolId does not relax the principal check — it is still the wrong human's answer", async () => {
   const store = createSurfaceExchangeStore();
   const exchange = store.open({ toolId: "assistant_demo_a2ui", principalId: "alice" }, recordingEmitter().emit);
@@ -226,48 +241,42 @@ test("receive() after the exchange ended reports the terminal status instead of 
   assert.deepEqual(await exchange.receive(), { status: "abandoned" });
 });
 
-test("the idle deadline resets on activity, so a slow conversation is not punished for its length", async () => {
-  // Margin widened (was idleTtlMs:40 / 25ms per turn -- only a 15ms cushion) after this test was
-  // caught genuinely flaking under concurrent test-runner load: three 25ms sleeps plus scheduling
-  // overhead exceeded the 40ms idle window, expiring the exchange the test means to prove stays
-  // open. Same class of issue as the total-lifetime-ceiling test above.
-  const store = createSurfaceExchangeStore({ idleTtlMs: 300 });
+test("the idle deadline resets on activity, so a slow conversation is not punished for its length", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const store = createSurfaceExchangeStore({ idleTtlMs: 300, maxLifetimeMs: 2000 });
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
-
-  // Three turns, each inside the idle window but summing past it. A non-resetting deadline would
-  // kill this exchange partway through purely for having taken several turns.
+  // Each gap is below 300 ms, but 600 ms total exceeds the original idle deadline.
   for (let turn = 0; turn < 3; turn += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 60));
-    store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { turn } });
+    t.mock.timers.tick(200);
+    assert.deepEqual(store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { turn } }), { ok: true });
     assert.deepEqual(await exchange.receive(), { status: "received", params: { turn } });
   }
   assert.equal(store.size(), 1);
+  const pending = exchange.receive();
+  t.mock.timers.tick(299);
+  assert.equal(await Promise.race([pending, Promise.resolve("waiting")]), "waiting");
+  t.mock.timers.tick(1);
+  assert.deepEqual(await pending, { status: "expired" });
+  assert.equal(store.size(), 0);
 });
 
-test("the total-lifetime ceiling ends an exchange that stays busy forever", async () => {
-  // The margin between idleTtlMs and the keep-busy interval, and between maxLifetimeMs and
-  // idleTtlMs, is intentionally generous (not the tightest values that pass locally): under
-  // concurrent test-runner load a tight margin lets scheduling jitter delay a `deliver()` past the
-  // idle deadline, so the exchange ends via the IDLE timer instead of the LIFETIME ceiling this
-  // test exists to prove — both report `status: "expired"`, so a tight-margin version of this test
-  // can pass while silently exercising the wrong timer every time it runs under load (confirmed:
-  // this file's own `anonymous_7` — the lifetime timer's one-shot callback — read 0 hits in a
-  // concurrent scoped coverage run despite this test passing).
-  const store = createSurfaceExchangeStore({ idleTtlMs: 200, maxLifetimeMs: 260 });
+test("the total-lifetime ceiling ends an exchange that stays busy forever", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  // Idle cannot explain expiration at 260 ms, even without any activity.
+  const store = createSurfaceExchangeStore({ idleTtlMs: 1000, maxLifetimeMs: 260 });
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
-
-  // Activity alone must not hold the call open indefinitely: the call is an HTTP request from the
-  // agent's MCP server, and the transport gives up whether or not we are still talking.
-  const keepBusy = setInterval(() => {
-    store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} });
-  }, 20);
-  try {
-    let message = await exchange.receive();
-    while (message.status === "received") message = await exchange.receive();
-    assert.equal(message.status, "expired");
-  } finally {
-    clearInterval(keepBusy);
+  for (let turn = 0; turn < 3; turn += 1) {
+    t.mock.timers.tick(80);
+    assert.deepEqual(store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { turn } }), { ok: true });
+    assert.deepEqual(await exchange.receive(), { status: "received", params: { turn } });
   }
+  const pending = exchange.receive();
+  t.mock.timers.tick(19);
+  assert.equal(store.size(), 1);
+  assert.equal(await Promise.race([pending, Promise.resolve("waiting")]), "waiting");
+  t.mock.timers.tick(1);
+  assert.deepEqual(await pending, { status: "expired" });
+  assert.equal(store.size(), 0);
 });
 
 test("send() after the exchange ended is refused, matching the daemon emitter's own posture", async () => {
@@ -531,4 +540,20 @@ test("findTypedAnswerTarget: a closed exchange stops being a target", async () =
   exchange.close();
 
   assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), undefined);
+});
+
+
+test("default exchange ids are distinct UUIDv4 values while multiple exchanges remain pending", (t) => {
+  const store = createSurfaceExchangeStore();
+  const exchanges = Array.from({ length: 32 }, () => store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit));
+  t.after(() => exchanges.forEach((exchange) => exchange.close()));
+  const ids = exchanges.map(({ id }) => id);
+  assert.equal(new Set(ids).size, exchanges.length);
+  assert.equal(store.size(), exchanges.length);
+  for (const id of ids) assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  for (let n = 0; n < 30; n++) {
+    const guessed = `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+    assert.deepEqual(store.deliver({ exchangeId: guessed, principalId: "p", toolId: "t", params: {} }), { ok: false, reason: "unknown-or-closed" });
+  }
+  assert.equal(store.size(), exchanges.length, "guesses must leave every real pending exchange intact");
 });

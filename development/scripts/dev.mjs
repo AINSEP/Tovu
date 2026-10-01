@@ -259,6 +259,13 @@ export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
   };
 }
 
+/** Starts the admin child with the ports and scheme this stack has already checked. */
+export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, startChild = start) {
+  const env = buildAdminViteEnv({ apiPort, vitePort, apiScheme });
+  if (extraCaCerts) env.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  return startChild("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], env);
+}
+
 /**
  * NODE_EXTRA_CA_CERTS resolution — split out of `main()` (no logic change) purely to bring that
  * function's complexity under the repo's ceiling of 9 (`.mjs` files sit outside the ESLint gate
@@ -377,14 +384,7 @@ async function main() {
       `tovu dev: API is up. Open ${scheme}://localhost:${API_PORT}/admin/` +
         ` (Vite direct: ${scheme}://localhost:${VITE_PORT}/admin/)\n`
     );
-    const adminViteEnv = buildAdminViteEnv({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme });
-    // Not load-bearing for Vite's own proxy today — `apps/admin/vite.config.ts`'s `secure: false` on
-    // every proxy entry is what makes THAT client accept the API's self-signed cert. Passed through
-    // anyway for the same "whole process tree" reasoning as the API child above: anything this admin
-    // Vite process spawns or imports that makes its own standards-compliant Node TLS call to the API
-    // gets the same trusted root without a second place to configure it.
-    if (extraCaCerts) adminViteEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
-    start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], adminViteEnv);
+    startAdminVite({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme, extraCaCerts });
   }
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {

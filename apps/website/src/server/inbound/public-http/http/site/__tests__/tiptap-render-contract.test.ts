@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
@@ -67,7 +72,11 @@ import { renderDocNode, renderWidgetIr, type MediaAssetRenderMeta } from "../ren
  * so the whole mention silently vanished on the public site. Fixed in `render.ts` alongside this
  * backfill, not left as a documented gap — see that case's own comment for the full account.
  *
- * ## Registered-type enumeration: documented checklist, not live extraction (disclosed limitation)
+ * ## Registered-type enumeration: original checklist limitation
+ *
+ * The live-schema drift guard below now closes this limitation: it evaluates the real editor
+ * extension declarations and configuration with the admin package's installed Tiptap dependencies,
+ * then builds the schema without mounting React node views or importing the editor hook.
  *
  * The ideal drift guard would enumerate the editor's registered extensions directly at test time and
  * assert each has a table row, so a NEW extension with no renderer case fails CI even if this file's
@@ -919,11 +928,32 @@ for (const row of CONTRACT_TABLE) {
 interface PostContentRow {
   label: string;
   bodyJson: JsonObject;
+  props?: JsonObject;
+  html?: string;
   /** A substring that MUST appear in the rendered post-content HTML. */
   mustInclude: string;
 }
 
 const POST_CONTENT_TABLE: readonly PostContentRow[] = [
+  {
+    label: "serialized media and inline-widget maps reach the post body renderer",
+    bodyJson: { type: "doc", content: [
+      { type: "image", attrs: { assetId: "cat", transformName: "public", alt: "A cat" } },
+      { type: "media", attrs: { assetId: "clip", alt: "A clip" } },
+      { type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } },
+    ] },
+    props: {
+      header: false,
+      mediaTransformVersions: { public: 3 },
+      mediaAssetMetadata: {
+        cat: { slug: "cat-photo", width: 320, height: 200, cssClass: "cover", contentType: "image/jpeg" },
+        clip: { slug: "clip-video", contentType: "video/mp4" },
+      },
+      inlineWidgets: { p1: { componentId: "text", props: { body: "Hello widget" } } },
+    },
+    mustInclude: '<img src="/m/cat-photo/public.v3/image.jpg"',
+    html: '<div class="post-detail-body"><img src="/m/cat-photo/public.v3/image.jpg" alt="A cat" width="320" height="200" class="cover" loading="lazy"><video src="/m/clip-video/original" controls>A clip</video><div class="widget widget-text">Hello widget</div></div>',
+  },
   {
     label: "title node with text + center align drives the <h1>, not props.title",
     bodyJson: {
@@ -945,9 +975,10 @@ const POST_CONTENT_TABLE: readonly PostContentRow[] = [
 
 for (const row of POST_CONTENT_TABLE) {
   test(`renderWidgetIr('post-content') contract: ${row.label}`, () => {
-    const html = renderWidgetIr({ componentId: "post-content", props: { title: "ignored — stale by design", bodyJson: row.bodyJson } });
+    const html = renderWidgetIr({ componentId: "post-content", props: { title: "ignored — stale by design", bodyJson: row.bodyJson, ...row.props } });
     assert.ok(html.includes(row.mustInclude), html);
     assert.ok(!html.includes("widget-placeholder"), html);
+    if (row.html !== undefined) assert.equal(html, row.html);
   });
 }
 
@@ -977,4 +1008,78 @@ test("drift guard: every contract-table row's types are all in the maintained ch
   const known = new Set<string>([...REGISTERED_NODE_TYPES, ...REGISTERED_MARK_TYPES, "textAlign"]);
   const unknown = [...coveredTypes].filter((type) => !known.has(type));
   assert.deepEqual(unknown, [], `CONTRACT_TABLE row(s) reference type(s) missing from REGISTERED_*_TYPES: ${unknown.join(", ")}`);
+});
+
+test("drift guard: the actual editor schema's node and mark vocabulary has contract rows", async () => {
+  const adminRoot = path.resolve("apps/admin");
+  const adminRequire = createRequire(path.join(adminRoot, "package.json"));
+  const loadPackage = (specifier: string) => import(pathToFileURL(adminRequire.resolve(specifier)).href);
+  const core = await loadPackage("@tiptap/core");
+  const lowlight = await loadPackage("lowlight");
+  const readSource = (file: string) => ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const source = readSource(path.join(adminRoot, "src/features/posts/hooks/use-post-editor.hooks.ts"));
+  let extensions: ts.Expression | undefined;
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "useEditor") {
+      const options = node.arguments[0];
+      assert.ok(ts.isObjectLiteralExpression(options));
+      const property = options.properties.find((entry) => ts.isPropertyAssignment(entry) && entry.name.getText(source) === "extensions");
+      assert.ok(property && ts.isPropertyAssignment(property));
+      extensions = property.initializer;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert.ok(extensions, "the real useEditor configuration must provide extensions");
+  const names = new Set<string>();
+  const collect = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) names.add(node.text);
+    ts.forEachChild(node, collect);
+  };
+  collect(extensions);
+  const context: Record<string, unknown> = {
+    ...core, TiptapImage: (await loadPackage("@tiptap/extension-image")).default,
+    lowlight: lowlight.createLowlight(lowlight.common), t: (value: string) => value,
+  };
+  const evaluate = (expression: ts.Expression, file: ts.SourceFile): unknown => {
+    const compiled = ts.transpileModule(`const value = (${expression.getText(file)}); return value;`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    // Keep config objects in Tiptap's realm so its plain-object checks honor configure() options.
+    return new Function(...Object.keys(context), compiled)(...Object.values(context));
+  };
+  const initializer = (file: ts.SourceFile, name: string): ts.Expression => {
+    for (const statement of file.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      const declaration = statement.declarationList.declarations.find((entry) => ts.isIdentifier(entry.name) && entry.name.text === name);
+      if (declaration?.initializer) return declaration.initializer;
+    }
+    throw new Error(`editor declaration '${name}' was not found`);
+  };
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const clause = statement.importClause;
+    if (!clause || clause.isTypeOnly) continue;
+    const bindings = [
+      ...(clause.name ? [{ local: clause.name.text, exported: "default" }] : []),
+      ...(clause.namedBindings && ts.isNamedImports(clause.namedBindings)
+        ? clause.namedBindings.elements.filter((entry) => !entry.isTypeOnly).map((entry) => ({ local: entry.name.text, exported: (entry.propertyName ?? entry.name).text })) : []),
+    ].filter((binding) => names.has(binding.local));
+    if (bindings.length === 0) continue;
+    const specifier = statement.moduleSpecifier.text;
+    if (specifier.startsWith("@/lib/")) {
+      const base = path.join(adminRoot, "src", specifier.slice(2));
+      const customSource = readSource(existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`);
+      // Evaluate the actual extension declaration without its React node views or UI imports.
+      for (const binding of bindings) context[binding.local] = evaluate(initializer(customSource, binding.exported), customSource);
+    } else {
+      const module = await loadPackage(specifier);
+      for (const binding of bindings) context[binding.local] = module[binding.exported];
+    }
+  }
+  context.FILE_HANDLER_ALLOWED_MIME_TYPES = evaluate(initializer(source, "FILE_HANDLER_ALLOWED_MIME_TYPES"), source);
+  const schema = core.getSchema(evaluate(extensions, source));
+  const covered = new Set(CONTRACT_TABLE.flatMap((row) => row.types));
+  const missing = [...Object.keys(schema.nodes), ...Object.keys(schema.marks)].filter((type) => !covered.has(type));
+  assert.deepEqual(missing, [], `actual editor type(s) without a renderer contract: ${missing.join(", ")}`);
 });

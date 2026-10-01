@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
-import type { NodeViewProps } from "@tiptap/react";
+import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../api";
@@ -284,11 +284,8 @@ describe("Media — real @tiptap/core Editor integration", () => {
       const json = editor.getJSON();
       const mediaNode = json.content?.find((n) => n.type === "media");
 
-      expect(mediaNode?.attrs?.assetId ?? null).toBeNull();
-      expect(mediaNode?.attrs?.transformName ?? null).toBeNull();
-      expect(mediaNode?.attrs?.alt ?? null).toBeNull();
-      expect(mediaNode?.attrs?.cssClass ?? null).toBeNull();
-      expect(mediaNode?.attrs?.htmlAttributes ?? null).toBeNull();
+      expect(mediaNode).toBeDefined();
+      expect(mediaNode!.attrs).toEqual({ assetId: null, transformName: null, alt: null, cssClass: null, htmlAttributes: null });
     } finally {
       editor.destroy();
     }
@@ -298,23 +295,13 @@ describe("Media — real @tiptap/core Editor integration", () => {
     const editor = newEditor();
     try {
       editor.commands.insertMediaEmbed({ assetId: "asset-1", transformName: "public" });
-      // Locate the inserted media node's position and update its attrs directly, the same
-      // ProseMirror-transaction shape `NodeViewProps.updateAttributes` uses under the hood.
       let mediaPos = -1;
       editor.state.doc.descendants((node, position) => {
         if (node.type.name === "media") mediaPos = position;
       });
       expect(mediaPos).toBeGreaterThanOrEqual(0);
-      editor.commands.command(({ tr }) => {
-        tr.setNodeMarkup(mediaPos, undefined, {
-          assetId: "asset-1",
-          transformName: "public",
-          alt: null,
-          cssClass: "float-right",
-          htmlAttributes: 'data-kui="hero"',
-        });
-        return true;
-      });
+      editor.commands.setNodeSelection(mediaPos);
+      expect(editor.commands.updateAttributes("media", { cssClass: "float-right", htmlAttributes: 'data-kui="hero"' })).toBe(true);
 
       const json = editor.getJSON();
       const mediaNode = json.content?.find((n) => n.type === "media");
@@ -393,5 +380,38 @@ describe("Media — real @tiptap/core Editor integration", () => {
         editor.destroy();
       }
     });
+  });
+});
+
+describe("Media mounted node view", () => {
+  it("Replace updates editor JSON and its preview through the registered React node view", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
+    const editor = new Editor({ extensions: [StarterKit, Media], content: { type: "doc", content: [
+      { type: "media", attrs: { assetId: "asset-old", transformName: "public", alt: "Old" } }, { type: "paragraph" },
+    ] } });
+    const mounted = render(<EditorContent editor={editor} />);
+    try {
+      const user = userEvent.setup();
+      expect(await screen.findByAltText("Old")).toHaveAttribute("src", api.mediaOriginalUrl("asset-old"));
+      await user.click(screen.getByRole("button", { name: "Replace" }));
+      await user.click(await screen.findByTitle("New pick"));
+      expect(editor.getJSON().content?.find((node) => node.type === "media")?.attrs).toEqual({
+        assetId: "asset-new", transformName: "public", alt: "New alt", cssClass: null, htmlAttributes: null,
+      });
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl("asset-new"));
+      expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
+    } finally { mounted.unmount(); editor.destroy(); }
+  });
+
+  it("HTML export and import preserve every media attribute", () => {
+    const attrs = { assetId: "asset-1", transformName: "public", alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' };
+    const editor = new Editor({ extensions: [StarterKit, Media], content: { type: "doc", content: [{ type: "media", attrs }] } });
+    const reparsed = new Editor({ extensions: [StarterKit, Media] });
+    try {
+      const html = editor.getHTML();
+      expect(html).toContain("data-media-embed");
+      reparsed.commands.setContent(html);
+      expect(reparsed.getJSON().content?.find((node) => node.type === "media")?.attrs).toEqual(attrs);
+    } finally { editor.destroy(); reparsed.destroy(); }
   });
 });

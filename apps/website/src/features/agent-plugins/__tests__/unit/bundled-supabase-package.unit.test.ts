@@ -64,6 +64,8 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
   const defaults = server.tovuDefaultTools;
   assert.ok(defaults);
   assert.ok(defaults.write.every((name) => defaults.allow.includes(name)));
+  assert.deepEqual(defaults.write, ["confirm_cost", "create_project", "pause_project", "restore_project"]);
+  assert.deepEqual(defaults.allow, ["list_organizations", "get_organization", "list_projects", "get_project", "get_cost", "confirm_cost", "create_project", "pause_project", "restore_project", "list_tables", "list_extensions", "list_migrations", "apply_migration", "execute_sql", "get_advisors", "query_logs", "get_project_url", "get_publishable_keys", "generate_typescript_types", "search_docs"]);
   for (const needed of ["list_organizations", "list_projects", "get_project", "get_cost", "confirm_cost", "create_project", "pause_project", "restore_project"]) {
     assert.ok(defaults.allow.includes(needed), `the happy path needs '${needed}'`);
   }

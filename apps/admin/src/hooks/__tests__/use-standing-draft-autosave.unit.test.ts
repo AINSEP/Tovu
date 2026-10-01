@@ -7,6 +7,8 @@ import {
   type StandingDraftAutosavePort,
   type StandingDraftAutosaveSnapshot,
 } from "../use-standing-draft-autosave.hooks";
+import { defaultPageEditorPort } from "../../features/pages/hooks/page-editor-dependencies.hooks";
+import { defaultPostEditorPort } from "../../features/posts/hooks/post-editor-dependencies.hooks";
 import { readStandingDraftLocalBackup } from "../../lib/standing-draft-local-backup";
 
 /**
@@ -118,10 +120,14 @@ describe("useStandingDraftAutosave", () => {
     // A keystroke every 2s, well inside the 3s idle window each time, so the debounce alone would
     // never fire — only the 15s ceiling should force a PUT.
     for (let i = 0; i < 8; i += 1) {
-      act(() => result.current.scheduleAutosave(DOC_DRAFT));
-      await act(async () => vi.advanceTimersByTimeAsync(2000));
+      act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, title: `Edit ${i}` }));
+      if (i < 7) await act(async () => vi.advanceTimersByTimeAsync(2000));
     }
-    expect(port.putAutosave).toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(999));
+    expect(port.putAutosave).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(port.putAutosave).toHaveBeenCalledTimes(1);
+    expect(port.putAutosave).toHaveBeenCalledWith("post-1", { ...DOC_DRAFT, title: "Edit 7" }, { keepalive: false });
   });
 
   it("clearStandingDraft cancels a still-pending (not yet fired) autosave — the timer never fires at all", async () => {
@@ -712,5 +718,37 @@ describe("exit flushes use an unload-safe transport", () => {
     await act(async () => vi.advanceTimersByTimeAsync(3001));
 
     expect(optionsSeen).toEqual([{ keepalive: false }]);
+  });
+});
+
+// Exercise both live dependency bindings, rather than stopping at a fake port.
+describe.each([["page", defaultPageEditorPort], ["post", defaultPostEditorPort]] as const)("%s autosave binding", (_name, port) => {
+  it("forwards the exit keepalive flag to fetch and leaves ordinary ticks uncapped", async () => {
+    vi.useFakeTimers();
+    const calls: RequestInit[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      calls.push(init);
+      return new Response(JSON.stringify({ autosave: null, applied: true }), { status: 200 });
+    }));
+    const { result, unmount } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    try {
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      act(() => result.current.scheduleAutosave(DOC_DRAFT));
+      await act(async () => vi.advanceTimersByTimeAsync(3000));
+      act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, title: "Exit edit" }));
+      await act(async () => {
+        window.dispatchEvent(new Event("pagehide"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const writes = calls.filter((init) => init.method === "PUT");
+      expect(writes).toHaveLength(2);
+      expect(writes[0].keepalive).toBeUndefined();
+      expect(writes[1].keepalive).toBe(true);
+      expect(JSON.parse(String(writes[1].body)).title).toBe("Exit edit");
+    } finally {
+      unmount();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
   });
 });

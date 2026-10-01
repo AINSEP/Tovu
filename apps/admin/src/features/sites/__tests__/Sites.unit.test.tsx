@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Sites } from "../Sites";
@@ -108,6 +108,8 @@ describe("Sites — the live binding is stated on the served site's own card", (
       }),
     });
     expect(screen.getAllByText("Not initialized")).toHaveLength(1);
+    expect(within(screen.getByTitle("/repo/sites/alpha")).getByText("Not initialized")).toBeInTheDocument();
+    expect(within(screen.getByTitle("/repo/sites/beta")).queryByText("Not initialized")).not.toBeInTheDocument();
   });
 
   it("never renders the removed 'isn't listed below' sentence, which stopped being true", () => {
@@ -230,11 +232,13 @@ describe("Sites — the capability flag", () => {
   });
 
   it("leaves the served row's own Activate disabled even when switching is on", () => {
-    renderSites();
+    const controller = renderSites();
     // `alpha` is being served, `beta` is not — named directly rather than indexed by DOM order,
     // now that each card's button carries its own site's name in its accessible name.
     expect(screen.getByRole("button", { name: "Save alpha as the site to serve after the next restart" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" }));
+    expect(controller.activate).toHaveBeenCalledExactlyOnceWith("beta");
   });
 });
 
@@ -354,6 +358,10 @@ describe("Sites — the two tabs the owner asked for, in words, twice", () => {
     expect(screen.getByRole("tab", { name: /All sites/ })).toBeTruthy();
     // And the grid is genuinely gone, not merely hidden behind the form.
     expect(screen.queryByRole("button", { name: "Serve after restart" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Sites" })).toBeNull();
+    for (const name of ["alpha", "beta"]) {
+      expect(screen.queryByRole("button", { name: `Save ${name} as the site to serve after the next restart` })).toBeNull();
+    }
   });
 
   it("keeps ONE page title across both tabs — a tab is not a page, so nothing retitles", () => {
@@ -441,7 +449,7 @@ describe("Sites — the ported database picker tells the truth about what it can
     expect(screen.getAllByText(/isn't stored anywhere yet/).length).toBeGreaterThan(0);
   });
 
-  it("cannot be made to submit a database choice at all: create sends the name and nothing else", () => {
+  it("submitting the form calls createSite with no arguments", () => {
     // The structural guarantee, not the cosmetic one. Even with BOTH unavailable radios forced on
     // in the DOM — which is exactly what a `disabled` attribute alone would not survive —
     // submitting still calls `createSite()`, whose whole signature is zero arguments. There is no

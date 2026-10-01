@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSettingsUi } from "../use-settings-ui.hooks";
 
@@ -8,13 +8,43 @@ import { useSettingsUi } from "../use-settings-ui.hooks";
  * bootstrap. Only exercised through `SettingsUiProps.useSettingsUiHook`'s fake in
  * `SettingsUi.unit.test.tsx` today, never directly — this file drives the real hook itself.
  *
- * Every one of the six mounted `useSettingsSlice` instances calls
- * `lib/api` for real here, with no mock — same "a failed fetch in a test environment degrades to a
- * loadError, never a crash" contract `useAdminExecutionCredential`'s/`useAdminLocale`'s own docs
- * establish, and `use-settings-slice.hooks.ts`'s own `loadError` surfacing confirms. This file's own
- * job is the COMPOSITION logic (the `save` merge, `loading`/`loadError` aggregation, the once-per-
- * mount ports), not each slice's individual load/save mechanics.
+ * Load outcomes are controlled explicitly. Slice overrides in the save-merge cases exercise
+ * composition while the real slice and merge implementations retain their own sibling coverage.
  */
+
+const control = vi.hoisted(() => ({
+  loads: Array.from({ length: 6 }, () => vi.fn()),
+  slices: null as null | Array<{ value: unknown; loadError: string | null; saveState: { status: string; message?: string } }>,
+}));
+vi.mock("@/lib/execution-settings", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/execution-settings")>(),
+  loadExecutionConfig: () => control.loads[0](),
+}));
+vi.mock("@/lib/settings-tabs", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/settings-tabs")>(),
+  loadInstructions: () => control.loads[1](),
+  loadNotifications: () => control.loads[2](),
+  loadPrivacy: () => control.loads[3](),
+  loadAppearance: () => control.loads[4](),
+  loadLanguage: () => control.loads[5](),
+}));
+vi.mock("@/hooks/use-settings-slice.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-settings-slice.hooks")>();
+  return {
+    ...actual,
+    useSettingsSlice: (options: Parameters<typeof actual.useSettingsSlice>[0]) => {
+      if (!control.slices) return actual.useSettingsSlice(options);
+      const index = ["core.execution", "core.instructions", "core.notifications", "core.privacy", "core.appearance", "core.language"].indexOf(options.namespaces![0]);
+      return control.slices[index];
+    },
+  };
+});
+beforeEach(() => {
+  control.slices = null;
+  for (const load of control.loads) load.mockReset().mockRejectedValue(new Error("controlled load failure"));
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unexpected network request")));
+});
+afterEach(() => vi.unstubAllGlobals());
 
 describe("useSettingsUi — local view state", () => {
   it("memoryTopTab starts at 'memories' and setMemoryTopTab updates it", () => {
@@ -52,12 +82,26 @@ describe("useSettingsUi — loading/loadError aggregation across the six mounted
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current.loading).toBe(true);
 
-    // Every slice's load rejects for real here (no server, no mock) — `areAnySlicesLoading` should
-    // still resolve to false once each slice's own load settles (success OR failure), same contract
-    // `use-other-credentials.hooks.ts`'s own `allSettled` documents for its six stores.
-    await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5000 });
-    expect(result.current.loadError).not.toBeNull();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.loadError).toBe("controlled load failure");
   });
+  it("keeps loading until all six loads settle, including a failed slice", async () => {
+    const releases = control.loads.map((load, index) => {
+      let release!: () => void;
+      load.mockImplementation(() => new Promise((resolve, reject) => {
+        release = () => index === 2 ? reject(new Error("notifications failed")) : resolve(`slice-${index}`);
+      }));
+      return () => release();
+    });
+    const { result } = renderHook(() => useSettingsUi());
+    expect(result.current.loading).toBe(true);
+    for (let index = 0; index < releases.length; index += 1) {
+      await act(async () => releases[index]());
+      expect(result.current.loading).toBe(index < releases.length - 1);
+    }
+    expect(result.current.loadError).toBe("notifications failed");
+  });
+
 });
 
 describe("useSettingsUi — save state merge", () => {
@@ -66,6 +110,24 @@ describe("useSettingsUi — save state merge", () => {
     expect(result.current.save).toBeDefined();
     expect(typeof result.current.save.status).toBe("string");
   });
+  it.each([0, 1, 2, 3, 4, 5])("includes slice %s in the exact aggregate save state", (index) => {
+    control.slices = Array.from({ length: 6 }, () => ({ value: "loaded", loadError: null, saveState: { status: "idle" } }));
+    const { result, rerender } = renderHook(() => useSettingsUi());
+    expect(result.current.save).toEqual({ status: "idle" });
+    const update = (target: number, saveState: { status: string; message?: string }) => {
+      control.slices![target] = { ...control.slices![target], saveState };
+      rerender();
+    };
+    update(index, { status: "saved" });
+    expect(result.current.save).toEqual({ status: "saved" });
+    update(index, { status: "saving" });
+    expect(result.current.save).toEqual({ status: "saving" });
+    update(index, { status: "error", message: `slice ${index} failed` });
+    update((index + 1) % 6, { status: "saving" });
+    update((index + 2) % 6, { status: "saved" });
+    expect(result.current.save).toEqual({ status: "error", message: `slice ${index} failed` });
+  });
+
 });
 
 // The "composed sub-controllers are present" case that lived here MOVED, unchanged in what it

@@ -1,10 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { UserManagePanel, Users, type UserManageController } from "../Users";
-import type { UsersController } from "../hooks/use-users.hooks";
+import { useUsers, type UsersController } from "../hooks/use-users.hooks";
+import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
+import { FetchQueryProvider } from "@/lib/fetch-query";
+import userEvent from "@testing-library/user-event";
 import type { AdminIdentityUser } from "@/lib/api";
 
 /**
@@ -114,15 +118,31 @@ async function handlesOf(driver: ReturnType<typeof createDomPageDriver>, filter:
 
 describe("driving the new-user form through page.* verbs", () => {
   it("page.fill on the username and email fields reaches React state (via the injected setters)", async () => {
-    const { controller, container } = renderUsers({ formOpen: true });
+    const setUsernameSpy = vi.fn();
+    const setEmailSpy = vi.fn();
+    function useStatefulUsers() {
+      const [username, setUsername] = useState("");
+      const [email, setEmail] = useState("");
+      return usersController({
+        formOpen: true, username, email,
+        setUsername: (value) => { setUsernameSpy(value); setUsername(value); },
+        setEmail: (value) => { setEmailSpy(value); setEmail(value); },
+      });
+    }
+    const { container, rerender } = render(<Users useUsersHook={useStatefulUsers} />);
     await screen.findByRole("button", { name: "Create user" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "users-new-username", text: "newop" });
-    await executePageCapability(driver, "page.fill", { handle: "users-new-email", text: "newop@example.com" });
+    await act(async () => {
+      await executePageCapability(driver, "page.fill", { handle: "users-new-username", text: "newop" });
+      await executePageCapability(driver, "page.fill", { handle: "users-new-email", text: "newop@example.com" });
+    });
+    rerender(<Users useUsersHook={useStatefulUsers} />);
+    expect(container.querySelector('[data-agent-element="users-new-username"]')).toHaveValue("newop");
+    expect(container.querySelector('[data-agent-element="users-new-email"]')).toHaveValue("newop@example.com");
 
-    expect(controller.setUsername).toHaveBeenCalledWith("newop");
-    expect(controller.setEmail).toHaveBeenCalledWith("newop@example.com");
+    expect(setUsernameSpy).toHaveBeenCalledWith("newop");
+    expect(setEmailSpy).toHaveBeenCalledWith("newop@example.com");
     expect(await handlesOf(driver)).toContain("users-new-submit");
   });
 
@@ -253,7 +273,15 @@ describe("account-management controls are agent-drivable, like the rest of the p
   };
 
   it("publishes the reset-password fields, their show toggles, and the reset confirm", async () => {
-    const { container } = renderUsers({ resetPasswordFor: bob });
+    function useResetController() {
+      const [newPassword, setNewPassword] = useState("");
+      return usersController({ resetPasswordFor: bob, newPassword, setNewPassword: (value) => {
+        setNewPasswordSpy(value); setNewPassword(value);
+      }, confirmResetPassword });
+    }
+    const setNewPasswordSpy = vi.fn();
+    const confirmResetPassword = vi.fn(async () => {});
+    const { container } = render(<Users useUsersHook={useResetController} />);
     const driver = createDomPageDriver({ root: container, pages: {} });
     const handles = await handlesOf(driver);
     for (const handle of [
@@ -271,12 +299,59 @@ describe("account-management controls are agent-drivable, like the rest of the p
       "data-agent-element",
       "users-reset-password-retype",
     );
+    for (const handle of ["users-reset-password", "users-reset-password-retype"]) {
+      await expect(executePageCapability(driver, "page.fill", { handle, text: "secret123" })).rejects.toThrow();
+    }
+    await act(async () => {
+      await executePageCapability(driver, "page.click", { handle: "users-reset-password-reveal" });
+      await executePageCapability(driver, "page.click", { handle: "users-reset-password-retype-reveal" });
+    });
+    expect(container.querySelector("#users-reset-password-input")).toHaveAttribute("type", "text");
+    expect(container.querySelector("#users-reset-password-confirm-input")).toHaveAttribute("type", "text");
+    // Credentials are human-only; drive their React handlers with ordinary input.
+    fireEvent.change(container.querySelector("#users-reset-password-input")!, { target: { value: "secret123" } });
+    fireEvent.change(container.querySelector("#users-reset-password-confirm-input")!, { target: { value: "secret123" } });
+    expect(setNewPasswordSpy).toHaveBeenCalledWith("secret123");
+    await executePageCapability(driver, "page.click", { handle: "users-reset-password-confirm" });
+    expect(confirmResetPassword).toHaveBeenCalledTimes(1);
+    await executePageCapability(driver, "page.click", { handle: "users-reset-password-cancel" });
+    expect(setNewPasswordSpy).toHaveBeenLastCalledWith("");
+  });
+
+  it.each([false, true])("gates Delete by canManageUserTrash=%s and confirms through the real hook", async (canManageUserTrash) => {
+    const port = createFakeUsersPort({ users: [bob], canManageUserTrash });
+    const deleteUser = vi.spyOn(port, "deleteUser");
+    function useRealUsers() { return useUsers({ port }); }
+    const { container } = render(<FetchQueryProvider><Users useUsersHook={useRealUsers} /></FetchQueryProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: "bob" });
+    // me() must settle before opening the menu.
+    await act(async () => {});
+    await user.click(screen.getByRole("button", { name: 'Actions for user "bob"' }));
+    if (!canManageUserTrash) {
+      expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+      expect(deleteUser).not.toHaveBeenCalled();
+      return;
+    }
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    const dialog = screen.getByText("Delete this user?").closest("dialog")!;
+    expect(dialog).toHaveAttribute("open");
+    await act(async () => {
+      await executePageCapability(createDomPageDriver({ root: container, pages: {} }), "page.click", { handle: "users-delete-confirm" });
+    });
+    expect(deleteUser).toHaveBeenCalledExactlyOnceWith(bob.principalId);
+    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
   });
 
   it("publishes the delete dialog's Cancel and Confirm", async () => {
-    const { container } = renderUsers({ confirmingDelete: bob });
+    const { container, controller } = renderUsers({ confirmingDelete: bob });
     const handles = await handlesOf(createDomPageDriver({ root: container, pages: {} }));
     expect(handles).toContain("users-delete-cancel");
     expect(handles).toContain("users-delete-confirm");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    await executePageCapability(driver, "page.click", { handle: "users-delete-confirm" });
+    expect(controller.confirmDelete).toHaveBeenCalledTimes(1);
+    await executePageCapability(driver, "page.click", { handle: "users-delete-cancel" });
+    expect(controller.setConfirmingDelete).toHaveBeenCalledWith(null);
   });
 });

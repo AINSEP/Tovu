@@ -10,6 +10,7 @@ import Database from "better-sqlite3";
 import { openContentDb, openContentDbReadOnly } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { openChatDb } from "../../../apps/website/src/platform/db/sqlite/chat-db.js";
 import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
+import { missingDbPathMessage } from "../backfill-db-path.js";
 import { readChatSplitPlan, reportDryRun, applyChatSplit } from "../split-chat-data-into-chat-db.js";
 
 /**
@@ -61,7 +62,7 @@ function seedContentDbFixture(dbPath: string): void {
          (id, conversation_id, role, content, agent_id, agent_name, events_json, attachments_json, run_id, run_status, position, created_at, started_at, ended_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run("msg-1", "conv-1", "user", "hello", null, null, null, null, null, null, 0, 1, null, null);
+    .run("msg-1", "conv-1", "assistant", "hello", "agent-1", "Test Agent", '[{"type":"text","text":"event sentinel"}]', '[{"id":"attachment-1"}]', "run-1", "succeeded", 0, 1, 2, 3);
   raw
     .prepare(`INSERT INTO assistant_agent_sessions (conversation_id, agent_id, session_id, updated_at) VALUES (?, ?, ?, ?)`)
     .run("conv-1", "agent-1", "session-1", 1);
@@ -77,6 +78,13 @@ function chatRowCounts(dbPath: string): { chats: number; messages: number; sessi
   } finally {
     db.close();
   }
+}
+
+function chatRows(dbPath: string) {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    return Object.fromEntries(["ai_chats", "ai_chat_messages", "assistant_agent_sessions"].map((table) => [table, db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]));
+  } finally { db.close(); }
 }
 
 function workspaceRow(dbPath: string): { id: string; name: string } | undefined {
@@ -106,6 +114,10 @@ test("reportDryRun: reports the exact seeded counts, and touches neither content
     assert.equal(plan.perTable.get("ai_chat_messages")?.count, 1);
     assert.equal(plan.perTable.get("assistant_agent_sessions")?.count, 1);
     assert.ok(messages.some((m) => m.includes("DRY RUN")), "must announce itself as a dry run");
+    for (const [table, snapshot] of plan.perTable) {
+      assert.ok(messages.includes(`  ${table}: 1 row(s) would be copied to chat.db and then deleted from content.db (key checksum=${snapshot.keyChecksum})`));
+    }
+    assert.ok(messages.includes("DRY RUN total: 3 row(s) across all 3 tables. Re-run with --apply to write. Back up content.db first."));
 
     assert.deepEqual(chatRowCounts(contentDbPath), beforeCounts, "dry run must not change content.db's row counts");
     assert.equal(fs.existsSync(chatDbPath), false, "dry run must never open or create chat.db");
@@ -121,6 +133,7 @@ test("applyChatSplit: copies all 3 tables into chat.db, empties them in content.
     const chatDbPath = path.join(dir, "chat.db");
     seedContentDbFixture(contentDbPath);
 
+    const beforeRows = chatRows(contentDbPath);
     const contentDb = openContentDb(contentDbPath);
     const chatDb = openChatDb(chatDbPath);
     const result = applyChatSplit({ contentDb: contentDb.$client, chatDb, log: () => {} });
@@ -137,6 +150,7 @@ test("applyChatSplit: copies all 3 tables into chat.db, empties them in content.
       ]
     );
 
+    assert.deepEqual(chatRows(chatDbPath), beforeRows, "all message metadata and complete rows must survive the copy");
     assert.deepEqual(chatRowCounts(chatDbPath), { chats: 1, messages: 1, sessions: 1 }, "chat.db must now hold the moved rows");
     assert.deepEqual(chatRowCounts(contentDbPath), { chats: 0, messages: 0, sessions: 0 }, "content.db's chat tables must now be empty");
     assert.deepEqual(workspaceRow(contentDbPath), { id: "ws-1", name: "Workspace One" }, "a real content table must survive untouched");
@@ -265,9 +279,18 @@ test("CLI: --db pointing at a nonexistent file errors loudly instead of creating
   const dir = tmpDir("chat-split-missing-");
   try {
     const missingPath = path.join(dir, "does-not-exist.db");
-    assert.throws(() =>
-      execFileSync("node", ["--import", "tsx", SCRIPT, "--db", missingPath], { cwd: REPO_ROOT, encoding: "utf8" })
-    );
+    for (const extra of [[], ["--apply"]]) {
+      assert.throws(
+        () => execFileSync("node", ["--import", "tsx", SCRIPT, "--db", missingPath, ...extra], { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" }),
+        (error: unknown) => {
+          const failure = error as { status: number; stderr: string };
+          assert.notEqual(failure.status, 0);
+          assert.ok(failure.stderr.includes(missingDbPathMessage(path.resolve(missingPath))));
+          return true;
+        }
+      );
+      assert.equal(fs.existsSync(missingPath), false);
+    }
     assert.equal(fs.existsSync(missingPath), false, "a mistyped --db must never be silently created");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -364,4 +387,95 @@ test("CLI: the same-file refusal happens on a DRY RUN too, before anything is re
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+
+test("applyChatSplit: rows arriving after the snapshot survive in content.db", (t) => {
+  const dir = tmpDir("chat-split-late-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const contentPath = path.join(dir, "content.db");
+  const chatPath = path.join(dir, "chat.db");
+  seedContentDbFixture(contentPath);
+  const source = new Database(contentPath);
+  const destination = openChatDb(chatPath);
+  t.after(() => { destination.close(); source.close(); });
+  let arrived = false;
+  destination.function("arrive_after_snapshot", () => {
+    arrived = true;
+    source.exec(`INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, title, title_source, created_at, updated_at) VALUES ('conv-late', 'ws-1', 'user', 'user-1', 'Late chat', 'fallback', 2, 2);
+      INSERT INTO ai_chat_messages (id, conversation_id, role, content, position, created_at) VALUES ('msg-late', 'conv-late', 'user', 'Do not lose me', 0, 2);`);
+    return 1;
+  });
+  destination.exec("CREATE TEMP TRIGGER late_arrival BEFORE INSERT ON ai_chats BEGIN SELECT arrive_after_snapshot(); END;");
+  assert.equal(applyChatSplit({ contentDb: source, chatDb: destination, log: () => {} }).migrated, 3);
+  assert.equal(arrived, true);
+  assert.deepEqual(chatRowCounts(contentPath), { chats: 1, messages: 1, sessions: 0 });
+  assert.deepEqual(chatRowCounts(chatPath), { chats: 1, messages: 1, sessions: 1 });
+  const rows = chatRows(contentPath);
+  assert.equal((rows.ai_chat_messages[0] as { content: string }).content, "Do not lose me");
+});
+
+test("applyChatSplit: matching destination rows from an interrupted run are verified and not duplicated", (t) => {
+  const dir = tmpDir("chat-split-interrupted-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const contentPath = path.join(dir, "content.db");
+  const chatPath = path.join(dir, "chat.db");
+  seedContentDbFixture(contentPath);
+  const before = chatRows(contentPath);
+  const source = new Database(contentPath);
+  const destination = openChatDb(chatPath);
+  t.after(() => { destination.close(); source.close(); });
+  for (const [table, rows] of Object.entries(before)) {
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const columns = Object.keys(row);
+      destination.prepare(`INSERT INTO ${table} (${columns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`).run(...Object.values(row));
+    }
+  }
+  assert.equal(applyChatSplit({ contentDb: source, chatDb: destination, log: () => {} }).migrated, 3);
+  assert.deepEqual(chatRows(chatPath), before);
+  assert.deepEqual(chatRowCounts(contentPath), { chats: 0, messages: 0, sessions: 0 });
+});
+
+for (const failure of ["missing-destination", "mid-copy", "mid-delete"]) {
+  test(`applyChatSplit: ${failure} refuses unsafe deletion and rolls back its transaction`, (t) => {
+    const dir = tmpDir("chat-split-failure-");
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const contentPath = path.join(dir, "content.db");
+    const chatPath = path.join(dir, "chat.db");
+    seedContentDbFixture(contentPath);
+    const before = chatRows(contentPath);
+    const source = new Database(contentPath);
+    const destination = openChatDb(chatPath);
+    t.after(() => { destination.close(); source.close(); });
+    if (failure === "missing-destination") {
+      destination.exec("CREATE TRIGGER skip_message BEFORE INSERT ON ai_chat_messages BEGIN SELECT RAISE(IGNORE); END;");
+    } else if (failure === "mid-copy") {
+      destination.exec("CREATE TRIGGER fail_copy BEFORE INSERT ON ai_chat_messages BEGIN SELECT RAISE(ABORT, 'copy failure'); END;");
+    } else {
+      source.exec("CREATE TRIGGER fail_delete BEFORE DELETE ON ai_chats BEGIN SELECT RAISE(ABORT, 'delete failure'); END;");
+    }
+    assert.throws(() => applyChatSplit({ contentDb: source, chatDb: destination, log: () => {} }), failure === "missing-destination" ? /verification failed/ : failure === "mid-copy" ? /copy failure/ : /delete failure/);
+    assert.deepEqual(chatRows(contentPath), before, "all source rows survive an unsuccessful delete");
+    if (failure === "mid-copy") assert.deepEqual(chatRowCounts(chatPath), { chats: 0, messages: 0, sessions: 0 });
+    if (failure === "mid-delete") assert.deepEqual(chatRows(chatPath), before, "the verified copy remains recoverable");
+  });
+}
+
+test("CLI: a dry run with pending schema migrations preserves the schema, journal and bytes", (t) => {
+  const dir = tmpDir("chat-split-pending-schema-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const contentPath = path.join(dir, "content.db");
+  const raw = new Database(contentPath);
+  raw.exec("CREATE TABLE authored (id TEXT PRIMARY KEY, body TEXT); INSERT INTO authored VALUES ('sentinel', 'keep this'); CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC);");
+  raw.close();
+  const before = fs.readFileSync(contentPath);
+  execFileSync("node", ["--import", "tsx", SCRIPT, "--db", contentPath], { cwd: REPO_ROOT, encoding: "utf8" });
+  assert.deepEqual(fs.readFileSync(contentPath), before);
+  assert.equal(fs.existsSync(path.join(dir, "chat.db")), false);
+  const witness = new Database(contentPath, { readonly: true });
+  try {
+    assert.deepEqual(witness.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all(), [{ name: "__drizzle_migrations" }, { name: "authored" }]);
+    assert.deepEqual(witness.prepare("SELECT * FROM __drizzle_migrations").all(), []);
+    assert.deepEqual(witness.prepare("SELECT * FROM authored").all(), [{ id: "sentinel", body: "keep this" }]);
+  } finally { witness.close(); }
 });

@@ -77,9 +77,9 @@ export default defineConfig({
       reuseExistingServer: false,
       env: {
         TOVU_EXPORT_DIR: exportScratchDir,
-        // Deliberately never set: GITHUB_TOKEN / VERCEL_TOKEN — the publish half of this suite
-        // must never be able to reach a real provider even if it tried; see this file's own header
-        // and the spec's own "never touches the real internet" comment.
+        // Override inherited provider credentials so this fixture cannot publish remotely.
+        GITHUB_TOKEN: "",
+        VERCEL_TOKEN: "",
         PATH: `${fakeGhBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
       },
       // `node --import tsx apps/website/src/index.ts` boots two processes; a SIGKILL on the wrapper orphans the

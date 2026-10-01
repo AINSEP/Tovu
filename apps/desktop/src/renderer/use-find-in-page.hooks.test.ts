@@ -5,9 +5,14 @@
  * `useFindInPage` itself calls React hooks, and this package has no React renderer (see
  * `use-site-workspace.hooks.test.ts`'s own header for the identical constraint). Every decision it
  * makes is a plain exported function, so these tests call those directly with fake guests/bridges.
+ * The effect tests also execute the production hook body with controlled hook/clock boundaries,
+ * observing its actual installed callbacks without a renderer or native keyboard input.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
 
 import {
   findBarReducer,
@@ -233,9 +238,13 @@ test('restoreFindInputFocus raises `restoring` for exactly its own blur, so the 
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {
-  assert.doesNotThrow(() => runFind({ kind: 'none' }, fakeBridge(), 'x', { forward: true, findNext: true }));
+  const bridge = fakeBridge();
+  const { selection, order } = orderedTopFind();
+  assert.doesNotThrow(() => runFind({ kind: 'none' }, bridge, 'x', { forward: true, findNext: true }, selection));
+  assert.deepEqual(order, [], 'none must not change the selection');
   assert.doesNotThrow(() => runFind({ kind: 'top' }, undefined, 'x', { forward: true, findNext: true }));
-  assert.doesNotThrow(() => stopFind({ kind: 'none' }, fakeBridge()));
+  assert.doesNotThrow(() => stopFind({ kind: 'none' }, bridge));
+  assert.deepEqual(bridge.calls, [], 'none must neither search nor stop through the supplied bridge');
   assert.doesNotThrow(() => stopFind({ kind: 'top' }, undefined));
 });
 
@@ -390,4 +399,128 @@ test('shouldKeepReclaimingFindFocus: every frame from issuing a find until it re
     false,
     'a find that never reports cannot pin focus forever',
   );
+});
+
+
+// Execute the production hook body with controlled effect scheduling. Electron's native
+// keyboard routing remains outside this unit contract; this checks the actual installers
+// and callbacks rather than reproducing their bodies in the test.
+function mountedFindEffects() {
+  const fakes = twoSourceFakes();
+  const source = readFileSync(new URL('./use-find-in-page.hooks.ts', import.meta.url), 'utf8');
+  const parsed = ts.createSourceFile('hook.ts', source, ts.ScriptTarget.Latest, true);
+  const hook = parsed.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === 'useFindInPage');
+  assert.ok(hook, 'production hook must exist');
+  const compiled = ts.transpileModule(hook.getText(parsed).replace(/^export /, ''), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText;
+  const effects: Array<() => void | (() => void)> = [];
+  const frames = new Map<number, () => void>();
+  const timers = new Map<number, () => void>();
+  const calls: string[] = [];
+  const listeners = new Map<string, () => void>();
+  let nextId = 0;
+  let now = 1000;
+  const input = {
+    blur: () => { calls.push('blur'); listeners.get('blur')?.(); },
+    focus: () => calls.push('focus'),
+    select: () => calls.push('select'),
+    addEventListener: (name: string, listener: () => void) => listeners.set(name, listener),
+    removeEventListener: (name: string, listener: () => void) => {
+      assert.equal(listeners.get(name), listener);
+      listeners.delete(name);
+    },
+  };
+  const createHook = runInNewContext(compiled + '\nuseFindInPage', {
+    Map, findBarReducer, initialFindBarState, formatMatchCount, resolveFindTarget,
+    restoreFindInputFocus, runFind, stopFind, subscribeToFindResults,
+    shouldCloseOnGuestChange, shouldKeepReclaimingFindFocus, shouldReclaimFindFocus,
+    runnerInventoryBridge: () => fakes.bridge,
+    useReducer: () => [{ ...initialFindBarState, open: true, query: 'x' }, () => {}],
+    useRef: (initial: unknown) => ({ current: initial instanceof Map ? new Map([['guest', fakes.guest]]) : initial }),
+    useCallback: (fn: unknown) => fn,
+    useEffect: (fn: () => void | (() => void)) => effects.push(fn),
+    performance: { now: () => now },
+    requestAnimationFrame: (callback: () => void) => { frames.set(++nextId, callback); return nextId; },
+    cancelAnimationFrame: (id: number) => frames.delete(id),
+    setTimeout: (callback: () => void) => { timers.set(++nextId, callback); return nextId; },
+    clearTimeout: (id: number) => timers.delete(id),
+  }) as (id: string) => { inputRef: (input: unknown) => void; close: () => void };
+  const controller = createHook('guest');
+  controller.inputRef(input);
+  const cleanups = effects.map((effect) => effect());
+  calls.length = 0;
+  function tick(queue: Map<number, () => void>) {
+    const pending = [...queue];
+    queue.clear();
+    for (const [, callback] of pending) callback();
+  }
+  return {
+    ...fakes, calls, listeners, frames, timers, controller,
+    frame: () => tick(frames), flushTimer: () => tick(timers),
+    advance: (ms: number) => { now += ms; },
+    cleanup: () => {
+      controller.close();
+      controller.inputRef(null);
+      for (const cleanup of cleanups.reverse()) if (typeof cleanup === 'function') cleanup();
+    },
+  };
+}
+
+test('the real hook restores input focus on guest/window reports and defers restoration during composition', () => {
+  const f = mountedFindEffects();
+  try {
+    const report = { activeMatchOrdinal: 1, matches: 2 };
+    f.emitGuest(report);
+    assert.deepEqual(f.calls, ['blur', 'focus']);
+    f.calls.length = 0;
+    f.emitWindow(report);
+    assert.deepEqual(f.calls, ['blur', 'focus']);
+    f.calls.length = 0;
+    f.listeners.get('compositionstart')!();
+    f.emitGuest(report);
+    f.emitWindow(report);
+    assert.deepEqual(f.calls, [], 'reports must not terminate IME composition');
+    f.listeners.get('compositionend')!();
+    f.emitGuest(report);
+    assert.deepEqual(f.calls, ['blur', 'focus']);
+  } finally { f.cleanup(); }
+});
+
+test('the real hook arms per-frame focus reclaim on issue and stops after a result or close', () => {
+  const f = mountedFindEffects();
+  try {
+    assert.equal(f.frames.size, 1);
+    f.frame();
+    f.frame();
+    assert.deepEqual(f.calls, ['blur', 'focus', 'blur', 'focus'], 'the issued find must arm awaitingReport');
+    assert.equal(f.timers.size, 0, 'our own blur must not schedule a competing reclaim');
+    f.emitGuest({ activeMatchOrdinal: 1, matches: 2 });
+    f.calls.length = 0;
+    f.frame();
+    assert.deepEqual(f.calls, [], 'a reported find ends the frame loop');
+    assert.equal(f.frames.size, 0);
+    f.controller.close();
+    assert.equal(f.frames.size, 0);
+  } finally { f.cleanup(); }
+});
+
+test('the real hook installs/removes blur and composition listeners and defers external blur restoration', () => {
+  const f = mountedFindEffects();
+  try {
+    assert.deepEqual([...f.listeners.keys()], ['blur', 'compositionstart', 'compositionend']);
+    f.listeners.get('blur')!();
+    assert.deepEqual(f.calls, [], 'blur restoration waits until Chromium finishes');
+    assert.equal(f.timers.size, 1);
+    f.flushTimer();
+    assert.deepEqual(f.calls, ['blur', 'focus']);
+    assert.equal(f.timers.size, 0);
+    f.calls.length = 0;
+    f.listeners.get('compositionstart')!();
+    f.frame();
+    assert.deepEqual(f.calls, [], 'frame reclaim must not interrupt composition');
+    f.listeners.get('compositionend')!();
+    f.controller.inputRef(null);
+    assert.equal(f.listeners.size, 0, 'detached inputs must lose every listener');
+  } finally { f.cleanup(); }
 });

@@ -78,8 +78,9 @@ describe("initial load", () => {
 
 describe("createPost", () => {
   it("POSTs { title: 'Untitled' } to the posts collection and navigates via the real router", async () => {
+    window.history.replaceState(null, "", "/admin/posts");
     const { result } = await renderLoaded();
-    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...POST, id: "p2", title: "Untitled" } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...POST, id: "p2", title: "Untitled", slug: "untitled" } }));
 
     await act(async () => {
       await result.current.createPost();
@@ -89,10 +90,13 @@ describe("createPost", () => {
     expect(String(call[0])).toContain("/workspaces/workspace-local/posts");
     expect((call[1] as RequestInit).method).toBe("POST");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ title: "Untitled" });
+    expect(window.location.pathname).toBe("/admin/posts/untitled");
   });
 
   it("sets error and clears creating, without navigating, on failure", async () => {
+    window.history.replaceState(null, "", "/admin/posts");
     const { result } = await renderLoaded();
+    const locationBefore = window.location.href;
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "quota exceeded" }, 403));
 
     await act(async () => {
@@ -101,6 +105,7 @@ describe("createPost", () => {
 
     expect(result.current.creating).toBe(false);
     expect(result.current.error).toBe("quota exceeded");
+    expect(window.location.href).toBe(locationBefore);
   });
 });
 
@@ -113,7 +118,7 @@ describe("togglePostPublish", () => {
    * the request before ever reaching the version check. RED before the fix: this assertion failed
    * because the body carried no `title`/`slug`/`bodyJson` at all.
    */
-  it("PATCHes the row's own title/slug/bodyJson alongside status: draft AND expectedVersion, and replaces only the matching row", async () => {
+  it("PUTs the row's own title/slug/bodyJson alongside status: draft AND expectedVersion, and replaces only the matching row", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: POST }, { post: OTHER_POST }] }));
     const { result } = renderHook(() => useWiredPosts());
@@ -127,6 +132,7 @@ describe("togglePostPublish", () => {
 
     const call = fetchMock.mock.calls.at(-1)!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${POST.id}`);
+    expect((call[1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
       title: POST.title,
       slug: POST.slug,
@@ -140,7 +146,7 @@ describe("togglePostPublish", () => {
   /** The other direction — a draft row publishing. Owner rename (2026-09-22): the old `disablePost`
    *  only ever flipped published -> draft; a draft post had no way to publish from this list at all
    *  before this change. */
-  it("PATCHes status: published for a draft row", async () => {
+  it("PUTs status: published for a draft row", async () => {
     const DRAFT = { ...POST, status: "draft" as const };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: DRAFT }] }));
     const { result } = renderHook(() => useWiredPosts());
@@ -152,6 +158,7 @@ describe("togglePostPublish", () => {
     });
 
     const call = fetchMock.mock.calls.at(-1)!;
+    expect((call[1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "published", expectedVersion: DRAFT.version });
   });
 
@@ -213,6 +220,20 @@ describe("removePost", () => {
     });
 
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("keeps the row and clears the delete state when the port rejects", async () => {
+    const port = createFakePostsListPort({ posts: [POST], deleteError: new Error("delete denied") });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+    act(() => result.current.setPendingDelete(POST));
+
+    await act(async () => { await result.current.removePost(); });
+
+    expect(result.current.posts).toEqual([POST]);
+    expect(result.current.error).toBe("delete denied");
+    expect(result.current.pendingDelete).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
   });
 
   it("DELETEs the pending post and removes it from local state on success, clearing pendingDelete", async () => {

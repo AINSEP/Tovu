@@ -51,11 +51,13 @@ describe("resolveThemeExploreSelectionValue", () => {
     expect(resolveThemeExploreSelectionValue(FILES, "does-not-exist.html")).toBeNull();
   });
 
-  it("prefers the exact-path form even when a value could also be read as a label — no real ambiguity in practice", () => {
-    // No file in `basic` (or this fixture) has a label that collides with another file's own full
-    // path, but the resolution order itself is what would arbitrate it if one ever did: form 1 runs
-    // first, so an exact path match always wins before a label match is even attempted.
+  it("prefers the exact-path form even when a value could also be read as a label", () => {
     expect(resolveThemeExploreSelectionValue(FILES, "render/pages/index.html")).toBe("render/pages/index.html");
+    const collidingFiles: ThemeExploreSelectableFile[] = [
+      { path: "render/pages/theme.html", label: "theme.json", kind: "page" },
+      ...FILES,
+    ];
+    expect(resolveThemeExploreSelectionValue(collidingFiles, "theme.json")).toBe("theme.json");
   });
 });
 
@@ -106,6 +108,7 @@ describe("writeThemeExploreSelectionToUrl", () => {
     const params = new URLSearchParams(window.location.search);
     expect(params.get("page")).toBe("about");
     expect(params.get("file")).toBeNull();
+    expect(params.get("theme")).toBe("basic");
   });
 
   it("writes the full ?file=<path> form for a non-page file, and clears ?page=", () => {
@@ -115,6 +118,7 @@ describe("writeThemeExploreSelectionToUrl", () => {
     const params = new URLSearchParams(window.location.search);
     expect(params.get("file")).toBe("css/theme.css");
     expect(params.get("page")).toBeNull();
+    expect(params.get("theme")).toBe("basic");
   });
 
   it("uses replaceState, not pushState — no new history entry", () => {

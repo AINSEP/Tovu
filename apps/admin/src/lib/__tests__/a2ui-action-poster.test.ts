@@ -42,6 +42,7 @@ test("posts {exchangeId, message} to baseUrl + path, using the message's own act
   const [endpoint, init] = fetchMock.mock.calls[0] as [string, RequestInit];
   expect(endpoint).toBe("/api/admin/v1/a2ui/actions");
   expect(init.method).toBe("POST");
+  expect(init.headers).toEqual({ "content-type": "application/json" });
   expect(init.credentials).toBe("same-origin");
   expect(JSON.parse(String(init.body))).toEqual({ exchangeId: "ex-1", message: ACTION_MESSAGE });
 });
@@ -145,7 +146,7 @@ test("a network failure is caught and reported as a failure outcome, not thrown"
   const outcome = await post("run-1", ACTION_MESSAGE);
 
   expect(consoleErrorSpy).toHaveBeenCalled();
-  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
+  expect(outcome).toEqual({ ok: false, reason: "Couldn't reach the server to deliver this action." });
 });
 
 test("an abort (timeout) is distinguished from an ordinary network failure in the console log, and still returns a failure outcome", async () => {
@@ -162,6 +163,25 @@ test("an abort (timeout) is distinguished from an ordinary network failure in th
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
-  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
+  expect(outcome).toEqual({ ok: false, reason: "This took too long to deliver and was given up on." });
   expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("action delivery failed"), expect.stringContaining("timed out after 5ms"));
+});
+
+
+test("forwards custom headers while preserving JSON content type and strips the base URL trailing slash", async () => {
+  fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+  const post = createA2uiActionPoster("https://example.test/", {
+    headers: { "x-test": "custom", "content-type": "text/plain" },
+  });
+  expect(await post("run-1", ACTION_MESSAGE)).toEqual({ ok: true });
+  const [endpoint, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  expect(endpoint).toBe("https://example.test/api/admin/v1/a2ui/actions");
+  expect(init.headers).toEqual({ "x-test": "custom", "content-type": "application/json" });
+});
+
+test("posts error messages using their own surfaceId", async () => {
+  fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+  const message = { version: "v1.0", error: { surfaceId: "error-surface", code: "ERR", message: "failed" } };
+  expect(await createA2uiActionPoster("")("run-1", message)).toEqual({ ok: true });
+  expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ exchangeId: "error-surface", message });
 });

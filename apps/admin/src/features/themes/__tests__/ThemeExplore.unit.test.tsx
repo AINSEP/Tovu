@@ -138,6 +138,7 @@ describe("preview src — pages, partials, and templates", () => {
     renderExplore({ selected: "pages/about.html" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
     expect(iframe.src).toContain("/theme-explore/novice/about");
+    expect(new URL(iframe.src).pathname).toBe("/theme-explore/novice/about");
     expect(iframe.src).not.toContain("/partial/");
   });
 
@@ -145,6 +146,7 @@ describe("preview src — pages, partials, and templates", () => {
     renderExplore({ selected: "nav.html" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
     expect(iframe.src).toContain("/theme-explore/novice/partial/nav");
+    expect(new URL(iframe.src).pathname).toBe("/theme-explore/novice/partial/nav");
     expect(screen.queryByText(/no standalone preview/i)).not.toBeInTheDocument();
   });
 
@@ -153,6 +155,8 @@ describe("preview src — pages, partials, and templates", () => {
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
     expect(iframe.src).toContain("/theme-explore/novice/partial/footer");
     expect(iframe.src).toContain("v=3");
+    expect(new URL(iframe.src).pathname).toBe("/theme-explore/novice/partial/footer");
+    expect(new URL(iframe.src).searchParams.get("v")).toBe("3");
   });
 
   /**
@@ -266,6 +270,7 @@ describe("device width control", () => {
     renderExplore({ view: "preview" });
     expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("1280px")).toBeInTheDocument();
+    expect(screen.getByTitle("Theme preview").parentElement).toHaveStyle({ width: "1280px" });
   });
 
   it("clicking Tablet presses Tablet, un-presses Desktop, and updates the width readout", async () => {
@@ -275,6 +280,7 @@ describe("device width control", () => {
     expect(screen.getByRole("button", { name: "Tablet" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("834px")).toBeInTheDocument();
+    expect(screen.getByTitle("Theme preview").parentElement).toHaveStyle({ width: "834px" });
   });
 
   it("clicking Mobile updates the readout to DEVICE_PREVIEW_WIDTHS.mobile", async () => {
@@ -282,6 +288,7 @@ describe("device width control", () => {
     renderExplore({ view: "preview" });
     await user.click(screen.getByRole("button", { name: "Mobile" }));
     expect(screen.getByText("390px")).toBeInTheDocument();
+    expect(screen.getByTitle("Theme preview").parentElement).toHaveStyle({ width: "390px" });
   });
 });
 
@@ -624,7 +631,7 @@ describe("per-file overflow menu — copy, rename, and delete", () => {
       />
     );
     await user.type(screen.getByDisplayValue("about"), "x");
-    expect(setRenameDraft).toHaveBeenCalled();
+    expect(setRenameDraft).toHaveBeenCalledWith("aboutx");
   });
 
   it("Enter commits the rename, Escape abandons it", async () => {
@@ -759,6 +766,15 @@ describe("page rename URL-change warning", () => {
     await user.click(screen.getByRole("button", { name: "Rename page" }));
     expect(confirmPageRename).toHaveBeenCalledTimes(1);
     expect(cancelPageRenameWarning).not.toHaveBeenCalled();
+  });
+
+  it("Cancel dismisses the rename warning without confirming the rename", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderExplore({ pageRenameWarning: { path: "pages/about.html", name: "about-us.html" } });
+    const dialog = screen.getByRole("button", { name: "Rename page" }).closest("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(ctrl.cancelPageRenameWarning).toHaveBeenCalledTimes(1);
+    expect(ctrl.confirmPageRename).not.toHaveBeenCalled();
   });
 });
 
@@ -1143,6 +1159,21 @@ describe("slug-collision warning — a content record claims this page's own URL
     expect(window.location.pathname).toBe("/admin/posts/mine");
     window.history.replaceState(null, "", "/");
   });
+
+  it.each([false, true])("consults the unsaved-edit guard before following the collision link (%s)", async (allowed) => {
+    const origin = "/admin/themes/explore?theme=novice&page=mine";
+    window.history.replaceState(null, "", origin);
+    try {
+      const user = userEvent.setup();
+      const confirmLeave = vi.fn(() => allowed);
+      renderExplore({ dirty: true, confirmLeave, selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
+      await user.click(screen.getByRole("link", { name: /What Is Tovu\?/ }));
+      expect(confirmLeave).toHaveBeenCalledTimes(1);
+      expect(window.location.pathname + window.location.search).toBe(allowed ? "/admin/posts/mine" : origin);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
 });
 
 describe("editable HTML source textarea", () => {
@@ -1286,6 +1317,21 @@ describe("reset confirm dialog — confirming actually resets", () => {
 });
 
 describe("'← All themes' navigates back to the theme list", () => {
+  it.each([false, true])("consults the unsaved-edit guard before navigating back (%s)", async (allowed) => {
+    const origin = "/admin/themes/explore?theme=novice";
+    window.history.replaceState(null, "", origin);
+    try {
+      const user = userEvent.setup();
+      const confirmLeave = vi.fn(() => allowed);
+      renderExplore({ dirty: true, confirmLeave });
+      await user.click(screen.getByRole("button", { name: "← All themes" }));
+      expect(confirmLeave).toHaveBeenCalledTimes(1);
+      expect(window.location.pathname + window.location.search).toBe(allowed ? "/admin/themes" : origin);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("clicking it navigates via the SPA router instead of a full page load", async () => {
     window.history.replaceState(null, "", "/admin/themes/explore?theme=novice");
     const user = userEvent.setup();

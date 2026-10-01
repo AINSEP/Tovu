@@ -36,14 +36,15 @@ function siteFixture(name = "site"): string {
   return dir;
 }
 
-/**
- * Every entry in `dir`, sorted — the "was anything written here" probe. `null` for a path that is
- * not a readable directory (absent, or a plain file), since there is then nothing an accidental
- * `tovu init` could have left behind for this probe to find.
- */
-function snapshot(dir: string): string[] | null {
+/** Structure and bytes under the directory; null when the directory cannot be read. */
+function snapshot(dir: string): unknown[] | null {
   try {
-    return fs.readdirSync(dir).sort();
+    return fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).map((entry) => {
+      const filename = path.join(dir, entry.name);
+      return entry.isDirectory()
+        ? { name: entry.name, children: snapshot(filename) }
+        : { name: entry.name, bytes: entry.isSymbolicLink() ? fs.readlinkSync(filename) : fs.readFileSync(filename) };
+    });
   } catch {
     return null;
   }
@@ -137,6 +138,8 @@ test("addSitePointer tracks a real site as `adopted`, so a later delete can neve
 
 test("addSitePointer never writes into the site folder it points at", () => {
   const siteDir = siteFixture();
+  fs.mkdirSync(path.join(siteDir, "uploads"));
+  fs.writeFileSync(path.join(siteDir, "uploads", "asset.bin"), Buffer.from([0, 255, 10]));
   const before = snapshot(siteDir);
 
   addSitePointer({ siteDir, projectsPath: sitesFilePath(tempDir()) });

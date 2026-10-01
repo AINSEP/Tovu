@@ -82,16 +82,62 @@ describe("useSeo — injected port", () => {
 
   it("regenerateSitemap calls the port without touching settings", async () => {
     const port = createFakeSeoPort({ settings: settingsFixture() });
+    const regenerate = vi.spyOn(port, "regenerateSitemap");
     const { result } = renderHook(() => useSeo(port, "en"));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
+    const settingsBefore = result.current.settings;
 
     await act(async () => {
       expect(await result.current.regenerateSitemap()).toBe(true);
     });
 
+    expect(regenerate).toHaveBeenCalledExactlyOnceWith();
+    expect(result.current.settings).toEqual(settingsBefore);
     expect(result.current.notice).toBe("Sitemap regeneration accepted.");
     expect(result.current.error).toBeNull();
   });
+  it("surfaces a load failure without inventing settings", async () => {
+    const port = createFakeSeoPort();
+    vi.spyOn(port, "getSeoSettings").mockRejectedValue(new Error("load denied"));
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.error).toBe("load denied"));
+    expect(result.current.settings).toBeNull();
+  });
+
+  it("reports a failed save, preserves settings, and clears saving and notice", async () => {
+    const port = createFakeSeoPort({ settings: settingsFixture() });
+    vi.spyOn(port, "setSeoSettings").mockRejectedValue(new Error("save denied"));
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+    await act(async () => { await result.current.save({ titleTemplate: "Changed" }); });
+    expect(result.current.error).toBe("save denied");
+    expect(result.current.notice).toBeNull();
+    expect(result.current.saving).toBe(false);
+    expect(result.current.settings).toEqual(settingsFixture());
+  });
+
+  it("returns false on failed regeneration and reports the failure without a success notice", async () => {
+    const port = createFakeSeoPort({ settings: settingsFixture() });
+    vi.spyOn(port, "regenerateSitemap").mockRejectedValue(new Error("regeneration denied"));
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+    await act(async () => { expect(await result.current.regenerateSitemap()).toBe(false); });
+    expect(result.current.error).toBe("regeneration denied");
+    expect(result.current.notice).toBeNull();
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("resyncs the image draft from loaded and saved settings", async () => {
+    const port = createFakeSeoPort({ settings: settingsFixture({ defaultOgImage: "media:old" }) });
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.defaultOgImage).toBe("media:old"));
+    act(() => result.current.setDefaultOgImage("media:unsaved"));
+    await act(async () => { await result.current.save({ defaultOgImage: "media:new" }); });
+    expect(result.current.defaultOgImage).toBe("media:new");
+    await act(async () => { await result.current.save({ defaultOgImage: null }); });
+    expect(result.current.defaultOgImage).toBe("");
+  });
+
 });
 
 

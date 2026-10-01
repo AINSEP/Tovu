@@ -19,6 +19,8 @@ import { API_UNREACHABLE_CODE, REQUEST_TIMEOUT_CODE, ApiError, api } from "../ap
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 /** A `Response` whose body cannot be parsed as JSON, exactly as a dev/reverse proxy answers when
@@ -191,4 +193,30 @@ test("a successful request with an empty body still resolves, unchanged", async 
   stubFetch(async () => new Response(null, { status: 204 }));
 
   await expect(api.logout()).resolves.toEqual({});
+});
+
+test("the configured deadline aborts a pending fetch and translates its signal reason", async () => {
+  vi.useFakeTimers();
+  const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException("signal timed out", "TimeoutError")), ms);
+    return controller.signal;
+  });
+  let signal: AbortSignal | undefined;
+  vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    signal = init?.signal ?? undefined;
+    signal?.addEventListener("abort", () => reject(signal!.reason), { once: true });
+  })));
+  let settled = false;
+  const pending = api.login({ username: "a", password: "b" }).catch((error: unknown) => { settled = true; return error; });
+  expect(timeout).toHaveBeenCalledWith(60_000);
+  expect(signal).toBeInstanceOf(AbortSignal);
+  await vi.advanceTimersByTimeAsync(59_999);
+  expect(signal!.aborted).toBe(false);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(signal!.aborted).toBe(true);
+  const error = await pending;
+  expect(error).toBeInstanceOf(ApiError);
+  expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
 });

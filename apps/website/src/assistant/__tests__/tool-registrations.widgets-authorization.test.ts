@@ -67,7 +67,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, entryRepo, widgetBindingRepo, authorizeCalls };
+  return { deps: deps as unknown as RouteDeps, entryRepo, entryRefsRepo, widgetBindingRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -243,20 +243,12 @@ for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
   });
 
   test(`${toolId}: a denied principal is rejected and NOTHING is written`, async () => {
-    const { deps: seedDeps } = fakeRouteDeps();
-    const fixture = await seedFixture(seedDeps);
-
-    const { deps, entryRepo, widgetBindingRepo } = fakeRouteDeps({ allow: false });
-    // `widgets_set_region_placements` resolves regionKey -> areaEntryId via
-    // `widgetBindingRepo.findByRegion` BEFORE calling `mutateWidgetAreaPlacements` (whose internal
-    // `requireWidgetPermission` is the actual gate) — mirroring `region-mutate-placements.ts`'s own
-    // identical order (that route has no authorize() call of its own either). Against a workspace
-    // with NO region bound at all, that resolution 404s before the gate is ever reached, which would
-    // prove nothing about authorization. Seed a binding row directly (bypassing the tool layer,
-    // exactly the setup this ordering requires) so the call reaches the real internal gate.
-    if (toolId === "widgets_set_region_placements") {
-      await widgetBindingRepo.upsert({ workspaceId: WORKSPACE_ID, regionKey: fixture.regionKey, areaEntryId: "placeholder-area-entry", updatedAt: NOW });
-    }
+    const { deps, entryRepo, entryRefsRepo, widgetBindingRepo } = fakeRouteDeps();
+    const fixture = await seedFixture(deps);
+    const beforeEntries = structuredClone(await entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }));
+    const beforeBindings = structuredClone(await widgetBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }));
+    const beforeRefs = structuredClone(await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: fixture.hostEntryId }));
+    deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
 
     await assert.rejects(
       () => wired(widgetsWiredId(toolId), deps).handler(executionContext(toolInputs(fixture)[toolId])),
@@ -272,10 +264,9 @@ for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
       },
     );
 
-    assert.deepEqual(await entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: "widget" }), [], "a denied caller must not have created/altered any widget entry");
-    const bindings = await widgetBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID });
-    const realBindings = bindings.filter((b) => b.areaEntryId !== "placeholder-area-entry");
-    assert.deepEqual(realBindings, [], "a denied caller must not have bound/altered any REAL region (the placeholder seed row itself is test setup, not tool output)");
+    assert.deepEqual(await entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeEntries, "all existing widget, area and host entries must remain unchanged");
+    assert.deepEqual(await widgetBindingRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeBindings);
+    assert.deepEqual(await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: fixture.hostEntryId }), beforeRefs);
   });
 }
 

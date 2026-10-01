@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
 import http from "node:http";
+import https from "node:https";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 
@@ -42,8 +44,8 @@ function makeTempIndexHtml(content) {
 
 test("waitForFileStable: a stale file predating sinceMs never satisfies the wait on its own (times out)", async () => {
   const filePath = makeTempIndexHtml("<html>previous run's bundle</html>");
-  await delay(30); // unambiguously separate the stale file's mtime from sinceMs below
   const sinceMs = Date.now();
+  fs.utimesSync(filePath, new Date(sinceMs - 10_000), new Date(sinceMs - 10_000));
   const result = await waitForFileStable(filePath, {
     timeoutMs: 200,
     pollMs: 20,
@@ -55,10 +57,13 @@ test("waitForFileStable: a stale file predating sinceMs never satisfies the wait
 
 test("waitForFileStable: only a rewrite landing at/after sinceMs satisfies the wait, not the stale content already on disk", async () => {
   const filePath = makeTempIndexHtml("<html>previous run's bundle</html>");
-  await delay(30);
   const sinceMs = Date.now();
+  fs.utimesSync(filePath, new Date(sinceMs - 10_000), new Date(sinceMs - 10_000));
   // Simulates vite's watch build writing the NEW bundle shortly after the watcher starts.
-  setTimeout(() => fs.writeFileSync(filePath, "<html>this run's fresh bundle</html>"), 60);
+  setTimeout(() => {
+    fs.writeFileSync(filePath, "<html>this run's fresh bundle</html>");
+    fs.utimesSync(filePath, new Date(sinceMs + 10_000), new Date(sinceMs + 10_000));
+  }, 60);
   const result = await waitForFileStable(filePath, {
     timeoutMs: 2000,
     pollMs: 20,
@@ -222,4 +227,64 @@ test("deriveElectronRunArgs: multiple args are forwarded in order, each as its o
     deriveElectronRunArgs(["--remote-debugging-port=9222", "--inspect=5858"]),
     ["run", "dev", "--", "--remote-debugging-port=9222", "--inspect=5858"],
   );
+});
+
+
+test("waitForFileStable: changing fresh observations never count toward the stable interval", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  let mtimeMs = 1000;
+  t.mock.method(fs, "existsSync", () => true);
+  t.mock.method(fs, "statSync", () => ({ mtimeMs }));
+  let settled = false;
+  const pending = waitForFileStable("/fixture/index.html", { timeoutMs: 2000, pollMs: 20, stableChecks: 3, sinceMs: 1000 }).then((result) => { settled = true; return result; });
+  for (let i = 0; i < 5; i++) {
+    mtimeMs += 1;
+    t.mock.timers.tick(20);
+    await Promise.resolve();
+    assert.equal(settled, false, "an incomplete bundle must not satisfy the wait");
+  }
+  t.mock.timers.tick(20);
+  t.mock.timers.tick(20);
+  await Promise.resolve();
+  assert.equal(settled, false, "two stable observations are insufficient when three are requested");
+  t.mock.timers.tick(20);
+  assert.equal(await pending, true);
+});
+
+test("startRendererWatch passes the timestamp captured before spawning into the actual stable-file wait", async () => {
+  let clock = 1000;
+  const calls = [];
+  const result = await devDesktop.startRendererWatch("/fixture/index.html", {
+    now: () => { calls.push("clock"); return clock; },
+    startWatch: () => { calls.push("spawn"); clock = 2000; },
+    waitStable: async (file, options) => { calls.push([file, options]); return true; },
+  });
+  assert.equal(result, true);
+  assert.deepEqual(calls, ["clock", "spawn", ["/fixture/index.html", { sinceMs: 1000 }]]);
+});
+
+test("scheduleShutdown sends SIGTERM immediately and SIGKILL only after the configured grace", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const calls = [];
+  devDesktop.scheduleShutdown([{ pid: 1234, exitCode: null, signalCode: null }], 7, {
+    kill: (pid, signal) => calls.push([pid, signal]),
+    exit: (code) => calls.push(["exit", code]),
+  });
+  assert.deepEqual(calls, [[-1234, "SIGTERM"]]);
+  t.mock.timers.tick(devDesktop.HARD_KILL_GRACE_MS - 1);
+  assert.deepEqual(calls, [[-1234, "SIGTERM"]]);
+  t.mock.timers.tick(1);
+  assert.deepEqual(calls, [[-1234, "SIGTERM"], [-1234, "SIGKILL"], ["exit", 7]]);
+});
+
+test("probeAdminVite: an HTTPS-only listener with a self-signed cert counts as up", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-desktop-https-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const key = path.join(dir, "key.pem");
+  const cert = path.join(dir, "cert.pem");
+  execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert, "-days", "1", "-subj", "/CN=localhost"], { stdio: "pipe" });
+  const server = https.createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(cert) }, (_req, res) => res.end("vite"));
+  await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  assert.equal(await probeAdminVite(server.address().port, { host: "127.0.0.1" }), true);
 });

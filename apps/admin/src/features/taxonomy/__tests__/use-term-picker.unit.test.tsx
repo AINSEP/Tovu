@@ -288,6 +288,35 @@ describe("adding a term by name", () => {
     expect(result.current.selected).toEqual(new Set(["fake-1", "t1", "fake-2"]));
   });
 
+  it("keeps the first created term ticked when the second name fails", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const create = vi.spyOn(port, "createTerm");
+    create.mockImplementationOnce(async () => ({ term: { ...GENRE.terms[0], id: "new-first", name: "Mystery" } }));
+    create.mockRejectedValueOnce(new Error("second create failed"));
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery, Noir"));
+    await act(async () => { await result.current.addTerm("tax1"); });
+    expect(create.mock.calls.map(([target]) => target)).toEqual([
+      { taxonomyId: "tax1", name: "Mystery" }, { taxonomyId: "tax1", name: "Noir" },
+    ]);
+    expect(result.current.selected).toEqual(new Set(["new-first"]));
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.newTermName("tax1")).toBe("Mystery, Noir");
+    expect(result.current.createError("tax1")).toBe("second create failed");
+  });
+
+  it("re-reads the new content's assignments and resets its draft when the target changes", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const assigned = vi.spyOn(port, "assignedTerms").mockImplementation(async ({ contentId }) => ({ termIds: contentId === "p1" ? ["t1"] : ["t2"] }));
+    const { result, rerender } = renderHook(({ contentId }) => useTermPicker({ contentType: "post", contentId }, { port, locale: "en" }), { initialProps: { contentId: "p1" }, wrapper });
+    await waitFor(() => expect(result.current.selected).toEqual(new Set(["t1"])));
+    act(() => result.current.toggle("unsaved"));
+    rerender({ contentId: "p2" });
+    await waitFor(() => expect(assigned).toHaveBeenCalledWith({ contentType: "post", contentId: "p2" }));
+    await waitFor(() => expect(result.current.selected).toEqual(new Set(["t2"])));
+    expect(result.current.dirty).toBe(false);
+  });
+
   it("a blank name does nothing", async () => {
     const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
     const { result } = await mountWith(port);
@@ -413,6 +442,7 @@ describe("useWiredTermPicker (real client)", () => {
 
   it("reads the taxonomy list and assigned-terms, then saves through assign-terms and unassign-terms", async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url) === "/api/admin/v1/auth/me") return jsonResponse({ effectivePermissions: ["admin.taxonomy.manage"] });
       if (String(url).includes("/assigned-terms")) return jsonResponse({ termIds: ["t1"] });
       if (init?.method === "POST") return new Response(null, { status: 204 });
       return jsonResponse({ items: [GENRE] });
@@ -420,8 +450,9 @@ describe("useWiredTermPicker (real client)", () => {
     const { result } = renderHook(() => useWiredTermPicker({ contentType: "post", contentId: "p1" }), { wrapper });
     await waitFor(() => expect(result.current.selected).toEqual(new Set(["t1"])));
     await waitFor(() => expect(result.current.taxonomies).toEqual([GENRE]));
+    await waitFor(() => expect(result.current.canCreate).toBe(true));
     const reads = fetchMock.mock.calls.map(([url]) => String(url).replace(/^.*\/api\/admin\/v1/, ""));
-    expect(reads).toEqual(expect.arrayContaining(["/taxonomy", "/taxonomy/assigned-terms?contentType=post&contentId=p1"]));
+    expect(reads).toEqual(expect.arrayContaining(["/auth/me", "/taxonomy", "/taxonomy/assigned-terms?contentType=post&contentId=p1"]));
 
     act(() => result.current.toggle("t1"));
     act(() => result.current.toggle("t2"));
@@ -437,4 +468,24 @@ describe("useWiredTermPicker (real client)", () => {
       ["unassign-terms", { contentType: "post", contentId: "p1", termIds: ["t1"] }],
     ]);
   });
+  it("creates a trimmed term through the real taxonomy client after checking permissions", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === "/api/admin/v1/auth/me") return jsonResponse({ effectivePermissions: ["admin.taxonomy.manage"] });
+      if (url.includes("/assigned-terms")) return jsonResponse({ termIds: [] });
+      if (url === "/api/admin/v1/taxonomy/tax1/terms" && init?.method === "POST") return jsonResponse({ term: { ...GENRE.terms[0], id: "new-term", name: "Mystery" } });
+      if (url === "/api/admin/v1/taxonomy") return jsonResponse({ items: [GENRE] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const { result } = renderHook(() => useWiredTermPicker({ contentType: "post", contentId: "p1" }), { wrapper });
+    await waitFor(() => expect(result.current.canCreate).toBe(true));
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GENRE]));
+    act(() => result.current.setNewTermName("tax1", "  Mystery  "));
+    await act(async () => { await result.current.addTerm("tax1"); });
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(writes).toHaveLength(1);
+    expect(writes[0][0]).toBe("/api/admin/v1/taxonomy/tax1/terms");
+    expect(JSON.parse(String(writes[0][1].body))).toEqual({ name: "Mystery" });
+    expect(result.current.selected).toEqual(new Set(["new-term"]));
+  });
+
 });

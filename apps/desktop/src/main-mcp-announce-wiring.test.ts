@@ -17,6 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -102,4 +103,41 @@ test("both functions are imported from sites-mcp-registration.ts", () => {
     source,
     /import \{ registerSitesMcpServer, writeSitesMcpLauncher \} from ["']\.\/src\/sites-mcp-registration\.ts["']/,
   );
+});
+
+/** Execute the actual helper declaration with its Electron boundaries supplied as fakes. */
+function announcer(deps: Record<string, unknown>): (server: unknown, partition: string) => void {
+  const ast = ts.createSourceFile("main.ts", rawSource, ts.ScriptTarget.Latest, true);
+  const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === "announceDesktopToolsToSite");
+  assert.ok(node);
+  const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return new Function(...Object.keys(deps), `${executable}; return announceDesktopToolsToSite;`)(...Object.values(deps));
+}
+
+test("the live announcer passes the launcher, site workspace and session unchanged and logs failures", async () => {
+  const order: string[] = [];
+  const warnings: string[] = [];
+  const requests: unknown[] = [];
+  const writes: unknown[] = [];
+  const net = {};
+  const siteSession = {};
+  const server = { workspaceId: "custom-workspace", adminUrl: "http://127.0.0.1:4200/admin" };
+  const deps = {
+    process: { execPath: "/Applications/Tovu.app/Tovu" }, path, __dirname: "/app",
+    app: { getPath: (name: string) => { assert.equal(name, "userData"); return "/user-data"; } },
+    net, session: { fromPartition: (partition: string) => { assert.equal(partition, "persist:custom-site"); return siteSession; } },
+    writeSitesMcpLauncher: (input: unknown) => { order.push("write"); writes.push(input); return "/user-data/launcher"; },
+    registerSitesMcpServer: async (input: unknown) => { order.push("register"); requests.push(input); return { ok: false, reason: "site refused" }; },
+    console: { warn: (message: string) => warnings.push(message) },
+  };
+  announcer(deps)(server, "persist:custom-site");
+  await Promise.resolve();
+  assert.deepEqual(order, ["write", "register"]);
+  assert.deepEqual(writes, [{ userDataDir: "/user-data", electronPath: "/Applications/Tovu.app/Tovu", bridgePath: "/app/bin/mcp-bridge.ts" }]);
+  assert.deepEqual(requests, [{ net, session: siteSession, adminUrl: server.adminUrl, workspaceId: server.workspaceId,
+    launcherPath: "/user-data/launcher", bridgePath: "/app/bin/mcp-bridge.ts", userDataDir: "/user-data" }]);
+  assert.match(warnings[0], /site refused/);
+  assert.doesNotThrow(() => announcer({ ...deps, writeSitesMcpLauncher: () => { throw new Error("disk denied"); } })(server, "persist:custom-site"));
+  assert.equal(requests.length, 1, "no registration after a failed launcher write");
+  assert.match(warnings[1], /disk denied/);
 });

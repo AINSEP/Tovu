@@ -492,7 +492,9 @@ test("theme_copy_file refuses a ../ escape into a sibling theme's folder, and cr
 
 test("theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing", async () => {
   const { deps } = fakeRouteDeps();
-  await wired(deps, "theme_copy_file").handler(executionContext({ themeId: "plain", path: "tokens.json" }));
+  assert.equal(deps.themes.find(t => t.manifest.id === "plain")?.pages["about-2"], undefined);
+  await wired(deps, "theme_copy_file").handler(executionContext({ themeId: "plain", path: "pages/about.html" }));
+  assert.equal(deps.themes.find(t => t.manifest.id === "plain")?.pages["about-2"], "<html><body>about</body></html>");
   const filesAfter = (await wired(deps, "theme_list_files").handler(executionContext({ themeId: "plain" }))) as { files: string[] };
-  assert.ok(filesAfter.files.includes("tokens-1.json"));
+  assert.ok(filesAfter.files.includes("pages/about-2.html"));
 });

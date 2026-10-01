@@ -3,10 +3,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { IncomingMessage, ServerResponse } from "node:http";
+import type { Socket } from "node:net";
+import { PassThrough } from "node:stream";
+import express from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/http-kit";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
@@ -111,5 +115,46 @@ test("an unknown themeId (a shape rejection decorated with the tool's schema) is
   if (!result.ok) {
     assert.equal(result.error.code, "BAD_REQUEST");
     assert.match(result.error.message, /theme 'nope' was not found/);
+  }
+});
+
+test("the mounted HTTP adapter serializes malformed, missing and unknown theme ids as HTTP 400", { timeout: 5000 }, async () => {
+  for (const input of [{ theme_id: "plain" }, {}, { themeId: "nope" }]) {
+    const { run, ...deps } = await buildDelegatedToolDeps();
+    const app = express();
+    app.use(express.json());
+    registerDelegatedToolRoutes(app, deps, { resolvedPortRef: { current: 7456 }, env: {} });
+
+    // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
+    // stream: no listening socket, and no stub of the adapter's status or JSON writers.
+    const socket = new PassThrough();
+    const chunks: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const body = JSON.stringify({ runId: run.id, toolUseId: "tu-http", toolId: "theme_list_files", input });
+    const req = new IncomingMessage(socket as unknown as Socket);
+    req.method = "POST";
+    req.url = "/api/delegated-tool-calls";
+    req.httpVersion = "1.1";
+    req.httpVersionMajor = 1;
+    req.httpVersionMinor = 1;
+    req.headers = { host: "localhost:7456", origin: "http://localhost:7456", "content-type": "application/json", "content-length": String(Buffer.byteLength(body)) };
+    const res = new ServerResponse(req);
+    res.assignSocket(socket as unknown as Socket);
+    try {
+      const finished = new Promise<void>((resolve, reject) => { res.once("finish", resolve); res.once("error", reject); });
+      app(req, res);
+      req.push(body);
+      req.complete = true;
+      req.push(null);
+      await finished;
+      const wire = Buffer.concat(chunks).toString("utf8");
+      assert.match(wire, /^HTTP\/1\.1 400 Bad Request\r\n/);
+      const parsed = JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)) as { error: { code: string; message: string } };
+      assert.equal(parsed.error.code, "BAD_REQUEST");
+      if ("themeId" in input) assert.match(parsed.error.message, /theme 'nope' was not found/);
+      else assert.equal(parsed.error.message, "'themeId' (non-empty string) is required");
+    } finally {
+      socket.destroy();
+    }
   }
 });

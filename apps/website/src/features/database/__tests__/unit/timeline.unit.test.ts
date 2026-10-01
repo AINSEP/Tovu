@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getTimeline } from "../../timeline.js";
+import { getTimeline, type LedgerReadPort } from "../../timeline.js";
 
 /**
  * @file SPEC-017 C-101 / REQ-01 / REQ-04 / REQ-05 / AC-01 / AC-04 / AC-05 — the Timeline read model.
@@ -69,6 +69,19 @@ test("getTimeline returns an empty items array (never an error) when no rows mat
 test("REQ-04 / AC-34-adjacent: getTimeline rejects a limit above 200 (no raw SQL / unbounded query surface)", async () => {
   const ledger = fakeLedger([]);
   await assert.rejects(getTimeline({ ledger, filter: { limit: 500 } }));
+  assert.deepEqual(await getTimeline({ ledger, filter: { limit: 200 } }), { items: [], nextCursor: null });
+  await assert.rejects(getTimeline({ ledger, filter: { limit: 201 } }), { name: "TimelineValidationError" });
+});
+
+test("getTimeline forwards all filters, defaults to 50, and preserves pagination results", async () => {
+  const queries: Parameters<LedgerReadPort["query"]>[0][] = [];
+  const page = { items: [{ id: "row-page", kind: "core.migration", createdAt: "2026-07-15T00:00:00.000Z", restorePointId: "rp-page", outcome: "failure" }], nextCursor: "next-page" };
+  const ledger: LedgerReadPort = { query: async (filter) => { queries.push(filter); return page; } };
+  const filter = { kind: "core.migration", fromDate: "2026-07-01", toDate: "2026-07-31", outcome: "failure", cursor: "previous-page" };
+  assert.deepEqual(await getTimeline({ ledger, filter }), page);
+  assert.deepEqual(await getTimeline({ ledger }), page);
+  assert.deepEqual(await getTimeline({ ledger, filter: { ...filter, limit: 200 } }), page);
+  assert.deepEqual(queries, [{ ...filter, limit: 50 }, { limit: 50 }, { ...filter, limit: 200 }]);
 });
 
 test("AC-05 / REQ-05: this module exposes no raw-row-edit, SQL-console, or DB-first-mode function — only getTimeline is exported", async () => {

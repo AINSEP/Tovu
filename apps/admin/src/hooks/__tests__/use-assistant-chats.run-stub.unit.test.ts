@@ -124,6 +124,29 @@ describe("useAssistantChats — active-run stub write", () => {
     expect(port.saved.get("fake-seed")?.filter((m) => m.id === "a1")).toHaveLength(1);
   });
 
+  it("keeps the complete terminal answer when an earlier stub write is slow", async () => {
+    const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
+    const save = port.saveMessage.bind(port);
+    let releaseStub!: () => void;
+    const stubPending = new Promise<void>((resolve) => { releaseStub = resolve; });
+    const writes = vi.spyOn(port, "saveMessage").mockImplementation(async (conversationId, turn) => {
+      if (turn.id === "a1" && turn.runStatus === "running") await stubPending;
+      await save(conversationId, turn);
+    });
+    const { result } = await mountWith(port);
+    await act(async () => result.current.select("fake-seed"));
+    const running: ChatMessage = { id: "a1", role: "assistant", content: "wor", runId: "run-1", runStatus: "running" };
+    const complete: ChatMessage = { ...running, content: "world", runStatus: "succeeded" };
+    await act(async () => result.current.onMessagesChange([running]));
+    await waitFor(() => expect(writes).toHaveBeenCalledWith("fake-seed", running));
+
+    // Deliver the terminal delta while the first write is still parked at the storage boundary.
+    await act(async () => result.current.onMessagesChange([complete]));
+    await act(async () => { releaseStub(); await stubPending; });
+    await waitFor(() => expect(port.saved.get("fake-seed")).toEqual([complete]));
+    expect(writes.mock.calls.filter(([, turn]) => turn.id === "a1")).toHaveLength(2);
+  });
+
   it("adopts a conversation and writes the stub even when none is selected yet", async () => {
     // Turn 1 of a brand-new chat: nothing has been `select()`-ed. `onMessagesChange`'s lazy-adoption
     // branch must carry the same stub behavior as the already-active-conversation branch above.
