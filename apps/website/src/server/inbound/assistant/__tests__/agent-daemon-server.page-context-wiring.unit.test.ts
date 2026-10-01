@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
+import { createRunActiveContextStore } from "#src/assistant/run-active-context";
+import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 /**
  * @file Proves `agent-daemon-server.ts`'s `onStarted` actually puts the decoded `pageContext` into
@@ -20,4 +23,18 @@ test("the run prompt renders decoded.pageContext directly after the dispatch mar
     DAEMON_ENTRY_SOURCE,
     /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(decoded\.prompt, buildPageContextPromptBlock\(decoded\.pageContext\)\)\}`;/,
   );
+});
+
+test("onStarted forwards page context and the operator's words to the executor", async () => {
+  const pageContext = {
+    path: "/pages/distinctive-page", section: "pages", view: "page-editor",
+    entry: { kind: "page", id: "distinctive-page", title: "Distinctive landing page" },
+  };
+  const runActiveContexts = createRunActiveContextStore();
+  const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts });
+  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock(pageContext)}\n\nPlease edit this page.`);
+  // The same decoded screen is what `GET /api/active` answers from while the run is live.
+  const active = runActiveContexts.read();
+  assert.equal(active.active, true);
+  assert.deepEqual(active.active && active.pageContext, pageContext);
 });
