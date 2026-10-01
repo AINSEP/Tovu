@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ExternalMcpServerView } from "#src/assistant/index";
 
-import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
+import { buildExternalMcpSaveForm, buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
 
 /**
  * @file Direct coverage for `save-form.ts`'s two decision-bearing functions —
@@ -36,6 +36,28 @@ function existingView(overrides: Partial<ExternalMcpServerView> = {}): ExternalM
   };
 }
 
+test("buildExternalMcpSaveForm: routes submit and cancel to the same exchange with fixed identity parameters", () => {
+  const exchange = { id: "exchange-1", send: async () => {}, receive: async () => ({ status: "abandoned" as const }), close: () => {} };
+  for (const isUpdate of [false, true]) {
+    for (const authMode of [undefined, "oauth"]) {
+      const resource = buildExternalMcpSaveForm({ exchange, save: { id: "srv-1", transport: "streamable_http", authMode }, isUpdate });
+      assert.equal(resource.resource.uri, "ui://tovu/external-mcp-save/exchange-1");
+      const html = resource.resource.text;
+      const variable = (name: string) => {
+        const match = html.match(new RegExp(`var ${name} = (.+);`));
+        assert.ok(match, `${name} must be present in the rendered form`);
+        return JSON.parse(match[1]!);
+      };
+      assert.equal(variable("TOOL"), "external_mcp_save");
+      assert.deepEqual(variable("BASE_PARAMS"), {
+        __exchangeId: "exchange-1", id: "srv-1", transport: "streamable_http",
+        ...(authMode === undefined ? {} : { authMode }),
+      });
+      assert.deepEqual(variable("CANCEL"), { toolName: "external_mcp_save", params: { __exchangeId: "exchange-1", __dismissed: true } });
+    }
+  }
+});
+
 // ---------------------------------------------------------------------------
 // mergeExternalMcpSavePrefill
 // ---------------------------------------------------------------------------
@@ -59,6 +81,16 @@ test("mergeExternalMcpSavePrefill: unset input fields fall back to the existing 
   assert.equal(result.args, "--flag");
   assert.equal(result.allowedToolNames, "tool_a, tool_b");
   assert.equal(result.authMode, "api_key");
+  const args = ["-y", "some-pkg"];
+  const multi = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ args }));
+  assert.equal(multi.args, "-y some-pkg");
+});
+
+test("mergeExternalMcpSavePrefill: HTTP updates retain the existing URL unless input overrides it", () => {
+  const input: ExternalMcpSaveInput = { id: "srv-1", transport: "streamable_http" };
+  const existing = existingView({ transport: "streamable_http", url: "https://old.example/mcp" });
+  assert.equal(mergeExternalMcpSavePrefill(input, existing).url, "https://old.example/mcp");
+  assert.equal(mergeExternalMcpSavePrefill({ ...input, url: "https://new.example/mcp" }, existing).url, "https://new.example/mcp");
 });
 
 test("mergeExternalMcpSavePrefill: an existing row's write grants prefill writeAllowedToolNames — an update's form does not start from a blank that would read as 'no write access'", () => {

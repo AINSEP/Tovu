@@ -46,14 +46,14 @@ function baseSubscription(overrides: Partial<SubscriptionRow> = {}): Subscriptio
   };
 }
 
-let revokedCalls: string[] = [];
+let revokedCalls: { workspaceId: string; subscriberId: string }[] = [];
 function makeDeps(subscription: SubscriptionRow, withCapability = true): { deps: UnsubscribeDeps; repo: InMemoryNewsletterSubscriptionRepo } {
   revokedCalls = [];
   const capability: MembersConsentCapability = {
     request: async () => ({ requested: true }),
     confirm: async () => ({ status: "granted", consentRevisionId: "rev-1" }),
     revoke: async (input) => {
-      revokedCalls.push(input.subscriberId);
+      revokedCalls.push({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
       return { status: "revoked" };
     },
   };
@@ -93,7 +93,7 @@ test("processUnsubscribe: a current-revision token succeeds and calls MembersCon
 
   const result = await processUnsubscribe({ deps, input: { rawToken: token } });
   assert.equal(result.outcome, "unsubscribed");
-  assert.deepEqual(revokedCalls, ["subscriber-1"]);
+  assert.deepEqual(revokedCalls, [{ workspaceId: WS, subscriberId: "subscriber-1" }]);
 
   const updated = await repo.findById({ workspaceId: WS, id: "sub-1" });
   assert.equal(updated?.status, "unsubscribed");
@@ -113,9 +113,8 @@ test("processUnsubscribe: a repeat of the SAME now-processed token is idempotent
 });
 
 test("processUnsubscribe: the EC-03 carve-out does not swallow INV-04 — a stale token can never reach idempotent-success, even for an already-unsubscribed row", async () => {
-  // Row is already unsubscribed (from a real rev-1 unsubscribe), then re-subscribed under rev-2 —
-  // the OLD rev-1 token must be rejected on revision mismatch, never treated as "already processed".
-  const { deps } = makeDeps(baseSubscription({ status: "subscribed", consentRevisionIdAtSubscribe: "rev-2" }));
+  const row = baseSubscription({ status: "unsubscribed", unsubscribedAt: NOW, consentRevisionIdAtSubscribe: "rev-2" });
+  const { deps, repo } = makeDeps(row);
   const staleToken = await tokenFor(deps, "rev-1");
 
   await assert.rejects(processUnsubscribe({ deps, input: { rawToken: staleToken } }), (err: unknown) => {
@@ -123,6 +122,8 @@ test("processUnsubscribe: the EC-03 carve-out does not swallow INV-04 — a stal
     assert.equal(err.reason, "consent_revision_mismatch");
     return true;
   });
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), row);
+  assert.deepEqual(revokedCalls, []);
 });
 
 test("processUnsubscribe: a tampered token (bad signature) is rejected", async () => {
@@ -204,4 +205,40 @@ test("processUnsubscribe: a signature of the WRONG LENGTH is rejected without re
     assert.equal(err.reason, "signature_invalid");
     return true;
   });
+});
+
+test("processUnsubscribe: changing any signed claim with the original signature is rejected before lookup or mutation", async () => {
+  for (const [field, value] of Object.entries({
+    workspaceId: "ws-2",
+    subscriberId: "subscriber-2",
+    listId: "list-2",
+    consentRevisionId: "rev-2",
+    campaignId: "camp-2",
+  })) {
+    const row = baseSubscription();
+    const { deps, repo } = makeDeps(row);
+    const token = await tokenFor(deps, "rev-1");
+    const [encoded, signature] = token.split(".");
+    const claims = JSON.parse(Buffer.from(encoded!, "base64url").toString("utf8"));
+    const forged = Buffer.from(JSON.stringify({ ...claims, [field]: value })).toString("base64url");
+    repo.findBySubscriberAndList = async () => assert.fail("signature verification must precede subscription lookup");
+    await assert.rejects(processUnsubscribe({ deps, input: { rawToken: `${forged}.${signature}` } }), (err: unknown) => {
+      assert.ok(err instanceof NewsletterUnsubscribeTokenInvalidError);
+      assert.equal(err.reason, "signature_invalid", field);
+      return true;
+    });
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), row);
+    assert.deepEqual(revokedCalls, []);
+  }
+});
+
+test("processUnsubscribe: an unbound consent capability still persists the self-service unsubscribe", async () => {
+  const { deps, repo } = makeDeps(baseSubscription(), false);
+  const token = await tokenFor(deps, "rev-1");
+  assert.deepEqual(await processUnsubscribe({ deps, input: { rawToken: token } }), { outcome: "unsubscribed" });
+  const row = await repo.findById({ workspaceId: WS, id: "sub-1" });
+  assert.equal(row?.status, "unsubscribed");
+  assert.equal(row?.unsubscribedAt, NOW);
+  assert.equal(row?.updatedAt, NOW);
+  assert.deepEqual(revokedCalls, []);
 });

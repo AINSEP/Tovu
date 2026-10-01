@@ -12,6 +12,8 @@ import { buildVendorCredentialAad } from "../aad.js";
 test("is deterministic — the same inputs always produce the same string", () => {
   const input = { workspaceId: "ws-1", vendorId: "github" as const, id: "cred-1" };
   assert.equal(buildVendorCredentialAad(input), buildVendorCredentialAad(input));
+  // Existing ciphertext must keep opening after upgrades; this is a persistence contract.
+  assert.equal(buildVendorCredentialAad(input), "vendor-credential-set:v1:ws-1:github:cred-1");
 });
 
 test("differs when workspaceId differs", () => {

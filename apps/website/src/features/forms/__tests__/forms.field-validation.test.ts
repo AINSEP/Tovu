@@ -160,9 +160,23 @@ for (const rejected of ["onclick", "onerror", "style", "formaction", "href", "sr
   });
 }
 
+for (const rejected of ['data-x onclick', 'data-x"y', 'aria-', 'DATA-Foo', 'data-a=b', 'data-']) {
+  test(`validateFieldDescriptors: rejects the malformed '${rejected}' attribute name`, () => {
+    assert.deepEqual(validateFieldDescriptors([field({ attributes: { [rejected]: "x" } })]), {
+      valid: false,
+      fieldErrors: [{ field: "name", reason: `attribute '${rejected}' is not allowed` }],
+    });
+  });
+}
+
 test("validateFieldDescriptors: rejects an attribute name outside the allowlist entirely", () => {
   const result = validateFieldDescriptors([field({ attributes: { colspan: "2" } })]);
   assert.equal(result.valid, false);
+});
+
+test("validateFieldDescriptors: accepts exactly 12 valid attributes", () => {
+  const attributes = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`data-a${i}`, "x"]));
+  assert.deepEqual(validateFieldDescriptors([field({ attributes })]), { valid: true });
 });
 
 test("validateFieldDescriptors: rejects more than the max attributes per field", () => {

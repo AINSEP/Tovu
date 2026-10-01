@@ -21,6 +21,7 @@ import {
   recordResult,
   resumeCampaign,
   sendTestCampaign,
+  SEND_BATCH_CLAIMED_EVENT,
   type SendPipelineDeps,
 } from "../send-pipeline.js";
 import {
@@ -113,8 +114,11 @@ function makeSubscriberDirectory(contacts: SubscriberContact[]): SubscriberDirec
   };
 }
 
-function makeMailer(sendImpl?: (message: { to: { email: string } }) => { ok: true; providerMessageId: string; acceptedAt: string } | { ok: false; retryable: boolean; errorCode: string; message: string }): MailerPort & { sentTo: string[] } {
+type MailCall = { message: Parameters<MailerPort["send"]>[0]; options: Parameters<MailerPort["send"]>[1] };
+
+function makeMailer(sendImpl?: (message: { to: { email: string } }) => { ok: true; providerMessageId: string; acceptedAt: string } | { ok: false; retryable: boolean; errorCode: string; message: string }): MailerPort & { sentTo: string[]; calls: MailCall[] } {
   const sentTo: string[] = [];
+  const calls: MailCall[] = [];
   return {
     capabilities: () => ({
       driver: "smtp",
@@ -123,8 +127,9 @@ function makeMailer(sendImpl?: (message: { to: { email: string } }) => { ok: tru
       maxBatchSize: 100,
       supportsAttachments: false,
     }),
-    async send(message, _opts) {
+    async send(message, opts) {
       sentTo.push(message.to.email);
+      calls.push({ message: structuredClone(message), options: structuredClone(opts) });
       if (sendImpl) return sendImpl(message);
       return { ok: true, providerMessageId: `pm-${sentTo.length}`, acceptedAt: clock.nowIso() };
     },
@@ -132,7 +137,8 @@ function makeMailer(sendImpl?: (message: { to: { email: string } }) => { ok: tru
       return [];
     },
     sentTo,
-  } as MailerPort & { sentTo: string[] };
+    calls,
+  } as MailerPort & { sentTo: string[]; calls: MailCall[] };
 }
 
 function makeLaunchGateDeps(overrides: Partial<{ sendingEnabled: boolean; consentBound: boolean; originThrows: boolean; mailerDriver: string }> = {}): LaunchGateDeps {
@@ -208,6 +214,9 @@ test("authorizeSend: happy path -- scheduled campaign moves to sending, revision
   const result = await authorizeSend({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
   assert.equal(result.campaign.status, "sending");
   assert.equal(result.campaign.sendStartedAt, clock.nowIso());
+  const stored = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(stored?.status, "sending");
+  assert.equal(stored?.sendStartedAt, clock.nowIso());
   assert.equal(result.launchGateSnapshot.met, true);
   const revisions = await rig.campaignRepo.listRevisions({ workspaceId: WS, campaignId: "camp-1" });
   assert.equal(revisions.length, 1);
@@ -290,6 +299,33 @@ test("freezeAudience: materializes 1 snapshot + N send rows, unresolvable subscr
   assert.equal(campaign?.audienceSnapshotId, result.snapshot.id);
 });
 
+test("freezeAudience: includes only subscribed contacts in the requested list and workspace", async () => {
+  const subscriptions: SubscriptionRow[] = ["subscribed", "pending", "unsubscribed", "bounced", "complained"].map((status, i) => ({
+    id: `s-${i}`, workspaceId: WS, listId: "list-1", subscriberId: `sub-${i}`,
+    status: status as SubscriptionRow["status"], source: "signup_form", consentRevisionIdAtSubscribe: "r1",
+    subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
+  }));
+  subscriptions.push({ ...subscriptions[0], id: "other-list", subscriberId: "other-list", listId: "list-2" });
+  subscriptions.push({ ...subscriptions[0], id: "other-ws", subscriberId: "other-ws", workspaceId: "ws-2" });
+  const contacts = subscriptions.map((s) => ({ subscriberId: s.subscriberId, workspaceId: s.workspaceId, email: `${s.subscriberId}@test.com`, emailDeliverable: true }));
+  const rig = makeRig({ campaigns: [makeCampaign()], subscriptions, contacts });
+  const { snapshot, sendIds } = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
+  const rows = await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 20 });
+  assert.deepEqual(rows.map((r) => r.subscriberId), ["sub-0"]);
+  assert.deepEqual(sendIds, rows.map((r) => r.id));
+  assert.equal(snapshot.recipientCount, 1);
+  assert.deepEqual(await rig.audienceSnapshotRepo.findByCampaignId({ workspaceId: WS, campaignId: "camp-1" }), snapshot);
+});
+
+test("freezeAudience: excludes contacts flagged undeliverable", async () => {
+  const subscription: SubscriptionRow = { id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() };
+  const rig = makeRig({ campaigns: [makeCampaign()], subscriptions: [subscription], contacts: [{ subscriberId: "sub-1", workspaceId: WS, email: "blocked@test.com", emailDeliverable: false }] });
+  const { snapshot, sendIds } = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
+  assert.equal(snapshot.recipientCount, 0);
+  assert.deepEqual(sendIds, []);
+  assert.deepEqual(await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 10 }), []);
+});
+
 test("freezeAudience: zero subscribed subscribers -- empty snapshot, no send-row batch write, no outbox events", async () => {
   const rig = makeRig({ campaigns: [makeCampaign()] });
   const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
@@ -321,7 +357,8 @@ test("freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 
     subs.push({ id: `s${i}`, workspaceId: WS, listId: "list-1", subscriberId: `sub-${i}`, status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
     contacts.push({ subscriberId: `sub-${i}`, workspaceId: WS, email: `u${i}@test.com`, emailDeliverable: true });
   }
-  const rig = makeRig({ campaigns: [makeCampaign()], subscriptions: subs, contacts });
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], subscriptions: subs, contacts, mailer });
   const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
   assert.equal(result.sendIds.length, 25);
 
@@ -331,6 +368,20 @@ test("freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 
   const job2 = claimed[1].event.payload as SendBatchJob;
   assert.equal(job1.sendIds.length, 20);
   assert.equal(job2.sendIds.length, 5);
+  for (const [i, row] of claimed.entries()) {
+    assert.equal(row.event.name, "newsletter.send.batch.claimed");
+    assert.equal(row.event.workspaceId, WS);
+    assert.deepEqual(row.event.payload, { workspaceId: WS, campaignId: "camp-1", audienceSnapshotId: result.snapshot.id, sendIds: result.sendIds.slice(i * 20, (i + 1) * 20) });
+  }
+  await rig.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+    await handleSendBatchClaimed({ deps: rig.deps, job: event.payload as SendBatchJob });
+  });
+  for (const row of claimed) await rig.bus.publish(row.event);
+  assert.deepEqual([...mailer.sentTo].sort(), contacts.map((c) => c.email).sort());
+  const rows = await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 100 });
+  assert.equal(rows.length, 25);
+  assert.ok(rows.every((row) => row.status === "delivered"));
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sent");
 });
 
 test("freezeAudience: campaign not found", async () => {
@@ -352,9 +403,12 @@ function makeOutboxEvent(id: string): SendBatchJob extends never ? never : { id:
 test("claimBatch: delegates to processOutbox with the default batchSize=20", async () => {
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
+  const received: string[] = [];
+  await bus.subscribe("test.event", async (event) => { received.push(event.id); });
   for (let i = 0; i < 25; i++) await outbox.enqueue(makeOutboxEvent(`evt-${i}`) as never);
   const claimedCount = await claimBatch({ deps: { outbox, bus, clock } });
   assert.equal(claimedCount, 20);
+  assert.deepEqual(received, Array.from({ length: 20 }, (_, i) => `evt-${i}`));
 });
 
 test("claimBatch: honors an explicit batchSize override", async () => {
@@ -369,7 +423,7 @@ test("claimBatch: honors an explicit batchSize override", async () => {
  * dispatchRow
  * ------------------------------------------------------------------------------------------------ */
 
-const dispatchMessage = { subject: "Hi", text: "body", fromName: "Acme", fromEmail: "hello@acme.test", replyTo: "hello@acme.test" };
+const dispatchMessage = { subject: "Hi", text: "body", fromName: "Acme", fromEmail: "hello@acme.test", replyTo: "replies@acme.test" };
 
 test("dispatchRow: happy path -- sends via the mailer, outcome 'sent'", async () => {
   const mailer = makeMailer();
@@ -380,6 +434,28 @@ test("dispatchRow: happy path -- sends via the mailer, outcome 'sent'", async ()
   assert.equal(result.providerMessageId, "pm-1");
   assert.equal(result.error, null);
   assert.deepEqual(mailer.sentTo, ["a@test.com"]);
+  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: row.recipientEmail }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: dispatchMessage.subject, text: dispatchMessage.text, html: undefined });
+});
+
+test("dispatchRow: each row supplies its own provider idempotency key and source identity", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ mailer });
+  const rows = [makeSendRow(), makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", idempotencyKey: "key-2" })];
+  for (const row of rows) await dispatchRow({ deps: rig.deps, row, campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
+  assert.deepEqual(mailer.calls.map((c) => c.options), rows.map((row) => ({ idempotencyKey: row.idempotencyKey, workspaceId: WS, sourceContext: { module: "newsletter", ref: row.id } })));
+  assert.equal(new Set(mailer.calls.map((c) => c.options.idempotencyKey)).size, 2);
+});
+
+test("dispatchRow: beforeSend transformations reach the mailer", async () => {
+  const hooks = createHookRegistry();
+  hooks.registerBeforeSendHook((ctx, message) => {
+    assert.deepEqual(ctx, { workspaceId: WS, campaignId: "camp-1", sendId: "send-1", subscriberId: "sub-1" });
+    return { ...message, subject: "Transformed subject", text: `${message.text} footer`, html: "<p>unsubscribe marker</p>" };
+  });
+  const mailer = makeMailer();
+  const rig = makeRig({ mailer, hooks });
+  await dispatchRow({ deps: rig.deps, row: makeSendRow(), campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
+  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: "a@test.com" }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: "Transformed subject", text: "body footer", html: "<p>unsubscribe marker</p>" });
 });
 
 test("dispatchRow: mailer failure -- outcome 'failed', error passed through", async () => {
@@ -700,12 +776,22 @@ test("sendTestCampaign: 11 addresses rejected (upper bound)", async () => {
 });
 
 test("sendTestCampaign: 1 and 10 addresses are both accepted (boundary)", async () => {
-  const rig1 = makeRig({ campaigns: [makeCampaign()] });
-  await assert.doesNotReject(sendTestCampaign({ deps: rig1.deps, input: { workspaceId: WS, campaignId: "camp-1", testAddresses: ["one@test.com"] } }));
+  const mailer1 = makeMailer();
+  const rig1 = makeRig({ campaigns: [makeCampaign()], mailer: mailer1 });
+  await assert.doesNotReject(sendTestCampaign({ deps: rig1.deps, input: { workspaceId: WS, campaignId: "camp-1", testAddresses: ["one@test.com"] } }).then((result) => {
+    assert.deepEqual(result.results, [{ email: "one@test.com", outcome: "sent", error: null }]);
+  }));
+  assert.deepEqual(mailer1.sentTo, ["one@test.com"]);
+  assert.deepEqual(mailer1.calls.map((c) => c.message.subject), ["[TEST] Hello"]);
 
-  const rig10 = makeRig({ campaigns: [makeCampaign()] });
+  const mailer10 = makeMailer();
+  const rig10 = makeRig({ campaigns: [makeCampaign()], mailer: mailer10 });
   const ten = Array.from({ length: 10 }, (_, i) => `t${i}@test.com`);
-  await assert.doesNotReject(sendTestCampaign({ deps: rig10.deps, input: { workspaceId: WS, campaignId: "camp-1", testAddresses: ten } }));
+  await assert.doesNotReject(sendTestCampaign({ deps: rig10.deps, input: { workspaceId: WS, campaignId: "camp-1", testAddresses: ten } }).then((result) => {
+    assert.deepEqual(result.results, ten.map((email) => ({ email, outcome: "sent", error: null })));
+  }));
+  assert.deepEqual(mailer10.sentTo, ten);
+  assert.deepEqual(mailer10.calls.map((c) => c.message.subject), ten.map(() => "[TEST] Hello"));
 });
 
 test("sendTestCampaign: campaign not found", async () => {
@@ -740,6 +826,8 @@ test("sendTestCampaign: per-address mixed success/failure results, AND no snapsh
   assert.equal(results[1].error, "invalid address");
   const sendRows = await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 10 });
   assert.equal(sendRows.length, 0, "a test send must never write ledger rows");
+  assert.equal(await rig.audienceSnapshotRepo.findByCampaignId({ workspaceId: WS, campaignId: "camp-1" }), null);
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.audienceSnapshotId, null);
 });
 
 /* ------------------------------------------------------------------------------------------------
@@ -785,6 +873,18 @@ test("handleSendBatchClaimed: no matching subscription row -- status passed to h
   await rig.sendRepo.save(makeSendRow({ status: "pending" }));
   await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
   assert.equal(observedStatus, "unsubscribed");
+});
+
+test("handleSendBatchClaimed: default registry suppresses an unsubscribe after audience freeze", async () => {
+  const subscription: SubscriptionRow = { id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() };
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], subscriptions: [subscription], contacts: [{ subscriberId: "sub-1", workspaceId: WS, email: "a@test.com", emailDeliverable: true }], mailer });
+  const { snapshot, sendIds } = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
+  await rig.subscriptionRepo.save({ ...subscription, status: "unsubscribed", unsubscribedAt: clock.nowIso() });
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ audienceSnapshotId: snapshot.id, sendIds }) });
+  assert.deepEqual(mailer.sentTo, []);
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: sendIds[0] }))?.status, "failed");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sent");
 });
 
 test("handleSendBatchClaimed: one row's mailer failure never aborts sibling rows in the same batch", async () => {

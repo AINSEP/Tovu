@@ -35,11 +35,12 @@ async function makeDeps(): Promise<VendorTableBackfillDeps & { keyring: InMemory
 async function seedLegacy(
   deps: Awaited<ReturnType<typeof makeDeps>>,
   row: { id: string; providerId: string; label: string; isDefault: boolean; accountLabel?: string | null; fields: Record<string, string> },
+  historicalAad?: string,
 ) {
   const sealed = await deps.sealer.seal({
     plaintext: JSON.stringify({ providerId: row.providerId, ...row.fields }),
     key: await deps.keyring.activeKey(),
-    aad: buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: row.providerId, id: row.id }),
+    aad: historicalAad ?? buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: row.providerId, id: row.id }),
   });
   await deps.legacyRepo.insert({
     workspaceId: WORKSPACE,
@@ -56,7 +57,8 @@ async function seedLegacy(
 
 test("a legacy row is copied under its own id into its host's vendor group, re-sealed under the vendor AAD", async () => {
   const deps = await makeDeps();
-  await seedLegacy(deps, { id: "c-1", providerId: "github-pages", label: "GitHub Pages token", isDefault: true, accountLabel: "octo", fields: { token: "ghp_abcd1234" } });
+  // Independently seal with the historical format, as already-persisted rows were sealed.
+  await seedLegacy(deps, { id: "c-1", providerId: "github-pages", label: "GitHub Pages token", isDefault: true, accountLabel: "octo", fields: { token: "ghp_abcd1234" } }, "publish-credential-set:v1:ws-1:github-pages:c-1");
 
   const report = await copyPublishCredentialsToVendorTable(deps, { workspaceId: WORKSPACE });
 

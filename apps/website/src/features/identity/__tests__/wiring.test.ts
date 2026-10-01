@@ -9,26 +9,12 @@ import { openContentDb, openContentDbReadOnly } from "#src/platform/db/sqlite/co
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the
 // package does not publish that module as its own subpath; loading the barrel loads it.
-import {
-  type IdentityRepos,
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  migrateDeprecatedPermissionGrants,
-  seedIdentity,
-} from "@jini-ai/cms/identity";
+import { type IdentityRepos } from "@jini-ai/cms/identity";
 // Side-effect import, same shape as the line above and for the same reason: loading the Pages
 // barrel is what registers this repo's OWN permission-migration pair (theme.edit ->
 // pages.edit_html, `features/pages/permissions.ts`). Registered by a host rather than by the
 // library, which is the seam `registerPermissionMigration` is exported for.
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
-import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
 import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 
 const WORKSPACE = "workspace-1";
@@ -120,6 +106,18 @@ test("createInMemoryIdentityRouteDeps: the wired authorize() closure grants the 
     workspaceId: WORKSPACE,
   });
   assert.deepEqual(unknownDecision, { allowed: false, reason: "principal_disabled" });
+
+  await deps.principalRepo.save({ id: "reader", workspaceId: WORKSPACE, kind: "user", displayName: "Reader", status: "active", createdAt: fixedClock.nowIso() });
+  await deps.policyRepo.save({ id: "reader-policy", workspaceId: WORKSPACE, name: "reader-policy", isBuiltin: false, isFrozen: false });
+  await deps.principalPolicyRepo.save({ id: "reader-assignment", workspaceId: WORKSPACE, principalId: "reader", policyId: "reader-policy" });
+  await deps.policyPermissionRepo.save({ id: "reader-grant", workspaceId: WORKSPACE, policyId: "reader-policy", permission: "content.read", resourceType: "post" });
+
+  const request = { principalId: "reader", workspaceId: WORKSPACE, entityType: "post", entityId: "post-1", permission: "content.read" };
+  assert.deepEqual(await deps.authorize(request), { allowed: true, reason: "matched" });
+  assert.deepEqual(await deps.authorize({ ...request, permission: "content.write" }), { allowed: false, reason: "no_grant" });
+  assert.deepEqual(await deps.authorize({ ...request, entityType: "page" }), { allowed: false, reason: "resource_scope_mismatch" });
+  assert.deepEqual(await deps.authorize({ ...request, workspaceId: "other-workspace" }), { allowed: false, reason: "principal_disabled" });
+
 });
 
 test("createInMemoryIdentityRouteDeps: identityReady resolves even with no pre-existing legacy grants (no-op case)", async () => {
@@ -325,7 +323,7 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to t
  * `BUILTIN_ADMIN_PERMISSIONS`, this fixture would otherwise silently stop simulating anything and
  * the pre-`theme.edit` case below would start passing for the wrong reason.
  */
-async function dropAdminThemeEdit(repos: IdentityRepos, workspaceId: string): Promise<void> {
+async function dropAdminThemeEdit(repos: Pick<IdentityRepos, "policies" | "policyPermissions">, workspaceId: string): Promise<void> {
   const policy = await repos.policies.findByName({ workspaceId, name: "admin-builtin-policy" });
   assert.ok(policy, "seedIdentity must have created the built-in admin policy");
 
@@ -336,114 +334,74 @@ async function dropAdminThemeEdit(repos: IdentityRepos, workspaceId: string): Pr
   await repos.policyPermissions.delete({ workspaceId, id: themeEdit.id });
 }
 
-/**
- * The vintage that actually ships, at the boot seam. `sites/tovu-com/content.db`'s own
- * `admin-builtin-policy` has no `theme.edit` row — seeded before that permission joined
- * `BUILTIN_ADMIN_PERMISSIONS`, and unable to gain it because `seedIdentity` early-returns once an
- * owner user exists — so `migrateDeprecatedPermissionGrants`' fan-out matches nothing there.
- * `applyBuiltinRoleGrants` is the ONLY thing that reaches `admin` in this vintage.
- *
- * This does not call `createInMemoryIdentityRouteDeps`/`identityReady` directly: that promise chain
- * kicks off `seedIdentity` immediately and fires `migrateDeprecatedPermissionGrants` off its
- * resolution internally, with no exposed seam to rewind the admin policy in between the two without
- * racing that chain's own microtask ordering — which is exactly the kind of timing-dependent fixture
- * this repo's tests are written not to rely on. Instead this runs the identical three calls
- * `features/identity/wiring.ts`'s `buildIdentityRouteDeps` makes, in the same order, over the same
- * real `@jini-ai/cms/identity` functions and the same `applyBuiltinRoleGrants` this file already
- * imports — so a change to that composition's ORDER or to which functions run would need a matching
- * change here to stay green.
- *
- * Delete the `applyBuiltinRoleGrants` call below and this test goes red immediately: proof this
- * assertion — unlike the fresh-vintage one above — actually depends on the backfill.
- */
-test("createInMemoryIdentityRouteDeps' own boot sequence grants pages.edit_html to admin in a pre-theme.edit (already-deployed) workspace, where the fan-out alone grants nothing (SPEC-047 REQ-9)", async () => {
+/** Reopen a persisted pre-theme.edit workspace through production identityReady. */
+test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to admin in a pre-theme.edit workspace (SPEC-047 REQ-9)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-identity-wiring-legacy-test-"));
+  const dbPath = join(dir, "content.db");
   const workspaceId = "workspace-pre-theme-edit-builtin-role-grant";
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
-  const fakeHasher = { hash: async (p: string) => `hashed:${p}`, verify: async (h: string, p: string) => h === `hashed:${p}` };
+  const idGen = counterIdGen();
+  const setupDb = openContentDb(dbPath);
+  let bootDb: ReturnType<typeof openContentDb> | undefined;
+  try {
+    const setup = createSqliteIdentityRouteDeps({ db: setupDb, workspaceId, clock: fixedClock, idGen, reconcileGrantsOnBoot: false });
+    await setup.identityReady;
+    await dropAdminThemeEdit({ policies: setup.policyRepo, policyPermissions: setup.policyPermissionRepo }, workspaceId);
+    const admin = await setup.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
+    assert.ok(admin);
+    const before = await setup.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: admin.id });
+    assert.ok(!before.some((row) => row.permission === "theme.edit" || row.permission === PAGES_EDIT_HTML_PERMISSION));
+    setupDb.$client.close();
 
-  await seedIdentity({
-    deps: { repos, hasher: fakeHasher, clock: fixedClock, idGen: counterIdGen() },
-    input: { workspaceId, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
-  });
-
-  await dropAdminThemeEdit(repos, workspaceId);
-
-  await migrateDeprecatedPermissionGrants({
-    policyPermissions: repos.policyPermissions,
-    policies: repos.policies,
-    idGen: counterIdGen(),
-    workspaceId,
-  });
-
-  await applyBuiltinRoleGrants({
-    roles: repos.roles,
-    rolePolicies: repos.rolePolicies,
-    policies: repos.policies,
-    policyPermissions: repos.policyPermissions,
-    idGen: counterIdGen(),
-    workspaceId,
-  });
-
-  const permissionsOfPolicyNamed = async (name: string) => {
-    const policy = await repos.policies.findByName({ workspaceId, name });
-    assert.ok(policy, `seedIdentity must have created '${name}'`);
-    return (await repos.policyPermissions.listByPolicyId({ workspaceId, policyId: policy.id })).map(
-      (row) => row.permission
-    );
-  };
-
-  assert.ok(
-    (await permissionsOfPolicyNamed("admin-builtin-policy")).includes(PAGES_EDIT_HTML_PERMISSION),
-    "admin must hold pages.edit_html in an already-seeded workspace too — the grant cannot depend on a seed row that workspace never got"
-  );
-
-  // The refusals are the assertions that matter, same as the fresh-vintage case: a backfill that
-  // reached these would BE the SPEC-047 REQ-9 vulnerability, not a wiring bug.
-  for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
-    assert.ok(
-      !(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION),
-      `${name} must NOT gain raw-page-HTML authoring`
-    );
+    bootDb = openContentDb(dbPath);
+    const boot = createSqliteIdentityRouteDeps({ db: bootDb, workspaceId, clock: fixedClock, idGen });
+    await boot.identityReady;
+    const permissionsOfPolicyNamed = async (name: string) => {
+      const policy = await boot.policyRepo.findByName({ workspaceId, name });
+      assert.ok(policy, `seedIdentity must have created '${name}'`);
+      return (await boot.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id })).map((row) => row.permission);
+    };
+    const adminPermissions = await permissionsOfPolicyNamed("admin-builtin-policy");
+    assert.ok(!adminPermissions.includes("theme.edit"), "the old workspace still has no fan-out anchor");
+    assert.ok(adminPermissions.includes(PAGES_EDIT_HTML_PERMISSION), "the real boot backfill must reach deployed admins");
+    for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
+      assert.ok(!(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION), `${name} must NOT gain raw-page-HTML authoring`);
+    }
+    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*"], "the owner policy stays exactly its seeded wildcard");
+  } finally {
+    if (setupDb.$client.open) setupDb.$client.close();
+    bootDb?.$client.close();
+    rmSync(dir, { recursive: true, force: true });
   }
-
-  assert.deepEqual(
-    await permissionsOfPolicyNamed("owner-builtin-policy"),
-    ["*"],
-    "the owner policy stays exactly its seeded wildcard"
-  );
 });
 
-/** Idempotence at the boot seam: two boots over the same repos must not double-write the row. */
-test("createInMemoryIdentityRouteDeps: a second identityReady over the same repos adds no duplicate pages.edit_html row", async () => {
+/** Two real boots over persistent storage must not double-write a grant. */
+test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pages.edit_html row", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-identity-wiring-idempotent-test-"));
+  const dbPath = join(dir, "content.db");
   const workspaceId = "workspace-builtin-role-grant-idempotent";
-  const shared = createInMemoryIdentityRouteDeps({ workspaceId, clock: fixedClock, idGen: counterIdGen() });
-  await shared.identityReady;
+  const idGen = counterIdGen();
+  const firstDb = openContentDb(dbPath);
+  let secondDb: ReturnType<typeof openContentDb> | undefined;
+  try {
+    const first = createSqliteIdentityRouteDeps({ db: firstDb, workspaceId, clock: fixedClock, idGen });
+    await first.identityReady;
+    const policy = await first.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
+    assert.ok(policy);
+    const before = await first.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id });
+    assert.equal(before.filter((row) => row.permission === PAGES_EDIT_HTML_PERMISSION).length, 1);
+    firstDb.$client.close();
 
-  await applyBuiltinRoleGrants({
-    roles: shared.roleRepo,
-    rolePolicies: shared.rolePolicyRepo,
-    policies: shared.policyRepo,
-    policyPermissions: shared.policyPermissionRepo,
-    idGen: counterIdGen(),
-    workspaceId,
-  });
-
-  const policy = await shared.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
-  assert.ok(policy);
-  const rows = (await shared.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id })).filter(
-    (row) => row.permission === PAGES_EDIT_HTML_PERMISSION
-  );
-  assert.equal(rows.length, 1, "re-running the backfill must no-op, not append a second grant row");
+    secondDb = openContentDb(dbPath);
+    const second = createSqliteIdentityRouteDeps({ db: secondDb, workspaceId, clock: fixedClock, idGen });
+    await second.identityReady;
+    const after = await second.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id });
+    assert.equal(after.filter((row) => row.permission === PAGES_EDIT_HTML_PERMISSION).length, 1, "re-running identityReady must not append a second grant row");
+    assert.deepEqual(after, before, "the second boot preserves the exact grant rows");
+  } finally {
+    if (firstDb.$client.open) firstDb.$client.close();
+    secondDb?.$client.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 /**

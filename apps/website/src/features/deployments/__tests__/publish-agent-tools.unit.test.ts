@@ -12,7 +12,7 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchan
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
-import { createPublishCredential } from "../publish-credentials/store.js";
+import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
 
 import type { LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
@@ -315,6 +315,7 @@ test("deployment_preview_static_publish reports invalid config and false credent
 test("deployment_get_static_publish_capabilities's description forbids ever asking the user to paste a token into chat", () => {
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
   assert.match(entry.description, /do not ask the user to paste/i);
+  assert.ok(entry.description.includes("Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason:"));
   assert.match(entry.description, /Static Site tab/);
 });
 
@@ -592,14 +593,17 @@ test("deployment_get_static_publish_capabilities's description explains credenti
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
   assert.match(entry.description, /credentialConfigured/);
   assert.match(entry.description, /credentialConfigured:true with accountLabel:null/i);
+  assert.ok(entry.description.includes("credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known"));
 });
 
 test("deployment_get_static_publish_capabilities's description forbids ever offering an example/placeholder account name when accountLabel is unknown", () => {
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
   assert.match(entry.description, /never offer an example, placeholder/i);
+  assert.ok(entry.description.includes("NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one"));
 
   const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
   assert.match(preview.description, /never soften that question with an illustrative example/i);
+  assert.ok(preview.description.includes("Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind:"));
 });
 
 test("deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet", async () => {
@@ -663,6 +667,8 @@ test("deployment_get_static_publish_capabilities's description tells the model t
   const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
   assert.match(preview.description, /accountLabel/);
   assert.match(preview.description, /confirm/i);
+  assert.ok(entry.description.includes("Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, and still confirm it with the human before publishing"));
+  assert.ok(preview.description.includes("Default the field to accountLabel when present, and still confirm it with the human before publishing"));
 });
 
 // 2026-08-16 — Defect fix: "ready" used to mean only "a credential row/env-var exists"
@@ -758,12 +764,17 @@ test("deployment_get_static_publish_capabilities: a saved credential whose last 
 });
 
 test("deployment_get_static_publish_capabilities requires deployments.read and rejects extra input", async () => {
-  const { deps, authorizeCalls } = fakeDeps({ allow: false, credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
+  const { deps, authorizeCalls, setAllow } = fakeDeps({ allow: false, credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
 
   await assert.rejects(() => call(capabilities), /is not authorized for 'deployments\.read'/);
   assert.equal(authorizeCalls[0]?.permission, "deployments.read");
+  setAllow(true);
+  await assert.rejects(
+    () => call(capabilities, { input: { unexpected: "value" } }),
+    (err: unknown) => err instanceof ToolInputError && /this tool accepts no input/.test(err.message)
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -911,18 +922,25 @@ test("a cancelled run abandons the dialog and reports 'abandoned', not a hang or
 
 test("confirm: a real export runs, publishStaticSite is called, and the SAME call reports the real outcome — no real network/provider is ever touched", async () => {
   let resolveCallCount = 0;
+  const resolveInputs: unknown[] = [];
+  const targetInputs: unknown[] = [];
+  const credential = { ok: true as const, token: "fake-token-never-real" };
   const captured: { value: DeployFile[] | null } = { value: null };
   const { deps } = fakeDeps({
     credentialSource: {
-      async resolve() { resolveCallCount += 1; return { ok: true, token: "fake-token-never-real" }; },
+      async resolve(input) { resolveCallCount += 1; resolveInputs.push(input); return credential; },
       async isConfigured() { return { configured: true }; },
     },
-    buildTarget: () => fakeDeployTarget(captured),
+    buildTarget: (config, resolved) => { targetInputs.push({ config, credential: resolved }); return fakeDeployTarget(captured); },
   });
+  deps.workspaceId = "ws-confirm-export";
+  const exportSite = deps.exportSiteBound;
+  const exportInputs: unknown[] = [];
+  deps.exportSiteBound = async (input) => { exportInputs.push(input); return exportSite(input); };
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
-  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "github-pages", owner: "octo", repo: "demo-repo", branch: "release", projectName: "demo-site" });
   assert.equal(resolveCallCount, 0, "the credential must not be resolved before the human confirms");
 
   const delivered = surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
@@ -930,11 +948,73 @@ test("confirm: a real export runs, publishStaticSite is called, and the SAME cal
 
   const result = (await pending) as { published: boolean; target: string; url: string; status: string };
   assert.equal(result.published, true);
-  assert.equal(result.target, "vercel");
+  assert.equal(result.target, "github-pages");
   assert.equal(result.url, "https://example.test/published");
   assert.equal(result.status, "ready");
   assert.equal(resolveCallCount, 1, "the credential is resolved exactly once, only after confirmation");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture's own routes must have actually exported real files");
+  assert.deepEqual(resolveInputs, [{ workspaceId: deps.workspaceId, target: "github-pages" }]);
+  assert.deepEqual(targetInputs, [{ config: { target: "github-pages", owner: "octo", repo: "demo-repo", branch: "release" }, credential: { token: credential.token } }]);
+  assert.equal(exportInputs.length, 1);
+  assert.equal((exportInputs[0] as { basePath?: string }).basePath, "/demo-repo");
+  const index = captured.value.find((file) => file.file === "index.html");
+  assert.ok(index, "the site's home route must reach the provider");
+  const html = typeof index.data === "string" ? index.data : Buffer.from(index.data).toString("utf8");
+  assert.match(html, /<html\b/i);
+  assert.match(html, /<body\b/i);
+  assert.match(html, /(?:href|src)="\/demo-repo\//, "exported links must use the host's base path");
+  assert.ok(captured.value.every((file) => !file.file.startsWith("/") && !file.file.includes(publishOutputDir)));
+});
+
+test("confirm: a second dialog refuses to publish while another publish is running and emits a failed outcome", async () => {
+  const publishing = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  let buildCalls = 0;
+  let publishCalls = 0;
+  let resolveCalls = 0;
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { resolveCalls++; return { ok: true, token: "fake-token" }; },
+      async isConfigured() { return { configured: true }; },
+    },
+    buildTarget: () => {
+      buildCalls++;
+      return {
+        id: "pending",
+        async publish() {
+          publishCalls++;
+          publishing.resolve();
+          await finish.promise;
+          return { targetId: "pending", url: "https://example.test/published", status: "ready" };
+        },
+        async checkReachability() { return { reachable: true, status: "ready" as const }; },
+      };
+    },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+  const first = await raiseDialog(executeTool, { target: "vercel", projectName: "first" });
+  const second = await raiseDialog(executeTool, { target: "vercel", projectName: "second" });
+  try {
+    surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+    await Promise.race([publishing.promise, first.pending]);
+    assert.equal(publishCalls, 1);
+    surfaceExchanges.deliver({ exchangeId: second.exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+    const result = await second.pending as { published: boolean; reason: string };
+    assert.equal(result.published, false);
+    assert.equal(result.reason, "already-running");
+    assert.equal(second.emitted.length, 2);
+    const outcome = surfaceHtmlAndUri(second.emitted[1]);
+    assert.equal(outcome.uri, surfaceHtmlAndUri(second.emitted[0]).uri);
+    assert.equal(outcomeStatusState(outcome.html), "failed");
+    assert.match(outcome.html, /already running/);
+    assert.equal(buildCalls, 1);
+    assert.equal(publishCalls, 1);
+    assert.equal(resolveCalls, 1);
+  } finally {
+    finish.resolve();
+    await Promise.all([first.pending, second.pending]);
+  }
 });
 
 test("provider rejection: an actionable message is returned, never a raw response body or the credential", async () => {
@@ -1043,6 +1123,13 @@ test("confirm: a full success ALSO emits a succeeded outcome surface, same uri a
   assert.equal(outcome.uri, confirmationUri, "the outcome must replace the SAME card, not open a second one");
   assert.equal(outcomeStatusState(outcome.html), "done", "success maps onto the outcome surface's 'done' status state");
   assert.ok(outcome.html.includes(result.url), "the real published URL must appear in the outcome, not just the model result");
+  const action = outcome.html.match(/<button[^>]*data-mcpui-action="open-link"[^>]*>([^<]*)<\/button>/);
+  assert.ok(action, "the outcome must offer an open-link button");
+  assert.equal(action[1], "Open site");
+  const destination = outcome.html.match(/var OPEN_URL = ("[^"\n]*");/);
+  assert.ok(destination, "the action must be wired to a destination");
+  assert.equal(JSON.parse(destination[1]!), result.url);
+  assert.match(outcome.html, /api\.openLink\(OPEN_URL\)/);
 });
 
 test("confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OWN partial-state surface — never rendered as success or failure", async () => {
@@ -1146,8 +1233,9 @@ test("the dialog names the target and project name, so the consent is informed",
  *  as `raiseDialog`, distinct name because it's a form, not a confirmation. */
 async function raiseCredentialForm(proposeTool: ToolRegistration, input: Record<string, unknown> = { target: "s3-compatible" }) {
   const emitted: unknown[] = [];
-  const pending = call(proposeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
+  const ready = Promise.withResolvers<void>();
+  const pending = call(proposeTool, { input, emitSurface: async (s) => { emitted.push(s); ready.resolve(); } });
+  await Promise.race([ready.promise, pending]);
   assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
@@ -1281,19 +1369,32 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
   const first = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
   surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
   await first.pending;
+  const originalRows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
+  assert.equal(originalRows.length, 1);
+  const originalId = originalRows[0]!.id;
 
   const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
   surfaceExchanges.deliver({
     exchangeId: second.exchangeId,
     toolId: "deployment_propose_custom_provider_credential",
     principalId: PRINCIPAL_ID,
-    params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket" },
+    params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" },
   });
   const result = await second.pending;
   assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
 
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");
+  assert.equal(rows[0]!.id, originalId, "an update must preserve the row identifier");
+  const resolved = await resolveForPublish({
+    repo: deps.vendorCredentialSetRepo,
+    loadDeployTargets: deps.loadDeployTargets!,
+    sealer: deps.siteAssistantSecretSealer,
+  }, { workspaceId: deps.workspaceId, id: originalId });
+  assert.deepEqual(resolved?.connection, {
+    providerId: "s3-compatible", ...VALID_FORM_SUBMISSION,
+    bucket: "renamed-bucket", secretAccessKey: "rotated-secret",
+  });
 });
 
 test("submit: a blank required field is rejected server-side with an actionable message, never a saved row — form.ts's own novalidate makes this the real enforcement point", async () => {
@@ -1496,7 +1597,8 @@ test("deployment_preview_static_publish: a github-pages preview with owner/repo 
 });
 
 test("deployment_preview_static_publish: an unrecognized target throws before any permission check or credential read", async () => {
-  const { deps } = fakeDeps({
+  const { deps, authorizeCalls } = fakeDeps({
+    allow: false,
     credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
   });
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -1505,6 +1607,7 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
     message: "publish target 'bogus-provider' is not available; choose one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible",
   });
+  assert.deepEqual(authorizeCalls, [], "unknown targets must fail before authorization");
 });
 
 // 500-redact defect (RED->GREEN): `requireStaticPublishTarget` (shared by this tool and
@@ -1738,8 +1841,9 @@ test("propose-credential form: a cancelled run abandons the form and reports 'ab
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
   const controller = new AbortController();
 
-  const pending = call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
+  const ready = Promise.withResolvers<void>();
+  const pending = call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => ready.resolve(), signal: controller.signal });
+  await Promise.race([ready.promise, pending]);
   assert.equal(surfaceExchanges.size(), 1);
 
   controller.abort();

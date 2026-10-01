@@ -11,6 +11,7 @@ import { buildPublishCredentialAad } from "../aad.js";
 test("is deterministic — the same inputs always produce the same string", () => {
   const input = { workspaceId: "ws-1", providerId: "vercel" as const, id: "cred-1" };
   assert.equal(buildPublishCredentialAad(input), buildPublishCredentialAad(input));
+  assert.equal(buildPublishCredentialAad(input), "publish-credential-set:v1:ws-1:vercel:cred-1");
 });
 
 test("differs when workspaceId differs", () => {

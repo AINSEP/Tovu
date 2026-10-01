@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -56,7 +57,10 @@ registerToolContributor(contributeMediaGenerationTools());
 const WORKSPACE_ID = "ws-media-generation-tools";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-02T00:00:00.000Z";
-const FAKE_PNG_BYTES = Buffer.from("fake-generated-png-bytes");
+const FAKE_PNG_BYTES = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
 
 function fakeGenerateMedia(
   recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }>
@@ -130,7 +134,7 @@ function fakeRouteDeps(
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
+  return { deps: deps as unknown as RouteDeps, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
 }
 
 /** Seeds a real, decryptable "openai" credential row through the actual write path
@@ -231,12 +235,12 @@ test("a credential saved with baseUrl/model but no key yet is treated the same a
 
 test("with a saved credential: generates through the injected seam, uploads the bytes, and returns the same view shape media_upload_asset returns", async () => {
   const fixture = fakeRouteDeps();
-  const { deps, transformDefinitionRepo, generateCalls } = fixture;
+  const { deps, blobStore, assetBlobRepo, transformDefinitionRepo, generateCalls } = fixture;
   await seedOpenAiCredential(fixture);
   await seedPublicTransform(transformDefinitionRepo);
 
   const out = (await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle on a beach" }))) as {
-    media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null };
+    media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; placeholder: boolean; publicUrl: string | null };
   };
 
   assert.equal(generateCalls.length, 1);
@@ -250,6 +254,12 @@ test("with a saved credential: generates through the injected seam, uploads the 
   assert.equal(out.media.version, 1);
   assert.ok(out.media.id);
   assert.ok(out.media.sha256, "the uploaded bytes must be hashed like any other upload");
+  assert.equal(out.media.sha256, createHash("sha256").update(FAKE_PNG_BYTES).digest("hex"));
+  const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: out.media.sha256 });
+  assert.ok(blob);
+  const storedBytes = await blobStore.get({ storageKey: blob.storageKey });
+  assert.deepEqual(Buffer.from(storedBytes), FAKE_PNG_BYTES, "binary renderer bytes survive the upload unchanged");
+  assert.equal(createHash("sha256").update(storedBytes).digest("hex"), out.media.sha256);
   assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
   assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
@@ -269,12 +279,14 @@ test("an explicit model is passed through instead of the default", async () => {
 
 test("the generated asset's content type is recorded (image/png) so it appears correctly typed in media_list_assets", async () => {
   const fixture = fakeRouteDeps();
-  const { deps, mediaRepo } = fixture;
+  const { deps, mediaRepo, mediaContentTypeStore } = fixture;
   await seedOpenAiCredential(fixture);
 
   const out = (await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a logo" }))) as { media: { sha256: string } };
   const [stored] = await mediaRepo.list({ workspaceId: WORKSPACE_ID });
   assert.equal(stored?.source.sha256, out.media.sha256);
+  const contentTypes = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
+  assert.equal(contentTypes.get(out.media.sha256), "image/png");
 });
 
 test("an unsupported model id is rejected with the schema attached for retry, and generateMedia is never called", async () => {
@@ -427,18 +439,21 @@ test("usedStubFallback:true from generateMedia is surfaced as media.placeholder:
   assert.ok(stored, "the placeholder bytes must still be uploaded like any other generated asset");
 });
 
-test("allowStubFallback:true never applies when a real credential and a real renderer both exist — the real bytes are used, not a placeholder", async () => {
+test("allowStubFallback:true is forwarded and a non-stub generator result preserves its bytes and placeholder:false", async () => {
   const fixture = fakeRouteDeps();
-  const { deps, generateCalls } = fixture;
+  const { deps, generateCalls, blobStore, assetBlobRepo } = fixture;
   await seedOpenAiCredential(fixture);
 
-  await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a logo", allowStubFallback: true }));
+  const out = (await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a logo", allowStubFallback: true }))) as {
+    media: { sha256: string; placeholder: boolean };
+  };
 
   assert.equal(generateCalls.length, 1);
   assert.equal(generateCalls[0]!.options.allowStubFallback, true, "the flag is still threaded through to the engine...");
-  // ...but this test's injected fake always returns usedStubFallback:false (see fakeGenerateMedia),
-  // matching what the REAL engine would also do here: a registered renderer with valid credentials
-  // is used, never the stub, regardless of allowStubFallback.
+  assert.equal(out.media.placeholder, false);
+  const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: out.media.sha256 });
+  assert.ok(blob);
+  assert.deepEqual(Buffer.from(await blobStore.get({ storageKey: blob.storageKey })), FAKE_PNG_BYTES);
 });
 
 // ---------------------------------------------------------------------------

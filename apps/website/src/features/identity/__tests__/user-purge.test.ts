@@ -33,34 +33,34 @@ const TABLES = [
 
 /** Seeds one `kind='user'` principal plus one row in every identity table `SqlUserPurge`
  *  purges, plus one `posts` row it authored (the attribution-survives probe). */
-async function seedFullUser(kernel: ContentKernel, principalId: string): Promise<void> {
-  await seedPrincipals(kernel, WS, [principalId]);
+async function seedFullUser(kernel: ContentKernel, principalId: string, workspaceId = WS): Promise<void> {
+  await seedPrincipals(kernel, workspaceId, [principalId]);
   await kernel.run(async (db) => {
     await db
       .insertInto("identity_users")
-      .values({ principal_id: principalId, workspace_id: WS, username: "ada", password_hash: "hash", email: "ada@example.com" })
+      .values({ principal_id: principalId, workspace_id: workspaceId, username: principalId, password_hash: "hash", email: `${principalId}@example.com` })
       .execute();
-    await db.insertInto("principal_roles").values({ id: "pr-1", workspace_id: WS, principal_id: principalId, role_id: "role-1" }).execute();
+    await db.insertInto("principal_roles").values({ id: `pr-${principalId}`, workspace_id: workspaceId, principal_id: principalId, role_id: "role-1" }).execute();
     await db
       .insertInto("principal_policies")
-      .values({ id: "pp-1", workspace_id: WS, principal_id: principalId, policy_id: "policy-1" })
+      .values({ id: `pp-${principalId}`, workspace_id: workspaceId, principal_id: principalId, policy_id: "policy-1" })
       .execute();
     await db
       .insertInto("sessions")
       .values([
-        { id: "sess-1", workspace_id: WS, principal_id: principalId, token_hash: "t1", created_at: NOW, expires_at: NOW },
-        { id: "sess-2", workspace_id: WS, principal_id: principalId, token_hash: "t2", created_at: NOW, expires_at: NOW },
+        { id: `sess-${principalId}-1`, workspace_id: workspaceId, principal_id: principalId, token_hash: `t-${principalId}-1`, created_at: NOW, expires_at: NOW },
+        { id: `sess-${principalId}-2`, workspace_id: workspaceId, principal_id: principalId, token_hash: `t-${principalId}-2`, created_at: NOW, expires_at: NOW },
       ])
       .execute();
     await db
       .insertInto("api_keys")
-      .values({ id: "key-1", workspace_id: WS, principal_id: principalId, label: "key", key_hash: "kh", prefix: "tovu_ak_1", created_at: NOW })
+      .values({ id: `key-${principalId}`, workspace_id: workspaceId, principal_id: principalId, label: "key", key_hash: `kh-${principalId}`, prefix: `tovu_ak_${principalId}`, created_at: NOW })
       .execute();
     await db
       .insertInto("setting_values_user")
       .values({
         setting_id: "setting-1",
-        workspace_id: WS,
+        workspace_id: workspaceId,
         principal_id: principalId,
         value_json: '"on"',
         def_version: 1,
@@ -69,13 +69,18 @@ async function seedFullUser(kernel: ContentKernel, principalId: string): Promise
         updated_at: NOW,
       })
       .execute();
+    await db.insertInto("admin_execution_credentials").values({
+      workspace_id: workspaceId, principal_id: principalId, protocol: "openai",
+      sealed_key_id: "key-1", sealed_ciphertext: "ciphertext", sealed_nonce: "nonce", sealed_alg: "aes-256-gcm", masked: "sk-…7777",
+      created_at: NOW, updated_at: NOW,
+    }).execute();
     await db
       .insertInto("posts")
       .values({
-        id: "post-1",
-        workspace_id: WS,
+        id: `post-${principalId}`,
+        workspace_id: workspaceId,
         title: "Hello",
-        slug: "hello",
+        slug: `hello-${principalId}`,
         body_json: "{}",
         status: "published",
         updated_at: NOW,
@@ -109,11 +114,27 @@ async function countWhere(kernel: ContentKernel, table: (typeof TABLES)[number],
   return rows.length;
 }
 
+/** Snapshot complete rows in deterministic order, including credentials and the outbox. */
+async function snapshotTables(kernel: ContentKernel, principalId?: string) {
+  const snapshot: Record<string, unknown[]> = {};
+  for (const table of TABLES) {
+    const rows = await kernel.run((db) => db.selectFrom(table).selectAll().execute());
+    snapshot[table] = rows
+      .filter((row) => principalId === undefined || ("principal_id" in row ? row.principal_id === principalId : "id" in row && row.id === principalId))
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  }
+  return snapshot;
+}
+
 for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
   test(`[SqlUserPurge ${each.name}] purgeUser deletes every identity row, keeps content attribution, records one audit event, and returns exact counts`, async () => {
     const kernel = each.make();
     const principalId = "user-1";
     await seedFullUser(kernel, principalId);
+    await seedFullUser(kernel, "neighbor", WS);
+    await seedFullUser(kernel, "other-workspace-user", "workspace-2");
+    const neighborBefore = await snapshotTables(kernel, "neighbor");
+    const otherBefore = await snapshotTables(kernel, "other-workspace-user");
 
     const purge = new SqlUserPurge(kernel);
     const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId) });
@@ -121,7 +142,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.deepEqual(counts, { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 });
 
     assert.equal(await countWhere(kernel, "principals", "id", principalId), 0);
-    for (const table of ["identity_users", "principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user"] as const) {
+    for (const table of ["identity_users", "principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user", "admin_execution_credentials"] as const) {
       const rows = await kernel.run((db) =>
         db.selectFrom(table).selectAll().where("principal_id", "=", principalId).execute()
       );
@@ -129,9 +150,12 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     }
 
     const post = await kernel.run((db) =>
-      db.selectFrom("posts").select("created_by_principal_id").where("id", "=", "post-1").executeTakeFirst()
+      db.selectFrom("posts").select("created_by_principal_id").where("id", "=", `post-${principalId}`).executeTakeFirst()
     );
     assert.equal(post?.created_by_principal_id, principalId);
+
+    assert.deepEqual(await snapshotTables(kernel, "neighbor"), neighborBefore, "same-workspace neighbor is untouched");
+    assert.deepEqual(await snapshotTables(kernel, "other-workspace-user"), otherBefore, "other workspace is untouched");
 
     const outboxRows = await kernel.run((db) => db.selectFrom("outbox_events").select("event_json").execute());
     assert.equal(outboxRows.length, 1);
@@ -156,6 +180,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
         .execute()
     );
 
+    const before = await snapshotTables(kernel);
     const purge = new SqlUserPurge(kernel);
     await assert.rejects(
       purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId, "dup-event") })
@@ -163,6 +188,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
 
     assert.equal(await countWhere(kernel, "principals", "id", principalId), 1);
     assert.equal(await countWhere(kernel, "sessions", "principal_id", principalId), 2);
+    assert.deepEqual(await snapshotTables(kernel), before, "every seeded row and the colliding outbox event roll back exactly");
   });
 }
 
