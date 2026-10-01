@@ -41,6 +41,11 @@ test("search returns an empty array, not an error, for no matches", () => {
 test("search respects the limit parameter", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
   assert.ok(catalog.search("a", 1).length <= 1);
+  const all = catalog.search("form create");
+  assert.deepEqual(all.map((hit) => hit.id).sort(), ["forms_create_definition", "forms_update_definition", "identity_user_create"]);
+  const limited = catalog.search("form create", 1);
+  assert.equal(limited.length, 1);
+  assert.equal(limited[0].id, "forms_create_definition");
 });
 
 test("search derives 'source' from the id's domain prefix", () => {
@@ -51,7 +56,9 @@ test("search derives 'source' from the id's domain prefix", () => {
 
 test("every hit carries a positive score", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  for (const hit of catalog.search("form create user")) assert.ok(hit.score > 0);
+  const hits = catalog.search("form create user");
+  assert.ok(hits.length > 0);
+  for (const hit of hits) assert.ok(hit.score > 0);
 });
 
 test("describe returns the full entry including inputSchema for a known id", () => {
@@ -103,8 +110,13 @@ test("no caller ever sees the folded vocabulary — describe and search both ret
   const authored = "Creates a new human operator user.";
 
   assert.equal(catalog.describe("identity_user_create")?.description, authored, "describe must return authored text, not indexed text");
-  for (const hit of catalog.search("invite", 10)) {
+  const hits = catalog.search("invite", 10);
+  assert.ok(hits.some((hit) => hit.id === "identity_user_create"));
+  for (const hit of hits) {
     assert.doesNotMatch(hit.description, /also known as:/, `${hit.id}'s search hit leaked its search vocabulary`);
+    const descriptor = DESCRIPTORS.find((entry) => entry.id === hit.id);
+    assert.ok(descriptor, `unexpected search hit ${hit.id}`);
+    assert.equal(hit.description, descriptor.description);
   }
 });
 
