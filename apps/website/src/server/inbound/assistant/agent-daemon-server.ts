@@ -170,6 +170,8 @@ import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { isRedactedToolFailure } from "#src/assistant/tool-failure-redaction";
+import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
+import type { RunPageContext } from "#src/assistant/run-page-context";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -673,6 +675,9 @@ let toolExtensions: AssistantToolExtensions | undefined;
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
+/** Each live run's admin screen, recorded at run start and forgotten at run end — what `GET /api/active`
+ * (`@jini-ai/mcp`'s `get_active_context`) answers from. See `run-active-context.ts`. */
+const runActiveContexts = createRunActiveContextStore();
 /** `@jini-ai/daemon`'s `DEFAULT_TERMINAL_RETENTION_MS` (24 h, not exported), which `lifecycle` (above)
  *  runs with: how long a terminal run stays readable, and so how long its owner must stay known. */
 const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
@@ -756,6 +761,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let model: string | undefined;
   let reasoning: string | undefined;
   let conversationId: string | undefined;
+  let pageContext: RunPageContext | undefined;
   // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
   // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
   // resume in the first place, so a failed/no-sessionRef end event has nothing stale to clear.
@@ -782,6 +788,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     model = decoded.model;
     reasoning = decoded.reasoning;
     conversationId = decoded.conversationId;
+    pageContext = decoded.pageContext;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: the request was malformed. Reload the page, then send again.");
@@ -797,8 +804,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // A no-op when `conversationId` is absent, matching the stream subscription below: there is
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
   if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
+  if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal(run.id).finally(() => {
     principalByRunId.delete(run.id);
+    runActiveContexts.forget(run.id);
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
     // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
     // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
@@ -1125,6 +1134,9 @@ registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
 registerAgentRoutes(app, { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter);
+// `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
+// served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
+registerRunActiveContextRoute(app, runActiveContexts);
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.

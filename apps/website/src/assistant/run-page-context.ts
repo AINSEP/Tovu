@@ -6,8 +6,9 @@
  * Why the prompt, and not a tool the model must remember to call (2026-09-16 owner report: with the
  * page editor for "Landing sample — xai" open, "can you see which page it is?" got "I can't tell
  * which page you mean"): the only discoverable "where is the user" tool, `@jini-ai/mcp`'s
- * `get_active_context`, reads a 5-minute-TTL pointer this host never records, and a model that does
- * not know context is missing has no reason to look for it. The admin already knows the screen at
+ * `get_active_context`, read a route this host did not serve (it now answers from this same context —
+ * `run-active-context.ts`), and a model that does not know context is missing has no reason to look
+ * for it. The admin already knows the screen at
  * send time, so it sends it with every message (`assistant-transport.ts`'s `buildLocalCliContextRef`)
  * and every turn — including a resumed CLI session that only receives the newest message — carries
  * the screen the operator is on NOW, not the one they were on when the chat started.
