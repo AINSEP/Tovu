@@ -116,7 +116,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   redirects_import: "url urls link links redirect redirects import bulk upload csv batch add many rules all at once migrate old urls",
 
   // --- identity / access -------------------------------------------------------------------
-  identity_role_assign: "admin administrator access permission permissions grant give role promote make elevate someone user",
+  identity_role_assign: "admin administrator access permission permissions grant give role promote make elevate someone user remove role unassign role take away role revoke",
   identity_role_create: "role roles permission group admin editor create new access level",
   identity_role_list: "role roles permission groups access levels who can",
   identity_policy_attach: "permission permissions policy grant allow access rule attach give",
@@ -125,7 +125,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   identity_user_enable: "unlock unblock reactivate restore enable access user account",
   identity_user_create: "add user account new person invite staff admin create",
   identity_user_list: "users accounts people staff admins who has access list",
-  identity_user_update_email: "email address change update user account",
+  identity_user_update_email: "email address change update user account password reset forgot password change password",
   identity_policy_delete: "permission access rule delete remove",
   identity_policy_list: "permission access rules list existing available what policies",
   identity_policy_update: "permission access rule edit change update rename re-describe",
@@ -447,8 +447,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // custom_credential_create). Strings are the report's verbatim, since that is what was measured,
   // except where noted.
   trash_restore_item: "recover undelete restore deleted bring back get back undo delete removed page post image",
-  trash_list_items: "whats what's trash bin recycle deleted items recently deleted show list",
-  trash_item: "delete remove get rid of menu menus submission submissions form entry entries spam",
+  trash_list_items: "whats what's trash bin recycle deleted items recently deleted show list empty trash permanently delete purge",
+  trash_item: "delete remove get rid of menu menus submission submissions form entry entries spam navigation nav header footer delete menu remove menu delete menus remove menus",
   // The report's strings for these two also had "push"; dropped, because it outranked
   // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
   publish_content_status: "changes live go live update live site not updating",

@@ -11,6 +11,12 @@
  * writeup. This file is the honest redo. Scored by `tool-search-doc2query-canary.eval.ts`.
  */
 export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
+  // Added 2026-10-01 for menu deletion: trash_item postdates the original blind catalog.
+  trash_item: [
+    "How do I delete a navigation menu from the footer?",
+    "Can you remove the old menu in the header?",
+    "I want to delete a menu by moving it to the Trash so I can restore it later.",
+  ],
   collections_content_type_list: [
     "What content types do we have set up on the site?",
     "Where can I see all my content type schemas and their current version?",
