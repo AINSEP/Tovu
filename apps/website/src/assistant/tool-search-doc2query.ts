@@ -812,6 +812,14 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can you break down this setting by global, workspace, user, and default?",
     "Before precedence is applied, what does each layer say for this setting?",
   ],
+  settings_list_ui_locales: [
+    "Which languages can the admin interface use?",
+    "What locale code do I use for Portuguese?",
+    "Does the admin support Italian?",
+    "List supported UI languages.",
+    "Can you switch to Polish?",
+    "Change the language to Spanish.",
+  ],
   settings_set_ui_preference: [
     "Can you switch my admin panel to dark theme?",
     "How do I change my interface language in the admin UI?",

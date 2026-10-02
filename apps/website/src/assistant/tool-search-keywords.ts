@@ -333,6 +333,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   settings_list_definitions: "setting settings configuration options available what can all site settings",
   settings_get_raw: "setting raw value layer global workspace user default unresolved debug",
   settings_set_ui_preference: "preference language theme accent color notification sounds personal admin ui my settings",
+  settings_list_ui_locales: "supported available languages locale codes admin interface UI menus labels Spanish Portuguese pt-BR Italian Polish German English switch change language translation options",
   // settings_set, settings_clear, settings_reset, and settings_register_definitions are deliberately
   // UNWIRED (never agent-callable — generic/bulk/schema-level settings access, see file header).
   // Entries added for consistency, same reasoning as backup_execute_restore above.

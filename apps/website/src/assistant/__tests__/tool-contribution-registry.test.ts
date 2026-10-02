@@ -207,6 +207,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    "settings-ui-locales",
     // 2026-09-21: `site_backup_plan`/`site_backup_push` (`features/site-backup`).
     "site-backup",
     "site-evidence",

@@ -16,7 +16,6 @@
 
 import {
   DEFAULT_NOTIFICATIONS_PREFERENCES,
-  type LocaleOption,
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsThemeChoice,
@@ -217,47 +216,8 @@ const LANGUAGE_KEY = "locale";
 
 export const DEFAULT_LOCALE = "en";
 
-/**
- * Locales the admin offers.
- *
- * `en` is the identity source of truth (`@jini-ai/ui`'s `SETTINGS_DIALOG_EN`);
- * `es` is the first real translated locale, wired end-to-end: picking it here
- * persists to `core.language.locale` and `SettingsUi` feeds that value into
- * the mounted `I18nProvider`, so tab content actually renders in Spanish (see
- * `SettingsUi.tsx`'s `SettingsLocaleSync`). Scope note: this only translates
- * the settings-panel tab content that goes through `@jini-ai/ui`'s `t()` —
- * the settings sidebar labels and the rest of the Tovu admin shell are
- * authored directly in Tovu (not via `t()`) and stay English regardless of
- * this choice; see `SettingsUi.tsx`'s file doc comment.
- *
- * Adding another locale is adding one more `{ code, label }` entry here plus
- * a matching dictionary upstream in `@jini-ai/ui` — no further Tovu-side
- * plumbing needed.
- */
-export const ADMIN_LOCALES: readonly LocaleOption[] = [
-  { code: "en", label: "English" },
-  { code: "es", label: "Español" },
-  { code: "id", label: "Bahasa Indonesia" },
-  { code: "de", label: "Deutsch" },
-  { code: "zh-CN", label: "简体中文" },
-  { code: "zh-TW", label: "繁體中文" },
-  { code: "pt-BR", label: "Português (Brasil)" },
-  { code: "ru", label: "Русский" },
-  { code: "fa", label: "فارسی" },
-  { code: "ar", label: "العربية" },
-  { code: "ja", label: "日本語" },
-  { code: "ko", label: "한국어" },
-  { code: "pl", label: "Polski" },
-  { code: "hu", label: "Magyar" },
-  { code: "fr", label: "Français" },
-  { code: "uk", label: "Українська" },
-  { code: "tr", label: "Türkçe" },
-  { code: "th", label: "ภาษาไทย" },
-  { code: "it", label: "Italiano" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "ur", label: "اردو" },
-  { code: "bn", label: "বাংলা" },
-];
+/** The selector and assistant tool consume the same offered-language catalog. */
+export { ADMIN_LOCALES } from "../../../website/src/contracts/core/admin-locales";
 
 export async function loadLanguage(): Promise<string> {
   const values = await loadNamespaceValues(LANGUAGE_NAMESPACE);

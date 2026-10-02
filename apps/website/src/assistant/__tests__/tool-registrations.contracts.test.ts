@@ -38,6 +38,7 @@ import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tool
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
+import { uiLocalesAgentToolCatalog } from "../../features/settings/ui-locales-tool.js";
 import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
 import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
@@ -192,6 +193,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   plugins: pluginAgentToolCatalog as unknown as AgentToolDefinition[],
   workspace: getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[],
   settings: getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[],
+  "settings-ui-locales": uiLocalesAgentToolCatalog as unknown as AgentToolDefinition[],
   entries: entriesAgentToolCatalog as unknown as AgentToolDefinition[],
   taxonomy: taxonomyAgentToolCatalog as unknown as AgentToolDefinition[],
   seo: getSeoAgentToolCatalog() as unknown as AgentToolDefinition[],
