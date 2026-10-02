@@ -25,18 +25,17 @@ import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
  * Being on this list is necessary but not sufficient for safety — it is not what MAKES a tool safe
  * to reach this way, only a gate on which already-safe tools this endpoint will forward to. A tool
  * belongs here only if it holds up its end of ONE of the two shapes: either it opens a
- * `SurfaceExchangeStore` exchange and parks on the answer the way `content_post_delete`
- * (`features/post/tool-registrations.ts`, ADR-055 Decision 2) and the form tools do, or — for the
+ * `SurfaceExchangeStore` exchange and parks on the answer the way `identity_role_delete`
+ * and the credential form tools do, or — for the
  * legacy shape, currently unused by any wired tool — its own handler performs its own single-use,
  * TTL-bound token redemption via `pending-confirmations.ts`. Adding an id whose handler does neither
  * would turn this into an unauthenticated remote-execution allowlist for that tool, model-callable
  * with no human in the loop.
  *
- * Starts with exactly the one tool this whole mechanism was built for (ADR-053 Decision 6: start
+ * Originally started with the one tool this mechanism was built for (ADR-053 Decision 6: start
  * narrow, widen only per-tool by deliberate choice).
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
-  "content_post_delete",
   // `agent_plugin_set_access_token` (`features/agent-plugins/access-token-tool.ts`; moved 2026-09-29
   // from SPEC-052's Supabase-only `supabase_set_access_token`) holds up the SAME held-open-exchange
   // shape `custom_credential_set_token` does: it opens a `SurfaceExchangeStore` exchange and parks on
@@ -50,13 +49,6 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // here anyway so a later cancel/retry action needs no second edit to stop being a silent 403.
   // (It replaced the Supabase-only `supabase_get_database` prototype, deleted 2026-09-27.)
   "agent_plugin_connect",
-  // 2026-08-15 — `deployment_execute_static_publish` (`features/deployments/publish-agent-tools.ts`)
-  // holds up the SAME shape `content_post_delete` does: its handler opens a `SurfaceExchangeStore`
-  // exchange and parks on `ctx.emitSurface` until this endpoint delivers the human's confirm/cancel
-  // click, exactly the mechanism this allowlist exists to gate. Publishing sends the site to the
-  // public internet with a write-scoped external credential — at least as consequential as a soft
-  // delete — so it belongs on this list for the identical reason, not a lesser one.
-  "deployment_execute_static_publish",
   // 2026-08-15 — `deployment_propose_custom_provider_credential` (`features/deployments/
   // publish-agent-tools.ts`) holds up the SAME shape `content_post_delete`/
   // `deployment_execute_static_publish` do: its handler opens a `SurfaceExchangeStore` exchange and
@@ -68,15 +60,6 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // only widen this endpoint's reach for no reason (same reasoning the two existing read-only
   // static-publish tools are absent for, in the test file's own comment).
   "deployment_propose_custom_provider_credential",
-  // 2026-08-16 — `source_control_execute_commit` (`features/source-control/tool-registrations.ts`)
-  // holds up the SAME shape `content_post_delete`/`deployment_execute_static_publish` do: its handler
-  // opens a `SurfaceExchangeStore` exchange and parks on `ctx.emitSurface` until this endpoint
-  // delivers the human's confirm/cancel click. Pushing a real commit to a connected repository with a
-  // write-scoped external credential is at least as consequential as a soft delete or a static
-  // publish, so it belongs on this list for the identical reason.
-  // `source_control_get_capabilities` is deliberately ABSENT here — it is a plain read that never
-  // opens an exchange, same reasoning the read-only static-publish tools are absent for above.
-  "source_control_execute_commit",
   // 2026-09-09 — `plugins_set_enabled` (`features/plugin-runtime/tool-registrations.ts`) holds up the
   // SAME shape `content_post_delete`/`deployment_execute_static_publish` do: on an ENABLE it opens a
   // `SurfaceExchangeStore` exchange and parks on `ctx.emitSurface` until this endpoint delivers the
@@ -182,30 +165,8 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // would render correctly and every acknowledgement would 403, leaving the parked call to expire
   // on its own idle deadline instead of ever resolving.
   "external_mcp_reauth_prompt",
-  // 2026-09-08 — narrow-path delete-confirmation build (ADS-memory/reports/
-  // 2026-09-08-delete-confirmation-build.md, executing 2026-09-08-content-delete-eval.md §5's
-  // recommendation): each of these holds up the SAME held-open-exchange shape `content_post_delete`
-  // does — its handler opens a `SurfaceExchangeStore` exchange via the shared
-  // `resolveConfirmationDecision` (`contracts/core/tool-surface-exchanges.ts`) and parks on the
-  // human's confirm/cancel click before performing its own trash/tombstone/delete. Identity's
-  // `identity_role_delete`/`identity_policy_delete` and `workspace_delete` are deliberately absent —
-  // out of scope for this family (see that report's §1.2).
-  "comments_trash_comment",
-  "widgets_trash_instance",
-  "theme_trash_file",
-  "redirects_tombstone",
+  // Permanent webhook deletion still waits for a human decision.
   "webhooks_delete_subscription",
-  // `media_trash_asset` — sixth and last of the same family, added a beat after the five above in
-  // the same build. Holds up the identical shape (its shim in `features/media/tool-registrations.ts`
-  // opens a `SurfaceExchangeStore` exchange via `resolveConfirmationDecision`, same as the rest).
-  // Missing from this list for one commit: the tool still registered, its dialog still rendered
-  // correctly with real asset data, and every direct-handler test still passed — none of that
-  // exercises this route, so nothing caught it until a live click through the real endpoint returned
-  // 403 TOOL_NOT_ALLOWLISTED for both Trash and Cancel (ADS-memory/reports/
-  // 2026-09-08-delete-confirmation-build.md's verification section). "Registers" and "the confirm
-  // click works" are different claims — only a request that reaches this allowlist proves the second
-  // one; see `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts` for that proof.
-  "media_trash_asset",
   // 2026-09-08 — `external_mcp_save` (`features/external-mcp/tool-registrations.ts`) holds up the
   // SAME held-open-exchange shape `content_post_delete`/`media_trash_asset` do: its handler opens a
   // `SurfaceExchangeStore` exchange and parks on the human's "Add server"/Cancel click before writing
@@ -220,41 +181,14 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // did for one commit. See `mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts` for the
   // real round trip this entry makes possible.
   "external_mcp_save",
-  // 2026-09-15 — `custom_credential_write_files` (`features/custom-credentials/tool-registrations.ts`)
-  // holds up the SAME held-open-exchange shape every entry above does: its handler opens a
-  // `SurfaceExchangeStore` exchange and parks on the human's confirm/cancel click
-  // (`features/custom-credentials/write-files-confirmation-ui.ts`) before landing a real commit in a
-  // third-party repository. Unlike `custom_credential_make_request`'s DELETE-only gate, EVERY call to
-  // this tool is gated — there is no un-confirmed path, because every call durably writes to a real
-  // repository — so omitting it here would repeat the exact gap `assistant_ask_choice`'s own comment
-  // above describes: the dialog would render correctly naming every path it would write, and every
-  // submission would 403 with TOOL_NOT_ALLOWLISTED, unusable in production from the day it shipped.
-  "custom_credential_write_files",
-  // 2026-09-21 — `site_backup_push` (`features/site-backup/tool-registrations.ts`) holds up the same
-  // held-open exchange: it parks on the human's Back up/Cancel click
-  // (`features/site-backup/confirmation-ui.ts`) before committing the site's database and files to
-  // a private GitHub repository. Every call is gated. Without this entry both buttons would 403
-  // with TOOL_NOT_ALLOWLISTED, the same gap `custom_credential_write_files` above describes.
-  "site_backup_push",
   // 2026-09-27 — `database_transfer_run` (`features/database-transfer/tool-registrations.ts`) parks on
   // the human's Copy/Cancel click (`features/database-transfer/confirmation-ui.ts`) before copying the
-  // site's data into a Postgres database. Every call is gated; without this entry both buttons 403.
+  // site's data into a Postgres database. Only replacement opens a card; first copies run immediately.
   "database_transfer_run",
   // 2026-09-27 — `database_transfer_set_destination` parks on the human's private form for the
   // destination database's address (`features/database-transfer/destination-ui.ts`); the address goes
   // browser -> this route -> the parked call, never through the model. Without this entry Save 403s.
   "database_transfer_set_destination",
-  // 2026-09-21 (trash T4) — `trash_item` (`features/trash/trash-item-tool.ts`) holds up the SAME
-  // held-open-exchange shape every entry above does, but only for a GENERIC `TRASHABLE` kind with no
-  // bespoke delegate (`form`, `form_submission`, ...): for those it opens its OWN
-  // `SurfaceExchangeStore` exchange and parks on the human's Move to trash/Cancel click, exactly like
-  // `media_trash_asset`'s shim does. For a kind WITH a delegate (post, comment, media, redirect,
-  // widget) the confirm click's `toolName` names the DELEGATE, not `trash_item` — see that file's own
-  // `deriveTrashItemRegistrations`, which reuses the delegate's already-open exchange — so this entry
-  // is load-bearing only for the generic kinds, but the same 403 gap `media_trash_asset` shipped with
-  // for one commit applies equally: omitting it here would render the dialog correctly and then 403
-  // TOOL_NOT_ALLOWLISTED on every real click.
-  "trash_item",
   // 2026-09-24 (tool-design audit F3; narrowed the same day to the owner's "only permanent deletes
   // confirm" rule — webhooks_create_subscription/sites_duplicate_site/media_generate_asset/
   // identity_role_assign/identity_policy_attach were gated too, then backed out): the identity

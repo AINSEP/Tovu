@@ -24,42 +24,10 @@
  *   `PublishCredentialSource.resolve()` — enforced structurally here (this handler's own deps give it
  *   no `sealer`-carrying path into `resolveForPublish`, whose signature requires one) and proven by
  *   this file's own test (a fake `credentialSource.resolve` that throws if ever called).
- * - `deployment_execute_static_publish` — NEW as a REACHABLE tool. Publishing is the one operation in
- *   this whole domain that breaks the "plain `mutates-durable-state`, nothing external" pattern this
- *   directory's sibling `agent-tools.ts` documents for its own five tools: it sends the current site's
- *   content to the PUBLIC INTERNET using a credential with WRITE access to the owner's external
- *   account, and the result is immediately live — potentially crawled, cached, or indexed within
- *   seconds. That is irreversible in the sense that matters (a later republish overwrites what is
- *   HOSTED, never what was already public).
- *
- *   This used to be declared with `actorClassRule: "confirmer-must-equal-own-delegatedBy"` and
- *   deliberately left unwired, on the same reasoning `recovery/agent-tools.ts` still gives for
- *   `backup_execute_restore` and `database/agent-tools.ts` for
- *   `database_execute_migrate_forward`: `@jini-ai/cms/core`'s
- *   `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` refuses to build any tool carrying that rule
- *   until a real `ExecutionDelegate`-backed confirmation transport exists, and `agent-daemon-server.ts`
- *   builds `createToolExecutor({registry})` with none. That is still true today — nothing about this
- *   dispatch changes it, and the rule/gate stays exactly as strict for those other two tools.
- *
- *   What changed is that this domain does NOT need that transport at all: `content_post_delete`
- *   (`features/post/tool-registrations.ts`) already proved a working confirmation gate exists that
- *   needs no `ExecutionDelegate` — the MCP-UI held-open surface exchange (ADR-055 Decisions 1/2,
- *   `assistant/surface-exchanges.ts`). The model's ONE call to `deployment_execute_static_publish`
- *   opens an exchange, renders a confirmation dialog naming exactly what will be published and where,
- *   and PARKS on `ctx.emitSurface` until a human answers through
- *   `mcp-ui-tool-calls-route.ts` (added to that route's `MCP_UI_REDEEMABLE_TOOL_IDS` allowlist in
- *   `assistant/mcp-ui-tool-calls.ts` as part of this change) — no `ExecutionDelegate`,
- *   `descriptor.requiresConfirmation`, or `resumeConfirmation` involved anywhere. So this tool
- *   deliberately carries NO `actorClassRule` (mirrors `content_post_delete`'s own catalog entry: "the
- *   absence... is on purpose" — declaring the rule here would, correctly, fail the build for a
- *   transport this tool does not use).
- *
- *   The credential itself is still never agent-visible: the model's call carries only
- *   `{target, projectName, ...target-specific fields}` — no token field exists in the schema — and the
- *   real credential is resolved server-side, only after a human confirms, by
- *   `static-publish/adapter.ts`'s `publishStaticSite` (the SAME function `server/routes/admin/system/
- *   publish-site.ts`'s human-session route already calls), from the SAME `PublishCredentialSource`
- *   the preview/capabilities tools only ever ask `isConfigured()` of.
+ * - `deployment_execute_static_publish` runs an authorized publish immediately, without a consent
+ *   card. Credential readiness, target validation, the active-run guard and truthful provider
+ *   outcomes still apply. Credentials are resolved server-side and never cross the model boundary.
+ *   The credential-proposal tool still collects secrets through its human-only form.
  *
  * How it relates to the project:
  * The server-side tool filter (ADR-014) consumes the catalog below to decide which tool names an
@@ -90,7 +58,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 // TYPE-ONLY — fully erased at compile time, so this creates no runtime require() and cannot recreate
 // the circular-load crash a VALUE import of `#src/features/site-export/index` caused inside `export-run.ts` and
@@ -106,7 +74,7 @@ import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js
 
 import type { ToolContributor } from "#src/assistant/index";
 
-import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
+import { askOnce, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`
@@ -117,7 +85,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
-import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetFieldSpec, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
+import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
 // Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
 // tab writes, so a row saved from chat is the row a publish resolves.
 import { createPublishCredential, updatePublishCredential, type PublishCredentialWriteDeps } from "./publish-credentials/index.js";
@@ -269,7 +237,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_preview_static_publish",
     description:
-      "Previews publishing the current site WITHOUT publishing anything: validates the target's config fields, reports the base path a real publish would use (computed from the host and its config, never passed in, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only, never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes, writes, or sends anything anywhere; it is a pure read. Account fields: when a host's config field names the account to publish under (an owner, user or organization), do NOT guess it from the human's name, email address or any other context. Call deployment_get_static_publish_capabilities first: a verified credential reports its real account login as that provider's accountLabel. Default the field to accountLabel when present, and still confirm it with the human before publishing, because a saved token's account is not always the person asking and a wrong account publishes somewhere they may not control. If accountLabel is null the account is UNKNOWN: say so plainly and ask the human directly. Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind: this tool cannot know whether a made-up example matches a real account, and offering one is how an invented account name once got published to.",
+      "Previews publishing the current site WITHOUT publishing anything: validates the target's config fields, reports the base path a real publish would use (computed from the host and its config, never passed in, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only, never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes, writes, or sends anything anywhere; it is a pure read. Account fields: when a host's config field names the account to publish under (an owner, user or organization), do NOT guess it from the human's name, email address or any other context. Call deployment_get_static_publish_capabilities first: a verified credential reports its real account login as that provider's accountLabel. Use the requested account, or default to accountLabel when present. Ask only when the target account is missing or ambiguous. If accountLabel is null and no account was supplied the account is UNKNOWN: say so plainly and ask the human directly. Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind: this tool cannot know whether a made-up example matches a real account, and offering one is how an invented account name once got published to.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: PREVIEW_STATIC_PUBLISH_SCHEMA,
@@ -277,7 +245,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT decrypting or exposing any credential. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail: the LAST 4 CHARACTERS ONLY of that credential's token or secret key, held in the clear so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, and still confirm it with the human before publishing; when accountLabel is null, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. You can also offer to help right here in chat: deployment_propose_custom_provider_credential shows the human an editable form for any host that takes a saved credential (you never see or handle the secret fields).",
+      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT decrypting or exposing any credential. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail: the LAST 4 CHARACTERS ONLY of that credential's token or secret key, held in the clear so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. You can also offer to help right here in chat: deployment_propose_custom_provider_credential shows the human an editable form for any host that takes a saved credential (you never see or handle the secret fields).",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -285,7 +253,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_execute_static_publish",
     description:
-      "Publishes the current site as a FRESH static export to one of the hosts deployment_get_static_publish_capabilities lists, using the workspace's own SAVED credential for that provider (configured by a human in the admin's Static Site tab; this tool takes no token/credential field of any kind, and refuses any field the host does not declare). HUMAN-GATED: call it with just { target, projectName, ...that host's configFields as top-level strings }. This ONE call shows an interactive confirmation dialog naming exactly what will be published and to where, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make, and no confirmation token to invent or pass. If the human clicks Publish, THIS SAME CALL runs the publish and returns { published: true, reachable: true, target, url, status, basePath? } for a full, confirmed-live success. Some hosts (object storage behind a CDN or public-hosting step, see deployment_generate_bucket_hosting_setup) can upload successfully while the public URL is not YET reachable: that honest partial outcome returns { published: true, reachable: false, target, url, status, message, basePath? }; the files DID upload, but do not tell the user the site is live until reachable is true. If they click Cancel, it returns { published: false, cancelled: true }. If nobody answers before the dialog expires (or the run ends first), it returns { published: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no credential is configured yet for the requested provider, this returns { published: false, reason: 'no-credential', message }, naming the provider and pointing to the right tab, WITHOUT ever raising a dialog (call deployment_get_static_publish_capabilities first to check readiness and avoid this). Every other failure (a saved credential missing a required field, a rejected provider API call, an export failure) is returned as { published: false, code, message } with an actionable message describing what went wrong; it never echoes a credential or a raw provider response body. The result is immediately LIVE on the public internet the moment it returns published:true AND reachable:true, and may be crawled, cached, or indexed within seconds; irreversible in the sense that matters, since a later republish overwrites what is HOSTED but can never retract what was already public. Simply wait for the result and report the true outcome to the user; do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
+      "Publishes a fresh static export immediately to a host listed by deployment_get_static_publish_capabilities using its saved credential. Input is {target, projectName, ...host configFields as top-level strings}; unknown fields and secrets are refused. Requires deployments.publish. Wait for the result: {published:true, reachable:true, target, url, status, deploymentId?, basePath?} confirms the site is live. An upload awaiting public reachability returns {published:true, reachable:false, target, url, status, message, deploymentId?, basePath?}; report that partial outcome honestly. Missing credentials return {published:false, reason:'no-credential', message}; failures return {published:false, code, message}. Never exposes a token or raw provider response. A concurrent publish returns ALREADY_RUNNING; wait for it to settle.",
     // Genuinely destructive in the sense that matters for this domain (sends content to the public
     // internet with a write-scoped external credential) — classified accordingly, and cross-checked
     // against `staticPublishDerivedRisk` below at build time (`assertToolIsWirable`) so this
@@ -482,58 +450,6 @@ const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
  *  colliding on one URI. */
 function publishConfirmationUri(exchangeId: string): UIResourceUri {
   return `ui://tovu/deployment-execute-static-publish/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders the publish confirmation dialog — the human-facing half of `deployment_execute_static_publish`'s
- * gate (this file's header). Mirrors `buildDeleteConfirmationResource`
- * (`features/post/delete-confirmation-ui.ts`) closely: Jini's `buildConfirmationSurface` owns HOW a
- * confirmation dialog behaves (the real MCP-UI handshake, safe interpolation, status text); this
- * function only decides WHAT a publish confirmation should say. Colocated in this file rather than
- * split into its own `publish-confirmation-ui.ts`, unlike the Posts/Pages precedent — this dispatch's
- * scope is this one file plus `assistant/**`, and the content here is small enough not to need its own
- * module.
- *
- * @complexity O(1) — a handful of fixed-size field reads.
- */
-function buildPublishConfirmationResource(spec: {
-  config: StaticPublishConfig;
-  detailRows: readonly DetailRow[];
-  projectName: string;
-  basePath: string | undefined;
-  exchangeId: string;
-}): UIResource {
-  const { config, detailRows, projectName, basePath, exchangeId } = spec;
-
-  return buildConfirmationSurface({
-    uri: publishConfirmationUri(exchangeId),
-    title: `Publish the site to ${config.target}?`,
-    description: "The current site content will be exported fresh and published live, using this workspace's saved credential for this provider.",
-    details: [
-      { label: "Target", value: config.target },
-      { label: "Project name", value: projectName },
-      ...detailRows,
-      ...(basePath !== undefined ? [{ label: "Base path", value: basePath }] : []),
-    ],
-    warning:
-      "This goes live on the public internet immediately and may be crawled, cached, or indexed within seconds. A later republish overwrites what is hosted but can never retract what was already public.",
-    danger: true,
-    confirm: {
-      label: "Publish",
-      toolName: EXECUTE_STATIC_PUBLISH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    // A tool action, not a bare dismiss — matches `buildDeleteConfirmationResource`'s own reasoning:
-    // cancelling posts back and resolves the parked call immediately rather than stranding the agent's
-    // call open until the idle deadline.
-    cancel: {
-      label: "Cancel",
-      toolName: EXECUTE_STATIC_PUBLISH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-deployment-execute-static-publish", appVersion: "1" },
-    preferredFrameSize: ["100%", "360px"],
-  });
 }
 
 /**
@@ -747,53 +663,6 @@ interface PublishConfirmationContext {
   readonly projectName: string;
 }
 
-/** ADR-055 Decision 6: the no-answer path (`expired`/`abandoned`) is a result, not an exception.
- *  Nothing was published either way, and the model is still alive to read this and say something
- *  sensible. {@link handlePublishConfirmationAnswer} sends no `outcome` for this branch either: the
- *  exchange itself already ended, so `askThenReport`'s own send would just be swallowed regardless. */
-function buildNoAnswerToolResult(status: "expired" | "abandoned"): { published: false; cancelled: false; reason: string; note: string } {
-  return {
-    published: false,
-    cancelled: false,
-    reason: status,
-    note:
-      status === "expired"
-        ? "The user did not respond to the publish confirmation dialog before it expired. Nothing was published."
-        : "The confirmation dialog was closed because the run ended. Nothing was published.",
-  };
-}
-
-/**
- * No `await` between the single-flight check this builds a result for and `runPublishAndAwait` in
- * {@link handlePublishConfirmationAnswer} — same single-synchronous-stretch contract `publish-site.ts`'s
- * HTTP trigger route documents for the identical check, against the SAME shared slot
- * (`static-publish/publish-run.ts`): checked immediately before the actual publish call, rather than
- * earlier (e.g. before opening the confirmation dialog), because the dialog can sit open for an
- * arbitrary time awaiting a human answer, during which another publish could start AND finish, so a
- * check made before that point would not actually close the race.
- *
- * This IS a "Done." would-be-lie moment too (see {@link handlePublishConfirmationAnswer}'s own header
- * for the defect `askThenReport` fixes): the human clicked Publish, the confirming call is about to
- * resolve, and nothing published. Corrected the same way a real publish failure is, not left to the
- * confirmation script's generic "Done.".
- */
-function buildAlreadyRunningResult(
-  exchange: SurfaceExchange,
-  config: StaticPublishConfig,
-  detailRows: readonly DetailRow[],
-  projectName: string
-): { result: unknown; outcome: SurfaceEmission } {
-  const message =
-    "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.";
-  return {
-    result: { published: false, cancelled: false, reason: "already-running", message },
-    outcome: {
-      channel: "mcp-ui",
-      payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "failure", message }) },
-    },
-  };
-}
-
 /**
  * Maps `publishStaticSite`'s own `StaticPublishOutcome` (via {@link handlePublishConfirmationAnswer}'s
  * `runPublishAndAwait` call) to `deployment_execute_static_publish`'s agent-facing result plus the
@@ -816,7 +685,7 @@ function buildAlreadyRunningResult(
  */
 function mapPublishOutcomeToToolResult(
   outcome: StaticPublishOutcome,
-  exchange: SurfaceExchange,
+  exchange: Pick<SurfaceExchange, "id">,
   config: StaticPublishConfig,
   detailRows: readonly DetailRow[],
   projectName: string
@@ -875,66 +744,6 @@ function mapPublishOutcomeToToolResult(
       },
     },
   };
-}
-
-/**
- * `deployment_execute_static_publish`'s `askThenReport` handler — extracted to a top-level function
- * (previously a ~135-line closure) so its own complexity is measured independently of the handler
- * that constructs {@link PublishConfirmationContext} and passes it in.
- *
- * `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — a click resolving this tool's
- * `tools/call` proves the click was DELIVERED, never that the publish it triggered actually succeeded
- * (see that function's own doc for the full defect this closes: for a held-open exchange, the click's
- * round trip resolves the instant `mcp-ui-tool-calls-route.ts` delivers it to this parked call — `202
- * {delivered:true}` — long before this function has even started running). `askOnce` cannot be
- * patched to fix this in place: it closes the exchange the moment `receive()` resolves, so a second
- * `exchange.send()` after doing the real work here would already be talking to a dead exchange. This
- * function is exactly the body `askOnce` would have wrapped; the only new thing each `return` does is
- * also hand back an `outcome` emission when there is a genuine publish result to correct the record
- * with — `askThenReport` sends it AFTER the confirm dialog, on the SAME `ui://` URI
- * (`publishConfirmationUri(exchange.id)`, reused by `buildPublishOutcomeResource`), which is what
- * makes the transcript replace the dialog with the truth in place rather than opening a second card.
- */
-async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: PublishConfirmationContext): Promise<{ result: unknown; outcome?: SurfaceEmission }> {
-  // Fail-closed classification shared with `features/post/tool-registrations.ts`'s own
-  // `resolveDeleteDecision` and its other forks (`contracts/core/tool-surface-exchanges.ts`'s
-  // `classifyConfirmationAnswer`) — used directly here, not via `resolveConfirmationDecision`,
-  // because `askThenReport` already delivered `answer` to this function; there is no second
-  // `askOnce` round trip to share.
-  const confirmation = classifyConfirmationAnswer(answer);
-  if (!confirmation.confirmed) {
-    if (confirmation.reason === "declined") {
-      // No outcome surface for a cancel: the confirmation's own script already reports
-      // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth for a
-      // cancel (unlike a publish, nothing async happens afterward that could still fail).
-      return { result: { published: false, cancelled: true, target: ctx.target, projectName: ctx.projectName } };
-    }
-    return { result: buildNoAnswerToolResult(confirmation.reason) };
-  }
-
-  if (getPublishRunSnapshot().status === "running") {
-    return buildAlreadyRunningResult(ctx.exchange, ctx.config, ctx.detailRows, ctx.projectName);
-  }
-
-  const outcome = await runPublishAndAwait(
-    {
-      credentialSource: ctx.credentialSource,
-      loadDeployTargets: deployTargetsLoader(ctx.deps),
-      ...(ctx.deps.buildTarget !== undefined ? { buildTarget: ctx.deps.buildTarget } : {}),
-    },
-    {
-      workspaceId: ctx.deps.workspaceId,
-      publishOutputRootDir: ctx.deps.publishOutputRootDir,
-      idGen: ctx.deps.idGen,
-      exportSiteBound: ctx.deps.exportSiteBound,
-      config: ctx.config,
-      projectName: ctx.projectName,
-    },
-    ctx.deps.clock,
-    ctx.historyStore
-  );
-
-  return mapPublishOutcomeToToolResult(outcome, ctx.exchange, ctx.config, ctx.detailRows, ctx.projectName);
 }
 
 /** The host whose credential the propose-credential tool saves: it must be loaded and declare one.
@@ -1143,31 +952,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       return { executionMode: deps.publishExecutionMode, providers };
     },
 
-    /**
-     * The MCP-UI-gated publish. See `buildPublishConfirmationResource` above for the surface itself
-     * and this file's header for why this holds its call open (`assistant/surface-exchanges.ts`)
-     * rather than needing `descriptor.requiresConfirmation`/an `ExecutionDelegate`.
-     *
-     * One call, blocking:
-     *  1. Validate the config shape (same validation `publishStaticSite` performs internally — an
-     *     explicit early check here means a caller with an invalid config never causes a dialog to be
-     *     raised at all, mirroring `publish-site.ts`'s route's own early-validation discipline).
-     *  2. Check credential readiness (`isConfigured()`, never decrypts) — a dialog a human could only
-     *     ever see to be told "this can't work" wastes their attention, so a not-ready provider is
-     *     refused before opening anything.
-     *  3. Open an exchange, emit the confirmation surface through it, and park on the answer.
-     *  4. The answer is the human's decision — confirm, cancel — or a `SurfaceMessage` saying nobody
-     *     answered (`expired`/`abandoned`). Every branch returns a truthful result to the SAME call;
-     *     none of them throw for "no answer", because the model is still alive to read the result
-     *     (ADR-055 Decision 6, same posture `content_post_delete` takes).
-     *  5. On confirm, calls `publishStaticSite` — the SAME function `publish-site.ts`'s human-session
-     *     route calls — which resolves the real credential (only now, only here) and runs a fresh
-     *     export immediately before publishing.
-     *
-     * No fallback to a two-call shape when `ctx.emitSurface` is unavailable: an execution context that
-     * cannot hold this call open cannot run this tool at all — identical posture to
-     * `content_post_delete`'s own handler.
-     */
+    /** Validates and publishes immediately with server-side credentials. The result still waits
+     * for the provider and public reachability check; a headless execution needs no consent channel. */
     deployment_execute_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
@@ -1182,16 +968,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         throw new ToolInputError(`deployment_execute_static_publish: ${plan.message}`);
       }
 
-      // Fail closed rather than degrade — see this handler's own doc comment above.
-      if (!ctx.emitSurface) {
-        throw new Error(
-          "deployment_execute_static_publish: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a live publish cannot be gated here. Nothing was published."
-        );
-      }
-
       // Never decrypts (same `isConfigured()` contract the preview/capabilities handlers use above).
-      // Checked before raising any dialog so a guaranteed-fail call never wastes a human's attention.
+      // Refuse unavailable credentials before starting an export.
       const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
       if (!readiness.configured) {
         return {
@@ -1202,35 +980,19 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         };
       }
 
-      const basePath = plan.basePath;
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: EXECUTE_STATIC_PUBLISH_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface
-      );
-      const ui = buildPublishConfirmationResource({ config, detailRows, projectName, basePath, exchangeId: exchange.id });
-
-      // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
-      // handler open until the idle deadline — mirrors `content_post_delete`'s identical guard.
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        // `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — see
-        // `handlePublishConfirmationAnswer`'s own header for the full defect this closes and why the
-        // handler is a separate top-level function rather than inlined here.
-        const confirmationContext: PublishConfirmationContext = { deps, credentialSource, historyStore, exchange, config, detailRows, target, projectName };
-        // `<unknown>`, not left to infer: `handlePublishConfirmationAnswer`'s return type is a real
-        // union across its several `return` statements (a no-answer result looks nothing like a
-        // success result), and TypeScript's generic inference does not distribute a callback's union
-        // return type across `askThenReport`'s single type parameter — it narrows to one branch and
-        // then rejects the others. `unknown` is safe here specifically because `ToolHandler`
-        // (`@jini-ai/core`) already declares every handler's own return as `Promise<unknown>`, so
-        // nothing downstream of this call needed `result`'s precise shape anyway.
-        return await askThenReport<unknown>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) =>
-          handlePublishConfirmationAnswer(answer, confirmationContext)
-        );
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
+      if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
+      if (getPublishRunSnapshot().status === "running") {
+        return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
+      const outcome = await runPublishAndAwait(
+        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
+        { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName },
+        deps.clock,
+        historyStore,
+      );
+      const mapped = mapPublishOutcomeToToolResult(outcome, { id: ctx.executionId }, config, detailRows, projectName);
+      if (ctx.emitSurface) await ctx.emitSurface(mapped.outcome);
+      return mapped.result;
     },
 
     /**

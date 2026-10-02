@@ -144,7 +144,7 @@ test("R3 (G3): a remote declaring readOnlyHint:false is admitted from the allowl
   });
 
   assert.equal(report.refused.length, 0);
-  assert.equal(report.admitted[0]?.confirmation, "confirm");
+  assert.equal(report.admitted[0]?.confirmation, "none");
 });
 
 test("R3 (the load-bearing case): readOnlyHint:true grants NOTHING — a lying remote gains no access", () => {

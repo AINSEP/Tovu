@@ -138,14 +138,15 @@ const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
   {
     id: "chat.reset_conversation",
     description:
-      "DESTRUCTIVE. Clear the conversation back to its initial messages and reset the composer, " +
-      "discarding the visible transcript and cancelling any in-flight run. Requires explicit confirmation.",
+      "Resets the visible conversation back to its initial messages and clears the composer " +
+      "without asking for confirmation. Cancels any in-flight run; stored conversations and messages " +
+      "remain available. Pass confirm: true to execute this local reset.",
     inputSchema: {
       type: "object",
       properties: {
         confirm: {
           type: "boolean",
-          description: "Must be true. Acknowledges that the current conversation will be discarded.",
+          description: "Pass true to reset the local view immediately; this does not delete stored messages.",
         },
       },
       required: ["confirm"],

@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { createCommentHookRegistry } from "../hooks.js";
@@ -16,19 +14,7 @@ import type { CommentRecord } from "../types.js";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
-/**
- * @file Certification of `comments_trash_comment`'s confirmation gate — the first of the 7 tools
- * wired onto the shared MCP-UI held-open exchange (`resolveConfirmationDecision`) after
- * `content_post_delete` proved the pattern. Modeled directly on
- * `features/post/__tests__/agent-tools.delete-confirmation.test.ts`, scoped to this domain's own
- * result shape and write path (`commentWriteService.applyModeration`, which carries its own
- * optimistic-concurrency check via `expectedVersion` — unlike `deletePost`, no separate
- * stale-version re-check is needed here; see the handler's own comment).
- *
- * `comments_approve_comment`/`comments_mark_comment_spam`/`comments_restore_comment` are unchanged
- * and stay certified by `assistant/__tests__/tool-registrations.comments.test.ts`'s own
- * `MODERATION_TOOLS` loop — this file covers only the one tool whose shape actually changed.
- */
+/** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
 const WORKSPACE_ID = "ws-comments-trash-confirm";
 const PRINCIPAL_ID = "principal-under-test";
@@ -136,230 +122,6 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
   return registration.handler(ctx);
 }
 
-function exchangeIdFromSurface(surface: unknown): string {
-  const html = (surface as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
-  return match[1]!;
-}
-
-async function raiseDialog(trashTool: ToolRegistration, input: Record<string, unknown> = { commentId: "comment-1", expectedVersion: 1 }) {
-  const emitted: unknown[] = [];
-  const pending = call(trashTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
-  const exchangeId = exchangeIdFromSurface(emitted[0]);
-  return { pending, ui, exchangeId };
-}
-
-/** Execute the emitted dialog script against its rendered buttons and the exchange action bridge. */
-function clickRenderedConfirm(ui: UIResource, surfaceExchanges: SurfaceExchangeStore): void {
-  const clicks = new Map<string, (event: unknown) => void>();
-  const buttons = [...ui.resource.text.matchAll(/<button\b([^>]*)>([^<]*)<\/button>/g)].map(([, attrs, label]) => {
-    const action = attrs!.match(/data-mcpui-action="([^"]+)"/)?.[1];
-    assert.ok(action);
-    return { action, label, disabled: attrs!.includes("disabled"), getAttribute: () => action,
-      addEventListener: (_type: string, handler: (event: unknown) => void) => clicks.set(action, handler) };
-  });
-  const confirm = buttons.find(button => button.label === "Trash comment");
-  assert.ok(confirm, "the visible Trash comment button must exist");
-  let now = 0;
-  const timers: Array<() => void> = [];
-  const status = { textContent: "", setAttribute: () => {} };
-  const calls: unknown[] = [];
-  const scripts = [...ui.resource.text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
-  assert.equal(scripts.length, 2);
-  runInNewContext(scripts[1]![1]!, {
-    window: { jiniMcpUi: { callTool: (toolId: string, rawParams: Record<string, unknown>) => {
-      const params = JSON.parse(JSON.stringify(rawParams));
-      calls.push({ toolId, params });
-      const result = surfaceExchanges.deliver({ exchangeId: params[SURFACE_EXCHANGE_ID_PARAM], toolId, principalId: PRINCIPAL_ID, params });
-      assert.deepEqual(result, { ok: true });
-      return Promise.resolve();
-    }, requestTeardown: () => {} } },
-    document: { visibilityState: "visible", getElementById: () => status, querySelectorAll: (selector: string) => selector === "[data-mcpui-action]" ? buttons : [], addEventListener: () => {} },
-    performance: { now: () => now },
-    setTimeout: (callback: () => void) => { timers.push(callback); return timers.length; }, clearTimeout: () => {},
-  });
-  now = 60_000;
-  timers[0]!();
-  assert.equal(confirm.disabled, false, "the confirmation dwell must enable the rendered button");
-  clicks.get(confirm.action)!({ isTrusted: true, currentTarget: confirm });
-  assert.equal(calls.length, 1);
-}
-
-// ---------------------------------------------------------------------------
-// 1. The call parks, the dialog names the comment, nothing is trashed while pending
-// ---------------------------------------------------------------------------
-
-test("the call stays open after the dialog is shown, and nothing is trashed while it is pending", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(trashTool);
-
-  assert.equal(ui.type, "resource");
-  assert.equal(ui.resource.mimeType, MCP_UI_MIME_TYPE);
-  assert.equal(surfaceExchanges.size(), 1);
-  assert.equal(
-    await Promise.race([pending, Promise.resolve("still-waiting" as const)]),
-    "still-waiting",
-    "the agent's call must not return before the human answers",
-  );
-
-  const row = await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" });
-  assert.equal(row?.status, "pending", "the row must be unchanged while the dialog is open");
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("the dialog names the author and a preview of the comment body, so consent is informed", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  const bodyText = "This is spam-adjacent nonsense. " + "Long comment content. ".repeat(10);
-  await commentRepo.create(seedComment({ authorName: "Jamie", bodyText }));
-  await commentRepo.create(seedComment({ id: "another-comment", authorName: "Wrong Author", bodyText: "Wrong body" }));
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(trashTool);
-
-  assert.match(ui.resource.text, /Jamie/);
-  assert.match(ui.resource.text, /spam-adjacent nonsense/);
-  assert.match(ui.resource.text, /moved to the trash/i);
-  const details = ui.resource.text.match(/<dl class="mcpui-details">([\s\S]*?)<\/dl>/)?.[1];
-  assert.ok(details, "the visible dialog detail list must exist");
-  const rows = [...details.matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)<\/dd>/g)].map(([, label, value]) => [label, value]);
-  assert.deepEqual(rows, [["Author", "Jamie"], ["Comment", bodyText.slice(0, 140) + "…"], ["Current status", "pending"]]);
-  assert.doesNotMatch(details, /Wrong Author|Wrong body/);
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-// ---------------------------------------------------------------------------
-// 2. Confirm / cancel / fail-closed decision
-// ---------------------------------------------------------------------------
-
-test("confirm: the human's click trashes the comment and the SAME call reports it to the agent", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { ui, pending } = await raiseDialog(trashTool);
-  clickRenderedConfirm(ui, surfaceExchanges);
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean };
-  assert.equal(result.trashed, true);
-  assert.equal(result.cancelled, false);
-
-  const row = await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" });
-  assert.equal(row?.status, "trash");
-  assert.equal(row?.version, 2);
-});
-
-test("cancel: nothing is trashed, and the SAME call reports the cancellation", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { exchangeId, pending } = await raiseDialog(trashTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean; commentId: string };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, true);
-  assert.equal(result.commentId, "comment-1");
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
-});
-
-test("an answer with no 'decision' field at all is NOT confirm — nothing is trashed (fail-closed)", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { exchangeId, pending } = await raiseDialog(trashTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: {} });
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, true);
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
-});
-
-test("an answer with an unrecognised 'decision' string is NOT confirm — nothing is trashed", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { exchangeId, pending } = await raiseDialog(trashTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "yes" } });
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, true);
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
-});
-
-test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const result = (await call(trashTool, { emitSurface: async () => undefined })) as {
-    trashed: boolean;
-    cancelled: boolean;
-    reason: string;
-    note: string;
-  };
-
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, false);
-  assert.equal(result.reason, "expired");
-  assert.match(result.note, /did not respond/);
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
-});
-
-test("a cancelled run abandons the dialog and reports 'abandoned', not a hang or a throw", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-  const controller = new AbortController();
-
-  const pending = call(trashTool, { emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
-  controller.abort();
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean; reason: string };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, false);
-  assert.equal(result.reason, "abandoned");
-  assert.equal(surfaceExchanges.size(), 0);
-});
-
-// ---------------------------------------------------------------------------
-// 3. No emit seam, authorization, staleness, not-found — all checked before/around the dialog
-// ---------------------------------------------------------------------------
-
-test("with no emitSurface, the trash is refused outright — there is no fallback second call", async () => {
-  const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  await assert.rejects(() => call(trashTool), /no interactive confirmation channel/);
-  assert.equal(surfaceExchanges.size(), 0, "no emit seam means no exchange was ever opened");
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
-});
 
 test("comments.delete is checked before any dialog is raised, and a denied principal never sees one", async () => {
   const { deps, commentRepo, authorizeCalls } = await fakeRouteDeps({ allow: false });
@@ -384,37 +146,20 @@ test("a nonexistent comment id is refused before any dialog is raised", async ()
   assert.equal(surfaceExchanges.size(), 0);
 });
 
-test("a stale expectedVersion confirmed against is rejected as a conflict, not silently applied — applyModeration's own optimistic-concurrency check covers this without a separate re-read", async () => {
+test("n06: reversible removal runs without a confirmation channel", async () => {
   const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  // The model's original call already carries a stale expectedVersion (as if the comment moved
-  // between the model's last read and this call).
-  const { exchangeId, pending } = await raiseDialog(trashTool, { commentId: "comment-1", expectedVersion: 99 });
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-
-  await assert.rejects(() => pending, /modified concurrently/);
-  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
+  await commentRepo.save(seedComment());
+  const store = createSurfaceExchangeStore();
+  const result = await call(tool(buildRegistrations(deps, store), TRASH_TOOL_ID)) as {trashed: boolean; cancelled: boolean};
+  assert.equal(result.trashed, true);
+  assert.equal(result.cancelled, false);
+  assert.equal((await commentRepo.findById({workspaceId: WORKSPACE_ID, id: "comment-1"}))?.status, "trash");
+  assert.equal(store.size(), 0);
 });
 
-test("a permission revoked between the dialog opening and the click still refuses the trash", async () => {
-  const { deps, commentRepo, setAllow, authorizeCalls } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
-
-  const { exchangeId, pending } = await raiseDialog(trashTool);
-  setAllow(false);
-  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-
-  await assert.rejects(pending, (error: unknown) => { assert.ok(error instanceof ForbiddenError); return true; });
-  assert.equal(authorizeCalls.length, 2);
-  assert.equal(authorizeCalls[1]?.permission, "comments.delete");
-  assert.equal(authorizeCalls[1]?.entityId, "comment-1");
-  const row = await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" });
-  assert.equal(row?.status, "pending");
-  assert.equal(row?.version, 1);
-  assert.equal(surfaceExchanges.size(), 0);
+test("a stale expectedVersion still refuses the trash", async () => {
+  const {deps, commentRepo} = await fakeRouteDeps();
+  await commentRepo.save(seedComment({version: 2}));
+  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TRASH_TOOL_ID)), { message: "comment was modified concurrently (current version is 2) — re-read with comments_list_moderation_queue and retry with the fresh version" });
+  assert.equal((await commentRepo.findById({workspaceId: WORKSPACE_ID, id: "comment-1"}))?.status, "pending");
 });

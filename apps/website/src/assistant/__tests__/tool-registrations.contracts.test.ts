@@ -653,7 +653,7 @@ test("both tools are discoverable through the real search_tools/describe_tool ca
   const capabilities = catalog.describe("deployment_get_static_publish_capabilities");
   assert.ok(execute, "deployment_execute_static_publish must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
   assert.ok(capabilities, "deployment_get_static_publish_capabilities must be describable for the same reason");
-  assert.match(execute!.description, /Publishes the current site/);
+  assert.match(execute!.description, /Publishes a fresh static export/);
 
   const hits = catalog.search("publish the site to a host", 25);
   assert.ok(hits.some((hit) => hit.id === "deployment_execute_static_publish"), `expected deployment_execute_static_publish among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);

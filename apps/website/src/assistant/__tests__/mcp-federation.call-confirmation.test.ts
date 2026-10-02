@@ -75,12 +75,12 @@ test("G3 admission: a destructiveHint tool on the operator allowlist is admitted
   assert.equal(admitted("execute_sql").confirmation, "confirm-destructive");
 });
 
-test("G3 admission: a readOnlyHint:false tool NOT on the write list is admitted behind a confirmation", () => {
-  assert.equal(admitted("create_project").confirmation, "confirm");
+test("G3 admission: a ordinary write remains admitted without a card", () => {
+  assert.equal(admitted("create_project").confirmation, "none");
 });
 
-test("G3 admission: a tool that declares no hints at all is admitted behind a confirmation — silence is not read-only", () => {
-  assert.equal(admitted("get_advisors").confirmation, "confirm");
+test("G3 admission: a tool without hints is admitted without a card but gains no read-only permission", () => {
+  assert.equal(admitted("get_advisors").confirmation, "none");
 });
 
 test("G3 admission: a server-marked read-only tool runs with no confirmation", () => {
@@ -200,7 +200,7 @@ function answer(h: Harness, card: Card, name: string, decision: "confirm" | "can
 
 test("G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm", async () => {
   const h = harness();
-  const { pending, cards } = call(h, "execute_sql", { project_id: "ppnxclfntfaoocrvipht", query: "create table g3 (id int)" });
+  const { pending, cards } = call(h, "execute_sql", { project_id: "ppnxclfntfaoocrvipht", query: "drop table g3" });
   await tick();
 
   assert.equal(cards.length, 1, "a confirmation card is shown before anything runs");
@@ -208,7 +208,7 @@ test("G3 card: an unconfirmed call never reaches the remote — nothing is sent 
 
   assert.deepEqual(answer(h, readCard(cards[0]), "execute_sql", "confirm"), { ok: true });
   await pending;
-  assert.deepEqual(h.sent, [{ name: "execute_sql", args: { project_id: "ppnxclfntfaoocrvipht", query: "create table g3 (id int)" } }]);
+  assert.deepEqual(h.sent, [{ name: "execute_sql", args: { project_id: "ppnxclfntfaoocrvipht", query: "drop table g3" } }]);
 });
 
 test("G3 card: Cancel sends nothing and tells the model in words", async () => {
@@ -228,10 +228,10 @@ test("G3 card: Cancel sends nothing and tells the model in words", async () => {
 
 test("G3 card: an expired card sends nothing and says it expired", async () => {
   const h = harness({ store: createSurfaceExchangeStore({ idleTtlMs: 20 }) });
-  const { pending, cards } = call(h, "create_project", { name: "x" });
+  const { pending, cards } = call(h, "execute_sql", { query: "drop table demo" });
 
   assert.deepEqual(await pending, {
-    federated: { connectionId: "supabase", tool: "create_project" },
+    federated: { connectionId: "supabase", tool: "execute_sql" },
     ran: false,
     cancelled: false,
     reason: "expired",
@@ -256,7 +256,7 @@ test("G3 card: a run that ends while the card waits sends nothing", async () => 
 
 test("G3 card: the displayed arguments are exactly what is sent — mutating the input after the card is shown changes nothing", async () => {
   const h = harness();
-  const input = { project_id: "ppnxclfntfaoocrvipht", query: "create table g3_smoke_test (id bigint primary key)" };
+  const input = { project_id: "ppnxclfntfaoocrvipht", query: "drop table g3_smoke_test" };
   const { pending, cards } = call(h, "execute_sql", input);
   await tick();
   const card = readCard(cards[0]);
@@ -271,22 +271,22 @@ test("G3 card: the displayed arguments are exactly what is sent — mutating the
     { label: "Service", value: "Supabase" },
     { label: "Tool", value: "execute_sql" },
     { label: "project_id", value: "ppnxclfntfaoocrvipht" },
-    { label: "query", value: "create table g3_smoke_test (id bigint primary key)" },
+    { label: "query", value: "drop table g3_smoke_test" },
   ]);
   assert.deepEqual(h.sent, [
-    { name: "execute_sql", args: { project_id: "ppnxclfntfaoocrvipht", query: "create table g3_smoke_test (id bigint primary key)" } },
+    { name: "execute_sql", args: { project_id: "ppnxclfntfaoocrvipht", query: "drop table g3_smoke_test" } },
   ]);
 });
 
 test("G3 card: one confirmation authorizes exactly one call — a second call gets its own card, and re-sending the first Confirm is refused", async () => {
   const h = harness();
-  const first = call(h, "execute_sql", { query: "insert into t values (1)" });
+  const first = call(h, "execute_sql", { query: "delete from t where id = 1" });
   await tick();
   const firstCard = readCard(first.cards[0]);
   answer(h, firstCard, "execute_sql", "confirm");
   await first.pending;
 
-  const second = call(h, "execute_sql", { query: "insert into t values (2)" });
+  const second = call(h, "execute_sql", { query: "delete from t where id = 2" });
   await tick();
   assert.equal(second.cards.length, 1, "the second call shows its own card");
   const secondCard = readCard(second.cards[0]);
@@ -294,7 +294,7 @@ test("G3 card: one confirmation authorizes exactly one call — a second call ge
 
   assert.deepEqual(answer(h, firstCard, "execute_sql", "confirm"), { ok: false, reason: "unknown-or-closed" });
   await tick();
-  assert.deepEqual(h.sent.map((entry) => entry.args["query"]), ["insert into t values (1)"], "the replayed Confirm ran nothing");
+  assert.deepEqual(h.sent.map((entry) => entry.args["query"]), ["delete from t where id = 1"], "the replayed Confirm ran nothing");
 
   answer(h, secondCard, "execute_sql", "cancel");
   await second.pending;
@@ -349,10 +349,10 @@ test("G3 card: with no way to ask a human (no emitSurface), a confirm-gated tool
 
 test("G3 card: a composition root that wires no confirmer refuses every confirm-gated tool and sends nothing", async () => {
   const h = harness({ withConfirmer: false });
-  await assert.rejects(() => call(h, "get_advisors", {}).pending, {
+  await assert.rejects(() => call(h, "execute_sql", {query: "drop table g3"}).pending, {
     message:
-      "EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: mcp__supabase__get_advisors: this tool is not marked read-only by Supabase, " +
-      "so a person must approve each call, and nothing here can ask one. Nothing was sent.",
+      "EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: mcp__supabase__execute_sql: this protected action requires confirmation, " +
+      "and nothing here can ask a person. Nothing was sent.",
   });
   assert.deepEqual(h.sent, []);
 });
@@ -413,7 +413,7 @@ test("G3 route: Confirm on an open federated card is delivered (202) and the hel
   registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: h.store });
   const baseUrl = await startTestServer(app, t);
 
-  const { pending, cards } = call(h, "execute_sql", { query: "create table g3 (id int)" });
+  const { pending, cards } = call(h, "execute_sql", { query: "drop table g3" });
   await tick();
   const card = readCard(cards[0]);
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -428,5 +428,5 @@ test("G3 route: Confirm on an open federated card is delivered (202) and the hel
 
   assert.equal(res.status, 202);
   assert.deepEqual(executed, [], "the route delivered the answer; it executed nothing itself");
-  assert.deepEqual(h.sent, [{ name: "execute_sql", args: { query: "create table g3 (id int)" } }]);
+  assert.deepEqual(h.sent, [{ name: "execute_sql", args: { query: "drop table g3" } }]);
 });

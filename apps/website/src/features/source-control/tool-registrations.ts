@@ -15,12 +15,12 @@ import {
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 
-import { resolveConfirmationDecision, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import {
   commitSiteToSourceControl,
@@ -41,7 +41,7 @@ import {
 import type { RepositoryTargetValidator } from "./provider-module.js";
 import { isSourceControlProviderId } from "./store.js";
 import { listSourceControlCredentials } from "./store.js";
-import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
+import type { SourceControlCredentialSetRepoPort } from "./types.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/
@@ -60,31 +60,9 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  *   host (`provider-registry.ts`; the bundled `github` plugin today) — so a workspace that saved a
  *   credential for a host no plugin serves learns from THIS tool that committing isn't available,
  *   never from a failed commit attempt (2026-08-16 review requirement).
- * - `source_control_execute_commit` — the MCP-UI-gated write. Same shape as
- *   `deployment_execute_static_publish`: one call opens an exchange, raises a confirmation dialog,
- *   and parks on `ctx.emitSurface` until a human answers. The model's call carries no token field —
- *   the real credential is resolved server-side, only after confirm, by `commit-site.ts`'s
- *   `commitSiteToSourceControl`. The host is any providerId the registry lists (no schema enum); see
- *   `commit-site.ts`'s header and the committed proposal
- *   (`ADS-memory/reports/2026-08-16-source-control-tools.md`) for why gitlab/bitbucket are deferred
- *   rather than guessed at with no test credentials to verify against.
- *
- *   Only ONE pre-dialog check exists (credential presence, a cheap non-decrypting DB read) — same
- *   "one cheap pre-check, everything else discovered after confirm" shape
- *   `deployment_execute_static_publish` holds for its own `isConfigured()` check. Repository
- *   existence, branch divergence, network reachability, and "nothing changed" are all discovered
- *   DURING the post-confirm `commitSiteToSourceControl` call, never before — a pre-dialog network
- *   touch would require decrypting the credential before a human has agreed to anything, which no
- *   MCP-UI-gated write tool in this codebase does.
- *
- * `gitAdapter` (`SourceControlToolDeps`) defaults to the `commitSite` of the provider an enabled
- * Agent Plugin ships (2026-09-29: GitHub moved out of core into the bundled `github` plugin); tests
- * inject a fake. With no provider for the host, the commit is refused BEFORE any dialog opens.
- *
- * Architectural role:
- * `features/source-control` domain logic (agent-tool layer). No dependency on
- * `features/deployments/**` — this feature's identity table, decrypt path, and git adapter are all
- * its own (see `commit-site.ts`'s header).
+ * - `source_control_execute_commit` performs an authorized Git commit immediately. Provider,
+ *   credential, target and branch checks still apply; existing Git history preserves overwritten
+ *   files. Credentials remain server-side and are never included in the model's call or result.
  */
 
 interface AgentToolDefinition {
@@ -175,7 +153,7 @@ const EXECUTE_COMMIT_SCHEMA = {
     branch: {
       type: "string",
       description:
-        "Branch to commit to. Optional; when omitted, the repository's own default branch is used. If the named branch does not exist yet, it is created from this commit. If it exists, this commit is added on top of its current history. NEVER force-pushed: if the branch has moved since this call's confirmation dialog was shown (someone else pushed to it), the commit is refused rather than overwriting that history — see the DIVERGED_BRANCH result below.",
+        "Branch to commit to. Optional; when omitted, the repository's own default branch is used. If the named branch does not exist yet, it is created from this commit. If it exists, this commit is added on top of its current history. NEVER force-pushed: if the branch has moved since this call read its head (someone else pushed to it), the commit is refused rather than overwriting that history — see the DIVERGED_BRANCH result below.",
     },
     commitMessage: { type: "string", description: "The git commit message. 1-500 characters." },
     dryRun: {
@@ -203,7 +181,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits the current site as a FRESH export to a repository on a source control host, using the workspace's own SAVED source control credential for that host (configured by a human in the admin's Source Control page — this tool takes no token field of any kind; do not attempt to supply one). 'provider' is a providerId source_control_get_capabilities lists with commitSupported: true. HUMAN-GATED: call it with just { provider, owner, repo, commitMessage, branch? }. Pass dryRun: true first to see how many files the export would commit, without contacting the host. This ONE call shows an interactive confirmation dialog naming the repository, the branch, and the commit message, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make. If the human clicks Commit, THIS SAME CALL runs the export and commit and returns { committed: true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths } on success — filesChanged is how many files the current export wrote, filesDeleted is how many paths this same tool previously committed to this repo that are no longer part of the export and were explicitly removed from the target tree (report both to the human; a nonzero filesDeleted means real content was removed from their repository, not merely added). Only paths this tool itself previously wrote, AND whose live content still exactly matches what it wrote, are ever deleted — an existing README, workflow file, any other content already on the branch, or a page this tool once wrote that someone has since hand-edited, is never touched. divergedPaths lists any paths that fell into that last case: no longer part of the export, but preserved because their content no longer matches this tool's own record (or pre-dates this tool's ability to verify that) — tell the human these need their own manual review/cleanup if removal is still wanted. If they click Cancel, it returns { committed: false, cancelled: true, owner, repo }. If nobody answers before the dialog expires (or the run ends first), it returns { committed: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no credential for that host is configured yet, this returns { committed: false, reason: 'no-credential', message } — pointing to the Source Control page — WITHOUT ever raising a dialog (call source_control_get_capabilities first to check readiness and avoid this). If a credential is saved but no enabled Agent Plugin provides committing to that host (its plugin is switched off), it returns { committed: false, reason: 'no-provider', message } — also without a dialog; the message names the plugin and the Agent Plugins screen that turns it back on, so pass that on to the human. Every other failure — discovered only AFTER the human confirms, since committing needs the real credential and the export needs to run first — is returned as { committed: false, cancelled: false, code, message }: code 'REPOSITORY_NOT_FOUND' means the token cannot see that owner/repo; 'NO_CHANGES' means nothing changed since the branch's last commit, so nothing was written (this is not a failure to report as one — just tell the human nothing needed to commit); 'DIVERGED_BRANCH' means the branch moved (someone else pushed to it) since this call started — the commit was refused rather than overwriting that history, and the human needs to resolve this themselves, the same as any git push rejected for not being a fast-forward; 'NETWORK_UNREACHABLE' means the request could not reach the host at all (DNS/connection failure) — this says NOTHING about whether the credential is good, so do not tell the user to replace it, suggest trying again; 'PROVIDER_ERROR' means the host's API rejected the request (e.g. an expired or insufficient-scope token, a permission error) — the message names what went wrong, never a raw response body or the credential; 'EXPORT_FAILED' means the site itself failed to export cleanly, before any commit was attempted. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
+      "Commits a fresh site export to a source control repository using its saved credential. Runs immediately with {provider, owner, repo, commitMessage, branch?}; provider must be listed by source_control_get_capabilities with commitSupported:true. Pass dryRun:true to preview files and bytes without contacting the host. Returns {committed:true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Reports deleted and diverged paths; only previously exported paths whose live content still matches the export may be removed. Other files and human edits are preserved. Git history retains prior content. Returns {committed:false, reason, message} for unavailable credentials/providers or a failed commit. Never accepts or exposes a token. Requires source-control.commit.",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -224,7 +202,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // -> `listSourceControlCredentials` (a pure DB read, never decrypts) plus a plain `.length > 0`
   // presence check. No decrypt, no network call.
   ["source_control_get_capabilities", "none"],
-  // -> on confirm, calls `commitSiteToSourceControl`: a real `exportSite` pass plus a real GitHub Git
+  // -> calls `commitSiteToSourceControl`: a real `exportSite` pass plus a real GitHub Git
   // Data API commit using a write-scoped credential — genuinely mutates external durable state.
   ["source_control_execute_commit", "mutates-durable-state"],
 ]);
@@ -264,51 +242,6 @@ export interface SourceControlToolDeps {
 
 const EXECUTE_COMMIT_TOOL_ID = "source_control_execute_commit";
 
-/** The `ui://` URI for one commit-confirmation instance — keyed by the exchange id, same reasoning
- *  `publish-agent-tools.ts`'s own `publishConfirmationUri` documents (a commit has no existing
- *  row/version to key against). */
-function commitConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/source-control-execute-commit/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders the commit confirmation dialog — the human-facing half of `source_control_execute_commit`'s
- * gate. Mirrors `buildPublishConfirmationResource` (`publish-agent-tools.ts`) closely: Jini's
- * `buildConfirmationSurface` owns HOW a confirmation dialog behaves; this function only decides WHAT a
- * commit confirmation should say.
- *
- * @complexity O(1) — a handful of fixed-size field reads.
- */
-function buildCommitConfirmationResource(spec: { hostLabel: string; owner: string; repo: string; branch: string | undefined; commitMessage: string; exchangeId: string }): UIResource {
-  const { hostLabel, owner, repo, branch, commitMessage, exchangeId } = spec;
-
-  return buildConfirmationSurface({
-    uri: commitConfirmationUri(exchangeId),
-    title: `Commit the site to ${owner}/${repo}?`,
-    description: `The current site content will be exported fresh and committed, using this workspace's saved ${hostLabel} source control credential.`,
-    details: [
-      { label: "Repository", value: `${owner}/${repo}` },
-      { label: "Branch", value: branch ?? "repository's default branch" },
-      { label: "Commit message", value: commitMessage },
-    ],
-    warning:
-      "This pushes a real commit to your repository. If the target branch has moved since this dialog opened, the commit is refused rather than overwriting anyone's history.",
-    danger: true,
-    confirm: {
-      label: "Commit",
-      toolName: EXECUTE_COMMIT_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: EXECUTE_COMMIT_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-source-control-execute-commit", appVersion: "1" },
-    preferredFrameSize: ["100%", "360px"],
-  });
-}
-
 /** The validated, typed shape of `source_control_execute_commit`'s input, once parsed. */
 interface ParsedCommitCommand {
   provider: string;
@@ -344,38 +277,6 @@ function requireValidTarget(command: ParsedCommitCommand, validateTarget: Reposi
   if (configError !== null) {
     throw new ToolInputError(`source_control_execute_commit: ${configError}`);
   }
-}
-
-/**
- * Waits for the human's answer to the commit confirmation dialog and turns it into either
- * "go ahead" or the exact not-confirmed result the tool call should return — a `SurfaceMessage`
- * status (expired/closed) or an explicit cancel are different facts, so each keeps its own
- * `reason`/`note` rather than collapsing to one generic "cancelled" shape.
- */
-async function resolveCommitDecision(
-  exchange: SurfaceExchange,
-  ui: UIResource,
-  owner: string,
-  repo: string
-): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
-  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  if (outcome.confirmed) return { confirmed: true };
-
-  if (outcome.reason === "declined") {
-    return { confirmed: false, result: { committed: false, cancelled: true, owner, repo } };
-  }
-  return {
-    confirmed: false,
-    result: {
-      committed: false,
-      cancelled: false,
-      reason: outcome.reason,
-      note:
-        outcome.reason === "expired"
-          ? "The user did not respond to the commit confirmation dialog before it expired. Nothing was committed."
-          : "The confirmation dialog was closed because the run ended. Nothing was committed.",
-    },
-  };
 }
 
 /**
@@ -468,26 +369,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       return { providers };
     },
 
-    /**
-     * The MCP-UI-gated commit. See `buildCommitConfirmationResource` above for the surface itself
-     * and this file's header for why this holds its call open rather than needing
-     * `descriptor.requiresConfirmation`/an `ExecutionDelegate`.
-     *
-     * One call, blocking:
-     *  1. Validate input shape (a known host, then the host plugin's owner/repo rules and the
-     *     generic owner/repo/branch/commitMessage char classes) — an
-     *     explicit early check means a caller with an invalid target never causes a dialog to be
-     *     raised at all, mirroring `deployment_execute_static_publish`'s own early-validation
-     *     discipline.
-     *  2. Check credential presence (a plain repo read, never decrypts) — a dialog a human could
-     *     only ever see to be told "this can't work" wastes their attention, so a not-configured
-     *     provider is refused before opening anything.
-     *  3. Open an exchange, emit the confirmation surface through it, and park on the answer.
-     *  4. The answer is the human's decision — confirm, cancel — or a `SurfaceMessage` saying nobody
-     *     answered. Every branch returns a truthful result to the SAME call.
-     *  5. On confirm, calls `commitSiteToSourceControl` — which resolves the real credential (only
-     *     now, only here), runs a fresh export, and performs the real commit.
-     */
+    /** Runs an authorized commit immediately; target, credential and branch checks remain. */
     source_control_execute_commit: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
       const command = parseCommitCommand(raw);
@@ -534,16 +416,8 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           fileCount: preview.fileCount,
           totalBytes: preview.totalBytes,
           paths: preview.paths,
-          note: "Nothing was sent. Call again without dryRun to commit; the human confirms first.",
+          note: "Nothing was sent. Call again without dryRun to commit.",
         };
-      }
-
-      // Fail closed rather than degrade — same posture `deployment_execute_static_publish` takes.
-      if (!ctx.emitSurface) {
-        throw new Error(
-          "source_control_execute_commit: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a commit cannot be gated here. Nothing was committed."
-        );
       }
 
       // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
@@ -562,35 +436,22 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
       if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: EXECUTE_COMMIT_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-      const ui = buildCommitConfirmationResource({ ...command, hostLabel, exchangeId: exchange.id });
+      const outcome = await commitSiteToSourceControl(
+        { providerId: existing.providerId, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
+        {
+          workspaceId: deps.workspaceId,
+          sourceControlExportRootDir: deps.sourceControlExportRootDir,
+          idGen: deps.idGen,
+          exportSiteBound: deps.exportSiteBound,
+          owner: command.owner,
+          repo: command.repo,
+          ...(command.branch !== undefined ? { branch: command.branch } : {}),
+          commitMessage: command.commitMessage,
+        }
+      );
 
-      // A cancelled run must not leave a dialog holding a call nobody is listening to — mirrors
-      // `deployment_execute_static_publish`'s identical guard.
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        const decision = await resolveCommitDecision(exchange, ui, command.owner, command.repo);
-        if (!decision.confirmed) return decision.result;
+      return buildCommitOutcomeResult(outcome);
 
-        const outcome = await commitSiteToSourceControl(
-          { providerId: existing.providerId, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
-          {
-            workspaceId: deps.workspaceId,
-            sourceControlExportRootDir: deps.sourceControlExportRootDir,
-            idGen: deps.idGen,
-            exportSiteBound: deps.exportSiteBound,
-            owner: command.owner,
-            repo: command.repo,
-            ...(command.branch !== undefined ? { branch: command.branch } : {}),
-            commitMessage: command.commitMessage,
-          }
-        );
-
-        return buildCommitOutcomeResult(outcome);
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
     },
   };
 

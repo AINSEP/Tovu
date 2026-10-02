@@ -91,14 +91,7 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
 async function trashFile(deps: RouteDeps, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): Promise<unknown> {
   const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
   assert.ok(trashTool, "expected 'theme_trash_file' to be wired");
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "theme_trash_file", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending;
+  return trashTool.handler(executionContext(input));
 }
 
 function existsInTheme(themesDir: string, relativePath: string): boolean {
@@ -378,105 +371,12 @@ test("a trash-then-restore round trip refreshes the live routeDeps.themes entry 
   assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#abcdef", "restore must reload the live theme data");
 });
 
-// ---------------------------------------------------------------------------
-// theme_trash_file's confirmation gate itself (2026-09-08, ADS-memory/reports/
-// 2026-09-08-delete-confirmation-build.md) — the dialog, parking, cancel, and fail-closed decision.
-// ---------------------------------------------------------------------------
-
-test("the call stays open after the dialog is shown, and nothing is trashed while it is pending", async () => {
-  const { deps, themesDir } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
-  assert.ok(trashTool);
-
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({ ...executionContext({ themeId: "plain", path: "styles.css" }), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
-  assert.equal(ui.type, "resource");
-  assert.match(ui.resource.text, /plain/);
-  assert.match(ui.resource.text, /styles\.css/);
-  assert.equal(
-    await Promise.race([pending, Promise.resolve("still-waiting" as const)]),
-    "still-waiting",
-    "the agent's call must not return before the human answers",
-  );
-  assert.equal(existsInTheme(themesDir, "styles.css"), true, "the file must be untouched while the dialog is open");
-
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match);
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "theme_trash_file", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("cancel: nothing is trashed, and the SAME call reports the cancellation", async () => {
-  const { deps, themesDir } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
-  assert.ok(trashTool);
-
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({ ...executionContext({ themeId: "plain", path: "styles.css" }), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match);
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "theme_trash_file", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, true);
-  assert.equal(existsInTheme(themesDir, "styles.css"), true);
-});
-
-test("an answer with no 'decision' field at all is NOT confirm — nothing is trashed (fail-closed)", async () => {
-  const { deps, themesDir } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
-  assert.ok(trashTool);
-
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({ ...executionContext({ themeId: "plain", path: "styles.css" }), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match);
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "theme_trash_file", principalId: PRINCIPAL_ID, params: {} });
-
-  const result = (await pending) as { trashed: boolean; cancelled: boolean };
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, true);
-  assert.equal(existsInTheme(themesDir, "styles.css"), true);
-});
-
-test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
-  const { deps } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
-  assert.ok(trashTool);
-
-  const result = (await trashTool.handler({ ...executionContext({ themeId: "plain", path: "styles.css" }), emitSurface: async () => undefined })) as {
-    trashed: boolean;
-    cancelled: boolean;
-    reason: string;
-    note: string;
-  };
-
-  assert.equal(result.trashed, false);
-  assert.equal(result.cancelled, false);
-  assert.equal(result.reason, "expired");
-  assert.match(result.note, /did not respond/);
-});
-
-test("with no emitSurface, the trash is refused outright — there is no fallback second call", async () => {
-  const { deps, themesDir } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
-  assert.ok(trashTool);
-
-  await assert.rejects(() => trashTool.handler(executionContext({ themeId: "plain", path: "styles.css" })), /no interactive confirmation channel/);
-  assert.equal(surfaceExchanges.size(), 0, "no emit seam means no exchange was ever opened");
-  assert.equal(existsInTheme(themesDir, "styles.css"), true);
+test("n06: theme trash runs headlessly and keeps the bytes restorable", async () => {
+  const {deps, themesDir} = fakeRouteDeps();
+  const original = fs.readFileSync(path.join(themesDir, "plain", "styles.css"));
+  const result = await wired(deps, "theme_trash_file").handler(executionContext({themeId: "plain", path: "styles.css"})) as {trashed: boolean; trashedPath: string};
+  assert.equal(result.trashed, true);
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath)), original);
+  await wired(deps, "theme_restore_trashed_file").handler(executionContext({themeId: "plain", trashedPath: result.trashedPath}));
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", "styles.css")), original);
 });

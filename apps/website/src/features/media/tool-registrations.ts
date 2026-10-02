@@ -1,94 +1,7 @@
-/**
- * @file Media's agent-tool registrations — re-exported from `@jini-ai/cms/media`, plus this host's
- * OWN `publicUrl` resolution wired on top (2026-09-02).
- *
- * A shim rather than a rewrite of the one importer, deliberately.
- * `assistant/tool-registrations.ts` imports every not-yet-converted domain as a single uniform block
- * of `../<domain>/tool-registrations` lines. Pointing only media somewhere else would make the one
- * ported domain the odd line out, and would invite the next reader to "restore consistency" by
- * reaching past a barrel rather than through it. When more domains move, this file and its
- * siblings retire together.
- *
- * Converted to the tool-contribution registry 2026-08-17, on a RETRY: first tried in Stage 2 batch 2
- * and reverted the same session. At that time, a plain importer grep of this file itself found
- * nothing risky (only `assistant/tool-registrations.ts`), but `check:architecture`'s module graph is
- * per-directory: `src/widgets/resolver-service.ts` value-imports `CORE_PUBLIC_TRANSFORM_NAME` from
- * `../media/bootstrap` and `getLatestTransformDefinition` from `../media/index`, and `assistant`
- * still statically depended on `widgets` (`assistant/tool-registrations.ts`'s own `DOMAIN_SLICES`)
- * at the time — group B ran the `media` conversion attempt in its own isolated worktree, before
- * group A's separate, parallel `widgets` conversion had merged. Adding a `media -> assistant`
- * registry edge back then closed a real 3-module cycle: `assistant, media, widgets` (confirmed via
- * `check:architecture --list`: largest strongly-connected component, runtime-only, went 0 -> 3).
- *
- * Re-verified this session, after both batches had merged into `general-work`: `widgets` is now
- * converted too (`widgets/tool-registrations.ts`'s own `contributeWidgetsTools()`), which already
- * removed the `assistant -> widgets` static edge that closed the cycle above. `resolver-service.ts`'s
- * value-imports into `media/bootstrap`/`media/index` are unchanged and still exist, but with
- * `assistant` no longer reaching `widgets` statically, they no longer round-trip back to `assistant`.
- * `check:architecture` confirms 0 module cycles with this conversion in place — see this repo's own
- * commit history for the before/after run in the same worktree.
- *
- * ## `publicUrl` (2026-09-02)
- *
- * `@jini-ai/cms/media`'s `buildMediaRegistrations` gained an OPTIONAL, batch-shaped
- * `MediaToolDeps.resolvePublicUrls` hook (see that package's `media/tool-registrations.ts` header for
- * why it stayed generic there — the `/m/{assetId}/{transformName}.v{version}/...` URL contract is
- * ADR-027, a HOST decision, not a `@jini-ai/cms` one). This file is where that hook gets a REAL
- * implementation for Tovu specifically: {@link resolveMediaPublicUrls} builds the same
- * `/m/{assetId}/public.v{version}/image.{ext}` URL `features/seo/media.ts`'s own `buildSeoImageUrl`
- * already produces for `ogImage`/`twitterImage` (same contract, same "public" core transform), or
- * `/m/{assetId}/original` for a video asset (`routes/site/media-rendition.ts`'s
- * `registerMediaOriginalVideoRoute` — the byte-passthrough route that exists specifically because
- * video can't go through the image-transform pipeline).
- *
- * Image-vs-video is answered from `mediaContentTypeStore` (`content-type-store.ts`) — the SAME port
- * the admin Media screen's Images/Videos tabs already use, batch-shaped (`getMany`) so a
- * `media_list_assets` call with N assets costs one query, not N. Deliberately NOT the backfilling
- * variant `routes/admin/media/content-type.ts`'s `resolveContentTypes` uses (that function lives in
- * `server/inbound/admin-http/routes/media/`, a route-layer module this feature-layer file has no
- * business importing from — routes depend on features, never the reverse): an asset with no recorded
- * content type yet (pre-existing row from before this store existed, never opened once through the
- * admin Media screen since) is treated as "not confirmed video" and gets the image-transform URL,
- * same as every recognized image type. This is directionally correct for the overwhelming majority of
- * assets (every fresh upload records its type immediately — `routes/admin/media/upload.ts`,
- * `media-generation/tool-registrations.ts`'s own `media_generate_asset` handler does the same) and is
- * a disclosed, narrow scope adjustment, not a silent gap: a genuinely never-typed VIDEO asset would
- * get a `publicUrl` that 404s/500s at request time until an operator opens the Media screen once
- * (which backfills it for good).
- *
- * `resolvePublicUrls` is exported so `features/media-generation/tool-registrations.ts` can resolve
- * `media_generate_asset`'s own response through the exact same logic (a batch of one) instead of a
- * second, drifting implementation.
- *
- * ## Content-type recording (2026-09-02, media-pipeline defect batch)
- *
- * Until this fix, `media_upload_asset` was the ONE write path into `media`/`asset_blobs` that never
- * recorded a content type anywhere — line 53-54 above already documents that the HTTP admin upload
- * route and `media_generate_asset` both did; `media_upload_asset` silently did not, because it is
- * wired straight from `@jini-ai/cms/media`'s generic `buildMediaRegistrations`, which has no
- * knowledge of this host's `mediaContentTypeStore` port at all. A real asset uploaded through this
- * tool got a permanently `content_type`-less `asset_blobs` row, which 500'd the very next request for
- * its `/m/...` public rendition (this route's own image-transform path never reads that column, but
- * an operator-facing symptom traced back here regardless — see the dispatch notes for the full
- * chain). `@jini-ai/cms/media`'s `buildMediaRegistrations` gained a second OPTIONAL hook alongside
- * `resolvePublicUrls` for exactly this — `MediaToolDeps.recordUploadContentType`, called once right
- * after `media_upload_asset`'s own `uploadMedia()` succeeds, given the raw uploaded bytes (never the
- * caller's declared `contentType` string — see that hook's own doc in `@jini-ai/cms/media` for why).
- * {@link buildRecordUploadContentType} is this host's real implementation: sniff the bytes
- * (`sniffContentType`), record the sniffed value through the SAME `mediaContentTypeStore.set` the
- * other two paths already call. A rejection from this hook propagates out of the tool call rather
- * than reporting a false success — an upload whose bytes were saved but whose type failed to record
- * is a real failure, not one to paper over.
- */
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
-import {
-  resolveConfirmationDecision,
-  SURFACE_EXCHANGE_ID_PARAM,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { requireInputRecord, requireString, requireToolPermission, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
@@ -252,64 +165,10 @@ export interface MediaTrashToolDeps {
   removeMedia: RemoveMediaFn;
 }
 
-/** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
- *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
-function mediaTrashConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/media-trash-asset/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders `media_trash_asset`'s confirmation dialog. Jini's `buildConfirmationSurface` owns HOW the
- * dialog behaves; this only decides WHAT it says.
- *
- * @complexity O(1).
- */
-function buildMediaTrashConfirmationResource(spec: { asset: { title: string; slug: string }; exchangeId: string }): UIResource {
-  const { asset, exchangeId } = spec;
-  return buildConfirmationSurface({
-    uri: mediaTrashConfirmationUri(exchangeId),
-    title: "Trash this media asset?",
-    description: "The asset will be moved to the trash — the first step of the deletion ladder. There is no purge tool an agent can call.",
-    details: [
-      { label: "Title", value: asset.title },
-      { label: "Slug", value: asset.slug },
-    ],
-    danger: true,
-    confirm: {
-      label: "Trash asset",
-      toolName: MEDIA_TRASH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: MEDIA_TRASH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-media-trash-asset", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-  });
-}
-
-/**
- * Wraps the Jini-provided `media_trash_asset` handler with the shared MCP-UI confirmation gate
- * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md) — entirely in THIS shim,
- * with no change to `@jini-ai/cms/media`'s own source. `@jini-ai/cms` is a host-agnostic package
- * with no access to `contracts/core/tool-surface-exchanges.ts` (a Tovu-only module — Jini packages
- * only ever get reached INTO by Tovu, never the reverse), so the gate could not live there;
- * wrapping the returned registration here is the same seam this file already uses for
- * `resolvePublicUrls`/`recordUploadContentType` above, just applied to a handler instead of a hook.
- *
- * The ORIGINAL handler still owns authorize+trash atomically, completely unchanged — it is called
- * exactly once, only after a human confirms (`trashMedia`'s own input carries no
- * `expectedVersion`/optimistic-concurrency field, confirmed by reading `media-service.ts` in full,
- * so there is nothing to re-check for staleness at that point). This wrapper performs its OWN
- * `media.delete` pre-check — the SAME permission the original handler checks again internally,
- * redundant but harmless — so a denied principal never sees a dialog raised for them, matching
- * every other tool in this family.
- */
-function buildMediaTrashConfirmationHandler(
+/** Records reversible media removal in the host's Trash, then uses the package handler's reply.
+ * Both permission checks and the transactional version check remain; no consent card is needed. */
+function buildMediaTrashHandler(
   routeDeps: MediaToolDeps & MediaTrashToolDeps,
-  surfaces: AssistantSurfaceDeps,
   originalHandler: ToolHandler
 ): ToolHandler {
   return async (ctx) => {
@@ -319,74 +178,42 @@ function buildMediaTrashConfirmationHandler(
     const existing = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
     if (!existing) throw new Error(`media asset '${mediaId}' was not found`);
 
-    if (!ctx.emitSurface) {
+    // Resolve the latest version for the transactional removal.
+    const current = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
+    if (!current) throw new Error(`media asset '${mediaId}' was not found`);
+
+    // The marker flip and the Trash index row, as one transaction. `originalHandler` still runs
+    // afterwards and still owns the tool's reply shape — `trashMedia` is idempotent (an asset
+    // already `trashed` is returned unchanged, no second version bump), so it renders the row
+    // this flip produced instead of performing a second one. That is what keeps the agent path
+    // and the HTTP route on the same single delete chokepoint with no change to `@jini-ai/cms`.
+    const removed = await routeDeps.removeMedia({
+      workspaceId: routeDeps.workspaceId,
+      id: mediaId,
+      display: { title: current.title, subtitle: current.slug },
+      at: routeDeps.clock.nowIso(),
+      expectedVersion: current.version,
+      actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
+    });
+    if (!removed.ok) {
       throw new Error(
-        "media_trash_asset: this execution context has no interactive confirmation channel " +
-          "(no emitSurface), so a destructive trash cannot be gated here. Nothing was trashed."
+        removed.reason === "not-found"
+          ? `media asset '${mediaId}' was not found`
+          : `media asset '${mediaId}' changed during removal — nothing was trashed`
       );
     }
 
-    const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MEDIA_TRASH_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-    const ui = buildMediaTrashConfirmationResource({ asset: { title: existing.title, slug: existing.slug }, exchangeId: exchange.id });
+    const result = (await originalHandler(ctx)) as Record<string, unknown>;
+    return { trashed: true, cancelled: false, ...result };
 
-    const closeOnAbort = () => exchange.close();
-    ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-    try {
-      const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-      if (!outcome.confirmed) {
-        if (outcome.reason === "declined") {
-          return { trashed: false, cancelled: true, mediaId };
-        }
-        return {
-          trashed: false,
-          cancelled: false,
-          reason: outcome.reason,
-          note:
-            outcome.reason === "expired"
-              ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
-              : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
-        };
-      }
-
-      // Re-read AFTER the confirmation rather than reusing `existing`: the dialog may have been
-      // open for a while, and `removeMedia` compares against the version it is handed.
-      const current = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
-      if (!current) throw new Error(`media asset '${mediaId}' was not found`);
-
-      // The marker flip and the Trash index row, as one transaction. `originalHandler` still runs
-      // afterwards and still owns the tool's reply shape — `trashMedia` is idempotent (an asset
-      // already `trashed` is returned unchanged, no second version bump), so it renders the row
-      // this flip produced instead of performing a second one. That is what keeps the agent path
-      // and the HTTP route on the same single delete chokepoint with no change to `@jini-ai/cms`.
-      const removed = await routeDeps.removeMedia({
-        workspaceId: routeDeps.workspaceId,
-        id: mediaId,
-        display: { title: current.title, subtitle: current.slug },
-        at: routeDeps.clock.nowIso(),
-        expectedVersion: current.version,
-        actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
-      });
-      if (!removed.ok) {
-        throw new Error(
-          removed.reason === "not-found"
-            ? `media asset '${mediaId}' was not found`
-            : `media asset '${mediaId}' changed while the confirmation was open — nothing was trashed`
-        );
-      }
-
-      const result = (await originalHandler(ctx)) as Record<string, unknown>;
-      return { trashed: true, cancelled: false, ...result };
-    } finally {
-      ctx.signal.removeEventListener("abort", closeOnAbort);
-    }
   };
 }
 
 /**
  * `buildMediaRegistrations` wired with this host's real `resolvePublicUrls`
  * ({@link resolveMediaPublicUrls}) and `recordUploadContentType`
- * ({@link buildRecordUploadContentType}) implementations, plus `media_trash_asset`'s confirmation
- * gate ({@link buildMediaTrashConfirmationHandler}) wrapped over the Jini-provided handler — this is
+ * ({@link buildRecordUploadContentType}) implementations, plus `media_trash_asset`'s Trash
+ * adapter ({@link buildMediaTrashHandler}) wrapped over the Jini-provided handler — this is
  * what `contributeMediaTools` below registers, in place of passing `buildMediaRegistrations` straight
  * through.
  *
@@ -418,7 +245,7 @@ export function buildMediaRegistrationsForTovu(
 
   return registrations.map((registration) =>
     registration.descriptor.id === MEDIA_TRASH_TOOL_ID
-      ? { ...registration, handler: buildMediaTrashConfirmationHandler(routeDeps, surfaces, registration.handler) }
+      ? { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) }
       : registration
   );
 }

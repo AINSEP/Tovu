@@ -67,34 +67,13 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *     structural analogue of `DerivedRiskByToolId`: the classification that decides admission is
  *     authored by someone other than the thing being classified.
  *
- * R3. SELF-DECLARED HINTS ONLY ADD FRICTION, NEVER REMOVE IT (G3, owner rule 2026-09-27). The
- *     operator allowlist (R2) alone decides WHETHER a tool exists. The remote's hints decide only how
- *     much friction each call carries, and every hint can only ever add some:
- *     - `readOnlyHint: true` with `destructiveHint` not `true` — the call runs with no card.
- *     - anything else — `readOnlyHint: false`, `destructiveHint: true`, or no hints at all — each
- *       call waits on a per-call Confirm/Cancel card (`registrations.ts`'s handler, through
- *       `FederationDeps.confirmCall`), and nothing reaches the remote until a human clicks Confirm.
- *       `destructiveHint: true` gets the danger-styled card with the stronger warning, and it wins
- *       over a contradictory `readOnlyHint: true` on the same tool.
- *     See {@link federatedCallConfirmationFor}. One confirmation authorizes exactly one call: the
- *     card is opened inside the call it guards, and the call's arguments are fixed before the card
- *     is drawn, so what the human approves is exactly what is sent.
- *
- *     This replaced the earlier posture — refuse `destructiveHint: true` unconditionally, and refuse
- *     `readOnlyHint: false` unless the operator also named the tool in
- *     `FederatedMcpConnectionConfig.writeAllowedToolNames`. That write list is still carried and
- *     reported (`writeAuthorized`), but it no longer gates admission: a per-call human decision is a
- *     stronger grant than a standing list, and it applies identically to every external tool with no
- *     per-plugin config. Silence is no longer a free pass either: a server that declares NO hints
- *     used to be admitted with no friction at all; it now gets a card on every call.
- *
- *     What this does not fix, and cannot: a dishonest server can label a write `readOnlyHint: true`
- *     and skip the card. The mitigations are the operator allowlist (R2) and reviewed first-party
- *     plugins. A lie can only ever cost the liar its own card — it can never widen the allowlist.
- *     One cheap check narrows it (owner rule 2026-09-27, "Extra safety checks"): a tool whose schema
- *     or call arguments carry a write-shaped input name ({@link WRITE_SHAPED_INPUT_WORDS} — `sql`,
- *     `query`, `drop`, …) gets the card on every call whatever its hints say, and no remembered
- *     approval skips it (`external-mcp-call-confirmation.ts`).
+ * R3. CONFIRM ONLY PROTECTED ACTIONS (owner rule 2026-10-01): permanent deletion, sending
+ *     to real people, and changes to the assistant's own privacy/instructions/access. Ordinary
+ *     writes and absent read-only hints do not raise cards; an input named query/sql is not consent
+ *     evidence. The call-time classifier below inspects SQL values for destructive statements.
+ *     Unknown tools marked destructive retain their card. Admission and current grants remain
+ *     R2 checks. Operator read declarations still drive descriptor readOnly independently;
+ *     removing a confirmation never grants access through the read-only gateway.
  *
  * R4. SCHEMA REQUIRED. A tool whose `inputSchema` is not a JSON-Schema object is refused, matching
  *     `buildDomainRegistrations`'s identical native rule ("add one... so the model gets a contract,
@@ -199,8 +178,8 @@ export interface AdmittedFederatedTool {
   readonly description: string;
   /** The remote's schema, already validated to be a JSON-Schema object by R4. */
   readonly inputSchema: Readonly<Record<string, unknown>>;
-  /** The remote's own hints, recorded at admission. Only ever ADD friction (R3): they set
-   * {@link confirmation} and are passed to the per-call gate; they never grant anything. */
+  /** The remote's own hints, recorded at admission. Destructive hints supply a conservative
+   * fallback for unclassified actions; the call-time policy never grants admission or permissions. */
   readonly declaredAnnotations?: RemoteToolDescriptorAnnotations;
   /** Whether the OPERATOR — not the remote — separately named this tool in `writeAllowedToolNames`.
    * `true` means an explicit, second, write-specific decision was made about this exact tool. It
@@ -210,11 +189,10 @@ export interface AdmittedFederatedTool {
    * cannot close on its own. */
   readonly writeAuthorized: boolean;
   /** Input names in {@link inputSchema} that look like writes ({@link WRITE_SHAPED_INPUT_WORDS}),
-   *  sorted. Non-empty means every call asks, and no remembered approval skips the card. */
+   *  sorted. These names describe protected cards; they do not independently require one. */
   readonly writeShapedInputs: readonly string[];
-  /** How much friction each call carries — R3, {@link federatedCallConfirmationFor} raised by
-   *  {@link writeShapedInputs}. Anything but
-   *  `"none"` means every call waits on a human's Confirm before it reaches the remote. */
+  /** Initial hint-based classification for admission reports. The call-time policy classifies
+   * actions and SQL contents independently; write-shaped input names alone do not add a card. */
   readonly confirmation: FederatedCallConfirmation;
 }
 
@@ -358,23 +336,17 @@ function admitRemoteToolName(remoteName: string, seen: Set<string>): ToolRefusal
 }
 
 /**
- * R3: how much friction one call to this tool carries, from the remote's own hints. Hints can only
- * ADD friction: only an explicit `readOnlyHint: true`, with `destructiveHint` not `true`, earns a
- * call with no card; everything else — including a server that says nothing — asks a human first.
- *
+ * Initial conservative classification from destructive hints. Call-time action and SQL contents
+ * determine whether a protected action actually needs a card; write/read hints grant no access.
  * @complexity O(1).
  */
 export function federatedCallConfirmationFor(annotations: RemoteToolDescriptorAnnotations): FederatedCallConfirmation {
   if (annotations?.destructiveHint === true) return "confirm-destructive";
-  if (annotations?.readOnlyHint === true) return "none";
-  return "confirm";
+  return "none";
 }
 
 /**
- * R3's write-shaped inputs (owner rule 2026-09-27, "Extra safety checks"): words that, as a whole word
- * of an input name, say the input carries a write — SQL, a statement, a mutation, a delete. A tool
- * with such an input gets the card on EVERY call whatever its hints say, and no remembered approval
- * skips it. One generic list, in core: no plugin adds to it or opts out of it.
+ * Input names displayed on protected-action cards. Their presence alone does not require consent.
  */
 export const WRITE_SHAPED_INPUT_WORDS: readonly string[] = [
   "sql",
@@ -468,13 +440,48 @@ export function writeShapedSchemaInputNames(schema: unknown): string[] {
 }
 
 /**
- * R3 with write-shaped inputs: a tool with any write-shaped input never runs without a card, even
- * when its hints claim read-only. Only ever adds friction.
- *
- * @complexity O(1).
+ * Owner confirmation policy (2026-10-01). Ordinary writes run immediately; permanent deletion,
+ * delivery to people and changes to the assistant's own access or instructions require a card.
+ * SQL tools are classified by the statement, so SELECT/CREATE are not blocked by destructive hints.
+ * Unknown destructive tools keep their card until their irreversible behavior can be classified.
+ * This decision never grants admission, permissions or descriptor readOnly.
+ * @complexity O(n) in the serialized input size.
  */
-function atLeastConfirmWhenWriteShaped(confirmation: FederatedCallConfirmation, writeShapedInputs: readonly string[]): FederatedCallConfirmation {
-  return confirmation === "none" && writeShapedInputs.length > 0 ? "confirm" : confirmation;
+export function federatedCallConfirmationForAction(
+  remoteName: string,
+  annotations: RemoteToolDescriptorAnnotations,
+  args: Readonly<Record<string, unknown>>,
+): FederatedCallConfirmation {
+  const name = remoteName.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
+  if (/(?:send|deliver|invite|reply|forward).*(?:email|mail|newsletter|message|sms|invitation)|(?:email|mail|newsletter|message|sms).*(?:send|deliver|reply|forward)|(?:post|publish).*(?:message|newsletter)/.test(name)) return "confirm";
+  if (/(?:set|update|edit|change).*(?:system_prompt|system_instruction)/.test(name)) return "confirm";
+  const actionName = name.replace(/^(?:assistant|agent)_/, "");
+  if (/^(?:get|list|read|search|describe)_/.test(actionName) && annotations?.destructiveHint !== true) return "none";
+  if (/(?:assistant|agent).*(?:instruction|privacy|permission|access|policy)/.test(name)) return "confirm";
+  if (/(?:execute_sql|apply_migration|run_query|query_database)/.test(name)) {
+    return sqlCallDeletesData(args, annotations) ? "confirm-destructive" : "none";
+  }
+  if (/(?:^|_)(?:trash|archive|tombstone|unpublish)(?:_|$)/.test(name)) return "none";
+  if (/(?:^|_)(?:delete|purge|drop|destroy|truncate)(?:_|$)/.test(name)) return "confirm-destructive";
+  return annotations?.destructiveHint === true ? "confirm-destructive" : "none";
+}
+
+/** Scan SQL values, including nested batches. Dynamic EXECUTE remains gated because its effect is opaque.
+ * @complexity O(n) in total input characters; O(n) for the collected text. */
+function sqlCallDeletesData(args: Readonly<Record<string, unknown>>, annotations: RemoteToolDescriptorAnnotations): boolean {
+  const pending: unknown[] = [args];
+  const statements: string[] = [];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value === "string") statements.push(value);
+    else if (Array.isArray(value)) pending.push(...value);
+    else if (value !== null && typeof value === "object") pending.push(...Object.values(value));
+  }
+  if (statements.length === 0) return annotations?.destructiveHint === true;
+  return statements.some(statement => {
+    const code = statement.replace(/'(?:(?:'')|[^'])*'|\/\*[\s\S]*?\*\/|--[^\r\n]*/g, " ");
+    return /\b(?:drop|truncate|delete)\b/i.test(code) || /\bexecute\b/i.test(code);
+  });
 }
 
 /**
@@ -557,7 +564,7 @@ function classifyRemoteTool(
       declaredAnnotations: tool.annotations,
       writeAuthorized,
       writeShapedInputs,
-      confirmation: atLeastConfirmWhenWriteShaped(federatedCallConfirmationFor(tool.annotations), writeShapedInputs),
+      confirmation: federatedCallConfirmationFor(tool.annotations),
     },
   };
 }

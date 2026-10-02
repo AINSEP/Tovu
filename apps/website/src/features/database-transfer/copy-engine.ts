@@ -248,10 +248,12 @@ function markerSql(schema: string, marker: CopyMarker, counts: readonly TableCou
   );
 }
 
-function* copyScript(source: TransferSource, schema: string, counts: readonly TableCount[], marker: CopyMarker): Generator<string> {
+function* copyScript(source: TransferSource, schema: string, counts: readonly TableCount[], marker: CopyMarker, replaceExisting: boolean): Generator<string> {
   yield "BEGIN;\n";
   yield guardSql(schema, marker.site);
-  yield `DROP SCHEMA IF EXISTS ${quoteIdent(schema)} CASCADE;\nCREATE SCHEMA ${quoteIdent(schema)};\n`;
+  // A first copy must fail if the schema appeared since planning, never delete it.
+  if (replaceExisting) yield `DROP SCHEMA IF EXISTS ${quoteIdent(schema)} CASCADE;\n`;
+  yield `CREATE SCHEMA ${quoteIdent(schema)};\n`;
   for (const { table } of counts) yield createTableSql(schema, table);
   for (const { table } of counts) yield* copyTableData(source, schema, table);
   yield countCheckSql(schema, counts);
@@ -287,14 +289,14 @@ async function readUnvalidated(target: PostgresTargetPort, schema: string): Prom
  *
  * @complexity O(total rows), streamed in ~256 KiB chunks.
  */
-export async function runCopy(input: { source: TransferSource; target: PostgresTargetPort; tables: readonly TransferTable[]; counts: readonly TableCount[]; schema: string; marker: CopyMarker }): Promise<CopyResult> {
+export async function runCopy(input: { source: TransferSource; target: PostgresTargetPort; tables: readonly TransferTable[]; counts: readonly TableCount[]; schema: string; marker: CopyMarker; replaceExisting: boolean }): Promise<CopyResult> {
   const { schema } = input;
   if (schema === "public" || !/^[a-z_][a-z0-9_]*$/.test(schema) || Buffer.byteLength(schema) > MAX_IDENTIFIER_BYTES) {
     throw new Error(`runCopy: '${schema}' is not a schema this copier may write`);
   }
   let result;
   try {
-    result = await input.target.runScript(copyScript(input.source, schema, input.counts, input.marker));
+    result = await input.target.runScript(copyScript(input.source, schema, input.counts, input.marker, input.replaceExisting));
   } catch (err) {
     if (err instanceof SourceSchemaMismatchError) return { ok: false, code: "COPY_FAILED", message: `${err.message}. Nothing was changed.` };
     throw err;

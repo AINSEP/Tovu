@@ -23,7 +23,7 @@ import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/hel
  * migrated fixture database, and the real `psql` target.
  *
  * Owns: the destination is typed by the human into a private form, never passed by the model; the
- * plan writes nothing and raises no card; the run writes nothing until Copy; the connection string
+ * plan writes nothing and raises no card; a first run copies directly; replacement writes nothing until Copy; the connection string
  * (with its password) never appears in any result, card or log line.
  *
  * Set `DATABASE_TRANSFER_CARD_OUT=<file.html>` to save the rendered card for a screenshot.
@@ -135,7 +135,7 @@ async function tovuExists(): Promise<boolean> {
 test.before(() => recreateDatabase(FIXTURE_DB));
 test.after(() => dropDatabase(FIXTURE_DB));
 
-test("plan counts without writing; Copy on the card copies exactly the plan; the password never shows", async (t) => {
+test("first copy runs headlessly; replacement waits for Copy; the password never shows", async (t) => {
   const h = harness(t);
   await typeDestination(h, { address: CONNECTION });
   const plan = await call(h.planTool, {}, async () => assert.fail("the plan must never raise a card"));
@@ -147,34 +147,41 @@ test("plan counts without writing; Copy on the card copies exactly the plan; the
   assert.deepEqual(plan.leftOut, [{ table: "identity_users", rows: 1, reason: "logins (password hashes, sessions and sign-in links) are not copied" }]);
   assert.equal(await tovuExists(), false, "the plan must write nothing");
 
-  const { pending, html, exchangeId } = await raiseCard(h, plan.planId as string);
+  const result = await call(h.runTool, { planId: plan.planId });
+  assert.equal(result.copied, true, JSON.stringify(result));
+  assert.equal(result.rowCount, 2);
+  assert.equal(await sql(FIXTURE_DB, "SELECT count(*) FROM tovu.menus"), "1");
+  assert.equal(await sql(FIXTURE_DB, "SELECT site FROM tovu._tovu_transfer"), "fixture-site");
+  assert.equal(h.surfaceExchanges.size(), 0);
+
+  const again = await call(h.planTool, {});
+  assert.equal(again.replaces, plan.snapshotAt, "a second plan says which copy it replaces");
+  const { pending, html, exchangeId } = await raiseCard(h, again.planId as string);
   if (process.env.DATABASE_TRANSFER_CARD_OUT) writeFileSync(process.env.DATABASE_TRANSFER_CARD_OUT, html);
   assert.match(html, /Copy this site/);
   assert.match(html, /keeps running on its built-in storage/);
   assert.match(html, /A private area named (&quot;|")tovu(&quot;|")/);
-  assert.equal(await tovuExists(), false, "nothing may be written before Copy");
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), plan.snapshotAt, "the original copy stays intact before consent");
   h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "confirm") });
-  const result = await pending;
-  assert.equal(result.copied, true, JSON.stringify(result));
-  assert.equal(result.rowCount, 2);
-  assert.equal((await sql(FIXTURE_DB, "SELECT count(*) FROM tovu.menus")), "1");
-  assert.equal((await sql(FIXTURE_DB, "SELECT site FROM tovu._tovu_transfer")), "fixture-site");
-
-  for (const text of [JSON.stringify(plan), JSON.stringify(result), html, ...h.logs]) assert.doesNotMatch(text, new RegExp(PASSWORD));
-
-  const again = await call(h.planTool, {});
-  assert.equal(again.replaces, plan.snapshotAt, "a second plan says which copy it replaces");
+  const replaced = await pending;
+  assert.equal(replaced.copied, true);
+  assert.equal(replaced.rowCount, 2);
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), again.snapshotAt);
+  for (const text of [JSON.stringify(plan), JSON.stringify(result), JSON.stringify(replaced), html, ...h.logs]) assert.doesNotMatch(text, new RegExp(PASSWORD));
 });
 
 test("Cancel writes nothing, and a used planId is gone", async (t) => {
   await sql(FIXTURE_DB, "DROP SCHEMA IF EXISTS tovu CASCADE");
   const h = harness(t);
   await typeDestination(h, { address: CONNECTION });
+  const first = await call(h.planTool, {});
+  assert.equal((await call(h.runTool, { planId: first.planId })).copied, true);
   const plan = await call(h.planTool, {});
   const { pending, exchangeId, html } = await raiseCard(h, plan.planId as string);
   h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "cancel") });
   assert.deepEqual(await pending, { copied: false, cancelled: true });
-  assert.equal(await tovuExists(), false);
+  assert.equal(await tovuExists(), true);
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), first.snapshotAt);
   const reused = await call(h.runTool, { planId: plan.planId }, async () => undefined);
   assert.equal(reused.code, "PLAN_NOT_FOUND");
 });
@@ -229,9 +236,7 @@ test("database_transfer_status reports the saved destination, this process's las
 
   await typeDestination(h, { address: CONNECTION });
   const plan = await call(h.planTool, {});
-  const { pending, exchangeId, html } = await raiseCard(h, plan.planId as string);
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "confirm") });
-  assert.equal((await pending).copied, true);
+  assert.equal((await call(h.runTool, { planId: plan.planId })).copied, true);
 
   const status = await call(h.statusTool, {});
   assert.deepEqual(status.destination, { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" });

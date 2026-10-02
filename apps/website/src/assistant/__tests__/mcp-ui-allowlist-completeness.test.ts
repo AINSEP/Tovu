@@ -96,9 +96,9 @@ test("every surfaceExchanges.open(...) call names a toolId constant this scan ca
 
 test("the scan finds the known exchange openers (guards against a scan that silently matches nothing)", () => {
   for (const id of [
-    "content_post_delete",
-    "media_trash_asset",
-    "trash_item",
+    "external_mcp_save",
+    "assistant_ask_choice",
+    "database_transfer_set_destination",
     "assistant_render_ui",
     // Through `humanConfirmedToolHandler`'s `dialog:` spec, not a direct call.
     "taxonomy_execute_merge_term",
@@ -114,8 +114,8 @@ test("every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS"
 });
 
 test("the completeness check reports a tool whose allowlist entry is missing", () => {
-  const withoutTrash = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "media_trash_asset"));
-  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutTrash), ["media_trash_asset"]);
+  const withoutSave = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "external_mcp_save"));
+  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutSave), ["external_mcp_save"]);
 });
 
 test("every allowlisted id opens an exchange or is a named carve-out", () => {

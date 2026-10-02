@@ -54,6 +54,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
 
   const deps: SourceControlToolDeps = {
     ...base,
+    exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []}),
     sourceControlExportRootDir: exportDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -109,17 +110,8 @@ function exchangeIdFromSurface(surface: unknown): string {
   assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
   return match[1]!;
 }
-
-/** Raises the commit confirmation dialog and returns everything a test needs to answer it. */
-async function raiseDialog(executeTool: ToolRegistration, input: Record<string, unknown>) {
-  const emitted: unknown[] = [];
-  const pending = call(executeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  // The provider registry is read before the dialog, so the emit lands some ticks later — poll.
-  for (let tick = 0; tick < 1000 && emitted.length === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
-  const exchangeId = exchangeIdFromSurface(emitted[0]);
-  return { pending, html, exchangeId };
+async function beginCall(executeTool: ToolRegistration, input: Record<string, unknown>) {
+  return {pending: call(executeTool, {input})};
 }
 
 /** Execute the emitted action script over its button ids; route the resulting call through
@@ -285,16 +277,6 @@ test("requires source-control.commit, checked before any dialog is raised", asyn
   assert.ok(authorizeCalls.some((c) => c.permission === "source-control.commit"));
 });
 
-test("with no emitSurface, the commit is refused outright — no exchange is ever opened", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  await assert.rejects(() => call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" } }));
-  assert.equal(surfaceExchanges.size(), 0);
-});
-
 test("a provider no plugin declares and no credential can be saved for throws before any permission check, dialog, or credential lookup", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -386,152 +368,6 @@ test("no saved github credential: refused with reason 'no-credential', WITHOUT e
   assert.equal(surfaceExchanges.size(), 0);
 });
 
-test("the dialog names the repository, branch, and commit message, so consent is informed", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "my-site", branch: "release/2", commitMessage: "content update for release 2" });
-  assert.match(html, /octo\/my-site/);
-  assert.match(html, /release\/2/);
-  assert.match(html, /content update/);
-  assert.deepEqual(dialogDetails(html), { Repository: "octo/my-site", Branch: "release/2", "Commit message": "content update for release 2" });
-
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("cancel: nothing is committed, the git adapter is never called", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  assert.equal(dialogDetails(html).Branch, "repository's default branch");
-  await clickDialogAction(html, "cancel", surfaceExchanges);
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, true);
-});
-
-// ---------------------------------------------------------------------------
-// 3a. Fail-closed default: a delivery that does not SAY "confirm" must never commit
-// (regression for the fail-open default that let a bare/garbled delivery through as a
-// confirm — see `resolveCommitDecision`'s own inverted default).
-// ---------------------------------------------------------------------------
-
-test("an answer with no 'decision' field at all is NOT confirm — the git adapter is never called", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: {} });
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, true);
-});
-
-test("an answer with a non-string 'decision' is NOT confirm — the git adapter is never called", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: true } });
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, true);
-});
-
-test("an answer with an empty-string 'decision' is NOT confirm — the git adapter is never called", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "" } });
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, true);
-});
-
-test("an answer with an unrecognised 'decision' string is NOT confirm — the git adapter is never called", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "yes" } });
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, true);
-});
-
-test("expired: nothing is committed, reported honestly as 'expired' not 'cancelled'", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const result = (await call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => undefined })) as {
-    committed: boolean;
-    cancelled: boolean;
-    reason: string;
-  };
-  assert.equal(result.committed, false);
-  assert.equal(result.cancelled, false);
-  assert.equal(result.reason, "expired");
-});
-
-test("abandoned: aborting the run's signal closes the exchange and resolves the call, not left hanging", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const controller = new AbortController();
-  let emitted!: () => void;
-  const dialogEmitted = new Promise<void>((resolve) => { emitted = resolve; });
-  const pending = call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => { emitted(); }, signal: controller.signal });
-  await dialogEmitted;
-  assert.equal(surfaceExchanges.size(), 1, "abort must exercise an already-open exchange");
-  controller.abort();
-
-  const result = (await pending) as { committed: boolean; cancelled: boolean; reason: string };
-  assert.equal(result.committed, false);
-  assert.equal(result.reason, "abandoned");
-  assert.equal(surfaceExchanges.size(), 0);
-});
-
-test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — it does not answer the first one", async () => {
-  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
-
-  const first = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo-1", commitMessage: "x" });
-  const second = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo-2", commitMessage: "y" });
-
-  assert.notEqual(first.exchangeId, second.exchangeId);
-  assert.equal(surfaceExchanges.size(), 2);
-
-  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  surfaceExchanges.deliver({ exchangeId: second.exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await Promise.all([first.pending, second.pending]);
-});
-
 // ---------------------------------------------------------------------------
 // 4. source_control_execute_commit — confirmed path, fake gitAdapter (still no real network)
 // ---------------------------------------------------------------------------
@@ -549,8 +385,7 @@ test("confirm: a successful commit reports committed:true with every field from 
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update" });
-  await clickDialogAction(html, "confirm", surfaceExchanges);
+  const { pending } = await beginCall(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update" });
 
   const result = (await pending) as { committed: boolean; owner: string; repo: string; branch: string; commitSha: string; filesChanged: number; filesDeleted: number };
   assert.equal(result.committed, true);
@@ -573,8 +408,7 @@ test("confirm: a DIVERGED_BRANCH result from the adapter is surfaced distinctly,
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { pending } = await beginCall(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
 
   const result = (await pending) as { committed: boolean; code: string; message: string };
   assert.equal(result.committed, false);
@@ -587,16 +421,14 @@ test("confirm: a NETWORK_UNREACHABLE result is distinct from a PROVIDER_ERROR re
   await seedGithubCredential(unreachableDeps);
   const surfaceExchanges1 = createSurfaceExchangeStore();
   const executeTool1 = tool(buildRegistrations(unreachableDeps, surfaceExchanges1), "source_control_execute_commit");
-  const dialog1 = await raiseDialog(executeTool1, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges1.deliver({ exchangeId: dialog1.exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const dialog1 = await beginCall(executeTool1, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
   const unreachableResult = (await dialog1.pending) as { code: string };
 
   const { deps: rejectedDeps } = fakeDeps({ gitAdapter: fakeGitAdapter({ ok: false, code: "provider-error", message: "401 Bad credentials" }) });
   await seedGithubCredential(rejectedDeps);
   const surfaceExchanges2 = createSurfaceExchangeStore();
   const executeTool2 = tool(buildRegistrations(rejectedDeps, surfaceExchanges2), "source_control_execute_commit");
-  const dialog2 = await raiseDialog(executeTool2, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges2.deliver({ exchangeId: dialog2.exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const dialog2 = await beginCall(executeTool2, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
   const rejectedResult = (await dialog2.pending) as { code: string };
 
   assert.equal(unreachableResult.code, "NETWORK_UNREACHABLE");
@@ -622,8 +454,7 @@ test("with no gitAdapter override, a confirmed commit reaches the real GitHub ad
     return new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
   try {
-    const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-    surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+    const { pending } = await beginCall(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
 
     const result = (await pending) as { committed: boolean; code: string; message: string };
     assert.equal(result.committed, false);
@@ -711,4 +542,14 @@ test("with no plugin providing github, a commit is refused with reason 'no-provi
     message: "No enabled Agent Plugin provides 'github' source control, and no installed one declares it. Open the admin's Add-Ons > Agent Plugins screen to install or turn on a plugin that provides it.",
   });
   assert.equal(emitted.length, 0);
+});
+
+ test("n06: repository write runs without a confirmation channel", async (t) => {
+  const {deps} = fakeDeps({gitAdapter: fakeGitAdapter(FAKE_SUCCESS)});
+  await seedGithubCredential(deps);
+  const store = createSurfaceExchangeStore();
+  const result = await call(tool(buildRegistrations(deps, store), "source_control_execute_commit"), {input: {provider: "github", owner: "octo", repo: "demo", commitMessage: "Save"}}) as {committed: boolean; commitSha: string};
+  assert.equal(result.committed, true);
+  assert.equal(result.commitSha, "abc123");
+  assert.equal(store.size(), 0);
 });

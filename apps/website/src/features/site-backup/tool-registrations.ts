@@ -16,13 +16,12 @@ import {
 } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection as the caller's to fix instead of redacting it into a message-stripped 500.
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
-import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
@@ -40,7 +39,7 @@ import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validate
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
-import { buildConfirmationSurface, SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
+import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
@@ -61,21 +60,19 @@ import {
 
 /**
  * @file The two site-backup agent tools: `site_backup_plan` (read-only) and `site_backup_push`
- * (human-confirmed). Together they put the site's content — the database, media, themes, plugins
+ * (authorized, immediate). Together they put the site's content — the database, media, themes, plugins
  * and settings — into ONE folder of a private repository on a plugin-provided git host, in one commit, through a saved
  * custom credential (the same credentials `custom_credential_write_files` uses).
  *
  * Why two calls: the plan does every check that can fail (credential, repository visibility and
  * permissions, branch, folder, database snapshot, sizes) and returns what WOULD be written, so the
- * model can show the human before anything is asked of them. The push then raises the same held-open
- * in-chat confirmation every external repository write here uses (`custom_credential_write_files`,
- * `source_control_execute_commit`) and uploads exactly what was planned: the database snapshot is
+ * model can report the planned backup. The push uploads exactly what was planned: the database snapshot is
  * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - Private repositories only (public and "internal" both refused), because the database holds
- *   members, form submissions and admin accounts. Re-checked after the human confirms.
+ *   members, form submissions and admin accounts. Re-checked before pushing.
  * - Never a force push, and never a surprise overwrite: the push commits on the PLAN's tip, and a
  *   branch that moved since is refused (`DIVERGED_BRANCH`) before a single blob is uploaded, and
  *   again by the host itself on the non-force ref update.
@@ -165,7 +162,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: SITE_BACKUP_PUSH_TOOL_ID,
     description:
-      "Pushes a backup planned by site_backup_plan to its repository host, in ONE commit. HUMAN-GATED: this one call shows an in-chat confirmation naming the repository, branch, folder, what is included and every file, and WAITS for the human; there is no second call to make. The backup folder is REPLACED as a whole (files no longer on the site disappear from it); nothing outside the folder changes; never a force push. On confirm it re-checks the repository is still private and the branch has not moved, uploads exactly what was planned, and returns {pushed: true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. Cancel returns {pushed: false, cancelled: true}; no answer returns {pushed: false, cancelled: false, reason: 'expired' | 'abandoned'}. Failures return {pushed: false, cancelled: false, code, message}: PLAN_NOT_FOUND or PLAN_EXPIRED (a planId works once, for 10 minutes — call site_backup_plan again), DIVERGED_BRANCH (someone pushed to the branch since the plan; nothing was written — plan again), PLAN_STALE (a file changed since the plan — plan again), REPOSITORY_NOT_PRIVATE, CREDENTIAL_NOT_FOUND, CREDENTIAL_UNREADABLE, PROVIDER_ERROR, NETWORK_UNREACHABLE. Do not re-call while a call is pending.",
+      "Pushes the single-use plan from site_backup_plan immediately in one non-force Git commit. Requires the original permissions and principal binding, and re-checks that the repository is private, the branch is unchanged and the planned files are fresh. Replaces only the backup folder; previous contents remain recoverable in Git history. Returns {pushed:true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. Failures return {pushed:false, cancelled:false, code, message}, including expired/missing plans, changed branches or files, public repositories and credential/provider/network errors. Plan again after PLAN_STALE, DIVERGED_BRANCH or plan expiry.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PUSH_SCHEMA,
@@ -180,7 +177,7 @@ export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   // database snapshot held in memory (its restore-point file deleted at once), a disk walk, and an
   // in-memory plan. Nothing durable is written anywhere.
   [PLAN_TOOL_ID, "none"],
-  // -> on human confirmation only: blobs, trees, a commit and a non-force ref update in a
+  // -> blobs, trees, a commit and a non-force ref update in a
   // THIRD-PARTY repository — the same classification custom_credential_write_files carries.
   [SITE_BACKUP_PUSH_TOOL_ID, "mutates-durable-state"],
 ]);
@@ -514,7 +511,7 @@ function planResult(plan: SiteBackupPlan): Record<string, unknown> {
     nextStep:
       `Show the human this plan: ${plan.owner}/${plan.repo}, branch '${plan.repository.branch}', folder '${plan.folder}' ` +
       `(${plan.repository.folderExists ? "its current contents will be replaced" : "new"}), ${files.length} files (${formatByteSize(plan.totalBytes)}), plus anything skipped. ` +
-      "Then call site_backup_push with this planId within 10 minutes; it raises its own confirmation dialog. A tovu-backup.json manifest is added at push time.",
+      "Then call site_backup_push with this planId within 10 minutes; it pushes the planned backup immediately. A tovu-backup.json manifest is added at push time.",
   };
 }
 
@@ -606,27 +603,6 @@ function pushRefusal(refusal: Refusal): PushResult {
   return { pushed: false, cancelled: false, code: refusal.code, message: refusal.message };
 }
 
-/**
- * Raises the confirmation and waits for the human. A cancelled run closes the dialog so no call is
- * left waiting on nobody.
- */
-async function askToConfirm(ctx: ToolExecutionContext, surfaces: AssistantSurfaceDeps, plan: SiteBackupPlan, emitSurface: NonNullable<ToolExecutionContext["emitSurface"]>): Promise<{ confirmed: true } | { confirmed: false; result: PushResult }> {
-  // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
-  if (ctx.signal.aborted) return { confirmed: false, result: { pushed: false, cancelled: false, reason: "abandoned" } };
-  const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SITE_BACKUP_PUSH_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui: UIResource = buildConfirmationSurface({ plan, exchangeId: exchange.id });
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-    if (outcome.confirmed) return { confirmed: true };
-    if (outcome.reason === "declined") return { confirmed: false, result: { pushed: false, cancelled: true } };
-    return { confirmed: false, result: { pushed: false, cancelled: false, reason: outcome.reason } };
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
 /** Uploads bytes once per distinct content: a second file with the same sha256 reuses the blob. */
 class BlobUploader {
   private readonly shaByHash = new Map<string, string>();
@@ -692,12 +668,12 @@ async function uploadPlannedContent(
 }
 
 /**
- * The push after the human confirmed: re-resolve the credential, re-check the repository (still
+ * The authorized push: re-resolve the credential, re-check the repository (still
  * private, branch not moved), upload, commit on the PLAN's parent.
  *
  * @complexity O(total bytes); one POST per distinct file plus four fixed writes.
  */
-async function pushConfirmedPlan(deps: SiteBackupToolDeps, plan: SiteBackupPlan): Promise<PushResult> {
+async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan): Promise<PushResult> {
   const credential = await resolveBackupCredential(deps, plan.credentialLabel);
   if (!credential.ok) return pushRefusal(credential);
   const target = backupTarget(credential, plan.owner, plan.repo);
@@ -744,25 +720,19 @@ const PLAN_TAKE_MESSAGES = {
 } as const;
 
 /**
- * The push: take the plan (single-use), raise the dialog, and only on confirm touch the host.
+ * The push: consume the principal-bound plan, re-check its target and bytes, then commit.
  *
- * @complexity O(1) until confirmed; then see {@link pushConfirmedPlan}.
+ * @complexity O(1) plan lookup; then see {@link pushPlannedBackup}.
  */
 async function handlePush(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<PushResult> {
   const planId = requireString(requireInputRecord(ctx.input), "planId");
   await requireBackupPermissions(deps, ctx);
-  if (!ctx.emitSurface) {
-    throw new ToolInputError(
-      "site_backup_push: this execution context has no interactive confirmation channel (no emitSurface), so a backup cannot be confirmed here. Nothing was pushed."
-    );
-  }
+  if (ctx.signal.aborted) return { pushed: false, cancelled: false, reason: "abandoned" };
 
   const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take({ planId, principalId: ctx.principal.id, workspaceId: deps.workspaceId });
   if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
 
-  const decision = await askToConfirm(ctx, surfaces, taken.plan, ctx.emitSurface);
-  if (!decision.confirmed) return decision.result;
-  return pushConfirmedPlan(deps, taken.plan);
+  return pushPlannedBackup(deps, taken.plan);
 }
 
 /**

@@ -9,7 +9,7 @@
  * skipped:
  *
  *  - **It writes nothing itself.** After resolving the row it invokes that kind's own, ALREADY-BUILT
- *    delete handler, unchanged — so the domain's own permission check, its own confirmation dialog
+ *    delete handler, unchanged — so the domain's own permission check
  *    and its own write path all run exactly as they do when the model calls that tool by name.
  *    Calling `TrashPort.trash` directly instead would have looked equivalent and been a regression:
  *    the domain paths also append the post revision, write the comment moderation log, run comment
@@ -52,14 +52,9 @@ import {
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import {
-  resolveConfirmationDecision,
-  SURFACE_EXCHANGE_ID_PARAM,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
@@ -222,18 +217,7 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Wi
   return {
     name: TRASH_ITEM_TOOL_ID,
     description:
-      "Moves one item of any kind the Trash holds to the Trash, named by entityType and entityId (see entityType's own " +
-      "enum for the full list — posts/pages, comments, media assets and redirect rules today, plus forms, form " +
-      "submissions, widgets, menus, taxonomies and terms, and other Trash-registered kinds). HUMAN-GATED: it always shows a confirmation dialog and " +
-      "WAITS for the human's answer before writing anything — there is no second call to make. For a kind with its own " +
-      "delete tool (post, comment, media, redirect, widget), it runs that tool's own permission check and shows that " +
-      "tool's own dialog, so the result is identical to calling that tool directly. For every other kind it checks the " +
-      "same permission that kind's Trash entry declares and shows the standard Trash confirmation. Returns " +
-      "{ entityType, entityId, via, outcome }: `via` names the tool (or 'moveToTrash' for a generic kind) whose gates ran, " +
-      "and `outcome` says whether the human confirmed, cancelled, or let the dialog expire. Rejected, with nothing " +
-      "changed, when entityType is not a kind the Trash can hold or no such item of that kind exists. Anything trashed " +
-      "can be brought back with trash_restore_item. There is deliberately NO tool for deleting something permanently: " +
-      "that is done by a human, from the Trash screen.",
+      "Moves one item to Trash immediately with {entityType, entityId}. The entityType enum lists supported kinds. Runs the kind's existing permission and version checks through its own delete tool or moveToTrash. Returns {entityType, entityId, via, outcome}, where via names the delegate or 'moveToTrash' and outcome reports the reversible removal. Refuses unsupported kinds, missing items, denied permissions, and version conflicts. Recover with trash_restore_item. Permanent deletion is a separate confirmation-gated tool.",
     // The strongest of the four delegates' declarations (`content_post_delete`'s), because this tool
     // can reach every one of them.
     sideEffects: "deletes-durable-state",
@@ -283,7 +267,7 @@ export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 /**
  * Reads the live display + version for one GENERIC `TRASHABLE` entity (no bespoke delegate) — the
  * SAME column-only query (`entry-sql.ts`'s `readLiveSnapshot`) `moveToTrash` runs right before it
- * calls `TrashPort.trash`; this tool reads it one step earlier to raise its own confirmation dialog. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
+ * calls `TrashPort.trash`; this tool reads it first for the same version check. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
  * reading — a caller cannot re-trash what already looks gone from its own point of view.
  *
  * @complexity O(1): one indexed row read.
@@ -294,38 +278,6 @@ async function readGenericEntityDisplay(
   entityId: string
 ): Promise<EntitySnapshotRow | null> {
   return readLiveSnapshot({ entry, workspaceId: deps.workspaceId, entityId }, { kernel: deps.db, registry: deps.registry });
-}
-
-/** The `ui://` URI for one `trash_item` generic-confirmation instance — mirrors every sibling
- *  domain's identical `<domain>TrashConfirmationUri` (`media/tool-registrations.ts`,
- *  `widgets/tool-registrations.ts`), keyed by the exchange id. */
-function genericTrashConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/trash-item/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders the STANDARD confirmation dialog for a GENERIC `TRASHABLE` kind — one shape for every
- * type with no bespoke delegate, built from the registry entry's own `label` and the row's own
- * display snapshot, so a new registry entry (T5's `menu`, T6's `term`/`taxonomy`) needs no new
- * dialog-building code here.
- *
- * @complexity O(1).
- */
-function buildGenericTrashConfirmationResource(spec: { label: string; display: { title: string; subtitle?: string | null }; exchangeId: string }): UIResource {
-  const { label, display, exchangeId } = spec;
-  const details = [{ label: "Title", value: display.title }];
-  if (display.subtitle) details.push({ label: "Subtitle", value: display.subtitle });
-  return buildConfirmationSurface({
-    uri: genericTrashConfirmationUri(exchangeId),
-    title: `Move this ${label.toLowerCase()} to the Trash?`,
-    description: "It moves to the Trash, restorable for 60 days. There is no purge tool an agent can call.",
-    details,
-    danger: true,
-    confirm: { label: "Move to trash", toolName: TRASH_ITEM_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } },
-    cancel: { label: "Cancel", toolName: TRASH_ITEM_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } },
-    app: { appName: "tovu-trash-item", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-  });
 }
 
 /**
@@ -348,7 +300,7 @@ function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string
       return new ToolInputError(`trash_item: not authorized for '${outcome.permission}'. Nothing was changed.`);
     case "version-changed":
       return new ToolInputError(
-        `trash_item: ${entityType} '${entityId}' changed while the confirmation was open. Reload and try again. Nothing was changed.`
+        `trash_item: ${entityType} '${entityId}' changed during removal. Reload and try again. Nothing was changed.`
       );
     case "unknown-type":
       return new ToolInputError(`trash_item: '${entityType}' is not a kind of thing the Trash can hold. Nothing was changed.`);
@@ -362,11 +314,11 @@ function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string
 
 /**
  * Builds the ONE handler for a GENERIC `TRASHABLE` kind (no bespoke delegate): pre-checks the
- * registry entry's own permission, reads its live display (not-found -> `ToolInputError`, no
- * dialog), raises the standard confirmation, and on confirm calls `moveToTrash` — never
+ * registry entry's own permission, reads its live display (not-found -> `ToolInputError`), then
+ * immediately calls `moveToTrash` — never
  * `TrashPort.trash` directly, so this stays the same single chokepoint `POST /trash/items` calls.
  *
- * @complexity O(1) plus whatever the confirmation exchange's own wait costs.
+ * @complexity O(1) plus the registry adapter read and removal.
  */
 function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: TrashEntry; routeDeps: TrashItemToolDeps; surfaces: AssistantSurfaceDeps }): ToolHandler {
   const { entityType, entry, routeDeps, surfaces } = spec;
@@ -381,54 +333,14 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
       throw new ToolInputError(`trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.`);
     }
 
-    if (!ctx.emitSurface) {
-      throw new Error(
-        "trash_item: this execution context has no interactive confirmation channel (no emitSurface), " +
-          "so a destructive trash cannot be gated here. Nothing was trashed."
-      );
-    }
+    const actor: TrashActor = { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID };
+    const moved = await moveToTrash(
+      { workspaceId: routeDeps.workspaceId, entityType, entityId, actor, expectedVersion: snapshot.version ?? undefined },
+      { registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock }
+    );
+    if (!moved.ok) throw moveToTrashOutcomeToError(entityType, entityId, moved);
+    return { entityType, entityId, via: "moveToTrash", outcome: { trashed: true, cancelled: false, version: moved.version } };
 
-    const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: TRASH_ITEM_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-    const ui = buildGenericTrashConfirmationResource({
-      label: entry.label,
-      display: { title: snapshot.title, subtitle: snapshot.subtitle ?? null },
-      exchangeId: exchange.id,
-    });
-
-    const closeOnAbort = () => exchange.close();
-    ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-    try {
-      const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-      if (!outcome.confirmed) {
-        if (outcome.reason === "declined") {
-          return { entityType, entityId, via: "moveToTrash", outcome: { trashed: false, cancelled: true } };
-        }
-        return {
-          entityType,
-          entityId,
-          via: "moveToTrash",
-          outcome: {
-            trashed: false,
-            cancelled: false,
-            reason: outcome.reason,
-            note:
-              outcome.reason === "expired"
-                ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
-                : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
-          },
-        };
-      }
-
-      const actor: TrashActor = { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID };
-      const moved = await moveToTrash(
-        { workspaceId: routeDeps.workspaceId, entityType, entityId, actor, expectedVersion: snapshot.version ?? undefined },
-        { registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock }
-      );
-      if (!moved.ok) throw moveToTrashOutcomeToError(entityType, entityId, moved);
-      return { entityType, entityId, via: "moveToTrash", outcome: { trashed: true, cancelled: false, version: moved.version } };
-    } finally {
-      ctx.signal.removeEventListener("abort", closeOnAbort);
-    }
   };
 }
 
@@ -438,16 +350,13 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
  * @param required.registrations every registration `buildAssistantToolRegistrations`' contributor
  *        loop produced. Each delegate's handler is taken from here and reused unchanged.
  * @param required.routeDeps the same route-deps bag those registrations were built from.
- * @param required.surfaces the assistant's surface-exchange store — needed now (2026-09-21, trash
- *        T4) because a GENERIC kind (no bespoke delegate) opens ITS OWN confirmation exchange here,
- *        rather than reusing a delegate's already-open one.
+ * @param required.surfaces retained for composition compatibility; reversible removal opens no card.
  * @param optional.delegates test seam; defaults to {@link TRASH_ITEM_DELEGATES}.
  * @returns one registration, or none when neither a delegate's tool nor any registry entry is
  *          reachable. A list so the caller appends it the way it appends
  *          `deriveContentReadRegistrations`' output.
  * @complexity O(r + k) to index the registrations and the registry; each call is O(1) plus one row
- *             read for a delegate kind that resolves, or one row read plus the confirmation wait for
- *             a generic kind.
+ *             read for a delegate kind that resolves, or one row read and removal for a generic kind.
  *
  * A kind whose delete tool is not in `registrations`, or a registry kind whose adapter is not (yet)
  * live in `routeDeps.isTrashableEntityType`, is simply not accepted — its name is left out of the
@@ -506,8 +415,8 @@ export function deriveTrashItemRegistrations(
           throw new ToolInputError(`trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.`);
         }
 
-        // The same `ctx` — so the delegate's dialog goes out on THIS call's surface channel and this
-        // call parks on the human's answer — with only the input swapped for the delegate's own shape.
+        // The same `ctx` preserves the caller, signal and audit identity,
+        // with only the input swapped for the delegate's own shape.
         const outcome = await delegateHandler({ ...ctx, input: delegateInput });
         return { entityType, entityId, via: delegate.toolId, outcome };
       }

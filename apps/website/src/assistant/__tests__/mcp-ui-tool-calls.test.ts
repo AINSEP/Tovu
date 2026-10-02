@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed } from "../mcp-ui-tool-calls.js";
 
-test("content_post_delete is on the allowlist — the one tool this mechanism was built for (ADR-053)", () => {
-  assert.equal(isMcpUiToolCallAllowed("content_post_delete"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"));
+test("content_post_delete runs normally and cannot be executed by an untrusted surface callback", () => {
+  assert.equal(isMcpUiToolCallAllowed("content_post_delete"), false);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"), false);
 });
 
 test("content_post_search is on the allowlist — the real execution path behind the /search composer capability", () => {
@@ -13,9 +13,9 @@ test("content_post_search is on the allowlist — the real execution path behind
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_search"));
 });
 
-test("deployment_execute_static_publish is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-08-15)", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"));
+test("deployment_execute_static_publish runs normally and cannot be executed by a surface callback", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), false);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"), false);
 });
 
 test("the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason", () => {
@@ -91,9 +91,9 @@ test("external_mcp_save is on the allowlist — it holds up the same held-open-e
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_save"));
 });
 
-test("custom_credential_write_files is on the allowlist — every call holds up the same held-open-exchange shape content_post_delete does (2026-09-15)", () => {
-  assert.equal(isMcpUiToolCallAllowed("custom_credential_write_files"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_write_files"));
+test("custom_credential_write_files runs normally and cannot be executed by a surface callback", () => {
+  assert.equal(isMcpUiToolCallAllowed("custom_credential_write_files"), false);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_write_files"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -120,20 +120,22 @@ test("custom_credential_write_files is on the allowlist — every call holds up 
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
+  "media_propose_provider_credential",
+  "source_control_propose_credential",
+  "newsletter_send_campaign",
+  "newsletter_schedule_campaign",
+  "newsletter_resume_campaign",
+  "newsletter_resend_confirmation",
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
   "agent_plugin_set_access_token",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",
-  "comments_trash_comment",
-  "content_post_delete",
   "content_post_search",
   "custom_credential_create",
   "custom_credential_make_request",
   "custom_credential_set_token",
-  "custom_credential_write_files",
-  "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
   "external_mcp_reauth_prompt",
   "external_mcp_save",
@@ -142,21 +144,14 @@ const EXPECTED_ALLOWLIST = [
   "identity_policy_delete",
   "identity_role_delete",
   "identity_user_create",
-  "media_trash_asset",
   "plugins_set_enabled",
   "plugins_uninstall",
-  "redirects_tombstone",
-  "site_backup_push",
   // 2026-09-27 — database transfer: the Copy/Cancel card and the private destination-address form
   // (`features/database-transfer`).
   "database_transfer_run",
   "database_transfer_set_destination",
-  "source_control_execute_commit",
   "taxonomy_execute_merge_term",
-  "theme_trash_file",
-  "trash_item",
   "webhooks_delete_subscription",
-  "widgets_trash_instance",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {

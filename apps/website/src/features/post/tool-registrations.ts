@@ -70,13 +70,12 @@ import {
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError } from "@jini-ai/core";
-import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import {
   forbiddenRule,
   withModelFacingErrors,
   type ModelFacingErrorRule,
 } from "../../contracts/core/model-facing-tool-errors.js";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
@@ -86,10 +85,6 @@ import {
   postAgentToolCatalog,
   type AgentToolDefinition as PostAgentToolDefinition,
 } from "./agent-tools.js";
-import {
-  buildDeleteConfirmationResource,
-  CONTENT_POST_DELETE_TOOL_ID,
-} from "./delete-confirmation-ui.js";
 import {
   createPost,
   deletePost,
@@ -599,42 +594,7 @@ async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: Post
 }
 
 /**
- * Waits for the human's answer to `content_post_delete`'s confirmation dialog and turns it into
- * either "go ahead" or the exact not-confirmed result the tool call should return (ADR-055
- * Decision 6: no-answer is a result, not a thrown error).
- *
- * The ask-and-fail-closed-classify mechanics are shared (`resolveConfirmationDecision`, extracted
- * from this function plus its 3 forks in custom-credentials/source-control/deployments — see that
- * function's own doc); this wrapper only supplies this domain's own `deleted`/`cancelled`/`post`
- * result shape, unchanged from before the extraction.
- */
-async function resolveDeleteDecision(
-  exchange: SurfaceExchange,
-  ui: UIResource,
-  existing: PostRecord
-): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
-  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  if (outcome.confirmed) return { confirmed: true };
-
-  if (outcome.reason === "declined") {
-    return { confirmed: false, result: { deleted: false, cancelled: true, post: toPostToolView(existing) } };
-  }
-  return {
-    confirmed: false,
-    result: {
-      deleted: false,
-      cancelled: false,
-      reason: outcome.reason,
-      note:
-        outcome.reason === "expired"
-          ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
-          : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
-    },
-  };
-}
-
-/**
- * Refuses to write if the row moved since the confirmation dialog was shown. See the caller's own
+ * Refuses to write if the row moved between read and removal. See the caller's own
  * inline history: this replaces `pending-confirmations.ts`'s old token-bound version check (ADR-055
  * Decision 3 removed the token, not the need for the check).
  */
@@ -646,8 +606,8 @@ function assertFreshVersion(current: PostRecord | null, existing: PostRecord, ki
     // goes in FRONT of the original wording, which is otherwise unchanged character for character —
     // `__tests__/agent-tools.delete-confirmation.test.ts` matches on `/stale-entity-version/`.
     throw new ToolInputError(
-      `CONTENT_POST_STALE_CONFIRMATION: content_post_delete: the confirmation could not be honored ` +
-        `(stale-entity-version). The ${kind} was edited after the confirmation dialog was shown. ` +
+      `CONTENT_POST_STALE_CONFIRMATION: content_post_delete: the removal could not be completed ` +
+        `(stale-entity-version). The ${kind} changed between its read and removal. ` +
         `Nothing was deleted. Call content_post_delete again with { id, kind } to raise a fresh ` +
         `dialog against the current version.`
     );
@@ -1007,27 +967,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       });
     },
 
-    /**
-     * The MCP-UI-gated delete. See `delete-confirmation-ui.ts` for the surface itself and ADR-055
-     * Decision 2 for why this holds its call open rather than returning and waiting for a second one
-     * (superseding ADR-053 Decision 3, the token-redemption shape this handler used to implement).
-     *
-     * One call, blocking:
-     *  1. Resolve and describe the row (same as before).
-     *  2. Open an exchange, emit the confirmation surface through it, and park on the answer.
-     *  3. The answer is the human's decision — confirm, cancel — or a `SurfaceMessage` saying nobody
-     *     answered (`expired`/`abandoned`). Every branch returns a truthful result to the SAME call;
-     *     none of them throw for "no answer", because the model is still alive to read the result
-     *     (ADR-055 Decision 6).
-     *  4. On confirm, re-check the entity's version against what the dialog described before writing
-     *     — see the inline comment at that check for why this is now the handler's job.
-     *
-     * No fallback to the old two-call shape when `ctx.emitSurface` is unavailable: unlike a
-     * non-destructive surface (`demo-choices-tool.ts`, ADR-055 Decision 1), degrading a DESTRUCTIVE
-     * gate to "return the dialog and trust a second, ordinary call" is exactly the shape the removed
-     * token existed to guard, and there is no token left to guard it with. An execution context that
-     * cannot hold this call open cannot run this tool at all.
-     */
+    /** Moves content to Trash without a confirmation; permission and version checks still apply. */
     content_post_delete: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const id = requireString(input, "id");
@@ -1048,125 +988,72 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       // A trashed row is not-found too (post.ts's own rule), so a second delete cannot "succeed".
       const existing = await loadDeletablePost(routeDeps, id, kind);
 
-      // Fail closed rather than degrade — see this handler's own doc comment above.
-      if (!ctx.emitSurface) {
-        // `ToolInputError` for the same reason `webhooks_delete_subscription`'s identical guard uses
-        // it: a redacted 500 here makes a model retry a delete that can never succeed in this
-        // context. The message names no internals — only the missing capability and the fact that
-        // nothing was deleted. Original wording preserved behind the code prefix.
-        throw new ToolInputError(
-          "CONTENT_POST_NO_CONFIRMATION_CHANNEL: content_post_delete: this execution context has no " +
-            "interactive confirmation channel (no emitSurface), so a destructive delete cannot be " +
-            "gated here. Nothing was deleted."
-        );
-      }
+      // Keep the version check before the reversible removal.
+      const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+      assertFreshVersion(current, existing, kind);
 
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: CONTENT_POST_DELETE_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface
-      );
+      let priorPost: PostRecord | null = null;
 
-      const ui = buildDeleteConfirmationResource({
-        subject: {
-          id: existing.id,
-          kind: existing.kind,
-          title: existing.title,
-          slug: existing.slug,
-          status: existing.status,
-          version: existing.version,
+      const { result } = await executeCommand<{ post: PostRecord }>({
+        deps: postCommandDeps(routeDeps),
+        command: {
+          workspaceId: routeDeps.workspaceId,
+          actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+          // Attribute the reversible removal to the agent and the row read for this operation.
+          summary: `Agent trash: Delete ${existing.kind} '${existing.title}' (${existing.slug})`,
+          permission: "content.write",
         },
-        exchangeId: exchange.id,
+        mutation: {
+          entityType: "post",
+          entityId: id,
+          operation: "delete",
+          captureInverse: async () => {
+            priorPost = existing;
+            // The whole inverse of a soft delete is "clear the marker" — see
+            // `core/commands/appliers.ts`'s `postDeleteReverter`.
+            return { deletedAt: null };
+          },
+          execute: () =>
+            deletePost({
+              deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox, remove: routeDeps.removePost },
+              input: {
+                workspaceId: routeDeps.workspaceId,
+                id,
+                actorId: ctx.principal.id,
+                actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
+                // See content_post_create's identical delegatedBy* comment above.
+                delegatedByWorkspaceId: routeDeps.workspaceId,
+                delegatedById: ctx.principal.id,
+              },
+            }),
+          captureEntityVersion: (r) => r.post.version,
+          rollback: async () => {
+            if (!priorPost) return;
+            await restorePostForward({
+              deps: {
+                repo: routeDeps.postRepo,
+                clock: routeDeps.clock,
+                outbox: routeDeps.outbox,
+                forgetRemoved: routeDeps.forgetRemovedPost,
+              },
+              input: {
+                prior: priorPost,
+                actorId: ctx.principal.id,
+                // Same delegatedBy* attribution the forward write above records.
+                delegatedByWorkspaceId: routeDeps.workspaceId,
+                delegatedById: ctx.principal.id,
+              },
+            });
+          },
+        },
       });
 
-      // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
-      // handler open until the idle deadline — mirrors `demo-choices-tool.ts`'s identical guard.
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        // ADR-055 Decision 6: the no-answer path is a result, not an exception. Nothing was deleted
-        // either way, and the model is still alive to read this and say something sensible.
-        const decision = await resolveDeleteDecision(exchange, ui, existing);
-        if (!decision.confirmed) return decision.result;
+      // Drains deletePost's entry.unpublished event (published rows only) to SEO's sitemap-cache
+      // invalidation subscriber — the same inline drain content_post_update and the routes perform.
+      await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-        // Stale-version guard. This used to be `pending-confirmations.ts`'s job — a token bound to
-        // `existing.version` at mint time and refused at redeem time if the row had moved. Removing
-        // the token (ADR-055 Decision 3) removes that binding too, and nothing about a held-open
-        // exchange implies it: the exchange's own binding is `{toolId, principalId}`, which says
-        // nothing about which VERSION of the row the human was actually looking at. So this handler
-        // re-reads and compares explicitly, in the same place `redeem()` used to run — right after
-        // the human's answer arrives, before anything is written. `deletePost` itself has no
-        // optimistic-concurrency check of its own (confirmed by reading it in full), so without this
-        // an edit made while the dialog was open would go unnoticed.
-        const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-        assertFreshVersion(current, existing, kind);
+      return { deleted: true, cancelled: false, post: toPostToolView(result.post) };
 
-        let priorPost: PostRecord | null = null;
-
-        const { result } = await executeCommand<{ post: PostRecord }>({
-          deps: postCommandDeps(routeDeps),
-          command: {
-            workspaceId: routeDeps.workspaceId,
-            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            // The human-approved summary, recorded verbatim, so the audit trail says what was
-            // actually consented to rather than what the agent asked for. Built from `existing`
-            // (the same read the dialog was shown from) rather than anything the delivered answer
-            // carries — the human never sends a summary, only a decision.
-            summary: `Agent delete (human-confirmed): Delete ${existing.kind} '${existing.title}' (${existing.slug})`,
-            permission: "content.write",
-          },
-          mutation: {
-            entityType: "post",
-            entityId: id,
-            operation: "delete",
-            captureInverse: async () => {
-              priorPost = existing;
-              // The whole inverse of a soft delete is "clear the marker" — see
-              // `core/commands/appliers.ts`'s `postDeleteReverter`.
-              return { deletedAt: null };
-            },
-            execute: () =>
-              deletePost({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox, remove: routeDeps.removePost },
-                input: {
-                  workspaceId: routeDeps.workspaceId,
-                  id,
-                  actorId: ctx.principal.id,
-                  actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
-                  // See content_post_create's identical delegatedBy* comment above.
-                  delegatedByWorkspaceId: routeDeps.workspaceId,
-                  delegatedById: ctx.principal.id,
-                },
-              }),
-            captureEntityVersion: (r) => r.post.version,
-            rollback: async () => {
-              if (!priorPost) return;
-              await restorePostForward({
-                deps: {
-                  repo: routeDeps.postRepo,
-                  clock: routeDeps.clock,
-                  outbox: routeDeps.outbox,
-                  forgetRemoved: routeDeps.forgetRemovedPost,
-                },
-                input: {
-                  prior: priorPost,
-                  actorId: ctx.principal.id,
-                  // Same delegatedBy* attribution the forward write above records.
-                  delegatedByWorkspaceId: routeDeps.workspaceId,
-                  delegatedById: ctx.principal.id,
-                },
-              });
-            },
-          },
-        });
-
-        // Drains deletePost's entry.unpublished event (published rows only) to SEO's sitemap-cache
-        // invalidation subscriber — the same inline drain content_post_update and the routes perform.
-        await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
-
-        return { deleted: true, cancelled: false, post: toPostToolView(result.post) };
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
     },
   };
 

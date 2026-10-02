@@ -36,7 +36,7 @@ import { openSqliteSnapshotSource, type TransferSource } from "./sqlite-source.j
 import { LEFT_OUT_REASON } from "./table-catalog.js";
 
 /**
- * @file `database_transfer_plan` (read-only) and `database_transfer_run` (human-confirmed): COPY this
+ * @file `database_transfer_plan` (read-only) and `database_transfer_run` (human-confirmed for replacement): COPY this
  * site's database into a private `tovu` area of any Postgres database, while the site keeps running
  * on its built-in storage. Plan slice P0 of `ADS-memory/reports/2026-09-27-assistant-db-transfer-plan.md`
  * — core tables, row-count check. Vendor-blind: a plugin (e.g. Supabase) supplies the destination
@@ -103,7 +103,7 @@ export const databaseTransferAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: DATABASE_TRANSFER_RUN_TOOL_ID,
     description:
-      "Copies the data planned by database_transfer_plan. HUMAN-GATED: this one call shows a Copy/Cancel card and WAITS; there is no second call. On Copy it writes the planned snapshot as one transaction into this site's private area (this site's earlier copy is replaced; other sites' copies and anything else in the database are untouched), checks every table's row count, and returns {copied: true, destination, area, snapshotAt, tableCount, rowCount, tables: [{name, rows}]}. Any failure throws the copy away and keeps the earlier one: {copied: false, cancelled: false, code, message} (TARGET_NOT_OURS, COPY_FAILED, COUNT_MISMATCH, PLAN_NOT_FOUND, PLAN_EXPIRED). Cancel returns {copied: false, cancelled: true}.",
+      "Copies the data planned by database_transfer_plan. A first copy runs immediately without a confirmation card. Replacing an earlier copy permanently deletes its destination schema: this one call shows a Copy/Cancel card and WAITS; there is no second call. On Copy it writes the planned snapshot as one transaction into this site's private area (this site's earlier copy is replaced; other sites' copies and anything else in the database are untouched), checks every table's row count, and returns {copied: true, destination, area, snapshotAt, tableCount, rowCount, tables: [{name, rows}]}. Any failure throws the copy away and keeps the earlier one: {copied: false, cancelled: false, code, message} (TARGET_NOT_OURS, COPY_FAILED, COUNT_MISMATCH, PLAN_NOT_FOUND, PLAN_EXPIRED). Cancel returns {copied: false, cancelled: true}.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: RUN_PERMISSION },
     inputSchema: {
@@ -313,7 +313,7 @@ async function copyPlanned(deps: DatabaseTransferToolDeps, plan: DatabaseTransfe
   try {
     const { tables } = planSnapshotTables(source);
     const counts = countSourceRows(source, tables);
-    const result = await runCopy({ source, target: targetFor(deps, plan.connectionString), tables, counts, schema: plan.schema, marker: { site: plan.site, snapshotAt: plan.snapshotAt } });
+    const result = await runCopy({ source, target: targetFor(deps, plan.connectionString), tables, counts, schema: plan.schema, marker: { site: plan.site, snapshotAt: plan.snapshotAt }, replaceExisting: plan.replaces !== null });
     if (!result.ok) {
       if (result.logDetail !== undefined) log(deps, `${DATABASE_TRANSFER_RUN_TOOL_ID}: ${result.code} ${result.logDetail}`);
       await destinationsOf(deps).recordRun(deps.workspaceId, { copied: false, snapshotAt: plan.snapshotAt, code: result.code, message: result.message });
@@ -350,15 +350,17 @@ const PLAN_TAKE_MESSAGES = {
 async function handleRun(deps: DatabaseTransferToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<RunResult> {
   const planId = requireString(requireInputRecord(ctx.input), "planId");
   await requireToolPermission(deps, { principalId: ctx.principal.id, permission: RUN_PERMISSION, entityType: DOMAIN });
-  if (!ctx.emitSurface) {
-    throw new ToolInputError(`${DATABASE_TRANSFER_RUN_TOOL_ID}: this execution context has no interactive confirmation channel (no emitSurface), so a copy cannot be confirmed here. Nothing was copied.`);
-  }
   if (ctx.signal.aborted) return { copied: false, cancelled: false, reason: "abandoned" };
   const taken = (deps.databaseTransferPlanStore ?? DEFAULT_PLAN_STORE).take({ planId, principalId: ctx.principal.id, workspaceId: deps.workspaceId });
   if (!taken.ok) return { copied: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
 
-  const decision = await askToConfirm(ctx, surfaces, taken.plan, ctx.emitSurface);
-  if (!decision.confirmed) return decision.result;
+  if (taken.plan.replaces !== null) {
+    if (!ctx.emitSurface) {
+      throw new ToolInputError(`${DATABASE_TRANSFER_RUN_TOOL_ID}: this execution context has no interactive confirmation channel (no emitSurface), so replacement cannot be confirmed here. Nothing was copied.`);
+    }
+    const decision = await askToConfirm(ctx, surfaces, taken.plan, ctx.emitSurface);
+    if (!decision.confirmed) return decision.result;
+  }
   return copyPlanned(deps, taken.plan);
 }
 

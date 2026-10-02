@@ -29,15 +29,8 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
-import {
-  createSurfaceExchangeStore,
-  resolveConfirmationDecision,
-  SURFACE_EXCHANGE_ID_PARAM,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
 import {
@@ -102,48 +95,6 @@ const REDIRECTS_TOMBSTONE_TOOL_ID = "redirects_tombstone";
  *  imported, the same "structurally typed, no `features/trash` import" convention this domain's
  *  `TombstoneRedirectRequired.input.pluginId` already follows. */
 const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
-
-/** The `ui://` URI for one tombstone-confirmation instance — keyed by the exchange id, mirroring
- *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
-function tombstoneConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/redirects-tombstone/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders `redirects_tombstone`'s confirmation dialog. Jini's `buildConfirmationSurface` owns HOW
- * the dialog behaves; this only decides WHAT it says.
- *
- * @complexity O(1).
- */
-function buildTombstoneConfirmationResource(spec: {
-  rule: { fromPattern: string; toTarget: string; status: RedirectStatus };
-  exchangeId: string;
-}): UIResource {
-  const { rule, exchangeId } = spec;
-  return buildConfirmationSurface({
-    uri: tombstoneConfirmationUri(exchangeId),
-    title: "Disable this redirect?",
-    description: "The redirect rule will stop matching requests immediately. It is reversible — set status back to 'active' with redirects_update.",
-    details: [
-      { label: "From", value: rule.fromPattern },
-      { label: "To", value: rule.toTarget },
-      { label: "Current status", value: rule.status },
-    ],
-    danger: true,
-    confirm: {
-      label: "Disable redirect",
-      toolName: REDIRECTS_TOMBSTONE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: REDIRECTS_TOMBSTONE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-redirects-tombstone", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-  });
-}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -249,14 +200,7 @@ export function buildRedirectsRegistrations(
       return { rule: toRedirectToolView(record) };
     },
 
-    /**
-     * The MCP-UI-gated tombstone — migrated onto the shared held-open confirmation exchange
-     * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md). `tombstoneRedirect`
-     * is idempotent (a second call against an already-disabled rule is a no-op — see this file's own
-     * header/`redirectsDerivedRisk` comment), so there is no staleness window to re-check the way
-     * `content_post_delete` needs one: whatever the row looks like at confirm time, tombstoning it
-     * again is always safe.
-     */
+    /** Reversibly tombstones the redirect after authorization; repeated tombstoning is a no-op. */
     redirects_tombstone: async (ctx) => {
       const id = requireString(requireInputRecord(ctx.input), "id");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect", entityId: id });
@@ -264,49 +208,12 @@ export function buildRedirectsRegistrations(
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
 
-      if (!ctx.emitSurface) {
-        throw new Error(
-          "redirects_tombstone: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a destructive tombstone cannot be gated here. Nothing was changed."
-        );
-      }
-
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: REDIRECTS_TOMBSTONE_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface
-      );
-      const ui = buildTombstoneConfirmationResource({
-        rule: { fromPattern: rule.fromPattern, toTarget: rule.toTarget, status: rule.status },
-        exchangeId: exchange.id,
+      const { record } = await tombstoneRedirect({
+        deps: routeDeps.redirectsWriteDeps,
+        input: { workspaceId: routeDeps.workspaceId, id, actorId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
       });
+      return { tombstoned: true, cancelled: false, rule: toRedirectToolView(record) };
 
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        if (!outcome.confirmed) {
-          if (outcome.reason === "declined") {
-            return { tombstoned: false, cancelled: true, rule: toRedirectToolView(rule) };
-          }
-          return {
-            tombstoned: false,
-            cancelled: false,
-            reason: outcome.reason,
-            note:
-              outcome.reason === "expired"
-                ? "The user did not respond to the confirmation dialog before it expired. Nothing was changed."
-                : "The confirmation dialog was closed because the run ended. Nothing was changed.",
-          };
-        }
-
-        const { record } = await tombstoneRedirect({
-          deps: routeDeps.redirectsWriteDeps,
-          input: { workspaceId: routeDeps.workspaceId, id, actorId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
-        });
-        return { tombstoned: true, cancelled: false, rule: toRedirectToolView(record) };
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
     },
 
     // Wired 2026-09-24 (tool-design audit F2/F3, dispatch item 3) — see `agent-tools.ts`'s file

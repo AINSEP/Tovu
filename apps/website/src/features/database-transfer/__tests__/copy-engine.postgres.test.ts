@@ -92,7 +92,7 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
   const source = openSqliteSnapshotSource(bytes);
   try {
     const { tables } = planSnapshotTables(source);
-    const result = await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema: inspected.schema, marker: { site, snapshotAt } });
+    const result = await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null });
     return { schema: inspected.schema, result };
   } finally {
     source.close();
@@ -104,7 +104,7 @@ async function copyInto(schema: string, site: string): Promise<CopyResult> {
   const source = openSqliteSnapshotSource(fixtureSnapshot());
   try {
     const tables = collectTransferTables();
-    return await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema, marker: { site, snapshotAt: "x" } });
+    return await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema, marker: { site, snapshotAt: "x" }, replaceExisting: false });
   } finally {
     source.close();
   }
@@ -225,7 +225,7 @@ test("a count mismatch or rejected replacement preserves the earlier rows and ma
   const tables = collectTransferTables();
   try {
     const counts = countSourceRows(source, tables).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
-    const result = await runCopy({ source, target: TARGET(), tables, counts, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" } });
+    const result = await runCopy({ source, target: TARGET(), tables, counts, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true });
     assert.equal(!result.ok && result.code, "COUNT_MISMATCH");
     assert.match(!result.ok ? result.message : "", /menus/);
   } finally {
@@ -392,4 +392,14 @@ test("T2: every table in the snapshot is copied or left out with a reason; a plu
   assert.equal(await q(`SELECT count(*) FROM pg_indexes WHERE schemaname = '${schema}' AND tablename LIKE 'p_demo__%'`), "4", "two primary keys, the title index and the url unique");
   assert.equal(await q(`SELECT confdeltype FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND conrelid = '"${schema}".p_demo__links'::regclass AND contype = 'f'`), "c");
   assert.equal(await q(`SELECT to_regclass('"${schema}".p_demo__tokens') IS NULL`), "t");
+});
+
+test("an unconfirmed first-copy plan cannot overwrite a copy created since planning", async () => {
+  const original = await copyAs(SITE, "first-copy-sentinel");
+  assert.equal(original.result.ok, true);
+  const result = await copyInto(original.schema, SITE);
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.code, "COPY_FAILED");
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), "first-copy-sentinel");
+  assert.equal(await count("menus", "tovu"), 1);
 });

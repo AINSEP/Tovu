@@ -39,7 +39,7 @@ function harness(options: { allow?: boolean; ttl?: number; version?: string; can
     },
   };
   const tools = new Map(buildDatabaseTransferRegistrations(deps, { surfaceExchanges: surfaces }).map((tool) => [tool.descriptor.id, tool]));
-  const plan = plans.save({ principalId: "owner", workspaceId: "ws", content: { connectionString: "postgresql://owner@fixture/db", destination: description, replaces: null, snapshot: Buffer.alloc(0), snapshotAt: "x", site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [] } });
+  const plan = plans.save({ principalId: "owner", workspaceId: "ws", content: { connectionString: "postgresql://owner@fixture/db", destination: description, replaces: "prior-copy", snapshot: Buffer.alloc(0), snapshotAt: "x", site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [] } });
   return { tools, plan, plans, surfaces, destinations, expire: () => { now = 600001; }, captures: () => captures, targetCalls: () => targetCalls };
 }
 function call(tool: ToolRegistration, input: unknown, signal = new AbortController().signal, emitSurface: NonNullable<ToolExecutionContext["emitSurface"]> = async () => undefined) {

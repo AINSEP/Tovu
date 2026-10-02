@@ -45,15 +45,9 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
-import {
-  createSurfaceExchangeStore,
-  resolveConfirmationDecision,
-  SURFACE_EXCHANGE_ID_PARAM,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import {
   getThemesAgentToolCatalog,
   THEME_READ_PERMISSION,
@@ -469,48 +463,6 @@ export function performThemeFileRename(
 }
 
 const THEME_TRASH_TOOL_ID = "theme_trash_file";
-
-/** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id. A theme file has
- *  no version/row to key against the way a post does, mirroring `source-control/tool-registrations.ts`'s
- *  `commitConfirmationUri` reasoning. */
-function trashConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/theme-trash-file/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders `theme_trash_file`'s confirmation dialog directly from the model's own input — no entity
- * read is needed to describe it truthfully (unlike `content_post_delete`/`comments_trash_comment`):
- * `themeId`/`path` ARE the whole of what a human needs to see to consent, and are shown back exactly
- * as the model supplied them. If either turns out to be invalid, that surfaces as the ordinary thrown
- * error AFTER confirmation, same as before this gate existed — nothing destructive happens either way.
- *
- * @complexity O(1).
- */
-function buildTrashConfirmationResource(spec: { themeId: string; path: string; exchangeId: string }): UIResource {
-  const { themeId, path, exchangeId } = spec;
-  return buildConfirmationSurface({
-    uri: trashConfirmationUri(exchangeId),
-    title: "Trash this theme file?",
-    description: "The file will be moved into the theme's .trash/ folder. It can be restored with theme_restore_trashed_file.",
-    details: [
-      { label: "Theme", value: themeId },
-      { label: "Path", value: path },
-    ],
-    danger: true,
-    confirm: {
-      label: "Trash file",
-      toolName: THEME_TRASH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: THEME_TRASH_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-theme-trash-file", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-  });
-}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually does.
@@ -959,15 +911,7 @@ export function buildThemesRegistrations(
       });
     },
 
-    /**
-     * The MCP-UI-gated trash — migrated onto the shared held-open confirmation exchange (2026-09-08,
-     * ADS-memory/reports/2026-09-08-delete-confirmation-build.md). No pre-dialog entity read: the
-     * dialog is built directly from `themeId`/`path`, which is already the whole truth a human needs
-     * to consent to (see `buildTrashConfirmationResource`'s own doc). All validation — theme lookup,
-     * already-trashed check, identity-lock, generated-readonly check — runs exactly once, AFTER
-     * confirmation, in the same place it always ran; there is nothing to re-validate for staleness
-     * since it was never validated before the dialog in the first place.
-     */
+    /** Reversibly moves a writable file into the theme's .trash folder after authorization. */
     theme_trash_file: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const themeId = requireString(input, "themeId");
@@ -980,84 +924,50 @@ export function buildThemesRegistrations(
       });
 
       return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
-        if (!ctx.emitSurface) {
-          throw new Error(
-            "theme_trash_file: this execution context has no interactive confirmation channel " +
-              "(no emitSurface), so a destructive trash cannot be gated here. Nothing was trashed."
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        if (isTrashedThemePath(relativePath)) {
+          throw new ThemePathError(`'${relativePath}' is already inside the trash`);
+        }
+
+        // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
+        // required files, a built theme's generated tree, and script/other-group files stay
+        // un-trashable, for the identical reasons theme_delete_file was never wired at all (see
+        // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
+        // and nothing tracks what still references a script/other file by its old location).
+        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+        const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
+        if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+
+        const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
+        const trashedPath = trashDestinationFor(relativePath, existingPaths);
+        // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
+        // sits at the theme's ROOT, which is only "editable" for an authored theme (every theme on
+        // disk today). For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
+        // `theme.json` nor inside `build.sourceDir`) — trashing is refused outright rather than
+        // silently landing an untracked extra inside ADR-020's generated region, where a later
+        // "restore the generated tree" call would wipe it without warning.
+        const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
+        if (trashWriteScope.kind === "generated-readonly") {
+          throw new ThemeFileReadOnlyError(
+            `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
           );
         }
 
-        const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-          { toolId: THEME_TRASH_TOOL_ID, principalId: ctx.principal.id },
-          ctx.emitSurface
-        );
-        const ui = buildTrashConfirmationResource({ themeId, path: relativePath, exchangeId: exchange.id });
+        renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: relativePath, destPath: trashedPath });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
-        const closeOnAbort = () => exchange.close();
-        ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-        try {
-          const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-          if (!outcome.confirmed) {
-            if (outcome.reason === "declined") {
-              return { trashed: false, cancelled: true, themeId, path: relativePath };
-            }
-            return {
-              trashed: false,
-              cancelled: false,
-              reason: outcome.reason,
-              note:
-                outcome.reason === "expired"
-                  ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
-                  : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
-            };
-          }
+        return {
+          trashed: true,
+          cancelled: false,
+          themeId,
+          path: relativePath,
+          trashedPath,
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
 
-          const theme = findThemeOrThrow(routeDeps, themeId);
-
-          if (isTrashedThemePath(relativePath)) {
-            throw new ThemePathError(`'${relativePath}' is already inside the trash`);
-          }
-
-          // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
-          // required files, a built theme's generated tree, and script/other-group files stay
-          // un-trashable, for the identical reasons theme_delete_file was never wired at all (see
-          // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
-          // and nothing tracks what still references a script/other file by its old location).
-          const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
-          const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
-          if (lock) throw new ThemeFileIdentityLockedError(lock.error);
-
-          const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
-          const trashedPath = trashDestinationFor(relativePath, existingPaths);
-          // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
-          // sits at the theme's ROOT, which is only "editable" for an authored theme (every theme on
-          // disk today). For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
-          // `theme.json` nor inside `build.sourceDir`) — trashing is refused outright rather than
-          // silently landing an untracked extra inside ADR-020's generated region, where a later
-          // "restore the generated tree" call would wipe it without warning.
-          const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
-          if (trashWriteScope.kind === "generated-readonly") {
-            throw new ThemeFileReadOnlyError(
-              `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
-            );
-          }
-
-          renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: relativePath, destPath: trashedPath });
-          const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
-
-          return {
-            trashed: true,
-            cancelled: false,
-            themeId,
-            path: relativePath,
-            trashedPath,
-            status: reloaded.status,
-            errors: reloaded.errors,
-            theme: toThemeToolView(reloaded),
-          };
-        } finally {
-          ctx.signal.removeEventListener("abort", closeOnAbort);
-        }
       });
     },
 

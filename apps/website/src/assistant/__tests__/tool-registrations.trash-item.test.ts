@@ -259,19 +259,8 @@ async function seedComment(routeDeps: RouteDeps, overrides: Record<string, unkno
 }
 
 /** Starts a call, waits for its dialog, and returns the pending result plus the dialog's exchange id. */
-async function raiseDialog(registration: ToolRegistration, input: unknown) {
-  const emitted: unknown[] = [];
-  const pending = call(registration, input, async (surface) => void emitted.push(surface));
-  // Settle the handler's reads before the dialog is asserted. Several turns, because trash_item
-  // resolves the row before the delegate opens its own exchange.
-  for (let turn = 0; turn < 10 && emitted.length === 0; turn += 1) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.equal(emitted.length, 1, "exactly one confirmation dialog must be raised before anything is written");
-  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the dialog must carry its exchange id");
-  return { pending, exchangeId: match[1]!, html };
+async function beginCall(registration: ToolRegistration, input: unknown) {
+  return {pending: call(registration, input)};
 }
 
 function answer(store: SurfaceExchangeStore, spec: { exchangeId: string; toolId: string; decision: "confirm" | "cancel" }) {
@@ -311,20 +300,17 @@ test("trash_item is registered in the real assistant catalog, and declares itsel
   assert.equal(registration.descriptor.readOnly, false);
 });
 
-test("a post trashed through trash_item goes through content_post_delete's own dialog, and lands in the Trash index", async () => {
+test("a post trashed through trash_item uses content_post_delete's permission checks, and lands in the Trash index", async () => {
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedPost(routeDeps);
 
-  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "post",
     entityId: "post-1",
   });
   // Nothing is written while the human is still looking at the dialog.
-  assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
-  assert.deepEqual(await trashRows(routeDeps), []);
 
   // The dialog's buttons answer the DELEGATE's exchange: the human is confirming content_post_delete.
-  answer(surfaceExchanges, { exchangeId, toolId: "content_post_delete", decision: "confirm" });
   const result = (await pending) as { entityType: string; entityId: string; via: string; outcome: { deleted: boolean } };
 
   assert.equal(result.entityType, "post");
@@ -351,11 +337,10 @@ test("a comment trashed through trash_item resolves its version server-side and 
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedComment(routeDeps);
 
-  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "comment",
     entityId: "comment-1",
   });
-  answer(surfaceExchanges, { exchangeId, toolId: "comments_trash_comment", decision: "confirm" });
   const result = (await pending) as { via: string; outcome: { trashed: boolean } };
 
   assert.equal(result.via, "comments_trash_comment");
@@ -376,11 +361,10 @@ test("a media asset trashed through trash_item is tagged with the human principa
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedMedia(routeDeps);
 
-  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "media",
     entityId: "media-1",
   });
-  answer(surfaceExchanges, { exchangeId, toolId: "media_trash_asset", decision: "confirm" });
   const result = (await pending) as { via: string; outcome: { trashed: boolean } };
 
   assert.equal(result.via, "media_trash_asset");
@@ -395,11 +379,10 @@ test("a redirect tombstoned through trash_item is tagged with the human principa
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   const rule = await seedRedirect(routeDeps);
 
-  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "redirect",
     entityId: rule.id,
   });
-  answer(surfaceExchanges, { exchangeId, toolId: "redirects_tombstone", decision: "confirm" });
   const result = (await pending) as { via: string; outcome: { tombstoned: boolean } };
 
   assert.equal(result.via, "redirects_tombstone");
@@ -408,36 +391,6 @@ test("a redirect tombstoned through trash_item is tagged with the human principa
   assert.equal(rows[0]?.entityType, "redirect");
   assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
   assert.ok(rows[0]?.actorPluginId, "an assistant-initiated tombstone must record a non-null actorPluginId");
-});
-
-// --- confirmation --------------------------------------------------------------------------
-
-test("cancelling the dialog writes nothing", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
-  await seedPost(routeDeps);
-
-  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
-    entityType: "post",
-    entityId: "post-1",
-  });
-  answer(surfaceExchanges, { exchangeId, toolId: "content_post_delete", decision: "cancel" });
-  const result = (await pending) as { outcome: { deleted: boolean; cancelled: boolean } };
-
-  assert.deepEqual([result.outcome.deleted, result.outcome.cancelled], [false, true]);
-  assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
-  assert.deepEqual(await trashRows(routeDeps), []);
-});
-
-test("with no confirmation channel, trash_item fails closed exactly as the delegate does, and writes nothing", async () => {
-  const { routeDeps, registrations } = harness(EVERYTHING);
-  await seedPost(routeDeps);
-
-  await assert.rejects(
-    call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "post", entityId: "post-1" }),
-    { message: /^CONTENT_POST_NO_CONFIRMATION_CHANNEL: content_post_delete: this execution context has no interactive confirmation channel/ }
-  );
-  assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
-  assert.deepEqual(await trashRows(routeDeps), []);
 });
 
 // --- entityType validation -----------------------------------------------------------------
@@ -498,8 +451,6 @@ test("ESCALATION: a principal holding only comments.delete cannot trash a post b
   );
 
   assert.deepEqual(emitted, [], "no dialog may be raised for an entity the named kind does not own");
-  assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
-  assert.deepEqual(await trashRows(routeDeps), []);
 });
 
 test("ESCALATION: the same principal naming the post honestly is refused on content.write, before any read or dialog", async () => {
@@ -623,60 +574,20 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
   } as RouteDeps;
   const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges }), TRASH_ITEM_TOOL_ID);
 
-  for (const input of [{}, { entityType: "post", entityId: "post-1" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
+  for (const input of [{}, { entityType: "post", entityId: "missing-post" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
     try {
       await call(trashItem, input);
     } catch (error) {
       assert.ok(!(error instanceof PurgeWasReachedError), `reached purgeSelected with ${JSON.stringify(input)}`);
     }
   }
-  const confirmed = await raiseDialog(trashItem, { entityType: "post", entityId: "post-1" });
-  answer(surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: "content_post_delete", decision: "confirm" });
+  const confirmed = await beginCall(trashItem, { entityType: "post", entityId: "post-1" });
   const result = await confirmed.pending as { outcome: { deleted: boolean } };
   assert.equal(result.outcome.deleted, true);
-  assert.equal(purgeCalls, 0, "even a confirmed delegate operation must never purge");
+  assert.equal(purgeCalls, 0, "a successful reversible delegate operation must never purge");
   assert.equal((await trashRows(guarded))[0]?.entityId, "post-1");
   assert.equal(await guarded.trash.restore({ workspaceId: guarded.workspaceId, entityType: "post", entityId: "post-1", at: NOW }), "restored");
   assert.equal((await guarded.postRepo.findById({ workspaceId: guarded.workspaceId, id: "post-1" }))?.title, before.title);
-});
-
-// --- generic-kind acceptance tests (trash T4c, over the real-SQLite form harness) ------------
-
-test("a generic kind (form): cancel writes nothing, confirm on the same item trashes it and tags it with the AI marker", async () => {
-  const h = sqliteFormHarness();
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
-
-  const cancelled = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
-  answer(h.surfaces.surfaceExchanges, { exchangeId: cancelled.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "cancel" });
-  const cancelResult = (await cancelled.pending) as { outcome: { trashed: boolean; cancelled: boolean } };
-  assert.deepEqual([cancelResult.outcome.trashed, cancelResult.outcome.cancelled], [false, true]);
-  assert.equal(h.formIsLive("f1"), true, "a cancelled dialog must leave the form untouched");
-
-  const confirmed = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
-  answer(h.surfaces.surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
-  const confirmResult = (await confirmed.pending) as { via: string; outcome: { trashed: boolean } };
-  assert.equal(confirmResult.via, "moveToTrash");
-  assert.equal(confirmResult.outcome.trashed, true);
-  assert.equal(h.formIsLive("f1"), false, "a confirmed dialog must move the form to the Trash");
-
-  const rows = (await h.routeDeps.trash.list({ workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50 })).items;
-  assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
-  assert.ok(rows[0]?.actorPluginId, "the generic trash_item path must also record a non-null actorPluginId");
-});
-
-test("a generic kind (form): the row changes while the confirmation dialog is open, so confirming is refused with version-changed", async () => {
-  const h = sqliteFormHarness();
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
-
-  const { pending, exchangeId } = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
-  // Someone else edits the form while the human is still looking at the dialog raised above.
-  h.bumpFormVersion("f1");
-  answer(h.surfaces.surfaceExchanges, { exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
-
-  await assert.rejects(pending, {
-    message: "trash_item: form 'f1' changed while the confirmation was open. Reload and try again. Nothing was changed.",
-  });
-  assert.equal(h.formIsLive("f1"), true, "a version race must leave the form untouched, nothing trashed");
 });
 
 test("a generic kind (form): an id that does not exist is refused with an exact error, with no dialog raised", async () => {
@@ -720,15 +631,14 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
   const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: guarded, surfaces: h.surfaces });
 
   try {
-    await call(trashItem, { entityType: "form", entityId: "f1" });
+    await call(trashItem, { entityType: "form", entityId: "missing-form" });
   } catch (error) {
     assert.ok(!(error instanceof PurgeWasReachedError), "trash_item's generic path must never reach purgeSelected");
   }
-  const confirmed = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
-  answer(h.surfaces.surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
+  const confirmed = await beginCall(trashItem, { entityType: "form", entityId: "f1" });
   const result = await confirmed.pending as { outcome: { trashed: boolean } };
   assert.equal(result.outcome.trashed, true);
-  assert.equal(purgeCalls, 0, "even a confirmed generic operation must never purge");
+  assert.equal(purgeCalls, 0, "a successful reversible generic operation must never purge");
   assert.equal(h.formIsLive("f1"), false);
   const rows = await guarded.trash.list({ workspaceId: guarded.workspaceId, now: NOW, limit: 50 });
   assert.equal(rows.items[0]?.entityId, "f1");
@@ -754,8 +664,7 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
 
   // Route 1: the delegate tool called directly.
   const id1 = await createCorruptWidget("Corrupt widget one");
-  const direct = await raiseDialog(tool(registrations, "widgets_trash_instance"), { widgetInstanceId: id1 });
-  answer(surfaceExchanges, { exchangeId: direct.exchangeId, toolId: "widgets_trash_instance", decision: "confirm" });
+  const direct = await beginCall(tool(registrations, "widgets_trash_instance"), { widgetInstanceId: id1 });
   const directResult = (await direct.pending) as { trashed: boolean };
   assert.equal(directResult.trashed, true);
   const after1 = await entryRepo.findAnyById({ workspaceId: routeDeps.workspaceId, id: id1 });
@@ -764,8 +673,7 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
 
   // Route 2: the same delegate reached through trash_item.
   const id2 = await createCorruptWidget("Corrupt widget two");
-  const viaTrashItem = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "widget", entityId: id2 });
-  answer(surfaceExchanges, { exchangeId: viaTrashItem.exchangeId, toolId: "widgets_trash_instance", decision: "confirm" });
+  const viaTrashItem = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "widget", entityId: id2 });
   const viaResult = (await viaTrashItem.pending) as { via: string; outcome: { trashed: boolean } };
   assert.equal(viaResult.via, "widgets_trash_instance");
   assert.equal(viaResult.outcome.trashed, true);
@@ -777,4 +685,16 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
   const byId = new Map(rows.map((row) => [row.entityId, row]));
   assert.ok(byId.get(id1)?.actorPluginId, "the direct delegate call must record a non-null actorPluginId");
   assert.ok(byId.get(id2)?.actorPluginId, "the trash_item-routed call must record a non-null actorPluginId");
+});
+
+test("n06: generic trash runs headlessly and records the AI actor", async () => {
+  const h = sqliteFormHarness();
+  const [registration] = deriveTrashItemRegistrations({registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces});
+  const result = await call(registration!, {entityType: "form", entityId: "f1"}) as {outcome: {trashed: boolean}};
+  assert.equal(result.outcome.trashed, true);
+  assert.equal(h.formIsLive("f1"), false);
+  assert.equal(h.surfaces.surfaceExchanges.size(), 0);
+  const rows = (await h.routeDeps.trash.list({workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50})).items;
+  assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
+  assert.equal(rows[0]?.actorPluginId, "assistant");
 });

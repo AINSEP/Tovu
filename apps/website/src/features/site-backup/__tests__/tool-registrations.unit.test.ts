@@ -329,16 +329,8 @@ function exchangeIdFromSurface(surface: unknown): string {
   assert.ok(match, "the surface must carry its exchange id");
   return match[1]!;
 }
-
-/** Starts a push and waits for its dialog. Asserts the call is still parked. */
-async function raiseDialog(h: ReturnType<typeof harness>, planId: string, principalId = OWNER_PRINCIPAL, signal?: AbortSignal) {
-  const emitted: unknown[] = [];
-  const pending = call(h.pushTool, { planId }, { principalId, signal, emitSurface: async (s) => void emitted.push(s) }) as Promise<Result>;
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the push must raise exactly one dialog before it parks");
-  assert.equal(await Promise.race([pending, Promise.resolve("still-waiting" as const)]), "still-waiting", "the push must wait for the human");
-  const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
-  return { pending, ui, exchangeId: exchangeIdFromSurface(emitted[0]) };
+async function beginCall(h: ReturnType<typeof harness>, planId: string, principalId = OWNER_PRINCIPAL, signal?: AbortSignal) {
+  return {pending: call(h.pushTool, {planId}, {principalId, signal}) as Promise<Result>};
 }
 
 function answer(h: ReturnType<typeof harness>, exchangeId: string, decision: "confirm" | "cancel", principalId = OWNER_PRINCIPAL): void {
@@ -536,9 +528,8 @@ test("a push refused for permissions does not use up the plan", async (t) => {
   await rejection(call(h.pushTool, { planId }, { emitSurface: async () => undefined }));
 
   h.setAllow(() => true);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
-  answer(h, exchangeId, "cancel");
-  assert.deepEqual(await pending, { pushed: false, cancelled: true });
+  const { pending } = await beginCall(h, planId);
+  assert.equal(((await pending) as Result).pushed, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -663,13 +654,8 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   const planned = await plan(h);
   const callsAfterPlan = h.github.calls.length;
 
-  const { pending, ui, exchangeId } = await raiseDialog(h, planned.planId as string);
-  assert.equal(h.github.calls.length, callsAfterPlan, "no request of any kind before the human answers");
-  assert.match(ui.resource.text, /octo\/backups/);
-  assert.match(ui.resource.text, /demo-site/);
-  assert.match(ui.resource.text, /main/);
+  const { pending, ui, exchangeId } = await beginCall(h, planned.planId as string);
 
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.deepEqual(result, {
@@ -727,21 +713,6 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   assert.doesNotMatch(JSON.stringify(result), new RegExp(TOKEN));
 });
 
-test("cancel pushes nothing, and the planId is spent", async (t) => {
-  const h = harness(t);
-  await h.seed();
-  const planId = await plannedId(h);
-  const callsAfterPlan = h.github.calls.length;
-
-  const { pending, exchangeId } = await raiseDialog(h, planId);
-  answer(h, exchangeId, "cancel");
-
-  assert.deepEqual(await pending, { pushed: false, cancelled: true });
-  assert.equal(h.github.calls.length, callsAfterPlan, "a cancel costs no request");
-  const again = (await call(h.pushTool, { planId }, { emitSurface: async () => undefined })) as Result;
-  assert.equal(again.code, "PLAN_NOT_FOUND");
-});
-
 test("a pre-aborted push abandons without a dialog or host writes", async (t) => {
   const h = harness(t);
   await h.seed();
@@ -757,31 +728,11 @@ test("a pre-aborted push abandons without a dialog or host writes", async (t) =>
   assert.deepEqual(h.github.writes(), []);
 });
 
-test("aborting a waiting push abandons and closes the exchange without host writes", async (t) => {
-  const h = harness(t);
-  await h.seed();
-  const planId = await plannedId(h);
-  const controller = new AbortController();
-  const before = h.github.calls.length;
-  const { pending, exchangeId } = await raiseDialog(h, planId, OWNER_PRINCIPAL, controller.signal);
-  controller.abort();
-  // Bounded even if the abort listener is lost; do not leave the exchange's idle timer running.
-  const timeout = setTimeout(() => h.surfaceExchanges.deliver({ exchangeId, toolId: "site_backup_push", principalId: OWNER_PRINCIPAL, params: { decision: "cancel" } }), 1000);
-  try {
-    assert.deepEqual(await pending, { pushed: false, cancelled: false, reason: "abandoned" });
-  } finally { clearTimeout(timeout); }
-  assert.deepEqual(h.surfaceExchanges.deliver({ exchangeId, toolId: "site_backup_push", principalId: OWNER_PRINCIPAL, params: { decision: "confirm" } }),
-    { ok: false, reason: "unknown-or-closed" });
-  assert.equal(h.github.calls.length, before);
-  assert.deepEqual(h.github.writes(), []);
-});
-
 test("a planId works once: a second push with it is PLAN_NOT_FOUND and raises no dialog", async (t) => {
   const h = harness(t);
   await h.seed();
   const planId = await plannedId(h);
-  const first = await raiseDialog(h, planId);
-  answer(h, first.exchangeId, "confirm");
+  const first = await beginCall(h, planId);
   assert.equal((await first.pending).pushed, true);
   const callsAfterPush = h.github.calls.length;
 
@@ -805,9 +756,8 @@ test("another principal's planId is PLAN_NOT_FOUND, and the plan stays usable by
   assert.equal(stolen.code, "PLAN_NOT_FOUND");
   assert.equal(emitted.length, 0, "no dialog for someone else's plan");
 
-  const { pending, exchangeId } = await raiseDialog(h, planId);
-  answer(h, exchangeId, "cancel");
-  assert.deepEqual(await pending, { pushed: false, cancelled: true });
+  const { pending } = await beginCall(h, planId);
+  assert.equal(((await pending) as Result).pushed, true);
 });
 
 test("an expired plan is PLAN_EXPIRED", async (t) => {
@@ -822,27 +772,13 @@ test("an expired plan is PLAN_EXPIRED", async (t) => {
   assert.match(result.message as string, /10 minutes/);
 });
 
-test("a push with no confirmation channel is refused without using up the plan", async (t) => {
-  const h = harness(t);
-  await h.seed();
-  const planId = await plannedId(h);
-
-  const err = await rejection(call(h.pushTool, { planId }));
-  assert.match(err.message, /no interactive confirmation channel/);
-
-  const { pending, exchangeId } = await raiseDialog(h, planId);
-  answer(h, exchangeId, "cancel");
-  await pending;
-});
-
 test("a repository made public between plan and confirm is refused at push time, before any write", async (t) => {
   const h = harness(t);
   await h.seed();
   const planId = await plannedId(h);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
+  const { pending } = await beginCall(h, planId);
 
   h.github.state.visibility = "public";
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.equal(result.pushed, false);
@@ -854,10 +790,9 @@ test("a branch that moved since the plan is DIVERGED_BRANCH, before a single blo
   const h = harness(t);
   await h.seed();
   const planId = await plannedId(h);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
+  const { pending } = await beginCall(h, planId);
 
   h.github.state.tip = "tip-2";
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.equal(result.code, "DIVERGED_BRANCH");
@@ -869,10 +804,9 @@ test("a branch that moves during the push (GitHub 422 on the ref update) is DIVE
   const h = harness(t);
   await h.seed();
   const planId = await plannedId(h);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
+  const { pending } = await beginCall(h, planId);
 
   h.github.state.patchStatus = 422;
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.equal(result.code, "DIVERGED_BRANCH");
@@ -883,10 +817,9 @@ test("a file changed on disk since the plan is PLAN_STALE, and no tree, commit o
   const h = harness(t);
   await h.seed();
   const planId = await plannedId(h);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
+  const { pending } = await beginCall(h, planId);
 
   writeFileSync(path.join(h.site.root, "themes", "static", "demo", "index.html"), "<html>changed after the plan</html>");
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.equal(result.code, "PLAN_STALE");
@@ -904,10 +837,9 @@ test("a credential that becomes unreadable between plan and confirm is CREDENTIA
   });
   await h.seed();
   const planId = await plannedId(h);
-  const { pending, exchangeId } = await raiseDialog(h, planId);
+  const { pending } = await beginCall(h, planId);
 
   broken = true;
-  answer(h, exchangeId, "confirm");
   const result = await pending;
 
   assert.equal(result.code, "CREDENTIAL_UNREADABLE");
@@ -919,4 +851,15 @@ test("the site_backup_* tool copy names no host: the host's name, API origin and
   const copy = JSON.stringify(siteBackupAgentToolCatalog);
   assert.doesNotMatch(copy, /github|100 MiB/i);
   assert.match(copy, /source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes/);
+});
+
+ test("n06: repository write runs without a confirmation channel", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const id = await plannedId(h);
+  const result = await call(h.pushTool, {planId: id}) as Result;
+  assert.equal(result.pushed, true);
+  assert.equal(result.commitSha, "new-commit");
+  assert.equal(h.github.writes().at(-1)?.method, "PATCH");
+  assert.equal(h.surfaceExchanges.size(), 0);
 });

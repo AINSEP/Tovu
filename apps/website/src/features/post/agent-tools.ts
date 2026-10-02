@@ -915,18 +915,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_delete",
     description:
-      "Moves a post or page to the trash. HUMAN-GATED — call it with just { id, kind }. This one call shows an interactive " +
-      "confirmation dialog to the human and WAITS: it does not return until the human answers, or the dialog times out. " +
-      "There is no second call to make. If the human clicks Delete, THIS SAME CALL performs the deletion and returns " +
-      "{ deleted: true, cancelled: false, post }. If they click Cancel, it returns { deleted: false, cancelled: true, post } " +
-      "and nothing is deleted. If nobody answers in time (or the run ends first), it returns " +
-      "{ deleted: false, cancelled: false, reason: 'expired' | 'abandoned' } and nothing is deleted. Simply wait for the " +
-      "result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this " +
-      "tool while it is already pending (a fresh call raises a second, separate dialog rather than answering the first). " +
-      "The delete is a SOFT delete: the row is marked as trashed (it disappears from every posts/pages list, from get-by-id, " +
-      "and from the public site) but is retained and can be restored by reverting the resulting change set. Rejected if the " +
-      "row does not exist, is already trashed, or if kind:'page' is given for an actual kind:'post' row (the same disclosed " +
-      "asymmetry content_read.content_post and content_post_update carry — not rejected the other way around).",
+      "Moves one post or page to Trash immediately, with {id, kind}. Returns {deleted: true, cancelled: false, post}. This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set. Requires content.read and content.write. Refuses a missing/already-trashed row, a page kind mismatch, or a concurrent version change. Permanent deletion is a separate confirmation-gated tool.",
     // Genuinely destructive, and classified as its own thing rather than folded into the same
     // bucket as an edit — `tool-registrations.ts`'s independent `postDerivedRisk` derives the
     // identical value from what the handler actually calls, and the two are compared for equality
@@ -936,24 +925,11 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     // codebase grants no `content.delete` anywhere, and inventing a permission no policy grants
     // would make the tool unusable rather than safer. Matches `posts/delete.ts`/`pages/delete.ts`.
     authorization: { permission: "content.write" },
-    // NOTE the absence of `actorClassRule: "confirmer-must-equal-own-delegatedBy"`. That rule is on
-    // the kit's `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` deny-list precisely because it
-    // depends on `descriptor.requiresConfirmation`, which would park the execution forever with no
-    // `ExecutionDelegate` wired. This tool needs no such transport (ADR-055 Decision 2): its
-    // confirmation channel is the exchange machinery in `assistant/surface-exchanges.ts`
-    // (`ToolExecutionContext.emitSurface` + `SurfaceExchangeStore`), which parks THIS SAME call —
-    // still with no `ExecutionDelegate`/`resumeConfirmation` involved. Declaring the rule would
-    // (correctly) fail the build for a transport this tool does not use.
+    // Reversible removal needs no confirmation transport or model-supplied consent field.
     inputSchema: {
       type: "object",
       additionalProperties: false,
       required: ["id", "kind"],
-      // Deliberately just these two fields. The old two-call shape needed a model-visible
-      // `confirmationToken`/`decision` pair the model was told never to set (ADR-053). Now the
-      // model's call carries no such fields at all — the human's answer arrives on a completely
-      // separate channel (a browser POST the exchange store routes to THIS SAME held-open call,
-      // never a fresh call the model could construct), so there is nothing here to warn it away
-      // from; `additionalProperties: false` refuses the field outright rather than merely asking.
       properties: { id: POST_ID_SCHEMA, kind: POST_KIND_SCHEMA },
     },
   },

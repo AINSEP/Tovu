@@ -70,7 +70,7 @@ import {
   updateCustomCredential,
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
-import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
+import { WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
 import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
@@ -512,22 +512,6 @@ type WriteFilesResult =
   | { executed: false; cancelled: true }
   | { executed: false; cancelled: false; reason: "expired" | "abandoned" }
   | { executed: false; cancelled: false; reason: "error"; message: string };
-
-/**
- * Waits for the human's answer to `custom_credential_write_files`'s confirmation dialog — same
- * mechanism {@link resolveMakeRequestDeleteDecision} documents, adapted to this tool's own
- * {@link WriteFilesResult} shape. Unlike DELETE's gate, EVERY call reaches this function (see this
- * file's header, "custom_credential_write_files") — there is no un-gated verb for this tool.
- */
-async function resolveWriteFilesDecision(exchange: SurfaceExchange, ui: UIResource): Promise<{ confirmed: true } | { confirmed: false; result: WriteFilesResult }> {
-  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  if (outcome.confirmed) return { confirmed: true };
-
-  if (outcome.reason === "declined") {
-    return { confirmed: false, result: { executed: false, cancelled: true } };
-  }
-  return { confirmed: false, result: { executed: false, cancelled: false, reason: outcome.reason } };
-}
 
 /**
  * The write itself, run only once the human has confirmed — extracted to its own top-level function
@@ -1366,18 +1350,6 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       );
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
-      // Fail closed rather than degrade — same posture `custom_credential_set_token`/
-      // `custom_credential_create` document above: a write only a human can confirm has nowhere to go
-      // in an execution context that cannot hold this call open.
-      if (!ctx.emitSurface) {
-        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
-        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError(
-          "custom_credential_write_files: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a write cannot be confirmed here. Nothing was written."
-        );
-      }
-
       // The host first, from the credential's plaintext base URL (no decrypt): its owner/repo rules
       // decide whether this call is well formed at all.
       const summary = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
@@ -1411,26 +1383,6 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: WRITE_FILES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-      const ui = buildWriteFilesConfirmationResource({
-        label,
-        owner: validated.owner,
-        repo: validated.repo,
-        branch: validated.branch,
-        files: buildWriteFilesConfirmationFileSpecs({ fileStates: planResult.plan.fileStates, files: validated.files, workflowPaths: provider.workflowPaths }),
-        exchangeId: exchange.id,
-      });
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      let decision: Awaited<ReturnType<typeof resolveWriteFilesDecision>>;
-      try {
-        decision = await resolveWriteFilesDecision(exchange, ui);
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-      if (!decision.confirmed) return decision.result;
-
       return performGitHubFilesWrite(routeDeps, provider, resolved, validated, planResult.plan);
     },
   };

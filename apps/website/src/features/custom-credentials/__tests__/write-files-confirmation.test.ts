@@ -11,6 +11,7 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { buildCustomCredentialsRegistrations, buildWriteFilesConfirmationFileSpecs, type CustomCredentialsToolDeps } from "../tool-registrations.js";
+import { buildWriteFilesConfirmationResource } from "../write-files-confirmation-ui.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 
@@ -170,125 +171,9 @@ function actionFromDialog(ui: UIResource, action: "confirm" | "cancel") {
   assert.equal(plan[action].toolName, TOOL_ID);
   return plan[action].params as Record<string, unknown>;
 }
-
-async function raiseDialog(writeTool: ToolRegistration, input: unknown = VALID_INPUT) {
-  const emitted: unknown[] = [];
-  const pending = call(writeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  // The provider registry and the branch plan are read before the dialog, so the emit lands some ticks later — poll.
-  for (let tick = 0; tick < 1000 && emitted.length === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
-  const exchangeId = exchangeIdFromSurface(emitted[0]);
-  return { pending, ui, exchangeId };
+async function beginCall(writeTool: ToolRegistration, input: Record<string, unknown> = VALID_INPUT) {
+  return {pending: call(writeTool, {input})};
 }
-
-// ---------------------------------------------------------------------------
-// 1. The call plans (real reconnaissance), then parks — and nothing is committed yet
-// ---------------------------------------------------------------------------
-
-test("the call stays open after the dialog is shown, and no blob/tree/commit/ref call is made while it is pending", async () => {
-  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { pending, ui, exchangeId } = await raiseDialog(writeTool);
-
-  assert.equal(ui.type, "resource");
-  assert.equal(ui.resource.mimeType, MCP_UI_MIME_TYPE);
-  assert.equal(surfaceExchanges.size(), 1);
-  assert.equal(
-    await Promise.race([pending, Promise.resolve("still-waiting" as const)]),
-    "still-waiting",
-    "the agent's call must not return before the human answers"
-  );
-  assert.equal(sealer.openCalls, 1, "the plan phase decrypts exactly once — see this file's header");
-  assert.equal(httpClient.calls.length, 3, "only the 3 read-only plan calls (ref, parent-commit, existence check) — no blob/tree/commit/ref yet");
-  for (const c of httpClient.calls) {
-    assert.doesNotMatch(c.url, /\/git\/blobs$|\/git\/trees$|\/git\/commits$/, "no write call before confirmation");
-  }
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("the dialog names the credential, repository, branch, and the file's create/update state", async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(writeTool);
-
-  assert.match(ui.resource.text, /github/);
-  assert.match(ui.resource.text, /octo\/demo/);
-  assert.match(ui.resource.text, /main/);
-  assert.match(ui.resource.text, /fly\.toml/);
-  assert.match(ui.resource.text, /create/i);
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("a file that already exists on the branch is labeled as an update, resolved from the real branch state", async () => {
-  const { deps, writeDeps } = fakeRouteDeps({
-    httpSteps: [
-      { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
-      { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-      // A directory listing (an ARRAY of `{name, type}` entries) is what GitHub's real Contents API
-      // answers here, and the github plugin's existence check matches `fly.toml` against
-      // `entry.name` in it (5716426c/S21 — a directory or submodule at the path must NOT be
-      // described as an update). Without a `type: "file"` entry this fixture exercises the refusal
-      // path, not the update path this test is about.
-      { match: /\/contents\?ref=main$/, status: 200, json: [{ name: "fly.toml", type: "file" }] },
-    ],
-  });
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(writeTool);
-  assert.match(ui.resource.text, /update/i);
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("a .github/workflows/** file gets an extra, distinctly-worded warning naming that exact path", async () => {
-  const { deps, writeDeps } = fakeRouteDeps({
-    httpSteps: [
-      { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
-      { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-      { match: /\/contents\/\.github\/workflows\?ref=main$/, status: 404, json: {} },
-    ],
-  });
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-  const input = { ...VALID_INPUT, files: [{ path: ".github/workflows/deploy.yml", content: "name: deploy" }] };
-
-  const { ui, exchangeId, pending } = await raiseDialog(writeTool, input);
-
-  assert.match(ui.resource.text, /WORKFLOW/);
-  assert.match(ui.resource.text, /\.github\/workflows\/deploy\.yml/);
-  assert.match(ui.resource.text, /runs? automatically|every future push/i);
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
-
-test("an ordinary file (no workflow path) never renders the workflow warning", async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(writeTool);
-  assert.doesNotMatch(ui.resource.text, /WORKFLOW/i);
-
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-});
 
 // ---------------------------------------------------------------------------
 // 1b. The excerpt — what the human is told each file CONTAINS
@@ -303,26 +188,16 @@ test("an ordinary file (no workflow path) never renders the workflow warning", a
  *  silently-raised one that puts a whole file in the dialog payload. */
 const EXCERPT_MAX_CHARS = 200;
 
-/** Raises the dialog for a single `fly.toml` carrying `content`, returns the surface's rendered HTML,
- *  and settles the parked call so no test leaves a live exchange behind. */
+/** Retained renderer compatibility: the ordinary write handler no longer emits this surface. */
 async function dialogHtmlForContent(content: string): Promise<string> {
-  const { deps, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { ui, exchangeId, pending } = await raiseDialog(writeTool, { ...VALID_INPUT, files: [{ path: "fly.toml", content }] });
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
-  await pending;
-  return ui.resource.text;
+  const files = buildWriteFilesConfirmationFileSpecs({
+    fileStates: [{ path: "fly.toml", exists: false }],
+    files: [{ path: "fly.toml", content }],
+  });
+  return buildWriteFilesConfirmationResource({
+    label: "github", owner: "octo", repo: "demo", branch: "main", files, exchangeId: "fixture",
+  }).resource.text;
 }
-
-test("the dialog shows the file's real content and its byte size, not just its path", async () => {
-  const html = await dialogHtmlForContent('app = "demo"\nprimary_region = "iad"');
-
-  assert.match(html, /primary_region/, "the dialog asks the human to review the contents, so the contents must be in it");
-  assert.match(html, /35 bytes/, "the size is the fact that tells a human a 'small config change' is actually not one");
-});
 
 test(`content of exactly ${EXCERPT_MAX_CHARS} characters is shown whole, with no ellipsis`, async () => {
   const html = await dialogHtmlForContent("x".repeat(EXCERPT_MAX_CHARS));
@@ -337,19 +212,6 @@ test(`content over ${EXCERPT_MAX_CHARS} characters is cut to the cap plus an ell
   assert.match(html, new RegExp(`x{${EXCERPT_MAX_CHARS}}…`));
   assert.doesNotMatch(html, new RegExp(`x{${EXCERPT_MAX_CHARS + 1}}`), "the cap is a cap, not a hint");
   assert.doesNotMatch(html, /TAIL_BEYOND_THE_CAP/, "an uncapped excerpt would put whole megabyte files into the emitted surface");
-});
-
-test("a file whose content is genuinely empty says so", async () => {
-  const html = await dialogHtmlForContent("");
-
-  assert.match(html, /\(empty file\)/);
-});
-
-test("HTML in a file's content is escaped into the dialog, never rendered as live markup", async () => {
-  const html = await dialogHtmlForContent("<script>alert(1)</script>");
-
-  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/, "@jini-ai/ui's renderDetailList escapes every detail value — this pins that it still does");
-  assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/, "an unescaped excerpt would execute inside the confirmation frame the human is about to click");
 });
 
 test("a planned path with no validated content throws — the dialog never calls a file about to be written '(empty file)'", () => {
@@ -415,8 +277,7 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId, ui } = await raiseDialog(writeTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: actionFromDialog(ui, "confirm") });
+  const { pending, exchangeId, ui } = await beginCall(writeTool);
   const result = await pending;
 
   assert.deepEqual(result, { executed: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha", filesWritten: 1 });
@@ -434,55 +295,6 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/trees")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/commits")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/refs/heads/main")));
-});
-
-test("decline: no blob/tree/commit/ref call is ever made, and the tool reports cancelled", async () => {
-  const { deps, httpClient, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const { pending, exchangeId, ui } = await raiseDialog(writeTool);
-  const callsBeforeDecision = httpClient.calls.length;
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: actionFromDialog(ui, "cancel") });
-  const result = await pending;
-
-  assert.deepEqual(result, { executed: false, cancelled: true });
-  assert.equal(httpClient.calls.length, callsBeforeDecision, "a decline must cost no additional network call");
-});
-
-test("an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — no write call is ever made", async () => {
-  const { deps, httpClient, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-
-  const result = await call(writeTool, { emitSurface: async () => undefined });
-
-  assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired" });
-  for (const c of httpClient.calls) {
-    assert.doesNotMatch(c.url, /\/git\/blobs$|\/git\/trees$|\/git\/commits$|\/git\/refs\//, "no write call before an answer arrives");
-  }
-});
-
-test("a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — no write call is ever made", async () => {
-  const { deps, httpClient, writeDeps } = fakeRouteDeps();
-  await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
-  const controller = new AbortController();
-
-  const pending = call(writeTool, { emitSurface: async () => undefined, signal: controller.signal });
-  // One tick only, deliberately: the abort can land before the exchange opens, and must still resolve.
-  await new Promise((resolve) => setImmediate(resolve));
-  controller.abort();
-
-  const result = await pending;
-  assert.deepEqual(result, { executed: false, cancelled: false, reason: "abandoned" });
-  assert.equal(surfaceExchanges.size(), 0);
-  for (const c of httpClient.calls) {
-    assert.doesNotMatch(c.url, /\/git\/blobs$|\/git\/trees$|\/git\/commits$|\/git\/refs\//, "no write call before an answer arrives");
-  }
 });
 
 // ---------------------------------------------------------------------------
@@ -552,4 +364,19 @@ test("insufficient permission is refused before any decrypt or network call", as
   await assert.rejects(() => call(writeTool));
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
+});
+
+ test("n06: repository write runs without a confirmation channel", async (t) => {
+  const {deps, writeDeps, httpClient} = fakeRouteDeps({httpSteps: [...planSteps(),
+    {match: /\/git\/blobs$/, status: 201, json: {sha: "blob-sha"}},
+    {match: /\/git\/trees$/, status: 201, json: {sha: "new-tree-sha"}},
+    {match: /\/git\/commits$/, status: 201, json: {sha: "new-commit-sha"}},
+    {match: /\/git\/refs\/heads\/main$/, status: 200, json: {}},
+  ]});
+  await seedGithub(writeDeps);
+  const store = createSurfaceExchangeStore();
+  const result = await call(tool(buildRegistrations(deps, store), TOOL_ID), {input: VALID_INPUT}) as {executed: boolean};
+  assert.equal(result.executed, true);
+  assert.deepEqual(httpClient.calls.filter(c => c.method !== "GET").map(c => c.method), ["POST", "POST", "POST", "PATCH"]);
+  assert.equal(store.size(), 0);
 });

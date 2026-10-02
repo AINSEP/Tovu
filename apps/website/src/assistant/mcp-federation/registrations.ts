@@ -22,6 +22,7 @@ import {
   FEDERATED_TOOL_PERMISSION,
   wrapUntrustedResult,
   writeShapedInputNames,
+  federatedCallConfirmationForAction,
   type AdmittedFederatedTool,
   type FederatedAdmissionReport,
 } from "./trust.js";
@@ -288,16 +289,13 @@ async function askBeforeCall(
   tool: AdmittedFederatedTool,
   args: Readonly<Record<string, unknown>>,
 ): Promise<Record<string, unknown> | null> {
+  const confirmation = federatedCallConfirmationForAction(tool.remoteName, tool.declaredAnnotations, args);
+  if (confirmation === "none") return null;
   const writeShapedInputs = [...new Set([...tool.writeShapedInputs, ...writeShapedInputNames(args)])].sort();
-  if (tool.confirmation === "none" && writeShapedInputs.length === 0) return null;
   if (!deps.confirmCall) {
     throw new ToolInputError(
-      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: ${
-        tool.confirmation === "none"
-          ? `its input ${writeShapedInputs.join(", ")} looks like it can change data`
-          : `this tool is not marked read-only by ${config.label}`
-      }, ` +
-        "so a person must approve each call, and nothing here can ask one. Nothing was sent.",
+      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: this protected action requires confirmation, ` +
+        "and nothing here can ask a person. Nothing was sent.",
     );
   }
   const outcome = await deps.confirmCall(ctx, {
@@ -306,7 +304,7 @@ async function askBeforeCall(
     connectionId: config.connectionId,
     connectionLabel: config.label,
     arguments: args,
-    destructive: tool.confirmation === "confirm-destructive",
+    destructive: confirmation === "confirm-destructive",
     declaredAnnotations: tool.declaredAnnotations,
     origin: config.origin,
     description: tool.description,
