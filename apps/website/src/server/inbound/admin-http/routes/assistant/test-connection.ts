@@ -44,7 +44,9 @@ async function fetchTestConnectionResponse(
 ) {
   // The runtime validates only the initial base URL. A provider redirect must not send
   // this probe (and its credentials) to a destination that never passed that guard.
-  const requestInit: RequestInit = { redirect: "error" };
+  // The published runtime types require the dispatcher key; undefined uses fetch's default.
+  const requestInit = { redirect: "error", dispatcher: undefined } satisfies
+    RequestInit & NonNullable<Parameters<typeof testProviderConnection>[0]["requestInit"]>;
   const result = await testProviderConnection({
     protocol,
     baseUrl: credential.baseUrl,

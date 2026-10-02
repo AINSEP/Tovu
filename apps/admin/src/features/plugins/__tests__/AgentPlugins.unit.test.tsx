@@ -577,7 +577,7 @@ describe("AgentPlugins — real wired hook and HTTP adapter", () => {
     await userEvent.click(within(pluginRow).getByRole("switch"));
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/agent-plugins/site-compliance"))).toHaveLength(0);
     const dialog = screen.getByRole("dialog", { name: "Disable Site Compliance for this site?" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Disable", exact: true }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable" }));
     await waitFor(() => expect(within(pluginRow).getByRole("switch")).toHaveAttribute("aria-checked", "false"));
     const writes = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/agent-plugins/site-compliance"));
     expect(writes).toHaveLength(1);

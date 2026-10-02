@@ -188,11 +188,11 @@ describe("PageEditor — recovered content remount", () => {
     const usePageEditorHook = (slug: string) => usePageEditor(slug, deps);
     const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
     try {
-      await screen.findByRole("button", { name: "Restore", exact: true });
+      await screen.findByRole("button", { name: "Restore" });
       fireEvent.click(screen.getByRole("tab", { name: "Interactive" }));
       const originalCanvas = await screen.findByTestId("gjs-stub");
       expect(originalCanvas).toHaveTextContent("<p>Hello</p>");
-      fireEvent.click(screen.getByRole("button", { name: "Restore", exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: "Restore" }));
       await waitFor(() => expect(screen.getByTestId("gjs-stub")).not.toBe(originalCanvas));
       expect(originalCanvas).not.toBeInTheDocument();
       expect(screen.getByTestId("gjs-stub")).toHaveTextContent("<p>Recovered canvas</p>");

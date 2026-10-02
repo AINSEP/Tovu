@@ -269,10 +269,17 @@ describe("stale settlement across a term switch mid-wizard (no key={term.id} rem
     let settle!: () => void;
     const held = new Promise<void>((resolve) => { settle = resolve; });
     const method = stage === "confirm" ? "confirmMergeTerm" : "executeMergeTerm";
-    vi.spyOn(port, method).mockImplementation(async () => {
-      await held;
-      return stage === "confirm" ? { confirmationToken: "stale-token" } : { mergedCount: 1 };
-    });
+    if (stage === "confirm") {
+      vi.spyOn(port, "confirmMergeTerm").mockImplementation(async () => {
+        await held;
+        return { confirmationToken: "stale-token" };
+      });
+    } else {
+      vi.spyOn(port, "executeMergeTerm").mockImplementation(async () => {
+        await held;
+        return { mergedCount: 1 };
+      });
+    }
     const { result, rerender } = renderHook(
       ({ term }) => useMergeTermSection({ term, onMerged }, port, "en"),
       { initialProps: { term: termFixture() }, wrapper }

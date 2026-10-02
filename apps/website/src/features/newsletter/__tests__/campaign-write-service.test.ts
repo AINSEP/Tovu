@@ -287,6 +287,8 @@ for (const scheduledAt of ["tomorrow", "not-a-date", "2030-02-30T00:00:00.000Z"]
       (error: unknown) => {
         assert.ok(error instanceof NewsletterValidationError);
         assert.equal(error.message, "scheduledAt must be a valid ISO date-time string");
+        assert.equal(error.field, "scheduledAt");
+        assert.equal(error.reason, "format");
         return true;
       },
     );

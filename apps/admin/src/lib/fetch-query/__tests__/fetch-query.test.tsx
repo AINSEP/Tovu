@@ -172,7 +172,7 @@ describe("useFetchQuery", () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
     const fetch = vi.fn().mockResolvedValueOnce("fresh").mockResolvedValue("refreshed");
     function StaleReader() {
-      const q = useFetchQuery({ key: ["stale-thing"], fetch, staleTime: 60_000 });
+      const q = useFetchQuery<string>({ key: ["stale-thing"], fetch, staleTime: 60_000 });
       return <span data-testid="data">{q.data ?? "-"}</span>;
     }
     try {

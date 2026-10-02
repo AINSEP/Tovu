@@ -49,7 +49,9 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-const MENU_WITH_NESTED_CHILD = {
+const MENU_WITH_NESTED_CHILD: {
+  menu: { id: string; title: string; slug: string; version: number; items: AdminMenuItem[] };
+} = {
   menu: {
     id: "m1",
     title: "Main Menu",

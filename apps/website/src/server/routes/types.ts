@@ -1285,7 +1285,7 @@ export interface CommerceCatalogDeps {
       qty: number
     ): Promise<
       | { ok: true; orderId: string; remainingStock: number; retries: number }
-      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number }
+      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict" | "invalid-quantity"; retries: number }
     >;
   };
   /**

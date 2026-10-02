@@ -254,7 +254,7 @@ describe("useExecutionConfig", () => {
       expect(abort).not.toHaveBeenCalled();
       unmount();
       expect(abort).toHaveBeenCalledTimes(2);
-      expect(abort.mock.contexts.every((controller) => controller.signal.aborted)).toBe(true);
+      expect(abort.mock.contexts.every((controller) => controller instanceof AbortController && controller.signal.aborted)).toBe(true);
       expect(settingsRefreshListeners).toEqual([]);
     } finally {
       abort.mockRestore();

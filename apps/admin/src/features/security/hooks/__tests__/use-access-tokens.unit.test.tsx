@@ -644,7 +644,12 @@ describe("useAccessTokens: createToken", () => {
     expect(findGroup(result.current.groups, "source-control", "gitlab")?.addForm).toMatchObject({ name: "", token: "", saving: false, error: null });
   });
 
-  it.each([
+  it.each<{
+    kind: "publish" | "source-control";
+    providerId: string;
+    values: Readonly<Record<string, string>>;
+    connection: Readonly<Record<string, string>>;
+  }>([
     { kind: "publish" as const, providerId: "cloudflare-pages", values: { accountId: " acct-123 " }, connection: { providerId: "cloudflare-pages", token: "tok", accountId: "acct-123" } },
     { kind: "source-control" as const, providerId: "bitbucket", values: { username: " bb-user " }, connection: { providerId: "bitbucket", token: "tok", username: "bb-user" } },
   ])("creates a $providerId credential with its required descriptor fields", async ({ kind, providerId, values, connection }) => {

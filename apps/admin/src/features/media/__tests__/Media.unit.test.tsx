@@ -208,7 +208,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
     await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
     await user.type(screen.getByRole("textbox", { name: "Alt text (optional)" }), "  New photo alt  ");
-    await user.click(screen.getByRole("button", { name: "Upload", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Upload" }));
 
     await waitForCard(container, "New Photo");
     expect(uploadedBody).toEqual({ filename: "new.png", contentType: "image/png", dataBase64: "AAEC/f7/", alt: "New photo alt" });
@@ -445,7 +445,7 @@ describe("lightbox", () => {
     const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
     await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
     expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Close", exact: true })).toHaveFocus();
+    expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus();
 
     await user.keyboard("{ArrowRight}");
     expect(within(dialog).getByRole("heading", { name: "Trashed Clip" })).toBeInTheDocument();

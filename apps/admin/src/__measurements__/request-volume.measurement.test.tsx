@@ -2,6 +2,7 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../lib/fetch-query";
+import type { AdminFormDefinition } from "../lib/api";
 
 /**
  * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `lib/fetch-query` actually
@@ -409,7 +410,7 @@ describe("forms", () => {
   });
 
   it("editor: open existing form (detail panel)", async () => {
-    const FORM = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, version: 1 };
+    const FORM: AdminFormDefinition = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z" };
     const { fn, calls } = createRecorder([{ match: "/forms/f1", respond: () => jsonResponse({ data: FORM }) }]);
     vi.stubGlobal("fetch", fn);
     const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
@@ -421,9 +422,9 @@ describe("forms", () => {
   });
 
   it("editor: save an existing form — checks for the same KEYS.form-vs-KEYS.list shape collections had", async () => {
-    const FORM = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, version: 1 };
+    const FORM: AdminFormDefinition = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z" };
     const { fn, calls } = createRecorder([
-      { match: "/forms/f1", method: "PUT", respond: () => jsonResponse({ data: { ...FORM, name: "Contact Us", version: 2 } }) },
+      { match: "/forms/f1", method: "PUT", respond: () => jsonResponse({ data: { ...FORM, name: "Contact Us", updatedAt: "2026-08-02T00:00:00.000Z" } }) },
       { match: "/forms/f1", respond: () => jsonResponse({ data: FORM }) },
       { match: "/forms", method: "GET", respond: () => jsonResponse({ data: [FORM] }) },
     ]);
@@ -445,7 +446,7 @@ describe("forms", () => {
       await result.current.handleSave();
     });
     await waitFor(() => expect(result.current.saving).toBe(false));
-    expect(result.current.form?.version).toBe(2);
+    expect(result.current.form).toEqual({ ...FORM, name: "Contact Us", updatedAt: "2026-08-02T00:00:00.000Z" });
     await expectRequests(calls, [`PUT ${WORKSPACE}/forms/f1`, `GET ${WORKSPACE}/forms`]);
     logRow("forms", "editor save (list mounted alongside)", calls);
     expect(calls.length).toBeGreaterThan(0);
