@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 /**
  * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
  *
@@ -8,13 +9,12 @@
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
  * 10 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
- * Dialog appearance, Language, Memory, Skills, Workspace, About. The shell is
+ * Dialog appearance, Language, Memory, Workspace, About. The shell is
  * generic over its tab array, so adding more is appending entries to `tabs`
  * below — not restructuring this file. Each ledger-backed tab owns one
  * `useSettingsSlice` instance (its own load, debounce, save chain and diff
- * base); the page chrome renders `mergeSaveStates` over all of them. Memory
- * and Skills have no Tovu backend at all and so own no slice; both mount
- * their real `@jini-ai/ui` component behind the same
+ * base); the page chrome renders `mergeSaveStates` over all of them. Memory has no Tovu backend and owns no slice; it mounts
+ * its real `@jini-ai/ui` component behind the same
  * `settings-ui-inert-wrap`/`inert` pattern Privacy's telemetry toggles use
  * below, fed an empty/fresh fake port so nothing fabricated is shown. Memory
  * had no ready-made `*Tab` export upstream as of an earlier pass over this
@@ -112,7 +112,6 @@ import {
   PrivacyTab,
   SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
-  SkillsTab,
   type ExecutionConfig,
   type MemoryConfigFlagKey,
   type MemoryEntrySummary,
@@ -151,11 +150,7 @@ function TabIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Stable empty set for the inert-wrapped `SkillsTab` mount below — the tab
- *  is unusable inside its `inert` wrapper, so this never actually gets
- *  written to; it exists only to satisfy the required prop honestly (no
- *  skill is disabled because no skill can exist yet). */
-const EMPTY_DISABLED_SKILL_IDS: ReadonlySet<string> = new Set();
+
 
 /** Stable empty lists for the inert-wrapped `MemorySettingsPanel` mount below
  *  — Tovu's assistant doesn't extract or persist standing facts yet, so an
@@ -285,6 +280,7 @@ export function SettingsUi(props: SettingsUiProps) {
   const useSettingsUiHook = resolveSettingsUiHook(props.useSettingsUiHook);
   const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook(props.useAdminExecutionCredentialHook);
   const tabId = resolveTabId(props.tabId);
+  useEffect(() => { if (props.tabId === "skills") navigate("/skills", { replace: true }); }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
 
   /**
@@ -617,44 +613,6 @@ export function SettingsUi(props: SettingsUiProps) {
               }}
             />
             </I18nProvider>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "skills",
-      label: t("Skills"),
-      title: t("Skills"),
-      subtitle: t("Custom skills your assistant can invoke mid-task."),
-      icon: (
-        <TabIcon>
-          <path d="M9 3l1.2 3.8L14 8l-3.8 1.2L9 13l-1.2-3.8L4 8l3.8-1.2z" />
-        </TabIcon>
-      ),
-      /**
-       * Mounted in Settings by explicit user decision, even though OD keeps
-       * Skills on its top-level `/integrations` page instead
-       * (`od-integrations-skills.png`) — a reversible placement call, not a
-       * parity miss. No Tovu backend, but a real `*Tab` export exists — same
-       * `inert`-wrap shape as Media providers above. `disabledSkillIds`/
-       * `onToggleEnabled` are the stable empty-set/no-op pair: `inert` means
-       * the toggle can never actually fire, so there is nothing for a real
-       * handler to do here.
-       */
-      panel: (
-        <div className="settings-ui-inert-wrap">
-          <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.",
-            )}
-          </p>
-          <div className="settings-ui-inert-control" inert>
-            <SkillsTab
-              port={s.skillsPort}
-              disabledSkillIds={EMPTY_DISABLED_SKILL_IDS}
-              onToggleEnabled={() => {}}
-              agentHandle="settings-skills"
-            />
           </div>
         </div>
       ),

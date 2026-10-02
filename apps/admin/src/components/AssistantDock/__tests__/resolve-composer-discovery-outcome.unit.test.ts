@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resolveComposerDiscoveryOutcome } from "../AssistantDock";
 import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
@@ -201,4 +201,34 @@ describe("resolveComposerDiscoveryOutcome", () => {
     // conditioned on the pin having anywhere to go.
     expect(outcome).toEqual({ draft: "" });
   });
+});
+
+
+afterEach(() => vi.unstubAllGlobals());
+it("selecting an installed skill pins exact guidance for the run without pasting it", async () => {
+  vi.stubGlobal("fetch", vi.fn(async (url) => {
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/skills/skill_incident_response/guidance");
+    return Response.json({ skillName: "incident-response", guidance: "Always check ownership before rollback.", bundledFiles: [{ kind: "references", root: "site", path: "skills/ws/workspace-local/incident-response/references/check.md" }] });
+  }));
+  const capabilities = await projectionWith([{ groupId: "installed-skills", groupLabel: "Skills", item: { id: "installed-skill:skill_incident_response", label: "incident-response" }, resolve: () => ({ kind: "installed-skill", toolId: "skill_incident_response" }) }]);
+  const addSkill = vi.fn();
+  expect(await resolveComposerDiscoveryOutcome(selection("installed-skill:skill_incident_response"), { capabilities, navigate: vi.fn(), callAllowlistedTool: vi.fn(), addSkill })).toEqual({ draft: "" });
+  expect(addSkill).toHaveBeenCalledExactlyOnceWith({ toolId: "skill_incident_response", name: "incident-response", guidance: 'Use and follow the "incident-response" skill for this task.\n\nAlways check ownership before rollback.\n\nRead bundled files with fs_read_file as needed:\n[{"kind":"references","root":"site","path":"skills/ws/workspace-local/incident-response/references/check.md"}]\n\nTask: ' });
+});
+
+
+it("a runtime with no tools receives no skill guidance", async () => {
+  const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+  const capabilities = await projectionWith([{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:test", label: "test" }, resolve: () => ({ kind: "installed-skill", toolId: "skill_test" }) }]);
+  await expect(resolveComposerDiscoveryOutcome(selection("installed-skill:test"), { capabilities, navigate: vi.fn(), callAllowlistedTool: vi.fn(), skillsAvailable: false })).rejects.toThrow("This runtime has no tools. Choose a runtime with tools to use skills.");
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("regression: installed skill pins guidance and keeps user text as the title source", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skillName: "ui-ux-design", guidance: "Keep focus visible.", bundledFiles: [{ kind: "references", root: "site", path: "skills/ui-ux-design/references/check.md" }] })));
+  const capabilities = await projectionWith([{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:ui", label: "ui-ux-design", insertText: "" }, resolve: () => ({ kind: "installed-skill", toolId: "skill_ui_ux_design" }) }]);
+  const addSkill = vi.fn();
+  const outcome = await resolveComposerDiscoveryOutcome({ item: capabilities.byItemId.get("installed-skill:ui")!.item, source: "plus" }, { capabilities, navigate: vi.fn(), callAllowlistedTool: vi.fn(), addSkill, readDraft: () => "Redesign the menu" });
+  expect(outcome).toEqual({ draft: "Redesign the menu" });
+  expect(addSkill).toHaveBeenCalledWith(expect.objectContaining({ toolId: "skill_ui_ux_design", name: "ui-ux-design", guidance: expect.stringContaining("Keep focus visible.") }));
 });

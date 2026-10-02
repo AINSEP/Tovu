@@ -42,12 +42,16 @@ const WORKSPACE_A = "workspace-a";
 async function withSkillsDir<T>(fn: (skillsDir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-skills-tool-registrations-test-"));
   const previous = process.env.TOVU_SKILLS_DIR;
+  const previousSite = process.env.TOVU_SITE_DIR;
+  process.env.TOVU_SITE_DIR = path.dirname(dir);
   process.env.TOVU_SKILLS_DIR = dir;
   try {
     return await fn(dir);
   } finally {
     if (previous === undefined) delete process.env.TOVU_SKILLS_DIR;
     else process.env.TOVU_SKILLS_DIR = previous;
+    if (previousSite === undefined) delete process.env.TOVU_SITE_DIR;
+    else process.env.TOVU_SITE_DIR = previousSite;
     await rm(dir, { recursive: true, force: true });
   }
 }
@@ -198,7 +202,7 @@ test("the handler returns the exact SKILL.md body, unmodified", async () => {
   });
 });
 
-test("the handler lists bundled references/scripts/assets files by absolute path, without inlining their content", async () => {
+test("the handler lists bundled references/scripts/assets files by site-relative path, without inlining their content", async () => {
   await withSkillsDir(async (skillsDir) => {
     const skillDir = await writeSkill(skillsDir, WORKSPACE_A, "incident-response", {
       "SKILL.md": INCIDENT_RESPONSE_SKILL_MD,
@@ -219,16 +223,16 @@ test("the handler lists bundled references/scripts/assets files by absolute path
 
     const paths = result.bundledFiles.map((f) => f.path).sort();
     assert.deepEqual(paths, [
-      path.join(skillDir, "assets", "nested", "icon.svg"),
-      path.join(skillDir, "references", "nested", "guide.md"),
-      path.join(skillDir, "references", "postmortem-template.md"),
-      path.join(skillDir, "references", "slo-sli-framework.md"),
-      path.join(skillDir, "scripts", "collect-logs.sh"),
-      path.join(skillDir, "scripts", "nested", "check.sh"),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "assets", "nested", "icon.svg")),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "references", "nested", "guide.md")),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "references", "postmortem-template.md")),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "references", "slo-sli-framework.md")),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "scripts", "collect-logs.sh")),
+      path.relative(path.dirname(skillsDir), path.join(skillDir, "scripts", "nested", "check.sh")),
     ]);
     assert.equal(result.bundledFiles.find((f) => f.path.endsWith("postmortem-template.md"))?.kind, "references");
     assert.equal(result.bundledFiles.find((f) => f.path.endsWith("collect-logs.sh"))?.kind, "scripts");
-    assert.deepEqual(result.bundledFiles.map(({ kind, path: absolutePath }) => ({ kind, path: path.relative(skillDir, absolutePath) })).sort((a, b) => a.path.localeCompare(b.path)), [
+    assert.deepEqual(result.bundledFiles.map(({ kind, path: absolutePath }) => ({ kind, path: path.relative(path.relative(path.dirname(skillsDir), skillDir), absolutePath) })).sort((a, b) => a.path.localeCompare(b.path)), [
       { kind: "assets", path: "assets/nested/icon.svg" },
       { kind: "references", path: "references/nested/guide.md" },
       { kind: "references", path: "references/postmortem-template.md" },
@@ -332,5 +336,37 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
     await writeSkill(skillsDir, WORKSPACE_A, "folder-b", { "SKILL.md": "---\nname: a_b\ndescription: Underscore.\n---\n" });
     await assert.rejects(() => loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }),
       /folder-a.*folder-b.*same tool id 'skill_a_b'/);
+  });
+});
+
+
+test("refreshing installed skills adds, updates, removes and re-adds without a restart", async () => {
+  await withSkillsDir(async (skillsDir) => {
+    const registry = createToolRegistry();
+    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
+    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    assert.deepEqual(registry.list().map(d => d.id), ["skill_code_review"]);
+    await rm(path.join(skillsDir, "ws", WORKSPACE_A, "code-review"), { recursive: true });
+    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    assert.deepEqual(registry.list().map(d => d.id), []);
+    assert.equal(registry.has("skill_code_review"), false);
+    await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD.replace("Code Review", "Updated Rules") });
+    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    assert.deepEqual(registry.list().map(d => d.id), ["skill_code_review"]);
+  });
+});
+
+test("a skill bundledFiles pointer chains directly into the real fs_read_file handler", async () => {
+  const { buildFsFilesRegistrations } = await import("../../../fs-files/tool-registrations.js");
+  await withSkillsDir(async (skillsDir) => {
+    await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD, "references/check.md": "Check ownership before deleting.\n" });
+    const [registration] = buildSkillToolRegistrations(await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }));
+    const output = await registration!.handler(fakeCtx()) as { bundledFiles: { kind: string; root: string; path: string }[] };
+    assert.equal(output.bundledFiles[0]!.root, "site");
+    const fsTools = buildFsFilesRegistrations({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "test" }), resolveRoots: () => ({ site: path.dirname(skillsDir), repo: undefined, custom: undefined }) });
+    const reader = fsTools.find(t => t.descriptor.id === "fs_read_file")!;
+    const { root, path: filePath } = output.bundledFiles[0]!;
+    assert.deepEqual(await reader.handler(fakeCtx({ root, path: filePath })), { root: "site", path: filePath, content: "Check ownership before deleting.\n", bytes: 33 });
   });
 });

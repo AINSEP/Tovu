@@ -1,3 +1,4 @@
+import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
  * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.
@@ -403,6 +404,8 @@ installFirstPartyToolContributors();
 
 const registry = createToolRegistry();
 // Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
+let refreshSkillsCatalog = () => {};
+
 // to the already-built `media_upload_asset` registration — see `promote-chat-attachment.ts`'s own
 // header for why reusing that handler, rather than re-implementing its gate, is the whole design.
 const assistantRegistrations = buildAssistantToolRegistrations(
@@ -1118,6 +1121,8 @@ const app = express();
 // (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
 app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
+// Read skills before discovery or execution, including changes made by another process.
+app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
 // (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
 // `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
@@ -1435,6 +1440,13 @@ async function start(): Promise<void> {
     }),
   );
   registerToolCatalogRoutes(app, { catalog: liveToolCatalog.query }, adapter);
+  refreshSkillsCatalog = () => liveToolCatalog.rebind(
+    withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+      workspaceId: routeDeps.workspaceId,
+      runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
+      principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+    }),
+  );
 
   registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
   // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its

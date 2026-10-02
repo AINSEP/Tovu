@@ -14,6 +14,9 @@ import {
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
+import { resolveSiteRoot } from "../../platform/site-dir/index.js";
+import { createLiveSkillRegistration, type SkillsRefreshRegistry } from "./live-registration.js";
+import { readSkillState } from "./state.js";
 import { resolveSkillLayout } from "./layout.js";
 
 /**
@@ -71,19 +74,8 @@ import { resolveSkillLayout } from "./layout.js";
  * `resolve-agent-plugin-refs.ts`'s own `inventory` block already uses for an installed plugin's
  * non-eponymous files.
  *
- * These paths are ABSOLUTE, which is a deliberate divergence from
- * `agent-plugins/tool-registrations.ts`'s stated SECURITY property that "no absolute host path ever
- * reaches a tool id, description, schema, or handler output." Two reasons that property does not
- * transfer here: (1) trust model — an Agent Plugin archive is "genuinely hostile third-party input"
- * (that file's own `layout.ts` header); a skill folder is an operator dropping trusted content
- * directly onto this instance's own disk, no download, no archive extraction. (2) mechanism — the
- * agent-plugin tool's handler never returns a file list at all (only `resolveAgentPluginRefs`'s
- * separate PROMPT-PREFIX path does, and that path already uses absolute paths for the identical
- * reason given there: the spawned CLI agent has real filesystem access and its `Read` tool requires
- * an absolute path). A standalone skill has no equivalent prompt-prefix delivery mechanism — this
- * tool call IS the only delivery mechanism — so if bundled files are to be reachable at all, this is
- * the one place that can name them, and a relative path with no stated base would not be `Read`-able
- * by a caller that was never told the base.
+ * Bundled files use `{ root: "site", path }` for direct fs_read_file calls. Files outside
+ * the active site (an operator override) are omitted rather than advertising unreadable paths.
  *
  * ---------------------------------------------------------------------------
  * Bad-folder isolation: skip and warn, never throw — except for one real ambiguity
@@ -156,8 +148,7 @@ function toSkillToolId(name: string): string | undefined {
 const BUNDLED_SUBDIRS = ["references", "scripts", "assets"] as const;
 type SkillBundledFileKind = (typeof BUNDLED_SUBDIRS)[number];
 
-/** One file bundled alongside a skill's `SKILL.md`, resolved to an absolute, directly `Read`-able
- *  path — see this file's header for why absolute (not relative) is the deliberate choice here. */
+/** One bundled file, with a path relative to the active site for fs_read_file. */
 export interface SkillBundledFile {
   readonly kind: SkillBundledFileKind;
   readonly path: string;
@@ -174,7 +165,10 @@ export interface SkillBundledFile {
 async function listBundledFiles(skillDir: string): Promise<readonly SkillBundledFile[]> {
   const files: SkillBundledFile[] = [];
   for (const kind of BUNDLED_SUBDIRS) {
-    await walkFiles(path.join(skillDir, kind), (absolutePath) => files.push({ kind, path: absolutePath }));
+    await walkFiles(path.join(skillDir, kind), (absolutePath) => {
+      const relative = path.relative(resolveSiteRoot(), absolutePath).split(path.sep).join("/");
+      if (relative && !relative.startsWith("../") && !path.isAbsolute(relative)) files.push({ kind, path: relative });
+    });
   }
   return files;
 }
@@ -213,6 +207,7 @@ export interface SkillToolSource {
    *  file" precedent `agent-plugins/tool-registrations.ts`'s handler already establishes. */
   readonly markdown: string;
   readonly bundledFiles: readonly SkillBundledFile[];
+  readonly directory?: string;
 }
 
 /** Human-readable reason a skill folder's `SKILL.md` could not be read — split out of
@@ -244,10 +239,12 @@ async function resolveSkillEntry(input: {
   readonly workspaceRoot: string;
   readonly entry: { readonly name: string; isDirectory: () => boolean };
   readonly seenDirById: Map<string, string>;
+  readonly includeDisabled?: boolean;
 }): Promise<SkillEntryResolution> {
   const { workspaceRoot, entry, seenDirById } = input;
   if (!entry.isDirectory()) return { kind: "skip" };
   const skillDir = path.join(workspaceRoot, entry.name);
+  if (!(await readSkillState(skillDir)).enabled && !input.includeDisabled) return { kind: "skip" };
 
   let markdown: string;
   try {
@@ -280,7 +277,7 @@ async function resolveSkillEntry(input: {
 
   return {
     kind: "resolved",
-    source: { id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles(skillDir) },
+    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles(skillDir) },
   };
 }
 
@@ -293,6 +290,7 @@ async function resolveSkillEntry(input: {
  * @complexity O(d * f) in installed skill-folder count times average bundled-file count per skill.
  */
 export async function loadInstalledSkillToolSources(ctx: {
+  readonly includeDisabled?: boolean;
   readonly workspaceId: string;
 }): Promise<readonly SkillToolSource[]> {
   const workspaceRoot = resolveSkillLayout().forWorkspace(ctx.workspaceId).root;
@@ -307,8 +305,8 @@ export async function loadInstalledSkillToolSources(ctx: {
 
   const sources: SkillToolSource[] = [];
   const seenDirById = new Map<string, string>();
-  for (const entry of entries) {
-    const resolution = await resolveSkillEntry({ workspaceRoot, entry, seenDirById });
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const resolution = await resolveSkillEntry({ workspaceRoot, entry, seenDirById, includeDisabled: ctx.includeDisabled });
     if (resolution.kind === "resolved") sources.push(resolution.source);
   }
 
@@ -354,7 +352,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
       return {
         skillName: source.skillName,
         guidance: source.markdown,
-        bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, path: file.path })),
+        bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, root: "site", path: file.path })),
       };
     };
   }
@@ -374,12 +372,29 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
  * call `agent-daemon-server.ts`'s own top-level loops make for every other domain, just awaited
  * first. Mirrors `agent-plugins/tool-registrations.ts`'s own `registerInstalledAgentPluginTools`.
  */
+const liveRegistrations = new WeakMap<object, (tools: readonly ToolRegistration[]) => boolean>();
+
 export async function registerInstalledSkillTools(
-  registry: { register: (registration: ToolRegistration) => void },
+  registry: Pick<SkillsRefreshRegistry, "register"> & Partial<Pick<SkillsRefreshRegistry, "has" | "list" | "refreshInstalledSkills">>,
   ctx: { readonly workspaceId: string },
 ): Promise<void> {
-  const sources = await loadInstalledSkillToolSources(ctx);
-  for (const registration of buildSkillToolRegistrations(sources)) {
-    registry.register(registration);
+  if (!registry.has || !registry.list) {
+    for (const registration of buildSkillToolRegistrations(await loadInstalledSkillToolSources(ctx))) registry.register(registration);
+    return;
   }
+  let replace = liveRegistrations.get(registry);
+  if (!replace) {
+    replace = createLiveSkillRegistration(registry as SkillsRefreshRegistry);
+    liveRegistrations.set(registry, replace);
+    // Single-flight disk reads prevent an older snapshot from overwriting a newer one.
+    let pending: Promise<boolean> | undefined;
+    const apply = replace;
+    registry.refreshInstalledSkills = () => {
+      if (!pending) pending = loadInstalledSkillToolSources(ctx)
+        .then(sources => apply(buildSkillToolRegistrations(sources)))
+        .finally(() => { pending = undefined; });
+      return pending;
+    };
+  }
+  await registry.refreshInstalledSkills!();
 }

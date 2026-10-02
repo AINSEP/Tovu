@@ -64,16 +64,15 @@ describe("useSettingsUi — local view state", () => {
 describe("useSettingsUi — once-per-mount ports stay referentially stable across re-renders", () => {
   // `mediaProvidersPort` dropped out of this assertion on 2026-09-10 with the Media providers tab
   // itself — see `SettingsUi.tsx`'s header for why that inert duplicate was deleted rather than
-  // moved. `port` and `skillsPort` are the two once-per-mount refs this hook still owns.
-  it("port/skillsPort keep the same object identity after an unrelated state update", () => {
+  // moved. `port` is the once-per-mount ref this hook still owns.
+  it("port keeps the same object identity after an unrelated state update", () => {
     const { result, rerender } = renderHook(() => useSettingsUi());
-    const { port, skillsPort } = result.current;
+    const { port } = result.current;
 
     act(() => result.current.setMemoryTopTab("how"));
     rerender();
 
     expect(result.current.port).toBe(port);
-    expect(result.current.skillsPort).toBe(skillsPort);
   });
 });
 

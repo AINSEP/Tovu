@@ -126,6 +126,12 @@
   min-width: 0;
 }
 
+/* The display: contents capture wrapper needs this explicit pane rule; see the Folder-drop notice warning below. */
+.admin-chat-dock > .admin-chat-dock-drop > .jini-chat-pane {
+  flex: 1;
+  min-width: 0;
+}
+
 /* `right`/`left`/`bottom` are deliberately NOT set here — `ChatFab.tsx`'s `useFabPosition` sets
    them as an inline `style` (drag position, resolved fresh against the current viewport on every
    render), which always wins over a stylesheet rule for the same property regardless of
@@ -676,6 +682,13 @@
 }
 
 .jini-composer-plus-item:hover {
+  background: var(--surface-2);
+}
+
+/* Match admin menu highlights while retaining a visible keyboard selection without the accent bar. */
+.admin-chat-dock .jini-chat-pane .jini-composer-discovery-item.is-active {
+  outline: 1px solid var(--border);
+  box-shadow: none;
   background: var(--surface-2);
 }
 

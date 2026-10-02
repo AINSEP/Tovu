@@ -2062,10 +2062,13 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
 
     expect(onReady).toHaveBeenCalledTimes(1);
-    expect(onReady).toHaveBeenCalledWith(handleDropCapture);
+    expect(onReady).toHaveBeenCalledWith(result.current.handleDropCapture);
+    const event = {} as Parameters<typeof result.current.handleDropCapture>[0];
+    onReady.mock.calls[0]![0](event);
+    expect(handleDropCapture).toHaveBeenCalledWith(event);
   });
 
   it("does not throw when no onReady callback is given (a test rendering AssistantDock without one)", () => {
@@ -2082,7 +2085,8 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    const { rerender } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result, rerender } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const published = result.current.handleDropCapture;
     expect(onReady).toHaveBeenCalledTimes(1);
 
     // Same identity on a re-render — no redundant re-publish.
@@ -2092,17 +2096,24 @@ describe("useFolderDropBridge", () => {
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: handleDropCaptureB });
     rerender();
     expect(onReady).toHaveBeenCalledTimes(2);
-    expect(onReady).toHaveBeenLastCalledWith(handleDropCaptureB);
+    expect(result.current.handleDropCapture).not.toBe(published);
+    expect(onReady).toHaveBeenLastCalledWith(result.current.handleDropCapture);
+    const event = {} as Parameters<typeof result.current.handleDropCapture>[0];
+    result.current.handleDropCapture(event);
+    expect(handleDropCaptureB).toHaveBeenCalledWith(event);
+    expect(handleDropCaptureA).not.toHaveBeenCalled();
   });
 
-  it("returns useFolderDrop's own result unchanged, for AssistantDock.tsx to render notice/dismiss/retry from", () => {
+  it("preserves useFolderDrop's notice/dismiss/retry alongside the capture bridge", () => {
     const fake = { notice: { kind: "confirmation", path: "/x", replacedPreviousPath: null }, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: vi.fn() };
     mockUseFolderDrop.mockReturnValue(fake);
     const composerHandle = { current: null };
 
     const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, undefined));
 
-    expect(result.current).toBe(fake);
+    expect(result.current.notice).toBe(fake.notice);
+    expect(result.current.dismiss).toBe(fake.dismiss);
+    expect(result.current.retry).toBe(fake.retry);
   });
 });
 

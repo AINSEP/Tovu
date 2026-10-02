@@ -1,3 +1,6 @@
+import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
+import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
+import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
 import {
   ChatPane,
   ConversationList,
@@ -38,6 +41,8 @@ import {
   useAssistantTransportSeam,
   useAttachmentUploader,
   useAttachmentUploaderSeam,
+  useSkillAwareAttachmentUploader,
+  resolveSkillsAvailable,
   useAttachmentValidator,
   useAttachmentValidatorSeam,
   useByokRuntime,
@@ -431,7 +436,9 @@ export function AssistantDock({
     // `use-assistant-chats.hooks.ts`.
     persistUserTurn: chats.persistUserTurn,
   });
-  const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
+  const uploadOrdinaryAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
+  const skillInstall = useSkillInstall();
+  const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
   const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
@@ -449,10 +456,15 @@ export function AssistantDock({
    * and `SelectedAgentPluginTray`'s doc for how it renders.
    */
   const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
+  const selectedSkills = useSelectedSkills();
+  const discoveryDraft = useComposerDiscoveryDraft(composerCapabilities.groups);
   const handleComposerDiscoverySelect = useComposerDiscoverySelect({
     composerCapabilities,
     callAllowlistedTool: mcpUiToolCaller,
+    skillsAvailable: resolveSkillsAvailable({ executionMode: executionConfig.mode, agents: agentsPlaceholder, selectedAgentId: localCliSelection.agentId }),
     addPluginRef,
+    addSkill: selectedSkills.addSkill,
+    readDraft: discoveryDraft.readDraft,
   });
   // See `useSelectedPluginChips`'s own doc for the projection and its label-fallback reasoning.
   const selectedPluginChips = useSelectedPluginChips(selectedPluginRefIds, composerCapabilities);
@@ -463,10 +475,11 @@ export function AssistantDock({
    * `use-composer-voice-input.hooks.ts`.
    */
   const voiceInput = useComposerVoiceInput();
+  const skillOnlySend = useSkillOnlySend({ prompt: selectedSkills.skillOnlyPrompt, composerHandle: voiceInput.composerHandle, discovery: discoveryDraft });
   // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
   // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
   // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
-  const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady);
+  const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady, skillInstall.proposeFiles, skillInstall.fail);
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
@@ -477,6 +490,7 @@ export function AssistantDock({
     // what turns a stored level into real CLI argv — see `useRunContext`'s own doc.
     reasoning: selectedLocalCliReasoning(executionConfig),
     pluginRefIds: selectedPluginRefIds,
+    selectedSkills: selectedSkills.selectedSkills,
     // Same id already passed to `<ChatPane conversationId={...}>` below — see `useRunContext`'s
     // own doc for why the daemon needs it too (per-conversation agent-CLI session resume).
     conversationId: chats.activeId,
@@ -484,8 +498,10 @@ export function AssistantDock({
 
   return (
     <JiniChatProvider transport={transport} i18n={chatI18n}>
+      <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
+      <div className="admin-chat-dock-drop" ref={discoveryDraft.rootRef} style={{ display: "contents" }} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
       <ChatPane
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
@@ -600,7 +616,7 @@ export function AssistantDock({
         // resources and do not claim that Agent Plugin installation or execution exists. The same
         // catalog drives the grouped plus menu and `/` autocomplete.
         composerSlots={{
-          discoveryGroups: composerCapabilities.groups,
+          discoveryGroups: discoveryDraft.groups,
           onDiscoverySelect: handleComposerDiscoverySelect,
           // Renders next to the composer's "+" trigger in the footer action row, not above the
           // input — owner report: the mic previously rode `leadingAccessory` below (the pinned-
@@ -647,6 +663,7 @@ export function AssistantDock({
           <>
             <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} />
             <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
+            <SelectedAgentPluginTray chips={selectedSkills.chips} onRemove={selectedSkills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
           </>
         }
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
@@ -684,6 +701,7 @@ export function AssistantDock({
         //   "Which admin sections exist, and what does each one manage?",
         // ]}
       />
+      </div>
     </JiniChatProvider>
   );
 }

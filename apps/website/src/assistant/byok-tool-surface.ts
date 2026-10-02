@@ -693,6 +693,9 @@ export function createByokToolSurface(
     signal?: AbortSignal,
     emitSurface?: SurfaceEmitter,
   ): Promise<ByokMetaToolResult> {
+    await ready;
+    const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
+    if (await skillsRegistry.refreshInstalledSkills?.()) catalog = buildToolCatalogQuery(registry);
     const args = isRecord(call.input) ? call.input : {};
 
     if (!META_TOOL_IDS.has(call.name)) {

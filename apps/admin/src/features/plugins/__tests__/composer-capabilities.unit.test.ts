@@ -29,14 +29,12 @@ describe("projectComposerCapabilities", () => {
     expect(projection.groups.map((group) => group.id)).toEqual([
       "regular-plugins",
       "agent-plugins",
-      "skills",
       "mcp",
       "tools",
     ]);
     expect(projection.groups.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "regular-plugin:word-count",
       "agent-plugin:ui-ux-design",
-      "skill:ui-ux-design",
       "mcp:settings",
       "tool:content-search",
     ]);

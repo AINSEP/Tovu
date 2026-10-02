@@ -7,15 +7,9 @@
  * Why this is a FLAT layout, not content-addressed (owner decision, verbatim: "they are different
  * things. there should be a skills/ and a separate agent-plugins/ directory.")
  * ---------------------------------------------------------------------------
- * `agent-plugins/layout.ts` keys every installed package by `packages/sha256/<digest>/` because an
- * Agent Plugin arrives as a downloaded archive — `install.ts` extracts bytes it did not author, so
- * content-addressing plus a frozen, read-only tree is what makes re-installs idempotent and
- * tampering detectable. A standalone Agent Skill has no equivalent origin: per the spec
- * (agentskills.io), "a single skill doesn't require a plugin wrapper" — it is a folder an operator
- * drops directly onto disk (`SKILL.md` plus optional `references/`, `scripts/`, `assets/`), with no
- * archive, no manifest digest, and no install pipeline of this feature's own. There is nothing to
- * content-address: the folder an operator creates IS the install. This layout therefore only
- * resolves WHERE that per-workspace directory of skill folders lives, not how one got there.
+ * Standalone skills live in flat named folders. The install service validates uploads and GitHub
+ * content before publishing them atomically; installation metadata records provenance and enabled
+ * state. Agent Plugins retain their separate content-addressed packaging and runtime.
  *
  * ---------------------------------------------------------------------------
  * Env override and `sites/<name>/` convention (same shape as every other `TOVU_*_DIR`)

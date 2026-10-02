@@ -1,3 +1,4 @@
+import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
 /**
  * Tovu's implementation of `@jini-ai/chat-react`'s `ChatTransport` port (ADR-049).
  *
@@ -608,7 +609,7 @@ export function buildLocalCliContextRef(
   resolvedConversationId?: string,
 ): Record<string, unknown> {
   return {
-    prompt,
+    prompt: promptWithSelectedSkills(prompt, input.context),
     ...frontendBindTokenField(input),
     ...modelField(input),
     ...reasoningField(input),
@@ -834,7 +835,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // level down — the route's own 400 `"no usable BYOK credential..."` — which is a real,
       // actionable answer instead of the mode picker silently refusing to try.
       if (executionConfig?.mode === "byok") {
-        return startByokRun(input, handlers, executionConfig.byok);
+        return startByokRun(withSelectedSkillGuidance(input), handlers, executionConfig.byok);
       }
 
       // AG-UI canary path (ADR-059) — a Tovu-local toggle, independent of `executionConfig.mode`
@@ -845,7 +846,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       if (options.getAgUiEnabled?.()) {
         // `historyForTranscript` here rather than inside `startAgUiRun`: that module importing this
         // one would be a cycle, and this is its only caller. Same rule as the BYOK and Local CLI paths.
-        return startAgUiRun({ ...input, history: historyForTranscript(input.history as ChatMessage[]) }, handlers);
+        return startAgUiRun(withSelectedSkillGuidance({ ...input, history: historyForTranscript(input.history as ChatMessage[]) }), handlers);
       }
 
       // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an
@@ -933,3 +934,11 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
   };
 }
 
+
+/** Provider dispatch receives an augmented copy; persistence/title derivation sees the original. */
+function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {
+  let userIndex = -1;
+  input.history.forEach((message, index) => { if (message.role === "user") userIndex = index; });
+  if (userIndex < 0) return input;
+  return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills(message.content, input.context) } : message) };
+}

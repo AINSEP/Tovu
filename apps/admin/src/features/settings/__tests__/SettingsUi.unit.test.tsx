@@ -4,7 +4,6 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createFakeMediaProvidersPort,
-  createFakeSkillsPort,
   createFakeSourceConfigDependencies,
   type ByokConfig,
   type ExecutionConfig,
@@ -70,7 +69,6 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
 
     port: createExecutionPort(),
     mediaProvidersPort: createFakeMediaProvidersPort(),
-    skillsPort: createFakeSkillsPort({ skills: [] }),
     // The real controller talks to `/mcp-servers`; these tests are about tab chrome, so the fake
     // port stands in. `ExternalMcpSettingsPanel` computes its own field specs from `dependencies`'
     // live draft now (`rules.ts`'s `buildExternalMcpFieldSpecs`) rather than taking a static list, so

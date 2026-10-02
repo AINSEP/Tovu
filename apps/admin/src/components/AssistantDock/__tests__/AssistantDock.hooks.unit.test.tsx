@@ -50,11 +50,11 @@ afterEach(() => {
 });
 
 describe("useComposerCapabilities", () => {
-  it("never calls fetch, and projects only the bundled groups — the live tool-catalog source is not wired in", async () => {
+  it("loads installed skills alongside bundled groups without exposing the raw tool catalog", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        hits: [{ id: "forms_create_definition", description: "Creates a form definition.", source: "forms", score: 3.1 }],
+        skills: [{ toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true }],
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -67,8 +67,10 @@ describe("useComposerCapabilities", () => {
 
     const groupIds = result.current.composerCapabilities.groups.map((group) => group.id);
     expect(groupIds).not.toContain("tool-catalog");
-    expect(groupIds).toEqual(["regular-plugins", "agent-plugins", "skills", "mcp", "tools"]);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(groupIds).toEqual(["regular-plugins", "agent-plugins", "mcp", "tools", "installed-skills"]);
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/v1/workspaces/workspace-local/skills", { credentials: "same-origin" });
+    expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_incident_response")).toBe(true);
+    expect(result.current.composerCapabilities.byItemId.has("skill:ui-ux-design")).toBe(false);
   });
 
   it("falls back to the empty catalog and logs, rather than throwing, when the projection rejects", async () => {

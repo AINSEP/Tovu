@@ -18,6 +18,7 @@
  * Roles -> roles, policies; SEO -> defaults, sitemap, entries.
  * Themes AND Appearance alias -> declarative, static, templated, code, marketplace.
  * Plugins AND Agent Plugins -> installed, downloaded, marketplace.
+ * Skills -> skills, add (URL: ?tab=skills, ?tab=add).
  * Providers -> external-mcp, always-allow, mcp-server, webhooks.
  * Database -> timeline, migrate-forward; Recovery -> restore-points, restore.
  * Deployment -> overview, static-site, full-site, dockerfile, history.
@@ -44,8 +45,9 @@
  * skipped: creating a subscription requires a registered, approved egress target, which
  * this isolated fixture does not have.
  * Real API seeds are idempotent and named; never pick whichever random row happens to be first.
- * Planned screenshot count at this source state: 495 = 3 viewports x (47 indices +
- *   63 page tabs + 34 nested tabs + 9 entity/editor tabs + 7 other routes + 5 chat states).
+ * Planned screenshot count at this source state: 504 = 3 viewports x (47 indices +
+ *   1 legacy Skills Add shot + 65 page tabs + 34 nested tabs + 9 entity/editor tabs +
+ *   7 other routes + 5 chat states).
  * Default tabs intentionally have named baselines in addition to the original index shots.
  * Nested execution captures pause UI timers AFTER initial load, before any click: this shows
  * actual editable form state without firing the shared ledger's debounced autosave. No keys,
@@ -155,6 +157,7 @@ const tabPages: TabPage[] = [
   { route: "appearance", ids: themeTabIds },
   { route: "plugins", ids: tabValues("plugins/Plugins.tsx", "PLUGINS_TAB_IDS") },
   { route: "agent-plugins", ids: tabValues("plugins/AgentPlugins.tsx", "tabs", "id"), shell: true, clickOnly: true },
+  { route: "skills", ids: tabValues("skills/Skills.tsx", "tabs", "id"), shell: true },
   { route: "providers", ids: tabValues("providers/Providers.tsx", "PROVIDERS_TAB_IDS") },
   { route: "database", ids: tabValues("database/Database.tsx", "DATABASE_TAB_IDS") },
   { route: "recovery", ids: tabValues("recovery/Recovery.tsx", "RECOVERY_TAB_IDS") },
@@ -440,7 +443,7 @@ test.describe("admin index pages", () => {
       await expect(page.locator(".admin-chat-dock")).toBeHidden();
       await capture(page, `admin-${panel.id}.png`);
       if (panel.id === "skills") {
-        await page.getByRole("complementary", { name: "Skills sections" }).getByRole("button", { name: "Add a skill", exact: true }).click();
+        await page.goto("/admin/skills?tab=add");
         await expect(page).toHaveURL(/\/admin\/skills\?tab=add$/);
         await expect(page.getByRole("textbox", { name: "GitHub URL" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
@@ -617,6 +620,13 @@ test.describe("assistant chat + Skills confirmation", () => {
 
   test("slash popup /sk and a selected skill", async ({ page }) => {
     await page.goto("/admin/dashboard");
+    // Measure the rendered pane: a matching class/selector alone cannot prove flex sizing.
+    await expect.poll(() => page.locator(".admin-chat-dock").evaluate(dock => {
+      const pane = dock.querySelector(".admin-chat-dock-drop > .jini-chat-pane");
+      if (!pane) return Number.POSITIVE_INFINITY;
+      const bounds = pane.getBoundingClientRect();
+      return Math.max(Math.abs(dock.clientWidth - bounds.width), Math.abs(dock.clientHeight - bounds.height));
+    })).toBeLessThanOrEqual(1);
     await page.locator("button.chat-fab").click();
     const input = page.locator("textarea.jini-composer-input");
     await input.pressSequentially("/sk");
@@ -635,7 +645,7 @@ test.describe("assistant chat + Skills confirmation", () => {
   test("Skills install-confirm dialog", async ({ page }) => {
     await page.goto("/admin/skills");
     await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
-    await page.getByRole("complementary", { name: "Skills sections" }).getByRole("button", { name: "Add a skill", exact: true }).click();
+    await page.goto("/admin/skills?tab=add");
     await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
     // Real local-file proposal opens the dialog, without fetching GitHub or installing again.
     await page.getByLabel("Choose skill files", { exact: true }).setInputFiles({

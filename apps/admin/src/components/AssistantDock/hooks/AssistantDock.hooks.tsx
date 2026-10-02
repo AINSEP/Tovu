@@ -1,3 +1,7 @@
+import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
+import { captureSkillDrop } from "@/features/skills/skill-drop";
+import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
+import { loadSkillDraft, SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   createDaemonAttachmentUploader,
@@ -558,7 +562,7 @@ export interface UseComposerCapabilities {
 
 /**
  * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from the bundled,
- * compile-time source, and owns the one-shot mount effect that resolves it. Split out of
+ * compile-time source and installed skills, refreshed on changes, focus and every ten seconds. Split out of
  * `AssistantDock` (2026-08-14 DI migration pass) for the same reason the three hooks above it were:
  * per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an injectable seam on
  * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
@@ -574,14 +578,8 @@ export interface UseComposerCapabilities {
  * this is a product call that may be revisited, not a dead-code removal. See that file's own doc for
  * the full reasoning.
  *
- * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()` being a
- * `Promise` is that a source may genuinely need a round trip — true for
- * `createBundledComposerCapabilitySource` only by construction (compile-time data wrapped in a
- * resolved `Promise`) today, but the seam stays real for whatever source is added next. This hook
- * makes no assumption that resolution is instant, and a failed projection (a future live source's
- * fetch failing, or a duplicate-id contract violation) falls back to the empty catalog rather than
- * throwing — same "the failure is contained" posture `AssistantDock.tsx`'s own `fetchAgents()` uses
- * for its own `!response.ok` branch.
+ * Starts empty while asynchronous sources load; stale responses are discarded. Installed-source
+ * failures leave bundled commands available. The raw tool catalog is intentionally excluded.
  *
  * @returns `composerCapabilities` — the resolved projection, or the empty one before it settles.
  * @example
@@ -594,15 +592,26 @@ export function useComposerCapabilities(): UseComposerCapabilities {
 
   useEffect(() => {
     let cancelled = false;
-    projectComposerCapabilities([createBundledComposerCapabilitySource()])
+    let generation = 0;
+    const reload = () => {
+      const current = ++generation;
+      return projectComposerCapabilities([createBundledComposerCapabilitySource(), createInstalledSkillsComposerCapabilitySource()])
       .then((projection) => {
-        if (!cancelled) setComposerCapabilities(projection);
+        if (!cancelled && current === generation) setComposerCapabilities(projection);
       })
       .catch((error: unknown) => {
         console.error("[AssistantDock] composer capability projection failed", error);
       });
+    };
+    void reload();
+    const interval = window.setInterval(() => void reload(), 10_000);
+    window.addEventListener(SKILLS_CHANGED_EVENT, reload);
+    window.addEventListener("focus", reload);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener(SKILLS_CHANGED_EVENT, reload);
+      window.removeEventListener("focus", reload);
     };
   }, []);
 
@@ -807,6 +816,41 @@ export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmen
       }),
     [],
   );
+}
+
+/**
+ * Routes skill packages to the install proposal; ordinary files retain their uploader result.
+ * @returns A stable callback, refreshed when either injected dependency changes.
+ * @complexity O(files) selection time and O(1) routing space; upload costs belong to the adapters.
+ */
+export function useSkillAwareAttachmentUploader(
+  { uploadAttachments, proposeFiles }: {
+    uploadAttachments: ReturnType<typeof createDaemonAttachmentUploader>;
+    proposeFiles: (files: readonly File[]) => Promise<void>;
+  },
+): ReturnType<typeof createDaemonAttachmentUploader> {
+  return useCallback(async files => {
+    if (files.some(file => file.name === "SKILL.md" || file.name.toLowerCase().endsWith(".zip"))) {
+      await proposeFiles(files);
+      return [];
+    }
+    return uploadAttachments(files);
+  }, [uploadAttachments, proposeFiles]);
+}
+
+/**
+ * Allows skill selection until the selected local runtime explicitly reports no tools.
+ * @returns Whether the current runtime can receive skill guidance.
+ * @complexity O(agents) time, O(1) space.
+ */
+export function resolveSkillsAvailable(
+  { executionMode, selectedAgentId, agents }: {
+    executionMode: ExecutionConfig["mode"];
+    selectedAgentId: string;
+    agents: readonly Pick<ChatPaneAgent, "id" | "supportsTools">[] | undefined;
+  },
+): boolean {
+  return executionMode === "byok" || agents?.find(agent => agent.id === selectedAgentId)?.supportsTools !== false;
 }
 
 /**
@@ -1077,6 +1121,9 @@ export interface ResolveComposerDiscoveryOutcomeDeps {
    * effect" posture for an id nothing recognizes.
    */
   readonly addPluginRef?: (pluginRefId: string) => void;
+  readonly skillsAvailable?: boolean;
+  readonly addSkill?: (skill: SelectedComposerSkill) => void;
+  readonly readDraft?: () => string;
 }
 
 /**
@@ -1084,7 +1131,7 @@ export interface ResolveComposerDiscoveryOutcomeDeps {
  * ("Composer slash commands"). Checks the existing client-local route first (`/mcp`'s settings
  * navigation, unchanged since before this projection existed), then falls through to a projected
  * capability's own {@link ComposerHostBinding} (see `composer-capabilities.ts`'s module doc for
- * what each binding kind means and why there are only two). Returns the `ComposerDiscoveryOutcome`
+ * what each binding kind means). Returns the `ComposerDiscoveryOutcome`
  * Jini's `Composer` applies to the draft, or `undefined` when nothing should change it — e.g. `/mcp`
  * navigating away, or an unresolvable item id (never true for a live selection, but not assumed).
  *
@@ -1134,6 +1181,14 @@ export async function resolveComposerDiscoveryOutcome(
 
   const binding = capability.resolve(selection.argument);
   if (binding.kind === "compose-text") return { draft: binding.text };
+  if (binding.kind === "installed-skill") {
+    if (deps.skillsAvailable === false) throw new Error("This runtime has no tools. Choose a runtime with tools to use skills.");
+    const draft = draftAfterSkillSelection(deps.readDraft?.() ?? "", selection.source);
+    const guidance = await loadSkillDraft(binding.toolId);
+    const name = capability.item.label.replace(/ · Skill$/, "");
+    deps.addSkill?.({ toolId: binding.toolId, name, guidance });
+    return { draft };
+  }
 
   // 'allowlisted-tool-call': POSTs through the same session-authenticated, allowlist-gated route
   // MCP-UI surface confirmations already use. Rejects with `TOOL_NOT_ALLOWLISTED` (403) for any
@@ -1165,10 +1220,13 @@ export async function resolveComposerDiscoveryOutcome(
  * });
  */
 export function useComposerDiscoverySelect(
-  { composerCapabilities, callAllowlistedTool, addPluginRef }: {
+  { composerCapabilities, callAllowlistedTool, addPluginRef, skillsAvailable, addSkill, readDraft }: {
     composerCapabilities: ComposerCapabilityProjection;
     callAllowlistedTool: ResolveComposerDiscoveryOutcomeDeps["callAllowlistedTool"];
     addPluginRef?: ResolveComposerDiscoveryOutcomeDeps["addPluginRef"];
+    skillsAvailable?: boolean;
+    addSkill?: ResolveComposerDiscoveryOutcomeDeps["addSkill"];
+    readDraft?: ResolveComposerDiscoveryOutcomeDeps["readDraft"];
   },
 ): (selection: ComposerDiscoverySelection) => Promise<ComposerDiscoveryOutcome | void> {
   return useCallback(
@@ -1178,8 +1236,11 @@ export function useComposerDiscoverySelect(
         navigate,
         callAllowlistedTool,
         addPluginRef,
+        skillsAvailable,
+        addSkill,
+        readDraft,
       }),
-    [composerCapabilities, callAllowlistedTool, addPluginRef],
+    [composerCapabilities, callAllowlistedTool, addPluginRef, skillsAvailable, addSkill, readDraft],
   );
 }
 
@@ -1389,11 +1450,12 @@ function includeIfNonEmptyArray<K extends string, V>(key: K, value: readonly V[]
  * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds, conversationId });
  */
 export function resolveRunContext(
-  { bindToken, model, reasoning, pluginRefIds, conversationId, pageContext }: {
+  { bindToken, model, reasoning, pluginRefIds, selectedSkills, conversationId, pageContext }: {
     bindToken: string | undefined;
     model?: string;
     reasoning?: string;
     pluginRefIds?: readonly string[];
+    selectedSkills?: readonly SelectedComposerSkill[];
     conversationId?: string | null;
     /** `readAgentScreenContext()` at send time — the screen "this page" refers to. */
     pageContext?: AgentScreenContext;
@@ -1403,6 +1465,7 @@ export function resolveRunContext(
   model?: string;
   reasoning?: string;
   pluginRefIds?: readonly string[];
+    selectedSkills?: readonly SelectedComposerSkill[];
   conversationId?: string;
   pageContext?: AgentScreenContext;
 } {
@@ -1418,6 +1481,7 @@ export function resolveRunContext(
     // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
     ...includeIfNonEmptyArray("pluginRefIds", pluginRefIds),
+    ...includeIfNonEmptyArray("selectedSkills", selectedSkills),
     ...includeIfNonEmptyString("conversationId", conversationId),
     ...includeIfDefined("pageContext", pageContext),
   };
@@ -1522,11 +1586,12 @@ export function openMcpUiLink(url: string): void {
  * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds, conversationId: chats.activeId });
  */
 export function useRunContext(
-  { agentBridge, model, reasoning, pluginRefIds, conversationId, readScreenContext = readAgentScreenContext }: {
+  { agentBridge, model, reasoning, pluginRefIds, selectedSkills, conversationId, readScreenContext = readAgentScreenContext }: {
     agentBridge: FrontendSessionBridge | null | undefined;
     model?: string;
     reasoning?: string;
     pluginRefIds?: readonly string[];
+    selectedSkills?: readonly SelectedComposerSkill[];
     conversationId?: string | null;
     readScreenContext?: () => AgentScreenContext | undefined;
   },
@@ -1535,6 +1600,7 @@ export function useRunContext(
   model?: string;
   reasoning?: string;
   pluginRefIds?: readonly string[];
+    selectedSkills?: readonly SelectedComposerSkill[];
   conversationId?: string;
   pageContext?: AgentScreenContext;
 } {
@@ -1545,10 +1611,11 @@ export function useRunContext(
         model,
         reasoning,
         pluginRefIds,
+        selectedSkills,
         conversationId,
         pageContext: readScreenContext(),
       }),
-    [agentBridge, model, reasoning, pluginRefIds, conversationId, readScreenContext],
+    [agentBridge, model, reasoning, pluginRefIds, selectedSkills, conversationId, readScreenContext],
   );
 }
 
@@ -1748,10 +1815,14 @@ export function useWorkingDirectoryAccessSeam(
 export function useFolderDropBridge(
   input: UseFolderDropInput,
   onReady: ((handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void) | undefined,
+  proposeSkillFiles?: (files: readonly File[], paths?: readonly string[]) => Promise<void>,
+  onSkillDropError?: (message: string) => void,
 ): UseFolderDrop {
   const folderDrop = useFolderDrop(input);
-  useEffect(() => {
-    onReady?.(folderDrop.handleDropCapture);
-  }, [onReady, folderDrop.handleDropCapture]);
-  return folderDrop;
+  const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
+    if (proposeSkillFiles && captureSkillDrop(event, proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError, Boolean(window.tovuFiles))) return;
+    folderDrop.handleDropCapture(event);
+  }, [proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError]);
+  useEffect(() => { onReady?.(handleDropCapture); }, [onReady, handleDropCapture]);
+  return { ...folderDrop, handleDropCapture };
 }

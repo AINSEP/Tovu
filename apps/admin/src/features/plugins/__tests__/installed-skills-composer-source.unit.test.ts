@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 describe("createInstalledSkillsComposerCapabilitySource", () => {
-  it("maps a real installed-skill summary into a capability with an installed-skill: id and a working compose-text resolve", async () => {
+  it("maps a real installed-skill summary into a capability with an installed-skill: id and a guidance-loading resolve", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         skills: [
@@ -66,17 +66,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     // callable tool id, not just the skill's display name.
     expect(capability?.resolve).toBeTypeOf("function");
     const binding = capability?.resolve?.(undefined);
-    expect(binding?.kind).toBe("compose-text");
-    expect((binding as { text: string }).text).toContain("skill_incident_response");
-    expect(binding).toEqual({
-      kind: "compose-text",
-      text: `Use the "incident-response" skill — call:
-
-  skill_incident_response({})
-
-If your tools are proxied, that call is:
-  mcp__jini__execute_delegated_tool({ "toolId": "skill_incident_response", "input": {} })`,
-    });
+    expect(binding).toEqual({ kind: "installed-skill", toolId: "skill_incident_response" });
 
     // The route this source actually calls, same-origin, workspace-scoped.
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];

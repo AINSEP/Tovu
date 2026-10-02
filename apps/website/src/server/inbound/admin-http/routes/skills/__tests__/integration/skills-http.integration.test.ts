@@ -106,8 +106,8 @@ test("C-001/C-002: 200 returns every installed skill projected to {toolId, name,
     assert.equal(response.status, 200);
     const body = (await response.json()) as { skills: Array<{ toolId: string; name: string; description: string }> };
     assert.deepEqual(body.skills.sort((a, b) => a.toolId.localeCompare(b.toolId)), [
-      { toolId: "skill_code_review", name: "code-review", description: "Review code changes." },
-      { toolId: "skill_incident_response", name: "incident-response", description: "Use when handling production incidents." },
+      { toolId: "skill_code_review", name: "code-review", description: "Review code changes.", enabled: true, source: "uploaded" },
+      { toolId: "skill_incident_response", name: "incident-response", description: "Use when handling production incidents.", enabled: true, source: "uploaded" },
     ]);
     await rm(path.join(skillsDir, "ws", WORKSPACE_ID, "incident-response"), { recursive: true });
     await writeSkill(skillsDir, "release-check", { "SKILL.md": "---\nname: release-check\ndescription: Check a release.\n---\n# Release\n" });
@@ -115,8 +115,8 @@ test("C-001/C-002: 200 returns every installed skill projected to {toolId, name,
     assert.equal(refreshed.status, 200);
     const next = (await refreshed.json()).skills as Array<{ toolId: string; name: string; description: string }>;
     assert.deepEqual(next.sort((a, b) => a.toolId.localeCompare(b.toolId)), [
-      { toolId: "skill_code_review", name: "code-review", description: "Review code changes." },
-      { toolId: "skill_release_check", name: "release-check", description: "Check a release." },
+      { toolId: "skill_code_review", name: "code-review", description: "Review code changes.", enabled: true, source: "uploaded" },
+      { toolId: "skill_release_check", name: "release-check", description: "Check a release.", enabled: true, source: "uploaded" },
     ]);
   });
 });

@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
 import {
-  createFakeSkillsPort,
   type ExecutionConfig,
   type MemoryTopTab,
   type NotificationsPreferences,
@@ -52,9 +51,7 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * Six independent `useSettingsSlice` instances are mounted — one per ledger-backed tab (Execution,
  * Instructions, Notifications, Privacy, Dialog appearance, Language) — each with its own load,
  * debounce, save chain, and diff base (see `use-settings-slice.hooks.ts`'s own header for why that
- * independence matters). Three more tabs (Memory, Skills, About) have no Tovu backend and so mount
- * no slice; Skills' fake port is still constructed here (via `useRef`, so it mounts once) since it
- * is the same kind of "stable thing the view needs a reference to" as the slices are. The tenth,
+ * independence matters). Memory and About mount no slice. Skills live under Add-Ons.
  * Workspace (folded in 2026-09-10 — see `SettingsUi.tsx`'s own header), mounts no slice either, for
  * a different reason from the other three: it has a REAL Tovu backend, just not this one — its own
  * `useWiredWorkspace()` (`features/workspace/hooks/use-workspace.hooks.ts`) owns its fetch/save/
@@ -74,7 +71,6 @@ export interface SettingsUiController {
   setMemoryTopTab: (tab: MemoryTopTab) => void;
 
   port: ReturnType<typeof createExecutionPort>;
-  skillsPort: ReturnType<typeof createFakeSkillsPort>;
 
   execution: SettingsSlice<ExecutionConfig>;
   instructions: SettingsSlice<string>;
@@ -111,17 +107,7 @@ export function useSettingsUi(): SettingsUiController {
       useAdminStoredCredential: true,
     }),
   );
-  // A fresh, empty in-memory port for the one remaining inert-wrapped backend-less tab (Skills)
-  // — `useRef` so it mounts once, not once per render. `{ skills: [] }` overrides
-  // `createFakeSkillsPort`'s own sample-data default; without it the tab would show skills that
-  // don't exist in this Tovu install, which is exactly the fabricated-data problem this port
-  // otherwise avoids.
-  //
-  // The Media providers fake port that used to sit beside this one is gone with its tab (2026-09-10
-  // — see `SettingsUi.tsx`'s header): the real Media providers surface is on the Media screen over
-  // a real backend, and a second fake copy of it here was showing an inert control under a note
-  // claiming Tovu had no media-provider backend, which stopped being true.
-  const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
+
   // Which segment of the inert-wrapped `MemorySettingsPanel` mount below is
   // showing. Local view state only — nothing here persists, matching every
   // other prop this tab's `inert` control feeds.
@@ -180,7 +166,6 @@ export function useSettingsUi(): SettingsUiController {
     setMemoryTopTab,
 
     port: port.current,
-    skillsPort: skillsPort.current,
 
     execution,
     instructions,

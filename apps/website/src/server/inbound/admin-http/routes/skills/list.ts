@@ -1,7 +1,6 @@
-import { toInstalledSkillsResponse } from "#src/server/inbound/admin-http/http/skills";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
+import { listManagedSkills } from "#src/features/skills/install-service";
 import type { SkillsRouteRegistrar } from "./deps.js";
 
 /**
@@ -9,10 +8,9 @@ import type { SkillsRouteRegistrar } from "./deps.js";
  * (skills-composer-typeahead), §Q1/§Contract Map.
  *
  * A plain read, same path grammar/workspace guard/authorize-then-project shape as
- * `routes/admin/plugins/list.ts`'s `PLUGINS_LIST`. Reads `infra/skills/` fresh on every request via
+ * `routes/admin/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
  * `loadInstalledSkillToolSources` — the SAME function the agent daemon calls once at boot
- * (`agent-daemon-server.ts:887`) to register `skill_*` tools, so this route and the agent's tool
- * registry can never disagree about which skills exist or what their ids are (Q1). Permission is
+ * (`agent-daemon-server.ts:887`) to register `skill_*` tools, while the agent registries refresh before discovery and execution. Permission is
  * `admin.assistant.use` (D-3): the same permission the skill tools themselves declare
  * (`tool-registrations.ts:333`), granted to the seeded owner's wildcard policy.
  *
@@ -40,8 +38,8 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
       )
         return;
 
-      const sources = await loadInstalledSkillToolSources({ workspaceId: deps.workspaceId });
-      res.json({ skills: toInstalledSkillsResponse(sources) });
+      const skills = await listManagedSkills({ workspaceId: deps.workspaceId });
+      res.json({ skills });
     } catch (error) {
       // Verbatim surfacing is the contract (C-001) — see this file's header for why this diverges
       // from the generic "internal error" string `plugins/list.ts`'s own catch block uses.

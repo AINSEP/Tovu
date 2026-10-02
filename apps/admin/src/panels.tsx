@@ -1,3 +1,4 @@
+import { Skills } from "./features/skills/Skills";
 import type { ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import { Themes, ThemeExplore } from "./features/themes";
@@ -509,23 +510,6 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
-    id: "skills",
-    // No screen yet — `soon: true` + `Placeholder`, the same shape `newsletter` below already uses
-    // for a genuinely unbuilt-but-real nav entry. Deliberately NOT a bespoke "coming soon"
-    // component: this repo has one idiom for this, and a second would be a second thing to maintain.
-    render: () => <Placeholder sectionId="skills" agentHandle="skills" />,
-    nav: {
-      label: "Skills",
-      group: "Studio",
-      soon: true,
-      icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>',
-    },
-    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
-    // nothing built yet for an agent to DO on this screen, but landing here to report that back
-    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
-    // `false` default would reintroduce.
-  },
-  {
     id: "design-system",
     render: () => <Placeholder sectionId="design-system" agentHandle="design-system" />,
     nav: {
@@ -663,6 +647,12 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       group: "Add-Ons",
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
     },
+    agentReachable: true,
+  },
+  {
+    id: "skills",
+    render: () => <Skills />,
+    nav: { label: "Skills", group: "Add-Ons", icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>' },
     agentReachable: true,
   },
   {

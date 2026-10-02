@@ -1,4 +1,4 @@
-import { act, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,7 +40,7 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
   }) => {
     chatPaneSpy(props);
     return (
-      <div data-testid="chat-pane">
+      <section className="jini-chat-pane" data-testid="chat-pane">
         <button type="button" onClick={() => props.onExecutionModeChange("api")}>
           switch-to-api
         </button>
@@ -53,7 +53,7 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
         >
           pick-local-model
         </button>
-      </div>
+      </section>
     );
   },
   ConversationList: () => null,
@@ -234,15 +234,16 @@ beforeEach(() => {
 
 afterEach(() => {
   consoleErrorSpy.mockRestore();
+  vi.unstubAllGlobals();
 });
 
 describe("AssistantDock", () => {
-  it("renders ChatPane as the direct child, with no extra wrapper element around it", () => {
-    const { container } = render(<AssistantDock useChats={() => fakeChats()} />);
-    // JiniChatProvider is a passthrough and ChatPane is mocked to a bare div — a wrapper
-    // reintroduced around it (the `display:contents` regression this file's dispatch calls out)
-    // would show up here as an extra element between `container` and the chat-pane div.
-    expect(container.firstElementChild).toBe(screen.getByTestId("chat-pane"));
+  it("keeps ChatPane beneath the dock's explicitly targeted flex wrapper", () => {
+    const { container } = render(<aside className="admin-chat-dock"><AssistantDock useChats={() => fakeChats()} /></aside>);
+    // jsdom has no layout: protect the DOM relationship assistant.css targets instead.
+    const dock = container.querySelector(".admin-chat-dock")!;
+    expect(dock.firstElementChild).toHaveClass("admin-chat-dock-drop");
+    expect(dock.querySelector(":scope > .admin-chat-dock-drop > .jini-chat-pane")).toBe(screen.getByTestId("chat-pane"));
   });
 
   /**
@@ -273,6 +274,9 @@ describe("AssistantDock", () => {
    * proves the empty-then-populated sequence rather than assuming a same-tick synchronous result.
    */
   it("injects the source-backed plugin, Agent Plugin, skill, and MCP catalog into ChatPane, asynchronously", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      skills: [{ toolId: "skill_ui_ux_design", name: "ui-ux-design", description: "Design interfaces.", enabled: true }],
+    })));
     render(<AssistantDock useChats={() => fakeChats()} />);
 
     const initialProps = chatPaneSpy.mock.calls.at(-1)?.[0] as {
@@ -287,9 +291,9 @@ describe("AssistantDock", () => {
       expect(props.composerSlots.discoveryGroups.map((group) => group.id)).toEqual([
         "regular-plugins",
         "agent-plugins",
-        "skills",
         "mcp",
         "tools",
+        "installed-skills",
       ]);
     });
 
@@ -299,16 +303,16 @@ describe("AssistantDock", () => {
     expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "regular-plugin:word-count",
       "agent-plugin:ui-ux-design",
-      "skill:ui-ux-design",
       "mcp:settings",
       "tool:content-search",
+      "installed-skill:skill_ui_ux_design",
     ]);
     expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.kind))).toEqual([
       "plugin",
       "agent-plugin",
-      "skill",
       "mcp",
       "tool",
+      "skill",
     ]);
   });
 
@@ -541,12 +545,25 @@ describe("AssistantDock useAssistantTransport injection", () => {
 });
 
 describe("AssistantDock useAttachmentUploader injection", () => {
-  it("wires ChatPane's uploadAttachments prop off the injected fake, not the real daemon uploader", () => {
-    const fakeUploader = vi.fn();
+  it("forwards ordinary files through ChatPane's upload callback to the injected uploader", async () => {
+    const attachments = [{ name: "notes.txt", path: "attachment:notes", kind: "file" as const }];
+    const fakeUploader = vi.fn(async () => attachments);
 
     render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
 
-    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ uploadAttachments: fakeUploader }));
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { uploadAttachments: (files: File[]) => Promise<unknown[]> };
+    const files = [new File(["notes"], "notes.txt")];
+    await expect(props.uploadAttachments(files)).resolves.toBe(attachments);
+    expect(fakeUploader).toHaveBeenCalledWith(files);
+  });
+
+  it.each(["SKILL.md", "skill.zip"])("captures a dropped %s for installation before attachment upload", async name => {
+    const fakeUploader = vi.fn();
+    render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
+    const file = new File(["---\nname: example\ndescription: Example skill.\n---\nInstructions."], name);
+    fireEvent.drop(screen.getByTestId("chat-pane"), { dataTransfer: { files: [file], items: [], types: ["Files"] } });
+    expect(await screen.findByRole("dialog", { name: "Install skill" })).toBeInTheDocument();
+    expect(fakeUploader).not.toHaveBeenCalled();
   });
 });
 

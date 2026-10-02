@@ -10,7 +10,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `AdminModuleStatusDeps` — the one registrar this module owns reads only `workspaceId`
  * (the path-param guard, and the input to `loadInstalledSkillToolSources`) and `authorize`
  * (the `admin.assistant.use` gate, D-3). No repo, no clock, no id-gen: C-001 is a pure read of
- * `infra/skills/` via the existing `loadInstalledSkillToolSources`, so this module needs nothing
+ * `<site>/skills/` via the existing `loadInstalledSkillToolSources`, so this module needs nothing
  * else off `RouteDeps`.
  */
 export type SkillsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize">;

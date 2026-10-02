@@ -26,19 +26,20 @@ import type { ComposerDiscoveryGroup, ComposerDiscoveryItem } from "@jini-ai/cha
  *   adds its tool id to that set — a decision this module deliberately does not make (see the
  *   binding's own doc below).
  *
- * No third kind exists. `/mcp`'s settings-navigation macro is untouched by this module — it stays
+ * `installed-skill` pins current guidance as context and adds it only to the dispatched prompt. `/mcp`'s settings-navigation macro is untouched by this module — it stays
  * exactly as it was (`resolveTovuComposerDiscoveryRoute`, `AssistantDock.tsx`'s own
  * `resolveTovuComposerDiscoveryRoute(...)` check), because it is client-local navigation, not
  * agent- or tool-mediated, and was never part of what this union needed to describe.
  */
 
 /**
- * The two verified execution shapes a composer capability may resolve to. Never inspected by
+ * The host execution shapes a composer capability may resolve to. Never inspected by
  * `@jini-ai/chat` — `ComposerDiscoveryItem.command`/`argument`/`needsConfirmation` are the only
  * package-visible fields, all presence-only. This union, and the decision of which kind a given
  * capability uses, live entirely on the host side of that boundary.
  */
 export type ComposerHostBinding =
+  | { readonly kind: "installed-skill"; readonly toolId: string }
   | {
       readonly kind: "compose-text";
       /** Verbatim replacement for the draft; the user reviews and sends it like any other message. */
@@ -216,7 +217,7 @@ export async function projectComposerCapabilities(
   sources: readonly ComposerCapabilitySource[],
 ): Promise<ComposerCapabilityProjection> {
   const bySource = await Promise.all(sources.map((source) => source.list()));
-  const capabilities = bySource.flat();
+  const capabilities = labelComposerCapabilities(bySource.flat());
 
   const groupOrder: string[] = [];
   const itemsByGroup = new Map<string, { label: string; items: ComposerDiscoveryItem[] }>();
@@ -297,19 +298,6 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
     pluginRefId: "ui-ux-design",
   },
   {
-    groupId: "skills",
-    groupLabel: "Skills / Design toolbox",
-    item: {
-      id: "skill:ui-ux-design",
-      // See the matching comment on "agent-plugin:ui-ux-design" above.
-      label: "UI/UX Design (Skill)",
-      description: "Portable skill from the ui-ux-design Agent Plugin",
-      kind: "skill",
-      keywords: ["skill", "design", "ui", "ux"],
-      insertText: "UI/UX Design skill",
-    },
-  },
-  {
     groupId: "mcp",
     groupLabel: "MCP",
     item: {
@@ -368,4 +356,49 @@ export function createBundledComposerCapabilitySource(): ComposerCapabilitySourc
     id: "bundled",
     list: async () => BUNDLED_CAPABILITIES,
   };
+}
+
+/** Names identify the resource; suffixes identify how it reaches the agent. Plugins and standalone
+ * skills have different files and enablement gates, so matching names alone never justify dedupe. */
+function labelComposerCapabilities(capabilities: readonly TovuComposerCapability[]): readonly TovuComposerCapability[] {
+  const skillNames = new Set(capabilities.filter(c => c.item.kind === "skill").map(c => discoveryName(c.item)));
+  return capabilities.map(capability => {
+    if (capability.item.kind === "skill") return { ...capability, item: { ...capability.item, label: `${capability.item.label} · Skill` } };
+    if (capability.pluginRefId && skillNames.has(discoveryName(capability.item))) {
+      return { ...capability, item: { ...capability.item, label: `${capability.item.label.replace(/ \(Agent Plugin\)$/i, "")} · Agent plugin` } };
+    }
+    return capability;
+  });
+}
+
+function discoveryLabelName(item: ComposerDiscoveryItem): string {
+  return item.label.replace(/ · (Skill|Agent plugin)$/i, "").replace(/ \(Agent Plugin\)$/i, "").replace(/^\//, "").toLowerCase();
+}
+
+function discoveryName(item: ComposerDiscoveryItem): string {
+  return item.command?.toLowerCase() ?? discoveryLabelName(item);
+}
+
+function nameMatchRank(name: string, query: string): number {
+  if (name === query) return 0;
+  if (name.startsWith(query)) return 1;
+  if (name.split(/[^\p{L}\p{N}]+/u).some(word => word.startsWith(query))) return 2;
+  return name.includes(query) ? 3 : 4;
+}
+
+/** Global name-first ranking, independent of source/group order. Jini still owns filtering and
+ * locked argument grammar. Single-item groups preserve each source label while allowing ranks
+ * to interleave across sources instead of giving an entire early group priority. */
+export function rankComposerDiscoveryGroups(groups: readonly ComposerDiscoveryGroup[], draft: string): readonly ComposerDiscoveryGroup[] {
+  const match = /^\/([^\s/]*)/.exec(draft);
+  if (!match) return groups;
+  const query = match[1].toLowerCase();
+  const rows = groups.flatMap(group => group.items.map(item => ({ group, item, name: discoveryName(item) })));
+  // A related plugin/skill pair shares an identity; choose the best name tier for the family,
+  // then list its installed skill first. Unrelated names keep the strict tier ordering.
+  const familyRanks = new Map<string, number>();
+  for (const row of rows) familyRanks.set(row.name, Math.min(familyRanks.get(row.name) ?? 4, nameMatchRank(row.name, query), nameMatchRank(discoveryLabelName(row.item), query)));
+  const skillFamilies = new Set(rows.filter(row => row.item.kind === "skill").map(row => row.name));
+  rows.sort((a, b) => (familyRanks.get(a.name)! - familyRanks.get(b.name)!) || Number(skillFamilies.has(b.name)) - Number(skillFamilies.has(a.name)) || a.name.localeCompare(b.name) || Number(b.item.kind === "skill") - Number(a.item.kind === "skill"));
+  return rows.map(({ group, item }) => ({ id: `${group.id}:${item.id}`, label: group.label, items: [item] }));
 }

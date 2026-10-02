@@ -30,6 +30,13 @@ import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
 import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
 
+/** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
+ * the shared heuristic; injected guidance never enters the stored user message. */
+function deriveAssistantConversationTitle(text: string): string {
+  const trimmed = text.trim();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed) && trimmed.length <= 64 ? trimmed : deriveConversationTitle(text);
+}
+
 /** Rejects a body that is not a plain object, so `req.body.title` can never be an array or null. */
 function bodyOf(req: Request): Record<string, unknown> {
   const body = req.body as unknown;
@@ -65,7 +72,7 @@ async function maybeNameFromFirstUserMessage(
   try {
     const conversation = await store.get(id);
     if (!conversation || conversation.title) return;
-    const derived = deriveConversationTitle(typeof body.content === "string" ? body.content : "");
+    const derived = deriveAssistantConversationTitle(typeof body.content === "string" ? body.content : "");
     if (derived) await store.rename(id, derived, "fallback");
   } catch {
     // Leave it untitled; the next user message gets another chance.
@@ -128,7 +135,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // A title derived from the first prompt, when the client sends one. Local and synchronous
         // — a conversation needs a name the moment it appears in the list, and a model call to
         // produce one would put a spinner in front of every "New chat".
-        const seed = typeof body.firstMessage === "string" ? deriveConversationTitle(body.firstMessage) : "";
+        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle(body.firstMessage) : "";
         storeFor(res)
           .create({
             id,
