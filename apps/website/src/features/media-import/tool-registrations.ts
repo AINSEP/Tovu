@@ -27,14 +27,17 @@ import {
   type BlobStorePort,
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
+  type UploadMediaInput,
 } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
-import { mediaImportAgentToolCatalog } from "./agent-tools.js";
-import { buildImportFilename, fetchImage, MediaImportValidationError } from "./fetch-image.js";
+import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
+import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "../fs-files/layout.js";
+import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
+import { buildImportFilename, fetchImage, MediaImportValidationError, validateImageBytes } from "./fetch-image.js";
 
 /**
- * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: fetch the URL through the
+ * @file Wires URL and local-file imports onto the same upload pipeline: fetch URLs through the
  * SSRF-guarded `HttpClientPort` and validate the bytes (`fetch-image.ts`) -> upload them through the
  * SAME `uploadMedia` service `media_upload_asset`, the admin HTTP upload route, and
  * `media_generate_asset` all already call -> record the SNIFFED content type through the same
@@ -78,6 +81,10 @@ export interface MediaImportToolDeps {
   /** Test-only override for where the FULL egress refusal (resolved address included) is logged;
    *  defaults to `console.warn`. See {@link withCallerSafeEgressRefusal}. */
   mediaImportEgressRefusalLog?: (line: string) => void;
+  /** Same test seam as fs-files; production resolves the owner's persisted roots per workspace. */
+  resolveRoots?: () => Record<FsRootId, string | undefined>;
+  /** Test-only smaller binary cap. Clamped to the host ceiling; not a tool input. */
+  mediaImportLocalMaxBytes?: number;
 }
 
 const CATALOG_BY_ID = indexCatalogById(mediaImportAgentToolCatalog);
@@ -143,7 +150,7 @@ async function withCallerSafeEgressRefusal<T>(log: (line: string) => void, work:
 }
 
 /**
- * This wiring layer's OWN risk classification, authored from what the one handler below actually
+ * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls — see `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
  * `sideEffects` declaration.
  */
@@ -152,6 +159,8 @@ export const mediaImportDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   // renditionRepo.save) + mediaContentTypeStore.set. A genuine durable Tovu-side write, the same
   // classification media_upload_asset and media_generate_asset both carry.
   ["media_import_from_url", "mutates-durable-state"],
+  // -> openFsFileForRead + uploadMedia (blob/media/rendition writes) + mediaContentTypeStore.set.
+  ["media_import_local_file", "mutates-durable-state"],
 ]);
 
 /** What `media_import_from_url` returns — the SAME shape `media_upload_asset`/`media_generate_asset`/
@@ -159,7 +168,7 @@ export const mediaImportDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
  *  `media_trash_asset` off the returned `id` with no separate lookup, and use `publicUrl` to embed the
  *  image immediately. Declared locally for the same reason `media-generation`'s `GeneratedMediaView`
  *  is: `@jini-ai/cms/media`'s equivalent view type is an internal projection, not public surface. */
-interface ImportedMediaView {
+export interface ImportedMediaView {
   id: string;
   /** The asset's short lookup name (2026-09-16) — a page marker can reference this instead of the
    *  long `id`; mirrors `@jini-ai/cms/media`'s own `MediaToolView.slug` addition. */
@@ -173,12 +182,91 @@ interface ImportedMediaView {
   version: number;
   publicUrl: string | null;
   /** The URL the bytes actually came from, after redirect resolution and normalization — so a
-   *  transcript records what was imported, not merely what was asked for. */
+   *  transcript records what was imported, not merely what was asked for. Empty for local files. */
   sourceUrl: string;
 }
 
+/**
+ * Selects one existing fs-files root id. Only the owner can configure its directory.
+ * @throws {MediaImportValidationError} For an unknown id or an unset custom folder.
+ * @complexity O(1), one workspace root resolution.
+ */
+function resolveLocalImportRoot(required: { routeDeps: MediaImportToolDeps; root: string }): string {
+  const { routeDeps, root } = required;
+  if (!(FS_ROOT_IDS as readonly string[]).includes(root)) {
+    throw new MediaImportValidationError(`'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}`);
+  }
+  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ workspaceId: routeDeps.workspaceId })))();
+  const rootPath = roots[root as FsRootId];
+  if (rootPath === undefined) {
+    throw new MediaImportValidationError(`no folder has been set for the '${root}' root yet. ${LOCAL_FILE_IMPORT_RECOVERY}`);
+  }
+  return rootPath;
+}
+
+/**
+ * Persists already-validated bytes through the existing upload/dedupe service, records their sniffed
+ * type, and returns the same media projection for either byte source. Storage failures propagate.
+ * @complexity O(n) in the uploaded bytes for hashing/storage; fixed-count repository operations.
+ */
+async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string }): Promise<{ media: ImportedMediaView }> {
+  const { routeDeps, input, sourceUrl } = required;
+  const { media } = await uploadMedia({
+    deps: {
+      clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
+      blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo,
+      blobStore: routeDeps.blobStore,
+    },
+    input,
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  // Identical recording discipline to the URL, generated-media and admin upload paths.
+  const sniffed = sniffContentType(input.bytes);
+  await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
+  const urls = await resolveMediaPublicUrls(routeDeps, [media]);
+  return {
+    media: {
+      id: media.id, slug: media.slug, title: media.title, alt: media.alt, caption: media.caption,
+      credit: media.credit, sha256: media.source.sha256, status: media.status, version: media.version,
+      publicUrl: urls.get(media.id) ?? null, sourceUrl,
+    },
+  };
+}
+
+/** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
+ * @complexity O(1) registration work; handlers are bounded by the upload cap.
+ */
 export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    media_import_local_file: async (ctx): Promise<{ media: ImportedMediaView }> => {
+      const input = requireInputRecord(ctx.input);
+      const root = requireString(input, "root");
+      const relativePath = requireString(input, "path");
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
+
+      return withSchemaOnRejection({
+        toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
+        isShapeRejection: (error) => error instanceof FsFilePathError || error instanceof MediaImportValidationError,
+      }, async () => {
+        const rootPath = resolveLocalImportRoot({ routeDeps, root });
+        const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+        const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
+        const contentType = validateImageBytes(relativePath, bytes, false);
+        const title = optionalString(input, "title");
+        // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
+        // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
+        const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
+        return persistImportedMedia({
+          routeDeps,
+          input: {
+            workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
+            alt: optionalString(input, "alt"), caption: optionalString(input, "caption"),
+            createdByPrincipal: ctx.principal.id,
+          },
+          sourceUrl: "",
+        });
+      });
+    },
+
     media_import_from_url: async (ctx): Promise<{ media: ImportedMediaView }> => {
       const input = requireInputRecord(ctx.input);
       const url = requireString(input, "url");
@@ -189,54 +277,20 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         withCallerSafeEgressRefusal(logEgressRefusal, async () => {
           const fetched = await fetchImage({ httpClient: routeDeps.mediaImportHttpClient }, { url });
 
-          const { media } = await uploadMedia({
-            deps: {
-              clock: routeDeps.clock,
-              idGen: routeDeps.idGen,
-              mediaRepo: routeDeps.mediaRepo,
-              blobRepo: routeDeps.assetBlobRepo,
-              renditionRepo: routeDeps.assetRenditionRepo,
-              blobStore: routeDeps.blobStore,
-            },
+          return persistImportedMedia({
+            routeDeps,
             input: {
               workspaceId: routeDeps.workspaceId,
               bytes: fetched.bytes,
               filename: buildImportFilename(fetched.url, fetched.contentType, optionalString(input, "filename")),
-              // Already the SNIFFED type, decided by `fetch-image.ts` from the payload's magic bytes
-              // and checked against its own importable-image allowlist — never the served
-              // `Content-Type` header. `uploadMedia`'s own allowlist check therefore sees a value
-              // this process derived, not one the remote host chose.
               contentType: fetched.contentType,
               alt: optionalString(input, "alt"),
               caption: optionalString(input, "caption"),
               credit: optionalString(input, "credit"),
               createdByPrincipal: ctx.principal.id,
             },
-          }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
-
-          // The same "record what the bytes actually are" write the admin upload route and
-          // `media_generate_asset` both perform. Re-sniffed rather than reusing `fetched.contentType`
-          // so this line stays identical to the other two write paths — one shared discipline, not a
-          // local shortcut that would quietly diverge if either side changed.
-          const sniffed = sniffContentType(fetched.bytes);
-          await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
-
-          const urls = await resolveMediaPublicUrls(routeDeps, [media]);
-          return {
-            media: {
-              id: media.id,
-              slug: media.slug,
-              title: media.title,
-              alt: media.alt,
-              caption: media.caption,
-              credit: media.credit,
-              sha256: media.source.sha256,
-              status: media.status,
-              version: media.version,
-              publicUrl: urls.get(media.id) ?? null,
-              sourceUrl: fetched.url.href,
-            },
-          };
+            sourceUrl: fetched.url.href,
+          });
         })
       );
     },
@@ -252,7 +306,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
 }
 
 /**
- * Contributes `media-import`'s AI tool to the assistant's catalog — called once by
+ * Contributes `media-import`'s AI tools to the assistant's catalog — called once by
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */

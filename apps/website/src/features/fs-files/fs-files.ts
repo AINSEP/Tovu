@@ -7,6 +7,7 @@ import {
   statSync,
   type Stats,
 } from "node:fs";
+import fs from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 /**
@@ -621,4 +622,49 @@ export function readFsFile(required: { rootPath: string; relativePath: string })
   }
 
   return { content: buffer.toString("utf8"), bytes: buffer.byteLength };
+}
+
+/**
+ * Reads binary bytes under an allowed root, reusing the text reader's containment and denylist.
+ * Checks the regular file's stat size before opening, then bounds the stream independently so a
+ * growing file cannot bypass the cap. The stream is closed on success or failure; no bytes are written.
+ *
+ * @param required - Owner-resolved root, relative file path, and positive integer byte cap.
+ * @returns The complete bytes; never a silently truncated file.
+ * @throws {FsFilePathError} For invalid paths/caps, denied or unreadable files, missing/nonregular files, or excess size.
+ * @complexity O(n) time and space in the bytes read, bounded by maxBytes plus one stream chunk.
+ * @example await openFsFileForRead({ rootPath: '/allowed', relativePath: 'hero.mp4', maxBytes: 52428800 });
+ */
+export async function openFsFileForRead(required: { rootPath: string; relativePath: string; maxBytes: number }): Promise<Uint8Array> {
+  const { relativePath, maxBytes } = required;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new FsFilePathError("maxBytes must be a positive safe integer");
+  }
+  const target = resolveFsFilePath(required);
+  const stat = statOrFsPathError(target, relativePath);
+  if (!stat) throw new FsFilePathError(`file '${relativePath}' does not exist`);
+  if (!stat.isFile()) throw new FsFilePathError(`path '${relativePath}' is not a regular file`);
+  if (stat.size > maxBytes) {
+    throw new FsFilePathError(`file '${relativePath}' is ${stat.size} bytes and exceeds the ${maxBytes}-byte import limit`);
+  }
+
+  const stream = fs.createReadStream(target, { highWaterMark: Math.min(64 * 1024, maxBytes + 1) });
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  try {
+    for await (const chunk of stream) {
+      const bytes = chunk as Buffer;
+      totalBytes += bytes.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new FsFilePathError(`file '${relativePath}' is at least ${totalBytes} bytes and exceeds the ${maxBytes}-byte import limit`);
+      }
+      chunks.push(bytes);
+    }
+    return Buffer.concat(chunks, totalBytes);
+  } catch (error) {
+    if (error instanceof FsFilePathError) throw error;
+    throw new FsFilePathError(`path '${relativePath}' could not be read: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    stream.destroy();
+  }
 }

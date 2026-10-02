@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
 import {
@@ -16,7 +16,7 @@ import {
   type BlobStorePort,
 } from "../../media/index.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { registerToolContributor, resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
 import { contributeMediaImportTools } from "../tool-registrations.js";
@@ -185,9 +185,9 @@ interface ImportResult {
 // 1. Wiring and published contract
 // ---------------------------------------------------------------------------
 
-test("exactly one tool is wired: media_import_from_url", () => {
+test("both URL and local-file imports are wired in the media-import domain", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...mediaImportRegistrations(deps).keys()], ["media_import_from_url"]);
+  assert.deepEqual([...mediaImportRegistrations(deps).keys()].sort(), ["media_import_from_url", "media_import_local_file"]);
 });
 
 test("media_import_from_url publishes its catalog entry's inputSchema and description", () => {
@@ -247,7 +247,7 @@ test("the returned view is the same shape media_upload_asset/media_generate_asse
   assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "slug", "sourceUrl", "status", "title", "version"]);
   assert.equal(out.media.status, "active");
   assert.equal(out.media.version, 1);
-  assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
+  assert.equal(out.media.publicUrl, "/m/8f3ac91b0e/public.v1/image.webp");
   assert.equal(out.media.sourceUrl, SOURCE_URL, "the transcript must record where the bytes actually came from");
 });
 
@@ -318,12 +318,19 @@ test("a truncated response is rejected and NOTHING is written — the 'rows exis
 });
 
 test("a transport-level SSRF refusal propagates and nothing is written", async () => {
-  const refusal = new Error("egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local");
+  const safe = "egress to the requested host was refused by policy";
+  const refusal = new EgressRefusedError("egress to metadata.example.com (169.254.169.254) rejected: resolved address is link-local", { callerSafeMessage: safe });
   const { deps, mediaRepo, blobStore } = fakeRouteDeps({ responses: [refusal] });
 
   await assert.rejects(
     () => wired("media_import_from_url", deps).handler(executionContext({ url: "https://metadata.example.com/latest/meta-data/" })),
-    /resolved address is link-local/
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError);
+      assert.ok(error.message.startsWith(safe));
+      assert.doesNotMatch(error.message, /169\.254\.169\.254|resolved address is link-local/);
+      assert.match(error.message, /"additionalProperties":false/, "egress refusals retain validation classification and schema");
+      return true;
+    }
   );
 
   assert.equal(blobStore.writes.length, 0);

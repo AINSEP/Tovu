@@ -572,6 +572,12 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Draw me an illustration of a mountain landscape.",
     "Can you make an AI image and add it to the media library?",
   ],
+  media_import_local_file: [
+    "Add the video in my Downloads folder to the media library.",
+    "Upload this photo from my desktop to the site.",
+    "Import the logo file from the theme folder into media.",
+    "Put hero.mp4 from my computer on the site.",
+  ],
   media_import_from_url: [
     "Can you save the image at this link into our media library?",
     "I have a URL for a picture — how do I get it into the CMS?",

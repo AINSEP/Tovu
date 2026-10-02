@@ -241,24 +241,35 @@ function buildStatusError(url: URL, status: number): MediaImportValidationError 
  * never the OR-of-both-shapes `bodyTruncated` (2026-09-06, MI-01). Passing the latter refused whole
  * images because a lossy UTF-8 decode this module never reads had crossed the policy cap.
  *
+ * @param source - A fetched URL or a local root-relative path, used only to label refusals.
+ * @param bytes - Complete binary payload to sniff.
+ * @param bytesTruncated - Whether the transport clipped the payload; local reads refuse clipping themselves.
+ * @returns The accepted content type, derived from the bytes.
  * @throws {MediaImportValidationError} bytes truncated, empty, over {@link MEDIA_IMPORT_MAX_BYTES},
  *   or not one of {@link IMPORTABLE_CONTENT_TYPES}.
  * @complexity O(1) beyond `sniffContentType`'s own fixed-window magic-byte scan.
  */
-export function validateImageBytes(url: URL, bytes: Uint8Array, bytesTruncated: boolean): string {
+export function validateImageBytes(source: URL | string, bytes: Uint8Array, bytesTruncated: boolean): string {
+  // Keep the existing URL contract and error text; a relative path labels a local-file import.
+  const isRemote = source instanceof URL;
+  const label = isRemote ? source.href : source;
   if (bytesTruncated || bytes.byteLength > MEDIA_IMPORT_MAX_BYTES) {
     throw new MediaImportValidationError(
-      `the image at '${url.href}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved — a partially downloaded image would be a corrupt file, not a smaller one.`
+      isRemote
+        ? `the image at '${label}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved — a partially downloaded image would be a corrupt file, not a smaller one.`
+        : `file '${label}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved.`
     );
   }
   if (bytes.byteLength === 0) {
-    throw new MediaImportValidationError(`'${url.href}' returned an empty response body — there is nothing to import.`);
+    throw new MediaImportValidationError(isRemote
+      ? `'${label}' returned an empty response body — there is nothing to import.`
+      : `file '${label}' is empty — there is nothing to import.`);
   }
   const contentType = sniffContentType(bytes);
   if (!IMPORTABLE_CONTENT_TYPES.has(contentType)) {
     throw new MediaImportValidationError(
-      `'${url.href}' is not an importable file: its actual bytes are '${contentType}'. ` +
-        `Only ${[...IMPORTABLE_CONTENT_TYPES].join(", ")} can be imported (the served Content-Type header is deliberately ignored — the bytes decide).`
+      `'${label}' is not an importable file: its actual bytes are '${contentType}'. ` +
+        `Only ${[...IMPORTABLE_CONTENT_TYPES].join(", ")} can be imported (${isRemote ? 'the served Content-Type header' : 'the file extension'} is deliberately ignored — the bytes decide).`
     );
   }
   return contentType;
