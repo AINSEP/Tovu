@@ -17,6 +17,10 @@ export interface HttpRequest {
   body?: string;
   /** Hard per-attempt timeout (ms). The caller, not the adapter, owns retry/backoff. */
   timeoutMs: number;
+  /** Optional whole-operation deadline, including DNS and body reads. */
+  signal?: AbortSignal;
+  /** Per-request decoded byte ceiling, bounded by the client policy. */
+  maxResponseBytes?: number;
 }
 
 export interface HttpResponse {
@@ -24,6 +28,8 @@ export interface HttpResponse {
   headers: Readonly<Record<string, string>>;
   /** Truncated response body, bounded by the egress policy. */
   bodyText: string;
+  /** Individual Set-Cookie lines, preserving Expires commas and cookie boundaries. */
+  setCookies?: readonly string[];
   /**
    * The SAME response body as `bodyText`, undecoded — the raw bytes exactly as they arrived (after
    * `Content-Encoding` decompression), bounded by the same egress-policy cap.

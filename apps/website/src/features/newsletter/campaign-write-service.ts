@@ -214,7 +214,7 @@ export async function scheduleCampaign(required: {
 }): Promise<{ campaign: CampaignRecord }> {
   const { deps, input } = required;
   if (!isValidScheduleTimestamp(input.scheduledAt)) {
-    throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string");
+    throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string", "scheduledAt", "format");
   }
   const campaign = await deps.campaignRepo.transaction(async () => {
     const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.id });
