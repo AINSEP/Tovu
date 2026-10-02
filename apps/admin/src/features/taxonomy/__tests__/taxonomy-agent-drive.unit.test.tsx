@@ -196,24 +196,36 @@ describe("addressing term rows without triggering the RowMenu they sit beside", 
 });
 
 /**
- * KNOWN GAP (found while writing this batch's test, not previously documented anywhere): `RowMenu`
- * (`@jini-ai/admin/react`) renders its dropdown via `createPortal(..., document.body)` — see that
- * component's own file comment. Tovu's real agent bridge (`App.hooks.tsx`'s `useAgentPageBridge`)
- * scopes its `createDomPageDriver` to `contentEl` (`<main>`), deliberately narrower than
- * `document.body`, so "a page verb cannot reach into the assistant's own UI" (that file's own
- * comment). `<main>` does not contain `document.body`'s other children, so a portaled dropdown is
- * OUTSIDE the driver's root — structurally, not by omission.
- *
- * Net effect: the trigger button (not portaled — an ordinary descendant of `<main>`) IS discoverable
- * and clickable through the real bridge, and `page.click` on it does flip `open` — but the dropdown
- * ITEMS it reveals are not, because they render into a DOM subtree the scoped driver never scans.
- * `agentHandle` on `RowMenu` is therefore necessary but not sufficient for "an agent can pick a
- * specific row action" — the tests below assert this real, current shape (root scoped to `container`,
- * matching `contentEl` in production) rather than testing against `document.body`, which would hide
- * the gap behind a driver scope the shipping app does not use.
+ * Regression for menus formerly portaled outside the production bridge's `<main>` root.
+ * Keep the real driver scoped to `container`: reaching the items must come from the
+ * page's portal container, with the assistant's own UI still outside the scope.
  */
 describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
-  it("publishes a distinct, clickable handle per taxonomy trigger; its dropdown item stays outside the production-scoped root", async () => {
+  it("the scoped agent can discover and select the opened taxonomy's delete action", async () => {
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax-a", name: "Category" }), terms: [] };
+    const { controller, container } = renderTaxonomy({ taxonomies: [group] });
+    await screen.findByText("Category");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    const assistantControl = document.createElement("button");
+    assistantControl.setAttribute("data-agent-element", "assistant-private-action");
+    document.body.append(assistantControl);
+    try {
+      expect(await handlesOf(driver)).toContain("taxonomy-menu-tax-a");
+      await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a" });
+      await driver.settle?.();
+      expect(await handlesOf(driver)).toContain("taxonomy-menu-tax-a-item-delete");
+      expect(await handlesOf(driver)).not.toContain("assistant-private-action");
+      await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a-item-delete" });
+      expect(controller.requestDeleteTaxonomy).toHaveBeenCalledTimes(1);
+      expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(group.taxonomy);
+      await driver.settle?.();
+      expect(await handlesOf(driver)).not.toContain("taxonomy-menu-tax-a-item-delete");
+    } finally {
+      assistantControl.remove();
+    }
+  });
+
+  it("publishes distinct taxonomy triggers and keeps the opened menu inside the production-scoped root", async () => {
     const groupA: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax-a", name: "Category" }), terms: [] };
     const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax-b", name: "Tag" }), terms: [] };
     const { container } = renderTaxonomy({ taxonomies: [groupA, groupB] });
@@ -239,16 +251,12 @@ describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
     await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a" });
     await driver.settle?.();
 
-    // Through the production-shaped scoped root, the opened item is still invisible — not because
-    // the click failed, but because `RowMenu` rendered it into `document.body`, outside `container`.
+    // Only the opened taxonomy contributes an item to the scoped page.
     const afterScoped = await handlesOf(driver);
-    expect(afterScoped).not.toContain("taxonomy-menu-tax-a-item-delete");
+    expect(afterScoped).toContain("taxonomy-menu-tax-a-item-delete");
+    expect(afterScoped).not.toContain("taxonomy-menu-tax-b-item-delete");
 
-    // Proves the click DID work and the item DOES exist — just unreachable via the scoped root above.
-    // A driver rooted at `document.body` (never used by the real bridge; shown here only to isolate
-    // the cause) finds it immediately.
-    const bodyDriver = createDomPageDriver({ root: document.body, pages: {} });
-    expect(await handlesOf(bodyDriver)).toContain("taxonomy-menu-tax-a-item-delete");
+    expect(container.contains(screen.getByRole("menuitem", { name: "Delete taxonomy" }))).toBe(true);
   });
 });
 
@@ -258,7 +266,7 @@ describe("driving the term-level RowMenu through page.* verbs", () => {
       taxonomy: taxonomyMeta(),
       terms: [term({ id: "t-alpha", name: "Alpha" }), term({ id: "t-beta", name: "Beta" })],
     };
-    const { container } = renderTaxonomy({ taxonomies: [group] });
+    const { controller, container } = renderTaxonomy({ taxonomies: [group] });
     await screen.findByText("Alpha");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -273,15 +281,15 @@ describe("driving the term-level RowMenu through page.* verbs", () => {
     await executePageCapability(driver, "page.click", { handle: "taxonomy-term-t-alpha-menu" });
     await driver.settle?.();
 
-    // Same production-shaped scoped-root gap as the taxonomy-level menu above — see this file's
-    // "KNOWN GAP" comment. The item exists (confirmed via `document.body` below) but not here.
+    // Both menu levels must use the same page-owned portal container.
     const after = await handlesOf(driver);
-    expect(after).not.toContain("taxonomy-term-t-alpha-menu-item-delete");
+    expect(after).toContain("taxonomy-term-t-alpha-menu-item-delete");
 
-    const bodyDriver = createDomPageDriver({ root: document.body, pages: {} });
-    expect(await handlesOf(bodyDriver)).toContain("taxonomy-term-t-alpha-menu-item-delete");
     // Beta's own menu stays closed — its item never appears from Alpha's click.
     expect(after).not.toContain("taxonomy-term-t-beta-menu-item-delete");
-    expect(await handlesOf(bodyDriver)).not.toContain("taxonomy-term-t-beta-menu-item-delete");
+    await executePageCapability(driver, "page.click", { handle: "taxonomy-term-t-alpha-menu-item-delete" });
+    expect(controller.requestDeleteTerm).toHaveBeenCalledExactlyOnceWith(group.terms[0]);
+    expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+    expect(await handlesOf(driver)).not.toContain("taxonomy-term-t-alpha-menu-item-delete");
   });
 });

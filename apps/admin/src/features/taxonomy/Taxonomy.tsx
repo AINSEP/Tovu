@@ -1,5 +1,7 @@
 import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
-import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
+import { useState } from "react";
+import { ConfirmDialog } from "@jini-ai/admin/react";
+import { TaxonomyRowMenu } from "./TaxonomyRowMenu";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
@@ -569,6 +571,9 @@ function TaxonomyDeleteDialog({
 }
 
 export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps = {}) {
+  // Place popups outside the row scroller but inside the bridge's page scope.
+  // A callback ref supplies the mounted container before any menu can open.
+  const [menuPortalContainer, setMenuPortalContainer] = useState<HTMLDivElement | null>(null);
   const {
     taxonomies,
     error,
@@ -596,7 +601,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
   if (!taxonomies) return <div className="notice">{t("Loading taxonomies…")}</div>;
 
   return (
-    <div className="page">
+    <div className="page" ref={setMenuPortalContainer}>
       <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} t={t} />
       {error ? <div className="notice error">{error}</div> : null}
 
@@ -619,7 +624,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
           comment for the fuller diagnosis. */}
       {selected ? (
         <div className="settings-body">
-          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, t)}
+          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, menuPortalContainer, t)}
           <TermDetailPanel
             taxonomy={selected.taxonomy}
             term={selected.term}
@@ -632,7 +637,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
           />
         </div>
       ) : (
-        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, t)
+        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, menuPortalContainer, t)
       )}
 
       <TermDeleteDialog
@@ -681,6 +686,7 @@ function namespaceList(
     requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
     deleteTaxonomyBlocked: { taxonomyId: string; state: DeleteBlockedState } | null;
   },
+  menuPortalContainer: HTMLElement | null,
   t: (key: string) => string,
 ) {
   // Computed once, across every group, so two taxonomies whose names slugify identically still get
@@ -716,7 +722,8 @@ function namespaceList(
           <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
             <div className="taxonomy-namespace-group-header">
               <h2>{group.taxonomy.name}</h2>
-              <RowMenu
+              <TaxonomyRowMenu
+                portalContainer={menuPortalContainer}
                 triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
@@ -824,7 +831,8 @@ function namespaceList(
                           combines a `RowMenu` with a click-to-select row, so there was no existing
                           precedent to follow here. */}
                       <span onClick={(e) => e.stopPropagation()}>
-                        <RowMenu
+                        <TaxonomyRowMenu
+                          portalContainer={menuPortalContainer}
                           triggerLabel={t('Actions for term "{name}"').replace("{name}", term.name)}
                           agentHandle={`${termHandle}-menu`}
                           items={[
