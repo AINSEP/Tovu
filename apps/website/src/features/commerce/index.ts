@@ -12,3 +12,6 @@ export * from "./errors.js";
 export * from "./checkout.js";
 export * from "./webhook-inbox.js";
 export * from "./storefront.js";
+
+export { catalog as commerceStatusAgentToolCatalog, buildRegistrations as buildCommerceStatusRegistrations, contributeCommerceGetStatusTools } from "./status-tool.js";
+export type { Deps as CommerceStatusToolDeps } from "./status-tool.js";

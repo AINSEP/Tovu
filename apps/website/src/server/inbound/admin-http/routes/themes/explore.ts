@@ -1,3 +1,4 @@
+import { setThemePagePublished, ThemePagePublicationError } from "#src/features/theme/index";
 import type { Response } from "express";
 
 import {
@@ -1179,62 +1180,13 @@ function parseThemePagePublishBody(
 }
 
 /**
- * Compute the next `publishedPages` array for one publish/unpublish request.
- *
- * `currentPublishedPages` MUST come from the freshly-read `theme.json` on disk (`raw.publishedPages`),
- * never from `theme.manifest.publishedPages` — see {@link registerAdminThemePagePublishRoute}'s own
- * doc for why: `theme.manifest` is a boot-time (or last-`reloadTheme`) in-memory snapshot, and the
- * agent daemon is a SEPARATE OS process that can write `theme.json` through its own `writeThemeFile`
- * call without ever touching this process's `deps.themes`. Basing the computed array on the stale
- * in-memory value while writing it onto freshly-read disk JSON would silently discard whatever the
- * daemon (or any other writer) had just changed — confirmed by a failing regression test before this
- * fix (`explore-page-publish-route.test.ts`, "a concurrent writer's fresh theme.json is never
- * clobbered...").
- *
- * `currentPublishedPages === undefined` means this theme has never recorded a decision ANYWHERE — not
- * on disk, and therefore not in `theme.manifest` either, since `theme.manifest.publishedPages` is
- * itself only ever populated by parsing `theme.json`, and this route is the sole writer of that field.
- * Because {@link isStandaloneThemePage} already treats an absent array as "nothing published"
- * (2026-08-30 owner correction — see `ThemeManifest.publishedPages`'s own doc), there is nothing to
- * backfill: the base for a never-recorded theme is simply empty, so a theme's first-ever toggle
- * records only the one page this request names. Once a theme HAS a recorded array (on disk), this is
- * a plain add/remove against it, same as every other toggle.
- *
- * Sorted for a deterministic `theme.json` diff — irrelevant to {@link isStandaloneThemePage}'s own
- * `includes` check, which does not care about order.
- *
- * @complexity O(n) in the existing array's length.
- */
-function applyPagePublishToggle(
-  currentPublishedPages: string[] | undefined,
-  page: string,
-  published: boolean
-): string[] {
-  const next = new Set(currentPublishedPages ?? []);
-  if (published) next.add(page);
-  else next.delete(page);
-  return [...next].sort();
-}
-
-/** Safely reads `raw.publishedPages` (parsed straight from freshly-read `theme.json`, so its shape is
- *  as untrusted as any other on-disk field) as `string[] | undefined` — `undefined` for anything that
- *  is not literally an array of strings, matching {@link applyPagePublishToggle}'s own "never recorded
- *  a decision" meaning for `undefined` rather than letting a malformed value silently become the
- *  backfill base. */
-function rawPublishedPages(raw: Record<string, unknown>): string[] | undefined {
-  const value = raw.publishedPages;
-  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) return undefined;
-  return value as string[];
-}
-
-/**
  * POST — publish or unpublish one of a static theme's own pages.
  *
  * The real mechanism replacing the `_unpublished/` folder convention an agent invented ad hoc
  * (2026-08-29) — moving a live page's file out of `render/pages/` and dropping it from `theme.json`,
  * outside every audited read/write path, because no publish concept existed yet. See
- * `ThemeManifest.publishedPages` (`theme.ts`) for the full absent-vs-present contract this route is
- * the only writer of.
+ * `ThemeManifest.publishedPages` (`theme.ts`) for the full absent-vs-present contract implemented
+ * by the shared page-publication service.
  *
  * Reads and rewrites `theme.json`'s RAW parsed JSON directly — never `JSON.stringify(theme.manifest)`
  * — so every other field, including any this loader does not itself model, survives byte-for-byte;
@@ -1242,8 +1194,8 @@ function rawPublishedPages(raw: Record<string, unknown>): string[] | undefined {
  * PUT does for an arbitrary path: that function resolves `"editable"` for `theme.json` unconditionally,
  * compiled theme or not (see its own doc), so there is no scope this fixed path could ever fail.
  *
- * `raw` is read FIRST, and {@link applyPagePublishToggle}'s base comes from `raw.publishedPages` (via
- * {@link rawPublishedPages}) rather than `theme.manifest.publishedPages` — the in-memory manifest is a
+ * The shared service reads `raw.publishedPages` from disk rather than using
+ * `theme.manifest.publishedPages` — the in-memory manifest is a
  * snapshot from this process's last boot/`reloadTheme`, and the agent daemon is a separate OS process
  * that writes `theme.json` through its own tool without ever updating this process's `deps.themes`.
  * Computing the new array from the stale in-memory value and writing it onto the freshly-read disk
@@ -1270,41 +1222,12 @@ export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = (app, d
       }
       const { page, published } = parsedBody;
 
-      if (theme.manifest.tier !== "static") {
-        res.status(400).json({
-          error: `theme '${theme.manifest.id}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes`,
-          code: "NOT_STATIC_TIER",
-        });
-        return;
-      }
-
-      if (!isPublishableThemePageCandidate(theme, page)) {
-        res.status(404).json({
-          error: `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a declared template shell`,
-          code: "PAGE_NOT_PUBLISHABLE",
-        });
-        return;
-      }
-
-      const raw = JSON.parse(
-        readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json" })
-      ) as Record<string, unknown>;
-      const publishedPages = applyPagePublishToggle(rawPublishedPages(raw), page, published);
-      raw.publishedPages = publishedPages;
-      writeThemeFile({
-        themeDir: theme.dir,
-        themesRoot: deps.themesDir,
-        relativePath: "theme.json",
-        content: `${JSON.stringify(raw, null, 2)}\n`,
-      });
-
-      // Same boot-time-snapshot problem every other write in this file has — see `reloadTheme`'s doc
-      // comment. Skipping this means `theme.json` changed on disk but the live site keeps serving (or
-      // keeps hiding) the page against the stale in-memory manifest.
-      reloadTheme(deps, theme.manifest.id);
-
-      res.json({ page, published, publishedPages });
+      res.json(setThemePagePublished(deps, { themeId: theme.manifest.id, page, published }));
     } catch (err) {
+      if (err instanceof ThemePagePublicationError) {
+        res.status(err.status).json({ error: err.message, code: err.code });
+        return;
+      }
       sendThemeFileError(res, err);
     }
   });

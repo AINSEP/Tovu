@@ -1,3 +1,8 @@
+import { catalog as identityPolicyPermissionsCatalog } from "../../features/identity/permission-list-tool.js";
+import { catalog as sitesListCatalog } from "../../features/sites/list-tool.js";
+import { catalog as publishDisconnectCatalog } from "../../features/publish-content/disconnect-tool.js";
+import { catalog as themePagePublishedCatalog } from "../../features/theme/page-publish-tool.js";
+import { catalog as commerceStatusCatalog } from "../../features/commerce/status-tool.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -178,6 +183,11 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * `assistant/tool-registration-kit.ts`.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  "identity-policy-list-permissions": identityPolicyPermissionsCatalog as unknown as AgentToolDefinition[],
+  "sites-list": sitesListCatalog as unknown as AgentToolDefinition[],
+  "publish-content-disconnect": publishDisconnectCatalog as unknown as AgentToolDefinition[],
+  "theme-set-page-published": themePagePublishedCatalog as unknown as AgentToolDefinition[],
+  "commerce-get-status": commerceStatusCatalog as unknown as AgentToolDefinition[],
   "domain-dns": domainDnsAgentToolCatalog,
   "content-types": contentTypesAgentToolCatalog,
   forms: formsAgentToolCatalog,

@@ -227,3 +227,7 @@ export {
   type SyncThemeOriginalsResult,
   type SyncThemeOriginalsThemeResult,
 } from "./sync-originals.js";
+
+// Shared admin and assistant page-publication service.
+export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
+export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";

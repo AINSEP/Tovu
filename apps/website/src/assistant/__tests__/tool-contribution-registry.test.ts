@@ -167,6 +167,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // that addition. See `features/agent-plugins/tool-registrations.ts`'s own "search_agent_plugin_local"
   // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
+    "identity-policy-list-permissions",
+    "sites-list",
+    "publish-content-disconnect",
+    "theme-set-page-published",
+    "commerce-get-status",
     "agent-plugin-search",
     // 2026-09-27 (S-G1, 1ec285153): `agent_plugin_connect`, the generic "connect this plugin's
     // account" tool (`features/agent-plugins/tool-registrations.ts`).

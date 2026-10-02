@@ -11,6 +11,39 @@
  * writeup. This file is the honest redo. Scored by `tool-search-doc2query-canary.eval.ts`.
  */
 export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
+  // n07 admin parity (2026-10-01): task-derived vocabulary additions.
+  identity_policy_list_permissions: [
+    "What access does this policy grant?",
+    "Show the permission rows and resource constraints for this policy.",
+    "What can this role do after its policies are attached?",
+    "Read the grants on this policy before changing user access.",
+    "What actions is this role allowed to perform?",
+    "Show the permissions granted by the role's policy.",
+  ],
+  sites_list: [
+    "Which client sites are stored on this computer?",
+    "List my local sites before copying one.",
+    "Which site is currently serving and which is queued for restart?",
+    "Can I see the site registry when switching is disabled?",
+  ],
+  publish_content_disconnect: [
+    "Disconnect this computer from the live publish destination.",
+    "Stop publishing content to the connected site.",
+    "Forget the connected destination and reverse its publishing grant.",
+    "Undo the connection to my live site.",
+  ],
+  theme_set_page_published: [
+    "Publish the about page supplied by this theme.",
+    "Unpublish a standalone static theme page.",
+    "Hide the pricing page in this theme.",
+    "Show this theme page publicly again.",
+  ],
+  commerce_get_status: [
+    "Is my store set up and which payment providers are available?",
+    "Check commerce setup status.",
+    "Does this site support checkout or recurring subscriptions yet?",
+    "Can commerce report revenue or reconcile payment webhooks?",
+  ],
   domain_lookup_dns: [
     "What DNS records does my domain have?",
     "Show the A and AAAA IP addresses for the apex and www.",

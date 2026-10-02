@@ -1,3 +1,8 @@
+import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
+import { contributeSitesListTools } from "#src/features/sites/list-tool";
+import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
+import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
+import { contributeCommerceGetStatusTools } from "#src/features/commerce/index";
 import {
   registerDerivedToolContributor,
   registerToolContributor,
@@ -271,6 +276,11 @@ export function installFirstPartyToolContributors(): void {
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
   // header for why the two halves use different wiring seams.
+  registerToolContributor(contributeIdentityPolicyListPermissionsTools());
+  registerToolContributor(contributeSitesListTools());
+  registerToolContributor(contributePublishContentDisconnectTools());
+  registerToolContributor(contributeThemeSetPagePublishedTools());
+  registerToolContributor(contributeCommerceGetStatusTools());
   registerToolContributor(contributeAgentPluginSearchTools());
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
   // this plugin's account" tool any OAuth-authenticated Agent Plugin uses — and its access-token

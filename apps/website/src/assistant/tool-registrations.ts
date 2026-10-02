@@ -1,3 +1,5 @@
+import type { Deps as SitesListToolDeps } from "../features/sites/list-tool.js";
+import type { CommerceStatusToolDeps } from "../features/commerce/index.js";
 /**
  * @file ADR-049 Decision 4's assembly point: the single place that composes every domain's agent
  * tools into the list registered into the assistant's `ToolRegistry` (`kernel.ts`), so a run's tool
@@ -254,6 +256,8 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &
+  SitesListToolDeps &
+  CommerceStatusToolDeps &
   TaxonomyToolDeps &
   ThemeToolDeps &
   SetActiveThemeToolDeps &

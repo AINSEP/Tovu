@@ -126,7 +126,7 @@ type PublishContentToolAuthorize = Parameters<typeof requireToolPermission>[0]["
  *  against the same {@link resolveCommittedConfigRoot} so an assistant-tool connect and a dialog
  *  connect never disagree about which file they wrote.
  *  @complexity O(1). */
-function defaultProvisioning(): PublishTrustProvisioningPort {
+export function defaultProvisioning(): PublishTrustProvisioningPort {
   return createFileProvisioning({
     io: nodeProvisioningFileIo,
     codec: COMMITTED_JSON_CODEC,
@@ -139,7 +139,7 @@ function defaultProvisioning(): PublishTrustProvisioningPort {
  *  uses, and NOT the bare process working directory (see that function's own doc for why: own-
  *  server mode's cwd is wherever opened Electron, not the repo root).
  *  @complexity O(1) plus up to four file reads. */
-function defaultFindCandidate(): Promise<string | null> {
+export function defaultFindCandidate(): Promise<string | null> {
   const repoRoot = resolveCommittedConfigRoot();
   return findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
 }
