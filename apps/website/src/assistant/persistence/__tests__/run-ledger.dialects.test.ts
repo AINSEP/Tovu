@@ -173,7 +173,7 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal((await row(kernel, "a1")).content, "Final");
   });
 
-  test("reconcileInterrupted fails every queued/running assistant row, keeps content, appends the notice", async () => {
+  test("reconcileInterrupted cancels interrupted rows across the batch without changing completed or user rows", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [
       { id: "a1", content: "Partial", events: [{ kind: "text", text: "Partial" }], position: 0 },
@@ -189,11 +189,11 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
       content: "Partial",
       events_json: JSON.stringify([{ kind: "text", text: "Partial" }, RESTART_NOTICE]),
       events: [{ kind: "text", text: "Partial" }, RESTART_NOTICE],
-      run_status: "failed",
+      run_status: "canceled",
       ended_at: T0 + 7,
     });
     const a2 = await row(kernel, "a2");
-    assert.equal(a2.run_status, "failed");
+    assert.equal(a2.run_status, "canceled");
     assert.equal(a2.ended_at, T0 + 1, "an existing ended_at is kept");
     assert.deepEqual((await row(kernel, "a3")).events, [RESTART_NOTICE], "a corrupt event log is replaced, not fatal");
     assert.equal((await row(kernel, "a4")).run_status, "succeeded");

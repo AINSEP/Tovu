@@ -85,12 +85,12 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       /*
        * Boot-time repair, before any route can serve a transcript: a turn still `queued`/`running`
        * now belongs to a run from before this boot, and that run died with the old process (the
-       * daemon is this process's child). Marked failed with the plain restart notice, content kept,
+       * daemon is this process's child). Marked canceled with the plain restart notice, content kept,
        * never deleted — otherwise the pane spins on it forever. See `run-ledger.ts`.
        */
       const reconciled = deps.chatRunLedger.reconcileInterrupted().then(
         (repaired) => {
-          if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) failed`);
+          if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) canceled`);
         },
         (error: unknown) => {
           // A failed repair leaves rows `running` (the pane shows them spinning); it must not keep

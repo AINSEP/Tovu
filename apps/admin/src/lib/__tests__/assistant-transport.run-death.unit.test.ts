@@ -196,7 +196,6 @@ describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(h.errors.map((e) => e.message)).toEqual([
-      "assistant stream connection error",
       "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.",
     ]);
     expect(h.done).not.toBeNull();
@@ -237,7 +236,7 @@ describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(h.errors.map((e) => e.message)).toEqual(["assistant stream connection error"]);
+    expect(h.errors.map((e) => e.message)).toEqual([]);
     expect(h.done).toBeNull();
     expect(source.closed).toBe(false);
   });

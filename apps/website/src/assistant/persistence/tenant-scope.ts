@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 
-import type { ChatHistoryStore } from "@jini-ai/chat/core";
+import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
+import { RUN_INTERRUPTED_DETAIL, RUN_INTERRUPTED_LABEL } from "#src/contracts/core/assistant-run-events";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
 import { createChatHistoryStore } from "./chat-history-store.js";
@@ -74,6 +75,17 @@ export type ChatPrincipal = AdminChatPrincipal | GuestChatPrincipal;
 export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
 /**
+ * The browser's onError/onDone pair reports interruption as failed. Recognize only the exact
+ * saved restart notice so whichever writer wins records canceled; genuine failures stay failed.
+ * @complexity O(message events) time, O(1) space; no storage or input mutation.
+ */
+function isInterruptedBrowserSave(message: ChatMessage): boolean {
+  return message.runStatus === "failed" && (message.events?.some((event) =>
+    event.kind === "status" && event.label === RUN_INTERRUPTED_LABEL && event.detail === RUN_INTERRUPTED_DETAIL
+  ) ?? false);
+}
+
+/**
  * Returns chat history scoped to exactly one principal.
  *
  * There is no sibling function that returns an unscoped store, and that absence is the design.
@@ -113,9 +125,10 @@ export function createTenantScopedChatStore(
      */
     async appendMessage(conversationId, message) {
       if (message.role !== "assistant" || !message.runId) return store.appendMessage(conversationId, message);
+      const normalized = isInterruptedBrowserSave(message) ? { ...message, runStatus: "canceled" as const } : message;
       const outcome = await ledger.unlessSettled(
         { conversationId, messageId: message.id, runId: message.runId },
-        () => store.appendMessage(conversationId, message)
+        () => store.appendMessage(conversationId, normalized)
       );
       if (outcome.written) return outcome.value;
       const saved = await store.messages(conversationId);

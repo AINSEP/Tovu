@@ -279,7 +279,8 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     }
     // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
     // than a run-level error frame.
-    handlers.onError(new Error("assistant stream connection error"));
+    // EventSource reconnects automatically. onError would make the chat hook's failed status
+    // sticky even after a successful end, so a transport drop must not classify the run itself.
     // The agent daemon restarts on every dev API reload and keeps runs in memory only, so a drop
     // can mean the run no longer exists anywhere. EventSource would retry into a 404 forever and
     // the chat would stay "running", so ask the daemon; only a 404 ends the run here.

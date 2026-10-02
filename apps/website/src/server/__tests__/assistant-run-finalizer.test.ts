@@ -203,7 +203,7 @@ test("streamed text deltas are saved as one text event per run, by the server fi
   ]);
 });
 
-test("a run the daemon forgot (it restarted) is saved failed, keeping what it produced, with the plain restart message", async (t) => {
+test("a run the daemon forgot (it restarted) is saved canceled, keeping what it produced, with the plain restart message", async (t) => {
   const daemon = fakeDaemon({
     // The daemon dies mid-answer: the stream just stops, and the respawned daemon has never heard of the run.
     events: () => streamOf(text("Half an ans")),
@@ -217,7 +217,7 @@ test("a run the daemon forgot (it restarted) is saved failed, keeping what it pr
   await finalizer.idle();
 
   const row = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(row.runStatus, "failed");
+  assert.equal(row.runStatus, "canceled");
   assert.equal(row.content, "Half an ans");
   assert.deepEqual(row.events, [
     { kind: "text", text: "Half an ans" },
@@ -225,7 +225,7 @@ test("a run the daemon forgot (it restarted) is saved failed, keeping what it pr
   ]);
 });
 
-test("a run in flight when the API process dies is saved failed at the next boot, with what it produced so far", async (t) => {
+test("a run in flight when the API process dies is saved canceled at the next boot, with what it produced so far", async (t) => {
   const stream = controllableStream();
   const daemon = fakeDaemon({ events: () => stream.response, runStatus: 404 });
   const deps = createRouteDeps();
@@ -246,7 +246,7 @@ test("a run in flight when the API process dies is saved failed at the next boot
   const reboot = harness(fakeDaemon({ events: () => streamOf() }), deps);
   const rebooted = await bootAuthenticated(reboot.app, t);
   const row = await assistantRow(rebooted.baseUrl, rebooted.cookie, conversationId);
-  assert.equal(row.runStatus, "failed");
+  assert.equal(row.runStatus, "canceled");
   assert.equal(row.content, "Still writ");
   assert.deepEqual(row.events, [
     { kind: "text", text: "Still writ" },
@@ -367,7 +367,7 @@ test("a retry (same message, new run id) is a new turn and is not blocked by the
   assert.equal(row.content, "Second try worked");
 });
 
-test("on boot, turns stuck at running or queued are marked failed with the plain message and kept", async (t) => {
+test("on boot, turns stuck at running or queued are marked canceled with the plain message and kept", async (t) => {
   const deps = createRouteDeps();
   // Seeded under some other admin: the repair spans every owner.
   const store = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: "another-admin" });
@@ -401,13 +401,13 @@ test("on boot, turns stuck at running or queued are marked failed with the plain
   const byId = new Map(messages.map((m) => [m.id, m]));
   assert.equal(messages.length, 4, "no row may be deleted");
 
-  assert.equal(byId.get("a1")?.runStatus, "failed");
+  assert.equal(byId.get("a1")?.runStatus, "canceled");
   assert.equal(byId.get("a1")?.content, "Partial");
   assert.deepEqual(byId.get("a1")?.events, [
     { kind: "text", text: "Partial" },
     { kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL },
   ]);
-  assert.equal(byId.get("a2")?.runStatus, "failed");
+  assert.equal(byId.get("a2")?.runStatus, "canceled");
   assert.deepEqual(byId.get("a2")?.events, [{ kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL }]);
   assert.equal(byId.get("a3")?.runStatus, "succeeded");
   assert.deepEqual(byId.get("a3")?.events, [{ kind: "text", text: "Done" }]);

@@ -14,14 +14,14 @@
  *
  * - `end` frame: the daemon's own classification (`succeeded`/`failed`/`canceled`) with the full
  *   answer and events.
- * - the daemon answers 404 for the run (it restarted and forgot it): `failed`, keeping every event
+ * - the daemon answers 404 for the run (it restarted and forgot it): `canceled`, keeping every event
  *   received so far, plus the plain restart notice.
  * - this API process exits or is killed (which also kills the daemon, `daemon-supervisor.ts`): no
  *   write can finish then (storage is async, an `exit` listener cannot await), so the finalizer
  *   checkpoints the answer as it streams (`ChatRunLedger.checkpoint`, at most once per
  *   `checkpointIntervalMs`, with a trailing checkpoint so a run that goes quiet still has its last
  *   frames saved within one interval), and the next boot's `ChatRunLedger.reconcileInterrupted` marks the row
- *   failed, keeping that partial answer and appending the plain restart notice.
+ *   canceled, keeping that partial answer and appending the plain restart notice.
  *
  * Every write goes through `ChatRunLedger.settle`, which only changes a row that still belongs to
  * this run and is not yet terminal. So when a browser IS attached and saves the same turn first, the
@@ -112,9 +112,13 @@ interface Watch {
   readonly runId: string;
   events: AgentEvent[];
   failed: boolean;
-  /** How many events the last checkpoint saved, and when (see `checkpoint`). */
+  /** Event count and start time of the latest checkpoint attempt (writes are best effort). */
   checkpointedEvents: number;
   checkpointedAt: number;
+  /** Only one best-effort progress write at a time; later frames are coalesced into the next one. */
+  checkpointPending: boolean;
+  /** Stops progress scheduling as soon as the terminal outcome is known, before its durable write. */
+  terminal: boolean;
   /** The trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
   trailing?: ReturnType<typeof setTimeout>;
 }
@@ -124,7 +128,8 @@ type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind:
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * @complexity O(frames) per watched run; one open daemon connection per in-flight run.
+ * @complexity O(frame bytes + serialized checkpoint bytes) per run; O(collected events) space,
+ *   with one open daemon connection and at most one pending checkpoint per in-flight run.
  */
 export function createAssistantRunFinalizer(options: AssistantRunFinalizerOptions): AssistantRunFinalizer {
   const daemon = options.daemon ?? httpRunDaemonClient;
@@ -134,7 +139,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const checkpointIntervalMs = options.checkpointIntervalMs ?? 1_000;
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
 
+  /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
   async function settle(watch: Watch, status: RunSettlement["status"], events: AgentEvent[]): Promise<void> {
+    watch.terminal = true;
+    clearTimeout(watch.trailing);
+    watch.trailing = undefined;
     await options.ledger.settle({
       conversationId: watch.conversationId,
       messageId: watch.messageId,
@@ -147,7 +156,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   }
 
   function settleInterrupted(watch: Watch): Promise<void> {
-    return settle(watch, "failed", [...watch.events, runInterruptedNotice()]);
+    return settle(watch, "canceled", [...watch.events, runInterruptedNotice()]);
   }
 
   /**
@@ -159,8 +168,14 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
    * interval. Without it, a run that goes quiet (a long tool call) right after a skipped frame kept
    * its last text and tool-call start in memory only, lost on any stop — the process `exit` flush
    * that used to cover a graceful stop is gone (an `exit` listener cannot await an async write).
+   * At most one checkpoint is pending per run. It never blocks frame consumption: otherwise a
+   * slow progress write holds an already-buffered `end` behind it, leaving a finished turn running
+   * for startup repair to misclassify. Later progress is coalesced when the pending write finishes.
+   * Terminal settlement uses the ledger's terminal guard to reject any late checkpoint.
+   * @complexity O(saved events) per write, with one pending write and one trailing timer per run.
    */
   async function checkpoint(watch: Watch): Promise<void> {
+    if (watch.terminal || watch.checkpointPending) return;
     if (watch.events.length <= watch.checkpointedEvents) return;
     const wait = checkpointIntervalMs - (now() - watch.checkpointedAt);
     if (wait > 0) {
@@ -177,6 +192,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     watch.trailing = undefined;
     watch.checkpointedEvents = watch.events.length;
     watch.checkpointedAt = now();
+    watch.checkpointPending = true;
     // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
     await options.ledger
       .checkpoint({
@@ -186,7 +202,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         content: runContentFromEvents(watch.events),
         events: runEventsForSave(watch.events),
       })
-      .catch((error: unknown) => console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error));
+      .catch((error: unknown) => console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error))
+      .finally(() => {
+        watch.checkpointPending = false;
+        void checkpoint(watch);
+      });
   }
 
   /** Reads one connection to the end. The daemon replays from event 0 on every connection, so the
@@ -202,9 +222,10 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       watch.events.push(...outcome.events);
       if (outcome.error) watch.failed = true;
       if (outcome.terminal) {
+        watch.terminal = true;
         return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
       }
-      await checkpoint(watch);
+      void checkpoint(watch);
     }
     return { kind: "dropped" };
   }
@@ -220,7 +241,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       await delay(reconnectDelayMs);
     }
     // Gave up without proof either way. The row stays `running`: the browser can still reattach,
-    // and the next boot's reconcile marks it failed if nothing else does.
+    // and the next boot's reconcile marks it interrupted if nothing else does.
   }
 
   return {
@@ -239,6 +260,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         failed: false,
         checkpointedEvents: 0,
         checkpointedAt: Number.NEGATIVE_INFINITY,
+        checkpointPending: false,
+        terminal: false,
       };
       const done = follow(watch)
         .catch((error: unknown) => {

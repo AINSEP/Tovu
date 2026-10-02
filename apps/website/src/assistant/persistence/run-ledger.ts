@@ -25,7 +25,7 @@ import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
  * ONE Kysely body over the chat kernel (`platform/db/chat-kernel.ts`), for every dialect. Nothing
  * here returns message content to a caller; the one cross-owner operation
  * ({@link ChatRunLedger.reconcileInterrupted}) only ever moves rows from `queued`/`running` to
- * `failed`. No row is ever deleted.
+ * `canceled` with an interruption notice. No row is ever deleted.
  */
 
 const TERMINAL_STATUSES = ["succeeded", "failed", "canceled"] as const;
@@ -72,7 +72,7 @@ export interface ChatRunLedger {
    */
   checkpoint(progress: RunProgress): Promise<boolean>;
   /**
-   * Boot-time repair: marks every assistant row still `queued`/`running` as `failed`, keeping its
+   * Boot-time repair: marks every assistant row still `queued`/`running` as `canceled`, keeping its
    * content and events and appending the plain restart notice. Resolves how many rows it changed.
    *
    * Correct at boot because the agent daemon is a child of this process
@@ -202,7 +202,7 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
             db
               .updateTable("ai_chat_messages")
               .set((eb) => ({
-                run_status: "failed",
+                run_status: "canceled",
                 events_json: JSON.stringify(eventsWithNotice(row.events_json)),
                 ended_at: eb.fn.coalesce("ended_at", eb.val(now)),
               }))
