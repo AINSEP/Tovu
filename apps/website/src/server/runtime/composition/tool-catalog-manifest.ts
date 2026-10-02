@@ -17,6 +17,9 @@ import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, list
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
+import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
+import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
+import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
@@ -304,6 +307,7 @@ export function installFirstPartyToolContributors(): void {
   })));
   registerToolContributor(contributeEntriesTools());
   registerToolContributor(contributeExternalMcpTools());
+  registerToolContributor(contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions }));
   registerToolContributor(contributeFsFilesTools());
   registerToolContributor(contributeFormsTools());
   registerToolContributor(contributeIdentityTools());

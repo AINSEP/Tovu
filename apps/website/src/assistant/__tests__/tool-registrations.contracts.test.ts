@@ -14,6 +14,7 @@ import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
+import { externalMcpOperationsToolCatalog } from "../../features/external-mcp/operations-tools.js";
 import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
@@ -260,6 +261,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // catalog entry here — distinct from the already-present `external-mcp-reauth` above, a different
   // domain that only wires the single re-auth notice tool.
   "external-mcp": externalMcpAgentToolCatalog as unknown as AgentToolDefinition[],
+  "external-mcp-operations": externalMcpOperationsToolCatalog as unknown as AgentToolDefinition[],
   // Same class again: `fs-files` (`fs_list_files`/`fs_read_file`, 2026-09-10) was wired via
   // `contributeFsFilesTools()` with no entry here, so the completeness test above and every per-tool
   // lookup that reached `fs_list_files` went red.

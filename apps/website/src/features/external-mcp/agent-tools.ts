@@ -20,8 +20,8 @@
  *   same reasoning applies one layer up: two tools would be two validators of one contract, and an
  *   agent updating a server it just created would have to remember which tool it used the first
  *   time. HUMAN-CONFIRMED: this never writes silently. See `tool-registrations.ts`'s handler.
- * - `external_mcp_test_connection` — read-only. Reports whether an ALREADY-SAVED server's
- *   configuration resolves cleanly (decrypts, has everything its transport needs, isn't sitting on
+ * - `external_mcp_test_connection` — checks an ALREADY-SAVED server's configuration, and may
+ *   refresh an OAuth grant. Reports whether its configuration resolves cleanly (decrypts, has everything its transport needs, isn't sitting on
  *   an expired OAuth grant) — see that tool's own description for exactly what it does and does not
  *   check.
  * - `external_mcp_oauth_connect` / `external_mcp_oauth_poll_device` — the two moves the hard
@@ -34,7 +34,7 @@
  *
  * ## What no tool here ever accepts as input
  *
- * `env` (the stdio credential block) and `oauthClientSecret` are absent from every input schema
+ * `env` (the stdio credential block), `accessToken` and `oauthClientSecret` are absent from every input schema
  * below, on purpose, not by omission. A tool argument is text the model chose to write, and — same
  * as `deployment_propose_custom_provider_credential`'s identical rule — a secret typed into a tool
  * call is a secret written into the conversation transcript. Every secret field is entered by the
@@ -125,6 +125,7 @@ const SAVE_INPUT_SCHEMA = {
       description:
         "'none' for a server that needs no credentials at all. 'static_env' for one that takes a pasted API key or token (the human types it directly into the confirmation form — never pass a credential value as a tool argument). 'oauth' for a server whose credentials are obtained by a browser sign-in or device code — see external_mcp_oauth_connect.",
     },
+    accessTokenEnvName: { type: "string", description: "For stdio + static_env: the environment variable NAME that receives the token entered by the human. Never a credential value." },
     oauthProviderId: {
       type: "string",
       description: "Only meaningful when authMode is 'oauth'. A registered OAuth provider id. Leave unset to instead supply this connection's own endpoints below.",
@@ -190,9 +191,9 @@ export const externalMcpAgentToolCatalog: readonly AgentToolDefinition[] = [
       "Checks whether an ALREADY-SAVED external MCP server's configuration resolves cleanly: its stored credentials decrypt, its transport has what it needs (a command for 'stdio', a URL for 'streamable_http'), and — for an OAuth connection — it is actually authorized rather than 'needs_reauth' or never connected.",
       "This does NOT launch the command or make a network call to the remote server — it reports the same readiness check the daemon itself performs at boot before federating a server, not a live reachability probe. A server that passes this can still fail to actually connect for reasons this call cannot see (a wrong command, a server that is down); a server that fails this is reported with the exact operator-actionable reason.",
       "Only works on a server that has already been saved (via external_mcp_save) — it takes an id, not a draft configuration, and cannot be used to test-run an arbitrary unsaved command.",
-      "Returns { ok: true } or { ok: false, reason }. Has no side effects.",
+      "Returns { ok: true } or { ok: false, reason }. OAuth token resolution may contact the authorization provider and persist a refreshed grant. Use external_mcp_probe_connection to test a hosted endpoint live, or external_mcp_get_admissions to read the assistant's current tool roster.",
     ].join(" "),
-    sideEffects: "none",
+    sideEffects: "mutates-durable-state",
     authorization: { permission: EXTERNAL_MCP_MANAGE_PERMISSION },
     inputSchema: SERVER_ID_INPUT_SCHEMA,
   },

@@ -27,7 +27,7 @@ import type { ExternalMcpServerView } from "#src/assistant/index";
  *
  * ## Secrets never appear as `value`
  *
- * `env`/`oauthClientSecret` are rendered `secret: true` with NO `value` — never pre-filled, even
+ * `env`/`accessToken`/`oauthClientSecret` are rendered `secret: true` with NO `value` — never pre-filled, even
  * when updating a row that already has one, because there is nothing to pre-fill FROM: no read model
  * in this subsystem ever returns a stored secret (see `apps/admin`'s own `use-external-mcp.hooks.ts`
  * header for the identical rule, restated for the identical reason). Leaving it blank on submit is
@@ -55,6 +55,8 @@ export interface ExternalMcpSaveInput {
    *  not also in `allowedToolNames` (`external-mcp-store.ts`'s `assertWriteAllowlistSubset`). */
   writeAllowedToolNames?: string;
   authMode?: string;
+  /** Non-secret name of the stdio variable that receives the human-entered token. */
+  accessTokenEnvName?: string;
   oauthProviderId?: string;
   oauthGrant?: string;
   oauthClientId?: string;
@@ -91,6 +93,7 @@ export function mergeExternalMcpSavePrefill(
     allowedToolNames: input.allowedToolNames ?? existing.allowedToolNames.join(", "),
     writeAllowedToolNames: input.writeAllowedToolNames ?? existing.writeAllowedToolNames.join(", "),
     authMode: input.authMode ?? existing.authMode,
+    accessTokenEnvName: input.accessTokenEnvName ?? existing.accessTokenEnvName ?? undefined,
     oauthProviderId: input.oauthProviderId ?? existing.oauth.providerId ?? undefined,
     oauthGrant: input.oauthGrant ?? existing.oauth.grant ?? undefined,
     oauthClientId: input.oauthClientId ?? existing.oauth.clientId ?? undefined,
@@ -150,6 +153,16 @@ function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceFi
     ...fieldValue(input.writeAllowedToolNames),
     hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access.",
   };
+}
+
+/** A credential stays exclusively in the human form, with blank update submissions preserving it.
+ * @complexity O(1) for a fixed field list.
+ */
+function buildStaticTokenFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
+  return [
+    { kind: "string", name: "accessToken", label: "Access token", secret: true, hint: isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server." },
+    ...(isStdio ? [{ kind: "string" as const, name: "accessTokenEnvName", label: "Access token environment variable", ...fieldValue(input.accessTokenEnvName), hint: "The environment variable name the local command reads, e.g. API_TOKEN." }] : []),
+  ];
 }
 
 function buildEnvField(isUpdate: boolean): SurfaceField {
@@ -277,6 +290,7 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
     buildAllowedToolNamesField(input),
     buildWriteAllowedToolNamesField(input),
     ...(isStdio ? [buildEnvField(isUpdate)] : []),
+    ...(input.authMode === "static_env" || input.authMode === undefined ? buildStaticTokenFields(input, isUpdate, isStdio) : []),
     ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),
   ];
 }

@@ -184,6 +184,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "domain-dns",
     "entries",
     "external-mcp",
+    "external-mcp-operations",
     "fs-files",
     "forms",
     "identity",

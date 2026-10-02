@@ -33,6 +33,32 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Has my site's certificate expired?",
     "Does the certificate match the domain hostname?",
   ],
+  external_mcp_list: [
+    "Which external MCP servers are configured and enabled?",
+    "Show the status of my connected external MCP servers.",
+    "What external MCP integrations have I already set up?",
+    "List saved MCP servers and their OAuth connection status.",
+  ],
+  external_mcp_save: [
+    "Add an MCP server for a new integration.",
+    "Configure an external MCP server with a credential form.",
+    "Change my existing external MCP server settings.",
+    "Connect a new external MCP integration securely.",
+  ],
+  external_mcp_probe_connection: [
+    "Probe my hosted MCP server and show its advertised tools.",
+    "Test live external MCP reachability.",
+    "List tools advertised by my remote MCP server.",
+    "Check my hosted MCP endpoint connection.",
+    "Can the assistant reach this saved remote MCP server right now?",
+  ],
+  external_mcp_get_admissions: [
+    "Show external MCP admissions from the running assistant.",
+    "Which external MCP tools were actually admitted?",
+    "Why are configured MCP tools missing from the live roster?",
+    "Which external MCP tools did the assistant refuse?",
+    "I allowed tools in Settings but the assistant cannot use them; show configuration failures.",
+  ],
   // Added 2026-10-01 for menu deletion: trash_item postdates the original blind catalog.
   trash_item: [
     "How do I delete a navigation menu from the footer?",

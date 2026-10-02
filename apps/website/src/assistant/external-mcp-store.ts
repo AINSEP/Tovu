@@ -461,9 +461,10 @@ function parseEnvLine(rawLine: string, index: number): { readonly name: string; 
   if (line === "" || line.startsWith("#")) return null;
 
   const separator = line.indexOf("=");
+  // Validation reaches the model through the human form; never echo the credential block.
   if (separator <= 0) {
     throw new ExternalMcpValidationError(
-      `line ${index + 1} of the environment block is not \`NAME=VALUE\`: ${JSON.stringify(rawLine.slice(0, 40))}`,
+      `line ${index + 1} of the environment block is not \`NAME=VALUE\` — correct it in the connection form`,
       "env",
     );
   }
@@ -471,7 +472,7 @@ function parseEnvLine(rawLine: string, index: number): { readonly name: string; 
   const name = line.slice(0, separator).trim();
   if (!ENV_NAME_PATTERN.test(name)) {
     throw new ExternalMcpValidationError(
-      `'${name}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
+      `line ${index + 1} of the environment block has an invalid variable name (letters, digits and underscore, not starting with a digit)`,
       "env",
     );
   }
@@ -799,8 +800,9 @@ async function openExternalMcpEnv(
     const parsed: unknown = JSON.parse(opened);
     const env = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
     return { ok: true, env };
-  } catch (err) {
-    return { ok: false, reason: `stored credentials could not be decrypted: ${err instanceof Error ? err.message : String(err)}` };
+  } catch {
+    // These reasons reach admissions and chat tools. Parser/sealer errors can contain secret plaintext.
+    return { ok: false, reason: "stored credentials could not be decrypted — check the site credential store and re-enter them in Settings → External MCP" };
   }
 }
 
@@ -859,7 +861,11 @@ async function resolveExternalMcpAccessToken(
   try {
     return { ok: true, token: await oauth.resolveAccessToken({ serverId: record.serverId }) };
   } catch (err) {
-    return { ok: false, reason: `its OAuth access token could not be obtained: ${err instanceof Error ? err.message : String(err)}` };
+    // Preserve reauthorization as a typed outcome, without echoing raw provider error messages.
+    const needsReauth = err instanceof Error && "code" in err && err.code === "EXTERNAL_MCP_REAUTH_REQUIRED";
+    return { ok: false, reason: needsReauth
+      ? "its authorization expired or was revoked — reconnect it in Settings → External MCP"
+      : "its OAuth access token could not be obtained: OAuth token resolution failed — reconnect this server in Settings → External MCP" };
   }
 }
 
@@ -965,8 +971,9 @@ async function openExternalMcpStaticAccessToken(
   try {
     const payload = await openExternalMcpOAuthPayload(sealer, record);
     return { ok: true, token: payload.staticAccessToken ?? null };
-  } catch (err) {
-    return { ok: false, reason: `its stored access token could not be decrypted: ${err instanceof Error ? err.message : String(err)}` };
+  } catch {
+    // Never put decrypted payloads or cryptographic exception text into an operator/model response.
+    return { ok: false, reason: "its stored access token could not be decrypted — re-enter it in Settings → External MCP" };
   }
 }
 

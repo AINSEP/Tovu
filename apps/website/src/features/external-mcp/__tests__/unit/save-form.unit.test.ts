@@ -145,16 +145,16 @@ function fieldNames(input: ExternalMcpSaveInput, isUpdate: boolean): string[] {
   return buildExternalMcpSaveFormFields(input, isUpdate).map((f) => f.name);
 }
 
-test("stdio, create: id, label, command, args, allowedToolNames, writeAllowedToolNames, env — in that order, no oauth fields", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
+test("stdio, create: id, label, command, args, allowedToolNames, writeAllowedToolNames, env and static token fields — in that order, no oauth fields", () => {
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("stdio, update: id field is omitted", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("streamable_http transport: url field instead of command/args, and no env field", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "accessToken"]);
 });
 
 test("oauth + stdio: oauth core fields, then the stdio-only token-env field, then the endpoint fields", () => {

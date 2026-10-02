@@ -232,6 +232,7 @@ const SAVE_MODEL_OPTIONAL_FIELDS = [
   "allowedToolNames",
   "writeAllowedToolNames",
   "authMode",
+  "accessTokenEnvName",
   "oauthProviderId",
   "oauthGrant",
   "oauthClientId",
@@ -316,6 +317,8 @@ function buildSaveExternalMcpServerInputFromFormParams(
   const url = optionalStringField(params, "url");
   const authMode = optionalStringField(params, "authMode");
   const env = optionalSecretField(params, "env");
+  const accessToken = optionalSecretField(params, "accessToken");
+  const accessTokenEnvName = optionalStringField(params, "accessTokenEnvName");
   const oauth = buildOAuthSaveInputFromFormParams(params);
 
   const serverIdRaw = params.id;
@@ -339,6 +342,8 @@ function buildSaveExternalMcpServerInputFromFormParams(
     allowedToolNames: optionalStringField(params, "allowedToolNames") ?? "",
     writeAllowedToolNames: optionalStringField(params, "writeAllowedToolNames") ?? "",
     ...(env !== undefined ? { env } : {}),
+    ...(accessToken !== undefined ? { accessToken } : {}),
+    ...(accessTokenEnvName !== undefined ? { accessTokenEnvName } : {}),
     ...(oauth !== undefined ? { oauth } : {}),
     principalId,
   };
@@ -414,8 +419,8 @@ export const externalMcpDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   // -> saveExternalMcpServer(): repo.upsert() plus a seal, gated behind the human's own form
   //    confirmation (ADR-055-style held-open exchange, same shape as content_post_delete).
   ["external_mcp_save", "mutates-durable-state"],
-  // -> readEnabledExternalMcpConfigs(): decrypts to check readiness, never writes, never connects.
-  ["external_mcp_test_connection", "none"],
+  // -> readEnabledExternalMcpConfigs(): OAuth token resolution may persist a refreshed grant.
+  ["external_mcp_test_connection", "mutates-durable-state"],
   // -> externalMcpOAuth.beginConnect(): writes oauthStatus 'pending' (and, for a self-configuring
   //    connection, persists a minted client identity) before returning the authorization/device
   //    start. Durable.
@@ -455,7 +460,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       });
 
       if (!ctx.emitSurface) {
-        throw new Error(
+        throw new ToolInputError(
           "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), " +
             "so a connection form cannot be shown here. Nothing was saved.",
         );

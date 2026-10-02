@@ -87,6 +87,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // no keyword entry at all. Phrased from what an operator asks for when they want to plug in
   // another AI tool/service (the "connect me to higgsfield" style request), not from the domain's
   // own "MCP"/"transport"/"authMode" nouns.
+  external_mcp_probe_connection: "probe hosted remote endpoint live reachability advertised tools external mcp server connection test working check diagnose",
+  external_mcp_get_admissions: "external mcp admissions admitted refused missing configured tools live roster assistant running actual allowlisted blocked failures",
   external_mcp_list: "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai higgsfield",
   external_mcp_save: "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai higgsfield update edit change existing",
   external_mcp_test_connection: "test check connection working works verify diagnose troubleshoot external tool server integration mcp",
