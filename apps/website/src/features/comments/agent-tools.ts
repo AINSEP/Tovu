@@ -10,14 +10,9 @@
  * perform.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is NO `comments_purge` tool. `ports.ts#CommentRepoPort.purge`'s own doc comment calls it
- *   "the one irreversible act in the ladder" — a REAL row delete, unlike every status flip
- *   `applyModeration` performs. Forms' precedent (no `forms_delete_definition`, because
- *   `FormDefinitionRepoPort` has no delete method) and Identity's precedent (no password-reset
- *   tool, because it is an unrecoverable-in-effect primitive) both withhold the one lever in their
- *   domain that cannot be undone; `purge` is Comments' instance of that same lever. `trash` (soft,
- *   reversible via `restore`) is wired; `purge` (hard, unrecoverable) is not, and no description
- *   here may imply an agent can perform it.
+ * - Permanent removal is exposed separately by `comments_purge_comment` in the human-confirmed
+ *   `permanent-delete` contributor (owner Q1, 2026-10-01). This catalog owns reversible moderation;
+ *   that contributor owns the confirmation card and `comments.delete.force` gate.
  * - No tool wraps `CommentIngressPolicy.submit` (the public visitor-submission path) or any
  *   spam-classifier feedback (`SpamCheckPort.report`) — those are not admin/operator surfaces at
  *   all, they are the anonymous-visitor ingress boundary and a classifier-training seam
@@ -183,7 +178,7 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "comments_trash_comment",
     description:
-      "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. There is no agent-callable tool for a permanent removal; that stays human-UI-only.",
+      "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. For permanent removal, use comments_purge_comment, which waits for a human confirmation card.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "comments.delete" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,

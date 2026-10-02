@@ -205,8 +205,8 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
     },
 
     /**
-     * Permanent deletion of the selected rows. Reachable only from the Trash screen's confirm
-     * modal — there is no agent tool for it.
+     * Permanent deletion of selected rows. Called by the admin Trash screen or the assistant's
+     * human-confirmed permanent-delete tools; callers own confirmation, this service owns row auth.
      *
      * Per item, and per item only: one unavailable adapter, one stale version or one row the caller
      * may not touch must not abort the rest of the selection, so each row gets its own permission

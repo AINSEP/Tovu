@@ -11,6 +11,8 @@ import {
 } from "#src/assistant/index";
 import { contributeAgentPluginConnectTools, contributeAgentPluginSearchTools } from "#src/features/agent-plugins/tool-registrations";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
+import { contributePermanentDeleteTools } from "#src/features/permanent-delete/tool-registrations";
+import { buildPermanentDeleteDeps } from "./permanent-delete-deps.js";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
 import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
@@ -365,9 +367,9 @@ export function installFirstPartyToolContributors(): void {
   // `change_sets_list`/`change_sets_revert` (F7b option A, S6, 2026-09-24) — own domain key
   // (`"change-sets"`), sharing no key with any other contributor above.
   registerToolContributor(contributeChangeSetsTools());
-  // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
-  // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
-  // registration this function installs and fails if any handler can reach `purgeSelected`.
+  // Owner Q1 (2026-10-01): permanent deletes reuse the authenticated human-confirm exchange.
+  registerToolContributor(contributePermanentDeleteTools({ buildDeps: buildPermanentDeleteDeps }));
+  // Trash listing/restoring remains in its existing contributor.
   // (`trash_item` is not a contributor: `buildAssistantToolRegistrations` derives it afterwards from
   // the four per-domain delete tools, through the derived-contributor seam registered just below —
   // see `features/trash/trash-item-tool.ts`.)

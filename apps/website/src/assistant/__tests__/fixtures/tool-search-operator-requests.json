@@ -112,7 +112,7 @@
   {"id":"bk-03","area":"backup-recovery-trash","query":"whats in the trash","expect":["trash_list_items"]},
   {"id":"bk-04","area":"backup-recovery-trash","query":"recover the page i deleted","expect":["trash_restore_item"]},
   {"id":"bk-05","area":"backup-recovery-trash","query":"is my database healthy","expect":["database_get_health"]},
-  {"id":"bk-06","area":"backup-recovery-trash","query":"empty the trash","expect":[],"note":"deliberately no permanent-delete tool (human-only)"},
+  {"id":"bk-06","area":"backup-recovery-trash","query":"empty the trash","expect":["trash_empty"],"note":"permanent deletion requires a human confirmation card (owner Q1, 2026-10-01)"},
   {"id":"nl-01","area":"newsletter","query":"draft a newsletter about our new menu","expect":["newsletter_create_campaign"]},
   {"id":"nl-02","area":"newsletter","query":"send the newsletter to everyone","expect":[],"note":"deliberately no agent send/schedule tool"},
   {"id":"nl-03","area":"newsletter","query":"add bob@example.com to the newsleter","expect":["newsletter_create_subscription"],"note":"typo"},

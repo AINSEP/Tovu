@@ -44,6 +44,43 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Does this site support checkout or recurring subscriptions yet?",
     "Can commerce report revenue or reconcile payment webhooks?",
   ],
+
+  trash_empty: [
+    "Can you empty my Trash?", "Clear everything out of the recycle bin permanently.",
+    "I want all deleted items gone forever.", "Purge the entire Trash after I confirm the selection.",
+  ],
+  trash_purge_item: [
+    "Permanently delete this one item from Trash.", "Purge the deleted post I selected.",
+    "Remove this trashed page forever.", "Erase one deleted item permanently.",
+  ],
+  media_purge_asset: [
+    "Permanently delete this media file.", "Erase the trashed photo forever.",
+    "Purge a media asset from my library.", "Remove this image permanently after confirmation.",
+  ],
+  comments_purge_comment: [
+    "Permanently delete this comment.", "Erase a spam comment forever.",
+    "Purge this comment after I approve it.", "Remove a comment permanently.",
+  ],
+  identity_user_delete: [
+    "Permanently delete this user account.", "Remove the trashed user forever.",
+    "Purge a user after I confirm.", "Erase this user's account permanently.",
+  ],
+  external_mcp_delete: [
+    "Delete a saved External MCP server.", "Remove an external MCP integration permanently.",
+    "Erase this MCP connection configuration.", "Disconnect and delete the saved MCP server.",
+  ],
+  custom_credential_delete: [
+    "Delete this saved custom provider credential.", "Remove a custom API key from Access Tokens.",
+    "Erase the custom provider token I saved.", "Permanently delete a custom credential after I confirm.",
+  ],
+  deployment_delete_provider_credential: [
+    "Delete a saved publish host credential.", "Remove the hosting token from my saved credentials.",
+    "Erase this deployment provider credential.", "Permanently remove my publishing credential.",
+  ],
+  source_control_delete_credential: [
+    "Delete a saved source control credential.", "Remove my saved git token.",
+    "Erase this repository credential.", "Permanently remove my source control API key.",
+  ],
   domain_lookup_dns: [
     "What DNS records does my domain have?",
     "Show the A and AAAA IP addresses for the apex and www.",

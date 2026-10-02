@@ -1,7 +1,7 @@
 /**
  * @file Trash's agent-tool wiring: `trash_list_items` and `trash_restore_item`, and nothing else.
  *
- * Read `agent-tools.ts`'s header first — it carries the deliberate absence of a purge tool, and why
+ * Read `agent-tools.ts`'s header first — it names the separate confirmed-purge contributor, and why
  * `trash_item` is built in `trash-item-tool.ts` rather than here.
  *
  * Authorization shape: `TrashService` takes no `authorize` dependency at all, so, like Redirects,
@@ -56,7 +56,7 @@ const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
  * root; `RouteDeps` satisfies it as-is.
  *
  * `trash` is the whole {@link TrashPort} — including `purgeSelected`, which no handler below calls
- * and which `__tests__/tool-registrations.purge-ban.test.ts` proves no handler anywhere reaches.
+ * while the separate `permanent-delete` contributor reaches it only after a human Confirm click.
  */
 export interface TrashToolDeps {
   authorize: AuthorizeFn;
@@ -117,7 +117,7 @@ function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: Re
  * Trash's independent classification of what its own handlers do, compared for equality against
  * the catalog's self-declaration at build time (`assertToolIsWirable`).
  *
- * `purgeSelected` appears in neither map and in no catalog, so there is no id a future edit could
+ * `purgeSelected` appears in neither map in this listing/restoration contributor, so no id an edit could
  * add here that would wire it by accident — it would have to add a catalog entry and a handler too.
  */
 export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([

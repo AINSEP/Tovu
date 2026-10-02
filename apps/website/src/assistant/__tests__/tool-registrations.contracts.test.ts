@@ -10,6 +10,7 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
+import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
@@ -188,6 +189,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "publish-content-disconnect": publishDisconnectCatalog as unknown as AgentToolDefinition[],
   "theme-set-page-published": themePagePublishedCatalog as unknown as AgentToolDefinition[],
   "commerce-get-status": commerceStatusCatalog as unknown as AgentToolDefinition[],
+
+  "permanent-delete": permanentDeleteAgentToolCatalog,
   "domain-dns": domainDnsAgentToolCatalog,
   "content-types": contentTypesAgentToolCatalog,
   forms: formsAgentToolCatalog,
@@ -284,8 +287,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "publish-content": publishContentAgentToolCatalog as unknown as AgentToolDefinition[],
   // 2026-09-20: `trash` — `trash_list_items` and `trash_restore_item`, wired via
   // `contributeTrashTools()`. Added with the contributor rather than after this test caught it.
-  // The catalog has exactly two entries and must never grow a purge tool; see
-  // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
+  // Confirmed permanent deletes live in the separate permanent-delete contributor; see
+  // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`'s confirmed-call contract.
   //
   // 2026-09-24 (F6): the published entityType enum is now built from the kinds reachable through
   // `fakeRouteDeps()` at registration time, not a fixed catalog — `buildTrashRegistrations` builds
@@ -299,7 +302,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `buildAssistantToolRegistrations` (it reuses the four delete tools' built handlers), so it is in
   // neither `listToolContributors()` nor `DOMAIN_SLICES` and the completeness test above cannot
   // derive it. Hand-maintained like the `DOMAIN_SLICES`-only entries. Kept apart from `trash` on
-  // purpose: the purge-ban test proves that catalog holds exactly two tools.
+  // purpose: this contributor continues to own listing/restoration, rather than permanent deletion.
   "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
 };
 

@@ -10,13 +10,10 @@ import type { TrashRegistry } from "./registry.js";
  * @file The Trash domain's agent-tool catalog (SPEC-016 REQ-22's naming/callability convention).
  * Design of record: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`, step 5.
  *
- * **There is no purge tool here, and there must never be one.** The owner's ruling is that an agent
- * can never hard-delete: permanent removal happens only from the Trash screen's confirm modal, by a
- * human, with the rows selected by hand. This catalog is where that ruling is made structural —
- * `TrashPort.purgeSelected` has no entry, so `buildDomainRegistrations` has nothing to wire, and
- * `__tests__/tool-registrations.purge-ban.test.ts` walks every registered tool in the whole product
- * and fails the build if any handler can reach it. A tool omitted from a catalog cannot be called;
- * a prompt asking a model not to call one can be argued with.
+ * Owner Q1 (2026-10-01) supersedes the original purge ban: permanent removal is exposed by the
+ * separate `permanent-delete` contributor, through a human confirmation card. This catalog retains
+ * listing/restoration. `tool-registrations.purge-ban.test.ts` now proves that purge calls cannot
+ * reach the service without a Confirm click, and rejects model-supplied confirmation fields.
  *
  * **`trash_item` is not in this catalog, on purpose.** Moving something to the Trash is agent-callable
  * once per domain, through the tool that domain owns: `content_post_delete`, `comments_trash_comment`,
@@ -127,7 +124,7 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
         "that date are already excluded. Restore anything listed here with trash_restore_item. Reading this " +
         "never touches the deleted thing itself, so it works even on items whose content is corrupt. Rows the " +
         "caller has no permission to restore are omitted. " +
-        "There is no tool to empty the Trash or permanently delete an item; the owner does that from the Trash screen in the admin. " +
+        "Use trash_empty to empty the Trash or trash_purge_item to permanently delete one item; both wait for a human confirmation card. " +
         "Items here are removed automatically on the date shown.",
       sideEffects: "none",
       // The entry gate only. Each row is then filtered by the permission that would be needed to
@@ -145,7 +142,7 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
         "{ restored: true } on success. Returns restored:false with a reason when the item is not in the Trash " +
         "('not-found'), when it changed since it was deleted ('version-changed' — nothing was touched), or when " +
         "the plugin that owns that kind of thing is no longer installed ('adapter-unavailable'). " +
-        "There is deliberately NO tool for deleting something permanently: that is done by a human, from the Trash screen.",
+        "For permanent deletion, use trash_purge_item or trash_empty; both require a human confirmation card.",
       sideEffects: "mutates-durable-state",
       // Resolved per entity type at the handler; this declares the floor, and the handler checks the
       // permission that domain's own delete tool checked on the way in.

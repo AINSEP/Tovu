@@ -162,6 +162,7 @@ import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-ch
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
+import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
 import { listDerivedToolContributors, listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
 
@@ -235,6 +236,7 @@ import {
  * pre-existing gap this narrowing surfaces rather than introduces; see this dispatch's handoff notes.
  */
 export type AssistantToolRegistryDeps = CommentsToolDeps &
+  PermanentDeleteHostDeps &
   ContentTypesToolDeps &
   CustomCredentialsToolDeps &
   DatabaseToolDeps &

@@ -236,7 +236,8 @@ export interface TrashPort {
   }): Promise<TrashPage>;
 
   /**
-   * HUMAN-ONLY. Never exposed as an agent tool — see `tool-registrations.ts`'s registry test.
+   * Human-confirmed: the admin Trash screen and `permanent-delete` tools may reach this port only
+   * after confirmation. Tool input cannot self-confirm; see the confirmed-call contract tests.
    *
    * `authorizeItem` is REQUIRED, not optional. A permission check a call site may omit is a
    * permission check some call site eventually omits, and this operation is the one that cannot be

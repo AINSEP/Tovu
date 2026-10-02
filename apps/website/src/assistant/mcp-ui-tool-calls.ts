@@ -36,6 +36,15 @@ import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
  * narrow, widen only per-tool by deliberate choice).
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
+  "trash_empty",
+  "trash_purge_item",
+  "media_purge_asset",
+  "comments_purge_comment",
+  "identity_user_delete",
+  "external_mcp_delete",
+  "custom_credential_delete",
+  "deployment_delete_provider_credential",
+  "source_control_delete_credential",
   // `agent_plugin_set_access_token` (`features/agent-plugins/access-token-tool.ts`; moved 2026-09-29
   // from SPEC-052's Supabase-only `supabase_set_access_token`) holds up the SAME held-open-exchange
   // shape `custom_credential_set_token` does: it opens a `SurfaceExchangeStore` exchange and parks on
@@ -233,6 +242,14 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  * @complexity O(1).
  */
 export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean): boolean {
+  // Permanent-delete cards may answer a parked call, never execute a new call via this endpoint.
+  if (PERMANENT_DELETE_CONFIRMATION_TOOL_IDS.has(toolName)) return answersAnExchange;
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return true;
   return answersAnExchange && toolName.startsWith(FEDERATED_TOOL_ID_PREFIX);
 }
+
+const PERMANENT_DELETE_CONFIRMATION_TOOL_IDS: ReadonlySet<string> = new Set([
+  "trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
+  "identity_user_delete", "external_mcp_delete", "custom_credential_delete",
+  "deployment_delete_provider_credential", "source_control_delete_credential",
+]);

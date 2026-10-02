@@ -26,9 +26,13 @@ const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
  *  MCP-UI tool-calls endpoint, so they need no allowlist entry. */
 const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a2ui"]);
 
-/** Ids opened through a shared helper that takes `toolId` as a parameter (none today: the one user,
- *  `supabase-connect/tool-registrations.ts`, was deleted 2026-09-29). */
-const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>();
+/** Permanent-delete handlers iterate a static catalog and pass a parameterised toolId to
+ * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
+const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
+  "trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
+  "identity_user_delete", "external_mcp_delete", "custom_credential_delete",
+  "deployment_delete_provider_credential", "source_control_delete_credential",
+]);
 
 /** Allowlisted without opening an exchange — see `mcp-ui-tool-calls.ts` for each justification. */
 const NON_EXCHANGE_CARVE_OUTS = new Set(["content_post_search"]);
