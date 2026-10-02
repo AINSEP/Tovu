@@ -13,6 +13,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import type { ChildProcess } from "node:child_process";
 
 import { registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.ts";
@@ -193,6 +195,23 @@ test("isServeProcessForSite requires BOTH the site dir and the exact --port toke
   assert.equal(isServeProcessForSite("node cli.js serve /some/other/dir --port 4002", row), false);
 });
 
+test("isServeProcessForSite rejects directory and port prefix collisions", () => {
+  const row = { siteDir: "/fake/site/marker-2", port: 4002 };
+  for (const command of [
+    "node cli.js serve /fake/site/marker-20 --port 4002",
+    "node cli.js serve /fake/site/marker-2/child --port 4002",
+    "node cli.js serve /fake/site/marker-2 --port 40020",
+    "node cli.js serve /fake/site/marker-2 --port 4002x",
+    "node cli.js serve /fake/site/marker-2 --other-port 4002",
+  ]) {
+    assert.equal(isServeProcessForSite(command, row), false, command);
+  }
+  // Whitespace within a site path and regex metacharacters are literal path bytes.
+  const spaced = { siteDir: "/fake/site/My Site (1).v2", port: 4002 };
+  assert.equal(isServeProcessForSite("node cli.js serve /fake/site/My Site (1).v2 --port 4002 --watch", spaced), true);
+  assert.equal(isServeProcessForSite("node cli.js serve /fake/site/My Site (1).v2-old --port 4002", spaced), false);
+});
+
 test("terminateOrphan sends SIGTERM and confirms the child actually exited, needing no escalation", async () => {
   const siteDir = "/fake/site/marker-3";
   const port = 4003;
@@ -248,6 +267,36 @@ test("terminateOrphan on an already-gone pid is a safe no-op", async () => {
   const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" });
   await waitForExit(child);
   await assert.doesNotReject(terminateOrphan({ siteDir: "/gone", port: 1, pid: child.pid! }, 200));
+});
+
+test("terminateOrphan waits for exit after SIGKILL is accepted", async (t) => {
+  const pid = 999_901;
+  let alive = true;
+  let observeKilledExit: (() => void) | undefined;
+  const signals: NodeJS.Signals[] = [];
+  t.mock.method(process, "kill", (target: number, signal: NodeJS.Signals | number = "SIGTERM") => {
+    assert.equal(target, pid);
+    if (signal === 0) {
+      if (!alive) throw Object.assign(new Error("gone"), { code: "ESRCH" });
+    } else {
+      signals.push(signal as NodeJS.Signals);
+      // A successful kill request precedes observed exit. Only a subsequent liveness
+      // probe observes the kernel's completed exit, making this race deterministic.
+      if (signal === "SIGKILL") observeKilledExit = () => { alive = false; };
+    }
+    if (signal === 0) observeKilledExit?.();
+    return true;
+  });
+  t.mock.method(childProcess, "execFileSync", () => "node cli.js serve /fake/site/kill-wait --port 4045");
+  syncBuiltinESMExports();
+  try {
+    await terminateOrphan({ siteDir: "/fake/site/kill-wait", port: 4045, pid }, 0);
+    assert.deepEqual(signals, ["SIGTERM", "SIGKILL"]);
+    assert.equal(alive, false, "termination must observe exit before resolving after SIGKILL");
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  }
 });
 
 test("reconcileOrphans terminates a live, identity-confirmed orphan and deletes its dead owner's file", launchdOnly, async () => {

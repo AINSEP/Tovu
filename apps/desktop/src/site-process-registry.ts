@@ -437,12 +437,14 @@ function isOrphanedProcess(pid: number): boolean {
 
 /**
  * Runner's `isProjectSidecar` technique: a pid is only trusted to BE this row's `tovu serve` once
- * its live argv contains both the site dir and its `--port <n>` flag — never taken on faith just
+ * its live argv contains the complete site dir and its `--port <n>` flag — never taken on faith just
  * because a number in a persisted row happens to still name a running process.
- * @complexity O(1) — two substring checks.
+ * @complexity O(n) in command-line length.
  */
 function isServeProcessForSite(commandLine: string, row: Pick<ServeIdentityRow, "siteDir" | "port">): boolean {
-  return commandLine.includes(row.siteDir) && commandLine.includes(`--port ${row.port}`);
+  const siteDir = row.siteDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)${siteDir}(?=\\s|$)`).test(commandLine)
+    && new RegExp(`(?:^|\\s)--port\\s+${row.port}(?=\\s|$)`).test(commandLine);
 }
 
 /** @complexity O(1); the caller bounds how many times this is awaited. */
@@ -456,8 +458,10 @@ function sleep(ms: number): Promise<void> {
  * escalating (not just before the FIRST signal) is the same discipline as Runner's own
  * `terminateOrphan` (`project-provisioner.ts:724-747`): a pid the OS reassigned to something
  * unrelated during the poll window must never be killed on this row's authority.
+ * A successful SIGKILL request is not observed exit; allow a bounded final poll before the
+ * caller clears the crash-recovery row. This also lets Node collect a child's exit status.
  *
- * @complexity O(graceMs / TERMINATE_POLL_MS) — a bounded poll loop, not recursion or unbounded I/O.
+ * @complexity O((graceMs + DEFAULT_TERMINATE_GRACE_MS) / TERMINATE_POLL_MS) — bounded polls.
  */
 async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_TERMINATE_GRACE_MS): Promise<void> {
   try {
@@ -476,7 +480,11 @@ async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_
     try {
       process.kill(row.pid, "SIGKILL");
     } catch {
-      /* already gone */
+      return; // already gone
+    }
+    const killDeadline = Date.now() + DEFAULT_TERMINATE_GRACE_MS;
+    while (isProcessAlive(row.pid) && Date.now() < killDeadline) {
+      await sleep(TERMINATE_POLL_MS);
     }
   }
 }
