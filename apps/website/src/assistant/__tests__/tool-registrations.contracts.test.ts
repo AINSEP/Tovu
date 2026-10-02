@@ -28,6 +28,7 @@ import {
 } from "../../features/content-types/index.js";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
+import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "../../features/entries/index.js";
@@ -175,6 +176,7 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * `assistant/tool-registration-kit.ts`.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  "domain-dns": domainDnsAgentToolCatalog,
   "content-types": contentTypesAgentToolCatalog,
   forms: formsAgentToolCatalog,
   identity: identityAgentToolCatalog,

@@ -9,7 +9,8 @@
  */
 
 export interface HttpRequest {
-  method: "POST" | "GET" | "PUT" | "PATCH" | "DELETE";
+  /** HEAD supports certificate/header diagnostics without downloading a remote page body. */
+  method: "POST" | "GET" | "HEAD" | "PUT" | "PATCH" | "DELETE";
   url: string;
   headers: Readonly<Record<string, string>>;
   /** Raw request body exactly as signed/sent — no re-serialization between sign and send. */

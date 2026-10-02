@@ -52,6 +52,9 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
  * `unicode61` tokenizer, which does not stem, so "image" and "images" are different tokens.
  */
 export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
+  domain_lookup_dns: "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
+  domain_check_dns: "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
+  domain_tls_status: "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
   // --- media -------------------------------------------------------------------------------
   media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
   media_upload_asset: "image images photo upload uploads uploading add attach file files picture",

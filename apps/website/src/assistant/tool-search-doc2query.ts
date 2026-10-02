@@ -11,6 +11,28 @@
  * writeup. This file is the honest redo. Scored by `tool-search-doc2query-canary.eval.ts`.
  */
 export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
+  domain_lookup_dns: [
+    "What DNS records does my domain have?",
+    "Show the A and AAAA IP addresses for the apex and www.",
+    "Look up the MX and TXT records for my domain.",
+    "Which nameservers handle this domain?",
+    "Has the DNS change propagated yet?",
+    "Look up ACME challenge CNAME and DKIM or DMARC TXT records.",
+  ],
+  domain_check_dns: [
+    "Does my custom domain point at the right host?",
+    "Compare my domain DNS against the hosting address.",
+    "Is www pointing to the deploy target?",
+    "Check whether the apex DNS matches my publish destination.",
+    "Why is the domain pointing at a different hosting IP?",
+  ],
+  domain_tls_status: [
+    "Is the TLS certificate for my domain valid?",
+    "Check my SSL certificate status.",
+    "Is HTTPS trusted on this domain?",
+    "Has my site's certificate expired?",
+    "Does the certificate match the domain hostname?",
+  ],
   // Added 2026-10-01 for menu deletion: trash_item postdates the original blind catalog.
   trash_item: [
     "How do I delete a navigation menu from the footer?",

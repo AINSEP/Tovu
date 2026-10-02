@@ -181,6 +181,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // 2026-09-27: `database_transfer_plan`/`database_transfer_run` (`features/database-transfer`).
     "database-transfer",
     "deployments",
+    "domain-dns",
     "entries",
     "external-mcp",
     "fs-files",

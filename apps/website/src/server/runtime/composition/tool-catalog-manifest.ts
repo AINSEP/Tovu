@@ -11,6 +11,9 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
+import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
+import { createDefaultHttpClient } from "#src/platform/http/client";
+import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
@@ -290,6 +293,15 @@ export function installFirstPartyToolContributors(): void {
   // database's private `tovu` area. The site keeps running on SQLite.
   registerToolContributor(contributeDatabaseTransferTools());
   registerToolContributor(contributeDeploymentsTools());
+  const domainDnsHttpClient = createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY);
+  const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
+  registerToolContributor(contributeDomainDnsTools(routeDeps => ({
+    workspaceId: routeDeps.workspaceId,
+    authorize: routeDeps.authorize,
+    resolver: createPublicDnsResolver(domainDnsHttpClient, domainDnsDiagnostics),
+    probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
+    listExpectedHosts: () => listSavedHostingHosts(routeDeps),
+  })));
   registerToolContributor(contributeEntriesTools());
   registerToolContributor(contributeExternalMcpTools());
   registerToolContributor(contributeFsFilesTools());

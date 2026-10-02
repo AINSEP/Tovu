@@ -58,7 +58,8 @@ export class FetchHttpTransportAdapter implements HttpTransportAdapter {
 
     return new Promise<HttpResponse>((resolve, reject) => {
       const clientRequest = requestFn(options, (res) => {
-        const decoded = decodeBody(res.headers["content-encoding"], res);
+        // HEAD may advertise compression for GET's body, but carries no body to decompress.
+        const decoded = req.method === "HEAD" ? res : decodeBody(res.headers["content-encoding"], res);
         const chunks: Buffer[] = [];
         let totalBytes = 0;
 
