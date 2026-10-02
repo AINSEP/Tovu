@@ -39,6 +39,7 @@ test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
 
     await openSitePage(page, "/about");
     await openChatPanel(page);
+    await expect(page.locator(".tovu-site-assistant .jini-chat-pane__suggestion")).toHaveCount(0);
     await sendVisitorMessage(page, "What is this site about?");
     await expect(page.locator(".tovu-site-assistant .jini-message-list").getByText(reply)).toBeVisible();
 

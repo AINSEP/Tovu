@@ -234,7 +234,6 @@ export function SiteAssistantWidget() {
             title={PANE_TITLE}
             header={<SiteAssistantHeader title={PANE_TITLE} hasMessages={hasMessages} onReset={resetConversation} />}
             placeholder="Ask about this site's posts and pages…"
-            suggestions={["What is this site about?", "What have you published recently?"]}
             onMessagesChange={handleMessagesChange}
           />
           {/* SPEC-046 D-1: rendered below ChatPane, not injected into its message list — ChatPane is
