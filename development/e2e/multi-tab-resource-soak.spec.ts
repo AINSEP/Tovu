@@ -59,7 +59,11 @@ async function holdExtraConnections(page: Page, count: number): Promise<void> {
   await network.send("Network.enable");
   const protocols: string[] = [];
   network.on("Network.responseReceived", (event) => {
-    if (new URL(event.response.url).pathname === SETTINGS_EVENTS_URL) protocols.push(event.response.protocol);
+    if (new URL(event.response.url).pathname === SETTINGS_EVENTS_URL) {
+      const protocol = event.response.protocol;
+      if (protocol === undefined) throw new Error("Settings event stream response did not report its protocol");
+      protocols.push(protocol);
+    }
   });
   await page.evaluate(
     ({ url, holdCount }) => {

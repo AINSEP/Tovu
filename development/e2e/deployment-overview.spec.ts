@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
-import type { AdminDeploymentOverview } from "../../apps/admin/src/lib/api.js";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 const WARNING = "Still the default — set TOVU_ADMIN_PASSWORD";
 const EPS = 1; // Allow subpixel rounding when comparing containment edges.
-const snapshot: AdminDeploymentOverview = {
+const snapshot = {
   mode: "local",
   productionReadinessGate: { applicable: false, passed: false },
   defaultOwnerPasswordUnsafe: true,
