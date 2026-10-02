@@ -123,7 +123,14 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
     return null;
   }
 
-  const result = parseAgentPluginMcpConfig(parsedJson);
+  let manifest: unknown;
+  try {
+    const absolute = await assertContainedOnDisk(packageRoot, "plugin.json");
+    manifest = JSON.parse(await readFile(absolute, "utf8"));
+  } catch {
+    // Missing/malformed extensions cannot supply read trust; transport discovery still works.
+  }
+  const result = parseAgentPluginMcpConfig(parsedJson, manifest);
   return result.ok ? result.config : null;
 }
 

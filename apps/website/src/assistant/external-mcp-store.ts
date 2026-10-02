@@ -259,6 +259,8 @@ export type ExternalMcpServerTarget =
     };
 
 export interface ExternalMcpServerConfig {
+  /** Retained for matching the reviewed plugin declaration when the roster is loaded. */
+  provisionedByPluginId?: string;
   serverId: string;
   label: string;
   transport: ExternalMcpTransport;
@@ -1008,6 +1010,7 @@ async function resolveExternalMcpConfig(
     ok: true,
     config: {
       serverId: record.serverId,
+      ...(record.provisionedByPluginId ? { provisionedByPluginId: record.provisionedByPluginId } : {}),
       label: record.label ?? record.serverId,
       transport,
       authMode,
@@ -1046,11 +1049,13 @@ export async function readEnabledExternalMcpConfigs(
  * Tovu's call and not an operator preference. `allowedToolNames` is the one field that IS the
  * operator's, and it is passed through untouched for `trust.ts` to enforce.
  *
- * @complexity O(n) in the config count.
- * @overallScore 100
+ * @param readOnlyRemoteNamesByServer - Reviewed manifest lists matched by the roster source;
+ * never inferred from remote annotations or the tool admission allowlist.
+ * @complexity O(n) time and output space in the config count.
  */
 export function toResolvedFederatedConnections(
   configs: readonly ExternalMcpServerConfig[],
+  readOnlyRemoteNamesByServer: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): ResolvedFederatedConnection[] {
   return configs.map((config) => ({
     config: {
@@ -1058,6 +1063,7 @@ export function toResolvedFederatedConnections(
       label: config.label,
       allowedToolNames: config.allowedToolNames,
       writeAllowedToolNames: config.writeAllowedToolNames,
+      ...(readOnlyRemoteNamesByServer.has(config.serverId) ? { readOnlyRemoteNames: readOnlyRemoteNamesByServer.get(config.serverId)! } : {}),
       connectTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs,
       callTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs,
       maxResultBytes: FEDERATED_CONNECTION_DEFAULTS.maxResultBytes,

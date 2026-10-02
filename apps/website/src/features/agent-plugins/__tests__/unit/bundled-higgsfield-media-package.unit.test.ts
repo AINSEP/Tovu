@@ -79,13 +79,13 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
  * the external-MCP row when an operator enables this plugin — no more hand-typing the URL.
  */
 test("mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust", async () => {
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")));
+  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")), JSON.parse(await readPackageFile("plugin.json")));
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
 
   assert.deepEqual(parsed.config.serverIds, ["higgsfield"]);
   const server = parsed.config.servers.higgsfield;
-  assert.deepEqual(server, { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" });
+  assert.deepEqual(server, { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth", tovuDefaultTools: { read: ["models_explore", "job_status"], write: [] } });
 
   // Remote + oauth carries no secret and no local execution, so it auto-admits — never requires the
   // stdio confirmation gate. This is the one classification `federate-mcp.ts`'s wiring depends on.

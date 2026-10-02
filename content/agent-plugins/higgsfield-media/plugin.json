@@ -41,5 +41,20 @@
     "getting-started",
     "api-key",
     "text-to-image"
-  ]
+  ],
+  "extensions": {
+    "tovu": {
+      "mcpServers": {
+        "higgsfield": {
+          "tovuAuthMode": "oauth",
+          "tovuDefaultTools": {
+            "read": [
+              "models_explore",
+              "job_status"
+            ]
+          }
+        }
+      }
+    }
+  }
 }

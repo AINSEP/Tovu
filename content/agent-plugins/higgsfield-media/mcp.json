@@ -3,8 +3,7 @@
   "mcpServers": {
     "higgsfield": {
       "type": "streamable-http",
-      "url": "https://mcp.higgsfield.ai/mcp",
-      "tovuAuthMode": "oauth"
+      "url": "https://mcp.higgsfield.ai/mcp"
     }
   }
 }

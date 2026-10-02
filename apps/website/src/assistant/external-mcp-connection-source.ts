@@ -1,4 +1,5 @@
 import type { AuthorizeFn, UUID } from "@jini-ai/cms/core";
+import type { resolveAgentPluginReadOnlyRemoteNames } from "../features/agent-plugins/federate-mcp.js";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 
@@ -42,6 +43,8 @@ export interface StoredExternalMcpConnectionSourceDeps {
   /** Log-line prefix (`"[agent-daemon]"`, `"[assistant-byok]"`, ...), so each root's console output
    *  stays exactly what it was before this moved out from under it. */
   readonly log: string;
+  /** Local manifest lookup, never remote annotations. Injected to exercise roster reloads. */
+  readonly resolvePluginReadOnlyRemoteNames?: typeof resolveAgentPluginReadOnlyRemoteNames;
 }
 
 export interface StoredExternalMcpConnectionSource {
@@ -61,10 +64,21 @@ export interface StoredExternalMcpConnectionSource {
   failures(): readonly StoredExternalMcpConnectionFailure[];
 }
 
+/**
+ * Loads stored launch configs and current bundled-plugin read declarations. Manifest lookup
+ * failures omit read grants for that connection without removing usable connections.
+ * @returns A reloadable source with the latest store-resolution failures.
+ * @complexity O(c) configs plus one installed-package scan/manifest lookup per plugin connection;
+ * O(c + r) output space for connection configs and read names. No remote I/O is added here.
+ */
 export function createStoredExternalMcpConnectionSource(
   deps: StoredExternalMcpConnectionSourceDeps,
 ): StoredExternalMcpConnectionSource {
   let configFailures: readonly StoredExternalMcpConnectionFailure[] = [];
+  // Defer the plugin adapter until roster resolution: its provisioning half reaches the
+  // assistant barrel, so importing it eagerly would make this module part of that boot cycle.
+  const resolvePluginReads: typeof resolveAgentPluginReadOnlyRemoteNames = deps.resolvePluginReadOnlyRemoteNames ??
+    (async (input) => (await import("../features/agent-plugins/federate-mcp.js")).resolveAgentPluginReadOnlyRemoteNames(input));
 
   return {
     async resolve(): Promise<ResolvedFederatedConnection[]> {
@@ -77,7 +91,22 @@ export function createStoredExternalMcpConnectionSource(
           console.warn(`${deps.log} mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
         }
         configFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
-        return toResolvedFederatedConnections(configs);
+        const readOnlyNames = new Map<string, ReadonlySet<string>>();
+        for (const config of configs) {
+          if (!config.provisionedByPluginId || config.target.kind !== "streamable_http") continue;
+          try {
+            readOnlyNames.set(config.serverId, await resolvePluginReads({
+              workspaceId: deps.workspaceId,
+              pluginId: config.provisionedByPluginId,
+              serverId: config.serverId,
+              url: config.target.url,
+            }));
+          } catch (error) {
+            // Classification fails closed without dropping unrelated, otherwise usable connections.
+            console.warn(`${deps.log} mcp-federation: plugin read declarations for '${config.serverId}' unavailable — ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        return toResolvedFederatedConnections(configs, readOnlyNames);
       } catch (error) {
         console.warn(
           `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${error instanceof Error ? error.message : String(error)}`,

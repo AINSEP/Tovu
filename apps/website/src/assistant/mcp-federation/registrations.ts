@@ -16,6 +16,7 @@ import type {
 } from "./ports.js";
 import {
   admitRemoteTools,
+  isOperatorDeclaredReadOnly,
   assertNoNativeCollision,
   extractFederatedImageBlocks,
   FEDERATED_ENTITY_TYPE,
@@ -239,7 +240,12 @@ export function buildFederatedMcpRegistrations(params: {
     };
 
     return {
-      descriptor: { id: tool.toolId, description: tool.description, inputSchema: tool.inputSchema },
+      descriptor: {
+        id: tool.toolId,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        ...(isOperatorDeclaredReadOnly(tool.remoteName, tool.declaredAnnotations, config.readOnlyRemoteNames) ? { readOnly: true } : {}),
+      },
       // Pass-through, matching `buildDomainRegistrations`'s identical choice and for the identical
       // ADR-021 §2 reason: the handler above IS this tool's one gate, and a `ToolPolicy` check would
       // be a second evaluator of the same rule.

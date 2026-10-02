@@ -178,11 +178,13 @@ export const FRONTEND_CONTROL_CAPABILITIES: readonly CapabilityDef[] = [
  * descriptor, so without this every frontend verb is refused there.
  *
  * Named one by one rather than taken from `risk: 'read'`: `page.highlight` and `page.scroll_to` are
- * `risk: 'read'` too, but they change what the person sees. `page.find_elements` queries the DOM
- * (`dom-page-driver.ts`'s `findElements`); `admin.capture_screenshot` rasterizes a copy of the page
- * (`apps/admin/src/lib/agent-screenshot.ts`). Neither writes anything.
+ * `risk: 'read'` too, but they change what the person sees.
+ * - `page.find_elements` queries the DOM (`dom-page-driver.ts`'s `findElements`).
+ * - `admin.capture_screenshot` rasterizes a copy (`apps/admin/src/lib/agent-screenshot.ts`).
+ * - `chat.get_state` reads pane fields and summarizes the last message (Jini's `getStateAction`),
+ *   without focusing, scrolling, opening, marking as read, or writing state.
  */
-export const READ_ONLY_FRONTEND_CAPABILITY_IDS: ReadonlySet<string> = new Set(["page.find_elements", "admin.capture_screenshot"]);
+export const READ_ONLY_FRONTEND_CAPABILITY_IDS: ReadonlySet<string> = new Set(["page.find_elements", "admin.capture_screenshot", "chat.get_state"]);
 
 /**
  * Marks the {@link READ_ONLY_FRONTEND_CAPABILITY_IDS} registrations `readOnly: true`. Every other

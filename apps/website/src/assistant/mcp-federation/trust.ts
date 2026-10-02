@@ -336,6 +336,23 @@ function admitRemoteToolName(remoteName: string, seen: Set<string>): ToolRefusal
 }
 
 /**
+ * Grants read-only classification ONLY from the operator's reviewed plugin list. Remote hints
+ * can veto the grant, never supply it. Pure: changes no descriptor, list, or annotations.
+ * @param remoteName - Pre-namespacing tool name advertised by the server.
+ * @param annotations - Untrusted remote hints; explicit contradictions veto the operator grant.
+ * @param readList - Reviewed manifest names, absent for connections without plugin provenance.
+ * @returns Whether the listed remote name has no explicit write/destructive contradiction.
+ * @complexity O(1) time and space (set membership).
+ */
+export function isOperatorDeclaredReadOnly(
+  remoteName: string,
+  annotations: RemoteToolDescriptorAnnotations,
+  readList: ReadonlySet<string> | undefined,
+): boolean {
+  return readList?.has(remoteName) === true && annotations?.readOnlyHint !== false && annotations?.destructiveHint !== true;
+}
+
+/**
  * Initial conservative classification from destructive hints. Call-time action and SQL contents
  * determine whether a protected action actually needs a card; write/read hints grant no access.
  * @complexity O(1).
@@ -564,7 +581,9 @@ function classifyRemoteTool(
       declaredAnnotations: tool.annotations,
       writeAuthorized,
       writeShapedInputs,
-      confirmation: federatedCallConfirmationFor(tool.annotations),
+      confirmation: isOperatorDeclaredReadOnly(remoteName, tool.annotations, config.readOnlyRemoteNames)
+        ? "none"
+        : federatedCallConfirmationFor(tool.annotations),
     },
   };
 }

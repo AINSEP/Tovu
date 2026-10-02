@@ -178,6 +178,7 @@ test("mcp.json: tovuDefaultTools on a remote server passes through when write is
   assert.deepEqual((result.config.servers.remote as { tovuDefaultTools?: unknown }).tovuDefaultTools, {
     allow: ["list_things", "make_thing"],
     write: ["make_thing"],
+    read: [],
   });
 });
 

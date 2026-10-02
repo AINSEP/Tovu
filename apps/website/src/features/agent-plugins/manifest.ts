@@ -38,14 +38,14 @@
  *   credential-reference fields. Authorization discovery, user interaction, and credential storage
  *   are client-managed." A plugin therefore cannot declare "this server needs OAuth" using any
  *   spec-defined field — Tovu is the client the spec defers that decision to. This module accepts
- *   one Tovu-specific, non-spec, purely-additive extension key, `tovuAuthMode: "oauth" | "none"`,
- *   on `streamable-http`/`sse` entries only, so a plugin author who KNOWS their server requires
- *   OAuth (Higgsfield's own `mcp.json` sets it) can say so; a strictly spec-conformant client
- *   ignores an unknown property on an object with no `additionalProperties: false` and loses
- *   nothing. Absent, it defaults to `"none"` wherever it is consulted
- *   (`capability-projection.ts`'s `resolveAgentPluginMcpAuthMode`). A second extension on the same
- *   entries, `tovuDefaultTools: { allow, write? }`, names the tools granted on the operator's first
- *   sign-in (`apply-connect-defaults.ts`); `write` must be a subset of `allow`. A third,
+ *   Tovu-specific metadata in `plugin.json`'s `extensions.tovu.mcpServers[serverId]`, keeping
+ *   `mcp.json` transport entries closed per §7.2.1. Legacy auth and sign-in defaults in MCP
+ *   entries remain readable for existing packages, but cannot supply operator read trust.
+ *   `tovuAuthMode: "oauth" | "none"` selects client auth; absent defaults to "none".
+ *   `tovuDefaultTools: { allow?, write?, read? }` names sign-in grants and reviewed read tools.
+ *   `write` requires `allow` and must be its subset; `read` must be a subset when `allow` is
+ *   present. A read-only declaration without `allow` leaves sign-in grants unchanged.
+ *   Remote hints may veto a read declaration but never supply it. A third,
  *   `tovuTokenAuth: { helpUrl, probeUrl }`, offers a pasted access token as the sign-in fallback
  *   (`access-token-tool.ts`). A fourth, `tovuRenamedTools: { oldName: newName }`, carries saved tool
  *   selections across a vendor's tool rename (`apply-tool-renames.ts`). A malformed per-server entry
@@ -79,13 +79,14 @@ export interface AgentPluginManifest {
   readonly author?: string;
   readonly license?: string;
   readonly keywords?: readonly string[];
+  readonly extensions?: Readonly<Record<string, unknown>>;
 }
 
 export type ParseAgentPluginManifestResult =
   | { readonly ok: true; readonly manifest: AgentPluginManifest; readonly warnings: readonly string[] }
   | { readonly ok: false; readonly errors: readonly string[] };
 
-const KNOWN_MANIFEST_KEYS = new Set(["$schema", "name", "version", "description", "author", "license", "keywords"]);
+const KNOWN_MANIFEST_KEYS = new Set(["$schema", "name", "version", "description", "author", "license", "keywords", "extensions"]);
 
 /** True for a non-null, non-array plain object — the "is this actually a JSON object" gate both
  * `parseAgentPluginManifest` and `parseAgentPluginMcpConfig` need before touching any field. */
@@ -142,6 +143,8 @@ export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManife
     errors.push(`plugin.json '$schema' must be '${PLUGIN_SCHEMA_1_0_0}', got '${String(raw.$schema)}'`);
   }
 
+  if (raw.extensions !== undefined && !isJsonObject(raw.extensions)) errors.push("plugin.json extensions must be an object");
+
   const nameResult = resolveManifestName(raw);
   if (nameResult.error) errors.push(nameResult.error);
 
@@ -158,6 +161,7 @@ export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManife
     author: coerceOptionalString(raw.author),
     license: coerceOptionalString(raw.license),
     keywords: coerceStringArray(raw.keywords),
+    ...(isJsonObject(raw.extensions) ? { extensions: raw.extensions } : {}),
   };
   return { ok: true, manifest, warnings };
 }
@@ -218,8 +222,11 @@ export interface AgentPluginTokenAuth {
 }
 
 export interface AgentPluginDefaultTools {
-  readonly allow: readonly string[];
+  /** Absent means no first-sign-in defaults, rather than an empty grant. */
+  readonly allow?: readonly string[];
   readonly write: readonly string[];
+  /** Operator-reviewed remote names; absent on older programmatic configs means no read grants. */
+  readonly read?: readonly string[];
 }
 
 export type McpServerConfig = StdioMcpServerConfig | RemoteMcpServerConfig;
@@ -285,19 +292,22 @@ function parseDefaultToolNames(value: unknown): readonly string[] | null {
 }
 
 /**
- * Validates a remote entry's `tovuDefaultTools` extension: `allow` required, `write` optional
- * (defaults to `[]`) and a subset of `allow`.
+ * Validates bounded sign-in and read lists. `read` and `write` default to `[]`.
+ * A provided `allow` bounds both lists; without it only a read declaration is meaningful,
+ * and sign-in defaults stay absent. Any malformed list excludes the entire server.
  *
- * @returns The parsed value, or `null` for any shape violation — the caller excludes the whole server.
- * @complexity O(n) in the two lists' length.
+ * @returns Parsed defaults, or `null` for a malformed declaration.
+ * @complexity O(n) time and space in the lists' total length (each capped at 64).
  */
 function parseDefaultTools(value: unknown): AgentPluginDefaultTools | null {
   if (!isJsonObject(value)) return null;
-  const allow = parseDefaultToolNames(value.allow);
+  const allow = value.allow === undefined ? undefined : parseDefaultToolNames(value.allow);
   const write = value.write === undefined ? [] : parseDefaultToolNames(value.write);
-  if (allow === null || write === null) return null;
+  const read = value.read === undefined ? [] : parseDefaultToolNames(value.read);
+  if (allow === null || write === null || read === null) return null;
+  if (allow === undefined) return value.read !== undefined && write.length === 0 ? { write, read } : null;
   const allowed = new Set(allow);
-  return write.every((name) => allowed.has(name)) ? { allow, write } : null;
+  return write.every((name) => allowed.has(name)) && read.every((name) => allowed.has(name)) ? { allow, write, read } : null;
 }
 
 const MAX_TOKEN_AUTH_URL_LENGTH = 2048;
@@ -365,13 +375,19 @@ function parseTokenAuth(value: unknown): AgentPluginTokenAuth | null {
  * as {@link parseStdioServerConfig}.
  * @complexity O(k) in the entry's own field count.
  */
-function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<Record<string, unknown>>): RemoteMcpServerConfig | null {
+function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<Record<string, unknown>>, extension?: Readonly<Record<string, unknown>>): RemoteMcpServerConfig | null {
   if (typeof raw.url !== "string" || raw.url.length === 0) return null;
 
-  const { headers, tovuAuthMode } = raw;
+  const { headers } = raw;
+  const tovuAuthMode = extension?.tovuAuthMode ?? raw.tovuAuthMode;
   if (headers !== undefined && !isStringRecord(headers)) return null;
   if (tovuAuthMode !== undefined && tovuAuthMode !== "oauth" && tovuAuthMode !== "none") return null;
-  const tovuDefaultTools = raw.tovuDefaultTools === undefined ? undefined : parseDefaultTools(raw.tovuDefaultTools);
+  // Read trust is accepted only from the plugin extension. Keep legacy sign-in grants.
+  const legacyDefaults = isJsonObject(raw.tovuDefaultTools)
+    ? Object.fromEntries(Object.entries(raw.tovuDefaultTools).filter(([key]) => key !== "read"))
+    : raw.tovuDefaultTools;
+  const defaults = extension?.tovuDefaultTools ?? legacyDefaults;
+  const tovuDefaultTools = defaults === undefined ? undefined : parseDefaultTools(defaults);
   if (tovuDefaultTools === null) return null;
   const tovuTokenAuth = raw.tovuTokenAuth === undefined ? undefined : parseTokenAuth(raw.tovuTokenAuth);
   if (tovuTokenAuth === null) return null;
@@ -391,10 +407,10 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
 
 /** Dispatches one raw `mcpServers` entry to its transport's validator by `type`, or `null` for a
  *  non-object entry or a `type` outside {@link MCP_SERVER_TRANSPORTS}. */
-function parseMcpServerConfig(value: unknown): McpServerConfig | null {
+function parseMcpServerConfig(value: unknown, extension?: Readonly<Record<string, unknown>>): McpServerConfig | null {
   if (!isJsonObject(value)) return null;
   if (value.type === "stdio") return parseStdioServerConfig(value);
-  if (value.type === "streamable-http" || value.type === "sse") return parseRemoteServerConfig(value.type, value);
+  if (value.type === "streamable-http" || value.type === "sse") return parseRemoteServerConfig(value.type, value, extension);
   return null;
 }
 
@@ -406,7 +422,7 @@ function parseMcpServerConfig(value: unknown): McpServerConfig | null {
  * @throws Nothing — see {@link parseAgentPluginManifest}.
  * @complexity O(s) in the number of declared servers.
  */
-export function parseAgentPluginMcpConfig(value: unknown): ParseAgentPluginMcpConfigResult {
+export function parseAgentPluginMcpConfig(value: unknown, pluginManifest?: unknown): ParseAgentPluginMcpConfigResult {
   if (!isJsonObject(value)) return { ok: false, errors: ["mcp.json must be a JSON object"] };
 
   const raw = value;
@@ -423,10 +439,14 @@ export function parseAgentPluginMcpConfig(value: unknown): ParseAgentPluginMcpCo
 
   if (errors.length > 0) return { ok: false, errors };
 
+  const manifest = parseAgentPluginManifest(pluginManifest);
+  const tovu = manifest.ok ? manifest.manifest.extensions?.tovu : undefined;
+  const extensionServers = isJsonObject(tovu) && isJsonObject(tovu.mcpServers) ? tovu.mcpServers : {};
   const entries = Object.entries(mcpServers as Record<string, unknown>);
   const servers: Record<string, McpServerConfig> = {};
   for (const [serverId, rawServer] of entries) {
-    const parsed = parseMcpServerConfig(rawServer);
+    const extension = extensionServers[serverId];
+    const parsed = extension !== undefined && !isJsonObject(extension) ? null : parseMcpServerConfig(rawServer, extension);
     if (parsed) servers[serverId] = parsed;
   }
 

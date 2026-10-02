@@ -7,7 +7,7 @@ import {
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import type { McpServerConfig } from "./manifest.js";
+import type { AgentPluginDefaultTools, McpServerConfig } from "./manifest.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 
@@ -290,17 +290,55 @@ export function planAgentPluginMcpFederation(input: {
 export async function resolveAgentPluginMcpServers(input: {
   readonly workspaceId: string;
   readonly pluginId: string;
+  /** Read-only trust grants require the build's bundled digest, never an arbitrary install. */
+  readonly bundledOnly?: boolean;
 }): Promise<Readonly<Record<string, McpServerConfig>>> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(input.workspaceId);
   // A bundled plugin that was upgraded in place has its superseded package dropped here, so the
   // servers this provisions come from the digest the running build published rather than whichever
   // one the directory walk happened to reach first (`bundled-digests.ts`).
+  const bundledDigests = await readBundledAgentPluginDigests(workspaceLayout.root);
+  if (input.bundledOnly && !bundledDigests.has(input.pluginId)) return {};
   const installed = preferBundledAgentPluginDigests(
     await listInstalledPlugins(workspaceLayout.packages),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
+    bundledDigests,
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
+  if (input.bundledOnly && plugin?.archiveDigest !== bundledDigests.get(input.pluginId)) return {};
   return plugin ? readInstalledMcpServers(plugin.packageRoot) : {};
+}
+
+/**
+ * Matches a declaration to the stored server identity AND exact endpoint. A URL edit or
+ * normalized-name collision must never inherit another endpoint's defaults.
+ * @returns The matching defaults, or `null`.
+ * @complexity O(s) time, O(1) space in declared servers.
+ */
+export function findAgentPluginMcpServerDefaults(
+  servers: Readonly<Record<string, McpServerConfig>>,
+  row: { readonly serverId: string; readonly url: string | null },
+): AgentPluginDefaultTools | null {
+  for (const [serverKey, config] of Object.entries(servers)) {
+    if (config.type === "stdio" || deriveAgentPluginConnectionId(serverKey) !== row.serverId) continue;
+    return config.url === row.url ? config.tovuDefaultTools ?? null : null;
+  }
+  return null;
+}
+
+/**
+ * Reads the bundled plugin's current manifest on every roster load. Only a build-seeded
+ * digest supplies read trust; URL-only connections and arbitrary installed packages cannot.
+ * @returns Reviewed remote names for this exact stored endpoint, otherwise an empty set.
+ * @complexity One installed-package scan and manifest read, plus O(s + r) matching/list conversion.
+ */
+export async function resolveAgentPluginReadOnlyRemoteNames(input: {
+  readonly workspaceId: string;
+  readonly pluginId: string;
+  readonly serverId: string;
+  readonly url: string;
+}): Promise<ReadonlySet<string>> {
+  const servers = await resolveAgentPluginMcpServers({ ...input, bundledOnly: true });
+  return new Set(findAgentPluginMcpServerDefaults(servers, input)?.read ?? []);
 }
 
 export interface ProvisionAgentPluginMcpServersInput {

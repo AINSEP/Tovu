@@ -156,9 +156,9 @@ test("createFrontendControl registers exactly the seven chat.* verbs as callable
 
 // The read-only delegated-tool gateway refused both of these (chats a502d76e, 0466a823, ce5f1e2e,
 // e9b7746a) because `createFrontendCapabilityRegistrations` projects no read-only flag from `risk`.
-// Only these two are marked: page.highlight and page.scroll_to are also `risk: 'read'` but change
+// These three are marked: page.highlight and page.scroll_to are also `risk: 'read'` but change
 // what the person sees, and every write verb must stay refused.
-test("only page.find_elements and admin.capture_screenshot are registered read-only", () => {
+test("only page.find_elements, admin.capture_screenshot and chat.get_state are registered read-only", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
     resolveBindToken: () => undefined,
@@ -167,7 +167,7 @@ test("only page.find_elements and admin.capture_screenshot are registered read-o
     .filter((registration) => isReadOnlyTool(registration.descriptor))
     .map((registration) => registration.descriptor.id)
     .sort();
-  assert.deepEqual(readOnlyIds, ["admin.capture_screenshot", "page.find_elements"]);
+  assert.deepEqual(readOnlyIds, ["admin.capture_screenshot", "chat.get_state", "page.find_elements"]);
 });
 
 test("marking read-only keeps each registration's handler and policy", () => {
@@ -183,4 +183,12 @@ test("marking read-only keeps each registration's handler and policy", () => {
     assert.equal(registration.policy, original.policy);
     assert.deepEqual({ ...registration.descriptor, readOnly: undefined }, { ...original.descriptor, readOnly: undefined });
   });
+});
+
+
+test("chat.get_state is read-only while chat.send_message is not", () => {
+  const control = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, resolveBindToken: () => undefined });
+  const registrations = withReadOnlyFrontendCapabilities(control.toolRegistrations);
+  assert.equal(registrations.find((r) => r.descriptor.id === "chat.get_state")?.descriptor.readOnly, true);
+  assert.equal(registrations.find((r) => r.descriptor.id === "chat.send_message")?.descriptor.readOnly, undefined);
 });

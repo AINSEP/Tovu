@@ -22,12 +22,11 @@
  */
 import {
   notifyExternalMcpRosterChanged,
-  type ExternalMcpServerRecord,
   type ExternalMcpStoreDeps,
 } from "#src/assistant/index";
 
-import { deriveAgentPluginConnectionId, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
-import type { AgentPluginDefaultTools, McpServerConfig } from "./manifest.js";
+import { findAgentPluginMcpServerDefaults, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
+import type { McpServerConfig } from "./manifest.js";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
 /** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
@@ -42,20 +41,6 @@ export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "re
   readonly enablePlugin?: (input: { workspaceId: string; pluginId: string; actor: string }) => Promise<unknown>;
   /** Injected for tests. Defaults to `notifyExternalMcpRosterChanged`. */
   readonly notifyRosterChanged?: () => Promise<void>;
-}
-
-/** The declared defaults for this row, or `null` when the plugin no longer declares a remote server
- *  mapping to it at the row's url.
- *  @complexity O(s) in the plugin's declared server count. */
-function findDeclaredDefaults(
-  servers: Readonly<Record<string, McpServerConfig>>,
-  row: ExternalMcpServerRecord,
-): AgentPluginDefaultTools | null {
-  for (const [serverKey, config] of Object.entries(servers)) {
-    if (config.type === "stdio" || deriveAgentPluginConnectionId(serverKey) !== row.serverId) continue;
-    return config.url === row.url && config.tovuDefaultTools ? config.tovuDefaultTools : null;
-  }
-  return null;
 }
 
 /**
@@ -77,8 +62,9 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
     if (!row || !pluginId) return;
     if (!isEmptyJsonList(row.allowedToolNames) || !isEmptyJsonList(row.writeAllowedToolNames)) return;
 
-    const defaults = findDeclaredDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
-    if (!defaults) return;
+    const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
+    // A read-only declaration is classification, not permission to change sign-in grants.
+    if (!defaults?.allow) return;
 
     // Plugin first: if this throws, nothing is written and the next sign-in tries again. The row
     // write is the step that makes a retry a no-op, so it goes last.

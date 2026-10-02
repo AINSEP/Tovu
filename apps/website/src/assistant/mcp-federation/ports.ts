@@ -144,6 +144,9 @@ export interface FederatedMcpConnectionConfig {
   readonly label: string;
   /** DEFAULT-DENY allowlist of REMOTE tool names (pre-namespacing). */
   readonly allowedToolNames: readonly string[];
+  /** Remote names reviewed in a bundled plugin's mcp.json, independent of admission grants.
+   * Remote readOnlyHint:false or destructiveHint:true vetoes each declaration. */
+  readonly readOnlyRemoteNames?: ReadonlySet<string>;
   /**
    * DEFAULT-DENY, SECOND list of REMOTE tool names (pre-namespacing) the operator has separately
    * authorized to write. A tool declaring `readOnlyHint: false` is admitted only if it appears in
