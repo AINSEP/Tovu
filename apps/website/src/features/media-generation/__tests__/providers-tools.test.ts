@@ -119,7 +119,7 @@ test('t10 media list contains exact safe keys, includes configured and unconfigu
   assert.equal(result.providers.find(p => p.id === 'openai')!.configured, true);
   assert.equal(result.providers.find(p => p.id === 'replicate')!.configured, false);
   assert.ok(result.providers.some(p => p.kinds.includes('video'))); assertNoSecret(result);
-  assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'media.read', workspaceId: 'ws-t10', entityType: 'media', entityId: undefined }]);
+  assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'media.read', workspaceId: 'ws-t10', entityType: 'media' }]);
 });
 
 test('t10 media form masks the key and submits through a bound exchange; save readback preserves other providers and metadata', async () => {

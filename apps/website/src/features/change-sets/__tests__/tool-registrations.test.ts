@@ -207,7 +207,7 @@ test("change-set tools enforce scoped permissions before reading or reverting", 
       await wired("change_sets_list", deps).handler(executionContext({}));
       assert.equal(listed, true);
     }
-    assert.deepEqual(authorizationCalls, [{ principalId: PRINCIPAL_ID, permission: "changeset.read", workspaceId: WORKSPACE_ID, entityType: "change_set", entityId: undefined }]);
+    assert.deepEqual(authorizationCalls, [{ principalId: PRINCIPAL_ID, permission: "changeset.read", workspaceId: WORKSPACE_ID, entityType: "change_set" }]);
   }
 });
 

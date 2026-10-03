@@ -108,7 +108,7 @@ for (const [filename, bytes, contentType, publicUrl, defaultTitle] of [
     assert.notEqual(second.media.id, first.media.id);
     assert.equal((await f.deps.mediaRepo.list({ workspaceId: "ws-local" })).length, 2);
     assert.equal(await f.deps.blobStore.exists({ storageKey: `ws/ws-local/blobs/${sha256.slice(0, 2)}/${sha256}` }), true);
-    assert.deepEqual(f.authorizeCalls[0], { principalId: "owner", workspaceId: "ws-local", permission: "media.upload", entityType: "media", entityId: undefined });
+    assert.deepEqual(f.authorizeCalls[0], { principalId: "owner", workspaceId: "ws-local", permission: "media.upload", entityType: "media" });
   });
 }
 

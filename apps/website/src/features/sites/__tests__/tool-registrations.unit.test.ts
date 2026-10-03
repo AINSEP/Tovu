@@ -203,7 +203,7 @@ test("sites_duplicate_site: refuses when the caller lacks system.write, without 
   const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
 
   await assert.rejects(() => handler(ctxFor({ sourceName: "source-site", targetName: "new-client" })), (error: unknown) => { assert.ok(error instanceof ForbiddenError); assert.equal(error.message, `principal '${PRINCIPAL_ID}' is not authorized for 'system.write' (read-only principal)`); return true; });
-  assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, permission: "system.write", entityType: "site-registry", entityId: undefined }]);
+  assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, permission: "system.write", entityType: "site-registry" }]);
   assert.equal(duplicateSiteCalls.length, 0);
 });
 

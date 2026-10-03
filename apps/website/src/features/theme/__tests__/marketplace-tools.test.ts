@@ -79,7 +79,7 @@ test("marketplace install copies real bytes, rescans and suffixes a repeat witho
   assert.deepEqual(await presentationRepo.findByWorkspaceId({ workspaceId: "ws-t11" }), {
     workspaceId: "ws-t11", activeThemeId: "old-theme", updatedAt: "2026-10-01T00:00:00.000Z",
   });
-  assert.deepEqual(f.calls, Array(2).fill({ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation", entityId: undefined }));
+  assert.deepEqual(f.calls, Array(2).fill({ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation" }));
 });
 
 for (const [marketplaceId, message] of [["missing", "marketplace theme 'missing' was not found"], ["../escape", "theme id '../escape' is not a valid theme id"]]) {
@@ -113,7 +113,7 @@ for (const id of ["marketplace_list_themes", "theme_install_from_marketplace"]) 
     await assert.rejects(() => f.invoke(id, id === "theme_install_from_marketplace" ? { marketplaceId: "aurora" } : {}), {
       message: "principal 'owner' is not authorized for 'theme.set' (no_grant)",
     });
-    assert.deepEqual(f.calls, [{ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation", entityId: undefined }]);
+    assert.deepEqual(f.calls, [{ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation" }]);
     assert.deepEqual(readdirSync(f.root), ["__marketplace__"]);
   });
 }

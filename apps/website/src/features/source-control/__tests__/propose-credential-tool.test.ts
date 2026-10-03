@@ -115,7 +115,7 @@ test('t10 source form uses the provider declared masked field; submit saves a us
   const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' });
   assert.ok(resolved); assert.equal(resolved.connection.token, SECRET); assert.equal(resolved.connection.providerId, 'github');
   assert.equal(f.surfaces.size(), 0); assert.equal(emitted.length, 2);
-  assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'source-control.credentials.write', workspaceId: 'ws-t10', entityType: 'source-control', entityId: undefined }]);
+  assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'source-control.credentials.write', workspaceId: 'ws-t10', entityType: 'source-control' }]);
 });
 
 test('t10 source cancellation returns saved false with no credential', async () => {
