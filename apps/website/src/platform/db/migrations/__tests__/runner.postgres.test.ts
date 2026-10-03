@@ -82,6 +82,6 @@ test("the chat history lands in ai_chat with its own ledger there; public gets n
     { schema: "ai_chat", name: "tovu_chat_migrations" },
   ]);
   const [{ n }] = await baseline.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM tovu_migrations`);
-  assert.equal(n, 4, "the content ledger holds only content steps");
+  assert.equal(n, 5, "the content ledger holds only content steps (0000-0004)");
   assert.deepEqual((await migrateChatDatabase(baseline)).applied, [], "a rerun applies nothing");
 });

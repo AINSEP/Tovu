@@ -142,11 +142,12 @@ async function migratedDatabase(): Promise<MigratedDatabase> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-schema-drift-"));
   const file = path.join(dir, "probe.db");
   try {
-    const sqlite = openSqliteContentConnection(file);
+    // The opener returns the typed Drizzle handle (its pragmas already set); the shape reads below
+    // need the raw better-sqlite3 connection underneath it.
+    const db = openSqliteContentConnection(file);
+    const sqlite = db.$client;
     try {
-      sqlite.pragma("journal_mode = WAL");
-      sqlite.pragma("foreign_keys = ON");
-      await migrateSqliteContentFile(sqlite, file);
+      await migrateSqliteContentFile(db, file);
 
       const rows = sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>;
       const allTableNames = rows.map((r) => r.name).sort();
