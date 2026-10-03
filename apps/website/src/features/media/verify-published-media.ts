@@ -88,6 +88,13 @@ export async function verifyPublishedMedia(
   });
   const recordedTypes = await ports.contentTypeStore.getMany({ workspaceId, sha256s });
   const problems: string[] = [];
-  for (const entity of entities) problems.push(...(await verifyOne(ports, workspaceId, entity, recordedTypes)));
+  for (const entity of entities) {
+    // A storage fault on one item is that item's problem; it must not hide the checks for the rest.
+    try {
+      problems.push(...(await verifyOne(ports, workspaceId, entity, recordedTypes)));
+    } catch {
+      problems.push(`Media '${labelOf(entity)}' could not be checked on the site, so it may not show.`);
+    }
+  }
   return problems;
 }
