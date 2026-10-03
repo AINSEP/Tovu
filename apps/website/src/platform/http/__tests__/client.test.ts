@@ -324,7 +324,7 @@ test("scheme and embedded-credential refusals carry the same text in both messag
 test("an EgressRefusedError built without a callerSafeMessage says LESS, never more", () => {
   const err = new EgressRefusedError({ message: "egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private" });
 
-  assert.equal(err.callerSafeMessage, "egress to the requested host was refused by this site's outbound network policy");
+  assert.equal(err.callerSafeMessage, "egress to the requested host was refused by the outbound network policy");
   assert.ok(!err.callerSafeMessage.includes("10.0.4.7"));
 });
 

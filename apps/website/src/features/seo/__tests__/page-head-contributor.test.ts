@@ -20,7 +20,7 @@ import { createSeoPageHeadHook } from "../page-head-contributor.js";
  */
 
 const WORKSPACE = "workspace-1";
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-13T00:00:00.000Z", nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `head-contrib-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });

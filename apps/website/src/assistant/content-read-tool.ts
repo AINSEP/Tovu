@@ -91,6 +91,10 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  * one resource (`content_post`, `member`, `menu`, `newsletter_campaign`, `redirect`,
  * `widget_instance`, `widget_region`).
  *
+ * 2026-10-03: `deployment_list` and its `deployment` card are retired with the deleted deployment
+ * tables (migration 0004), so the shipped table is 35 member ids in 28 cards; the measured arm
+ * above still counts 36 and 29.
+ *
  * **Ruling on the disclosed misfire** (`newsletter_list_lists`): running the eval's own
  * `resourceKeyOf("newsletter_list_lists")` step by step — `["newsletter","list","lists"]`, drop the
  * exact-match verb token `"list"`, singularize `"lists"` -> `"list"` — actually yields the key
@@ -120,7 +124,7 @@ interface ContentReadCard {
 }
 
 /**
- * The 29 cards. Permission strings are copied verbatim from each source tool's own
+ * The 28 cards. Permission strings are copied verbatim from each source tool's own
  * `authorization.permission` (two, `external_mcp_list`/`theme_list`, resolve a source-file constant
  * — `EXTERNAL_MCP_MANAGE_PERMISSION` = `"admin.integrations.manage"`,
  * `THEME_READ_PERMISSION` = `"theme.set"` — copied here as the literal value those constants hold).
@@ -134,7 +138,6 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" } },
   { resource: "database_pending_migration", permission: "database.read", list: { toolId: "database_list_pending_migrations" } },
   { resource: "database_restore_point", permission: "database.read", list: { toolId: "database_list_restore_points" } },
-  { resource: "deployment", permission: "deployments.read", list: { toolId: "deployment_list" } },
   { resource: "external_mcp", permission: "admin.integrations.manage", list: { toolId: "external_mcp_list" } },
   { resource: "form_definition", permission: "admin.forms.manage", list: { toolId: "forms_list_definitions" } },
   { resource: "identity_policy", permission: "role.manage", list: { toolId: "identity_policy_list" } },

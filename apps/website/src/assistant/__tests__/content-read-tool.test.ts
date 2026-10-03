@@ -4,8 +4,8 @@
  *
  * Two properties are pinned here, both of which shipped with no test of their own:
  *
- * 1. **The collapse itself.** The real production composition publishes 29
- *    `content_read.<resource>` cards and NONE of the 36 Tier-1 read tools they replace. Every
+ * 1. **The collapse itself.** The real production composition publishes 28
+ *    `content_read.<resource>` cards and NONE of the 35 Tier-1 read tools they replace. Every
  *    per-domain suite asserts its own one or two ids; nothing asserted the whole set, so a card
  *    silently dropping out of `CONTENT_READ_CARDS` would have shown up only as one domain's
  *    "expected '<id>' to be wired" — or, for a card whose domain suite does not cover it, as
@@ -37,7 +37,8 @@ const contributions = {
 };
 installFirstPartyToolContributors({ contributions });
 
-/** The 36 Tier-1 read tools the collapse retires, transcribed from the eval's own `TIER1_CLEAN`. */
+/** The 35 Tier-1 read tools the collapse retires, transcribed from the eval's own `TIER1_CLEAN` minus
+ *  `deployment_list`, retired with the deleted deployment tables (2026-10-03). */
 const RETIRED_TIER1_IDS: readonly string[] = [
   "backup_list_restore_points",
   "collections_content_type_list",
@@ -48,7 +49,6 @@ const RETIRED_TIER1_IDS: readonly string[] = [
   "custom_credential_list",
   "database_list_pending_migrations",
   "database_list_restore_points",
-  "deployment_list",
   "external_mcp_list",
   "forms_list_definitions",
   "identity_policy_list",
@@ -77,9 +77,9 @@ const RETIRED_TIER1_IDS: readonly string[] = [
   "workspace_get",
 ];
 
-/** The 29 cards those 36 collapse into, by the eval's mechanical `resourceKeyOf` rule (strip the
+/** The 28 cards those 35 collapse into, by the eval's mechanical `resourceKeyOf` rule (strip the
  *  `list`/`get`/`by`/`id` verb tokens, singularize, dedupe): 7 of them merge a `_get`/`_list` pair
- *  over one resource, 36 - 7 = 29. */
+ *  over one resource, 35 - 7 = 28. */
 const EXPECTED_CARD_IDS: readonly string[] = [
   "content_read.backup_restore_point",
   "content_read.collection_content_type",
@@ -89,7 +89,6 @@ const EXPECTED_CARD_IDS: readonly string[] = [
   "content_read.custom_credential",
   "content_read.database_pending_migration",
   "content_read.database_restore_point",
-  "content_read.deployment",
   "content_read.external_mcp",
   "content_read.form_definition",
   "content_read.identity_policy",
@@ -116,18 +115,18 @@ function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set
   return new Set(buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
 }
 
-test("the real composition publishes exactly the 29 content_read cards", () => {
+test("the real composition publishes exactly the 28 content_read cards", () => {
   const cards = [...idsOf()].filter((id) => id.startsWith("content_read.")).sort();
   assert.deepEqual(cards, [...EXPECTED_CARD_IDS].sort());
 });
 
-test("not one of the 36 retired Tier-1 read ids survives into the collapsed catalog", () => {
+test("not one of the 35 retired Tier-1 read ids survives into the collapsed catalog", () => {
   const ids = idsOf();
   const survivors = RETIRED_TIER1_IDS.filter((id) => ids.has(id));
   assert.deepEqual(survivors, [], "a retired id still resolving means some card failed to replace its member");
 });
 
-test("the collapse is a net -7: 36 member tools become 29 cards, and nothing else changes count", () => {
+test("the collapse is a net -7: 35 member tools become 28 cards, and nothing else changes count", () => {
   const collapsed = idsOf();
   const raw = idsOf({ includeContentReadCollapse: false });
   assert.equal(raw.size - collapsed.size, RETIRED_TIER1_IDS.length - EXPECTED_CARD_IDS.length);
@@ -139,7 +138,7 @@ test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalo
 
   // Every retired member is back...
   const missing = RETIRED_TIER1_IDS.filter((id) => !raw.has(id));
-  assert.deepEqual(missing, [], "the pre-collapse arm must contain every one of the 36 original read tools");
+  assert.deepEqual(missing, [], "the pre-collapse arm must contain every one of the 35 original read tools");
 
   // ...and no card is present, which is the half that actually matters: if this option were removed
   // (or silently ignored), the eval's "baseline" would be the collapsed catalog and would compare

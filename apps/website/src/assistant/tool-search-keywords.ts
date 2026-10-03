@@ -425,7 +425,6 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "handle data-agent-element",
 
   // --- deployments / static publish -----------------------------------------------------------------------
-  deployment_list: "deployments environments releases history staging production what has been deployed",
   // 2026-10-03: "yet" and the host names below restore two backfill-ranking cases ("can I publish my
   // site yet", "push my site live to netlify") after the publish_content pull tools and their vocabulary
   // (5ec1a964d) outranked both. The host names are the targets this tool publishes to.
