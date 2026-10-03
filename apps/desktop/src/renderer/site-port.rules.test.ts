@@ -7,7 +7,7 @@ import { cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from '
 import { STATUS_LABEL } from './site-status.js';
 import { sourceFunction } from './source-test-harness.js';
 import {
-  createWorkspaceActions, initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, surfaceOfUrl,
+  createWorkspaceActions, initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, siteWorkspaceReducer, surfaceOfUrl,
 } from './use-site-workspace.hooks.js';
 
 // REGRESSION: fails if sitePortPresentation accepts port 0 or an absent port as running.
@@ -85,7 +85,7 @@ test('stopping a tab blanks its URL immediately even while the last guest URL is
     useReducer: () => [state, () => {}], useEffect: () => {},
     useWebviewLoadFailure: () => ({ guest: null, guestRef: () => {}, failed: false, stalled: false, loaded: false }),
     runnerInventoryBridge: () => undefined,
-    initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, createWorkspaceActions,
+    initialSiteWorkspaceState, siteWorkspaceReducer, loadResetKey, siteSurfaceUrl, createWorkspaceActions,
     liveSurface: sourceFunction(workspaceSource, 'liveSurface', { surfaceOfUrl }),
   });
   const running = useSiteWorkspace({ id: 'test-site', port: 4100, status: 'running' }, false);
