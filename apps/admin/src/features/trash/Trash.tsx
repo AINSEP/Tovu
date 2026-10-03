@@ -30,7 +30,7 @@ function SelectAllHeader(props: { locale: string; allSelected: boolean; disabled
         checked={props.allSelected}
         disabled={props.disabled}
         onChange={props.onToggle}
-        {...agentHandle("trash-select-all", {
+        {...agentHandle({ handle: "trash-select-all" }, {
           role: "checkbox",
           label: t(props.locale, "Select every item shown"),
         })}
@@ -69,7 +69,7 @@ function trashColumns(props: {
             type="checkbox"
             checked={props.selected.has(item.id)}
             onChange={() => props.onToggle(item.id)}
-            {...agentHandle(`${props.handleForRow(item.id)}-select`, {
+            {...agentHandle({ handle: `${props.handleForRow(item.id)}-select` }, {
               role: "checkbox",
               label: interpolate(t(props.locale, 'Select "{title}"'), { title: item.title }),
             })}
@@ -132,7 +132,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
         className="btn-secondary"
         disabled={controller.refreshing || controller.busy}
         onClick={() => controller.refresh()}
-        {...agentHandle("trash-refresh", {
+        {...agentHandle({ handle: "trash-refresh" }, {
           role: "button",
           label: controller.refreshing ? t(locale, "Refreshing…") : t(locale, "Refresh"),
         })}
@@ -144,7 +144,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
         className="btn-secondary"
         disabled={none}
         onClick={() => void controller.onRestoreSelected()}
-        {...agentHandle("trash-restore", { role: "button", label: t(locale, "Restore") })}
+        {...agentHandle({ handle: "trash-restore" }, { role: "button", label: t(locale, "Restore") })}
       >
         {t(locale, "Restore")}
       </button>
@@ -153,7 +153,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
         className="btn-danger"
         disabled={none}
         onClick={() => controller.setPurgeConfirmOpen(true)}
-        {...agentHandle("trash-purge", { role: "button", label: t(locale, "Delete permanently") })}
+        {...agentHandle({ handle: "trash-purge" }, { role: "button", label: t(locale, "Delete permanently") })}
       >
         {t(locale, "Delete permanently")}
       </button>
@@ -205,7 +205,7 @@ function TrashItemsView(props: { controller: TrashController }) {
           className="btn-secondary"
           onClick={controller.loadMore}
           disabled={controller.loadingMore}
-          {...agentHandle("trash-load-more", { role: "button", label: t(locale, "Load more") })}
+          {...agentHandle({ handle: "trash-load-more" }, { role: "button", label: t(locale, "Load more") })}
         >
           {controller.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
         </button>

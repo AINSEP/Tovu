@@ -3296,7 +3296,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(patch),
     }),
-  // The chat composer's folder control (`FsFolderIndicator.tsx`) — the operator-set `fs-files`
+  // The folder-drop flow — the operator-set `fs-files`
+  // FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
   // `custom` root the assistant's `fs_list_files`/`fs_read_file` tools may reach outside this
   // repo/site (`apps/website`'s `features/fs-files/custom-root-store.ts`). `path: null` means no
   // folder has been set yet. `setFsFilesCustomRoot` can 400 with a message meant to be shown
@@ -3308,8 +3309,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ path }),
     }),
-  clearFsFilesCustomRoot: () =>
-    request<{ path: null }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, { method: "DELETE" }),
+  // clearFsFilesCustomRoot (lib/api.ts) was deleted 2026-10-03: unused after removing the folder indicator; see development/DELETED-CODE.md.
   // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for
   // `features/ai-assistant/AiAssistant.tsx`'s "Admin AI Assistant" tab. `server/routes/admin/system/
   // assistant-daemon.ts`'s route is synchronous and answers as soon as a restart is INITIATED, never

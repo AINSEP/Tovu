@@ -108,7 +108,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
         type="button"
         className="btn-ghost taxonomy-add-term-trigger"
         onClick={() => setOpen(true)}
-        {...agentHandle(`${base}-open`, {
+        {...agentHandle({ handle: `${base}-open` }, {
           role: "button",
           label: `Open the "add term" form for the "${taxonomy.taxonomy.name}" taxonomy`,
         })}
@@ -130,14 +130,14 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
           onChange={(e) => setName(e.target.value)}
           placeholder={t("Term name")}
           autoFocus
-          {...agentHandle(`${base}-name`, { role: "field", label: "The new term's name" })}
+          {...agentHandle({ handle: `${base}-name` }, { role: "field", label: "The new term's name" })}
         />
         {taxonomy.taxonomy.hierarchical ? (
           <select
         aria-label={t("Parent term")}
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
-            {...agentHandle(`${base}-parent`, {
+            {...agentHandle({ handle: `${base}-parent` }, {
               role: "field",
               label: "The new term's parent term, or top level — set with page.select_option, not click",
             })}
@@ -156,7 +156,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
           type="submit"
           className="btn-secondary"
           disabled={saving}
-          {...agentHandle(`${base}-submit`, { role: "button", label: "Add this term to the taxonomy" })}
+          {...agentHandle({ handle: `${base}-submit` }, { role: "button", label: "Add this term to the taxonomy" })}
         >
           {saving ? t("Saving…") : t("Add term")}
         </button>
@@ -165,7 +165,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
           className="btn-ghost"
           onClick={() => setOpen(false)}
           disabled={saving}
-          {...agentHandle(`${base}-cancel`, { role: "button", label: "Close this form without adding a term" })}
+          {...agentHandle({ handle: `${base}-cancel` }, { role: "button", label: "Close this form without adding a term" })}
         >
           {t("Cancel")}
         </button>
@@ -200,14 +200,14 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxono
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("e.g. Category")}
-          {...agentHandle("taxonomy-new-name", { role: "field", label: "The new taxonomy's name" })}
+          {...agentHandle({ handle: "taxonomy-new-name" }, { role: "field", label: "The new taxonomy's name" })}
         />
         <label>
           <input
             type="checkbox"
             checked={hierarchical}
             onChange={(e) => setHierarchical(e.target.checked)}
-            {...agentHandle("taxonomy-new-hierarchical", {
+            {...agentHandle({ handle: "taxonomy-new-hierarchical" }, {
               role: "checkbox",
               label: "Whether this taxonomy's terms can be nested under a parent term",
             })}
@@ -220,7 +220,7 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxono
         <button
           type="submit"
           disabled={saving}
-          {...agentHandle("taxonomy-new-submit", { role: "button", label: "Create this taxonomy" })}
+          {...agentHandle({ handle: "taxonomy-new-submit" }, { role: "button", label: "Create this taxonomy" })}
         >
           {saving ? t("Saving…") : t("Create taxonomy")}
         </button>
@@ -264,7 +264,7 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan,
         aria-label={t("Merge into")}
         value={intoTermId}
         onChange={(e) => setIntoTermId(e.target.value)}
-        {...agentHandle("term-merge-target", {
+        {...agentHandle({ handle: "term-merge-target" }, {
           role: "field",
           label: "The term this one will be merged into — set with page.select_option, not click",
         })}
@@ -284,7 +284,7 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan,
         className="btn-secondary"
         onClick={startPlan}
         disabled={!intoTermId || busy}
-        {...agentHandle("term-merge-plan", {
+        {...agentHandle({ handle: "term-merge-plan" }, {
           role: "button",
           label: "Plan the merge into the selected term — commits nothing yet",
         })}
@@ -319,7 +319,7 @@ function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm, 
         className="btn-secondary"
         onClick={doConfirm}
         disabled={busy}
-        {...agentHandle("term-merge-confirm", {
+        {...agentHandle({ handle: "term-merge-confirm" }, {
           role: "button",
           label: "Confirm the plan and issue a one-time execution token — still commits nothing",
         })}
@@ -347,7 +347,7 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
         className="btn-danger"
         onClick={doExecute}
         disabled={busy}
-        {...agentHandle("term-merge-execute", {
+        {...agentHandle({ handle: "term-merge-execute" }, {
           role: "button",
           label: "Execute the merge now — this cannot be undone",
         })}
@@ -430,14 +430,14 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
           id="term-rename-input"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          {...agentHandle("term-detail-rename", { role: "field", label: "This term's new name" })}
+          {...agentHandle({ handle: "term-detail-rename" }, { role: "field", label: "This term's new name" })}
         />
         <span className="editor-actions">
           <button
             type="submit"
             className="btn-secondary"
             disabled={saving}
-            {...agentHandle("term-detail-rename-save", { role: "button", label: "Save this term's new name" })}
+            {...agentHandle({ handle: "term-detail-rename-save" }, { role: "button", label: "Save this term's new name" })}
           >
             {saving ? t("Saving…") : t("Save")}
           </button>
@@ -470,7 +470,7 @@ function TaxonomyPageHeader({ formOpen, setFormOpen, t }: TaxonomyPageHeaderProp
   return (
     <div
       className="page-header"
-      {...agentHandle("taxonomy-header", {
+      {...agentHandle({ handle: "taxonomy-header" }, {
         role: "region",
         label: "Categories & Tags header — page title and the New taxonomy button",
       })}
@@ -489,7 +489,7 @@ function TaxonomyPageHeader({ formOpen, setFormOpen, t }: TaxonomyPageHeaderProp
         <button
           className={formOpen ? "btn-secondary" : undefined}
           onClick={() => setFormOpen((v) => !v)}
-          {...agentHandle("taxonomy-new-toggle", {
+          {...agentHandle({ handle: "taxonomy-new-toggle" }, {
             role: "button",
             label: "Open or close the new-taxonomy form",
           })}
@@ -816,7 +816,7 @@ function namespaceList(
                           `onClick`, exactly as a user's click would. */}
                       <span
                         className="settings-row-key"
-                        {...agentHandle(termHandle, {
+                        {...agentHandle({ handle: termHandle }, {
                           role: "button",
                           label: "Select this term to view and edit its details",
                         })}

@@ -1,9 +1,8 @@
-import { createPortal } from "react-dom";
-import { agentHandle } from "@jini-ai/agentic";
-
-import { useInfoTip } from "./InfoTip.hooks";
-
 /**
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file A small "ⓘ" affordance that reveals an explanation on hover, focus, or (once open) stays
  * openable/closable entirely from the keyboard — built 2026-08-09 for Menus' "Assign location"
  * column ("for some of the titles"), but not actually wired up anywhere until ThemeExplore.tsx's
@@ -32,53 +31,17 @@ import { useInfoTip } from "./InfoTip.hooks";
  * out the same way `SeeMore`/`SeeMore.hooks.tsx` does: this file stays props-and-JSX only, and the
  * `useTip` prop below lets a test render this JSX against a fake hook — no real DOM measurement
  * required.
+ *
+ *  Injectable seam for the tooltip's open/close state and placement measurement. Defaults to the
+ *  real {@link useInfoTip}; a test can pass a fake here to exercise `InfoTip`'s rendering with a
+ *  fixed `open`/`placement`/`coords` instead of driving real hover/focus/measurement.
+ *
+ *  Publishes the "ⓘ" icon itself as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
+ *  A click ends up focusing the icon, which opens the bubble the same way hover does — so this
+ *  is tagged `role: "button"` despite having no `onClick` of its own. Omit to leave it untagged;
+ *  every existing render then stays byte-identical, since `agentHandle()` is only spread onto the
+ *  icon when a handle is present.
  */
-export interface InfoTipProps {
-  label: string;
-  /** Injectable seam for the tooltip's open/close state and placement measurement. Defaults to the
-   *  real {@link useInfoTip}; a test can pass a fake here to exercise `InfoTip`'s rendering with a
-   *  fixed `open`/`placement`/`coords` instead of driving real hover/focus/measurement. */
-  useTip?: typeof useInfoTip;
-  /** Publishes the "ⓘ" icon itself as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
-   *  A click ends up focusing the icon, which opens the bubble the same way hover does — so this
-   *  is tagged `role: "button"` despite having no `onClick` of its own. Omit to leave it untagged;
-   *  every existing render then stays byte-identical, since `agentHandle()` is only spread onto the
-   *  icon when a handle is present. */
-  agentHandle?: string;
-}
-
-export function InfoTip({ label, useTip = useInfoTip, agentHandle: handle }: InfoTipProps) {
-  const { open, placement, coords, iconRef, show, hide, handleIconKeyDown } = useTip();
-
-  return (
-    <span className="info-tip">
-      <span
-        ref={iconRef}
-        className="info-tip-icon"
-        tabIndex={0}
-        aria-label={label}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        onKeyDown={handleIconKeyDown}
-        {...(handle ? agentHandle(handle, { role: "button", label }) : {})}
-      >
-        ⓘ
-      </span>
-      {open
-        ? createPortal(
-            <span
-              className={placement === "below" ? "info-tip-bubble info-tip-bubble-below" : "info-tip-bubble"}
-              role="presentation"
-              aria-hidden="true"
-              style={{ top: coords.top, left: coords.left }}
-            >
-              {label}
-            </span>,
-            document.body
-          )
-        : null}
-    </span>
-  );
-}
+// Tooltip accessibility/clipping rationale: Jini/packages/ui/src/features/admin-widgets/components/InfoTip.tsx.
+export { InfoTip } from "@jini-ai/ui/admin-widgets";
+export type { InfoTipProps } from "@jini-ai/ui/admin-widgets";

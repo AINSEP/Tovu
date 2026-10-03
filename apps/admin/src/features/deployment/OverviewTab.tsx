@@ -89,7 +89,7 @@ function OverviewPathCard({
   return (
     <div
       className="card deployment-path-card"
-      {...agentHandle(cardHandleId, {
+      {...agentHandle({ handle: cardHandleId }, {
         role: "region",
         label: `${heading} path card — availability, what it gives you, capability comparison, and a link to its own tab`,
       })}
@@ -106,7 +106,7 @@ function OverviewPathCard({
         <a
           className="btn-secondary"
           href={detailsHref}
-          {...agentHandle(detailsHandleId, { role: "link", label: `Open the ${heading} tab for full details` })}
+          {...agentHandle({ handle: detailsHandleId }, { role: "link", label: `Open the ${heading} tab for full details` })}
         >
           {detailsLabel}
         </a>
@@ -201,7 +201,7 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
     <>
       <div
         className="card"
-        {...agentHandle("deployment-overview-instance-facts", {
+        {...agentHandle({ handle: "deployment-overview-instance-facts" }, {
           role: "region",
           label: "How this instance is running — runtime mode, readiness gate, owner password, agent daemon, and file paths",
         })}
@@ -239,7 +239,7 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
 
       <div
         className="card"
-        {...agentHandle("deployment-overview-env-vars", {
+        {...agentHandle({ handle: "deployment-overview-env-vars" }, {
           role: "region",
           label: "Environment variables this instance reads, with each one's Set/Not set state and what happens when it's absent",
         })}

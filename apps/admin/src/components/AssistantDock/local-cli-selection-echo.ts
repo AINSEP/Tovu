@@ -11,7 +11,7 @@ import { resolveChatPaneSelection, type ChatPaneAgent, type ChatPaneAgentSelecti
  * available one. Every mount produced one such call, and persisting it wrote
  * `localCli.agentId`/`.model` on every admin page load (2026-09-23).
  *
- * With the inventory known, the echo is exactly `resolveChatPaneSelection(agents, current)`. An
+ * With the inventory known, the echo is exactly `resolveChatPaneSelection({ agents, requested: current })`. An
  * operator pick equal to it is also skipped, correctly: that value is what the picker already
  * shows. Without an inventory there is no echo to skip: `ChatPane` cannot normalize against an
  * empty list, and the dock records each live inventory (`recordAgents`) before `ChatPane` gets it.
@@ -27,7 +27,7 @@ export function isSelectionNormalizationEcho(
   agents: readonly ChatPaneAgent[] | undefined,
 ): boolean {
   if (!agents?.length) return false;
-  const resolved = resolveChatPaneSelection(agents, current);
+  const resolved = resolveChatPaneSelection({ agents, requested: current });
   return resolved.agentId === incoming.agentId
     && resolved.model === incoming.model
     && resolved.reasoning === incoming.reasoning;

@@ -76,14 +76,14 @@ export function Payments(): ReactElement {
               <a
                 className="btn-secondary"
                 href="/admin/products"
-                {...agentHandle("payments-open-products", { role: "link", label: "Go to Products" })}
+                {...agentHandle({ handle: "payments-open-products" }, { role: "link", label: "Go to Products" })}
               >
                 {t("Open products")}
               </a>
               <a
                 className="btn-secondary"
                 href="/admin/subscriptions"
-                {...agentHandle("payments-open-subscriptions", { role: "link", label: "Go to Subscriptions" })}
+                {...agentHandle({ handle: "payments-open-subscriptions" }, { role: "link", label: "Go to Subscriptions" })}
               >
                 {t("Open subscriptions")}
               </a>
@@ -106,7 +106,7 @@ export function Payments(): ReactElement {
               <a
                 className="btn-secondary"
                 href="/admin/orders"
-                {...agentHandle("payments-open-orders", { role: "link", label: "Go to Orders" })}
+                {...agentHandle({ handle: "payments-open-orders" }, { role: "link", label: "Go to Orders" })}
               >
                 {t("Open orders")}
               </a>

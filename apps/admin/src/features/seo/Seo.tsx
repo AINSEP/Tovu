@@ -149,7 +149,7 @@ function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useWiredE
       <select
         value={entryId}
         onChange={(e) => onChange(e.target.value)}
-        {...agentHandle("seo-entry-picker", {
+        {...agentHandle({ handle: "seo-entry-picker" }, {
           role: "field",
           label: "Choose which page or post to edit or analyze SEO for",
         })}
@@ -251,7 +251,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("title", resolved.title) ?? ""}
           onChange={(e) => setField("title", e.target.value)}
-          {...agentHandle("seo-entry-title", { role: "field", label: "This entry's SEO title override" })}
+          {...agentHandle({ handle: "seo-entry-title" }, { role: "field", label: "This entry's SEO title override" })}
         />
       </label>
       <label>
@@ -259,7 +259,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <textarea
           value={fieldValue("description", resolved.description ?? "") ?? ""}
           onChange={(e) => setField("description", e.target.value)}
-          {...agentHandle("seo-entry-description", { role: "field", label: "This entry's SEO description override" })}
+          {...agentHandle({ handle: "seo-entry-description" }, { role: "field", label: "This entry's SEO description override" })}
         />
       </label>
       <label>
@@ -267,7 +267,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("canonical", resolved.canonical) ?? ""}
           onChange={(e) => setField("canonical", e.target.value)}
-          {...agentHandle("seo-entry-canonical", { role: "field", label: "This entry's canonical URL override" })}
+          {...agentHandle({ handle: "seo-entry-canonical" }, { role: "field", label: "This entry's canonical URL override" })}
         />
       </label>
       <label>
@@ -275,7 +275,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           type="checkbox"
           checked={fieldValue("noindex", resolved.robots.noindex) ?? false}
           onChange={(e) => setField("noindex", e.target.checked)}
-          {...agentHandle("seo-entry-noindex", { role: "checkbox", label: "Override this entry's robots noindex directive" })}
+          {...agentHandle({ handle: "seo-entry-noindex" }, { role: "checkbox", label: "Override this entry's robots noindex directive" })}
         />
         {t(locale, "Noindex")}
       </label>
@@ -284,7 +284,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           type="checkbox"
           checked={fieldValue("nofollow", resolved.robots.nofollow) ?? false}
           onChange={(e) => setField("nofollow", e.target.checked)}
-          {...agentHandle("seo-entry-nofollow", { role: "checkbox", label: "Override this entry's robots nofollow directive" })}
+          {...agentHandle({ handle: "seo-entry-nofollow" }, { role: "checkbox", label: "Override this entry's robots nofollow directive" })}
         />
         {t(locale, "Nofollow")}
       </label>
@@ -293,7 +293,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("ogTitle", resolved.openGraph.title) ?? ""}
           onChange={(e) => setField("ogTitle", e.target.value)}
-          {...agentHandle("seo-entry-og-title", { role: "field", label: "This entry's Open Graph title override" })}
+          {...agentHandle({ handle: "seo-entry-og-title" }, { role: "field", label: "This entry's Open Graph title override" })}
         />
       </label>
       <label>
@@ -301,7 +301,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("ogDescription", resolved.openGraph.description ?? "") ?? ""}
           onChange={(e) => setField("ogDescription", e.target.value)}
-          {...agentHandle("seo-entry-og-description", { role: "field", label: "This entry's Open Graph description override" })}
+          {...agentHandle({ handle: "seo-entry-og-description" }, { role: "field", label: "This entry's Open Graph description override" })}
         />
       </label>
       <MediaRefField
@@ -317,7 +317,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("twitterTitle", resolved.twitter.title) ?? ""}
           onChange={(e) => setField("twitterTitle", e.target.value)}
-          {...agentHandle("seo-entry-twitter-title", { role: "field", label: "This entry's Twitter card title override" })}
+          {...agentHandle({ handle: "seo-entry-twitter-title" }, { role: "field", label: "This entry's Twitter card title override" })}
         />
       </label>
       <label>
@@ -325,7 +325,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("twitterDescription", resolved.twitter.description ?? "") ?? ""}
           onChange={(e) => setField("twitterDescription", e.target.value)}
-          {...agentHandle("seo-entry-twitter-description", { role: "field", label: "This entry's Twitter card description override" })}
+          {...agentHandle({ handle: "seo-entry-twitter-description" }, { role: "field", label: "This entry's Twitter card description override" })}
         />
       </label>
       <MediaRefField
@@ -343,7 +343,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           className="btn-secondary"
           onClick={save}
           disabled={saving || Object.keys(touched).length === 0}
-          {...agentHandle("seo-entry-save-overrides", { role: "button", label: "Save this entry's SEO overrides" })}
+          {...agentHandle({ handle: "seo-entry-save-overrides" }, { role: "button", label: "Save this entry's SEO overrides" })}
         >
           {saving ? t(locale, "Saving…") : t(locale, "Save overrides")}
         </button>
@@ -375,7 +375,7 @@ function SeoEntrySection({ locale, useSeoEntrySectionHook = useSeoEntrySection }
   return (
     <div
       className="seo-panel seo-panel--full seo-entry-section"
-      {...agentHandle("seo-per-entry", {
+      {...agentHandle({ handle: "seo-per-entry" }, {
         role: "region",
         label: "Per-entry SEO overrides — pick one entry and edit or analyze its metadata",
       })}
@@ -424,7 +424,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
   return (
     <form
       className="seo-panel seo-panel--full"
-      {...agentHandle("seo-defaults-form", {
+      {...agentHandle({ handle: "seo-defaults-form" }, {
         role: "form",
         label: "Site-wide SEO defaults — title template, meta description, social image, robots",
       })}
@@ -442,7 +442,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             id="seo-title-template"
             name="titleTemplate"
             defaultValue={settings.titleTemplate}
-            {...agentHandle("seo-title-template", {
+            {...agentHandle({ handle: "seo-title-template" }, {
               role: "field",
               label: "Site-wide title template; %s is replaced by the page's own title",
             })}
@@ -456,7 +456,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             id="seo-default-description"
             name="defaultDescription"
             defaultValue={orEmpty(settings.defaultDescription)}
-            {...agentHandle("seo-default-description", {
+            {...agentHandle({ handle: "seo-default-description" }, {
               role: "field",
               label: "Fallback meta description for pages that set none of their own",
             })}
@@ -487,7 +487,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             id="seo-twitter-site"
             name="twitterSite"
             defaultValue={orEmpty(settings.twitterSite)}
-            {...agentHandle("seo-twitter-site", {
+            {...agentHandle({ handle: "seo-twitter-site" }, {
               role: "field",
               label: "The site's Twitter @handle, used in Twitter card metadata",
             })}
@@ -501,7 +501,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             type="checkbox"
             name="noindex"
             defaultChecked={settings.defaultRobots.noindex}
-            {...agentHandle("seo-default-noindex", {
+            {...agentHandle({ handle: "seo-default-noindex" }, {
               role: "checkbox",
               label: "Ask search engines not to index pages by default",
             })}
@@ -513,7 +513,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             type="checkbox"
             name="nofollow"
             defaultChecked={settings.defaultRobots.nofollow}
-            {...agentHandle("seo-default-nofollow", {
+            {...agentHandle({ handle: "seo-default-nofollow" }, {
               role: "checkbox",
               label: "Ask search engines not to follow links by default",
             })}
@@ -525,7 +525,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             type="checkbox"
             name="sitemapEnabled"
             defaultChecked={settings.sitemapEnabled}
-            {...agentHandle("seo-sitemap-enabled", {
+            {...agentHandle({ handle: "seo-sitemap-enabled" }, {
               role: "checkbox",
               label: "Whether this site publishes a sitemap at all",
             })}
@@ -538,7 +538,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
         <button
           type="submit"
           disabled={saving}
-          {...agentHandle("seo-save-settings", {
+          {...agentHandle({ handle: "seo-save-settings" }, {
             role: "button",
             label: "Save the site-wide SEO defaults above",
           })}
@@ -573,7 +573,7 @@ function SeoSitemapTab({ controller }: { controller: SeoTabController }) {
   return (
     <div
       className="seo-panel seo-panel--full"
-      {...agentHandle("seo-sitemap", {
+      {...agentHandle({ handle: "seo-sitemap" }, {
         role: "region",
         label: "Sitemap — force a rebuild of the cached sitemap",
       })}
@@ -586,7 +586,7 @@ function SeoSitemapTab({ controller }: { controller: SeoTabController }) {
             className="btn-secondary"
             disabled={saving}
             onClick={regenerateSitemap}
-            {...agentHandle("seo-regenerate-sitemap", {
+            {...agentHandle({ handle: "seo-regenerate-sitemap" }, {
               role: "button",
               label: "Rebuild the cached sitemap now, bypassing the cache",
             })}
@@ -597,7 +597,7 @@ function SeoSitemapTab({ controller }: { controller: SeoTabController }) {
             type="button"
             className="btn-secondary"
             onClick={openSitemapModal}
-            {...agentHandle("seo-view-sitemap", {
+            {...agentHandle({ handle: "seo-view-sitemap" }, {
               role: "button",
               label: "Open a modal showing the sitemap's URLs, or its raw XML",
             })}

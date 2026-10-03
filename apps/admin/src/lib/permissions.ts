@@ -1,4 +1,15 @@
-/**
+import { hasPermission as hasPackagePermission } from "@jini-ai/ui/panel-kit";
+
+// Affordance rationale: Jini packages/ui/src/features/panel-kit/helpers/permissions.ts.
+// GET /auth/me flattens grants to effectivePermissions, losing resourceType/constraintJson.
+// Literal includes checks once hid Settings/Comments controls from the owner wildcard (ADR-021).
+// ADR-006 keeps one real evaluator: identity/authorize.ts rechecks every mutation and tool call.
+/** UI affordance check only; operations still authorize at the server boundary.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file Client-side permission-affordance helper.
  *
  * Purpose:
@@ -29,9 +40,7 @@
  * operation, because every mutation and tool call is independently re-checked server-side by
  * `authorize()` in `src/identity/authorize.ts`. Do not import this into server code, and do not
  * treat a passing call here as proof an action is actually allowed.
- */
-
-/**
+ *
  * True iff `permissions` grants `permission` — either an exact match, or the unconstrained owner
  * wildcard `"*"` (mirrors `identity/authorize.ts`'s server-side wildcard precedence, minus the
  * `resourceType`/`constraintJson` re-check that function does: that data never reaches the
@@ -42,5 +51,5 @@
  * principal; never a caller-unbounded collection).
  */
 export function hasPermission(permissions: readonly string[], permission: string): boolean {
-  return permissions.includes("*") || permissions.includes(permission);
+  return hasPackagePermission({ permissions, permission });
 }

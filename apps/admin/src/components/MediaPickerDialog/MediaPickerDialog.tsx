@@ -106,7 +106,7 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agent
                   className="media-picker-item"
                   title={item.title}
                   onClick={() => select(item)}
-                  {...(itemHandles ? agentHandle(itemHandles[index]!, { role: "button", label: item.title }) : {})}
+                  {...(itemHandles ? agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.title }) : {})}
                 >
                   <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
                   <span className="media-picker-item-title">{item.title}</span>
@@ -123,7 +123,7 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agent
               type="button"
               className="btn-secondary"
               onClick={props.onCancel}
-              {...(base ? agentHandle(`${base}-cancel`, { role: "button", label: "Close without choosing an image" }) : {})}
+              {...(base ? agentHandle({ handle: `${base}-cancel` }, { role: "button", label: "Close without choosing an image" }) : {})}
             >
               {t("Cancel")}
             </button>

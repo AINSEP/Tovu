@@ -66,7 +66,7 @@ const WIRED_HOOKS: readonly string[] = [
   // excluded — the list must describe what the hooks actually do.
   "features/redirects/hooks/use-redirects.hooks.ts",
   "features/comments/hooks/use-comment-queue.hooks.ts",
-  "features/database/hooks/use-restore-points-section.hooks.ts",
+  // use-restore-points-section.hooks.ts was deleted 2026-10-03: unused; Recovery owns restore points; see development/DELETED-CODE.md.
   "features/deployment/hooks/use-static-export.hooks.ts",
   "features/members/hooks/use-members.hooks.ts",
   "features/widgets/hooks/use-widgets-library.hooks.ts",

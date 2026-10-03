@@ -23,7 +23,7 @@ function ObservabilityStatusCard({
     <div
       className={`observability-status-card observability-status-card--${status.enabled ? "on" : "off"}`}
       role="status"
-      {...agentHandle("observability-status", { role: "status", label: "Current OpenTelemetry status" })}
+      {...agentHandle({ handle: "observability-status" }, { role: "status", label: "Current OpenTelemetry status" })}
     >
       <span className="observability-status-dot" aria-hidden="true" />
       <div>
@@ -81,7 +81,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
           href={OTEL_DOCS_URL}
           target="_blank"
           rel="noreferrer"
-          {...agentHandle("observability-otel-docs-link", { role: "link", label: "Open the OpenTelemetry documentation" })}
+          {...agentHandle({ handle: "observability-otel-docs-link" }, { role: "link", label: "Open the OpenTelemetry documentation" })}
         >
           {t("Read the OpenTelemetry documentation")}
         </a>
@@ -174,7 +174,7 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("observability-header", {
+        {...agentHandle({ handle: "observability-header" }, {
           role: "region",
           label: "Observability panel header — what OpenTelemetry is, and whether it's on right now",
         })}

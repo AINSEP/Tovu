@@ -163,7 +163,7 @@ export function Security(props: SecurityProps) {
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("security-header", {
+        {...agentHandle({ handle: "security-header" }, {
           role: "region",
           label: "Secrets panel header — every saved access token and the Site Token that protects them, in one place",
         })}

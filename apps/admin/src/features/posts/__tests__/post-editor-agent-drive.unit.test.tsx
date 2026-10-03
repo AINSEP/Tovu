@@ -130,7 +130,7 @@ async function findElements(
   // `additionalProperties: false` and the executor only forwards a `string`, so an explicit
   // `undefined` would be silently dropped and quietly turn a filtered probe into an unfiltered one.
   const input = query === undefined ? {} : { query };
-  const result = (await executePageCapability(driver, "page.find_elements", input)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -152,8 +152,8 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     const { container, ctrl } = renderPostEditor({ view: "edit" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "post-view-preview" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-preview" } });
+    await driver.settle?.({});
 
     expect(ctrl.setView).toHaveBeenCalledWith("preview");
   });
@@ -165,8 +165,8 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     const handles = await handlesOf(driver);
     expect(handles).toContain("post-preview-expand");
 
-    await executePageCapability(driver, "page.click", { handle: "post-preview-expand" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-preview-expand" } });
+    await driver.settle?.({});
 
     expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
   });
@@ -183,8 +183,8 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     expect(handles).toContain("post-preview-expand");
     expect(handles.filter((handle) => handle === "post-preview-expand")).toHaveLength(1);
 
-    await executePageCapability(driver, "page.click", { handle: "post-preview-expand" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-preview-expand" } });
+    await driver.settle?.({});
 
     expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
   });
@@ -193,8 +193,8 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     const { container, ctrl } = renderPostEditor({ view: "preview" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "post-view-edit" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-edit" } });
+    await driver.settle?.({});
 
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
   });

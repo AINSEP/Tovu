@@ -108,7 +108,7 @@ async function findElements(
   driver: ReturnType<typeof createDomPageDriver>,
   filter: { role?: string } = {},
 ): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", filter)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: filter })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -129,8 +129,8 @@ describe("driving per-taxonomy forms through page.* verbs", () => {
     expect(before).toContain("taxonomy-new-term-tax-b-open");
     expect(before).not.toContain("taxonomy-new-term-tax-a-name");
 
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-new-term-tax-a-open" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-new-term-tax-a-open" } });
+    await driver.settle?.({});
 
     const after = await handlesOf(driver);
     expect(after).toContain("taxonomy-new-term-tax-a-name");
@@ -155,16 +155,16 @@ describe("driving the new-taxonomy form through page.* verbs", () => {
     await screen.findByLabelText(/^New taxonomy$/);
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "taxonomy-new-name", text: "Series" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "taxonomy-new-name", text: "Series" } });
     expect((screen.getByPlaceholderText("e.g. Category") as HTMLInputElement).value).toBe("Series");
 
     const checkbox = screen.getByRole("checkbox", { name: "Hierarchical" }) as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-new-hierarchical" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-new-hierarchical" } });
     expect(checkbox.checked).toBe(true);
 
     expect(await handlesOf(driver)).toContain("taxonomy-new-submit");
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-new-submit" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-new-submit" } });
     await waitFor(() => {
       const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
       expect(writes).toHaveLength(1);
@@ -188,7 +188,7 @@ describe("addressing term rows without triggering the RowMenu they sit beside", 
     expect(handles).toContain("taxonomy-term-t-alpha");
     expect(handles).toContain("taxonomy-term-t-beta");
 
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-term-t-alpha" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-term-t-alpha" } });
 
     expect(controller.setSelectedTermId).toHaveBeenCalledWith("t-alpha");
     expect(controller.setSelectedTermId).not.toHaveBeenCalledWith("t-beta");
@@ -211,14 +211,14 @@ describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
     document.body.append(assistantControl);
     try {
       expect(await handlesOf(driver)).toContain("taxonomy-menu-tax-a");
-      await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a" });
-      await driver.settle?.();
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-menu-tax-a" } });
+      await driver.settle?.({});
       expect(await handlesOf(driver)).toContain("taxonomy-menu-tax-a-item-delete");
       expect(await handlesOf(driver)).not.toContain("assistant-private-action");
-      await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a-item-delete" });
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-menu-tax-a-item-delete" } });
       expect(controller.requestDeleteTaxonomy).toHaveBeenCalledTimes(1);
       expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(group.taxonomy);
-      await driver.settle?.();
+      await driver.settle?.({});
       expect(await handlesOf(driver)).not.toContain("taxonomy-menu-tax-a-item-delete");
     } finally {
       assistantControl.remove();
@@ -248,8 +248,8 @@ describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
 
     // The trigger itself IS reachable and clickable through the scoped root — it is an ordinary
     // descendant of `container`, not portaled.
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-menu-tax-a" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-menu-tax-a" } });
+    await driver.settle?.({});
 
     // Only the opened taxonomy contributes an item to the scoped page.
     const afterScoped = await handlesOf(driver);
@@ -278,8 +278,8 @@ describe("driving the term-level RowMenu through page.* verbs", () => {
     expect(before).toContain("taxonomy-term-t-beta-menu");
     expect(before).not.toContain("taxonomy-term-t-alpha-menu-item-delete");
 
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-term-t-alpha-menu" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-term-t-alpha-menu" } });
+    await driver.settle?.({});
 
     // Both menu levels must use the same page-owned portal container.
     const after = await handlesOf(driver);
@@ -287,7 +287,7 @@ describe("driving the term-level RowMenu through page.* verbs", () => {
 
     // Beta's own menu stays closed — its item never appears from Alpha's click.
     expect(after).not.toContain("taxonomy-term-t-beta-menu-item-delete");
-    await executePageCapability(driver, "page.click", { handle: "taxonomy-term-t-alpha-menu-item-delete" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "taxonomy-term-t-alpha-menu-item-delete" } });
     expect(controller.requestDeleteTerm).toHaveBeenCalledExactlyOnceWith(group.terms[0]);
     expect(controller.setSelectedTermId).not.toHaveBeenCalled();
     expect(await handlesOf(driver)).not.toContain("taxonomy-term-t-alpha-menu-item-delete");

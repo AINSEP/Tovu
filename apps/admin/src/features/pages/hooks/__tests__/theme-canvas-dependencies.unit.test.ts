@@ -5,8 +5,7 @@ import { createFakeThemeCanvasPort, defaultThemeCanvasPort } from "../theme-canv
 /**
  * @file Coverage for `theme-canvas-dependencies.hooks.ts`'s `defaultThemeCanvasPort` — neither
  * method was ever invoked by any existing suite (`use-theme-canvas-styling.unit.test.ts` only ever
- * constructs `createFakeThemeCanvasPort`; nothing renders `useWiredThemeCanvasStyling()`, the entry
- * point that wires this real-`fetch` port in). This covers both the success and the
+ * constructs `createFakeThemeCanvasPort`; nothing rendered the former wired hook, which used this real-`fetch` port). This covers both the success and the
  * `!res.ok`-throws path for each method directly against a stubbed global `fetch`.
  *
  * Also closes a mutation-survived gap in `createFakeThemeCanvasPort.fetchThemeTokens`'s own
@@ -14,6 +13,7 @@ import { createFakeThemeCanvasPort, defaultThemeCanvasPort } from "../theme-canv
  * (`createFakeThemeCanvasPort()`), but only asserts the HOOK's downstream fallback state, which
  * turns out identical whether this guard rejects or silently resolves `undefined` — so disabling it
  * left that test green. Asserted here directly against the port's own promise instead.
+ * useWiredThemeCanvasStyling (features/pages/hooks/use-theme-canvas-styling.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 const originalFetch = global.fetch;

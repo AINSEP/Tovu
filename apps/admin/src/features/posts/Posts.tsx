@@ -109,7 +109,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           <button
             onClick={createPost}
             disabled={creating}
-            {...agentHandle("posts-new", { role: "button", label: "Create a new post" })}
+            {...agentHandle({ handle: "posts-new" }, { role: "button", label: "Create a new post" })}
           >
             {creating ? t("Creating…") : t("New Post")}
           </button>
@@ -141,7 +141,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             cell: (post) => (
               <a
                 href={`/admin/posts/${post.slug}`}
-                {...agentHandle(`${rowMenuHandleById.get(post.id)}-edit`, { role: "link", label: "Open this post's editor" })}
+                {...agentHandle({ handle: `${rowMenuHandleById.get(post.id)}-edit` }, { role: "link", label: "Open this post's editor" })}
               >
                 {post.title}
               </a>
@@ -156,7 +156,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
                 href={siteUrl(`/${post.slug}`)}
                 target="_blank"
                 rel="noreferrer"
-                {...agentHandle(`${rowMenuHandleById.get(post.id)}-view-live`, { role: "link", label: "Open this post on the live public site" })}
+                {...agentHandle({ handle: `${rowMenuHandleById.get(post.id)}-view-live` }, { role: "link", label: "Open this post on the live public site" })}
               >
                 /{post.slug}
               </a>

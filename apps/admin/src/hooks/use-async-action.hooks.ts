@@ -1,8 +1,15 @@
-import { type Dispatch, type SetStateAction, useState } from "react";
+import { useAsyncAction as usePackageAsyncAction, type AsyncActionState as PackageState } from "@jini-ai/ui/panel-kit";
 
-import { isAbortError } from "../lib/retry-unreachable";
+export type AsyncActionState = Omit<PackageState, "run"> & {
+  run: (action: () => Promise<void>, describeError: (error: unknown) => string) => Promise<void>;
+};
 
-/**
+/** Preserve host action callbacks while Jini handles saving/error/abort state.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file `useAsyncAction` — collapses the `[saving, setSaving]` / `[error, setError]` pair that
  * shows up around nearly every mutation handler in this app's higher-state screens: `setXSaving
  * (true); setXError(null); try { await ...; <success side effects> } catch (e) { setXError
@@ -49,60 +56,41 @@ import { isAbortError } from "../lib/retry-unreachable";
  *   }, (e) => describeApiError(e, "failed to create role"));
  * }
  * // renders: disabled={createRole.saving}, and createRole.error under the field
+ *
+ *  True for the duration of the most recent {@link run} call — the button/field disabled flag.
+ *
+ *  The most recent failure, describable and ready to render; `null` on success or before the
+ *  first attempt. Cleared at the start of every {@link run} call, same as every hand-rolled
+ *  version this replaces (`setXError(null)` was always the second line, not an afterthought).
+ *
+ *  Exposed directly (not only through `run`) for the same reason several call sites needed their
+ *  own `setXError` on the return type already — clearing the error at a moment that isn't the
+ *  start of a new attempt (`useUsers`'s `openResetPassword` clears `passwordError` when the
+ *  dialog OPENS, before any save has been attempted).
+ *
+ *  Typed as the full `Dispatch<SetStateAction<…>>` rather than the narrower `(error) => void`,
+ *  because this is `useState`'s own setter passed through unchanged and several call sites
+ *  re-export it under a name whose declared type is already `Dispatch<SetStateAction<string |
+ *  null>>` (`useUsers`' `setPasswordError`). Narrowing it here would make the primitive
+ *  unassignable to the very signatures it is replacing, for no gain — the updater form is
+ *  supported by the underlying setter whether or not the type admits it.
+ *
+ * Runs `action`, tracking `saving`/`error` around it exactly like the boilerplate it replaces.
+ * `action` owns every success-path side effect (clearing fields, closing dialogs, `reload()`) —
+ * this function's only job is the try/catch/finally shell, so the ORDER those side effects run
+ * in (all before `saving` flips back to `false`) is unchanged from the pre-extraction code.
+ *
+ * @param action - The mutation call plus its success-path side effects, run inside the try.
+ * @param describeError - Turns a caught error into the message `error` will hold — almost always
+ *   `(e) => describeApiError(e, "failed to …")` from the caller's own `rules.ts`.
+ *
+ * A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
+ * not a real mutation failure — showing it would set an error banner during unload that is
+ * invisible then but reappears, stale, if the page is restored from the back/forward cache.
+ * `finally` below still flips `saving` back off, so a restored page shows idle, not stuck.
  */
-
-export interface AsyncActionState {
-  /** True for the duration of the most recent {@link run} call — the button/field disabled flag. */
-  saving: boolean;
-  /** The most recent failure, describable and ready to render; `null` on success or before the
-   *  first attempt. Cleared at the start of every {@link run} call, same as every hand-rolled
-   *  version this replaces (`setXError(null)` was always the second line, not an afterthought). */
-  error: string | null;
-  /** Exposed directly (not only through `run`) for the same reason several call sites needed their
-   *  own `setXError` on the return type already — clearing the error at a moment that isn't the
-   *  start of a new attempt (`useUsers`'s `openResetPassword` clears `passwordError` when the
-   *  dialog OPENS, before any save has been attempted).
-   *
-   *  Typed as the full `Dispatch<SetStateAction<…>>` rather than the narrower `(error) => void`,
-   *  because this is `useState`'s own setter passed through unchanged and several call sites
-   *  re-export it under a name whose declared type is already `Dispatch<SetStateAction<string |
-   *  null>>` (`useUsers`' `setPasswordError`). Narrowing it here would make the primitive
-   *  unassignable to the very signatures it is replacing, for no gain — the updater form is
-   *  supported by the underlying setter whether or not the type admits it. */
-  setError: Dispatch<SetStateAction<string | null>>;
-  /**
-   * Runs `action`, tracking `saving`/`error` around it exactly like the boilerplate it replaces.
-   * `action` owns every success-path side effect (clearing fields, closing dialogs, `reload()`) —
-   * this function's only job is the try/catch/finally shell, so the ORDER those side effects run
-   * in (all before `saving` flips back to `false`) is unchanged from the pre-extraction code.
-   *
-   * @param action - The mutation call plus its success-path side effects, run inside the try.
-   * @param describeError - Turns a caught error into the message `error` will hold — almost always
-   *   `(e) => describeApiError(e, "failed to …")` from the caller's own `rules.ts`.
-   */
-  run: (action: () => Promise<void>, describeError: (e: unknown) => string) => Promise<void>;
-}
-
 export function useAsyncAction(): AsyncActionState {
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run(action: () => Promise<void>, describeError: (e: unknown) => string) {
-    setSaving(true);
-    setError(null);
-    try {
-      await action();
-    } catch (e) {
-      // A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
-      // not a real mutation failure — showing it would set an error banner during unload that is
-      // invisible then but reappears, stale, if the page is restored from the back/forward cache.
-      // `finally` below still flips `saving` back off, so a restored page shows idle, not stuck.
-      if (isAbortError(e)) return;
-      setError(describeError(e));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return { saving, error, setError, run };
+  const state = usePackageAsyncAction();
+  return { ...state, run: (action, describeError) => state.run({ action, describeError }) };
 }
+// Mutation-state rationale: Jini/packages/ui/src/features/panel-kit/hooks/use-async-action.hooks.ts.

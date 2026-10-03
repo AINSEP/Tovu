@@ -224,7 +224,7 @@ export function Providers(props: ProvidersProps) {
       <div className="page providers-page" data-theme="light">
         <div
           className="page-header"
-          {...agentHandle("providers-header", {
+          {...agentHandle({ handle: "providers-header" }, {
             role: "region",
             label: "Integrations panel header — this install's outside connections in both directions: services it connects out to, and tools that connect in",
           })}

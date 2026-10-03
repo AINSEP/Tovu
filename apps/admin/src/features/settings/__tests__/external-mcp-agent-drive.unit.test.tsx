@@ -47,7 +47,7 @@ interface FoundElements {
 }
 
 async function findElements(driver: ReturnType<typeof createDomPageDriver>): Promise<string[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", {})) as FoundElements;
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: {} })) as FoundElements;
   return result.elements.map((element) => element.handle);
 }
 
@@ -90,21 +90,21 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
     expect(before).not.toContain("mcp-add-field-oauth-client-id");
 
     // The agent's move, through the real executor and the real driver — not userEvent.
-    await executePageCapability(driver, "page.select_option", {
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: {
       handle: "mcp-add-field-transport",
       option: "Hosted server (URL)",
-    });
-    await driver.settle?.();
+    } });
+    await driver.settle?.({});
 
     const afterTransport = await findElements(driver);
     expect(afterTransport).toContain("mcp-add-field-url");
     expect(afterTransport).not.toContain("mcp-add-field-command");
 
-    await executePageCapability(driver, "page.select_option", {
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: {
       handle: "mcp-add-field-auth-mode",
       option: "Connect via OAuth",
-    });
-    await driver.settle?.();
+    } });
+    await driver.settle?.({});
 
     const afterAuth = await findElements(driver);
     expect(afterAuth).toContain("mcp-add-field-oauth-client-id");
@@ -118,22 +118,22 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
     await user.click(screen.getByRole("button", { name: "Add server" }));
     await screen.findByLabelText(/Connection type/);
     const driver = createDomPageDriver({ root: container, pages: {} });
-    await executePageCapability(driver, "page.select_option", {
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: {
       handle: "mcp-add-field-transport",
       option: "Hosted server (URL)",
-    });
-    await driver.settle?.();
+    } });
+    await driver.settle?.({});
 
-    await executePageCapability(driver, "page.fill", { handle: "mcp-add-field-id", text: "higgsfield" });
-    await executePageCapability(driver, "page.fill", {
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "mcp-add-field-id", text: "higgsfield" } });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: {
       handle: "mcp-add-field-url",
       text: "https://mcp.example.com/v1",
-    });
-    await driver.settle?.();
+    } });
+    await driver.settle?.({});
 
     expect((screen.getByLabelText(/^ID/) as HTMLInputElement).value).toBe("higgsfield");
     expect((screen.getByLabelText(/^URL/) as HTMLInputElement).value).toBe("https://mcp.example.com/v1");
-    await executePageCapability(driver, "page.click", { handle: "mcp-add-submit" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-add-submit" } });
     await screen.findByTestId("source-config-item-card");
     const sources = await dependencies.port.fetchSources();
     expect(sources).toHaveLength(1);
@@ -145,19 +145,19 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
 
   it("page.fill REFUSES the OAuth client secret even though it carries a handle", async () => {
     const driver = await openAddForm();
-    await executePageCapability(driver, "page.select_option", {
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: {
       handle: "mcp-add-field-auth-mode",
       option: "Connect via OAuth",
-    });
-    await driver.settle?.();
+    } });
+    await driver.settle?.({});
 
     // Exact text, not just "it threw": a bare `.toThrow()` would also pass for an unresolved or
     // ambiguous handle, which is the opposite of the property being claimed.
     await expect(
-      executePageCapability(driver, "page.fill", {
+      executePageCapability({ driver, capabilityId: "page.fill", input: {
         handle: "mcp-add-field-oauth-client-secret",
         text: "hunter2",
-      }),
+      } }),
       // `SourceConfigField` renders `kind: "password"` as a real `type="password"` input while
       // hidden, so the refusal is the type-based one. Its "Show" toggle flips it to `type="text"`,
       // and the name-based rule ("...secret...") catches it there — refused either way, but this
@@ -228,8 +228,8 @@ describe("Remove confirmation dialog is agent-pressable", () => {
 
     expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-remove" } });
+    await driver.settle?.({});
 
     const afterOpen = await findElements(driver);
     expect(afterOpen).toContain("mcp-server-higgsfield-remove-confirm");
@@ -241,9 +241,9 @@ describe("Remove confirmation dialog is agent-pressable", () => {
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
-    await driver.settle?.();
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-confirm" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-remove" } });
+    await driver.settle?.({});
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-remove-confirm" } });
 
     await waitFor(() => expect(screen.queryAllByTestId("source-config-item-card")).toHaveLength(0));
   });
@@ -253,10 +253,10 @@ describe("Remove confirmation dialog is agent-pressable", () => {
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
-    await driver.settle?.();
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-cancel" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-remove" } });
+    await driver.settle?.({});
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-remove-cancel" } });
+    await driver.settle?.({});
 
     expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
     expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
@@ -338,8 +338,8 @@ describe("the Tools modal is agent-pressable", () => {
     expect(before).toContain("mcp-server-higgsfield-tools-open");
     expect(before).not.toContain("mcp-server-higgsfield-tools-save");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-open" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-open" } });
+    await driver.settle?.({});
     // The picker's own header controls render as soon as the modal mounts it, before the probe
     // resolves — waited on here so the rest of this test isn't racing the fetch.
     await screen.findByText("2 of 2 tools enabled");
@@ -355,8 +355,8 @@ describe("the Tools modal is agent-pressable", () => {
     expect(afterOpen).toContain("mcp-server-higgsfield-tools-generate-image");
     expect(afterOpen).toContain("mcp-server-higgsfield-tools-edit-image");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-modal-close" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-modal-close" } });
+    await driver.settle?.({});
 
     const afterClose = await findElements(driver);
     expect(afterClose).toContain("mcp-server-higgsfield-remove");
@@ -384,19 +384,19 @@ describe("the Tools modal is agent-pressable", () => {
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-open" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-open" } });
+    await driver.settle?.({});
     await screen.findByText("2 of 2 tools enabled");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-edit-image" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-edit-image" } });
+    await driver.settle?.({});
 
     expect(screen.getByText("1 of 2 tools enabled")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "edit_image" })).not.toBeChecked();
     // generate_image is untouched — this was a per-row toggle, not a reset of the whole draft.
     expect(screen.getByRole("checkbox", { name: "generate_image" })).toBeChecked();
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-generate-image-write" });
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-save" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-generate-image-write" } });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "mcp-server-higgsfield-tools-save" } });
 
     await waitFor(async () => {
       const sources = await dependencies.port.fetchSources();

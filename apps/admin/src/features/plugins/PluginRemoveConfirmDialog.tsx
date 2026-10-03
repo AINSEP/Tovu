@@ -52,7 +52,7 @@ export function PluginRemoveConfirmDialog({
             className="btn-secondary"
             autoFocus
             onClick={onCancel}
-            {...agentHandle(`${agentHandleBase}-remove-cancel`, {
+            {...agentHandle({ handle: `${agentHandleBase}-remove-cancel` }, {
               role: "button",
               label: `Close this dialog without moving ${name} to the Trash`,
             })}
@@ -63,7 +63,7 @@ export function PluginRemoveConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${agentHandleBase}-remove-confirm`, {
+            {...agentHandle({ handle: `${agentHandleBase}-remove-confirm` }, {
               role: "button",
               label: `Move ${name} to the Trash`,
             })}

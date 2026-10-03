@@ -80,7 +80,7 @@ function ToolPickerRowItem(props: {
           type="checkbox"
           checked={row.enabled}
           disabled={locked}
-          {...agentHandle(handle, { role: "checkbox", label: `Enable the tool ${row.remoteName}` })}
+          {...agentHandle({ handle }, { role: "checkbox", label: `Enable the tool ${row.remoteName}` })}
           onChange={(event) => onEnabled(row.remoteName, event.target.checked)}
         />
         <code className="external-mcp-tool-name">{row.remoteName}</code>
@@ -123,7 +123,7 @@ function ToolPickerRowItem(props: {
           <input
             type="checkbox"
             checked={row.mayWrite}
-            {...agentHandle(`${handle}-write`, { role: "checkbox", label: `Allow ${row.remoteName} to make changes` })}
+            {...agentHandle({ handle: `${handle}-write` }, { role: "checkbox", label: `Allow ${row.remoteName} to make changes` })}
             onChange={(event) => onMayWrite(row.remoteName, event.target.checked)}
           />
           <span>{t("may write")}</span>
@@ -157,7 +157,7 @@ function ToolPickerHeader(props: {
       <p
         className="external-mcp-tool-count"
         data-zero={zero || undefined}
-        {...agentHandle(`${base}-count`, { role: "status", label: "How many of this server's tools are enabled" })}
+        {...agentHandle({ handle: `${base}-count` }, { role: "status", label: "How many of this server's tools are enabled" })}
       >
         {countLabel}
       </p>
@@ -165,7 +165,7 @@ function ToolPickerHeader(props: {
         <button
           type="button"
           className="btn-secondary"
-          {...agentHandle(`${base}-refresh`, { role: "button", label: "Re-read this server's advertised tool list" })}
+          {...agentHandle({ handle: `${base}-refresh` }, { role: "button", label: "Re-read this server's advertised tool list" })}
           onClick={onRefresh}
           disabled={refreshing || saving}
         >
@@ -174,7 +174,7 @@ function ToolPickerHeader(props: {
         <button
           type="button"
           className="btn-secondary"
-          {...agentHandle(`${base}-reset`, { role: "button", label: "Discard unsaved tool selection changes" })}
+          {...agentHandle({ handle: `${base}-reset` }, { role: "button", label: "Discard unsaved tool selection changes" })}
           onClick={onReset}
           disabled={!dirty || saving}
         >
@@ -183,7 +183,7 @@ function ToolPickerHeader(props: {
         <button
           type="button"
           className="external-mcp-tool-save"
-          {...agentHandle(`${base}-save`, { role: "button", label: "Save this server's tool selection" })}
+          {...agentHandle({ handle: `${base}-save` }, { role: "button", label: "Save this server's tool selection" })}
           onClick={onSave}
           disabled={!dirty || saving}
         >
@@ -275,7 +275,7 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
   const countLabel = describeToolCount(picker.enabledCount, picker.advertisedCount || picker.rows.length, t);
 
   return (
-    <section className="external-mcp-tool-picker" {...agentHandle(base, { role: "region", label: "External tool permissions" })}>
+    <section className="external-mcp-tool-picker" {...agentHandle({ handle: base }, { role: "region", label: "External tool permissions" })}>
       {connectionEnabled ? null : (
         <p className="external-mcp-tool-note" role="status">
           {t("This connection is switched off — these tools will not load until you enable it.")}

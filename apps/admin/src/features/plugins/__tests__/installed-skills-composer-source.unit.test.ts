@@ -8,7 +8,7 @@ import { createInstalledSkillsComposerCapabilitySource } from "../installed-skil
  * `GET /api/admin/v1/workspaces/:workspaceId/skills` (Phase 1A). `fetch` is injected via
  * `vi.stubGlobal` rather than hitting a real server, so these assert this source's own
  * mapping/degradation contract in isolation, mirroring
- * `tool-catalog-composer-source.unit.test.ts`'s own precedent for the same reason: the real
+ * the former tool-catalog unit suite's precedent for the same reason: the real
  * route is certified end to end by Phase 1A's own integration tests, and the
  * degrade-to-empty property this file asserts directly is what INV-001
  * (`composer-capabilities.ts`'s duplicate-id/rejection guard) depends on to keep a routine
@@ -17,6 +17,7 @@ import { createInstalledSkillsComposerCapabilitySource } from "../installed-skil
  * The happy-path fixture below is the exact `{skills: [...]}` shape the Coordinator verified
  * live against the running server (`curl` against `:3000` with `incident-response` installed),
  * not invented data — see the implementation outline's "Phase 1A is DONE" section.
+ * tool-catalog-composer-source.unit.test.ts (features/plugins/__tests__/tool-catalog-composer-source.unit.test.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 function jsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {}): Response {

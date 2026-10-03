@@ -32,7 +32,7 @@ export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, 
       disabled={portalContainer === null || items.length === 0}
       onClick={menu.onTriggerClick}
       onKeyDown={menu.onTriggerKeyDown}
-      {...(baseHandle === undefined ? {} : agentHandle(baseHandle, { role: "button", label: triggerLabel }))}
+      {...(baseHandle === undefined ? {} : agentHandle({ handle: baseHandle }, { role: "button", label: triggerLabel }))}
     >
       <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
         <circle cx="9" cy="4.5" r="1.5" />
@@ -61,9 +61,9 @@ export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, 
           type="button"
           role="menuitem"
           tabIndex={-1}
-          className={["row-menu-item", toneClassName(resolveTone(item))].filter(Boolean).join(" ")}
-          onClick={() => menu.selectItem(item.onSelect)}
-          {...(itemHandles === undefined ? {} : agentHandle(itemHandles[index], { role: "button", label: item.label }))}
+          className={["row-menu-item", toneClassName({ tone: resolveTone({}, item) })].filter(Boolean).join(" ")}
+          onClick={() => menu.selectItem({ onSelect: item.onSelect })}
+          {...(itemHandles === undefined ? {} : agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.label }))}
         >{item.label}</button>)}
       </div>, portalContainer,
     ) : null}

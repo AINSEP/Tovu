@@ -146,7 +146,7 @@ function ThemePagePublishToggle({
       className={on ? "theme-explore-switch btn-toggle-switch is-on" : "theme-explore-switch btn-toggle-switch"}
       disabled={disabled}
       onClick={handleClick}
-      {...agentHandle(`${handle}-publish`, {
+      {...agentHandle({ handle: `${handle}-publish` }, {
         role: "button",
         label: state.kind === "locked" ? "Publish switch — locked, cannot be changed from here" : "Toggle whether this theme page is published",
       })}
@@ -259,7 +259,7 @@ function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle:
       href={siteUrl(link.path)}
       target="_blank"
       rel="noreferrer"
-      {...agentHandle(`${handle}-view-live`, { role: "link", label: "Open this theme page on the live public site" })}
+      {...agentHandle({ handle: `${handle}-view-live` }, { role: "link", label: "Open this theme page on the live public site" })}
     >
       {link.path}
     </a>
@@ -345,7 +345,7 @@ export function ThemePagesTab({
             cell: (row, index) => (
               <a
                 href={themeStudioHref(themeId, row.pageId)}
-                {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this theme page in Theme Studio" })}
+                {...agentHandle({ handle: `${rowHandles[index]}-edit` }, { role: "link", label: "Open this theme page in Theme Studio" })}
               >
                 {row.pageId}
               </a>

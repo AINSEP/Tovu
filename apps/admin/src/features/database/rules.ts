@@ -9,7 +9,7 @@ import { t } from "./database-i18n";
  * three sections had computed logic worth extracting until `KEYS` needed a shared home.
  *
  * `KEYS` (fetch-query migration, 2026-08-12): `restorePoints` and `timeline` are two independent
- * resources — `use-restore-points-section.hooks.ts`'s create action never reloaded the timeline in
+ * resources — the old restore-point create action never reloaded the timeline in
  * the pre-migration code either (each section owns its own load, no cross-invalidation), so they
  * get two entirely separate top-level namespaces rather than a shared grandparent, same shape
  * `forms/rules.ts`'s `KEYS` uses for `forms` vs `form-submissions`.
@@ -25,6 +25,7 @@ import { t } from "./database-i18n";
  * the Timeline's ledger — so it invalidates `KEYS.schemaState` and `KEYS.timelineAll` on success (see
  * that hook's own doc comment, and the 2026-09-20 platform-review fix for the bug this closes: the
  * banner and Timeline used to go stale after a migration with nothing to re-read them).
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 const TIMELINE_ROOT: QueryKey = ["database", "timeline"];
 

@@ -41,7 +41,7 @@ import { viewInRecoveryAccessibleName } from "./rules";
  * them rather than rendering dead affordances.
  *
  * NO RESTORE-POINTS TAB (2026-09-10): this screen used to carry a third tab — Restore points
- * (list + create, `RestorePointsSection`/`useRestorePointsSection`) — between Timeline and Migrate
+ * (list + create, the former Database hook) — between Timeline and Migrate
  * forward. `development/todos.md`'s "Recovery vs Database's Restore Points tab" entry (owner,
  * 2026-09-10, superseded same morning) moved that whole capability into `features/recovery/
  * Recovery.tsx`, now tabbed itself, alongside the restore ceremony it already owned — restore
@@ -64,6 +64,7 @@ import { viewInRecoveryAccessibleName } from "./rules";
  * `useAdminLocale()` for its own internal error-string translations (unrelated to this file), so
  * `t`/`locale` are sourced from each section's own hook rather than threaded down from `Database`
  * as a prop — that prop was redundant with a resolution each hook was already doing.
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 const DATABASE_TAB_IDS = ["timeline", "migrate-forward"] as const;
@@ -120,7 +121,7 @@ function TimelineFilterForm(props: {
           id="database-filter-kind"
           value={props.kind}
           onChange={(e) => props.onKindChange(e.target.value)}
-          {...agentHandle("database-filter-kind", { role: "field", label: "Filter the timeline by event kind" })}
+          {...agentHandle({ handle: "database-filter-kind" }, { role: "field", label: "Filter the timeline by event kind" })}
         >
           <option value="">{t(locale, "(any)")}</option>
           {KIND_OPTIONS.map((k) => (
@@ -137,7 +138,7 @@ function TimelineFilterForm(props: {
           value={props.outcome}
           onChange={(e) => props.onOutcomeChange(e.target.value)}
           placeholder={t(locale, "e.g. success")}
-          {...agentHandle("database-filter-outcome", { role: "field", label: "Filter the timeline by outcome text" })}
+          {...agentHandle({ handle: "database-filter-outcome" }, { role: "field", label: "Filter the timeline by outcome text" })}
         />
       </div>
       <div className="field">
@@ -147,7 +148,7 @@ function TimelineFilterForm(props: {
           type="date"
           value={props.fromDate}
           onChange={(e) => props.onFromDateChange(e.target.value)}
-          {...agentHandle("database-filter-from", { role: "field", label: "Filter the timeline to entries on or after this date" })}
+          {...agentHandle({ handle: "database-filter-from" }, { role: "field", label: "Filter the timeline to entries on or after this date" })}
         />
       </div>
       <div className="field">
@@ -157,13 +158,13 @@ function TimelineFilterForm(props: {
           type="date"
           value={props.toDate}
           onChange={(e) => props.onToDateChange(e.target.value)}
-          {...agentHandle("database-filter-to", { role: "field", label: "Filter the timeline to entries on or before this date" })}
+          {...agentHandle({ handle: "database-filter-to" }, { role: "field", label: "Filter the timeline to entries on or before this date" })}
         />
       </div>
       <button
         type="submit"
         className="btn-secondary"
-        {...agentHandle("database-filter-apply", { role: "button", label: "Apply the timeline filters" })}
+        {...agentHandle({ handle: "database-filter-apply" }, { role: "button", label: "Apply the timeline filters" })}
       >
         {t(locale, "Apply filters")}
       </button>
@@ -207,7 +208,7 @@ function timelineColumns(
             // `viewInRecoveryAccessibleName` doc comment for why that is ambiguous to anything
             // resolving elements by accessible name rather than table position.
             aria-label={viewInRecoveryAccessibleName(locale, row)}
-            {...agentHandle(handleForRestorePointCell(row.id), {
+            {...agentHandle({ handle: handleForRestorePointCell(row.id) }, {
               role: "button",
               label: "Open this ledger entry's restore point in Recovery",
             })}
@@ -255,7 +256,7 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
           className="btn-secondary"
           onClick={props.loadMore}
           disabled={props.loadingMore}
-          {...agentHandle("database-timeline-load-more", { role: "button", label: "Load more timeline rows" })}
+          {...agentHandle({ handle: "database-timeline-load-more" }, { role: "button", label: "Load more timeline rows" })}
         >
           {props.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
         </button>
@@ -323,7 +324,7 @@ function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: 
       className="btn-ghost"
       onClick={props.onStartPlan}
       disabled={props.busy}
-      {...agentHandle("database-migrate-plan", { role: "button", label: "Plan the forward migration" })}
+      {...agentHandle({ handle: "database-migrate-plan" }, { role: "button", label: "Plan the forward migration" })}
     >
       {props.busy ? t(props.locale, "Planning…") : t(props.locale, "Plan migration")}
     </button>
@@ -343,7 +344,7 @@ function PlannedStep(props: { locale: string; plan: { planId: string }; busy: bo
         className="btn-secondary"
         onClick={props.onConfirm}
         disabled={props.busy}
-        {...agentHandle("database-migrate-confirm", { role: "button", label: "Confirm the planned migration, issuing a one-time execution token" })}
+        {...agentHandle({ handle: "database-migrate-confirm" }, { role: "button", label: "Confirm the planned migration, issuing a one-time execution token" })}
       >
         {props.busy ? t(props.locale, "Confirming…") : t(props.locale, "Confirm migration")}
       </button>
@@ -362,7 +363,7 @@ function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => 
         className="btn-warning"
         onClick={props.onExecute}
         disabled={props.busy}
-        {...agentHandle("database-migrate-execute", { role: "button", label: "Execute the confirmed migration now" })}
+        {...agentHandle({ handle: "database-migrate-execute" }, { role: "button", label: "Execute the confirmed migration now" })}
       >
         {props.busy ? t(props.locale, "Migrating…") : t(props.locale, "Execute migration")}
       </button>
@@ -420,7 +421,7 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateF
             className="btn-ghost"
             onClick={reset}
             disabled={busy}
-            {...agentHandle("database-migrate-reset", { role: "button", label: "Reset the migrate-forward ceremony back to idle" })}
+            {...agentHandle({ handle: "database-migrate-reset" }, { role: "button", label: "Reset the migrate-forward ceremony back to idle" })}
           >
             {t("Reset")}
           </button>

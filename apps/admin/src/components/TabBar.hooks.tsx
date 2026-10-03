@@ -21,7 +21,7 @@ import type { TabBarTab } from "./TabBar";
  *  inline ternary in its JSX — one more small piece pulled out of `TabBar.tsx` for the same
  *  complexity-gate reason that component's own doc comment gives. */
 export function tabHandleProps(tab: TabBarTab) {
-  return tab.handle ? agentHandle(tab.handle, { role: "button", label: tab.handleLabel ?? tab.label }) : {};
+  return tab.handle ? agentHandle({ handle: tab.handle }, { role: "button", label: tab.handleLabel ?? tab.label }) : {};
 }
 
 const TAB_BAR_NAV_KEYS = ["ArrowRight", "ArrowLeft", "Home", "End"] as const;

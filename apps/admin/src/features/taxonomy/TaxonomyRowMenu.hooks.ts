@@ -116,7 +116,7 @@ export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuSt
   }
 
   /** Close before handing the selected action back to its owner. */
-  function selectItem(onSelect: () => void) {
+  function selectItem({ onSelect }: { onSelect: () => void }) {
     close("trigger");
     onSelect();
   }

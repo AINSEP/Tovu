@@ -73,7 +73,7 @@ export interface EmbedInsertControlProps {
  *  complexity count. `{}` (no markup) when `base` is unset, same as every inline occurrence it
  *  replaces. */
 function handleSpread(base: string | undefined, suffix: string, opts: { role: AgentElementRole; label: string }): Record<string, unknown> {
-  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+  return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `base ? \`${base}-<suffix>\` : undefined` as a named helper — same rationale as
@@ -212,7 +212,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           setOpen((o) => !o);
           setWidgetMode(false);
         }}
-        {...(base ? agentHandle(base, { role: "button", label: "Insert media, a form, a menu, or a widget" }) : {})}
+        {...(base ? agentHandle({ handle: base }, { role: "button", label: "Insert media, a form, a menu, or a widget" }) : {})}
       >
         {t("Embed")}
       </button>

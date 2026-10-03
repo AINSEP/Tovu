@@ -89,7 +89,7 @@ function TextConfigFields(props: {
         rows={6}
         value={textValue(props.config, "body")}
         onChange={(e) => props.onChange({ ...props.config, body: e.target.value })}
-        {...(props.agentHandle ? agentHandle(`${props.agentHandle}-body`, { role: "field", label: "Text" }) : {})}
+        {...(props.agentHandle ? agentHandle({ handle: `${props.agentHandle}-body` }, { role: "field", label: "Text" }) : {})}
       />
     </div>
   );
@@ -118,7 +118,7 @@ function SocialLinksConfigFields(props: {
             value={link.platform}
             onChange={(e) => updateLink(i, { platform: e.target.value })}
             placeholder={t("e.g. GitHub")}
-            {...(base ? agentHandle(`${base}-link-${i}-platform`, { role: "field", label: `Link ${i + 1} platform` }) : {})}
+            {...(base ? agentHandle({ handle: `${base}-link-${i}-platform` }, { role: "field", label: `Link ${i + 1} platform` }) : {})}
           />
           <label htmlFor={`widget-social-url-${i}`}>{t("URL")}</label>
           <input
@@ -126,12 +126,12 @@ function SocialLinksConfigFields(props: {
             value={link.url}
             onChange={(e) => updateLink(i, { url: e.target.value })}
             placeholder={t("https://…")}
-            {...(base ? agentHandle(`${base}-link-${i}-url`, { role: "field", label: `Link ${i + 1} URL` }) : {})}
+            {...(base ? agentHandle({ handle: `${base}-link-${i}-url` }, { role: "field", label: `Link ${i + 1} URL` }) : {})}
           />
           <button
             type="button"
             onClick={() => removeLink(i)}
-            {...(base ? agentHandle(`${base}-link-${i}-remove`, { role: "button", label: `Remove link ${i + 1}` }) : {})}
+            {...(base ? agentHandle({ handle: `${base}-link-${i}-remove` }, { role: "button", label: `Remove link ${i + 1}` }) : {})}
           >
             {t("Remove")}
           </button>
@@ -141,7 +141,7 @@ function SocialLinksConfigFields(props: {
         type="button"
         onClick={addLink}
         disabled={links.length >= 20}
-        {...(base ? agentHandle(`${base}-add`, { role: "button", label: "Add a social link" }) : {})}
+        {...(base ? agentHandle({ handle: `${base}-add` }, { role: "button", label: "Add a social link" }) : {})}
       >
         {t("Add link")}
       </button>
@@ -158,7 +158,7 @@ type DisplayableField = AdminContentType["fields"][number];
  *  other sub-component in this file still writes the ternary inline, since none of them repeats it
  *  often enough to threaten the complexity ceiling. */
 function maybeAgentHandle(base: string | undefined, suffix: string, opts: { role: "field" | "button"; label: string }) {
-  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+  return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `collections?.find((ct) => ct.key === key) ?? null`, pulled out for the same reason as
@@ -197,7 +197,7 @@ function CollectionSelect(props: {
         value={props.value}
         disabled={!props.collections}
         onChange={(e) => props.onChange(e.target.value)}
-        {...(props.base ? agentHandle(`${props.base}-collection`, { role: "field", label: "Collection" }) : {})}
+        {...(props.base ? agentHandle({ handle: `${props.base}-collection` }, { role: "field", label: "Collection" }) : {})}
       >
         <option value="">{props.t("All collections")}</option>
         {(props.collections ?? []).map((ct) => (
@@ -220,7 +220,7 @@ function SortSelect(props: { value: string; fields: readonly DisplayableField[];
         id="widget-field-sort"
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
-        {...(props.base ? agentHandle(`${props.base}-sort`, { role: "field", label: "Sort" }) : {})}
+        {...(props.base ? agentHandle({ handle: `${props.base}-sort` }, { role: "field", label: "Sort" }) : {})}
       >
         <option value="">{props.t("Default (recently updated)")}</option>
         <option value="newest">{props.t("Newest first")}</option>
@@ -260,7 +260,7 @@ function FieldsCheckboxes(props: {
             type="checkbox"
             checked={props.selected.includes(f.name)}
             onChange={(e) => props.onToggle(f.name, e.target.checked)}
-            {...(props.base ? agentHandle(`${props.base}-field-${fieldHandleSegment(f.name)}`, { role: "field", label: `Show ${f.name}` }) : {})}
+            {...(props.base ? agentHandle({ handle: `${props.base}-field-${fieldHandleSegment(f.name)}` }, { role: "field", label: `Show ${f.name}` }) : {})}
           />
           {humanizeFieldName(f.name)}
         </label>
@@ -288,7 +288,7 @@ function FilterRow(props: {
         id="widget-field-filter-field"
         value={props.field}
         onChange={(e) => props.onFieldChange(e.target.value)}
-        {...(props.base ? agentHandle(`${props.base}-filter-field`, { role: "field", label: "Filter field" }) : {})}
+        {...(props.base ? agentHandle({ handle: `${props.base}-filter-field` }, { role: "field", label: "Filter field" }) : {})}
       >
         <option value="">{props.t("No filter")}</option>
         {props.fields.map((f) => (
@@ -305,7 +305,7 @@ function FilterRow(props: {
             value={props.value}
             placeholder={props.t("Value")}
             onChange={(e) => props.onValueChange(e.target.value, kind)}
-            {...(props.base ? agentHandle(`${props.base}-filter-value`, { role: "field", label: "Filter value" }) : {})}
+            {...(props.base ? agentHandle({ handle: `${props.base}-filter-value` }, { role: "field", label: "Filter value" }) : {})}
           />
         </>
       )}
@@ -447,7 +447,7 @@ function MenuConfigFields({
         value={textValue(props.config, "menuRef")}
         onChange={(e) => props.onChange({ ...props.config, menuRef: e.target.value })}
         {...(props.agentHandle
-          ? agentHandle(`${props.agentHandle}-menu-ref`, {
+          ? agentHandle({ handle: `${props.agentHandle}-menu-ref` }, {
               role: "field",
               label: "Menu — set with page.select_option, not click",
             })
@@ -493,7 +493,7 @@ function ContactFormConfigFields({
         value={textValue(props.config, "formDefinitionId")}
         onChange={(e) => props.onChange({ ...props.config, formDefinitionId: e.target.value })}
         {...(props.agentHandle
-          ? agentHandle(`${props.agentHandle}-form-definition-id`, {
+          ? agentHandle({ handle: `${props.agentHandle}-form-definition-id` }, {
               role: "field",
               label: "Form — set with page.select_option, not click",
             })
@@ -512,7 +512,7 @@ function ContactFormConfigFields({
         value={textValue(props.config, "successMessage")}
         onChange={(e) => props.onChange({ ...props.config, successMessage: e.target.value || undefined })}
         {...(props.agentHandle
-          ? agentHandle(`${props.agentHandle}-success-message`, { role: "field", label: "Success message" })
+          ? agentHandle({ handle: `${props.agentHandle}-success-message` }, { role: "field", label: "Success message" })
           : {})}
       />
     </div>

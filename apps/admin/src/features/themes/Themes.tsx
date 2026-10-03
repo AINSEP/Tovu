@@ -128,7 +128,7 @@ function ThemeCardPreview({ themeId, agentHandleBase, t }: { themeId: string; ag
             className="theme-card-preview-trigger"
             onClick={() => setExpanded(true)}
             aria-label={`Expand preview for ${themeId}`}
-            {...agentHandle(`${agentHandleBase}-preview`, { role: "button", label: `Expand the "${themeId}" theme's preview image` })}
+            {...agentHandle({ handle: `${agentHandleBase}-preview` }, { role: "button", label: `Expand the "${themeId}" theme's preview image` })}
           >
             <img src={src} alt="" loading="lazy" onError={handleError} />
           </button>
@@ -377,7 +377,7 @@ function MarketplaceGrid({
               disabled={downloading !== null}
               onClick={() => void download?.(item.id)}
               aria-label={actionButtonAriaLabel(t("Download"), t("Downloading…"), downloading === item.id, item.name)}
-              {...agentHandle(`${cardHandles[index]}-download`, { role: "button", label: `Download the "${item.name}" theme` })}
+              {...agentHandle({ handle: `${cardHandles[index]}-download` }, { role: "button", label: `Download the "${item.name}" theme` })}
             >
               {downloading === item.id ? t("Downloading…") : t("Download")}
             </button>
@@ -447,7 +447,7 @@ function ThemeGrid({
                   disabled={busyTheme !== null}
                   onClick={() => activate(themeId)}
                   aria-label={actionButtonAriaLabel(t("Activate"), t("Activating…"), busyTheme === themeId, name)}
-                  {...agentHandle(`${handleBase}-activate`, { role: "button", label: `Activate the "${themeId}" theme` })}
+                  {...agentHandle({ handle: `${handleBase}-activate` }, { role: "button", label: `Activate the "${themeId}" theme` })}
                 >
                   {busyTheme === themeId ? t("Activating…") : t("Activate")}
                 </button>
@@ -457,7 +457,7 @@ function ThemeGrid({
                 className="btn-explore"
                 onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
                 aria-label={`${t("Explore")} ${name}`}
-                {...agentHandle(`${handleBase}-explore`, { role: "button", label: `Explore the "${themeId}" theme's files` })}
+                {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
               >
                 {t("Explore")}
               </button>
@@ -497,7 +497,7 @@ function ThemesToolbar({
         href={siteUrl("/")}
         target="_blank"
         rel="noreferrer"
-        {...agentHandle("themes-view-site", { role: "link", label: "Open the public site in a new tab" })}
+        {...agentHandle({ handle: "themes-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
       >
         {t("View site ↗")}
       </a>
@@ -506,7 +506,7 @@ function ThemesToolbar({
         className="btn-secondary"
         disabled={rescanning || rescan === undefined}
         onClick={() => void rescan?.()}
-        {...agentHandle("themes-rescan", { role: "button", label: "Rescan the themes folder for changes" })}
+        {...agentHandle({ handle: "themes-rescan" }, { role: "button", label: "Rescan the themes folder for changes" })}
       >
         {rescanning ? t("Rescanning…") : t("Rescan themes")}
       </button>
@@ -521,7 +521,7 @@ function ThemesToolbar({
           className="btn-secondary"
           disabled={busyTheme !== null}
           onClick={() => void activate(NO_THEME_ID)}
-          {...agentHandle("themes-disable", {
+          {...agentHandle({ handle: "themes-disable" }, {
             role: "button",
             label: "Turn the theme off and render the site unstyled",
           })}

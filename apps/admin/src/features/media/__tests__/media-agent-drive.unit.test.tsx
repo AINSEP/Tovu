@@ -105,7 +105,7 @@ async function findElements(
   driver: ReturnType<typeof createDomPageDriver>,
   filter: { role?: string } = {},
 ): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", filter)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: filter })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -134,7 +134,7 @@ describe("driving the upload toolbar through page.* verbs", () => {
     await screen.findByRole("button", { name: /^Upload$/ });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "media-upload-alt", text: "A rocky coastline" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "media-upload-alt", text: "A rocky coastline" } });
     expect(controller.setAltDraft).toHaveBeenCalledWith("A rocky coastline");
 
     expect(await handlesOf(driver)).toContain("media-upload-submit");
@@ -148,7 +148,7 @@ describe("driving the edit-metadata panel through page.* verbs", () => {
     await screen.findByLabelText("Title");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "media-edit-title", text: "Golden Hour" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "media-edit-title", text: "Golden Hour" } });
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Golden Hour");
 
     expect(await handlesOf(driver)).toContain("media-edit-save");

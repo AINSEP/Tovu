@@ -48,7 +48,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
           pass). */}
       <div
         className="page-header page-header-split"
-        {...agentHandle("widget-regions-header", {
+        {...agentHandle({ handle: "widget-regions-header" }, {
           role: "region",
           label: "Widget Regions header — the back link, the screen's title, and the bind-a-region control",
         })}
@@ -62,7 +62,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
             className="btn-secondary"
             href="/admin/widgets"
             aria-label={`${t("Back")}: ${t("Widgets")}`}
-            {...agentHandle("widget-regions-back", { role: "link", label: "Back to Widgets" })}
+            {...agentHandle({ handle: "widget-regions-back" }, { role: "link", label: "Back to Widgets" })}
           >
             ← {t("Back")}
           </a>
@@ -82,12 +82,12 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
             value={newRegionKey}
             onChange={(e) => setNewRegionKey(e.target.value)}
             placeholder="e.g. footer"
-            {...agentHandle("widget-regions-new-key", { role: "field", label: "New region key to bind, e.g. footer" })}
+            {...agentHandle({ handle: "widget-regions-new-key" }, { role: "field", label: "New region key to bind, e.g. footer" })}
           />
           <button
             onClick={bind}
             disabled={binding || !newRegionKey.trim()}
-            {...agentHandle("widget-regions-bind", { role: "button", label: "Bind this region key" })}
+            {...agentHandle({ handle: "widget-regions-bind" }, { role: "button", label: "Bind this region key" })}
           >
             {binding ? t("Binding…") : t("Bind region")}
           </button>
@@ -111,7 +111,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
             cell: (region) => (
               <a
                 href={`/admin/widgets/regions/${region.regionKey}`}
-                {...agentHandle(`${rowHandleByKey.get(region.regionKey)}-key`, { role: "link", label: `Manage the "${region.regionKey}" region` })}
+                {...agentHandle({ handle: `${rowHandleByKey.get(region.regionKey)}-key` }, { role: "link", label: `Manage the "${region.regionKey}" region` })}
               >
                 {region.regionKey}
               </a>
@@ -124,7 +124,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
               <a
                 className="btn-primary"
                 href={`/admin/widgets/regions/${region.regionKey}`}
-                {...agentHandle(`${rowHandleByKey.get(region.regionKey)}-manage`, { role: "link", label: `Manage the "${region.regionKey}" region` })}
+                {...agentHandle({ handle: `${rowHandleByKey.get(region.regionKey)}-manage` }, { role: "link", label: `Manage the "${region.regionKey}" region` })}
               >
                 {t("Manage")}
               </a>

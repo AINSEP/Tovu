@@ -66,7 +66,7 @@ it("the title source remains user text while the payload contains skill instruct
   let outcome: { draft?: string } = {};
   await act(async () => { outcome = (await result.current.select({ item: capabilities.byItemId.get("installed-skill:skill_ui_ux_design")!.item, source: "plus" })) ?? {}; });
   expect(outcome).toEqual({ draft: "Redesign the menu" });
-  expect(deriveConversationTitle(outcome.draft ?? "")).toBe("Redesign Menu");
+  expect(deriveConversationTitle({ prompt: outcome.draft ?? "" })).toBe("Redesign Menu");
   expect(result.current.skills.skillOnlyPrompt).toBe("ui-ux-design");
 });
 

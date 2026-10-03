@@ -28,7 +28,7 @@ export function HistoryTab() {
     <div className="deployment-tab">
       <div
         className="card"
-        {...agentHandle("deployment-history-empty", {
+        {...agentHandle({ handle: "deployment-history-empty" }, {
           role: "region",
           label: "No deploys yet — history has nothing to show because no host is wired up to deploy from",
         })}
@@ -49,7 +49,7 @@ export function HistoryTab() {
           <a
             className="btn-secondary"
             href="/admin/deployment?tab=static-site"
-            {...agentHandle("deployment-history-publish-link", {
+            {...agentHandle({ handle: "deployment-history-publish-link" }, {
               role: "link",
               label: "Open the Static Site tab to see how to publish today",
             })}

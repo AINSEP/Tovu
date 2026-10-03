@@ -120,7 +120,7 @@ export function Deployment(props: DeploymentProps) {
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("deployment-header", {
+        {...agentHandle({ handle: "deployment-header" }, {
           role: "region",
           label: "Deployment panel header — choose how this site gets published",
         })}

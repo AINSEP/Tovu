@@ -70,7 +70,7 @@ function rowHandleBase(row: OtherCredentialRowState): string {
  *  it — see this file's header for why the id can be unsafe at all. @complexity O(1). */
 function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>[1]): ReturnType<typeof agentHandle> | Record<string, never> {
   if (!HANDLE_SAFE_PATTERN.test(handle)) return {};
-  return agentHandle(handle, options);
+  return agentHandle({ handle }, options);
 }
 
 /** One top-level Tier-2 entry — see this file's header for why this has no separate parent heading

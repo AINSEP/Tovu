@@ -190,7 +190,7 @@ function AdminAssistantSwitch({
           type="checkbox"
           checked={open}
           onChange={(e) => setOpen(e.target.checked)}
-          {...agentHandle("ai-assistant-admin-dock-toggle", { role: "field", label: "Show the AI assistant on the admin site" })}
+          {...agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Show the AI assistant on the admin site" })}
         />
         {t("Show the AI assistant on the admin site")}
       </label>
@@ -427,7 +427,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
           className="btn-secondary"
           onClick={() => void restart()}
           disabled={restarting}
-          {...agentHandle("ai-assistant-daemon-restart", { role: "button", label: "Restart the Local CLI assistant process" })}
+          {...agentHandle({ handle: "ai-assistant-daemon-restart" }, { role: "button", label: "Restart the Local CLI assistant process" })}
         >
           {restarting ? t("Restarting…") : t("Restart assistant")}
         </button>
@@ -436,7 +436,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
           className="btn-secondary"
           onClick={() => void checkStatus()}
           disabled={checkingStatus}
-          {...agentHandle("ai-assistant-daemon-check-status", { role: "button", label: "Check the Local CLI assistant process status" })}
+          {...agentHandle({ handle: "ai-assistant-daemon-check-status" }, { role: "button", label: "Check the Local CLI assistant process status" })}
         >
           {t("Check status")}
         </button>
@@ -576,7 +576,7 @@ export function VisitorCredentialKeyFooter({
           className="btn-primary"
           onClick={() => void saveKey()}
           disabled={!config.apiKey.trim() || saveState.status === "saving"}
-          {...agentHandle("ai-assistant-visitor-save-key", { role: "button", label: "Save the visitor-facing API key" })}
+          {...agentHandle({ handle: "ai-assistant-visitor-save-key" }, { role: "button", label: "Save the visitor-facing API key" })}
         >
           {saveState.status === "saving" ? t("Saving…") : t("Save key")}
         </button>
@@ -601,7 +601,7 @@ export function VisitorCredentialKeyFooter({
           // key — the server has it even though this field is empty — and disabling the
           // control told the operator their working credential could not be checked.
           disabled={!hasUsableKey || discovery.status === "loading"}
-          {...agentHandle("ai-assistant-visitor-test-key", { role: "button", label: "Test the visitor-facing API key against the provider" })}
+          {...agentHandle({ handle: "ai-assistant-visitor-test-key" }, { role: "button", label: "Test the visitor-facing API key against the provider" })}
         >
           {discovery.status === "loading" ? t("Testing…") : t("Test Key")}
         </button>
@@ -665,7 +665,7 @@ export function VisitorCredentialSettingsFooter({
           className="btn-primary"
           onClick={() => void saveSettings()}
           disabled={!dirty || settingsSaveState.status === "saving"}
-          {...agentHandle("ai-assistant-visitor-save-settings", { role: "button", label: "Save the visitor assistant's provider/model settings" })}
+          {...agentHandle({ handle: "ai-assistant-visitor-save-settings" }, { role: "button", label: "Save the visitor assistant's provider/model settings" })}
         >
           {settingsSaveState.status === "saving" ? t("Saving…") : t("Save settings")}
         </button>
@@ -954,7 +954,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
                 checked={settings.publicEnabled}
                 disabled={saving}
                 onChange={(e) => void setPublicEnabled(e.target.checked)}
-                {...agentHandle("ai-assistant-visitor-enable", { role: "field", label: "Enable the AI assistant on the public site" })}
+                {...agentHandle({ handle: "ai-assistant-visitor-enable" }, { role: "field", label: "Enable the AI assistant on the public site" })}
               />
               {t("Enable the AI assistant on the public site. *API Key needed*")}
             </label>

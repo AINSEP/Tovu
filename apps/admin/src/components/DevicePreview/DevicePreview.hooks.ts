@@ -91,7 +91,7 @@ export function devicePreviewButtonHandleProps(
   entry: { key: DevicePreviewDevice; label: string },
 ) {
   if (!handlePrefix) return {};
-  return agentHandle(`${handlePrefix}-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` });
+  return agentHandle({ handle: `${handlePrefix}-${entry.key}` }, { role: "button", label: `Preview at ${entry.label} width` });
 }
 
 /**

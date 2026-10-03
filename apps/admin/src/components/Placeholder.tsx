@@ -111,7 +111,7 @@ export function ComingSoonNotice(props: {
     <div
       className="page"
       {...(props.agentHandle
-        ? agentHandle(props.agentHandle, { role: "status", label: `"${props.label}" is not built yet` })
+        ? agentHandle({ handle: props.agentHandle }, { role: "status", label: `"${props.label}" is not built yet` })
         : {})}
     >
       <div className="page-header">
@@ -178,7 +178,7 @@ export function Placeholder(props: {
     return (
       <div
         className="notice error"
-        {...(props.agentHandle ? agentHandle(props.agentHandle, { role: "status", label: "Unknown section" }) : {})}
+        {...(props.agentHandle ? agentHandle({ handle: props.agentHandle }, { role: "status", label: "Unknown section" }) : {})}
       >
         {unknownSectionPrefix}: {props.sectionId}
       </div>

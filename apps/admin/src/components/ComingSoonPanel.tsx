@@ -1,17 +1,16 @@
-import type { ReactNode } from "react";
-
-export interface ComingSoonPanelProps {
-  /** Terse status line shown above the greyed content — e.g. "Coming soon." No dates promised. */
-  label: string;
-  /** Optional second line naming what's specifically not ready yet (owner's copy rule: terse, two
-   *  lines maximum total including {@link label}). Omit for just the label. */
-  note?: string;
-  /** The real tab body, kept mounted and visible under the wash rather than deleted — the owner's
-   *  explicit call: an operator should see what's coming, not an empty tab. */
-  children: ReactNode;
-}
-
 /**
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
+ *  Terse status line shown above the greyed content — e.g. "Coming soon." No dates promised.
+ *
+ *  Optional second line naming what's specifically not ready yet (owner's copy rule: terse, two
+ *  lines maximum total including {@link label}). Omit for just the label.
+ *
+ *  The real tab body, kept mounted and visible under the wash rather than deleted — the owner's
+ *  explicit call: an operator should see what's coming, not an empty tab.
+ *
  * @file Shared "this tab exists but isn't live" wrapper — greys out and disables real content
  * without removing it, for a tab whose feature isn't wired yet (Providers.tsx's MCP Server and
  * Webhooks tabs, as of 2026-09-19; any future tab needing the identical treatment should reuse this
@@ -34,19 +33,10 @@ export interface ComingSoonPanelProps {
  * `.settings-ui-inert-control`'s own CSS is `opacity: 0.55` — no new tokens, and it already reads as
  * inactive without going illegible, the same bar `SettingsUi.tsx`'s own uses have already cleared in
  * both themes (`--jini-text-muted`/`--jini-bg-subtle`/`--jini-border`, all theme-aware tokens).
+ *
+ *  `inert` (boolean HTML attribute, not `inert={true}`) — same JSX shape
+ *           `SettingsUi.tsx`'s own three inert-wrapped tabs already use.
  */
-export function ComingSoonPanel({ label, note, children }: ComingSoonPanelProps) {
-  return (
-    <div className="coming-soon-panel">
-      <p className="settings-ui-inert-note" role="note">
-        <strong>{label}</strong>
-        {note ? <> {note}</> : null}
-      </p>
-      {/* `inert` (boolean HTML attribute, not `inert={true}`) — same JSX shape
-          `SettingsUi.tsx`'s own three inert-wrapped tabs already use. */}
-      <div className="settings-ui-inert-control" inert>
-        {children}
-      </div>
-    </div>
-  );
-}
+// Visible-but-inert rationale: Jini/packages/ui/src/features/admin-widgets/components/ComingSoonPanel.tsx.
+export { ComingSoonPanel } from "@jini-ai/ui/admin-widgets";
+export type { ComingSoonPanelProps } from "@jini-ai/ui/admin-widgets";

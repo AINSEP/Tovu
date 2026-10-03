@@ -113,8 +113,8 @@ function PackageFileTree({
         const folder = node.kind === "folder";
         const expanded = folder && tree.isExpanded(node.path);
         const handle = folder
-          ? agentHandle(`${folderHandleByPath.get(node.path)}-toggle`, { role: "button", label: `Expand or collapse the "${node.path}" folder` })
-          : agentHandle(`${fileHandleByPath.get(node.path)}-select`, { role: "button", label: `Select the "${node.path}" file` });
+          ? agentHandle({ handle: `${folderHandleByPath.get(node.path)}-toggle` }, { role: "button", label: `Expand or collapse the "${node.path}" folder` })
+          : agentHandle({ handle: `${fileHandleByPath.get(node.path)}-select` }, { role: "button", label: `Select the "${node.path}" file` });
         return (
           <div
             key={`${node.kind}:${node.path}`}
@@ -217,7 +217,7 @@ function PackageFileContent({
             type="button"
             aria-pressed={wrap}
             onClick={toggleWrap}
-            {...agentHandle(`${agentHandleBase}-wrap-toggle`, { role: "button", label: "Toggle line wrapping for this file" })}
+            {...agentHandle({ handle: `${agentHandleBase}-wrap-toggle` }, { role: "button", label: "Toggle line wrapping for this file" })}
           >
             {wrap ? t("Wrap: on") : t("Wrap: off")}
           </button>

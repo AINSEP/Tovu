@@ -151,7 +151,8 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
   const lastAttemptedPath = useRef<string | null>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards every `setState` below against firing after unmount — same guard shape
-  // `use-composer-voice-input.hooks.ts`'s sibling `FsFolderIndicator.hooks.ts` already uses.
+  // `use-composer-voice-input.hooks.ts` and the former folder-indicator hook used.
+  // FsFolderIndicator.hooks.ts (components/AssistantDock/FsFolderIndicator.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;

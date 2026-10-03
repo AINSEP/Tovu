@@ -568,15 +568,13 @@ export interface UseComposerCapabilities {
  * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
  * wiring.
  *
- * `createToolCatalogComposerCapabilitySource()` (`tool-catalog-composer-source.ts`) is deliberately
- * NOT in the source list below — owner decision, 2026-08-21: the menu's job is to let a user point
+ * createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * The raw tool catalog is deliberately NOT in the source list — owner decision, 2026-08-21: the menu's job is to let a user point
  * the assistant at a Skill or Agent Plugin whose instructions it should follow, not to hand it a raw
  * tool name (the assistant already picks its own tools once it understands the goal). The ~25 live
  * tool rows that source contributed were also structurally inert — every capability it produces
- * carries no `resolve` (see its own module doc), so selecting one did nothing. The file and its
- * tests are kept, not deleted: it is a working reference implementation of a live async source and
- * this is a product call that may be revisited, not a dead-code removal. See that file's own doc for
- * the full reasoning.
+ * carried no `resolve`, so selecting one did nothing. The unused source and its dedicated tests
+ * were removed after confirming that no production code imports them.
  *
  * Starts empty while asynchronous sources load; stale responses are discarded. Installed-source
  * failures leave bundled commands available. The raw tool catalog is intentionally excluded.
@@ -810,7 +808,7 @@ const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
 export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
   return useMemo(
     () =>
-      createDaemonAttachmentUploader("", {
+      createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
         maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
         maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
       }),
@@ -1272,7 +1270,7 @@ export function shouldPublishOnMessagesChange(
   if (!last || last.role !== "assistant") {
     return { publish: false, nextSettledRunMessageId: settledRunMessageId };
   }
-  if (!isTerminalRunStatus(last.runStatus) || settledRunMessageId === last.id) {
+  if (!isTerminalRunStatus({ status: last.runStatus }) || settledRunMessageId === last.id) {
     return { publish: false, nextSettledRunMessageId: settledRunMessageId };
   }
   return { publish: true, nextSettledRunMessageId: last.id };

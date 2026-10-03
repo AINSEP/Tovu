@@ -1,4 +1,14 @@
-/**
+import { resolveActiveTabId as resolvePackageTabId } from "@jini-ai/ui/panel-kit";
+
+// Selection rationale: Jini packages/ui/src/features/panel-kit/helpers/resolve-active-tab-id.ts.
+// ADR-063: URL-owned screens keep their own tab lists and defaults. Pages uses local state mirrored
+// to the URL to avoid navigation over eagerly fetched data; tab-manifest enumerability is a separate decision.
+/** Resolve a host tab against its allowed ids through the shared rule.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file The `?tab=` guard shared by every "URL-as-source-of-truth" tabbed admin screen
  * (ADR-063's first idiom: `Database.tsx`, `Security.tsx`, `SourceControl.tsx`, `Deployment.tsx`,
  * `Themes.tsx`) — extracted from five near-identical per-screen `resolveActiveTabId` functions
@@ -17,9 +27,7 @@
  * (local-state-mirrors-URL, `pages-tab-url.hooks.ts`'s `resolvePagesTabFromUrl`/
  * `writePagesTabToUrl`), for a documented reason (avoiding a real navigation over data it already
  * eagerly fetches). It was never one of these five duplicates and stays untouched here.
- */
-
-/**
+ *
  * Falls back to `defaultId` for an absent or unrecognized `tabId` — the raw `?tab=` query value
  * is caller-controlled (a stale bookmark, a typo, an old link), so it is checked against
  * `validIds` rather than trusted directly.
@@ -43,12 +51,6 @@
  * @complexity O(n) in `validIds.length` (`Array.includes`) — every existing caller's list is a
  * small fixed-size constant, not caller-controlled in size.
  */
-export function resolveActiveTabId<T extends string>(
-  tabId: string | null | undefined,
-  validIds: readonly T[],
-  defaultId: T,
-): T {
-  const ids = validIds as readonly string[];
-  const safeDefault = ids.includes(defaultId) ? defaultId : validIds[0];
-  return tabId && ids.includes(tabId) ? (tabId as T) : safeDefault;
+export function resolveActiveTabId<T extends string>(tabId: string | null | undefined, validIds: readonly T[], defaultId: T): T {
+  return resolvePackageTabId({ tabId, validIds, defaultId });
 }

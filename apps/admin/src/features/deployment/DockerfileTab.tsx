@@ -100,7 +100,7 @@ function DockerfileEmptyState({ t }: { t: Translate }) {
   return (
     <div
       className="card"
-      {...agentHandle("deployment-dockerfile-empty", {
+      {...agentHandle({ handle: "deployment-dockerfile-empty" }, {
         role: "region",
         label: "No Dockerfile exists yet at the repo root — write one in the editor below to create it",
       })}
@@ -139,7 +139,7 @@ function DockerfileConflictBanner({
     <div
       className="notice error"
       role="alert"
-      {...agentHandle("deployment-dockerfile-conflict", {
+      {...agentHandle({ handle: "deployment-dockerfile-conflict" }, {
         role: "status",
         label: "Shows that the Dockerfile changed on the server since it was last loaded, with the current contents to compare against",
       })}
@@ -157,7 +157,7 @@ function DockerfileConflictBanner({
       <button
         type="button"
         onClick={onReload}
-        {...agentHandle("deployment-dockerfile-conflict-reload", {
+        {...agentHandle({ handle: "deployment-dockerfile-conflict-reload" }, {
           role: "button",
           label: "Reloads the current version from the server so the next Save is checked against it — does not discard your own edits",
         })}
@@ -192,7 +192,7 @@ function DockerfileSaveStatus({
       <p
         className="save-error"
         role="alert"
-        {...agentHandle("deployment-dockerfile-save-error", {
+        {...agentHandle({ handle: "deployment-dockerfile-save-error" }, {
           role: "status",
           label: "Shows the error message when saving the Dockerfile failed",
         })}
@@ -245,7 +245,7 @@ function DockerfileEditorCard({
   return (
     <div
       className="card"
-      {...agentHandle("deployment-dockerfile-editor-card", {
+      {...agentHandle({ handle: "deployment-dockerfile-editor-card" }, {
         role: "region",
         label: "Dockerfile editor — view, edit, copy, download and save the repo-root Dockerfile's contents",
       })}
@@ -257,7 +257,7 @@ function DockerfileEditorCard({
           {isDirty ? (
             <span
               className="status status-warning"
-              {...agentHandle("deployment-dockerfile-unsaved", {
+              {...agentHandle({ handle: "deployment-dockerfile-unsaved" }, {
                 role: "status",
                 label: "Indicates the Dockerfile draft has unsaved changes",
               })}
@@ -268,7 +268,7 @@ function DockerfileEditorCard({
           {saved ? (
             <span
               className="save-ok"
-              {...agentHandle("deployment-dockerfile-saved", {
+              {...agentHandle({ handle: "deployment-dockerfile-saved" }, {
                 role: "status",
                 label: "Confirms the Dockerfile was just saved successfully",
               })}
@@ -281,7 +281,7 @@ function DockerfileEditorCard({
             className="btn-secondary"
             onClick={onCopy}
             disabled={!hasContent}
-            {...agentHandle("deployment-dockerfile-copy", {
+            {...agentHandle({ handle: "deployment-dockerfile-copy" }, {
               role: "button",
               label: "Copy the Dockerfile's current draft contents to the clipboard",
             })}
@@ -295,7 +295,7 @@ function DockerfileEditorCard({
             className="btn-secondary"
             onClick={() => downloadDockerfile(draft)}
             disabled={!hasContent}
-            {...agentHandle("deployment-dockerfile-download", {
+            {...agentHandle({ handle: "deployment-dockerfile-download" }, {
               role: "button",
               label: "Download the Dockerfile's current draft contents as a file named Dockerfile",
             })}
@@ -306,7 +306,7 @@ function DockerfileEditorCard({
             type="button"
             onClick={onSave}
             disabled={saving}
-            {...agentHandle("deployment-dockerfile-save", {
+            {...agentHandle({ handle: "deployment-dockerfile-save" }, {
               role: "button",
               label:
                 "Save the Dockerfile's current draft — creates the file if it doesn't exist yet. " +
@@ -329,7 +329,7 @@ function DockerfileEditorCard({
           spellCheck={false}
           translate="no"
           aria-label={t("Dockerfile contents")}
-          {...agentHandle("deployment-dockerfile-textarea", {
+          {...agentHandle({ handle: "deployment-dockerfile-textarea" }, {
             role: "field",
             label: "The Dockerfile's contents, editable — changes are not saved until Save is clicked",
           })}
@@ -368,7 +368,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
     return (
       <div
         className="notice error"
-        {...agentHandle("deployment-dockerfile-load-error", {
+        {...agentHandle({ handle: "deployment-dockerfile-load-error" }, {
           role: "status",
           label: "Shows the error message when loading the Dockerfile failed",
         })}
@@ -383,7 +383,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
       {error ? (
         <div
           className="notice error"
-          {...agentHandle("deployment-dockerfile-load-error", {
+          {...agentHandle({ handle: "deployment-dockerfile-load-error" }, {
             role: "status",
             label: "Shows the error message when loading the Dockerfile failed",
           })}

@@ -78,7 +78,7 @@ export function FullSiteTab() {
     <div className="deployment-tab">
       <div
         className="card"
-        {...agentHandle("deployment-full-site-overview", {
+        {...agentHandle({ handle: "deployment-full-site-overview" }, {
           role: "region",
           label: "What Full Site gives you — the complete Tovu server, what it keeps, and what host it needs",
         })}
@@ -111,7 +111,7 @@ export function FullSiteTab() {
               <a
                 className="btn-secondary"
                 href="/admin/deployment?tab=dockerfile"
-                {...agentHandle("deployment-full-site-dockerfile-link", {
+                {...agentHandle({ handle: "deployment-full-site-dockerfile-link" }, {
                   role: "link",
                   label: "Open the Dockerfile tab — the image Full Site would run from",
                 })}
@@ -125,7 +125,7 @@ export function FullSiteTab() {
 
       <div
         className="card"
-        {...agentHandle("deployment-full-site-providers", {
+        {...agentHandle({ handle: "deployment-full-site-providers" }, {
           role: "region",
           label: "Full Site host providers — six informational rows, none connectable yet from this screen",
         })}

@@ -52,8 +52,10 @@ export interface RecoveryController {
   points: AdminRestorePoint[] | null;
   error: string | null;
   /** Restore-point functionality consolidation (2026-09-10) — the create action moved here from
-   *  Database's own `RestorePointsSection`/`useRestorePointsSection`. Same no-argument create,
-   *  `creating` reflects the in-flight request. */
+   *  Database's former restore-point hook. Same no-argument create,
+   *  `creating` reflects the in-flight request.
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
   creating: boolean;
   createRestorePoint: () => Promise<void>;
   /** The restore point a "Restore…" row action selected, or the one a resolved deep link matched —
@@ -125,7 +127,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   useContentRefreshSubscription(RECOVERY_RESOURCE, load);
 
   /** Restore-point functionality consolidation (2026-09-10) — same no-capabilities-read shape
-   *  Database's old `useRestorePointsSection.createRestorePoint` used: no route exists yet to learn
+   *  Database's former create action used: no route exists yet to learn
    *  `costClass` ahead of time (design-spec.md §3.3 wants a cost/disk estimate the confirmer
    *  explicitly acknowledges first), so `costAck: true` is sent unconditionally; an `unavailable`
    *  site gets the server's own `RESTORE_POINT_UNAVAILABLE` rejection rather than a client-side
@@ -133,7 +135,9 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
    *  reload idiom, not `lib/fetch-query`) rather than optimistically appending, so a fresh
    *  `costClass`/banner read comes back too.
    * `t`/`locale` intentionally omitted from this callback's own deps — same gap `load` above
-   * documents. */
+   * documents.
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const createRestorePoint = useCallback(async () => {
     setCreating(true);

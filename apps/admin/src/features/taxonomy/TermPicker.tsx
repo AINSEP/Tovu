@@ -75,7 +75,7 @@ export function TermPicker(props: {
                             checked={selected.has(term.id)}
                             disabled={loading}
                             onChange={() => toggle(term.id)}
-                            {...agentHandle(handle, {
+                            {...agentHandle({ handle }, {
                               role: "checkbox",
                               label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
                             })}
@@ -91,7 +91,7 @@ export function TermPicker(props: {
                     type="button"
                     className="btn-ghost term-picker-add-trigger"
                     onClick={() => picker.setAddOpen(id, true)}
-                    {...agentHandle(addTriggerHandles[groupIndex]!, {
+                    {...agentHandle({ handle: addTriggerHandles[groupIndex]! }, {
                       role: "button",
                       label: `Open the box for adding a new "${taxonomy.name}" term to this ${subject}`,
                     })}
@@ -111,7 +111,7 @@ export function TermPicker(props: {
                       disabled={loading}
                       onChange={(e) => picker.setNewTermName(id, e.target.value)}
                       onKeyDown={(e) => picker.onNewTermKeyDown(id, e)}
-                      {...agentHandle(addInputHandles[groupIndex]!, {
+                      {...agentHandle({ handle: addInputHandles[groupIndex]! }, {
                         role: "field",
                         label: `A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`,
                       })}
@@ -128,7 +128,7 @@ export function TermPicker(props: {
                       className="btn-secondary"
                       onClick={() => void picker.addTerm(id)}
                       disabled={loading || picker.creating(id) || !picker.newTermName(id).trim()}
-                      {...agentHandle(addButtonHandles[groupIndex]!, {
+                      {...agentHandle({ handle: addButtonHandles[groupIndex]! }, {
                         role: "button",
                         label: `Tick the typed "${taxonomy.name}" term, creating it if it does not exist yet`,
                       })}
@@ -158,7 +158,7 @@ export function TermPicker(props: {
           className="btn-primary"
           onClick={save}
           disabled={saving || !dirty}
-          {...agentHandle("term-picker-save", {
+          {...agentHandle({ handle: "term-picker-save" }, {
             role: "button",
             label: `Save this ${subject}'s categories and tags as checked above`,
           })}

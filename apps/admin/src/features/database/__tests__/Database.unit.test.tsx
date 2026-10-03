@@ -17,12 +17,11 @@ import type { AdminLedgerRow } from "@/lib/api";
  * layer, which was bare (3.12%) before the original tabs pass.
  *
  * NO RESTORE-POINTS SECTION (2026-09-10): this file used to also cover a third section,
- * `RestorePointsSection`/`useRestorePointsSection`, mounted on a `restore-points` tab. That whole
+ * the former Database hook, mounted on a `restore-points` tab. That whole
  * capability moved to `features/recovery/Recovery.tsx` (`development/todos.md`'s "Recovery vs
  * Database's Restore Points tab" entry, owner, 2026-09-10) — see `Recovery.unit.test.tsx`'s own
- * "create restore point" describe block for its coverage now. `useRestorePointsSection` itself was
- * NOT deleted (still exercised by `__measurements__/request-volume.measurement.test.tsx`, unrelated
- * to this screen), so this file simply stopped mounting/mocking it.
+ * "create restore point" describe block for its coverage now. The old hook and its dedicated tests were deleted after confirming it had no production
+ * importer; the mixed request-volume suite retained its live sections.
  *
  * `TimelineSection`/`MigrateForwardSection` each declare a `use*Hook` DI seam
  * (`Recovery.tsx`/`Pages.tsx` convention), but `Database` — the only exported component in this
@@ -45,6 +44,7 @@ import type { AdminLedgerRow } from "@/lib/api";
  * it was already asserting against with no change to the call itself. A test that needs a specific
  * tab regardless of that inference (or needs to assert on the tab bar itself) passes `tabId`
  * explicitly, which always wins.
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));

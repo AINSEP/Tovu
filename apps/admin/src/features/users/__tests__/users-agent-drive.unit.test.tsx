@@ -108,7 +108,7 @@ async function findElements(
   driver: ReturnType<typeof createDomPageDriver>,
   filter: { role?: string } = {},
 ): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", filter)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: filter })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -134,8 +134,8 @@ describe("driving the new-user form through page.* verbs", () => {
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     await act(async () => {
-      await executePageCapability(driver, "page.fill", { handle: "users-new-username", text: "newop" });
-      await executePageCapability(driver, "page.fill", { handle: "users-new-email", text: "newop@example.com" });
+      await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "users-new-username", text: "newop" } });
+      await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "users-new-email", text: "newop@example.com" } });
     });
     rerender(<Users useUsersHook={useStatefulUsers} />);
     expect(container.querySelector('[data-agent-element="users-new-username"]')).toHaveValue("newop");
@@ -152,7 +152,7 @@ describe("driving the new-user form through page.* verbs", () => {
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     await expect(
-      executePageCapability(driver, "page.fill", { handle: "users-new-password", text: "hunter2" }),
+      executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "users-new-password", text: "hunter2" } }),
     ).rejects.toThrow();
   });
 });
@@ -179,7 +179,7 @@ describe("addressing user rows", () => {
     expect(handles).toContain("users-row-u1-manage");
     expect(handles).toContain("users-row-u2-manage");
 
-    await executePageCapability(driver, "page.click", { handle: "users-row-u1-manage" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-row-u1-manage" } });
 
     expect(controller.toggleExpanded).toHaveBeenCalledWith(ACTIVE_USER);
     expect(controller.toggleExpanded).not.toHaveBeenCalledWith(OTHER_USER);
@@ -243,10 +243,10 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
     expect(handles).toContain("user-manage-policy-select");
     expect(handles).toContain("user-manage-policy-submit");
 
-    await executePageCapability(driver, "page.select_option", { handle: "user-manage-role-select", option: "Editor" });
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: { handle: "user-manage-role-select", option: "Editor" } });
     expect(manage.roleGrant.setPendingId).toHaveBeenCalledWith("r-1");
 
-    await executePageCapability(driver, "page.click", { handle: "user-manage-role-submit" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "user-manage-role-submit" } });
     expect(manage.roleGrant.submit).toHaveBeenCalled();
     expect(manage.policyGrant.submit).not.toHaveBeenCalled();
   });
@@ -256,7 +256,7 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
     const { container } = renderPanel(manage);
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "user-manage-email", text: "new@example.com" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "user-manage-email", text: "new@example.com" } });
     expect(manage.email.set).toHaveBeenCalledWith("new@example.com");
   });
 });
@@ -300,11 +300,11 @@ describe("account-management controls are agent-drivable, like the rest of the p
       "users-reset-password-retype",
     );
     for (const handle of ["users-reset-password", "users-reset-password-retype"]) {
-      await expect(executePageCapability(driver, "page.fill", { handle, text: "secret123" })).rejects.toThrow();
+      await expect(executePageCapability({ driver, capabilityId: "page.fill", input: { handle, text: "secret123" } })).rejects.toThrow();
     }
     await act(async () => {
-      await executePageCapability(driver, "page.click", { handle: "users-reset-password-reveal" });
-      await executePageCapability(driver, "page.click", { handle: "users-reset-password-retype-reveal" });
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-reveal" } });
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-retype-reveal" } });
     });
     expect(container.querySelector("#users-reset-password-input")).toHaveAttribute("type", "text");
     expect(container.querySelector("#users-reset-password-confirm-input")).toHaveAttribute("type", "text");
@@ -312,9 +312,9 @@ describe("account-management controls are agent-drivable, like the rest of the p
     fireEvent.change(container.querySelector("#users-reset-password-input")!, { target: { value: "secret123" } });
     fireEvent.change(container.querySelector("#users-reset-password-confirm-input")!, { target: { value: "secret123" } });
     expect(setNewPasswordSpy).toHaveBeenCalledWith("secret123");
-    await executePageCapability(driver, "page.click", { handle: "users-reset-password-confirm" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-confirm" } });
     expect(confirmResetPassword).toHaveBeenCalledTimes(1);
-    await executePageCapability(driver, "page.click", { handle: "users-reset-password-cancel" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-cancel" } });
     expect(setNewPasswordSpy).toHaveBeenLastCalledWith("");
   });
 
@@ -337,7 +337,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
     const dialog = screen.getByText("Delete this user?").closest("dialog")!;
     expect(dialog).toHaveAttribute("open");
     await act(async () => {
-      await executePageCapability(createDomPageDriver({ root: container, pages: {} }), "page.click", { handle: "users-delete-confirm" });
+      await executePageCapability({ driver: createDomPageDriver({ root: container, pages: {} }), capabilityId: "page.click", input: { handle: "users-delete-confirm" } });
     });
     expect(deleteUser).toHaveBeenCalledExactlyOnceWith(bob.principalId);
     await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
@@ -349,9 +349,9 @@ describe("account-management controls are agent-drivable, like the rest of the p
     expect(handles).toContain("users-delete-cancel");
     expect(handles).toContain("users-delete-confirm");
     const driver = createDomPageDriver({ root: container, pages: {} });
-    await executePageCapability(driver, "page.click", { handle: "users-delete-confirm" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-delete-confirm" } });
     expect(controller.confirmDelete).toHaveBeenCalledTimes(1);
-    await executePageCapability(driver, "page.click", { handle: "users-delete-cancel" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-delete-cancel" } });
     expect(controller.setConfirmingDelete).toHaveBeenCalledWith(null);
   });
 });

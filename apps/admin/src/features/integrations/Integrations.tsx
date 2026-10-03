@@ -63,7 +63,7 @@ function IntegrationCreateForm(props: {
           value={props.label}
           onChange={(e) => props.onLabelChange(e.target.value)}
           required
-          {...agentHandle("integrations-create-label", { role: "field", label: "New webhook's label" })}
+          {...agentHandle({ handle: "integrations-create-label" }, { role: "field", label: "New webhook's label" })}
         />
       </label>
       <label>
@@ -73,7 +73,7 @@ function IntegrationCreateForm(props: {
           onChange={(e) => props.onTargetUrlChange(e.target.value)}
           placeholder="https://example.com/hooks"
           required
-          {...agentHandle("integrations-create-target-url", { role: "field", label: "New webhook's target URL" })}
+          {...agentHandle({ handle: "integrations-create-target-url" }, { role: "field", label: "New webhook's target URL" })}
         />
       </label>
       <label>
@@ -82,14 +82,14 @@ function IntegrationCreateForm(props: {
           value={props.topics}
           onChange={(e) => props.onTopicsChange(e.target.value)}
           required
-          {...agentHandle("integrations-create-topics", { role: "field", label: "New webhook's comma-separated event topics" })}
+          {...agentHandle({ handle: "integrations-create-topics" }, { role: "field", label: "New webhook's comma-separated event topics" })}
         />
       </label>
       <span className="editor-actions">
         <button
           type="submit"
           disabled={props.saving}
-          {...agentHandle("integrations-create-submit", { role: "button", label: "Create this webhook" })}
+          {...agentHandle({ handle: "integrations-create-submit" }, { role: "button", label: "Create this webhook" })}
         >
           {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
         </button>
@@ -97,7 +97,7 @@ function IntegrationCreateForm(props: {
           type="button"
           className="btn-secondary"
           onClick={props.onCancel}
-          {...agentHandle("integrations-create-cancel", { role: "button", label: "Close this form without creating a webhook" })}
+          {...agentHandle({ handle: "integrations-create-cancel" }, { role: "button", label: "Close this form without creating a webhook" })}
         >
           {t(locale, "Cancel")}
         </button>
@@ -198,7 +198,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           <div className="page-actions">
             <button
               onClick={() => setFormOpen(true)}
-              {...agentHandle("integrations-toggle-create-form", { role: "button", label: "Open the add-webhook form" })}
+              {...agentHandle({ handle: "integrations-toggle-create-form" }, { role: "button", label: "Open the add-webhook form" })}
             >
               {t("Add webhook")}
             </button>
@@ -252,7 +252,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
             cell: (subscription, index) => (
               <a
                 href={`/admin/integrations/${subscription.id}`}
-                {...agentHandle(`${rowMenuHandles[index]}-label`, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
+                {...agentHandle({ handle: `${rowMenuHandles[index]}-label` }, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
               >
                 {subscription.label}
               </a>

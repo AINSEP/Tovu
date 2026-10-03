@@ -120,7 +120,7 @@ function PageEditorHeader({
     // see that modifier's own comment for why the empty rail has to stay reserved.
     <div
       className="page-header page-header-split"
-      {...agentHandle("page-header", {
+      {...agentHandle({ handle: "page-header" }, {
         role: "region",
         label:
           "Editor header — the back link and the page's title. Save, Delete and the " +
@@ -148,7 +148,7 @@ function PageEditorHeader({
           href="/admin/pages"
           onClick={(e) => void onBackLinkClick(e)}
           aria-label={`${t("Back")}: ${t("Pages")}`}
-          {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
+          {...agentHandle({ handle: "page-back-to-list" }, { role: "link", label: "Back to the list of all pages" })}
         >
           ← {t("Back")}
         </a>
@@ -205,7 +205,7 @@ function PageEditorActions({
   return (
     <div
       className="editor-action-row"
-      {...agentHandle("page-actions", {
+      {...agentHandle({ handle: "page-actions" }, {
         role: "region",
         label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
       })}
@@ -215,7 +215,7 @@ function PageEditorActions({
       <select
         value={status}
         onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-        {...agentHandle("page-status", {
+        {...agentHandle({ handle: "page-status" }, {
           role: "field",
           label:
             "Whether this page is a draft or published — set with page.select_option, not click. " +
@@ -231,7 +231,7 @@ function PageEditorActions({
           type="button"
           onClick={onPublish}
           disabled={saving}
-          {...agentHandle("page-publish", {
+          {...agentHandle({ handle: "page-publish" }, {
             role: "button",
             label:
               "Publish this page immediately — saves the current title, slug and body and sets " +
@@ -247,7 +247,7 @@ function PageEditorActions({
         className={status === "draft" ? "btn-secondary" : undefined}
         onClick={onSave}
         disabled={saving}
-        {...agentHandle("page-save", { role: "button", label: "Save this page's title, slug, status and body" })}
+        {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
       >
         {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
       </button>
@@ -255,7 +255,7 @@ function PageEditorActions({
         type="button"
         className="btn-danger"
         onClick={onDeleteClick}
-        {...agentHandle("page-delete", {
+        {...agentHandle({ handle: "page-delete" }, {
           role: "button",
           label:
             "Move this page to the trash — different from unpublishing (the Draft/Published field " +
@@ -293,7 +293,7 @@ function PageAutosaveRecoveryBanner({
   return (
     <div
       className="notice warning"
-      {...agentHandle("page-autosave-recovery", {
+      {...agentHandle({ handle: "page-autosave-recovery" }, {
         role: "region",
         label: "An unsaved draft from a previous session was found — restore it or discard it",
       })}
@@ -303,7 +303,7 @@ function PageAutosaveRecoveryBanner({
         type="button"
         className="btn-secondary"
         onClick={onRestore}
-        {...agentHandle("page-autosave-restore", { role: "button", label: "Apply the recovered draft into the editor" })}
+        {...agentHandle({ handle: "page-autosave-restore" }, { role: "button", label: "Apply the recovered draft into the editor" })}
       >
         {t("Restore")}
       </button>
@@ -311,7 +311,7 @@ function PageAutosaveRecoveryBanner({
         type="button"
         className="btn-secondary"
         onClick={onDiscard}
-        {...agentHandle("page-autosave-discard", { role: "button", label: "Discard the recovered draft without applying it" })}
+        {...agentHandle({ handle: "page-autosave-discard" }, { role: "button", label: "Discard the recovered draft without applying it" })}
       >
         {t("Discard")}
       </button>
@@ -347,7 +347,7 @@ function PageVersionConflictBanner({
   return (
     <div
       className="notice error"
-      {...agentHandle("page-version-conflict", {
+      {...agentHandle({ handle: "page-version-conflict" }, {
         role: "region",
         label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
       })}
@@ -357,7 +357,7 @@ function PageVersionConflictBanner({
         type="button"
         className="btn-secondary"
         onClick={onSaveAnyway}
-        {...agentHandle("page-version-conflict-overwrite", {
+        {...agentHandle({ handle: "page-version-conflict-overwrite" }, {
           role: "button",
           label: "Save these changes anyway, replacing the version the other operator saved",
         })}
@@ -368,7 +368,7 @@ function PageVersionConflictBanner({
         type="button"
         className="btn-secondary"
         onClick={onDismiss}
-        {...agentHandle("page-version-conflict-dismiss", {
+        {...agentHandle({ handle: "page-version-conflict-dismiss" }, {
           role: "button",
           label: "Hide this notice and keep editing without saving",
         })}
@@ -402,7 +402,7 @@ function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftS
   return (
     <div
       className="notice warning"
-      {...agentHandle("page-autosave-stale", {
+      {...agentHandle({ handle: "page-autosave-stale" }, {
         role: "region",
         label:
           "Another operator saved this page while you were editing — autosaving has stopped, and your " +
@@ -430,7 +430,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLate
   return (
     <div
       className="notice warning"
-      {...agentHandle("page-external-change", {
+      {...agentHandle({ handle: "page-external-change" }, {
         role: "region",
         label: "This page was changed outside the editor, probably by the assistant — load the latest version or keep your unsaved edits",
       })}
@@ -440,7 +440,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLate
         type="button"
         className="btn-secondary"
         onClick={onLoadLatest}
-        {...agentHandle("page-external-change-load-latest", {
+        {...agentHandle({ handle: "page-external-change-load-latest" }, {
           role: "button",
           label: "Load latest version, discarding my unsaved edits",
         })}
@@ -451,7 +451,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLate
         type="button"
         className="btn-secondary"
         onClick={onKeepEdits}
-        {...agentHandle("page-external-change-keep-edits", {
+        {...agentHandle({ handle: "page-external-change-keep-edits" }, {
           role: "button",
           label: "Keep my edits and ignore the outside change",
         })}
@@ -609,7 +609,7 @@ function PageEditorToolbarEnd({
               // `THEME_DEFAULT_SENTINEL` option back to `null`; every other value (a real filename, or
               // the bare `""`) already IS the `templateChoice` to store, see that function's own doc.
               onChange={(e) => setTemplateChoice(pickerValueToChoice(e.target.value))}
-              {...agentHandle("page-template-choice", {
+              {...agentHandle({ handle: "page-template-choice" }, {
                 role: "field",
                 label:
                   "Which theme page template this page renders through on the public site. 'No template' serves only the page's own HTML.",
@@ -627,7 +627,7 @@ function PageEditorToolbarEnd({
             <select
               disabled
               value=""
-              {...agentHandle("page-template-choice", {
+              {...agentHandle({ handle: "page-template-choice" }, {
                 role: "field",
                 label: "The active theme declares no page templates, so there is nothing to choose here.",
               })}
@@ -798,7 +798,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("Untitled")}
-            {...agentHandle("page-title", { role: "field", label: "This page's title" })}
+            {...agentHandle({ handle: "page-title" }, { role: "field", label: "This page's title" })}
           />
         </label>
 
@@ -809,14 +809,14 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              {...agentHandle("page-slug", { role: "field", label: "URL slug this page is published at" })}
+              {...agentHandle({ handle: "page-slug" }, { role: "field", label: "URL slug this page is published at" })}
             />
           </label>
           <a
             href={siteUrl(pagePublicPath(page.slug))}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle("page-view-live", { role: "link", label: "Open this page on the public site in a new tab" })}
+            {...agentHandle({ handle: "page-view-live" }, { role: "link", label: "Open this page on the public site in a new tab" })}
           >
             {t("view ↗")}
           </a>
@@ -834,7 +834,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
               className={view === entry.key ? "is-active" : undefined}
               tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
               onClick={() => setView(entry.key)}
-              {...agentHandle(`page-view-${entry.key}`, { role: "button", label: `Switch to the ${entry.label} view` })}
+              {...agentHandle({ handle: `page-view-${entry.key}` }, { role: "button", label: `Switch to the ${entry.label} view` })}
             >
               {t(entry.label)}
             </button>
@@ -1081,7 +1081,7 @@ function PageEditorPane({
         spellCheck={false}
         aria-label={t("Page HTML")}
         placeholder={t("This page has no HTML yet. Ask the assistant to build it, or write some here.")}
-        {...agentHandle("page-html-source", { role: "field", label: "This page's raw HTML source" })}
+        {...agentHandle({ handle: "page-html-source" }, { role: "field", label: "This page's raw HTML source" })}
       />
     );
   }
@@ -1291,7 +1291,7 @@ function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle
       onClick={onToggle}
       title={expanded ? t("Exit full screen (Esc)") : t("Show full screen")}
       aria-label={expanded ? t("Exit full screen") : t("Show full screen")}
-      {...agentHandle("page-preview-expand", {
+      {...agentHandle({ handle: "page-preview-expand" }, {
         role: "button",
         // These labels read redundantly ON PURPOSE. `page.find_elements`'s `query` is a plain
         // case-insensitive SUBSTRING match over handle and label only — no stemming, no synonyms,

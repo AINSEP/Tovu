@@ -193,7 +193,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
               value={view.selectedPeerId ?? ""}
               disabled={!view.peerSelectionEnabled}
               onChange={(e) => view.onSelectPeer(e.target.value)}
-              {...agentHandle("dashboard-publish-content-peer", {
+              {...agentHandle({ handle: "dashboard-publish-content-peer" }, {
                 // `AgentElementRole` has no `select` member — a `<select>` is a `field` in that
                 // vocabulary, same as every other value-carrying control.
                 role: "field",
@@ -270,7 +270,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                         disabled={!view.selectionEnabled || view.rows.every((row) => !row.selectable)}
                         onChange={view.onToggleAll}
                         aria-label={t("Publish every item that can be published")}
-                        {...agentHandle("dashboard-publish-content-select-all", {
+                        {...agentHandle({ handle: "dashboard-publish-content-select-all" }, {
                           role: "field",
                           label: "Check or uncheck every publishable row at once",
                         })}
@@ -292,7 +292,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                           disabled={!view.selectionEnabled}
                           onChange={view.onToggleAllOverwrite}
                           aria-label={t("Overwrite every item that can replace something on live")}
-                          {...agentHandle("dashboard-publish-content-overwrite-all", {
+                          {...agentHandle({ handle: "dashboard-publish-content-overwrite-all" }, {
                             role: "field",
                             label: "Check or uncheck every 'Overwrite on live' row at once",
                           })}
@@ -313,7 +313,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                           aria-expanded={view.upToDateExpanded}
                           onClick={view.onToggleUpToDate}
                           data-publish-up-to-date-toggle=""
-                          {...agentHandle("dashboard-publish-content-up-to-date", {
+                          {...agentHandle({ handle: "dashboard-publish-content-up-to-date" }, {
                             role: "button",
                             label: "Show or hide the items that are already up to date",
                           })}
@@ -358,7 +358,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
             autoFocus
             disabled={!view.dismissible}
             onClick={view.onDismiss}
-            {...agentHandle("dashboard-publish-content-cancel", {
+            {...agentHandle({ handle: "dashboard-publish-content-cancel" }, {
               role: "button",
               label: "Close this dialog without publishing",
             })}
@@ -375,7 +375,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
               className="btn-primary"
               disabled={view.primaryDisabled}
               onClick={view.onPrimary}
-              {...agentHandle("dashboard-publish-content-plan", {
+              {...agentHandle({ handle: "dashboard-publish-content-plan" }, {
                 role: "button",
                 // While `connectOffer` is set this button connects the pre-filled site instead of
                 // planning — see this file's header.
@@ -393,7 +393,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
               className="btn-primary"
               disabled={view.primaryDisabled}
               onClick={view.onPrimary}
-              {...agentHandle("dashboard-publish-content-confirm", {
+              {...agentHandle({ handle: "dashboard-publish-content-confirm" }, {
                 role: "button",
                 label: "Publish the checked items to the live site",
               })}

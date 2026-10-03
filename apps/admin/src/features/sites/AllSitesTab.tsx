@@ -97,7 +97,7 @@ function ActivateButton({
       disabled={resolveActivateDisabled({ switchingEnabled, activatingName, site, snapshot })}
       onClick={() => onActivate(site.name)}
       aria-label={ariaLabel}
-      {...agentHandle(handle, { role: "button", label: ariaLabel })}
+      {...agentHandle({ handle }, { role: "button", label: ariaLabel })}
     >
       {activatingName === site.name ? t("Saving…") : t("Serve after restart")}
     </button>
@@ -191,7 +191,7 @@ function SitesEmptyState({ t }: { t: Translate }) {
   return (
     <div
       className="sites-empty"
-      {...agentHandle("sites-empty", {
+      {...agentHandle({ handle: "sites-empty" }, {
         role: "region",
         label: "Empty state for the All sites tab — no site folders are listed under sites/",
       })}
@@ -201,7 +201,7 @@ function SitesEmptyState({ t }: { t: Translate }) {
       <a
         className="btn-primary sites-empty-action"
         href="/admin/sites?tab=new"
-        {...agentHandle("sites-empty-new-site", { role: "link", label: "Go to the New site tab" })}
+        {...agentHandle({ handle: "sites-empty-new-site" }, { role: "link", label: "Go to the New site tab" })}
       >
         {t("New site")}
       </a>
@@ -219,7 +219,7 @@ function CreatedSiteNotice({ createdName, createdTokens, t }: { createdName: str
   return (
     <p
       className="save-ok"
-      {...agentHandle("sites-created-notice", {
+      {...agentHandle({ handle: "sites-created-notice" }, {
         role: "status",
         label: "Confirmation that a site folder was created, and that creating it switched nothing",
       })}

@@ -36,13 +36,13 @@ import {
  * doc in `AssistantDock.hooks.tsx` for the full reasoning: the menu is for pointing the assistant
  * at a Skill or Agent Plugin, not for handing it a raw, non-resolving tool id).
  *
- * `createToolCatalogComposerCapabilitySource().list()` is the ONLY thing in this hook's dependency
- * graph that calls `fetch` (`tool-catalog-composer-source.ts`'s own doc) — `fetch` never being
+ * The former raw tool-catalog source was the dependency that called `fetch` — `fetch` never being
  * called is therefore direct proof the source is not in the projected list, not an inference from
  * the rendered groups. Before the fix (`AssistantDock.hooks.tsx` wiring
- * `createToolCatalogComposerCapabilitySource()` into the same `Promise.all` as the bundled source),
+ * the raw tool-catalog source into the same `Promise.all` as the bundled source),
  * this test fails: `fetch` is called once for `/api/tools/search` and a `tool-catalog` group is
  * projected alongside the bundled ones.
+ * createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 afterEach(() => {

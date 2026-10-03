@@ -228,7 +228,7 @@ function MediaPreview(props: MediaPreviewProps) {
       aria-label={`Edit "${props.item.title}"`}
       onClick={props.onEdit}
       {...(props.agentEditHandle
-        ? agentHandle(props.agentEditHandle, { role: "button", label: "Open the edit form for this asset as a modal" })
+        ? agentHandle({ handle: props.agentEditHandle }, { role: "button", label: "Open the edit form for this asset as a modal" })
         : {})}
     >
       <EyeIcon />
@@ -255,7 +255,7 @@ function MediaPreview(props: MediaPreviewProps) {
   }
 
   const expandHandle = props.agentExpandHandle
-    ? agentHandle(props.agentExpandHandle, { role: "button", label: "Open this asset larger in the lightbox" })
+    ? agentHandle({ handle: props.agentExpandHandle }, { role: "button", label: "Open this asset larger in the lightbox" })
     : {};
   const expandLabel = `View "${props.item.title}" larger`;
 
@@ -357,7 +357,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
   return (
     <div
       className="media-edit-modal-body"
-      {...agentHandle("media-edit-panel", {
+      {...agentHandle({ handle: "media-edit-panel" }, {
         role: "region",
         label: "Edit media metadata — title, alt text, caption, credit, size, CSS class and HTML attributes",
       })}
@@ -380,7 +380,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-title-${item.id}`}
               value={draft.title}
               onChange={(e) => setTitle(e.target.value)}
-              {...agentHandle("media-edit-title", { role: "field", label: "This asset's title" })}
+              {...agentHandle({ handle: "media-edit-title" }, { role: "field", label: "This asset's title" })}
             />
           </div>
           <div className="field">
@@ -391,7 +391,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-alt-${item.id}`}
               value={draft.alt}
               onChange={(e) => setAlt(e.target.value)}
-              {...agentHandle("media-edit-alt", { role: "field", label: "This asset's alt text, for screen readers" })}
+              {...agentHandle({ handle: "media-edit-alt" }, { role: "field", label: "This asset's alt text, for screen readers" })}
             />
           </div>
         </div>
@@ -408,7 +408,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             id={`media-edit-slug-${item.id}`}
             value={draft.slug}
             onChange={(e) => setSlug(e.target.value)}
-            {...agentHandle("media-edit-slug", {
+            {...agentHandle({ handle: "media-edit-slug" }, {
               role: "field",
               label: "This asset's unique lookup slug — separate from Title, must be unique in this workspace",
             })}
@@ -423,7 +423,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-caption-${item.id}`}
               value={draft.caption}
               onChange={(e) => setCaption(e.target.value)}
-              {...agentHandle("media-edit-caption", { role: "field", label: "This asset's caption" })}
+              {...agentHandle({ handle: "media-edit-caption" }, { role: "field", label: "This asset's caption" })}
             />
           </div>
           <div className="field">
@@ -434,7 +434,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-credit-${item.id}`}
               value={draft.credit}
               onChange={(e) => setCredit(e.target.value)}
-              {...agentHandle("media-edit-credit", { role: "field", label: "This asset's credit / attribution" })}
+              {...agentHandle({ handle: "media-edit-credit" }, { role: "field", label: "This asset's credit / attribution" })}
             />
           </div>
         </div>
@@ -460,7 +460,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             label={t("File URL")}
             copied={urlCopied}
             onCopy={copyUrl}
-            copyButtonHandle={agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
+            copyButtonHandle={agentHandle({ handle: "media-edit-copy-url" }, { role: "button", label: "Copy this asset's file URL to the clipboard" })}
             t={t}
           >
             <a className="field-mono field-readonly" href={publicUrl} target="_blank" rel="noreferrer">
@@ -475,7 +475,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           label={t("Embed code")}
           copied={embedCopied}
           onCopy={copyEmbedCode}
-          copyButtonHandle={agentHandle("media-edit-copy-embed", { role: "button", label: "Copy this asset's embed code to the clipboard" })}
+          copyButtonHandle={agentHandle({ handle: "media-edit-copy-embed" }, { role: "button", label: "Copy this asset's embed code to the clipboard" })}
           t={t}
         >
           <code className="field-mono field-readonly">{embedSnippet}</code>
@@ -488,7 +488,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           label={t("sha256")}
           copied={hashCopied}
           onCopy={copyHash}
-          copyButtonHandle={agentHandle("media-edit-copy-hash", { role: "button", label: "Copy this asset's sha256 hash to the clipboard" })}
+          copyButtonHandle={agentHandle({ handle: "media-edit-copy-hash" }, { role: "button", label: "Copy this asset's sha256 hash to the clipboard" })}
           t={t}
         >
           <code className="field-mono field-readonly">{item.sha256}</code>
@@ -498,7 +498,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             type="button"
             onClick={save}
             disabled={saving}
-            {...agentHandle("media-edit-save", { role: "button", label: "Save this asset's metadata" })}
+            {...agentHandle({ handle: "media-edit-save" }, { role: "button", label: "Save this asset's metadata" })}
           >
             {saving ? t("Saving…") : t("Save")}
           </button>
@@ -507,7 +507,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             className="btn-secondary"
             onClick={onCancel}
             disabled={saving}
-            {...agentHandle("media-edit-cancel", { role: "button", label: "Close this panel without saving" })}
+            {...agentHandle({ handle: "media-edit-cancel" }, { role: "button", label: "Close this panel without saving" })}
           >
             {t("Cancel")}
           </button>
@@ -552,7 +552,7 @@ function MediaEditRenderOverrideFields(
             placeholder="native"
             value={draft.width ?? ""}
             onChange={(e) => setWidth(e.target.value)}
-            {...agentHandle("media-edit-width", {
+            {...agentHandle({ handle: "media-edit-width" }, {
               role: "field",
               label: "Render width in pixels for this asset in post bodies — blank means native size",
             })}
@@ -569,7 +569,7 @@ function MediaEditRenderOverrideFields(
             placeholder="native"
             value={draft.height ?? ""}
             onChange={(e) => setHeight(e.target.value)}
-            {...agentHandle("media-edit-height", {
+            {...agentHandle({ handle: "media-edit-height" }, {
               role: "field",
               label: "Render height in pixels for this asset in post bodies — blank means native size",
             })}
@@ -584,7 +584,7 @@ function MediaEditRenderOverrideFields(
           id={`media-edit-css-class-${item.id}`}
           value={draft.cssClass ?? ""}
           onChange={(e) => setCssClass(e.target.value)}
-          {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
+          {...agentHandle({ handle: "media-edit-css-class" }, { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
         />
       </div>
       {/* HTML attributes (2026-09-07, owner-directed — animations, custom WebMCP hooks on the
@@ -602,7 +602,7 @@ function MediaEditRenderOverrideFields(
           value={draft.htmlAttributes ?? ""}
           onChange={(e) => setHtmlAttributes(e.target.value)}
           aria-invalid={htmlAttributesError ? true : undefined}
-          {...agentHandle("media-edit-html-attributes", {
+          {...agentHandle({ handle: "media-edit-html-attributes" }, {
             role: "field",
             label: "Optional HTML attributes applied to this asset's rendered tag on the public site",
           })}
@@ -682,7 +682,7 @@ function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEd
       aria-labelledby={item ? EDIT_MEDIA_MODAL_TITLE_ID : undefined}
       onCancel={handleNativeCancel}
       onClick={handleBackdropClick}
-      {...agentHandle("media-edit-dialog", { role: "region", label: "Edit this asset's metadata, presented as a modal" })}
+      {...agentHandle({ handle: "media-edit-dialog" }, { role: "region", label: "Edit this asset's metadata, presented as a modal" })}
     >
       {item ? (
         <EditMediaPanel key={item.id} item={item} onSaved={onSaved} onCancel={onCancel} t={t} titleId={EDIT_MEDIA_MODAL_TITLE_ID} />
@@ -755,7 +755,7 @@ function MediaLightbox(props: MediaLightboxProps) {
               className="media-lightbox-close"
               aria-label={t("Close")}
               onClick={onClose}
-              {...agentHandle("media-lightbox-close", { role: "button", label: "Close the lightbox" })}
+              {...agentHandle({ handle: "media-lightbox-close" }, { role: "button", label: "Close the lightbox" })}
             >
               <CloseIcon />
             </button>
@@ -767,7 +767,7 @@ function MediaLightbox(props: MediaLightboxProps) {
                 className="media-lightbox-nav media-lightbox-nav-prev"
                 aria-label={t("Previous asset")}
                 onClick={goToPrev}
-                {...agentHandle("media-lightbox-prev", { role: "button", label: "Show the previous asset" })}
+                {...agentHandle({ handle: "media-lightbox-prev" }, { role: "button", label: "Show the previous asset" })}
               >
                 <ChevronIcon />
               </button>
@@ -787,7 +787,7 @@ function MediaLightbox(props: MediaLightboxProps) {
                 className="media-lightbox-nav media-lightbox-nav-next"
                 aria-label={t("Next asset")}
                 onClick={goToNext}
-                {...agentHandle("media-lightbox-next", { role: "button", label: "Show the next asset" })}
+                {...agentHandle({ handle: "media-lightbox-next" }, { role: "button", label: "Show the next asset" })}
               >
                 <ChevronIcon flip />
               </button>
@@ -836,7 +836,7 @@ function MediaToolbar({
   return (
     <div
       className="toolbar"
-      {...agentHandle("media-upload-toolbar", { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
+      {...agentHandle({ handle: "media-upload-toolbar" }, { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
     >
       <input
         id={fileInputId}
@@ -865,7 +865,7 @@ function MediaToolbar({
         accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
         aria-label={t("File to upload")}
         onChange={onFileChange}
-        {...agentHandle("media-upload-file", {
+        {...agentHandle({ handle: "media-upload-file" }, {
           role: "field",
           label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
         })}
@@ -881,12 +881,12 @@ function MediaToolbar({
         onChange={(e) => setAltDraft(e.target.value)}
         placeholder={t("Alt text (optional)")}
         aria-label={t("Alt text (optional)")}
-        {...agentHandle("media-upload-alt", { role: "field", label: "Alt text for the file being uploaded" })}
+        {...agentHandle({ handle: "media-upload-alt" }, { role: "field", label: "Alt text for the file being uploaded" })}
       />
       <button
         onClick={upload}
         disabled={uploading}
-        {...agentHandle("media-upload-submit", { role: "button", label: "Upload the chosen file" })}
+        {...agentHandle({ handle: "media-upload-submit" }, { role: "button", label: "Upload the chosen file" })}
       >
         {uploading ? t("Uploading…") : t("Upload")}
       </button>
@@ -915,7 +915,7 @@ function MediaOrderControl({
   return (
     <div
       className="media-order-control"
-      {...agentHandle("media-order-by", { role: "field", label: "Order the media grid by Created or Alphabetical" })}
+      {...agentHandle({ handle: "media-order-by" }, { role: "field", label: "Order the media grid by Created or Alphabetical" })}
     >
       <label htmlFor="media-order-by-select">{t("Order by")}</label>
       <select id="media-order-by-select" value={orderBy} onChange={(e) => setOrderBy(e.target.value as MediaOrderBy)}>
@@ -1289,7 +1289,7 @@ function MediaPageShell({
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("media-header", { role: "region", label: "Media header — page title" })}
+        {...agentHandle({ handle: "media-header" }, { role: "region", label: "Media header — page title" })}
       >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>

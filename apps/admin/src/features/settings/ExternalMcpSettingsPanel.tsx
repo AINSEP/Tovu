@@ -263,7 +263,7 @@ function ExternalMcpSourceRow(props: {
           // (`enabledLabel` set as BOTH `aria-label` and the agentHandle `label`, from `@jini-ai/ui`'s
           // own source) rather than inventing a new convention.
           aria-label={`Open tool permissions for ${rowLabel} — ${enabledToolCount} enabled`}
-          {...agentHandle(`${cardHandle}-tools-open`, {
+          {...agentHandle({ handle: `${cardHandle}-tools-open` }, {
             role: "button",
             label: `Open tool permissions for ${rowLabel} — ${enabledToolCount} enabled`,
           })}

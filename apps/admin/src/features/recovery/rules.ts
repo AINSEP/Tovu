@@ -11,14 +11,15 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 
 /** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
  *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
- *  `use-recovery.hooks.ts`'s own `points` reads the SAME restore-points table Database's own
- *  `use-restore-points-section.hooks.ts` lists, through a separate read endpoint
+ *  `use-recovery.hooks.ts`'s own `points` reads the SAME restore-points table the former Database hook listed, through a separate read endpoint
  *  (`listRecoveryRestorePoints`) — so it goes stale for the identical reason and the identical
  *  write tool: `backup_create_restore_point` (`apps/website/src/features/database/agent-tools.ts`;
  *  Recovery's OWN catalog entry of that same name is deliberately left unwired — see that file's
  *  header). `backup_execute_restore` (`apps/website/src/features/recovery/agent-tools.ts`, wired,
  *  token-gated) also mutates durable state but a full restore leaves nothing on this screen worth
- *  refreshing afterward, so it needs no separate justification here. */
+ *  refreshing afterward, so it needs no separate justification here.
+ * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
 export const RECOVERY_RESOURCE = "recovery";
 
 const CATEGORY_LABELS: Record<string, string> = {

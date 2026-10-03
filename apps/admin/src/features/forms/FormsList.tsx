@@ -66,7 +66,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("forms-header", { role: "region", label: "Forms list header — page title and the New form button" })}
+        {...agentHandle({ handle: "forms-header" }, { role: "region", label: "Forms list header — page title and the New form button" })}
       >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
@@ -81,7 +81,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           <a
             className="btn-primary"
             href="/admin/forms/new"
-            {...agentHandle("forms-new", { role: "link", label: "Create a new form" })}
+            {...agentHandle({ handle: "forms-new" }, { role: "link", label: "Create a new form" })}
           >
             {t("New form")}
           </a>
@@ -106,7 +106,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
             cell: (form, index) => (
               <a
                 href={`/admin/forms/${form.slug}`}
-                {...agentHandle(`${rowHandles[index]}-edit`, {
+                {...agentHandle({ handle: `${rowHandles[index]}-edit` }, {
                   role: "link",
                   label: "Open this form's editor",
                 })}

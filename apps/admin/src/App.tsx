@@ -92,10 +92,10 @@ export function parseRoute(routePath: string): Route {
     // A known id resolves exactly like the modern bare-segment path. Anything past the id is
     // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
     // looked past `settings` either).
-    return matchRoute(`/${id}`, ADMIN_PANELS);
+    return matchRoute({ routePath: `/${id}`, panels: ADMIN_PANELS });
   }
 
-  return matchRoute(routePath, ADMIN_PANELS);
+  return matchRoute({ routePath, panels: ADMIN_PANELS });
 }
 
 /**
@@ -129,7 +129,7 @@ function currentPanelId(route: Route): string {
  */
 export function agentPageId(route: Route): string {
   if (route.unknownSectionId !== undefined) return route.unknownSectionId;
-  return resolveAgentPageId(ADMIN_PANELS, route.panelId ?? "dashboard", route.view) ?? "dashboard";
+  return resolveAgentPageId({ panels: ADMIN_PANELS, panelId: route.panelId ?? "dashboard", view: route.view }) ?? "dashboard";
 }
 
 /**

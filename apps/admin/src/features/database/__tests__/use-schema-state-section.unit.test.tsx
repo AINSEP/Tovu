@@ -9,12 +9,13 @@ import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-
  * @file `useSchemaStateSection` — the Database screen's drift check.
  *
  * Driven entirely through the injected `SchemaStateSectionPort` (no `fetch` stub for the data
- * itself), the seam `restore-points-section-dependencies.hooks.ts` established for this feature.
+ * itself), following the injected-port seam established for this feature.
  *
  * The case this file exists for is the LAST one: a port that rejects must still surface a warning.
  * A screen that silently renders nothing when its health check fails is indistinguishable, to the
  * person reading it, from a screen reporting good health — which is the exact failure the drift
  * warning was built to prevent.
+ * restore-points-section-dependencies.hooks.ts (features/database/hooks/restore-points-section-dependencies.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

@@ -145,7 +145,7 @@ export function TemplateSourceModal({
           type="button"
           onClick={goToTemplateInEditor}
           title={t("Edit")}
-          {...agentHandle(editAgentHandleId, {
+          {...agentHandle({ handle: editAgentHandleId }, {
             role: "button",
             label: `Open "${templateFilename}" in the theme editor`,
           })}

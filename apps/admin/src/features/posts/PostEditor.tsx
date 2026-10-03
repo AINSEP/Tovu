@@ -476,10 +476,11 @@ function Toolbar({
             admin media URLs, degrading anything else to the same visible placeholder as before.
             NOTE the rejected alternative and why it is NOT the cheap option it sounds like: fetching
             the URL server-side to mint a real `{assetId, transformName}` ref would need `src/platform/http`
-            (ADR-038), which buffers responses as UTF-8 TEXT (`transport.fetch.ts`'s `bodyText`) and
-            would corrupt binary image bytes. It would also introduce SSRF surface that scheme
+            (ADR-038); consuming only its UTF-8 `bodyText` would corrupt binary image bytes. It would also introduce SSRF surface that scheme
             validation does not — because with validation the SERVER never fetches anything; the
-            reader's browser loads the URL directly. */}
+            reader's browser loads the URL directly.
+ * transport.fetch.ts (apps/website/src/platform/http/transport.fetch.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */}
         <button
           className="tb-btn"
           title={t("Insert image by URL")}
@@ -658,7 +659,7 @@ function PostEditorHeader({
     // comment for why the empty rail has to stay reserved.
     <div
       className="page-header page-header-split"
-      {...agentHandle("post-header", {
+      {...agentHandle({ handle: "post-header" }, {
         role: "region",
         label:
           "Editor header — the back link and the post/page title. Save, Delete and the " +
@@ -696,7 +697,7 @@ function PostEditorHeader({
             if (!confirmLeave()) e.preventDefault();
           }}
           aria-label={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
-          {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
+          {...agentHandle({ handle: "post-back-to-list" }, { role: "link", label: `Back to the list of all ${kindLabel}s` })}
         >
           ← {t("Back")}
         </a>
@@ -742,7 +743,7 @@ function PostAutosaveRecoveryBanner({
   return (
     <div
       className="notice warning"
-      {...agentHandle("post-autosave-recovery", {
+      {...agentHandle({ handle: "post-autosave-recovery" }, {
         role: "region",
         label: "An unsaved draft from a previous session was found — restore it or discard it",
       })}
@@ -752,7 +753,7 @@ function PostAutosaveRecoveryBanner({
         type="button"
         className="btn-secondary"
         onClick={onRestore}
-        {...agentHandle("post-autosave-restore", { role: "button", label: "Apply the recovered draft into the editor" })}
+        {...agentHandle({ handle: "post-autosave-restore" }, { role: "button", label: "Apply the recovered draft into the editor" })}
       >
         {t("Restore")}
       </button>
@@ -760,7 +761,7 @@ function PostAutosaveRecoveryBanner({
         type="button"
         className="btn-secondary"
         onClick={onDiscard}
-        {...agentHandle("post-autosave-discard", { role: "button", label: "Discard the recovered draft without applying it" })}
+        {...agentHandle({ handle: "post-autosave-discard" }, { role: "button", label: "Discard the recovered draft without applying it" })}
       >
         {t("Discard")}
       </button>
@@ -801,7 +802,7 @@ function PostAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
   return (
     <div
       className="notice warning"
-      {...agentHandle("post-autosave-stale", {
+      {...agentHandle({ handle: "post-autosave-stale" }, {
         role: "region",
         label:
           "Another operator saved this while you were editing — autosaving has stopped, and your " +
@@ -841,7 +842,7 @@ function PostVersionConflictBanner({
   return (
     <div
       className="notice error"
-      {...agentHandle("post-version-conflict", {
+      {...agentHandle({ handle: "post-version-conflict" }, {
         role: "region",
         label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
       })}
@@ -851,7 +852,7 @@ function PostVersionConflictBanner({
         type="button"
         className="btn-secondary"
         onClick={onSaveAnyway}
-        {...agentHandle("post-version-conflict-overwrite", {
+        {...agentHandle({ handle: "post-version-conflict-overwrite" }, {
           role: "button",
           label: "Save these changes anyway, replacing the version the other operator saved",
         })}
@@ -862,7 +863,7 @@ function PostVersionConflictBanner({
         type="button"
         className="btn-secondary"
         onClick={onDismiss}
-        {...agentHandle("post-version-conflict-dismiss", {
+        {...agentHandle({ handle: "post-version-conflict-dismiss" }, {
           role: "button",
           label: "Hide this notice and keep editing without saving",
         })}
@@ -917,7 +918,7 @@ function PostEditorActions({
   return (
     <div
       className="editor-action-row"
-      {...agentHandle("post-actions", {
+      {...agentHandle({ handle: "post-actions" }, {
         role: "region",
         label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
       })}
@@ -927,7 +928,7 @@ function PostEditorActions({
       <select
         value={status}
         onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-        {...agentHandle("post-status", {
+        {...agentHandle({ handle: "post-status" }, {
           role: "field",
           label:
             "Whether this post is a draft or published — set with page.select_option, not click. " +
@@ -949,7 +950,7 @@ function PostEditorActions({
           type="button"
           onClick={onPublish}
           disabled={saving}
-          {...agentHandle("post-publish", {
+          {...agentHandle({ handle: "post-publish" }, {
             role: "button",
             label:
               "Publish this post/page immediately — saves the current title, slug and body and " +
@@ -965,7 +966,7 @@ function PostEditorActions({
         className={status === "draft" ? "btn-secondary" : undefined}
         onClick={onSave}
         disabled={saving}
-        {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
+        {...agentHandle({ handle: "post-save" }, { role: "button", label: "Save this post's title, slug, status and body" })}
       >
         {t("Save")}
       </button>
@@ -973,7 +974,7 @@ function PostEditorActions({
         type="button"
         className="btn-danger"
         onClick={onDeleteClick}
-        {...agentHandle("post-delete", {
+        {...agentHandle({ handle: "post-delete" }, {
           role: "button",
           label:
             "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
@@ -1090,7 +1091,7 @@ function PostEditorTemplatePicker({
             // (never chosen → falls back to the first template). Coercing to `null` here is what
             // made the two indistinguishable and served 15 posts a diagnostic page.
             onChange={(e) => setTemplateChoice(e.target.value)}
-            {...agentHandle("post-template-choice", {
+            {...agentHandle({ handle: "post-template-choice" }, {
               role: "field",
               label:
                 "Which theme page template this post renders through on the public site. " +
@@ -1110,7 +1111,7 @@ function PostEditorTemplatePicker({
         <select
           disabled
           value=""
-          {...agentHandle("post-template-choice", {
+          {...agentHandle({ handle: "post-template-choice" }, {
             role: "field",
             label: "The active theme declares no post templates, so there is nothing to choose here.",
           })}
@@ -1158,7 +1159,7 @@ function PostEditorSlugCollisionWarning({
   return (
     <div
       className="notice warning"
-      {...agentHandle("post-slug-collision-warning", {
+      {...agentHandle({ handle: "post-slug-collision-warning" }, {
         role: "region",
         label: "This post's slug is also claimed by the active theme's own page — choose which one wins",
       })}
@@ -1175,7 +1176,7 @@ function PostEditorSlugCollisionWarning({
           // (`true`/`false`) that keeps winning even if the default policy changes later — see this
           // control's own file-header doc for the tri-state contract.
           onChange={(e) => setOverridesThemePage(overridesThemePageFromSelectValue(e.target.value))}
-          {...agentHandle("post-override-theme-page", {
+          {...agentHandle({ handle: "post-override-theme-page" }, {
             role: "field",
             label:
               "Which page is shown at this shared URL: the default (currently this post), always this post " +
@@ -1214,7 +1215,7 @@ function PostEditorBody({
   return (
     <div
       className="editor-shell post-editor-pane"
-      {...agentHandle("post-editor-shell", {
+      {...agentHandle({ handle: "post-editor-shell" }, {
         role: "region",
         label: "Formatting toolbar and the post body editor",
       })}
@@ -1245,7 +1246,7 @@ function PostEditorBody({
           agent can read and write the body through the same field verbs it uses for an input. */}
       <div
         className="editor-body"
-        {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
+        {...agentHandle({ handle: "post-body" }, { role: "field", label: "The post's rich-text body content" })}
       >
         <EditorContent editor={editor} />
       </div>
@@ -1500,7 +1501,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("Post title")}
-            {...agentHandle("post-title", { role: "field", label: "This post's title" })}
+            {...agentHandle({ handle: "post-title" }, { role: "field", label: "This post's title" })}
           />
         </label>
         <div className="editor-slug">
@@ -1510,14 +1511,14 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
+              {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
             />
           </label>
           <a
             href={siteUrl(`/${post.slug}`)}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle("post-view-live", { role: "link", label: "Open this post on the public site in a new tab" })}
+            {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
           >
             {t("view ↗")}
           </a>
@@ -1552,7 +1553,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
               className={view === entry.key ? "is-active" : undefined}
               tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
               onClick={() => setView(entry.key)}
-              {...agentHandle(entry.handle, { role: "button", label: entry.agentLabel })}
+              {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
             >
               {t(entry.label)}
             </button>
@@ -1813,7 +1814,7 @@ function PostPreview({
       onClick={onToggleExpanded}
       title={t(expanded ? "Exit full screen (Esc)" : "Show full screen")}
       aria-label={t(expanded ? "Exit full screen" : "Show full screen")}
-      {...agentHandle("post-preview-expand", {
+      {...agentHandle({ handle: "post-preview-expand" }, {
         role: "button",
         // These labels read redundantly ON PURPOSE. `page.find_elements`'s `query` is a plain
         // case-insensitive SUBSTRING match over handle and label — no stemming, no synonyms, no

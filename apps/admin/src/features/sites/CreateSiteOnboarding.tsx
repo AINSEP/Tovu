@@ -193,7 +193,7 @@ function DatabaseSection({ t }: { t: Translate }) {
         className="site-db-options"
         role="group"
         aria-label={t("Database")}
-        {...agentHandle("sites-create-database", {
+        {...agentHandle({ handle: "sites-create-database" }, {
           role: "region",
           label: "Which database backs the new site — SQLite is the only one Tovu can create today",
         })}
@@ -230,7 +230,7 @@ function PluginTokenField({ field, onChange, t }: { field: CreateSitePluginToken
               placeholder={t("Paste an access token")}
               autoComplete="new-password"
               onChange={(e) => onChange(field.pluginId, e.target.value)}
-              {...agentHandle(`sites-create-token-${field.pluginId}`, { role: "field", label: `Optional ${field.displayName} access token for the new site` })}
+              {...agentHandle({ handle: `sites-create-token-${field.pluginId}` }, { role: "field", label: `Optional ${field.displayName} access token for the new site` })}
             />
             <span className="field-hint">
               <a href={field.helpUrl} target="_blank" rel="noopener noreferrer">
@@ -288,7 +288,7 @@ function DetailsSection({ controller }: { controller: CreateSiteOnboardingProps[
           placeholder="my-second-site"
           autoComplete="off"
           onChange={(e) => setCreateName(e.target.value)}
-          {...agentHandle("sites-create-name", { role: "field", label: "New site folder name" })}
+          {...agentHandle({ handle: "sites-create-name" }, { role: "field", label: "New site folder name" })}
         />
         {createNameError ? (
           <p className="field-error">{createNameError}</p>
@@ -310,13 +310,13 @@ function OnboardingActions({ controller, onCancel }: CreateSiteOnboardingProps) 
     <footer className="onboarding-actions">
       <p className="onboarding-actions-note">{t("Creating a site never switches this server onto it. Activate it from All sites, then restart.")}</p>
       <div className="onboarding-actions-buttons">
-        <button type="button" className="btn-secondary" onClick={onCancel} {...agentHandle("sites-create-cancel", { role: "button", label: "Go back to the site list without creating anything" })}>
+        <button type="button" className="btn-secondary" onClick={onCancel} {...agentHandle({ handle: "sites-create-cancel" }, { role: "button", label: "Go back to the site list without creating anything" })}>
           {t("Cancel")}
         </button>
         <button
           type="submit"
           disabled={resolveCreateSubmitDisabled({ creating, switchingEnabled, createNameError, createName })}
-          {...agentHandle("sites-create-submit", { role: "button", label: "Create the site folder" })}
+          {...agentHandle({ handle: "sites-create-submit" }, { role: "button", label: "Create the site folder" })}
         >
           {creating ? t("Creating…") : t("Create site")}
         </button>
@@ -329,7 +329,7 @@ export function CreateSiteOnboarding({ controller, onCancel }: CreateSiteOnboard
   return (
     <form
       className="onboarding"
-      {...agentHandle("sites-create-form", { role: "form", label: "Create a new site folder under sites/" })}
+      {...agentHandle({ handle: "sites-create-form" }, { role: "form", label: "Create a new site folder under sites/" })}
       onSubmit={(e) => {
         e.preventDefault();
         controller.createSite();

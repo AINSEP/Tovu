@@ -145,7 +145,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           as-is, since that's the layout the owner said they liked). */}
       <div
         className="page-header page-header-split"
-        {...agentHandle("widget-instance-header", {
+        {...agentHandle({ handle: "widget-instance-header" }, {
           role: "region",
           label: "Widget editor header — the back link, the widget's title, and the Save button",
         })}
@@ -165,7 +165,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
               if (!confirmLeave()) e.preventDefault();
             }}
             aria-label={`${t("Back")}: ${t("Widgets")}`}
-            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
+            {...agentHandle({ handle: "widget-instance-back" }, { role: "link", label: "Back to Widgets" })}
           >
             ← {t("Back")}
           </a>
@@ -185,7 +185,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           <button
             onClick={save}
             disabled={saving}
-            {...agentHandle("widget-instance-save", { role: "button", label: "Save this widget" })}
+            {...agentHandle({ handle: "widget-instance-save" }, { role: "button", label: "Save this widget" })}
           >
             {saving ? t("Saving…") : t("Save")}
           </button>
@@ -203,7 +203,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t("Widget title")}
-          {...agentHandle("widget-instance-title", { role: "field", label: "This widget's title" })}
+          {...agentHandle({ handle: "widget-instance-title" }, { role: "field", label: "This widget's title" })}
         />
       </label>
       <p className="muted-cell">{t("Type:")} {widgetTypeLabel(widgetType, locale)}</p>

@@ -106,7 +106,7 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
   return (
     <div
       className="access-tokens-tab"
-      {...agentHandle("security-access-tokens", {
+      {...agentHandle({ handle: "security-access-tokens" }, {
         role: "region",
         label: "Every access token and other saved credential this install holds, across all eight stores, searchable and filterable by category",
       })}
@@ -131,14 +131,14 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
   const merged = useMergedSecretsOrder(controller, otherController, controller.query);
   if (controller.loadError) {
     return (
-      <p className="notice error" role="status" {...agentHandle("security-access-tokens-load-error", { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
+      <p className="notice error" role="status" {...agentHandle({ handle: "security-access-tokens-load-error" }, { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
         {controller.loadError}
       </p>
     );
   }
   if (otherController.loadError) {
     return (
-      <p className="notice error" role="status" {...agentHandle("security-other-credentials-load-error", { role: "status", label: "Shows the error when other saved credentials could not be loaded" })}>
+      <p className="notice error" role="status" {...agentHandle({ handle: "security-other-credentials-load-error" }, { role: "status", label: "Shows the error when other saved credentials could not be loaded" })}>
         {otherController.loadError}
       </p>
     );
@@ -187,7 +187,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
       role="tablist"
       aria-label={translate("Filter by category")}
       onKeyDown={onKeyDown}
-      {...agentHandle("security-access-tokens-category-filter", { role: "region", label: "Filter the credential list by category" })}
+      {...agentHandle({ handle: "security-access-tokens-category-filter" }, { role: "region", label: "Filter the credential list by category" })}
     >
       {ACCESS_TOKEN_CATEGORIES.map((c) => (
         <button
@@ -198,7 +198,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
           aria-selected={controller.category === c.id}
           tabIndex={resolveTabBarTabIndex(ACCESS_TOKEN_CATEGORIES, controller.category, c)}
           onClick={() => controller.setCategory(c.id as AccessTokenCategoryId)}
-          {...agentHandle(`security-access-tokens-category-${c.id}`, { role: "button", label: `Filter the credential list to ${c.label}` })}
+          {...agentHandle({ handle: `security-access-tokens-category-${c.id}` }, { role: "button", label: `Filter the credential list to ${c.label}` })}
         >
           {translate(c.label)}
         </button>
@@ -207,7 +207,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
         type="button"
         className="access-tokens-add-custom-button"
         onClick={onAddCustomProvider}
-        {...agentHandle("security-access-tokens-add-custom-provider", { role: "button", label: "Add a custom provider not in the built-in list" })}
+        {...agentHandle({ handle: "security-access-tokens-add-custom-provider" }, { role: "button", label: "Add a custom provider not in the built-in list" })}
       >
         {translate("+ Add custom provider")}
       </button>
@@ -245,7 +245,7 @@ function AccessTokensSearch({ controller, otherController }: { controller: Acces
         value={controller.query}
         onChange={(e) => controller.setQuery(e.target.value)}
         placeholder={translate("Search by provider, name, or purpose")}
-        {...agentHandle("security-access-tokens-search", { role: "field", label: "Search saved access tokens by provider, name, or purpose" })}
+        {...agentHandle({ handle: "security-access-tokens-search" }, { role: "field", label: "Search saved access tokens by provider, name, or purpose" })}
       />
       <p className="access-tokens-search-count" role="status" aria-live="polite">
         {countText}
@@ -260,7 +260,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
   return (
     <section
       className="access-tokens-provider-group"
-      {...agentHandle(`security-access-tokens-group-${group.info.kind}-${group.info.providerId}`, {
+      {...agentHandle({ handle: `security-access-tokens-group-${group.info.kind}-${group.info.providerId}` }, {
         role: "region",
         label: providerGroupHandleLabel(group.info, group.rows.length),
       })}
@@ -290,7 +290,7 @@ function AddAnotherButton({ ref, label, controller, t: translate }: { ref: Acces
       type="button"
       className="link-button access-tokens-add-another"
       onClick={() => controller.openAddForm(ref)}
-      {...agentHandle(`security-access-tokens-add-${ref.kind}-${ref.providerId}`, { role: "button", label: `Add another ${label} token` })}
+      {...agentHandle({ handle: `security-access-tokens-add-${ref.kind}-${ref.providerId}` }, { role: "button", label: `Add another ${label} token` })}
     >
       {translate("Add another")} <span translate="no">{label}</span> {translate("token")}
     </button>
@@ -321,7 +321,7 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
           // single hyphens, and a proper-noun label like "GitHub Pages" (capitals, a space) throws
           // at render time. Caught live: an uncaught throw here unmounted this whole row with no
           // error boundary above it, which is worse than a defensive check — a crash, not a fallback.
-          {...agentHandle(`security-access-tokens-connect-${ref.kind}-${ref.providerId}`, { role: "button", label: `Connect ${label}` })}
+          {...agentHandle({ handle: `security-access-tokens-connect-${ref.kind}-${ref.providerId}` }, { role: "button", label: `Connect ${label}` })}
         >
           {translate("Connect")}
           <DisclosureChevronIcon />
@@ -349,7 +349,7 @@ function TokenRow({
   return (
     <details
       className="access-tokens-row access-tokens-row-done"
-      {...agentHandle(`security-access-tokens-row-${state.row.kind}-${state.row.providerId}-${state.row.id}`, {
+      {...agentHandle({ handle: `security-access-tokens-row-${state.row.kind}-${state.row.providerId}-${state.row.id}` }, {
         role: "region",
         label: tokenRowHandleLabel(state.name, info.label),
       })}
@@ -402,7 +402,7 @@ function TokenRowDefaultIndicator({ state, showDefaultUi, controller, t: transla
       // identically-labeled "Make default" buttons are on screen simultaneously. `state.name` is
       // this row's own operator-chosen display name, already unique enough to pick one out.
       aria-label={`${translate("Make default")} — ${state.name}`}
-      {...agentHandle(`security-access-tokens-default-${state.row.id}`, { role: "button", label: `Make ${state.name} the default token` })}
+      {...agentHandle({ handle: `security-access-tokens-default-${state.row.id}` }, { role: "button", label: `Make ${state.name} the default token` })}
     >
       {translate("Make default")}
     </button>
@@ -455,7 +455,7 @@ function TokenInputFields({
           type="text"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          {...agentHandle(`${idPrefix}-name`, { role: "field", label: "This token's display name" })}
+          {...agentHandle({ handle: `${idPrefix}-name` }, { role: "field", label: "This token's display name" })}
         />
         <p className="field-hint">{translate("A short label so you can tell this token apart from others for the same provider.")}</p>
       </div>
@@ -484,7 +484,7 @@ function TokenInputFields({
           autoComplete="new-password"
           value={token}
           onChange={(e) => onTokenChange(e.target.value)}
-          {...agentHandle(`${idPrefix}-token`, { role: "field", label: "This token's secret value — stored encrypted, never shown again once saved" })}
+          {...agentHandle({ handle: `${idPrefix}-token` }, { role: "field", label: "This token's secret value — stored encrypted, never shown again once saved" })}
         />
         <p className="field-hint">
           {connected ? translate("Leave blank to keep the current token.") : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
@@ -502,7 +502,7 @@ function TokenInputFields({
                   href={info.tokenPageUrl}
                   target="_blank"
                   rel="noreferrer"
-                  {...agentHandle(`${idPrefix}-token-page`, { role: "link", label: `Open ${info.label}'s own page for creating a personal access token` })}
+                  {...agentHandle({ handle: `${idPrefix}-token-page` }, { role: "link", label: `Open ${info.label}'s own page for creating a personal access token` })}
                 >
                   {translate("Create a token")}
                 </a>
@@ -522,7 +522,7 @@ function TokenInputFields({
             type="text"
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}
-            {...agentHandle(`${idPrefix}-username`, { role: "field", label: "The username this token authenticates against, when this provider needs one" })}
+            {...agentHandle({ handle: `${idPrefix}-username` }, { role: "field", label: "The username this token authenticates against, when this provider needs one" })}
           />
           <p className="field-hint">{translate("Optional — only needed if this provider authenticates a token against a username.")}</p>
         </div>
@@ -588,7 +588,7 @@ function ExtraFieldInput({
         autoComplete={field.secret ? "new-password" : "off"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        {...agentHandle(id, { role: "field", label: `This provider's ${field.label}` })}
+        {...agentHandle({ handle: id }, { role: "field", label: `This provider's ${field.label}` })}
       />
       {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
     </div>
@@ -638,7 +638,7 @@ function ExistingTokenFields({
           // way a sighted reader already can. Mirrors the visible text's own saving/idle split so the
           // accessible name never says "Save" while the button reads "Saving…" (WCAG 2.5.3).
           aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${state.name}`}
-          {...agentHandle(`security-access-tokens-save-${state.row.id}`, { role: "button", label: `Save this ${info.label} token` })}
+          {...agentHandle({ handle: `security-access-tokens-save-${state.row.id}` }, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
@@ -650,7 +650,7 @@ function ExistingTokenFields({
           // see `rules.ts`'s `restoreButtonAccessibleName` (`recovery/rules.ts`) for the identical
           // reasoning applied to a different screen's own always-visible destructive control.
           aria-label={`${translate("Remove from Tovu")} — ${state.name}`}
-          {...agentHandle(`security-access-tokens-remove-${state.row.id}`, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
+          {...agentHandle({ handle: `security-access-tokens-remove-${state.row.id}` }, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
         >
           {translate("Remove from Tovu")}
         </button>
@@ -694,7 +694,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           // here (there is no operator-chosen name yet to use, unlike `ExistingTokenFields`' own
           // fix above, since this token has not been saved).
           aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${info.label}`}
-          {...agentHandle(`security-access-tokens-create-${info.kind}-${info.providerId}`, { role: "button", label: `Save this ${info.label} token` })}
+          {...agentHandle({ handle: `security-access-tokens-create-${info.kind}-${info.providerId}` }, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
@@ -703,7 +703,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           className="link-button"
           onClick={() => controller.closeAddForm(ref)}
           aria-label={`${translate("Cancel")} adding this ${info.label} token`}
-          {...agentHandle(`security-access-tokens-cancel-${info.kind}-${info.providerId}`, { role: "button", label: "Close this add-token form without saving" })}
+          {...agentHandle({ handle: `security-access-tokens-cancel-${info.kind}-${info.providerId}` }, { role: "button", label: "Close this add-token form without saving" })}
         >
           {translate("Cancel")}
         </button>
@@ -754,7 +754,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             href={info.tokenPageUrl}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle(`security-access-tokens-revoke-page-${row.id}`, { role: "link", label: `Open ${info.vendorLabel} to revoke this token at the source` })}
+            {...agentHandle({ handle: `security-access-tokens-revoke-page-${row.id}` }, { role: "link", label: `Open ${info.vendorLabel} to revoke this token at the source` })}
           >
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
@@ -764,7 +764,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
           <button
             type="button"
             onClick={close}
-            {...agentHandle(`security-access-tokens-remove-cancel-${row.id}`, { role: "button", label: "Close this dialog without removing the token" })}
+            {...agentHandle({ handle: `security-access-tokens-remove-cancel-${row.id}` }, { role: "button", label: "Close this dialog without removing the token" })}
           >
             {translate("Cancel")}
           </button>
@@ -807,7 +807,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
         value={value}
         placeholder="https://api.machines.dev"
         onChange={(e) => onChange(e.target.value)}
-        {...agentHandle("security-access-tokens-add-custom-additional-hosts", {
+        {...agentHandle({ handle: "security-access-tokens-add-custom-additional-hosts" }, {
           role: "field",
           label: "Extra API hosts this same credential is also allowed to call, beyond the base URL",
         })}
@@ -846,7 +846,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
         ref={ref}
         className="confirm-dialog access-tokens-add-custom-dialog"
         aria-labelledby={titleId}
-        {...agentHandle("security-access-tokens-add-custom-dialog", { role: "region", label: "Add a custom provider not in the built-in list" })}
+        {...agentHandle({ handle: "security-access-tokens-add-custom-dialog" }, { role: "region", label: "Add a custom provider not in the built-in list" })}
       >
         <h2 id={titleId}>{translate("Add custom provider")}</h2>
         <div className="field">
@@ -859,7 +859,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             type="text"
             value={form.name}
             onChange={(e) => controller.setCustomAddField({ name: e.target.value })}
-            {...agentHandle("security-access-tokens-add-custom-name", { role: "field", label: "This custom provider's display name, e.g. name.com" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-name" }, { role: "field", label: "This custom provider's display name, e.g. name.com" })}
           />
           <p className="field-hint">{translate("A short label so you can tell this apart from your other saved credentials.")}</p>
         </div>
@@ -874,7 +874,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             value={form.baseUrl}
             placeholder="https://api.example.com"
             onChange={(e) => controller.setCustomAddField({ baseUrl: e.target.value })}
-            {...agentHandle("security-access-tokens-add-custom-base-url", { role: "field", label: "This provider's API base URL" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-base-url" }, { role: "field", label: "This provider's API base URL" })}
           />
           {baseUrlInvalid ? <p className="field-error">{translate("Enter a valid http:// or https:// URL.")}</p> : null}
         </div>
@@ -895,13 +895,13 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
               autoComplete="new-password"
               value={form.token}
               onChange={(e) => controller.setCustomAddField({ token: e.target.value })}
-              {...agentHandle("security-access-tokens-add-custom-token", { role: "field", label: "This provider's access token" })}
+              {...agentHandle({ handle: "security-access-tokens-add-custom-token" }, { role: "field", label: "This provider's access token" })}
             />
             <button
               type="button"
               className="access-tokens-token-toggle"
               onClick={toggleShowToken}
-              {...agentHandle("security-access-tokens-add-custom-token-toggle", { role: "button", label: showToken ? "Hide the access token" : "Show the access token" })}
+              {...agentHandle({ handle: "security-access-tokens-add-custom-token-toggle" }, { role: "button", label: showToken ? "Hide the access token" : "Show the access token" })}
             >
               {showToken ? translate("Hide") : translate("Show")}
             </button>
@@ -917,7 +917,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             type="text"
             value={form.username}
             onChange={(e) => controller.setCustomAddField({ username: e.target.value })}
-            {...agentHandle("security-access-tokens-add-custom-username", { role: "field", label: "This provider's username, if it authenticates a token against one" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-username" }, { role: "field", label: "This provider's username, if it authenticates a token against one" })}
           />
           <p className="field-hint">{translate("Optional — only needed if this provider authenticates a token against a username.")}</p>
         </div>
@@ -929,7 +929,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             id="security-add-custom-category"
             value={form.category}
             onChange={(e) => controller.setCustomAddField({ category: e.target.value as AccessTokenRowCategoryId })}
-            {...agentHandle("security-access-tokens-add-custom-category", { role: "field", label: "Which category this credential is filed under" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-category" }, { role: "field", label: "Which category this credential is filed under" })}
           >
             {ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c) => (
               <option key={c.id} value={c.id}>
@@ -947,7 +947,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
           <button
             type="button"
             onClick={close}
-            {...agentHandle("security-access-tokens-add-custom-cancel", { role: "button", label: "Close this dialog without saving a custom provider" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-cancel" }, { role: "button", label: "Close this dialog without saving a custom provider" })}
           >
             {translate("Cancel")}
           </button>
@@ -955,7 +955,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             type="button"
             disabled={!readyToSave || form.saving}
             onClick={() => void save()}
-            {...agentHandle("security-access-tokens-add-custom-save", { role: "button", label: "Save this custom provider credential" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-save" }, { role: "button", label: "Save this custom provider credential" })}
           >
             {form.saving ? translate("Saving…") : translate("Save")}
           </button>

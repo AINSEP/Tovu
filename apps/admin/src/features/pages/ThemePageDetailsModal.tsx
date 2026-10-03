@@ -218,7 +218,7 @@ function ThemePageDetailsCollisionWarning({
           e.preventDefault();
           navigate(adminPath);
         }}
-        {...agentHandle("theme-page-details-collision-open", { role: "link", label: "Open the colliding content record" })}
+        {...agentHandle({ handle: "theme-page-details-collision-open" }, { role: "link", label: "Open the colliding content record" })}
       >
         {t("Open {title}").replace("{title}", collision.title)}
       </a>
@@ -248,7 +248,7 @@ export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePage
       aria-labelledby={TITLE_ID}
       onCancel={handleNativeCancel}
       onClick={handleBackdropClick}
-      {...agentHandle("theme-page-details-dialog", {
+      {...agentHandle({ handle: "theme-page-details-dialog" }, {
         role: "region",
         label: "This theme page's details — file path, publish state, and any colliding content record",
       })}
@@ -266,7 +266,7 @@ export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePage
           type="button"
           className="btn-secondary"
           onClick={onClose}
-          {...agentHandle("theme-page-details-close", { role: "button", label: "Close this details dialog" })}
+          {...agentHandle({ handle: "theme-page-details-close" }, { role: "button", label: "Close this details dialog" })}
         >
           {t("Close")}
         </button>

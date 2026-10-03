@@ -60,7 +60,7 @@ export function WidgetRegionEditorHeaderActions({
       <button
         onClick={onSave}
         disabled={saving}
-        {...agentHandle("widget-region-editor-save", { role: "button", label: "Save this region's placements" })}
+        {...agentHandle({ handle: "widget-region-editor-save" }, { role: "button", label: "Save this region's placements" })}
       >
         {saving ? t("Saving…") : t("Save")}
       </button>
@@ -94,7 +94,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
           comment for why the back link moved out of that component). */}
       <div
         className="page-header page-header-split"
-        {...agentHandle("widget-region-editor-header", {
+        {...agentHandle({ handle: "widget-region-editor-header" }, {
           role: "region",
           label: "Widget region editor header — the back link, the region's title, and the Save button",
         })}
@@ -108,7 +108,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
             className="btn-secondary"
             href="/admin/widgets/regions"
             aria-label={`${t("Back")}: ${t("Regions")}`}
-            {...agentHandle("widget-region-editor-back", { role: "link", label: "Back to Widget Regions" })}
+            {...agentHandle({ handle: "widget-region-editor-back" }, { role: "link", label: "Back to Widget Regions" })}
           >
             ← {t("Back")}
           </a>
@@ -150,7 +150,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                     type="checkbox"
                     checked={placement.enabled}
                     onChange={() => toggleEnabled(placement.placementId)}
-                    {...agentHandle(`${placementHandles[i]}-enabled`, { role: "field", label: `Whether "${placement.widgetTitle}" is enabled` })}
+                    {...agentHandle({ handle: `${placementHandles[i]}-enabled` }, { role: "field", label: `Whether "${placement.widgetTitle}" is enabled` })}
                   />
                   {t("Enabled")}
                 </label>
@@ -159,7 +159,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   onClick={() => moveAt(i, -1)}
                   title={t("Move up")}
                   aria-label={t("Move up")}
-                  {...agentHandle(`${placementHandles[i]}-move-up`, { role: "button", label: `Move "${placement.widgetTitle}" up` })}
+                  {...agentHandle({ handle: `${placementHandles[i]}-move-up` }, { role: "button", label: `Move "${placement.widgetTitle}" up` })}
                 >
                   ↑
                 </button>
@@ -168,7 +168,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   onClick={() => moveAt(i, 1)}
                   title={t("Move down")}
                   aria-label={t("Move down")}
-                  {...agentHandle(`${placementHandles[i]}-move-down`, { role: "button", label: `Move "${placement.widgetTitle}" down` })}
+                  {...agentHandle({ handle: `${placementHandles[i]}-move-down` }, { role: "button", label: `Move "${placement.widgetTitle}" down` })}
                 >
                   ↓
                 </button>
@@ -177,7 +177,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   onClick={() => removeAt(placement.placementId)}
                   title={t("Remove")}
                   aria-label={t("Remove")}
-                  {...agentHandle(`${placementHandles[i]}-remove`, { role: "button", label: `Remove "${placement.widgetTitle}" from this region` })}
+                  {...agentHandle({ handle: `${placementHandles[i]}-remove` }, { role: "button", label: `Remove "${placement.widgetTitle}" from this region` })}
                 >
                   ✕
                 </button>

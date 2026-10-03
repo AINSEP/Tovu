@@ -168,7 +168,7 @@ export function Pages(props: PagesProps) {
             <button
               onClick={createPage}
               disabled={creating}
-              {...agentHandle("pages-new", { role: "button", label: "Create a new page" })}
+              {...agentHandle({ handle: "pages-new" }, { role: "button", label: "Create a new page" })}
             >
               {creating ? t("Creating…") : t("New Page")}
             </button>
@@ -218,7 +218,7 @@ export function Pages(props: PagesProps) {
                 cell: (page) => (
                   <a
                     href={adminHref(pageAdminPath(page))}
-                    {...agentHandle(`${rowMenuHandleById.get(page.id)}-edit`, { role: "link", label: "Open this page's editor" })}
+                    {...agentHandle({ handle: `${rowMenuHandleById.get(page.id)}-edit` }, { role: "link", label: "Open this page's editor" })}
                   >
                     {page.title}
                   </a>
@@ -236,7 +236,7 @@ export function Pages(props: PagesProps) {
                     href={siteUrl(pagePublicPath(page.slug))}
                     target="_blank"
                     rel="noreferrer"
-                    {...agentHandle(`${rowMenuHandleById.get(page.id)}-view-live`, { role: "link", label: "Open this page on the live public site" })}
+                    {...agentHandle({ handle: `${rowMenuHandleById.get(page.id)}-view-live` }, { role: "link", label: "Open this page on the live public site" })}
                   >
                     {pagePublicPath(page.slug)}
                   </a>

@@ -88,7 +88,7 @@ export function ExternalMcpToolsModal({
             type="button"
             className="btn-secondary"
             onClick={onClose}
-            {...agentHandle(`${cardHandle}-tools-modal-close`, { role: "button", label: `Close ${name}'s tool permissions` })}
+            {...agentHandle({ handle: `${cardHandle}-tools-modal-close` }, { role: "button", label: `Close ${name}'s tool permissions` })}
           >
             {t("Close")}
           </button>

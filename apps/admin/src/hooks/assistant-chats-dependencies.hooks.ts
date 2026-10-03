@@ -73,7 +73,7 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
  */
 export function withDerivedTitle(conversation: AssistantConversation, message: ChatMessage): AssistantConversation {
   if (message.role !== "user" || conversation.title) return conversation;
-  const derived = deriveConversationTitle(typeof message.content === "string" ? message.content : "");
+  const derived = deriveConversationTitle({ prompt: typeof message.content === "string" ? message.content : "" });
   return derived ? { ...conversation, title: derived, titleSource: "fallback" } : conversation;
 }
 
@@ -138,7 +138,7 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
         // about what counts as a title. Note this path is unused by the hook: both `create()` and
         // lazy adoption call with no `firstMessage`, which is exactly why append-time naming
         // (in `saveMessage` below) is the mechanism that actually matters here.
-        title: firstMessage ? deriveConversationTitle(firstMessage) || null : null,
+        title: firstMessage ? deriveConversationTitle({ prompt: firstMessage }) || null : null,
         titleSource: "fallback",
         messageCount: 0,
         createdAt: created,

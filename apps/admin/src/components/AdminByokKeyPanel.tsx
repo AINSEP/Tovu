@@ -39,7 +39,7 @@ import {
  * @returns Spreadable attribute props, or `{}` when `base` is `undefined`.
  * @complexity O(1). */
 function byokAgentProps(base: string | undefined, action: string, options: { role: AgentElementRole; label: string }) {
-  return base === undefined ? {} : agentHandle(`${base}-${action}`, options);
+  return base === undefined ? {} : agentHandle({ handle: `${base}-${action}` }, options);
 }
 
 export interface AdminByokMigrationPromptProps {
@@ -133,7 +133,7 @@ export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: Admin
           className="btn-primary"
           onClick={() => void controller.saveKey()}
           disabled={!canSaveKey || saving}
-          {...(handle ? agentHandle(handle, { role: "button", label: "Save this API key" }) : {})}
+          {...(handle ? agentHandle({ handle }, { role: "button", label: "Save this API key" }) : {})}
         >
           {saving ? sharedT("Saving…") : sharedT("Save key")}
         </button>
@@ -211,7 +211,7 @@ export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: 
           className="btn-primary"
           onClick={() => void controller.saveSettings()}
           disabled={saving}
-          {...(handle ? agentHandle(handle, { role: "button", label: "Save these execution settings" }) : {})}
+          {...(handle ? agentHandle({ handle }, { role: "button", label: "Save these execution settings" }) : {})}
         >
           {saving ? sharedT("Saving…") : sharedT("Save settings")}
         </button>

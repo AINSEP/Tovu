@@ -100,7 +100,7 @@ export function ProvidersTab(props: ProvidersTabProps) {
   return (
     <div
       className="source-control-tab form-measure"
-      {...agentHandle("source-control-providers", {
+      {...agentHandle({ handle: "source-control-providers" }, {
         role: "region",
         label: "Connect a source-control account so Tovu can read and later push to your repositories",
       })}
@@ -135,7 +135,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
         type="button"
         className="link-button"
         onClick={() => navigate("/access-tokens?tab=access-tokens")}
-        {...agentHandle("source-control-manage-tokens-link", {
+        {...agentHandle({ handle: "source-control-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
         })}
@@ -157,7 +157,7 @@ function SourceControlCredentialsList({ controller, t: translate }: { controller
       <p
         className="notice error"
         role="status"
-        {...agentHandle("source-control-load-error", {
+        {...agentHandle({ handle: "source-control-load-error" }, {
           role: "status",
           label: "Shows the error when saved source control connections could not be loaded",
         })}
@@ -249,7 +249,7 @@ function SourceControlProviderRow({
       className={connected ? "source-control-row source-control-row-done" : "source-control-row"}
       open={defaultOpen}
       name="source-control-provider"
-      {...agentHandle(`source-control-credentials-row-${row.providerId}`, {
+      {...agentHandle({ handle: `source-control-credentials-row-${row.providerId}` }, {
         role: "region",
         label: `${info.label}'s saved source control connection — ${connected ? "connected" : "not yet connected"}`,
       })}
@@ -369,7 +369,7 @@ function SourceControlCredentialFields({
             autoComplete="new-password"
             value={row.token}
             onChange={(e) => controller.setToken(row.providerId, e.target.value)}
-            {...agentHandle(`source-control-credentials-token-${row.providerId}`, {
+            {...agentHandle({ handle: `source-control-credentials-token-${row.providerId}` }, {
               role: "field",
               label: `${info.label} access token — stored encrypted, never shown again once saved`,
             })}
@@ -392,7 +392,7 @@ function SourceControlCredentialFields({
                     href={info.tokenPageUrl}
                     target="_blank"
                     rel="noreferrer"
-                    {...agentHandle(`source-control-credentials-token-page-${row.providerId}`, {
+                    {...agentHandle({ handle: `source-control-credentials-token-page-${row.providerId}` }, {
                       role: "link",
                       label: `Open ${info.label}'s own page for creating a personal access token`,
                     })}
@@ -416,7 +416,7 @@ function SourceControlCredentialFields({
               autoComplete={field.secret ? "new-password" : "off"}
               value={row.values[field.name] ?? ""}
               onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
-              {...agentHandle(`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`, {
+              {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}` }, {
                 role: "field",
                 label: `${info.label} ${field.label}`,
               })}
@@ -431,7 +431,7 @@ function SourceControlCredentialFields({
           type="button"
           disabled={!row.readyToSave || row.saving}
           onClick={() => void controller.save(row.providerId)}
-          {...agentHandle(`source-control-credentials-save-${row.providerId}`, {
+          {...agentHandle({ handle: `source-control-credentials-save-${row.providerId}` }, {
             role: "button",
             label: `Save the ${info.label} access token`,
           })}

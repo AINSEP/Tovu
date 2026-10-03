@@ -581,16 +581,7 @@ describe("database", () => {
     expect(calls.length).toBeGreaterThan(0);
   });
 
-  it("restore points: initial load", async () => {
-    const { fn, calls } = createRecorder([{ match: "/database/restore-points", respond: () => jsonResponse({ items: [] }) }]);
-    vi.stubGlobal("fetch", fn);
-    const { useWiredRestorePointsSection } = await import("../features/database/hooks/use-restore-points-section.hooks");
-    const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
-    await waitFor(() => expect(result.current.points).not.toBeNull());
-    await expectRequests(calls, [`GET ${ADMIN}/database/restore-points`]);
-    logRow("database", "restore points initial load", calls);
-    expect(calls.length).toBeGreaterThan(0);
-  });
+  // useWiredRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) and its measurement were deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 });
 
 // ---------------------------------------------------------------------------

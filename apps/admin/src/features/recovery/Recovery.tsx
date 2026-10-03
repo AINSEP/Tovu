@@ -115,7 +115,7 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
         <a
           className="btn-secondary"
           href="/admin/database"
-          {...agentHandle("recovery-banner-go-to-database", { role: "link", label: "Go to Database to resolve the pending migration" })}
+          {...agentHandle({ handle: "recovery-banner-go-to-database" }, { role: "link", label: "Go to Database to resolve the pending migration" })}
         >
           {t(locale, "Go to Database")}
         </a>
@@ -125,7 +125,7 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
           type="button"
           disabled
           title={t(locale, "No unblock route exists yet — see this screen's file header.")}
-          {...agentHandle("recovery-banner-unblock", { role: "button", label: "Unblock an interrupted migration (not yet available)" })}
+          {...agentHandle({ handle: "recovery-banner-unblock" }, { role: "button", label: "Unblock an interrupted migration (not yet available)" })}
         >
           {t(locale, "Unblock (not yet available)")}
         </button>
@@ -181,7 +181,7 @@ function RestorePointsList(props: {
                 // to anything resolving elements by accessible name rather than table position, and
                 // why this is the one screen where that ambiguity matters most.
                 aria-label={restoreButtonAccessibleName(locale, p)}
-                {...agentHandle(`${rowHandleById.get(p.id)}-restore`, { role: "button", label: "Begin the restore ceremony for this restore point" })}
+                {...agentHandle({ handle: `${rowHandleById.get(p.id)}-restore` }, { role: "button", label: "Begin the restore ceremony for this restore point" })}
               >
                 {t(locale, "Restore…")}
               </button>
@@ -215,7 +215,7 @@ function RestorePointsPanel(props: {
           type="button"
           onClick={props.onCreate}
           disabled={props.creating}
-          {...agentHandle("recovery-create-restore-point", { role: "button", label: "Create a new restore point now" })}
+          {...agentHandle({ handle: "recovery-create-restore-point" }, { role: "button", label: "Create a new restore point now" })}
         >
           {props.creating ? t(locale, "Creating…") : t(locale, "Create restore point")}
         </button>
@@ -272,7 +272,7 @@ function DisclosurePanel(props: {
           type="checkbox"
           checked={props.acknowledged}
           onChange={(e) => props.onAcknowledgeChange(e.target.checked)}
-          {...agentHandle("recovery-disclosure-acknowledge", {
+          {...agentHandle({ handle: "recovery-disclosure-acknowledge" }, {
             role: "field",
             label: "Acknowledge the discarded-write-window disclosure",
           })}
@@ -319,7 +319,7 @@ function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: b
         aria-describedby="recovery-ack-label"
         title={!acknowledged ? t(locale, "Acknowledge the disclosure above to continue.") : undefined}
         onClick={onStart}
-        {...agentHandle("recovery-restore-start", { role: "button", label: "Continue to confirm the restore" })}
+        {...agentHandle({ handle: "recovery-restore-start" }, { role: "button", label: "Continue to confirm the restore" })}
       >
         {busy ? t(locale, "Planning…") : t(locale, "Continue to confirm")}
       </button>
@@ -338,7 +338,7 @@ function RestorePlannedStep(props: { locale: string; planId: string; busy: boole
         className="btn-secondary"
         onClick={onConfirm}
         disabled={busy}
-        {...agentHandle("recovery-restore-confirm", { role: "button", label: "Confirm the planned restore, issuing a one-time execution token" })}
+        {...agentHandle({ handle: "recovery-restore-confirm" }, { role: "button", label: "Confirm the planned restore, issuing a one-time execution token" })}
       >
         {busy ? t(locale, "Confirming…") : t(locale, "Confirm restore")}
       </button>
@@ -357,7 +357,7 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
         className="btn-danger"
         onClick={onExecute}
         disabled={busy}
-        {...agentHandle("recovery-restore-execute", { role: "button", label: "Execute the confirmed restore now — cannot be undone" })}
+        {...agentHandle({ handle: "recovery-restore-execute" }, { role: "button", label: "Execute the confirmed restore now — cannot be undone" })}
       >
         {busy ? t(locale, "Restoring…") : t(locale, "Execute restore")}
       </button>
@@ -454,7 +454,7 @@ function RestoreFlow({
         type="button"
         className="btn-ghost recovery-back-link"
         onClick={onBack}
-        {...agentHandle("recovery-back-to-list", { role: "button", label: "Back to the restore points list" })}
+        {...agentHandle({ handle: "recovery-back-to-list" }, { role: "button", label: "Back to the restore points list" })}
       >
         {t("← Restore points")}
       </button>

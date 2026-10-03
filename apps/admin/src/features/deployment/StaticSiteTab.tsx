@@ -213,7 +213,7 @@ function CopyLine({
         className="btn-secondary"
         onClick={() => void copy()}
         aria-label={copyAccessibleName}
-        {...agentHandle(agentHandleId, { role: "button", label: copyAccessibleName })}
+        {...agentHandle({ handle: agentHandleId }, { role: "button", label: copyAccessibleName })}
       >
         <span aria-live="polite">{copied ? copiedLabel : copyLabel}</span>
       </button>
@@ -322,7 +322,7 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
   return (
     <div
       className="card"
-      {...agentHandle("deployment-static-site-export-card", {
+      {...agentHandle({ handle: "deployment-static-site-export-card" }, {
         role: "region",
         label: "Build a static export from this admin server, with a live run status and result",
       })}
@@ -338,7 +338,7 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
           <p
             className="notice error"
             role="status"
-            {...agentHandle("deployment-static-site-export-load-error", {
+            {...agentHandle({ handle: "deployment-static-site-export-load-error" }, {
               role: "status",
               label: "Shows the error when this export's current status could not be loaded",
             })}
@@ -383,7 +383,7 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
           type="checkbox"
           checked={controller.clean}
           onChange={(e) => controller.setClean(e.target.checked)}
-          {...agentHandle("deployment-static-site-export-clean", {
+          {...agentHandle({ handle: "deployment-static-site-export-clean" }, {
             role: "checkbox",
             label: "Overwrite the export output folder's existing contents before writing the new export",
           })}
@@ -400,7 +400,7 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
         type="button"
         disabled={busy}
         onClick={() => void controller.trigger()}
-        {...agentHandle("deployment-static-site-export-build", {
+        {...agentHandle({ handle: "deployment-static-site-export-build" }, {
           role: "button",
           label: "Start a static export from this admin server, using the checkbox above's overwrite setting",
         })}
@@ -416,7 +416,7 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
         <p
           className="notice warning"
           role="status"
-          {...agentHandle("deployment-static-site-export-poll-error", {
+          {...agentHandle({ handle: "deployment-static-site-export-poll-error" }, {
             role: "status",
             label: "States that this export's status could no longer be checked, so the button re-enabled even though the run may still be in progress",
           })}
@@ -545,7 +545,7 @@ function GettingItOnlineCard({
   return (
     <div
       className="card"
-      {...agentHandle("deployment-static-site-online-card", {
+      {...agentHandle({ handle: "deployment-static-site-online-card" }, {
         role: "region",
         label: "Publish target picker and direct preview/publish form for this static export",
       })}
@@ -558,7 +558,7 @@ function GettingItOnlineCard({
           <p
             className="notice error"
             role="status"
-            {...agentHandle("deployment-static-site-publish-load-error", {
+            {...agentHandle({ handle: "deployment-static-site-publish-load-error" }, {
               role: "status",
               label: "Shows the error when this publish's current status could not be loaded",
             })}
@@ -630,7 +630,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
         type="button"
         className="link-button"
         onClick={() => navigate("/access-tokens?tab=access-tokens")}
-        {...agentHandle("deployment-static-site-manage-tokens-link", {
+        {...agentHandle({ handle: "deployment-static-site-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
         })}
@@ -663,7 +663,7 @@ function publishCredentialsSectionContent({
       <p
         className="notice error"
         role="status"
-        {...agentHandle("deployment-static-site-credentials-load-error", {
+        {...agentHandle({ handle: "deployment-static-site-credentials-load-error" }, {
           role: "status",
           label: "Shows the error when saved publish credentials could not be loaded",
         })}
@@ -734,7 +734,7 @@ function PublishCredentialsSection(props: {
 }) {
   return (
     <div
-      {...agentHandle("deployment-static-site-credentials-section", {
+      {...agentHandle({ handle: "deployment-static-site-credentials-section" }, {
         role: "region",
         label: "The selected provider's saved publish credential — connect or replace flow",
       })}
@@ -788,7 +788,7 @@ function PublishCredentialFields({
           type="button"
           disabled={!readyToSave || row.saving}
           onClick={() => void controller.save(row.providerId)}
-          {...agentHandle(`deployment-static-site-credentials-save-${row.providerId}`, {
+          {...agentHandle({ handle: `deployment-static-site-credentials-save-${row.providerId}` }, {
             role: "button",
             label: `Save the ${row.label} access token`,
           })}
@@ -844,7 +844,7 @@ function CredentialFieldInput({
         autoComplete={field.secret ? "new-password" : "off"}
         value={row.values[field.name] ?? ""}
         onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
-        {...agentHandle(id, {
+        {...agentHandle({ handle: id }, {
           role: "field",
           label: isToken ? `${row.label} access token — stored encrypted, never shown again once saved` : `${row.label} ${field.label}`,
         })}
@@ -872,7 +872,7 @@ function TokenFieldHints({ row, t: translate }: { row: PublishCredentialRowState
             href={tokenPageUrl}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle(`deployment-static-site-credentials-token-page-${row.providerId}`, {
+            {...agentHandle({ handle: `deployment-static-site-credentials-token-page-${row.providerId}` }, {
               role: "link",
               label: `Open ${row.label}'s own page for creating a personal access token`,
             })}
@@ -906,7 +906,7 @@ function CredentialStepTodo({
   return (
     <div
       className="deployment-step"
-      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
+      {...agentHandle({ handle: `deployment-static-site-credentials-row-${row.providerId}` }, {
         role: "region",
         label: `${row.label}'s saved publish credential — not yet connected`,
       })}
@@ -1007,7 +1007,7 @@ function CredentialStepDone({
   return (
     <details
       className="deployment-step deployment-step-done"
-      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
+      {...agentHandle({ handle: `deployment-static-site-credentials-row-${row.providerId}` }, {
         role: "region",
         label: `${row.label}'s saved publish credential — connected`,
       })}
@@ -1079,7 +1079,7 @@ function CredentialVerifyAction({
           e.stopPropagation();
           void controller.verify(row.providerId);
         }}
-        {...agentHandle(`deployment-static-site-credentials-verify-${row.providerId}`, {
+        {...agentHandle({ handle: `deployment-static-site-credentials-verify-${row.providerId}` }, {
           role: "button",
           label: `Re-check the saved ${row.label} token against its real provider right now`,
         })}
@@ -1131,7 +1131,7 @@ function CredentialTokenPicker({
         value={row.selectingCredentialId ?? row.saved?.id ?? ""}
         disabled={row.selectingCredentialId !== null}
         onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
-        {...agentHandle(fieldId, {
+        {...agentHandle({ handle: fieldId }, {
           role: "field",
           label: `Choose which of this workspace's saved ${row.label} tokens is the one Tovu publishes with`,
         })}
@@ -1175,7 +1175,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
               type="text"
               value={controller.configValues[field.name] ?? ""}
               onChange={(e) => controller.setConfigField(field.name, e.target.value)}
-              {...agentHandle(id, { role: "field", label: `${controller.selectedTarget?.label ?? ""} ${field.label}` })}
+              {...agentHandle({ handle: id }, { role: "field", label: `${controller.selectedTarget?.label ?? ""} ${field.label}` })}
             />
             {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
           </div>
@@ -1209,7 +1209,7 @@ function PublishPreviewAction({
         className="btn-secondary"
         disabled={!canPreview || controller.previewLoading}
         onClick={() => void controller.checkPreview()}
-        {...agentHandle("deployment-static-site-publish-preview", { role: "button", label: "Preview what publishing to this target would do, without publishing anything" })}
+        {...agentHandle({ handle: "deployment-static-site-publish-preview" }, { role: "button", label: "Preview what publishing to this target would do, without publishing anything" })}
       >
         {controller.previewLoading ? translate("Checking…") : translate("Preview")}
       </button>
@@ -1262,7 +1262,7 @@ function PublishTriggerAction({
         type="button"
         disabled={!canPublish || busy || credentialChangePending}
         onClick={() => void controller.publish(chosenCredentialId !== undefined ? { credentialId: chosenCredentialId } : {})}
-        {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
+        {...agentHandle({ handle: "deployment-static-site-publish-trigger" }, { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
       >
         {busy ? translate("Publishing…") : translate("Publish")}
       </button>
@@ -1278,7 +1278,7 @@ function PublishTriggerAction({
         <p
           className="notice warning"
           role="status"
-          {...agentHandle("deployment-static-site-publish-poll-error", {
+          {...agentHandle({ handle: "deployment-static-site-publish-poll-error" }, {
             role: "status",
             label: "States that this publish's status could no longer be checked, so the button re-enabled even though the run may still be in progress",
           })}
@@ -1365,7 +1365,7 @@ function StaticPublishForm({
               type="text"
               value={controller.projectName}
               onChange={(e) => controller.setProjectName(e.target.value)}
-              {...agentHandle("deployment-static-site-publish-project-name", {
+              {...agentHandle({ handle: "deployment-static-site-publish-project-name" }, {
                 role: "field",
                 label: `Human-facing label for this publish — ${projectNameCopy.helpKey ?? projectNameCopy.labelKey}`,
               })}
@@ -1449,7 +1449,7 @@ function PublishRunResult({ run, t: translate }: { run: AdminPublishRunSnapshot;
           target="_blank"
           rel="noreferrer"
           translate="no"
-          {...agentHandle("deployment-static-site-publish-result-url", { role: "link", label: "Open the just-published site" })}
+          {...agentHandle({ handle: "deployment-static-site-publish-result-url" }, { role: "link", label: "Open the just-published site" })}
         >
           {run.result.url}
         </a>

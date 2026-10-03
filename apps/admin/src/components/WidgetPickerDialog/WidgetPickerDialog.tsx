@@ -54,7 +54,7 @@ import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDial
  *  `WidgetPickerDialog`'s own cyclomatic count. `{}` (no markup) when `base` is unset, same as
  *  every inline occurrence it replaces. */
 function handleSpread(base: string | undefined, suffix: string, opts: { role: AgentElementRole; label: string }): Record<string, unknown> {
-  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+  return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `base ? \`${base}-<suffix>\` : undefined` as a named helper — the sub-handle string handed to a
@@ -245,7 +245,7 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
       <button
         type="button"
         onClick={() => setPickerType(selectedType)}
-        {...(base ? agentHandle(`${base}-open`, { role: "button", label: props.triggerLabel }) : {})}
+        {...(base ? agentHandle({ handle: `${base}-open` }, { role: "button", label: props.triggerLabel }) : {})}
       >
         {props.triggerLabel}
       </button>

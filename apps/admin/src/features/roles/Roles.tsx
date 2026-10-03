@@ -149,13 +149,13 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
             value={create.name}
             onChange={(e) => create.setName(e.target.value)}
             required
-            {...agentHandle("roles-create-name", { role: "field", label: "New role's name" })}
+            {...agentHandle({ handle: "roles-create-name" }, { role: "field", label: "New role's name" })}
           />
         </label>
         <button
           type="submit"
           disabled={create.saving || !create.name}
-          {...agentHandle("roles-create-submit", { role: "button", label: "Create this new role" })}
+          {...agentHandle({ handle: "roles-create-submit" }, { role: "button", label: "Create this new role" })}
         >
           {create.saving ? t("Creating…") : t("Create role")}
         </button>
@@ -179,7 +179,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                 <input
                   value={row.draftName}
                   onChange={(e) => row.setDraftName(e.target.value)}
-                  {...agentHandle(`${roleMenuHandles[index]}-rename-name`, { role: "field", label: "This role's new name" })}
+                  {...agentHandle({ handle: `${roleMenuHandles[index]}-rename-name` }, { role: "field", label: "This role's new name" })}
                 />
               ) : (
                 role.name
@@ -198,14 +198,14 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                     type="button"
                     disabled={row.savingId === role.id}
                     onClick={() => row.saveRename(role.id)}
-                    {...agentHandle(`${roleMenuHandles[index]}-save`, { role: "button", label: `Save this role's new name` })}
+                    {...agentHandle({ handle: `${roleMenuHandles[index]}-save` }, { role: "button", label: `Save this role's new name` })}
                   >
                     {row.savingId === role.id ? t("Saving…") : t("Save")}
                   </button>
                   <button
                     type="button"
                     onClick={() => row.setEditingId(null)}
-                    {...agentHandle(`${roleMenuHandles[index]}-cancel`, { role: "button", label: "Cancel renaming this role" })}
+                    {...agentHandle({ handle: `${roleMenuHandles[index]}-cancel` }, { role: "button", label: "Cancel renaming this role" })}
                   >
                     {t("Cancel")}
                   </button>
@@ -299,14 +299,14 @@ function PolicyRowActions({ policy, row, permission, agentBase, t, locale }: Pol
           type="button"
           disabled={row.savingId === policy.id}
           onClick={() => row.saveRename(policy.id)}
-          {...agentHandle(`${agentBase}-save`, { role: "button", label: "Save this policy's new name and description" })}
+          {...agentHandle({ handle: `${agentBase}-save` }, { role: "button", label: "Save this policy's new name and description" })}
         >
           {row.savingId === policy.id ? t("Saving…") : t("Save")}
         </button>
         <button
           type="button"
           onClick={() => row.setEditingId(null)}
-          {...agentHandle(`${agentBase}-cancel`, { role: "button", label: "Cancel renaming this policy" })}
+          {...agentHandle({ handle: `${agentBase}-cancel` }, { role: "button", label: "Cancel renaming this policy" })}
         >
           {t("Cancel")}
         </button>
@@ -369,7 +369,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
             disabled={permission.removingId === row.id}
             aria-label={`${t("Remove permission")} ${row.permission}`}
             onClick={() => permission.requestRemove({ policyId, row })}
-            {...agentHandle(removeHandles[index]!, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
+            {...agentHandle({ handle: removeHandles[index]! }, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
           >
             {permission.removingId === row.id ? t("Removing…") : t("Remove")}
           </button>
@@ -399,19 +399,19 @@ function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermi
                 value={permission.permission}
                 onChange={(e) => permission.setPermission(e.target.value)}
                 placeholder={t("e.g. content.write")}
-                {...agentHandle(`${formHandleBase}-permission`, { role: "field", label: "Permission string to grant, e.g. content.write" })}
+                {...agentHandle({ handle: `${formHandleBase}-permission` }, { role: "field", label: "Permission string to grant, e.g. content.write" })}
               />
               <input
                 value={permission.resourceType}
                 onChange={(e) => permission.setResourceType(e.target.value)}
                 placeholder={t("resource type (optional)")}
-                {...agentHandle(`${formHandleBase}-resource-type`, { role: "field", label: "Optional resource type this permission is scoped to" })}
+                {...agentHandle({ handle: `${formHandleBase}-resource-type` }, { role: "field", label: "Optional resource type this permission is scoped to" })}
               />
               <button
                 type="button"
                 disabled={!permission.permission || savingId === policyId}
                 onClick={() => permission.write(policyId)}
-                {...agentHandle(`${formHandleBase}-add`, { role: "button", label: "Add this permission to the policy" })}
+                {...agentHandle({ handle: `${formHandleBase}-add` }, { role: "button", label: "Add this permission to the policy" })}
               >
                 {savingId === policyId ? t("Saving…") : t("Add")}
               </button>
@@ -437,7 +437,7 @@ export function PolicyRow({ policy, row, permission, agentBase, t, locale }: Pol
             <input
               value={row.draftName}
               onChange={(e) => row.setDraftName(e.target.value)}
-              {...agentHandle(`${agentBase}-rename-name`, { role: "field", label: "This policy's new name" })}
+              {...agentHandle({ handle: `${agentBase}-rename-name` }, { role: "field", label: "This policy's new name" })}
             />
           ) : (
             policy.name
@@ -448,7 +448,7 @@ export function PolicyRow({ policy, row, permission, agentBase, t, locale }: Pol
             <input
               value={row.draftDescription}
               onChange={(e) => row.setDraftDescription(e.target.value)}
-              {...agentHandle(`${agentBase}-rename-description`, { role: "field", label: "This policy's new description" })}
+              {...agentHandle({ handle: `${agentBase}-rename-description` }, { role: "field", label: "This policy's new description" })}
             />
           ) : (
             policy.description ?? <span className="muted-cell">—</span>
@@ -512,7 +512,7 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
             value={create.name}
             onChange={(e) => create.setName(e.target.value)}
             required
-            {...agentHandle("policies-create-name", { role: "field", label: "New policy's name" })}
+            {...agentHandle({ handle: "policies-create-name" }, { role: "field", label: "New policy's name" })}
           />
         </label>
         <label>
@@ -520,13 +520,13 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
           <input
             value={create.description}
             onChange={(e) => create.setDescription(e.target.value)}
-            {...agentHandle("policies-create-description", { role: "field", label: "New policy's optional description" })}
+            {...agentHandle({ handle: "policies-create-description" }, { role: "field", label: "New policy's optional description" })}
           />
         </label>
         <button
           type="submit"
           disabled={create.saving || !create.name}
-          {...agentHandle("policies-create-submit", { role: "button", label: "Create this new policy" })}
+          {...agentHandle({ handle: "policies-create-submit" }, { role: "button", label: "Create this new policy" })}
         >
           {create.saving ? t("Creating…") : t("Create policy")}
         </button>

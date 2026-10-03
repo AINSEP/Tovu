@@ -237,7 +237,8 @@ describe("loadMore", () => {
     // dangling, never-awaited flush leaks into whichever test runs next in this file). A block body
     // makes the callback return `undefined`, keeping `act()` synchronous, matching the established
     // `act(() => { promise = result.current.X(); })` shape this suite already uses elsewhere (e.g.
-    // `use-restore-points-section.unit.test.tsx`'s `createRestorePoint` test).
+    // the former restore-point create test).
+    // use-restore-points-section.unit.test.tsx (features/database/__tests__/use-restore-points-section.unit.test.tsx) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
     act(() => {
       void result.current.loadMore();
     });

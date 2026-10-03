@@ -90,7 +90,7 @@ function SitemapModalHeaderActions({ locale, modal }: { locale: string; modal: S
         href={siteUrl("/sitemap.xml")}
         target="_blank"
         rel="noreferrer"
-        {...agentHandle("seo-sitemap-open-raw-link", {
+        {...agentHandle({ handle: "seo-sitemap-open-raw-link" }, {
           role: "link",
           label: "Open the real sitemap.xml file in a new tab",
         })}
@@ -103,7 +103,7 @@ function SitemapModalHeaderActions({ locale, modal }: { locale: string; modal: S
           className="btn-secondary"
           aria-pressed={modal.view === "raw"}
           onClick={() => modal.setView(modal.view === "raw" ? "table" : "raw")}
-          {...agentHandle("seo-sitemap-raw-toggle", {
+          {...agentHandle({ handle: "seo-sitemap-raw-toggle" }, {
             role: "button",
             label: "Toggle between the parsed table and the raw XML response",
           })}
@@ -138,7 +138,7 @@ function SitemapModalTable({ locale, modal }: { locale: string; modal: SitemapMo
         placeholder={t(locale, "Filter by URL…")}
         value={modal.filter}
         onChange={(e) => modal.setFilter(e.target.value)}
-        {...agentHandle("seo-sitemap-filter", {
+        {...agentHandle({ handle: "seo-sitemap-filter" }, {
           role: "field",
           label: "Narrow the sitemap table by a substring match on the URL",
         })}
@@ -162,7 +162,7 @@ function SitemapModalTable({ locale, modal }: { locale: string; modal: SitemapMo
                       href={entry.loc}
                       target="_blank"
                       rel="noreferrer"
-                      {...agentHandle(rowHandles[index]!, { role: "link", label: "Open this URL on the live site" })}
+                      {...agentHandle({ handle: rowHandles[index]! }, { role: "link", label: "Open this URL on the live site" })}
                     >
                       {entry.loc}
                     </a>
@@ -252,7 +252,7 @@ export function SitemapModal({
               className="btn-secondary"
               onClick={handleRegenerate}
               disabled={regenerating}
-              {...agentHandle("seo-sitemap-modal-regenerate", {
+              {...agentHandle({ handle: "seo-sitemap-modal-regenerate" }, {
                 role: "button",
                 label: "Rebuild the cached sitemap and refresh this view",
               })}
@@ -263,7 +263,7 @@ export function SitemapModal({
               type="button"
               className="btn-secondary"
               onClick={onClose}
-              {...agentHandle("seo-sitemap-modal-close", { role: "button", label: "Close the sitemap viewer" })}
+              {...agentHandle({ handle: "seo-sitemap-modal-close" }, { role: "button", label: "Close the sitemap viewer" })}
             >
               {t(locale, "Close")}
             </button>

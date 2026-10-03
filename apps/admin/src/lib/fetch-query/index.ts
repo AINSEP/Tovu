@@ -18,17 +18,16 @@
  *
  * ## Rip-out procedure
  *
- * 1. Write `adapter.local.tsx` exporting the same four names, backed by
+ * 1. Write a replacement adapter exporting the same hooks and provider, backed by
  *    `useState`/`useEffect` and a `Map` (or any other library).
- * 2. Change the one `export ... from './adapter.tanstack'` line below.
- * 3. `npm uninstall @tanstack/react-query`, and drop the allowance for
- *    `adapter.tanstack.tsx` from `eslint.config.mjs`'s `no-restricted-imports`
- *    rule.
+ * 2. Change the hook/provider bindings below; preserve the host callback shapes in `types.ts`.
+ * 3. The former adapter was the only permitted TanStack import. Its ESLint restriction kept
+ *    callers from bypassing this interface; the same boundary remains necessary with Jini.
  *
- * No call site changes. That claim holds because (a) `types.ts` imports
- * nothing from any library, and (b) the ESLint rule fails the build if
+ * No call site changes. That claim holds because (a) `types.ts` imports only
+ * our shared contract, with no query-library types, and (b) the ESLint rule fails the build if
  * anything outside the adapter imports TanStack directly — so there can be no
- * straggler quietly holding the dependency in place. Deleting that rule is
+ * straggler quietly holding the retired dependency in place. Deleting that rule is
  * what would actually break this guarantee, not deleting the library.
  *
  * ## What does NOT belong here
@@ -39,9 +38,11 @@
  * Caching for those belongs in the host's port implementation — see
  * `execution-settings.ts`'s `cachedDetection`, which is exactly that, and is
  * not a case of missing this abstraction.
+
  */
 
-export { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "./adapter.tanstack";
+export { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+export { useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "./adapter.tanstack";
 
 export type {
   CachedLoader,

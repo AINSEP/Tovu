@@ -85,12 +85,12 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  * wiring: `ChatPane` itself is untouched, and an admin build that never imports this module simply
  * renders nothing for `mcp-ui` events rather than breaking.
  *
- * `onToolCall: createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
+ * `onToolCall: createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
  * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
  * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
  * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
  * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
- * actually holds the `content_post_delete` handler and its `PendingConfirmationStore`. `path` is
+ * actually holds the `content_post_delete` handler and its held-open surface exchange. `path` is
  * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts
  * this behind the admin-session-gated `/api/admin/v1` prefix, exactly the case
  * `CreateMcpUiToolCallerOptions.path`'s own doc calls out ("hosts mounting the redemption route
@@ -110,8 +110,9 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  * catalog today, since nothing is on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist for that purpose;
  * see `composer-capabilities.ts`'s module doc). One instance, one endpoint, one allowlist gate —
  * never a second POST path to the same route.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
-const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
+const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" });
 /**
  * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
  * `registerExtEventRenderer`'s render-function argument below is re-invoked by `@jini-ai/chat/react`
@@ -156,7 +157,7 @@ const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalT
  * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
  * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
  */
-registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
+registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (
   <OverflowAwareMcpUiSurfaceCard
     {...props}
     onToolCall={mcpUiToolCaller}
@@ -174,7 +175,7 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
 // One transcript slot per `ui://` URI, so a run's second card (a second choice, a Connect card
 // after a choice) renders where it arrived instead of inside the first card's slot, far above the
 // tool row that is waiting on it (stuck-chat investigation, 2026-09-27).
-), { slotKey: mcpUiSurfaceSlotKey });
+) }, { slotKey: mcpUiSurfaceSlotKey });
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
@@ -200,14 +201,14 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
  * decision and `lib/playground-render-target-bus.ts` for the seam it reads.
  */
 const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
-registerExtEventRenderer("a2ui", (props) => <RoutedA2uiSurfaceCard {...props} onAgentAction={postA2uiAction} />);
+registerExtEventRenderer({ name: "a2ui", renderer: (props) => <RoutedA2uiSurfaceCard {...props} onAgentAction={postA2uiAction} /> });
 
 /**
  * The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run watchdog) —
  * see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the existing (unrendered)
  * `'status'` kind" reasoning. Same module-scope-once registration shape as the two above.
  */
-registerExtEventRenderer("slow_running", (props) => <SlowRunNoticeCard {...props} />);
+registerExtEventRenderer({ name: "slow_running", renderer: (props) => <SlowRunNoticeCard {...props} /> });
 
 declare global {
   interface Window {
@@ -647,11 +648,12 @@ export function AssistantDock({
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
         //
-        // `FsFolderIndicator` used to render here, above the plugin chips, as an always-visible
+        // FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+        // The old folder control rendered above the plugin chips, as an always-visible
         // "No folder set" control. Unpinned 2026-09-10 on the owner's call: a persistent chip for a
         // capability most sessions never use is clutter on the one surface that must stay quiet.
-        // ONLY the mount is removed — the component, its route, and the `custom` fs root all still
-        // work (`features/fs-files/`), so restoring this is re-adding the element, nothing more.
+        // The route and the `custom` fs root still work (`features/fs-files/`), and the live
+        // folder-drop flow below uses them.
         //
         // `FolderDropNotice` (SPEC-053) takes this same slot back, but only transiently: unlike the
         // old always-visible chip, it renders `null` except right after a folder drop, and clears

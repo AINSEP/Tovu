@@ -42,7 +42,7 @@ import { publishContentRefresh } from "./content-refresh-bus";
  * is always a path `App.tsx`'s `parseRoute` resolves to something other than the dashboard —
  * `buildAgentPageMap` can only produce entries from panels that exist.
  */
-export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = buildAgentPageMap(ADMIN_PANELS, {
+export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = buildAgentPageMap({ panels: ADMIN_PANELS }, {
   defaultReachable: true,
 });
 

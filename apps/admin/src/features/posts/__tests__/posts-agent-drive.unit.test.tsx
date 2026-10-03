@@ -74,7 +74,7 @@ interface FoundElement {
 }
 
 async function findElements(driver: ReturnType<typeof createDomPageDriver>): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", {})) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: {} })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -111,8 +111,8 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
 
     // The trigger itself IS reachable and clickable through the scoped root — an ordinary
     // descendant of `container`, not portaled.
-    await executePageCapability(driver, "page.click", { handle: "posts-row-p1-menu" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "posts-row-p1-menu" } });
+    await driver.settle?.({});
 
     // Through the production-shaped scoped root, the opened item is still invisible — not because
     // the click failed, but because `RowMenu` rendered it into `document.body`, outside `container`.
@@ -137,8 +137,8 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
       const { container } = renderPosts({ posts: [POST, SECOND_POST] });
       const driver = createDomPageDriver({ root: container, pages: {} });
       for (const post of [POST, SECOND_POST]) {
-        await executePageCapability(driver, "page.click", { handle: `posts-row-${post.id}-edit` });
-        await driver.settle?.();
+        await executePageCapability({ driver, capabilityId: "page.click", input: { handle: `posts-row-${post.id}-edit` } });
+        await driver.settle?.({});
         expect(currentRoutePath()).toBe(`/posts/${post.slug}`);
         expect(window.location.pathname).toBe(`/admin/posts/${post.slug}`);
       }

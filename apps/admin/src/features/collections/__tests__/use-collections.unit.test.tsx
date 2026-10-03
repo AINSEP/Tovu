@@ -9,7 +9,7 @@ import { useCollections, useWiredCollections } from "../hooks/use-collections.ho
 /**
  * @file `useCollections` — the Collections list screen's content-type registry load + dialog
  * open/close state + the shared `runLifecycle` action. Follows the fetch-mocking harness
- * `use-restore-points-section.unit.test.ts` established for this package.
+ * the former restore-point unit suite established for this package.
  *
  * `loaded()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
  * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
@@ -18,6 +18,7 @@ import { useCollections, useWiredCollections } from "../hooks/use-collections.ho
  *
  * `wrapper` (2026-08-12, `lib/fetch-query` migration): the list read and `runLifecycle` now go
  * through `useFetchQuery`/`useFetchMutation`, which throw without a `QueryClientProvider` ancestor.
+ * use-restore-points-section.unit.test.tsx (features/database/__tests__/use-restore-points-section.unit.test.tsx) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

@@ -88,7 +88,7 @@ export function AgentPluginDisableConfirmDialog({
             className="btn-secondary"
             autoFocus
             onClick={onCancel}
-            {...agentHandle(`${agentHandleBase}-${variant}-cancel`, {
+            {...agentHandle({ handle: `${agentHandleBase}-${variant}-cancel` }, {
               role: "button",
               label: `Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`,
             })}
@@ -99,7 +99,7 @@ export function AgentPluginDisableConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${agentHandleBase}-${variant}-confirm`, {
+            {...agentHandle({ handle: `${agentHandleBase}-${variant}-confirm` }, {
               role: "button",
               label: variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`,
             })}

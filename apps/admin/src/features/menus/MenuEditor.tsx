@@ -371,7 +371,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           plain `.page-header`/`.page-actions` row with Back and Save both crowded at the right). */}
       <div
         className="page-header page-header-split"
-        {...agentHandle("menu-editor-header", {
+        {...agentHandle({ handle: "menu-editor-header" }, {
           role: "region",
           label: "Menu editor header — the back link, the menu's title, and the Save button",
         })}
@@ -396,7 +396,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
               if (!confirmLeave()) e.preventDefault();
             }}
             aria-label={`${t("Back")}: ${t("Menus")}`}
-            {...agentHandle("menu-editor-back", { role: "link", label: "Back to the list of all menus" })}
+            {...agentHandle({ handle: "menu-editor-back" }, { role: "link", label: "Back to the list of all menus" })}
           >
             ← {t("Back")}
           </a>
@@ -408,11 +408,11 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
         </div>
         <div
           className="page-header-actions page-actions"
-          {...agentHandle("menu-editor-actions", { role: "region", label: "Save status and the Save button" })}
+          {...agentHandle({ handle: "menu-editor-actions" }, { role: "region", label: "Save status and the Save button" })}
         >
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <button onClick={save} disabled={saving} {...agentHandle("menu-editor-save", { role: "button", label: "Save this menu" })}>
+          <button onClick={save} disabled={saving} {...agentHandle({ handle: "menu-editor-save" }, { role: "button", label: "Save this menu" })}>
             {t("Save")}
           </button>
         </div>

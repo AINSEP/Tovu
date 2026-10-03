@@ -1,8 +1,18 @@
 import "../../styles/see-more.css";
-import { agentHandle } from "@jini-ai/agentic";
-import { useSeeMoreClamp } from "./SeeMore.hooks";
+import { resolveSeeMoreView as resolvePackageView, type SeeMoreView } from "@jini-ai/ui/admin-widgets";
 
-/**
+// Clamp rationale: Jini packages/ui/src/features/admin-widgets/components/SeeMore/SeeMore.tsx.
+// FormEditor's allowlist hint occupied 98px of a 389px dialog; reuse the clamp for long hints
+// while leaving all explanatory text available to browser find and assistive technology.
+export { SeeMore } from "@jini-ai/ui/admin-widgets";
+export type { SeeMoreProps, SeeMoreView } from "@jini-ai/ui/admin-widgets";
+
+/** Split required state and optional presentation values for the package helper.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file `SeeMore` — clamps its children to the first N rendered lines and offers a "See more" /
  * "See less" toggle. Built as a reusable component rather than a one-off truncation in its first
  * caller (`FormEditor.tsx`'s field-attributes modal, whose allowlist explainer wrapped to 5 lines
@@ -25,65 +35,40 @@ import { useSeeMoreClamp } from "./SeeMore.hooks";
  * `ConfirmDialog`/`ConfirmDialog.hooks.tsx` does in `@jini-ai/admin`. This file stays props-and-JSX
  * only; the `useClamp` prop below lets a test render this JSX against a fake measurement hook, with
  * no real layout engine and no real `ResizeObserver` involved at all.
- */
-
-export interface SeeMoreProps {
-  children: React.ReactNode;
-  /** Lines to show while collapsed. Any integer ≥ 1; values below 1 are raised to 1. */
-  lines?: number;
-  moreLabel?: string;
-  lessLabel?: string;
-  /** Applied to the wrapper, alongside `see-more`. */
-  className?: string;
-  /**
-   * Applied to the clamped region, alongside `see-more-text`. This is where a caller keeps its own
-   * typography — `see-more.css` deliberately sets no color/size/line-height, only clamp mechanics,
-   * so a caller class here wins on every property that isn't the clamp itself.
-   */
-  textClassName?: string;
-  /** Applied to the toggle button, alongside `see-more-toggle`. */
-  toggleClassName?: string;
-  /**
-   * Accessible name for the toggle, when the visible "See more" would be ambiguous — e.g. several
-   * of these on one screen, which a screen reader's button list renders as N identical entries.
-   * `aria-expanded` + `aria-controls` are always set regardless.
-   */
-  toggleAriaLabel?: string;
-  /** Injectable seam for the collapse/expand + overflow-measurement hook. Defaults to the real
-   *  {@link useSeeMoreClamp}; a test can pass a fake here to exercise `SeeMore`'s rendering without
-   *  a real `scrollHeight`/`clientHeight` layout or a real `ResizeObserver`. */
-  useClamp?: typeof useSeeMoreClamp;
-  /** Publishes the "See more"/"See less" toggle as agent-addressable via `agentHandle()`
-   *  (`@jini-ai/agentic`). Only meaningful when the content actually overflows and the toggle
-   *  renders at all — omit to leave it untagged, and every existing render stays byte-identical. */
-  agentHandle?: string;
-}
-
-const DEFAULT_LINES = 2;
-
-export interface SeeMoreView {
-  wrapperClassName: string;
-  textClassName: string;
-  toggleClassName: string;
-  toggleLabel: string;
-}
-
-/**
+ *
+ *  Lines to show while collapsed. Any integer ≥ 1; values below 1 are raised to 1.
+ *
+ *  Applied to the wrapper, alongside `see-more`.
+ *
+ * Applied to the clamped region, alongside `see-more-text`. This is where a caller keeps its own
+ * typography — `see-more.css` deliberately sets no color/size/line-height, only clamp mechanics,
+ * so a caller class here wins on every property that isn't the clamp itself.
+ *
+ *  Applied to the toggle button, alongside `see-more-toggle`.
+ *
+ * Accessible name for the toggle, when the visible "See more" would be ambiguous — e.g. several
+ * of these on one screen, which a screen reader's button list renders as N identical entries.
+ * `aria-expanded` + `aria-controls` are always set regardless.
+ *
+ *  Injectable seam for the collapse/expand + overflow-measurement hook. Defaults to the real
+ *  {@link useSeeMoreClamp}; a test can pass a fake here to exercise `SeeMore`'s rendering without
+ *  a real `scrollHeight`/`clientHeight` layout or a real `ResizeObserver`.
+ *
+ *  Publishes the "See more"/"See less" toggle as agent-addressable via `agentHandle()`
+ *  (`@jini-ai/agentic`). Only meaningful when the content actually overflows and the toggle
+ *  renders at all — omit to leave it untagged, and every existing render stays byte-identical.
+ *
  * Derives every className/label `SeeMore`'s JSX reads from its own props plus the hook's live
  * `expanded` flag — the four ternaries (wrapper class, text class, toggle class, toggle label) and
  * the `moreLabel`/`lessLabel` defaults that used to sit directly in the component body, pulled out
  * as a top-level pure function per this pass's extraction rule (§2 of the complexity-ceiling brief).
  * Nothing here touches state or refs, so it needs no access to the component's own scope — a plain
  * function of its inputs, independently testable without rendering anything.
+ *
+ * The line count rides a custom property rather than a class-per-N (`.see-more-text--3`),
+ * so `lines` can be any integer a caller needs without this file growing a rule for each.
  */
-export function resolveSeeMoreView({
-  expanded,
-  moreLabel = "See more",
-  lessLabel = "See less",
-  className,
-  textClassName,
-  toggleClassName,
-}: {
+export function resolveSeeMoreView({ expanded, ...options }: {
   expanded: boolean;
   moreLabel?: string;
   lessLabel?: string;
@@ -91,45 +76,5 @@ export function resolveSeeMoreView({
   textClassName?: string;
   toggleClassName?: string;
 }): SeeMoreView {
-  return {
-    wrapperClassName: className ? `see-more ${className}` : "see-more",
-    textClassName: `see-more-text${expanded ? " is-expanded" : ""}${textClassName ? ` ${textClassName}` : ""}`,
-    toggleClassName: toggleClassName ? `see-more-toggle ${toggleClassName}` : "see-more-toggle",
-    toggleLabel: expanded ? lessLabel : moreLabel,
-  };
-}
-
-export function SeeMore({ useClamp = useSeeMoreClamp, agentHandle: handle, ...props }: SeeMoreProps) {
-  const { children, lines = DEFAULT_LINES, moreLabel, lessLabel, className, textClassName, toggleClassName, toggleAriaLabel } = props;
-
-  const { expanded, setExpanded, overflows, textRef, regionId, lineCount } = useClamp({ lines, children });
-  const view = resolveSeeMoreView({ expanded, moreLabel, lessLabel, className, textClassName, toggleClassName });
-
-  return (
-    <div className={view.wrapperClassName}>
-      <div
-        ref={textRef}
-        id={regionId}
-        className={view.textClassName}
-        // The line count rides a custom property rather than a class-per-N (`.see-more-text--3`),
-        // so `lines` can be any integer a caller needs without this file growing a rule for each.
-        style={{ "--see-more-lines": lineCount } as React.CSSProperties}
-      >
-        {children}
-      </div>
-      {overflows ? (
-        <button
-          type="button"
-          className={view.toggleClassName}
-          aria-expanded={expanded}
-          aria-controls={regionId}
-          aria-label={toggleAriaLabel}
-          onClick={() => setExpanded((current) => !current)}
-          {...(handle ? agentHandle(handle, { role: "button", label: toggleAriaLabel ?? view.toggleLabel }) : {})}
-        >
-          {view.toggleLabel}
-        </button>
-      ) : null}
-    </div>
-  );
+  return resolvePackageView({ expanded }, options);
 }

@@ -41,10 +41,7 @@ describe("ADMIN_AGENT_PAGE_PATHS", () => {
     // would therefore pin nothing: every id is absent from a map that never had it. Feeding
     // `buildAgentPageMap` a panel that sets it explicitly is what actually proves the opt-out
     // still overrides `defaultReachable: true`, so the next panel that needs it works.
-    const map = buildAgentPageMap(
-      [{ id: "opted-out", render: () => null, agentReachable: false }],
-      { defaultReachable: true },
-    );
+    const map = buildAgentPageMap({ panels: [{ id: "opted-out", render: () => null, agentReachable: false }] }, { defaultReachable: true });
 
     expect(map["opted-out"]).toBeUndefined();
   });
@@ -82,7 +79,7 @@ describe("buildAdminAgentPages", () => {
     const [pageId, routePath] = Object.entries(ADMIN_AGENT_PAGE_PATHS)[0]!;
     const pages = buildAdminAgentPages();
 
-    pages[pageId]!.navigate();
+    pages[pageId]!.navigate({});
 
     expect(navigateSpy).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(routePath);
@@ -98,7 +95,7 @@ describe("buildAdminAgentPages", () => {
     const [firstPageId] = entries[0]!;
     const pages = buildAdminAgentPages();
 
-    pages[firstPageId]!.navigate();
+    pages[firstPageId]!.navigate({});
 
     expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
   });
@@ -109,7 +106,7 @@ describe("buildAdminAgentPages", () => {
     const seen = vi.fn();
     subscribeToContentRefresh(seen);
 
-    buildAdminAgentPages()["posts"]!.navigate();
+    buildAdminAgentPages()["posts"]!.navigate({});
 
     // Same-route navigate remounts nothing (`router.ts`'s `useSyncExternalStore` snapshot is an
     // unchanged string), so without this the agent is shown the list as it was at mount.
@@ -123,7 +120,7 @@ describe("buildAdminAgentPages", () => {
     const seen = vi.fn();
     subscribeToContentRefresh(seen);
 
-    buildAdminAgentPages()["posts"]!.navigate();
+    buildAdminAgentPages()["posts"]!.navigate({});
 
     expect(seen).not.toHaveBeenCalled();
   });

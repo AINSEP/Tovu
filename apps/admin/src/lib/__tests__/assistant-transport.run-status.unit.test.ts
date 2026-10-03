@@ -36,7 +36,7 @@ import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.tes
  * `persistableMessages` keeps the row instead of discarding it as still-streaming). So these tests
  * drive the REAL `useConversation` over the REAL transport with no `vi.mock` of anything on that
  * path, and assert the exact string that reaches `PUT /api/assistant/chats/:id/messages/:messageId`
- * — the value the SQLite column takes verbatim (`@jini-ai/sqlite`'s `chat-history/store.ts`
+ * — the value the SQLite column takes verbatim (`@jini-ai/sqlite-chat`'s `chat-history/store.ts`
  * upserts `runStatus` with no whitelist; Tovu's route validates only `role`).
  */
 

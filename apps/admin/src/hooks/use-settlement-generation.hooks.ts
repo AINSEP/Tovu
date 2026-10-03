@@ -1,6 +1,18 @@
-import { useRef } from "react";
+import { useMemo } from "react";
+// Settlement rationale: Jini/packages/ui/src/features/panel-kit/hooks/use-settlement-generation.hooks.ts.
+import { useSettlementGeneration as usePackageGeneration } from "@jini-ai/ui/panel-kit";
 
-/**
+export interface SettlementGeneration {
+  next: () => number;
+  isCurrent: (generation: number) => boolean;
+}
+
+/** Keep a stable host handle while Jini owns the settlement counter.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file `useSettlementGeneration` — the "ignore a settled async result once a newer call has
  * superseded it" guard that showed up, hand-rolled as its own `useRef(0)`, at eight call sites
  * across `apps/admin` (2026-09-06 sweep): `use-page-editor.hooks.ts`'s `save`, `use-post-
@@ -62,35 +74,28 @@ import { useRef } from "react";
  *     if (settlement.isCurrent(generation)) setSaving(false);
  *   }
  * }
+ *
+ *  Mint a new generation for a call that is about to start, superseding every generation
+ *  minted before it. Call this synchronously, before the first `await`, so two calls issued in
+ *  the same tick each observe the other's claim.
+ *
+ *  True when `generation` (a value previously returned by {@link next}) is still the most
+ *  recently minted one — i.e. no later call has started since. Check this after every `await`
+ *  before writing state the call doesn't exclusively own.
+ *
+ * The returned object's IDENTITY must be stable across renders, not just the counter it closes
+ * over: several adopting call sites (`use-access-tokens.hooks.ts`'s `reloadAllStores`, `use-sites
+ * .hooks.ts`'s `activate`) are themselves wrapped in a `useCallback` that other code relies on
+ * keeping a stable identity (e.g. `triggerReload`, so `useContentRefreshSubscription` doesn't
+ * resubscribe on every render) — an object literal rebuilt every render would force either an
+ * ESLint exhaustive-deps addition that defeats that memoization, or an intentional lint
+ * suppression to omit it. Built once via a lazily-initialized ref, the same "stable handle over a
+ * mutable ref" shape `useState`'s own setter uses.
  */
-
-export interface SettlementGeneration {
-  /** Mint a new generation for a call that is about to start, superseding every generation
-   *  minted before it. Call this synchronously, before the first `await`, so two calls issued in
-   *  the same tick each observe the other's claim. */
-  next: () => number;
-  /** True when `generation` (a value previously returned by {@link next}) is still the most
-   *  recently minted one — i.e. no later call has started since. Check this after every `await`
-   *  before writing state the call doesn't exclusively own. */
-  isCurrent: (generation: number) => boolean;
-}
-
 export function useSettlementGeneration(): SettlementGeneration {
-  const ref = useRef(0);
-  // The returned object's IDENTITY must be stable across renders, not just the counter it closes
-  // over: several adopting call sites (`use-access-tokens.hooks.ts`'s `reloadAllStores`, `use-sites
-  // .hooks.ts`'s `activate`) are themselves wrapped in a `useCallback` that other code relies on
-  // keeping a stable identity (e.g. `triggerReload`, so `useContentRefreshSubscription` doesn't
-  // resubscribe on every render) — an object literal rebuilt every render would force either an
-  // ESLint exhaustive-deps addition that defeats that memoization, or an intentional lint
-  // suppression to omit it. Built once via a lazily-initialized ref, the same "stable handle over a
-  // mutable ref" shape `useState`'s own setter uses.
-  const apiRef = useRef<SettlementGeneration | undefined>(undefined);
-  if (!apiRef.current) {
-    apiRef.current = {
-      next: () => (ref.current += 1),
-      isCurrent: (generation: number) => ref.current === generation,
-    };
-  }
-  return apiRef.current;
+  const generation = usePackageGeneration();
+  return useMemo(() => ({
+    next: generation.next,
+    isCurrent: (value: number) => generation.isCurrent({ generation: value }),
+  }), [generation]);
 }

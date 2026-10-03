@@ -69,7 +69,7 @@ export function MessageOverflowModal({
         className="message-overflow-modal-close"
         onClick={onClose}
         aria-label={t("Close")}
-        {...(handle ? agentHandle(handle, { role: "button", label: t("Close") }) : {})}
+        {...(handle ? agentHandle({ handle }, { role: "button", label: t("Close") }) : {})}
       >
         ×
       </button>

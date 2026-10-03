@@ -10,8 +10,9 @@ import type { FolderDropNotice as FolderDropNoticeState } from "../../features/f
  * mutual-exclusion logic this component adds.
  *
  * Mounted in `AssistantDock.tsx`'s `leadingAccessory`, alongside `SelectedAgentPluginTray` — the same
- * "above the composer's textarea" slot `FsFolderIndicator` used to occupy (see that unpin's own
+ * "above the composer's textarea" slot the former folder indicator occupied (see that unpin's own
  * comment in `AssistantDock.tsx`) — never inside the message list, per `ui.spec.md` §6.
+ * FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface FolderDropNoticeProps {
   readonly notice: FolderDropNoticeState | null;

@@ -38,7 +38,7 @@ export function ViewTemplateButton({ disabled, onClick, t, agentHandleId }: View
       onClick={onClick}
       aria-label={t("View Template")}
       title={t("View Template")}
-      {...agentHandle(agentHandleId, {
+      {...agentHandle({ handle: agentHandleId }, {
         role: "button",
         label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
       })}

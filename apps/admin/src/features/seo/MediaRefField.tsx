@@ -24,7 +24,7 @@ import { t } from "./seo-i18n";
  *  (the `sonarjs/no-nested-conditional` rule this codebase enforces). `{}` (no markup) when `base`
  *  is unset, same as every inline occurrence it replaces. */
 function handleSpread(base: string | undefined, suffix: string, label: string): Record<string, unknown> {
-  return base ? agentHandle(`${base}-${suffix}`, { role: "button", label }) : {};
+  return base ? agentHandle({ handle: `${base}-${suffix}` }, { role: "button", label }) : {};
 }
 
 export interface MediaRefFieldProps {
@@ -70,7 +70,7 @@ export function MediaRefField({
           name={name}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          {...(base ? agentHandle(base, { role: "field", label }) : {})}
+          {...(base ? agentHandle({ handle: base }, { role: "field", label }) : {})}
         />
         <button
           type="button"

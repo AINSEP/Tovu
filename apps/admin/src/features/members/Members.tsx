@@ -113,7 +113,7 @@ function MemberRow({
             className="link-button"
             onClick={() => void onToggleDetail(member)}
             aria-expanded={isExpanded}
-            {...agentHandle(`${agentBase}-toggle-detail`, { role: "button", label: `Expand or collapse ${member.email}'s detail panel` })}
+            {...agentHandle({ handle: `${agentBase}-toggle-detail` }, { role: "button", label: `Expand or collapse ${member.email}'s detail panel` })}
           >
             {member.email}
           </button>

@@ -26,7 +26,7 @@ it("routes a real A2uiSurfaceCard catalog refusal inline and relays its error.su
         version: "v1.0",
         createSurface: {
           surfaceId: "surface-contract",
-          catalogId: createLabCatalog().catalogId,
+          catalogId: createLabCatalog({}).catalogId,
           // Text's required text prop is absent: the real interpreter must refuse it.
           components: [{ id: "root", component: "Text" }],
         },

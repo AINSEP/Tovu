@@ -98,7 +98,7 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
-          {...agentHandle("users-new-username", { role: "field", label: "The new user's username" })}
+          {...agentHandle({ handle: "users-new-username" }, { role: "field", label: "The new user's username" })}
         />
       </label>
       <label>
@@ -107,7 +107,7 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          {...agentHandle("users-new-email", { role: "field", label: "The new user's email address" })}
+          {...agentHandle({ handle: "users-new-email" }, { role: "field", label: "The new user's email address" })}
         />
       </label>
       <label>
@@ -129,7 +129,7 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={1}
-          {...agentHandle("users-new-password", {
+          {...agentHandle({ handle: "users-new-password" }, {
             role: "field",
             label: "The new user's password — a credential field, so only a human can fill it",
           })}
@@ -138,7 +138,7 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
       <button
         type="submit"
         disabled={saving}
-        {...agentHandle("users-new-submit", { role: "button", label: "Create this operator account" })}
+        {...agentHandle({ handle: "users-new-submit" }, { role: "button", label: "Create this operator account" })}
       >
         {saving ? t("Creating…") : t("Create user")}
       </button>
@@ -214,7 +214,7 @@ function GrantSelect({ principalId, label, placeholder, submitLabel, grant, savi
         <select
           value={grant.pendingId}
           onChange={(e) => grant.setPendingId(e.target.value)}
-          {...agentHandle(`${agentBase}-select`, {
+          {...agentHandle({ handle: `${agentBase}-select` }, {
             role: "field",
             label: `${label} — set with page.select_option, not click`,
           })}
@@ -231,7 +231,7 @@ function GrantSelect({ principalId, label, placeholder, submitLabel, grant, savi
           type="button"
           disabled={!grant.pendingId || saving}
           onClick={() => grant.submit(principalId)}
-          {...agentHandle(`${agentBase}-submit`, { role: "button", label: `${submitLabel} the selected option to this user` })}
+          {...agentHandle({ handle: `${agentBase}-submit` }, { role: "button", label: `${submitLabel} the selected option to this user` })}
         >
           {saving ? t("Saving…") : submitLabel}
         </button>
@@ -264,13 +264,13 @@ export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps
                 value={manage.email.value}
                 onChange={(e) => manage.email.set(e.target.value)}
                 placeholder={t("(none)")}
-                {...agentHandle("user-manage-email", { role: "field", label: "This user's email address" })}
+                {...agentHandle({ handle: "user-manage-email" }, { role: "field", label: "This user's email address" })}
               />
               <button
                 type="button"
                 disabled={manage.email.saving}
                 onClick={() => manage.email.save(principalId)}
-                {...agentHandle("user-manage-email-save", { role: "button", label: "Save this user's email address" })}
+                {...agentHandle({ handle: "user-manage-email-save" }, { role: "button", label: "Save this user's email address" })}
               >
                 {manage.email.saving ? t("Saving…") : t("Save email")}
               </button>
@@ -355,7 +355,7 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
             className="link-button"
             onClick={() => actions.toggleExpanded(user)}
             aria-expanded={actions.expandedId === user.principalId}
-            {...agentHandle(`${agentBase}-manage`, {
+            {...agentHandle({ handle: `${agentBase}-manage` }, {
               role: "button",
               label: "Open this user's Manage panel — edit email, assign a role, attach a policy",
             })}
@@ -611,7 +611,7 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: "1 1 auto", minWidth: 0 }}
-          {...agentHandle(agentBase, {
+          {...agentHandle({ handle: agentBase }, {
             role: "field",
             label: `${label} — a credential field, so only a human can fill it`,
           })}
@@ -623,7 +623,7 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           aria-pressed={visible}
           title={toggleLabel}
           onClick={onToggleVisible}
-          {...agentHandle(`${agentBase}-reveal`, { role: "button", label: `Show or hide the ${label.toLowerCase()} field's characters` })}
+          {...agentHandle({ handle: `${agentBase}-reveal` }, { role: "button", label: `Show or hide the ${label.toLowerCase()} field's characters` })}
         >
           <span style={{ display: "inline-flex", width: 16, height: 16 }}>{visible ? <EyeOffIcon /> : <EyeIcon />}</span>
         </button>
@@ -761,7 +761,7 @@ function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
   return (
     <div
       className="page-header"
-      {...agentHandle("users-header", { role: "region", label: "Users header — page title and the New user button" })}
+      {...agentHandle({ handle: "users-header" }, { role: "region", label: "Users header — page title and the New user button" })}
     >
       <div className="page-header-text">
         <p className="page-kicker">{t("People")}</p>
@@ -793,7 +793,7 @@ function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
         <button
           className={formOpen ? "btn-secondary" : undefined}
           onClick={() => setFormOpen((v) => !v)}
-          {...agentHandle("users-new-toggle", { role: "button", label: "Open or close the new-user form" })}
+          {...agentHandle({ handle: "users-new-toggle" }, { role: "button", label: "Open or close the new-user form" })}
         >
           {formOpen ? t("Cancel") : t("New user")}
         </button>

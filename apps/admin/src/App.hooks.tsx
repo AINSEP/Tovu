@@ -938,7 +938,7 @@ function resolveWebMcpModelContext(): AdminWebMcpModelContext | undefined {
  * *discovery* layer over the always-on relay {@link buildAdminCapabilityExecutors} already serves,
  * not a replacement for it; the chat path keeps working with no WebMCP host present.
  *
- * Passes `executors["admin."]` straight through as the WebMCP `execute` callback, so a WebMCP call
+ * Adapts Jini's object-shaped WebMCP `execute` callback to `executors["admin."]`, so a WebMCP call
  * and a chat-relayed call run the exact same code — one implementation of `admin.publish_content`
  * behind both doors. The gate that stops either door from actually publishing lives in plan §3 (no
  * agent handle on the Publish button, session-only overwrite unchanged server-side), not here — see
@@ -957,7 +957,10 @@ export function registerAdminWebMcpTool(
   modelContext: AdminWebMcpModelContext | undefined = resolveWebMcpModelContext(),
 ): void {
   if (!modelContext) return;
-  const registration = toWebMcpTool(PUBLISH_CONTENT_CAPABILITY, executors["admin."]!, { signal });
+  const registration = toWebMcpTool({
+    capability: PUBLISH_CONTENT_CAPABILITY,
+    execute: ({ id, args }) => executors["admin."]!(id, args),
+  }, { signal });
   modelContext.registerTool(registration, registration.registerOptions);
 }
 
@@ -973,7 +976,7 @@ export function useAgentPageBridge(): UseAgentPageBridge {
     if (!contentEl) return;
 
     const executors = buildAdminCapabilityExecutors(contentEl);
-    const bridge = createFrontendSessionBridge({
+    const bridge = createFrontendSessionBridge({ baseUrl: "", fetch, openStream: ({ url }) => new EventSource(url) }, {
       pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
       executors,
       onError: logFrontendSessionError,

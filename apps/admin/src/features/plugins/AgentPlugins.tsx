@@ -194,7 +194,7 @@ function AgentPluginListPanel({
             href={AGENT_PLUGINS_SPEC_URL}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle("agent-plugins-spec-link", { role: "link", label: "Open the Agent Plugins open standard specification" })}
+            {...agentHandle({ handle: "agent-plugins-spec-link" }, { role: "link", label: "Open the Agent Plugins open standard specification" })}
           >
             {t("Agent Plugins open standard")}
           </a>
@@ -283,7 +283,7 @@ function MarketplacePanel({ t }: { t: Translate }) {
           href={AGENT_PLUGINS_SPEC_URL}
           target="_blank"
           rel="noreferrer"
-          {...agentHandle("agent-plugins-marketplace-spec-link", {
+          {...agentHandle({ handle: "agent-plugins-marketplace-spec-link" }, {
             role: "link",
             label: "Open the Agent Plugins open standard specification",
           })}

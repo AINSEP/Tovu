@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_ADMIN_BASE, adminHref as adminHrefCore, currentRoutePath as currentRoutePathCore } from "@jini-ai/admin/core";
-import { installInternalLinkInterceptor, navigate, subscribeToRoute } from "@jini-ai/admin/browser";
+import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
 
 /**
  * @file Path-based routing for the admin SPA — `/admin/settings`, not `/admin/#/section/settings`.
@@ -40,7 +40,7 @@ export const ADMIN_BASE = DEFAULT_ADMIN_BASE;
 
 /** `/settings` → `/admin/settings`; `/` → `/admin/`. */
 export function adminHref(routePath: string): string {
-  return adminHrefCore(routePath, ADMIN_BASE);
+  return adminHrefCore({ routePath }, { base: ADMIN_BASE });
 }
 
 /**
@@ -51,10 +51,23 @@ export function adminHref(routePath: string): string {
  * a DOM — so the default is reapplied here, at the edge that already assumes a browser.
  */
 export function currentRoutePath(pathname: string = window.location.pathname): string {
-  return currentRoutePathCore(pathname, ADMIN_BASE);
+  return currentRoutePathCore({ pathname }, { base: ADMIN_BASE });
 }
 
-export { installInternalLinkInterceptor, navigate };
+/** Bind the shared browser ports to this SPA's window and fixed admin base. */
+export function navigate(routePath: string, options: { replace?: boolean } = {}): void {
+  createAdminShellNavigation({ location: window.location, window, document }).navigate({ routePath, base: ADMIN_BASE }, options);
+}
+
+/** Install the shared interceptor with this SPA's browser and fixed admin base. */
+export function installInternalLinkInterceptor(): () => void {
+  return createAdminShellNavigation({ location: window.location, window, document }).installLinkInterceptor({ base: ADMIN_BASE });
+}
+
+/** React's subscribe ABI is positional; the Jini boundary receives explicit browser ports. */
+function subscribeToRoute(onChange: () => void): () => void {
+  return createAdminShellNavigation({ location: window.location, window, document }).subscribe({ base: ADMIN_BASE, onChange });
+}
 
 /**
  * Translates a legacy hash URL to its path equivalent, in place, and reports whether it did.

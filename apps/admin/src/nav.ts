@@ -16,7 +16,7 @@ import { ADMIN_PANELS } from "./panels";
  *   reshape `buildNav`'s output into a bespoke local `NavGroup`/`NavItem` (a required
  *   `icon: string`, dropped `order`); that reshaping is gone now that `Sidebar.Nav` itself takes
  *   `AdminNavGroup[]` and handles an absent icon (`item.icon ?? ''`) — one less place for the two
- *   shapes to drift apart. `getNav()` returns exactly `buildNav(ADMIN_PANELS)`, computed once and
+ *   shapes to drift apart. `getNav()` returns exactly `buildNav({ panels: ADMIN_PANELS })`, computed once and
  *   cached here so `App.tsx` and `components/Placeholder.tsx` share one nav model instead of each
  *   calling `buildNav` itself.
  * - `href` is a **route path**, not a URL: `/settings`, not `/admin/settings`. Sidebar applies the
@@ -33,7 +33,7 @@ import { ADMIN_PANELS } from "./panels";
  *
  * This file sits in a genuine import cycle: `panels.tsx` imports `components/Placeholder.tsx`, which
  * imports this file for its own nav lookup, and this file imports `ADMIN_PANELS` back from
- * `panels.tsx`. Computing `buildNav(ADMIN_PANELS)` eagerly at this module's own top level (the
+ * `panels.tsx`. Computing `buildNav({ panels: ADMIN_PANELS })` eagerly at this module's own top level (the
  * first version of this file did exactly that) raced that cycle: depending on which module the
  * bundler happened to enter the cycle through first, `ADMIN_PANELS` could still be an unassigned
  * binding at the moment this ran, and `buildNav` would throw on `panels.forEach` over `undefined`
@@ -45,6 +45,7 @@ import { ADMIN_PANELS } from "./panels";
  * which only ever runs after the whole module graph has finished linking — so `ADMIN_PANELS` is
  * always fully assigned by the time `buildNav` actually needs it. Still computed once and cached
  * (not per-call), same "single source of truth" property the eager constant had.
+
  */
 export type { AdminNavGroup, AdminNavItem };
 
@@ -59,6 +60,6 @@ let cachedNav: readonly AdminNavGroup[] | undefined;
  * the first returns the cached array.
  */
 export function getNav(): readonly AdminNavGroup[] {
-  if (!cachedNav) cachedNav = buildNav(ADMIN_PANELS);
+  if (!cachedNav) cachedNav = buildNav({ panels: ADMIN_PANELS });
   return cachedNav;
 }

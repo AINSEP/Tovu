@@ -97,7 +97,7 @@ function runPrompt(history: StartRunInput["history"]): string {
   // `historyForTranscript` first, THEN the cap: dropping failed rows before slicing means the 40
   // turns that survive are 40 real ones, not 40 slots some of which are rows the agent never wrote.
   const recent = historyForTranscript(history as ChatMessage[]).slice(-MAX_TRANSCRIPT_TURNS);
-  return buildTranscript(recent);
+  return buildTranscript({ history: recent });
 }
 
 /**
@@ -197,7 +197,7 @@ export function undeliveredUserPrompt(history: readonly ChatMessage[]): string {
     .map((message) => message.content)
     .slice(-MAX_TRANSCRIPT_TURNS);
 
-  if (pending.length === 0) return latestUserPromptFromHistory(history as ChatMessage[]);
+  if (pending.length === 0) return latestUserPromptFromHistory({ history: history as ChatMessage[] });
   if (pending.length === 1) return pending[0] as string;
   return `${UNDELIVERED_TURNS_NOTE}\n\n${pending.join("\n\n")}`;
 }
@@ -818,7 +818,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // assistant messages would still produce a non-empty transcript, and sending that as a
       // prompt asks the agent to reply to itself. Shared by both paths below, and reused (rather than
       // recomputed) by the Local CLI branch's own resume-capable check further down.
-      const latestUserPrompt = latestUserPromptFromHistory(input.history as ChatMessage[]);
+      const latestUserPrompt = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
       if (!latestUserPrompt) {
         throw new Error("no user message to send");
       }

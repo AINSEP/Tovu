@@ -48,7 +48,7 @@ async function findElements(
   driver: ReturnType<typeof createDomPageDriver>,
   filter: { role?: string } = {},
 ): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", filter)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: filter })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -80,21 +80,21 @@ describe("driving a new form's field editor through page.* verbs", () => {
     await screen.findByRole("heading", { name: "New form" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "form-editor-name", text: "Contact us" });
-    await executePageCapability(driver, "page.fill", { handle: "form-editor-slug", text: "contact-us" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "form-editor-name", text: "Contact us" } });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "form-editor-slug", text: "contact-us" } });
 
     expect((screen.getByLabelText(/^Name$/) as HTMLInputElement).value).toBe("Contact us");
     expect((screen.getByLabelText(/^Slug$/) as HTMLInputElement).value).toBe("contact-us");
 
     // A separate state change re-renders the controlled fields before Save reads their state.
-    await executePageCapability(driver, "page.click", { handle: "form-fields-add" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "form-fields-add" } });
+    await driver.settle?.({});
     expect(await handlesOf(driver)).toContain("form-field-2-id");
     expect(screen.getByLabelText(/^Name$/)).toHaveValue("Contact us");
     expect(screen.getByLabelText(/^Slug$/)).toHaveValue("contact-us");
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: { slug: "contact-us" } }));
-    await executePageCapability(driver, "page.click", { handle: "form-editor-save" });
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "form-editor-save" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/forms$/);
@@ -115,8 +115,8 @@ describe("driving a new form's field editor through page.* verbs", () => {
     expect(before).toContain("form-field-1-id");
     expect(before).not.toContain("form-field-2-id");
 
-    await executePageCapability(driver, "page.click", { handle: "form-fields-add" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "form-fields-add" } });
+    await driver.settle?.({});
 
     const after = await handlesOf(driver);
     expect(after).toContain("form-field-2-id");
@@ -135,8 +135,8 @@ describe("driving a new form's field editor through page.* verbs", () => {
 
     expect(await handlesOf(driver)).toContain("form-field-1-max-length");
 
-    await executePageCapability(driver, "page.select_option", { handle: "form-field-1-type", option: "checkbox" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.select_option", input: { handle: "form-field-1-type", option: "checkbox" } });
+    await driver.settle?.({});
 
     expect(await handlesOf(driver)).not.toContain("form-field-1-max-length");
   });

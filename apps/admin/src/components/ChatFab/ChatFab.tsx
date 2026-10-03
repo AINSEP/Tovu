@@ -116,7 +116,7 @@ export function ChatFab({
       aria-expanded={open}
       aria-label={actionLabel}
       title={actionLabel}
-      {...(handle ? agentHandle(handle, { role: "button", label: "Toggle the assistant dock" }) : {})}
+      {...(handle ? agentHandle({ handle }, { role: "button", label: "Toggle the assistant dock" }) : {})}
     >
       {open ? (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">

@@ -76,7 +76,7 @@ export function ExternalMcpRemoveConfirmDialog({
             className="btn-secondary"
             autoFocus
             onClick={onCancel}
-            {...agentHandle(`${cardHandle}-remove-cancel`, {
+            {...agentHandle({ handle: `${cardHandle}-remove-cancel` }, {
               role: "button",
               label: `Close this dialog without removing ${name}`,
             })}
@@ -87,7 +87,7 @@ export function ExternalMcpRemoveConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${cardHandle}-remove-confirm`, {
+            {...agentHandle({ handle: `${cardHandle}-remove-confirm` }, {
               role: "button",
               label: `Permanently remove ${name} — this cannot be undone from this screen`,
             })}

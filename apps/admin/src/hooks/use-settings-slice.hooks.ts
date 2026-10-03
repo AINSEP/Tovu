@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh, type SettingsRefreshScope } from "../lib/settings-refresh-bus";
 import { useSerialWrites } from "./use-serial-writes.hooks";
 import { useSettlementGeneration } from "./use-settlement-generation.hooks";
 
@@ -41,6 +41,18 @@ export type SaveState =
  *  a textarea would write one revision per character. */
 export const SAVE_DEBOUNCE_MS = 600;
 
+/** Namespace-only notifications preserve the authorized re-read boundary; never carry values. */
+export interface SettingsSliceRefreshPort {
+  publish(required: { namespaces: readonly string[] }): void;
+  subscribe(required: { listener: (scope: SettingsRefreshScope) => void }): () => void;
+}
+
+/** Existing tabs share the host bus; an injected port can scope another settings surface. */
+const defaultRefreshPort: SettingsSliceRefreshPort = {
+  publish: ({ namespaces }) => publishSettingsRefresh(namespaces),
+  subscribe: ({ listener }) => subscribeToSettingsRefresh(listener),
+};
+
 export interface SettingsSliceOptions<T> {
   /** Reads the persisted value. A rejection surfaces as `loadError` and the
    *  slice falls back to `defaultValue` — an unreadable setting shows defaults
@@ -62,6 +74,9 @@ export interface SettingsSliceOptions<T> {
    * the exact bug this feature exists to remove.
    */
   namespaces?: readonly string[];
+  /** Use one port for publication and subscription, so successful writes refresh their own surface.
+   * Defaults to Tovu's namespace-only bus; replacement ports own their subscription cleanup. */
+  refreshPort?: SettingsSliceRefreshPort;
   /**
    * Reconciles a freshly loaded value against the operator's current in-memory value before
    * {@link SettingsSlice.refresh} lets it replace `value`/`persisted`/`latest`. Defaults to "the
@@ -358,7 +373,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     // pointless refetch elsewhere; a slice that never declared `namespaces` publishes nothing,
     // matching that it never subscribed to anything either.
     if (io.current.namespaces && io.current.namespaces.length > 0) {
-      publishSettingsRefresh(io.current.namespaces);
+      (io.current.refreshPort ?? defaultRefreshPort).publish({ namespaces: io.current.namespaces });
     }
     return written;
   }, []);
@@ -475,13 +490,14 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    * a write in another tab. `namespaces` narrows which notifications matter; see the option's doc
    * for why omitting it means "refresh on everything" rather than "never".
    */
+  const refreshPort = options.refreshPort ?? defaultRefreshPort;
   useEffect(() => {
-    return subscribeToSettingsRefresh((scope) => {
+    return refreshPort.subscribe({ listener: (scope) => {
       const mine = io.current.namespaces;
       if (scope && mine && !mine.some((ns) => scope.includes(ns))) return;
       void refresh();
-    });
-  }, [refresh]);
+    } });
+  }, [refresh, refreshPort]);
 
   return { value, loadError, saveState, onChange, refresh };
 }

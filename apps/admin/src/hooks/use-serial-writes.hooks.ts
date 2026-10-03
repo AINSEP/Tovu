@@ -1,6 +1,19 @@
-import { useRef } from "react";
+import { useMemo } from "react";
+import { useSerialWrites as usePackageSerialWrites } from "@jini-ai/ui/panel-kit";
 
-/**
+// Queue rationale: Jini packages/ui/src/features/panel-kit/hooks/use-serial-writes.hooks.ts.
+// Credentials, activation and autosave share this queue so writes cannot race or be dropped;
+// some callers enqueue their last persistence write from unmount cleanup to prevent data loss.
+export interface SerialWrites {
+  run<T>(task: () => Promise<T>, options?: { key?: string }): Promise<T>;
+}
+
+/** Adapt task arguments while preserving the stable queue handle and keyed lanes.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file `useSerialWrites` — the "run this write only after every write already queued on the
  * same lane has settled" chain, hand-rolled six times across `apps/admin` (2026-09-20 sweep):
  * `use-other-credentials.hooks.ts`'s `writeChainRef`, `use-visitor-credential-form.hooks.ts`'s
@@ -51,47 +64,21 @@ import { useRef } from "react";
  * vanishing, unlike all six copies it replaces. Re-entrant calls on the same lane (a task that
  * calls `run` again without awaiting it) queue correctly; awaiting the inner call from inside the
  * outer one deadlocks by construction, same as any single-lane queue.
+ *
+ *  Queue `task` behind every task already queued on the same lane (default lane when `key` is
+ *  omitted). Resolves or rejects with `task`'s own outcome.
+ *
+ * Each lane's tail is the promise the NEXT queued task waits on; a lane is dropped from the
+ * map once its own tail settles and nothing newer has replaced it, so a keyed caller (only
+ * `use-external-mcp.hooks.ts` today) cannot grow this map without bound.
+ *
+ * Stable identity over a mutable ref, same reason as `useSettlementGeneration`: several
+ * adopting call sites put this in a `useCallback`/`useMemo` dependency list.
  */
-
-export interface SerialWrites {
-  /** Queue `task` behind every task already queued on the same lane (default lane when `key` is
-   *  omitted). Resolves or rejects with `task`'s own outcome. */
-  run<T>(task: () => Promise<T>, options?: { key?: string }): Promise<T>;
-}
-
-const DEFAULT_LANE = Symbol("useSerialWrites default lane");
-const IDLE: Promise<void> = Promise.resolve();
-
-function createSerialWrites(): SerialWrites {
-  // Each lane's tail is the promise the NEXT queued task waits on; a lane is dropped from the
-  // map once its own tail settles and nothing newer has replaced it, so a keyed caller (only
-  // `use-external-mcp.hooks.ts` today) cannot grow this map without bound.
-  const tails = new Map<string | symbol, Promise<void>>();
-  return {
-    run<T>(task: () => Promise<T>, options?: { key?: string }): Promise<T> {
-      const lane = options?.key ?? DEFAULT_LANE;
-      const prior = tails.get(lane) ?? IDLE;
-      let release!: () => void;
-      const tail = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      tails.set(lane, tail);
-      return prior.then(async () => {
-        try {
-          return await task();
-        } finally {
-          if (tails.get(lane) === tail) tails.delete(lane);
-          release();
-        }
-      });
-    },
-  };
-}
-
 export function useSerialWrites(): SerialWrites {
-  // Stable identity over a mutable ref, same reason as `useSettlementGeneration`: several
-  // adopting call sites put this in a `useCallback`/`useMemo` dependency list.
-  const ref = useRef<SerialWrites | undefined>(undefined);
-  if (!ref.current) ref.current = createSerialWrites();
-  return ref.current;
+  const writes = usePackageSerialWrites();
+  // Controllers use this handle in useCallback/useMemo dependencies; keep the adapter stable too.
+  return useMemo(() => ({
+    run: <T>(task: () => Promise<T>, options?: { key?: string }) => writes.run({ task }, options),
+  }), [writes]);
 }

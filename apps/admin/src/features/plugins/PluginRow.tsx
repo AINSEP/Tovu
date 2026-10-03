@@ -93,7 +93,7 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
           aria-controls={detailId}
           aria-labelledby={headingId}
           onClick={onToggleExpanded}
-          {...agentHandle(`${agentHandleBase}-details`, { role: "button", label: `Show or hide the "${plugin.name}" plugin's details` })}
+          {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${plugin.name}" plugin's details` })}
         >
           <span className="plugin-row-glyph">
             <PluginPackageIcon size={18} />
@@ -122,7 +122,7 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
             // Same accessible name as `AgentPluginRow`'s eye button: the label reads identically on
             // every row, so the plugin's own name has to be part of it.
             aria-label={`${t("Inspect package files")} — ${plugin.name}`}
-            {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${plugin.name}" package files` })}
+            {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${plugin.name}" package files` })}
           >
             <EyeIcon />
           </button>

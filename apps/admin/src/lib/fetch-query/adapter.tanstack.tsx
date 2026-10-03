@@ -1,4 +1,12 @@
-/**
+// Jini source: /Users/la/Programming/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.react.tsx
+// Keep this boundary limited to translation: admin-domain decisions would recouple callers
+// to this implementation and make a replacement adapter unable to satisfy the same contract.
+/** Host signature adapter; the provider, cache and React lifecycle are owned by Jini.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file The ONE file permitted to import `@tanstack/react-query`.
  *
  * Enforced mechanically, not by convention: `eslint.config.mjs` bans that
@@ -11,39 +19,12 @@
  * Everything here is translation. No admin-domain logic belongs in this file;
  * a swap to a different implementation should be able to ignore it entirely
  * and re-satisfy `FetchQueryAdapter` from scratch.
- */
-
-import { useCallback, useMemo, type ReactNode } from "react";
-import {
-  QueryClient,
-  QueryClientProvider,
-  hashKey,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import type {
-  CachedLoader,
-  CachedLoaderOptions,
-  FetchMutationOptions,
-  FetchQueryOptions,
-  MutationResult,
-  QueryKey,
-  QueryResult,
-} from "./types";
-
-/**
+ *
  * `unknown` is what a rejected promise actually gives us, and the contract
  * promises callers an `Error`. Normalising here rather than at each call site
  * keeps `catch (e) { e instanceof Error ? ... }` out of 40 components — the
  * exact boilerplate this module exists to delete.
- */
-function toError(value: unknown, fallback: string): Error {
-  if (value instanceof Error) return value;
-  return new Error(typeof value === "string" && value.trim() ? value : fallback);
-}
-
-/**
+ *
  * Defaults chosen for a multi-operator admin, where the server is the source
  * of truth and someone else may have changed a record in another tab.
  *
@@ -92,211 +73,125 @@ function toError(value: unknown, fallback: string): Error {
  * that message verbatim. Silent retries would delay every genuine 4xx by three
  * round trips to re-derive an answer the first response already gave, and a
  * 403 or a validation error is not going to succeed on attempt two.
- */
-function createClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { staleTime: 10_000, retry: false, refetchOnWindowFocus: false },
-      mutations: { retry: false },
-    },
-  });
-}
-
-export function FetchQueryProvider({ children }: { children: ReactNode }) {
-  // `useMemo` and not a module-level singleton: a client created at module
-  // scope is shared by every test in a file and leaks one case's cache into
-  // the next, which is the standard way this setup produces tests that pass
-  // alone and fail in a suite.
-  const client = useMemo(createClient, []);
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-}
-
-// TanStack reports a disabled query as `pending`, same as a first load. Our
-// contract folds both into `loading` ("no data, nothing to show yet"), which
-// is what a caller actually branches on.
-//
-// Disabling does NOT clear a cached failure, though, and TanStack keeps
-// `data` from the last success even after a LATER fetch attempt errors (the
-// failure only flips `status`/`error`; nothing clears `data`). That leaves
-// two distinct cached-failure shapes once disabled, not one:
-//
-//   - Never succeeded (`data` is `undefined`): passing the error through
-//     broke this module's own stated contract ("stays `loading` with no
-//     request in flight") and, on the pilot screen, made a gesture-gated
-//     cell render a stale failure before the operator had gestured at all —
-//     a lazy read reporting a failure nobody asked it to retry, and one it
-//     cannot dismiss because nothing is "retrying" from its point of view.
-//     Reports `loading`, `error: null`.
-//   - Succeeded before, then broke on a later background refresh (`data` is
-//     defined): the data is still the best answer available and worth
-//     rendering, so `status` stays `success` — but silently dropping the
-//     error here would let a caller present known-stale, known-broken data
-//     as an unqualified success with no way to detect it. Reports
-//     `success`, and — unlike the never-succeeded case — the real `error`,
-//     so a caller that wants to flag "may be stale" can, without losing the
-//     right to just keep showing `data` if it doesn't care.
-
-/**
+ *
+ * `useMemo` and not a module-level singleton: a client created at module
+ * scope is shared by every test in a file and leaks one case's cache into
+ * the next, which is the standard way this setup produces tests that pass
+ * alone and fail in a suite.
+ *
+ * TanStack reports a disabled query as `pending`, same as a first load. Our
+ * contract folds both into `loading` ("no data, nothing to show yet"), which
+ * is what a caller actually branches on.
+ *
+ * Disabling does NOT clear a cached failure, though, and TanStack keeps
+ * `data` from the last success even after a LATER fetch attempt errors (the
+ * failure only flips `status`/`error`; nothing clears `data`). That leaves
+ * two distinct cached-failure shapes once disabled, not one:
+ *
+ *   - Never succeeded (`data` is `undefined`): passing the error through
+ *     broke this module's own stated contract ("stays `loading` with no
+ *     request in flight") and, on the pilot screen, made a gesture-gated
+ *     cell render a stale failure before the operator had gestured at all —
+ *     a lazy read reporting a failure nobody asked it to retry, and one it
+ *     cannot dismiss because nothing is "retrying" from its point of view.
+ *     Reports `loading`, `error: null`.
+ *   - Succeeded before, then broke on a later background refresh (`data` is
+ *     defined): the data is still the best answer available and worth
+ *     rendering, so `status` stays `success` — but silently dropping the
+ *     error here would let a caller present known-stale, known-broken data
+ *     as an unqualified success with no way to detect it. Reports
+ *     `success`, and — unlike the never-succeeded case — the real `error`,
+ *     so a caller that wants to flag "may be stale" can, without losing the
+ *     right to just keep showing `data` if it doesn't care.
+ *
  * Folds TanStack's own `status` plus this hook's `disabled`/`hasData` reads into the module's
  * three-value contract — the nested ternary this used to be, flattened to a top-level function per
  * this pass's extraction rule (§2 of the complexity-ceiling brief): nested ternaries carry a real
  * cognitive-complexity nesting penalty a flat `if` chain of the same branch count does not, which is
  * the entire reason `useFetchQuery` scored high here despite doing no more actual branching.
- */
-export function resolveFetchQueryStatus<T>(disabled: boolean, hasData: boolean, tanstackStatus: "pending" | "error" | "success"): QueryResult<T>["status"] {
-  if (disabled) return hasData ? "success" : "loading";
-  if (tanstackStatus === "error") return "error";
-  if (tanstackStatus === "success") return "success";
-  return "loading";
-}
-
-/**
+ *
  * The `error` half of the same disabled/never-succeeded-vs-succeeded-before fold `resolveFetchQueryStatus`
  * documents above — split into its own function rather than kept as a second nested ternary for the
  * same reason.
- */
-export function resolveFetchQueryError(rawError: unknown, disabled: boolean, hasData: boolean): Error | null {
-  if (!rawError) return null;
-  if (disabled && !hasData) return null;
-  return toError(rawError, "request failed");
-}
-
-export function useFetchQuery<T>({
-  key,
-  fetch,
-  enabled = true,
-  staleTime,
-  refetchOnWindowFocus,
-}: FetchQueryOptions<T>): QueryResult<T> {
-  const query = useQuery({
-    queryKey: key,
-    queryFn: fetch,
-    enabled,
-    ...(staleTime === undefined ? {} : { staleTime }),
-    ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }),
-  });
-
-  const disabled = !enabled;
-  const hasData = query.data !== undefined;
-
-  const refetch = useCallback(() => {
-    void query.refetch();
-  }, [query]);
-
-  return {
-    data: query.data,
-    error: resolveFetchQueryError(query.error, disabled, hasData),
-    status: resolveFetchQueryStatus(disabled, hasData, query.status),
-    isFetching: query.isFetching,
-    refetch,
-  };
-}
-
-export function useFetchMutation<TInput, TOutput>({
-  run,
-  invalidates,
-}: FetchMutationOptions<TInput, TOutput>): MutationResult<TInput, TOutput> {
-  const client = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: run,
-    onSuccess: () => {
-      for (const key of invalidates ?? []) {
-        // Not awaited: invalidation marks entries stale and lets mounted
-        // observers refetch on their own schedule. Awaiting it would hold
-        // `mutate()`'s promise open until every dependent read finished,
-        // turning "the save succeeded" into "the save succeeded AND the list
-        // finished reloading" — a slower, and different, claim.
-        void client.invalidateQueries({ queryKey: key });
-      }
-    },
-  });
-
-  // `mutateAsync` rather than `mutate`: the contract promises a promise that
-  // rejects, so callers can `try/catch` a write inline. Bare `mutate` swallows
-  // the rejection into state only.
-  const { mutateAsync, reset } = mutation;
-  const call = useCallback(
-    (input: TInput) => {
-      const promise = mutateAsync(input);
-      // Both documented usages have to be safe, and returning `mutateAsync`
-      // bare only made one of them safe: a caller following the "ignore it and
-      // read `status`/`error`" form got an `unhandledrejection` on every failed
-      // write. Attaching a handler marks THIS promise handled; the same promise
-      // is still returned, so `await`/`.catch()` callers see the rejection
-      // exactly as before. The derived promise is discarded on purpose.
-      void promise.catch(() => {});
-      return promise;
-    },
-    [mutateAsync],
-  );
-
-  const status: MutationResult<TInput, TOutput>["status"] =
-    mutation.status === "pending"
-      ? "pending"
-      : mutation.status === "success"
-        ? "success"
-        : mutation.status === "error"
-          ? "error"
-          : "idle";
-
-  return {
-    mutate: call,
-    status,
-    error: mutation.error ? toError(mutation.error, "request failed") : null,
-    reset,
-  };
-}
-
-/** Per client and key, how many `replace()` calls have landed — how an in-flight `load()` learns
+ *
+ * Not awaited: invalidation marks entries stale and lets mounted
+ * observers refetch on their own schedule. Awaiting it would hold
+ * `mutate()`'s promise open until every dependent read finished,
+ * turning "the save succeeded" into "the save succeeded AND the list
+ * finished reloading" — a slower, and different, claim.
+ *
+ * `mutateAsync` rather than `mutate`: the contract promises a promise that
+ * rejects, so callers can `try/catch` a write inline. Bare `mutate` swallows
+ * the rejection into state only.
+ *
+ * Both documented usages have to be safe, and returning `mutateAsync`
+ * bare only made one of them safe: a caller following the "ignore it and
+ * read `status`/`error`" form got an `unhandledrejection` on every failed
+ * write. Attaching a handler marks THIS promise handled; the same promise
+ * is still returned, so `await`/`.catch()` callers see the rejection
+ * exactly as before. The derived promise is discarded on purpose.
+ *
+ *  Per client and key, how many `replace()` calls have landed — how an in-flight `load()` learns
  *  that a newer value was written while its request was out. Shared across every loader instance
- *  on the same key, since each hook call builds its own. */
-const replaceCounts = new WeakMap<QueryClient, Map<string, number>>();
+ *  on the same key, since each hook call builds its own.
+ *
+ * `gcTime` follows `staleTime` (see `CachedLoaderOptions.staleTime`): `fetchQuery` never
+ * subscribes an observer, so the default 5-minute idle eviction would otherwise drop a value
+ * the caller declared fresh for longer.
+ *
+ * TanStack writes a fetch's result over whatever is cached when it lands, so a request started
+ * before a `replace()` would otherwise overwrite the newer value with its older answer.
+ *
+ *  Imperative invalidation for events that arrive from outside React — the
+ *  settings SSE change feed being the live example.
+ */
+import { useCallback, useMemo } from "react";
+import {
+  useFetchQuery as usePackageQuery,
+  useFetchMutation as usePackageMutation,
+  useCachedLoader as usePackageLoader,
+  useInvalidate as usePackageInvalidate,
+} from "@jini-ai/ui/fetch-query";
+import type { CachedLoader, CachedLoaderOptions, FetchMutationOptions, FetchQueryOptions, MutationResult, QueryKey, QueryResult } from "./types";
 
-function replaceCount(client: QueryClient, hash: string): number {
-  return replaceCounts.get(client)?.get(hash) ?? 0;
+export { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+
+/** Preserve the existing helper contract until Jini exposes its equivalent status resolver. */
+export function resolveFetchQueryStatus<T>(disabled: boolean, hasData: boolean, status: "pending" | "error" | "success"): QueryResult<T>["status"] {
+  if (disabled) return hasData ? "success" : "loading";
+  return status === "pending" ? "loading" : status;
 }
 
-function countReplace(client: QueryClient, hash: string): void {
-  const byKey = replaceCounts.get(client) ?? new Map<string, number>();
-  byKey.set(hash, replaceCount(client, hash) + 1);
-  replaceCounts.set(client, byKey);
+/** Preserve host helper error vocabulary until Jini exports its error resolver. */
+export function resolveFetchQueryError(error: unknown, disabled: boolean, hasData: boolean): Error | null {
+  if (!error || (disabled && !hasData)) return null;
+  return error instanceof Error ? error : new Error(typeof error === "string" && error.trim() ? error : "request failed");
 }
 
-export function useCachedLoader<T>({ key, fetch, staleTime }: CachedLoaderOptions<T>): CachedLoader<T> {
-  const client = useQueryClient();
-  return useMemo(() => {
-    // `gcTime` follows `staleTime` (see `CachedLoaderOptions.staleTime`): `fetchQuery` never
-    // subscribes an observer, so the default 5-minute idle eviction would otherwise drop a value
-    // the caller declared fresh for longer.
-    const lifetime = staleTime === undefined ? {} : { staleTime, gcTime: staleTime };
-    const hash = hashKey(key);
-    // TanStack writes a fetch's result over whatever is cached when it lands, so a request started
-    // before a `replace()` would otherwise overwrite the newer value with its older answer.
-    const fetchUnlessReplaced = async (): Promise<T> => {
-      const before = replaceCount(client, hash);
-      const value = await fetch();
-      return replaceCount(client, hash) === before ? value : (client.getQueryData<T>(key) as T);
-    };
-    return {
-      peek: () => client.getQueryData<T>(key),
-      load: () => client.fetchQuery({ queryKey: key, queryFn: fetchUnlessReplaced, ...lifetime }),
-      replace: (value: T) => {
-        countReplace(client, hash);
-        client.setQueryData(key, value);
-      },
-    };
-  }, [client, key, fetch, staleTime]);
+/** Separate required fetch/key from optional query controls. */
+export function useFetchQuery<T>({ key, fetch, ...options }: FetchQueryOptions<T>): QueryResult<T> {
+  return usePackageQuery({ key, fetch }, options);
 }
 
-/** Imperative invalidation for events that arrive from outside React — the
- *  settings SSE change feed being the live example. */
+/** Adapt the host's input callback and preserve the package mutation's stable callable. */
+export function useFetchMutation<TInput, TOutput>({ run, ...options }: FetchMutationOptions<TInput, TOutput>): MutationResult<TInput, TOutput> {
+  const mutation = usePackageMutation<TInput, TOutput>({ run: ({ input }) => run(input) }, options);
+  const mutate = useCallback((input: TInput) => mutation.mutate({ input }), [mutation.mutate]);
+  return { ...mutation, mutate };
+}
+
+/** Adapt replacement values without changing the stable cached-loader handle. */
+export function useCachedLoader<T>({ key, fetch, ...options }: CachedLoaderOptions<T>): CachedLoader<T> {
+  const loader = usePackageLoader({ key, fetch }, options);
+  return useMemo(() => ({
+    peek: loader.peek,
+    load: loader.load,
+    replace: (value: T) => loader.replace({ value }),
+  }), [loader]);
+}
+
+/** Bind positional invalidation prefixes to the package's object-shaped invalidator. */
 export function useInvalidate(): (key: QueryKey) => void {
-  const client = useQueryClient();
-  return useCallback(
-    (key: QueryKey) => {
-      void client.invalidateQueries({ queryKey: key });
-    },
-    [client],
-  );
+  const invalidate = usePackageInvalidate();
+  return useCallback((key: QueryKey) => invalidate({ key }), [invalidate]);
 }

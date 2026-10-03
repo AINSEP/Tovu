@@ -49,7 +49,7 @@ async function findElements(
   driver: ReturnType<typeof createDomPageDriver>,
   filter: { role?: string } = {},
 ): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", filter)) as { elements: FoundElement[] };
+  const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: filter })) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -89,8 +89,8 @@ describe("driving a new entry's editor through page.* verbs", () => {
     await screen.findByLabelText("Entry title");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.fill", { handle: "entry-title", text: "Hello world" });
-    await executePageCapability(driver, "page.fill", { handle: "entry-slug", text: "hello-world" });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "entry-title", text: "Hello world" } });
+    await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "entry-slug", text: "hello-world" } });
 
     expect((screen.getByLabelText("Entry title") as HTMLInputElement).value).toBe("Hello world");
     expect((screen.getByLabelText("Entry slug") as HTMLInputElement).value).toBe("hello-world");

@@ -1038,7 +1038,7 @@ function ThemeExploreSlugCollisionWarning({
   return (
     <div
       className="notice warning theme-explore-slug-collision-warning"
-      {...agentHandle("theme-explore-slug-collision-warning", {
+      {...agentHandle({ handle: "theme-explore-slug-collision-warning" }, {
         role: "region",
         label: "This theme page's URL is also claimed by a content record — see which one actually wins",
       })}
@@ -1054,7 +1054,7 @@ function ThemeExploreSlugCollisionWarning({
           e.preventDefault();
           if (confirmLeave()) navigate(adminPath);
         }}
-        {...agentHandle("theme-explore-slug-collision-open-record", {
+        {...agentHandle({ handle: "theme-explore-slug-collision-open-record" }, {
           role: "link",
           label: `Open the colliding content record, ${collidingContent.title}`,
         })}

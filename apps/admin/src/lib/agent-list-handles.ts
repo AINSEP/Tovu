@@ -1,4 +1,11 @@
-/**
+import { buildAgentListHandles as buildPackageHandles } from "@jini-ai/agentic";
+
+/** Keep existing host call sites positional; Jini owns handle sanitization and collisions.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file Thin re-export of `@jini-ai/agentic`'s `buildAgentListHandles`.
  *
  * The per-item agent-handle-uniqueness policy used to live here alone (derived from
@@ -12,4 +19,7 @@
  * This file's import path and export name stay byte-identical to before the move, so nothing
  * already written against `apps/admin/src/lib/agent-list-handles.ts` needs to change.
  */
-export { buildAgentListHandles } from "@jini-ai/agentic";
+// Stable-id handles and collision suffix-search rationale: Jini/packages/agentic/src/core/list-handles.ts.
+export function buildAgentListHandles(prefix: string, ids: readonly string[]): string[] {
+  return buildPackageHandles({ prefix, ids });
+}

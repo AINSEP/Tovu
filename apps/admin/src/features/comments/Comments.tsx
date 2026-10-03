@@ -66,7 +66,7 @@ function QueueToolbar({
           id="comments-status-filter"
           value={status}
           onChange={(e) => onStatusChange(e.target.value as CommentStatus)}
-          {...agentHandle("comments-status-filter", { role: "field", label: "Filter the moderation queue by status" })}
+          {...agentHandle({ handle: "comments-status-filter" }, { role: "field", label: "Filter the moderation queue by status" })}
         >
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
@@ -198,7 +198,7 @@ function QueueTable(props: {
           className="btn-secondary"
           onClick={props.loadMore}
           disabled={props.loadingMore}
-          {...agentHandle("comments-load-more", { role: "button", label: "Load more comments" })}
+          {...agentHandle({ handle: "comments-load-more" }, { role: "button", label: "Load more comments" })}
         >
           {props.loadingMore ? t(props.locale, "Loading…") : t(props.locale, "Load more")}
         </button>
@@ -379,7 +379,7 @@ export function SettingsSection(props: SettingsSectionProps) {
               type="checkbox"
               name="enabled"
               defaultChecked={settings.enabled}
-              {...agentHandle("comments-settings-enabled", { role: "field", label: "Whether comments are enabled at all" })}
+              {...agentHandle({ handle: "comments-settings-enabled" }, { role: "field", label: "Whether comments are enabled at all" })}
             />
             {t(props.locale, "Comments enabled")}
           </label>
@@ -388,7 +388,7 @@ export function SettingsSection(props: SettingsSectionProps) {
               type="checkbox"
               name="requireModeration"
               defaultChecked={settings.requireModeration}
-              {...agentHandle("comments-settings-require-moderation", {
+              {...agentHandle({ handle: "comments-settings-require-moderation" }, {
                 role: "field",
                 label: "Whether new comments start pending moderation",
               })}
@@ -410,7 +410,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={0}
                 step={1}
                 defaultValue={settings.maxDepth}
-                {...agentHandle("comments-settings-max-depth", { role: "field", label: "Maximum comment thread depth" })}
+                {...agentHandle({ handle: "comments-settings-max-depth" }, { role: "field", label: "Maximum comment thread depth" })}
               />
             </div>
             <div className="field">
@@ -424,7 +424,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={0}
                 step={1}
                 defaultValue={settings.closeAfterDays ?? ""}
-                {...agentHandle("comments-settings-close-after-days", {
+                {...agentHandle({ handle: "comments-settings-close-after-days" }, {
                   role: "field",
                   label: "Days after which submissions close, blank for never",
                 })}
@@ -442,7 +442,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 max={1}
                 step={0.01}
                 defaultValue={settings.spamAutoRejectScore}
-                {...agentHandle("comments-settings-spam-score", { role: "field", label: "Spam auto-reject score, 0 to 1" })}
+                {...agentHandle({ handle: "comments-settings-spam-score" }, { role: "field", label: "Spam auto-reject score, 0 to 1" })}
               />
             </div>
             <div className="field">
@@ -456,7 +456,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={1}
                 step={1}
                 defaultValue={settings.maxPerIpPerHour}
-                {...agentHandle("comments-settings-max-per-ip", { role: "field", label: "Maximum submissions per IP per hour" })}
+                {...agentHandle({ handle: "comments-settings-max-per-ip" }, { role: "field", label: "Maximum submissions per IP per hour" })}
               />
             </div>
           </div>
@@ -466,7 +466,7 @@ export function SettingsSection(props: SettingsSectionProps) {
           <button
             type="submit"
             disabled={saving}
-            {...agentHandle("comments-settings-save", { role: "button", label: "Save the comments settings" })}
+            {...agentHandle({ handle: "comments-settings-save" }, { role: "button", label: "Save the comments settings" })}
           >
             {saving ? t(props.locale, "Saving…") : t(props.locale, "Save settings")}
           </button>

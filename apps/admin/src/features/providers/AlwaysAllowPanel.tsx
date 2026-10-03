@@ -42,7 +42,7 @@ export function AlwaysAllowPanel(props: AlwaysAllowPanelProps) {
         <section
           key={group.serverId}
           className="always-allow-server"
-          {...agentHandle(group.handle, {
+          {...agentHandle({ handle: group.handle }, {
             role: "region",
             label: `Tools on the ${group.label} server set to Always allow`,
           })}
@@ -64,7 +64,7 @@ export function AlwaysAllowPanel(props: AlwaysAllowPanelProps) {
                         className="btn-secondary"
                         disabled={pendingKey === key}
                         onClick={() => revoke(group.serverId, tool.toolName)}
-                        {...agentHandle(tool.revokeHandle, {
+                        {...agentHandle({ handle: tool.revokeHandle }, {
                           role: "button",
                           label: `Revoke Always allow for ${tool.toolName} on ${group.label}; it will ask again`,
                         })}

@@ -118,7 +118,7 @@ function AgentPluginRowStateArea({
           // member, and `checkbox` is the two-state control a page driver already knows how to
           // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
           // above, which stays `switch` because that is what assistive tech should hear.
-          {...agentHandle(`${agentHandleBase}-enabled`, {
+          {...agentHandle({ handle: `${agentHandleBase}-enabled` }, {
             role: "checkbox",
             label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
           })}
@@ -141,7 +141,7 @@ function AgentPluginRowStateArea({
       disabled={busy}
       onClick={enabled ? stateControl.onRemove : stateControl.onEnable}
       aria-label={agentPluginRemoveOrEnableAriaLabel(plugin, locale)}
-      {...agentHandle(`${agentHandleBase}-${enabled ? "remove" : "enable"}`, {
+      {...agentHandle({ handle: `${agentHandleBase}-${enabled ? "remove" : "enable"}` }, {
         role: "button",
         label: `${actionWord} the "${displayName}" Agent Plugin`,
       })}
@@ -192,7 +192,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           // visible, and stays reachable in browse mode, exactly as before.
           aria-labelledby={headingId}
           onClick={onToggleExpanded}
-          {...agentHandle(`${agentHandleBase}-details`, { role: "button", label: `Show or hide the "${displayName}" package details` })}
+          {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${displayName}" package details` })}
         >
           <span className="agent-plugin-row-glyph">
             <Glyph size={18} />
@@ -247,7 +247,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             // Preserved verbatim from the text button this replaced: "Inspect package files" reads
             // identically on every row, so the plugin's own name must stay in the accessible name.
             aria-label={`${t("Inspect package files")} — ${displayName}`}
-            {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${displayName}" package files` })}
+            {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${displayName}" package files` })}
           >
             <EyeIcon />
           </button>

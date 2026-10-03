@@ -37,12 +37,4 @@ test("setFsFilesCustomRoot PUTs the path verbatim in JSON and returns the canoni
   expect(JSON.parse(init?.body as string)).toEqual({ path });
 });
 
-test("clearFsFilesCustomRoot DELETEs the workspace custom-root endpoint without a body", async () => {
-  const fetchMock = stubFetch({ path: null });
-  await expect(api.clearFsFilesCustomRoot()).resolves.toEqual({ path: null });
-  expect(fetchMock).toHaveBeenCalledOnce();
-  const [url, init] = fetchMock.mock.calls[0]!;
-  expect(url).toBe(ENDPOINT);
-  expect(init?.method).toBe("DELETE");
-  expect(init?.body).toBeUndefined();
-});
+// clearFsFilesCustomRoot (lib/api.ts) and its dedicated test case were deleted 2026-10-03: unused; see development/DELETED-CODE.md.

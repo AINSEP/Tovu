@@ -67,9 +67,9 @@ describe("SiteTokenTab — the root key is human-only", () => {
     expect(found.length).toBeGreaterThan(0);
     expect(JSON.stringify(found)).not.toContain(HEX);
     for (const element of found) {
-      expect(JSON.stringify(await driver.describeState?.(element.handle))).not.toContain(HEX);
+      expect(JSON.stringify(await driver.describeState?.({ handle: element.handle }))).not.toContain(HEX);
     }
-    expect(await driver.findElements({ query: HEX.slice(0, 16) })).toEqual([]);
+    expect(await driver.findElements({}, { query: HEX.slice(0, 16) })).toEqual([]);
   });
 
   it("still shows the revealed value to the human", () => {

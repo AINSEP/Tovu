@@ -108,7 +108,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           <PublishSectionButton section="widgets" />
           <a
             href="/admin/widgets/regions"
-            {...agentHandle("widgets-regions-link", { role: "link", label: "Go to Widget Regions" })}
+            {...agentHandle({ handle: "widgets-regions-link" }, { role: "link", label: "Go to Widget Regions" })}
           >
             {t("Regions →")}
           </a>
@@ -116,7 +116,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             value={createType}
             onChange={(e) => setCreateType(e.target.value as AdminWidgetType)}
             aria-label={t("Widget type to create")}
-            {...agentHandle("widgets-create-type", { role: "field", label: "Widget type to create" })}
+            {...agentHandle({ handle: "widgets-create-type" }, { role: "field", label: "Widget type to create" })}
           >
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -127,7 +127,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           <a
             className="btn-primary"
             href={`/admin/widgets/new?type=${createType}`}
-            {...agentHandle("widgets-add-new", { role: "link", label: "Create a new widget of the selected type" })}
+            {...agentHandle({ handle: "widgets-add-new" }, { role: "link", label: "Create a new widget of the selected type" })}
           >
             {t("Add New")}
           </a>
@@ -155,7 +155,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
                 // `/admin/forms/${form.slug}` row link): the editor resolves either
                 // (`read-service.ts`'s `getWidgetInstance`), but the slug is the readable one.
                 href={`/admin/widgets/${widget.slug}`}
-                {...agentHandle(`${rowHandleById.get(widget.id)}-edit`, { role: "link", label: `Edit the "${widget.title}" widget` })}
+                {...agentHandle({ handle: `${rowHandleById.get(widget.id)}-edit` }, { role: "link", label: `Edit the "${widget.title}" widget` })}
               >
                 {widget.title}
               </a>
@@ -188,7 +188,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             cell: (widget) => (
               <button
                 onClick={() => requestTrash(widget)}
-                {...agentHandle(`${rowHandleById.get(widget.id)}-trash`, {
+                {...agentHandle({ handle: `${rowHandleById.get(widget.id)}-trash` }, {
                   role: "button",
                   label: `Move "${widget.title}" to trash`,
                 })}

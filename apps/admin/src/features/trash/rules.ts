@@ -225,23 +225,4 @@ function describeBatch(locale: string, succeeded: number, total: number, verb: "
  *
  * @complexity O(1).
  */
-export function describeOutcome(locale: string, outcome: AdminTrashRestoreOutcome | AdminTrashPurgeOutcome): string {
-  switch (outcome) {
-    case "restored":
-      return t(locale, "Restored.");
-    case "purged":
-      return t(locale, "Deleted permanently.");
-    case "forbidden":
-      return t(locale, "You do not have permission for this item.");
-    case "not-found":
-      return t(locale, "It is no longer in the Trash.");
-    case "already-gone":
-      return t(locale, "It was already gone.");
-    case "version-changed":
-      return t(locale, "It changed since it was deleted. Reload and try again.");
-    case "adapter-unavailable":
-      return t(locale, "Its section is not installed, so it cannot be handled here.");
-    default:
-      return outcome;
-  }
-}
+// describeOutcome (apps/admin/src/features/trash/rules.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.

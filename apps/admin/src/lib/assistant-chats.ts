@@ -144,7 +144,7 @@ export async function saveMessage(conversationId: string, message: ChatMessage):
  */
 export function persistableMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages.filter(
-    (message) => message.role === "user" || isTerminalRunStatus(message.runStatus),
+    (message) => message.role === "user" || isTerminalRunStatus({ status: message.runStatus }),
   );
 }
 
@@ -191,5 +191,5 @@ export function messageWriteKey(message: Pick<ChatMessage, "id" | "runId">): str
 export function activeRunStub(messages: ChatMessage[]): ChatMessage | null {
   const last = messages.at(-1);
   if (!last || last.role !== "assistant" || last.runId === undefined) return null;
-  return isTerminalRunStatus(last.runStatus) ? null : last;
+  return isTerminalRunStatus({ status: last.runStatus }) ? null : last;
 }

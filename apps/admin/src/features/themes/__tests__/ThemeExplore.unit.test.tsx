@@ -676,7 +676,7 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
   }
 
   async function handlesOf(driver: ReturnType<typeof createDomPageDriver>): Promise<string[]> {
-    const result = (await executePageCapability(driver, "page.find_elements", {})) as { elements: FoundElement[] };
+    const result = (await executePageCapability({ driver, capabilityId: "page.find_elements", input: {} })) as { elements: FoundElement[] };
     return result.elements.map((element) => element.handle);
   }
 
@@ -701,8 +701,8 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
 
     // The trigger itself IS reachable and clickable through the scoped root — an ordinary
     // descendant of `container`, not portaled.
-    await executePageCapability(driver, "page.click", { handle: "theme-explore-file-pages-about-html-menu" });
-    await driver.settle?.();
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "theme-explore-file-pages-about-html-menu" } });
+    await driver.settle?.({});
 
     // Through the production-shaped scoped root, the opened item is still invisible — not because
     // the click failed, but because `RowMenu` rendered it into `document.body`, outside `container`.

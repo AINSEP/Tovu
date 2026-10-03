@@ -1,4 +1,12 @@
-/**
+// Display compatibility rationale: Jini/packages/ui/src/features/panel-kit/helpers/format-timestamp.ts.
+import { formatTimestamp as formatPackageTimestamp, formatRelativeMinutesAgo as formatPackageRelativeTime } from "@jini-ai/ui/panel-kit";
+
+/** Format an admin timestamp through the shared formatter.
+ *
+ * Pre-extraction host rationale (historical names below describe the original layout).
+ * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
+ * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
+ *
  * @file Shared timestamp display helper — audit cross-cutting finding #4
  * (`ADS-memory/reports/audits/20260801-admin-adversarial-ux-audit.md`): `x.slice(0, 16).replace("T",
  * " ")` was copy-pasted at roughly a dozen call sites (`Comments.tsx`, `Database.tsx`,
@@ -12,9 +20,7 @@
  * one-file change instead of a grep-and-replace across a dozen call sites — see the audit
  * fix-up report for the open proposal (label the zone explicitly, or switch to
  * `Intl.DateTimeFormat` once there's a place to read the operator's preferred zone from).
- */
-
-/**
+ *
  * Formats an ISO 8601 timestamp as `YYYY-MM-DD HH:MM` for display in an admin list/detail view.
  * A fixed-width slice, not a parse: cheap, and tolerant of trailing seconds/milliseconds/zone
  * suffix (all fall after the 16th character and are simply dropped), but it assumes a standard
@@ -22,13 +28,7 @@
  * a string) is a caller-side type error, not something this function guards against.
  *
  * @complexity O(1) — a fixed-width slice plus one single-character replace, no parsing.
- * @overallScore 100
- */
-export function formatTimestamp(iso: string): string {
-  return iso.slice(0, 16).replace("T", " ");
-}
-
-/**
+ *
  * "N minutes ago"-style relative framing for the standing-draft autosave recovery banner (2026-09-06
  * — "unsaved changes from N minutes ago", the owner's own phrasing). The one relative-time need this
  * file's header flagged as future work, now that there's a real caller for it. No locale-aware
@@ -41,9 +41,11 @@ export function formatTimestamp(iso: string): string {
  *   so this stays a pure function a test can call with a fixed clock; real callers pass `Date.now()`.
  * @complexity O(1).
  */
+export function formatTimestamp(iso: string): string {
+  return formatPackageTimestamp({ iso });
+}
+
+/** Preserve Tovu's English relative-time copy and caller-supplied clock. */
 export function formatRelativeMinutesAgo(iso: string, nowMs: number): string {
-  const minutes = Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60000));
-  if (minutes < 1) return "less than a minute ago";
-  if (minutes === 1) return "1 minute ago";
-  return `${minutes} minutes ago`;
+  return formatPackageRelativeTime({ iso, nowMs }, { translate: (key) => key });
 }

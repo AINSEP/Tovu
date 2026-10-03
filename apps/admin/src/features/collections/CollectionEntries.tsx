@@ -51,14 +51,14 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   return (
     <div className="page">
       <p className="muted-cell">
-        <a href="/admin/collections" {...agentHandle("collection-entries-breadcrumb", { role: "link", label: "Back to the Collections list" })}>
+        <a href="/admin/collections" {...agentHandle({ handle: "collection-entries-breadcrumb" }, { role: "link", label: "Back to the Collections list" })}>
           {t("Collections")}
         </a>{" "}
         / {label}
       </p>
       <div
         className="page-header"
-        {...agentHandle("collection-entries-header", {
+        {...agentHandle({ handle: "collection-entries-header" }, {
           role: "region",
           label: "Entries list header — this content type's name and the New entry button",
         })}
@@ -82,7 +82,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           <a
             className="btn-primary"
             href={`/admin/collections/${contentTypeKey}/new`}
-            {...agentHandle("collection-entries-new", { role: "link", label: "Create a new entry in this content type" })}
+            {...agentHandle({ handle: "collection-entries-new" }, { role: "link", label: "Create a new entry in this content type" })}
           >
             {t("New entry")}
           </a>
@@ -108,7 +108,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
             cell: (entry, index) => (
               <a
                 href={`/admin/collections/${contentTypeKey}/${entry.slug}`}
-                {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this entry's editor" })}
+                {...agentHandle({ handle: `${rowHandles[index]}-edit` }, { role: "link", label: "Open this entry's editor" })}
               >
                 {entry.title}
               </a>

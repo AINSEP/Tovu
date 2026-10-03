@@ -129,7 +129,7 @@ function SiteDirOverrideNotice({ t }: { t: Translate }) {
   return (
     <div
       className="notice warning"
-      {...agentHandle("sites-dir-override-notice", {
+      {...agentHandle({ handle: "sites-dir-override-notice" }, {
         role: "status",
         label: "Warning that TOVU_SITE_DIR is set and outranks anything Activate writes",
       })}
@@ -164,7 +164,7 @@ function PendingActivationNotice({
   return (
     <div
       className={outlook.kind === "pending" ? "notice warning" : "notice error"}
-      {...agentHandle("sites-pending-activation", {
+      {...agentHandle({ handle: "sites-pending-activation" }, {
         role: "status",
         label: "Which site is queued for the next restart, and whether that restart will honor it",
       })}
@@ -229,7 +229,7 @@ function SitesProcessNotices({
   return (
     <div
       className="sites-process-notices"
-      {...agentHandle("sites-process-notices", {
+      {...agentHandle({ handle: "sites-process-notices" }, {
         role: "region",
         label: "Environment and pending-restart facts about the server process, not about any one site",
       })}
@@ -248,7 +248,7 @@ function SwitchingDisabledNotice({ t }: { t: Translate }) {
   return (
     <div
       className="notice"
-      {...agentHandle("sites-switching-disabled", {
+      {...agentHandle({ handle: "sites-switching-disabled" }, {
         role: "status",
         label: "Explanation that this deployment cannot switch sites, and what to use instead",
       })}

@@ -91,7 +91,7 @@ export function SourceControl(props: SourceControlProps) {
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("source-control-header", {
+        {...agentHandle({ handle: "source-control-header" }, {
           role: "region",
           label: "Source Control panel header — connect a git account so Tovu can read and later push to your repositories",
         })}

@@ -14,7 +14,7 @@ import { START_FRESH_CONFIRMATION, type SiteTokenRecoveryController } from "./ho
 export function SiteTokenRecoveryCard({ recovery }: { recovery: SiteTokenRecoveryController }) {
   const translate = recovery.t;
   return (
-    <section className="card site-token-recovery-card" {...agentHandle("security-site-token-recovery", { role: "region", label: "Unlock saved credentials locked with a different Site Token" })}>
+    <section className="card site-token-recovery-card" {...agentHandle({ handle: "security-site-token-recovery" }, { role: "region", label: "Unlock saved credentials locked with a different Site Token" })}>
       <h3 className="site-token-status-heading">{translate("Your saved credentials are locked")}</h3>
       {recovery.resultMessage ? (
         <p className="notice" role="status">{recovery.resultMessage}</p>
@@ -70,7 +70,7 @@ function SiteTokenStartFresh({ recovery }: { recovery: SiteTokenRecoveryControll
           type="button"
           className="btn-secondary"
           onClick={() => void recovery.openStartFresh()}
-          {...agentHandle("security-site-token-start-fresh-open", { role: "button", label: "Show what starting fresh would remove" })}
+          {...agentHandle({ handle: "security-site-token-start-fresh-open" }, { role: "button", label: "Show what starting fresh would remove" })}
         >
           {translate("Start fresh…")}
         </button>
@@ -95,7 +95,7 @@ function SiteTokenStartFresh({ recovery }: { recovery: SiteTokenRecoveryControll
         <button type="button" className="btn-danger" disabled={!recovery.canConfirmStartFresh} onClick={() => void recovery.startFresh()}>
           {recovery.startingFresh ? translate("Starting fresh…") : translate("Start fresh")}
         </button>
-        <button type="button" className="btn-ghost" onClick={recovery.cancelStartFresh} {...agentHandle("security-site-token-start-fresh-cancel", { role: "button", label: "Cancel starting fresh" })}>
+        <button type="button" className="btn-ghost" onClick={recovery.cancelStartFresh} {...agentHandle({ handle: "security-site-token-start-fresh-cancel" }, { role: "button", label: "Cancel starting fresh" })}>
           {translate("Cancel")}
         </button>
       </div>

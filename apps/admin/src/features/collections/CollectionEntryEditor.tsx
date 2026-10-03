@@ -179,7 +179,7 @@ function DynamicField(props: {
         inputId={inputId}
         value={value}
         onChange={onChange}
-        agentHandleProps={agentHandle(agentBase, {
+        agentHandleProps={agentHandle({ handle: agentBase }, {
           role: field.kind === "boolean" ? "checkbox" : "field",
           label: `This content type's "${field.name}" field${field.required ? " (required)" : ""}`,
         })}
@@ -219,7 +219,7 @@ function EntryLifecycleButtons(props: {
           type="button"
           onClick={() => onToggleLifecycle("publish")}
           disabled={busy}
-          {...agentHandle("entry-publish", {
+          {...agentHandle({ handle: "entry-publish" }, {
             role: "button",
             label: "Publish this entry immediately, saving its current title, fields and body",
           })}
@@ -237,7 +237,7 @@ function EntryLifecycleButtons(props: {
           className="btn-warning"
           onClick={() => onToggleLifecycle("unpublish")}
           disabled={busy}
-          {...agentHandle("entry-unpublish", {
+          {...agentHandle({ handle: "entry-unpublish" }, {
             role: "button",
             label: "Unpublish this entry — removes it from the live site without deleting it",
           })}
@@ -254,7 +254,7 @@ function EntryLifecycleButtons(props: {
         className={entry && !isPublished ? "btn-secondary" : undefined}
         onClick={onSave}
         disabled={busy}
-        {...agentHandle("entry-save", { role: "button", label: "Save this entry's title, slug, fields and body" })}
+        {...agentHandle({ handle: "entry-save" }, { role: "button", label: "Save this entry's title, slug, fields and body" })}
       >
         {saving ? t("Saving…") : t("Save")}
       </button>
@@ -284,7 +284,7 @@ function EntryPageActions(props: {
       <a
         className="btn-secondary"
         href={`/admin/collections/${contentTypeKey}`}
-        {...agentHandle("entry-back", { role: "link", label: "Back to this content type's list of entries" })}
+        {...agentHandle({ handle: "entry-back" }, { role: "link", label: "Back to this content type's list of entries" })}
       >
         ← {contentTypeLabel}
       </a>
@@ -326,7 +326,7 @@ function EntrySlugField(props: {
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
             placeholder="entry-slug"
-            {...agentHandle("entry-slug", {
+            {...agentHandle({ handle: "entry-slug" }, {
               role: "field",
               label: "This entry's URL slug — only editable while creating a new entry",
             })}
@@ -432,7 +432,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("entry-header", {
+        {...agentHandle({ handle: "entry-header" }, {
           role: "region",
           label: "Entry editor header — back link, save status, publish state and the Save button",
         })}
@@ -468,14 +468,14 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t("Entry title")}
-          {...agentHandle("entry-title", { role: "field", label: "This entry's title" })}
+          {...agentHandle({ handle: "entry-title" }, { role: "field", label: "This entry's title" })}
         />
       </label>
       <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} t={t} />
 
       <div
         className="editor-shell"
-        {...agentHandle("entry-editor-shell", { role: "region", label: "Formatting toolbar and the entry body editor" })}
+        {...agentHandle({ handle: "entry-editor-shell" }, { role: "region", label: "Formatting toolbar and the entry body editor" })}
       >
         <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
           <div className="grp">
@@ -487,7 +487,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
             `PostEditor.tsx`'s own `post-body` handle documents. */}
         <div
           className="editor-body"
-          {...agentHandle("entry-body", { role: "field", label: "This entry's rich-text body content" })}
+          {...agentHandle({ handle: "entry-body" }, { role: "field", label: "This entry's rich-text body content" })}
         >
           <EditorContent editor={editor as Editor} />
         </div>

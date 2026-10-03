@@ -160,7 +160,7 @@ export function TabBar({ tabs, activeId, onChange, ariaLabel, containerHandle }:
       role="tablist"
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      {...(containerHandle ? agentHandle(containerHandle, { role: "region", label: ariaLabel }) : {})}
+      {...(containerHandle ? agentHandle({ handle: containerHandle }, { role: "region", label: ariaLabel }) : {})}
     >
       {tabs.map((tab) => (
         <TabBarButton

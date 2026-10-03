@@ -104,7 +104,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            {...agentHandle("workspace-name", { role: "field", label: "This workspace's name" })}
+            {...agentHandle({ handle: "workspace-name" }, { role: "field", label: "This workspace's name" })}
           />
         </label>
         <label>
@@ -113,13 +113,13 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             required
-            {...agentHandle("workspace-slug", { role: "field", label: "This workspace's URL slug" })}
+            {...agentHandle({ handle: "workspace-slug" }, { role: "field", label: "This workspace's URL slug" })}
           />
         </label>
         <button
           type="submit"
           disabled={saving || !dirty}
-          {...agentHandle("workspace-save", { role: "button", label: "Save the workspace's name and slug" })}
+          {...agentHandle({ handle: "workspace-save" }, { role: "button", label: "Save the workspace's name and slug" })}
         >
           {saving ? t("Saving…") : t("Save changes")}
         </button>
@@ -169,7 +169,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
           className="btn-danger"
           disabled
           title={t("Not available — this install has only one workspace")}
-          {...agentHandle("workspace-delete", { role: "button", label: "Delete workspace (not available — only one workspace exists)" })}
+          {...agentHandle({ handle: "workspace-delete" }, { role: "button", label: "Delete workspace (not available — only one workspace exists)" })}
         >
           {t("Delete workspace")}
         </button>

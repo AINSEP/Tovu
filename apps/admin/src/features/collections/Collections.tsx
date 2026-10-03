@@ -79,7 +79,7 @@ function ContentTypeFieldFieldset({
           value={f.name}
           onChange={(e) => onUpdateField(f._rowId, { name: e.target.value })}
           placeholder="e.g. prep_time"
-          {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
+          {...agentHandle({ handle: `${base}-name` }, { role: "field", label: "This field's name" })}
         />
       </div>
       <div className="field">
@@ -88,7 +88,7 @@ function ContentTypeFieldFieldset({
           id={`${idPrefix}-kind-${f._rowId}`}
           value={f.kind}
           onChange={(e) => onUpdateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-          {...agentHandle(`${base}-kind`, {
+          {...agentHandle({ handle: `${base}-kind` }, {
             role: "field",
             label: "This field's data type — set with page.select_option, not click",
           })}
@@ -105,7 +105,7 @@ function ContentTypeFieldFieldset({
           type="checkbox"
           checked={f.required}
           onChange={(e) => onUpdateField(f._rowId, { required: e.target.checked })}
-          {...agentHandle(`${base}-required`, {
+          {...agentHandle({ handle: `${base}-required` }, {
             role: "checkbox",
             label: "Whether every entry of this content type must set this field",
           })}
@@ -117,7 +117,7 @@ function ContentTypeFieldFieldset({
           type="checkbox"
           checked={f.queryable}
           onChange={(e) => onUpdateField(f._rowId, { queryable: e.target.checked })}
-          {...agentHandle(`${base}-queryable`, {
+          {...agentHandle({ handle: `${base}-queryable` }, {
             role: "checkbox",
             label: "Whether this field gets a database index so entries can be filtered/sorted by it",
           })}
@@ -129,7 +129,7 @@ function ContentTypeFieldFieldset({
           type="button"
           className="btn-secondary"
           onClick={() => onRemoveField(f._rowId)}
-          {...agentHandle(`${base}-remove`, { role: "button", label: removeButtonLabel })}
+          {...agentHandle({ handle: `${base}-remove` }, { role: "button", label: removeButtonLabel })}
         >
           {t("Remove field")}
         </button>
@@ -174,7 +174,7 @@ function NewContentTypeDialog({
         aria-labelledby="new-content-type-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        {...agentHandle("new-content-type-dialog", {
+        {...agentHandle({ handle: "new-content-type-dialog" }, {
           role: "region",
           label: "New content type dialog — its label, key, and field schema",
         })}
@@ -189,7 +189,7 @@ function NewContentTypeDialog({
             onChange={(e) => setLabel(e.target.value)}
             placeholder={t("e.g. Recipe")}
             autoFocus
-            {...agentHandle("new-content-type-label", { role: "field", label: "This content type's display name" })}
+            {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
           />
         </div>
 
@@ -200,7 +200,7 @@ function NewContentTypeDialog({
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="e.g. recipe"
-            {...agentHandle("new-content-type-key", {
+            {...agentHandle({ handle: "new-content-type-key" }, {
               role: "field",
               label: "This content type's machine key — used in its entries' URLs",
             })}
@@ -227,7 +227,7 @@ function NewContentTypeDialog({
             type="button"
             className="btn-secondary"
             onClick={addField}
-            {...agentHandle("new-content-type-add-field", { role: "button", label: "Add another field to this content type" })}
+            {...agentHandle({ handle: "new-content-type-add-field" }, { role: "button", label: "Add another field to this content type" })}
           >
             {t("Add field")}
           </button>
@@ -243,7 +243,7 @@ function NewContentTypeDialog({
           <button
             type="submit"
             disabled={saving}
-            {...agentHandle("new-content-type-submit", { role: "button", label: "Create this content type" })}
+            {...agentHandle({ handle: "new-content-type-submit" }, { role: "button", label: "Create this content type" })}
           >
             {saving ? t("Saving…") : t("Create content type")}
           </button>
@@ -252,7 +252,7 @@ function NewContentTypeDialog({
             className="btn-secondary"
             onClick={cancel}
             disabled={saving}
-            {...agentHandle("new-content-type-cancel", { role: "button", label: "Close this dialog without creating a content type" })}
+            {...agentHandle({ handle: "new-content-type-cancel" }, { role: "button", label: "Close this dialog without creating a content type" })}
           >
             {t("Cancel")}
           </button>
@@ -303,7 +303,7 @@ function EditFieldsDialog({
         aria-labelledby="edit-fields-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        {...agentHandle("edit-fields-dialog", {
+        {...agentHandle({ handle: "edit-fields-dialog" }, {
           role: "region",
           label: "Edit fields dialog — this content type's full field schema",
         })}
@@ -329,7 +329,7 @@ function EditFieldsDialog({
             type="button"
             className="btn-secondary"
             onClick={addField}
-            {...agentHandle("edit-fields-add-field", { role: "button", label: "Add another field to this content type" })}
+            {...agentHandle({ handle: "edit-fields-add-field" }, { role: "button", label: "Add another field to this content type" })}
           >
             {t("Add field")}
           </button>
@@ -345,7 +345,7 @@ function EditFieldsDialog({
           <button
             type="submit"
             disabled={saving}
-            {...agentHandle("edit-fields-submit", { role: "button", label: "Save this content type's field schema" })}
+            {...agentHandle({ handle: "edit-fields-submit" }, { role: "button", label: "Save this content type's field schema" })}
           >
             {saving ? t("Saving…") : t("Save fields")}
           </button>
@@ -354,7 +354,7 @@ function EditFieldsDialog({
             className="btn-secondary"
             onClick={cancel}
             disabled={saving}
-            {...agentHandle("edit-fields-cancel", { role: "button", label: "Close this dialog without saving field changes" })}
+            {...agentHandle({ handle: "edit-fields-cancel" }, { role: "button", label: "Close this dialog without saving field changes" })}
           >
             {t("Cancel")}
           </button>
@@ -413,7 +413,7 @@ function LifecycleConfirmDialog({
             className={op === "deprecate" ? "btn-warning" : "btn-danger"}
             autoFocus={!autoFocusCancel}
             onClick={onConfirm}
-            {...agentHandle("lifecycle-confirm", {
+            {...agentHandle({ handle: "lifecycle-confirm" }, {
               role: "button",
               label:
                 "Confirm this content type's lifecycle change — Deprecate is reversible, Tombstone is not from this screen",
@@ -426,7 +426,7 @@ function LifecycleConfirmDialog({
             className="btn-secondary"
             autoFocus={autoFocusCancel}
             onClick={onCancel}
-            {...agentHandle("lifecycle-cancel", { role: "button", label: "Close this dialog without changing the lifecycle" })}
+            {...agentHandle({ handle: "lifecycle-cancel" }, { role: "button", label: "Close this dialog without changing the lifecycle" })}
           >
             {t("Cancel")}
           </button>
@@ -536,7 +536,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
     <div className="page">
       <div
         className="page-header"
-        {...agentHandle("collections-header", {
+        {...agentHandle({ handle: "collections-header" }, {
           role: "region",
           label: "Collections list header — page title and the New content type button",
         })}
@@ -550,7 +550,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           <PublishSectionButton section="collections" />
           <button
             onClick={() => setShowNewDialog(true)}
-            {...agentHandle("collections-new", { role: "button", label: "Define a new content type" })}
+            {...agentHandle({ handle: "collections-new" }, { role: "button", label: "Define a new content type" })}
           >
             {t("New content type")}
           </button>
@@ -591,7 +591,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
             cell: (ct, index) => (
               <a
                 href={`/admin/collections/${ct.key}`}
-                {...agentHandle(`${rowHandles[index]}-entries`, {
+                {...agentHandle({ handle: `${rowHandles[index]}-entries` }, {
                   role: "link",
                   label: "Open this content type's list of entries",
                 })}
@@ -608,7 +608,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
                 <button
                   type="button"
                   onClick={() => void copyEmbedCode(ct)}
-                  {...agentHandle(`${rowHandles[index]}-copy-embed`, {
+                  {...agentHandle({ handle: `${rowHandles[index]}-copy-embed` }, {
                     role: "button",
                     label: `Copy the embed code for content type "${ct.label}"`,
                   })}

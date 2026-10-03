@@ -25,7 +25,7 @@ export function PublishSectionButton({ section }: PublishSectionButtonProps) {
       type="button"
       className="btn-secondary"
       onClick={onClick}
-      {...agentHandle(`publish-section-${section}`, {
+      {...agentHandle({ handle: `publish-section-${section}` }, {
         role: "button",
         label: `Publish ${section} to the live site`,
       })}

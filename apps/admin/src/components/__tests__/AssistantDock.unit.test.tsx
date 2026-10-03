@@ -709,7 +709,7 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
  * Coverage-gap-fill (2026-09-05). `registerExtEventRenderer` is mocked (`vi.fn()`) at the top of
  * this file — a real MCP-UI runtime is what would normally invoke the registered renderer, and this
  * file never runs one. That leaves the renderer callback itself (`AssistantDock.tsx`'s own
- * `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (...))`) captured by the mock but
+ * `registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (...) })`) captured by the mock but
  * never called. The registration runs once at module import time (this file's own `import {
  * AssistantDock } from "../AssistantDock/AssistantDock"` already triggered it), so the callback is
  * captured here and invoked directly with a fabricated `props` object — the same direct-invocation
@@ -717,10 +717,16 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
  * call.
  */
 describe("AssistantDock — ext event renderer registrations", () => {
+  /**
+   * Retrieves the callback from the registration's required arguments for direct assertions.
+   * @throws When the dock failed to register the requested event renderer.
+   * @complexity Time O(r) for r mock registrations; auxiliary space O(1).
+   */
   function rendererFor(eventName: string) {
-    const registration = vi.mocked(registerExtEventRenderer).mock.calls.find(([name]) => name === eventName);
+    const registration = vi.mocked(registerExtEventRenderer).mock.calls.find(([{ name }]) => name === eventName);
     expect(registration).toBeDefined();
-    return registration![1];
+    if (!registration) throw new Error(`No ext-event renderer registered for ${eventName}`);
+    return registration[0].renderer;
   }
 
   /**

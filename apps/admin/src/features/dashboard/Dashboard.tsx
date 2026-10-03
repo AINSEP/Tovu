@@ -123,7 +123,7 @@ function AppearanceBody(props: { themeError: string | null; themeName: string | 
  *  `SiteDirOverrideNotice`'s own `agentHandle` role. */
 function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Translate }) {
   return (
-    <div className="notice dash-password-banner" {...agentHandle("dashboard-password-banner", { role: "status", label: "Nag that the account is still on the default password" })}>
+    <div className="notice dash-password-banner" {...agentHandle({ handle: "dashboard-password-banner" }, { role: "status", label: "Nag that the account is still on the default password" })}>
       <span className="dash-password-banner-icon" aria-hidden="true">
         <Icon name="alert-triangle" size={16} />
       </span>
@@ -131,7 +131,7 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
       <a
         className="dash-password-banner-action"
         href={adminHref("/users/change-password")}
-        {...agentHandle("dashboard-password-banner-change", { role: "link", label: "Go change your own password" })}
+        {...agentHandle({ handle: "dashboard-password-banner-change" }, { role: "link", label: "Go change your own password" })}
       >
         {t("Change password")}
       </a>
@@ -141,7 +141,7 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
         aria-label={t("Dismiss")}
         title={t("Dismiss")}
         onClick={onDismiss}
-        {...agentHandle("dashboard-password-banner-dismiss", { role: "button", label: "Dismiss this nag for this browser" })}
+        {...agentHandle({ handle: "dashboard-password-banner-dismiss" }, { role: "button", label: "Dismiss this nag for this browser" })}
       >
         <Icon name="close" size={14} />
       </button>
@@ -161,7 +161,7 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
  *  action. */
 function SiteKeyWarningBanner({ message }: { message: string }) {
   return (
-    <div className="notice warning dash-site-key-banner" {...agentHandle("dashboard-site-key-banner", { role: "status", label: "Warns that this site's key can't open its saved credentials" })}>
+    <div className="notice warning dash-site-key-banner" {...agentHandle({ handle: "dashboard-site-key-banner" }, { role: "status", label: "Warns that this site's key can't open its saved credentials" })}>
       <span className="dash-site-key-banner-icon" aria-hidden="true">
         <Icon name="alert-triangle" size={16} />
       </span>
@@ -204,7 +204,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
             href={siteUrl("/")}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle("dashboard-view-site", { role: "link", label: "Open the public site in a new tab" })}
+            {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
           >
             {t("View site ↗")}
           </a>
@@ -216,7 +216,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
               type="button"
               className="btn-primary"
               onClick={() => requestPublish({})}
-              {...agentHandle("dashboard-publish-content", {
+              {...agentHandle({ handle: "dashboard-publish-content" }, {
                 role: "button",
                 label: "Publish all content to the live site",
               })}
@@ -265,7 +265,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Recently updated")}</h2>
-            <a href="/admin/posts" {...agentHandle("dashboard-all-posts", { role: "link", label: "Go to the full posts list" })}>
+            <a href="/admin/posts" {...agentHandle({ handle: "dashboard-all-posts" }, { role: "link", label: "Go to the full posts list" })}>
               {t("All posts")}
             </a>
           </div>
@@ -275,7 +275,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Appearance")}</h2>
-            <a href="/admin/themes" {...agentHandle("dashboard-change-theme", { role: "link", label: "Go to Themes to change the active theme" })}>
+            <a href="/admin/themes" {...agentHandle({ handle: "dashboard-change-theme" }, { role: "link", label: "Go to Themes to change the active theme" })}>
               {t("Change")}
             </a>
           </div>
@@ -294,7 +294,7 @@ function Stat(props: { href: string; label: string; state: StatState; meta: stri
     <a
       className="dash-stat"
       href={props.href}
-      {...agentHandle(props.agentHandleId, { role: "link", label: `${props.label} stat card — go to ${props.href}` })}
+      {...agentHandle({ handle: props.agentHandleId }, { role: "link", label: `${props.label} stat card — go to ${props.href}` })}
     >
       <span className="dash-stat-label">{props.label}</span>
       <span className={`dash-stat-value${failed ? " is-error" : ""}`}>

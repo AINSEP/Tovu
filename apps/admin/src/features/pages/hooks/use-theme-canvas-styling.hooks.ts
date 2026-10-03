@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
-import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
 import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
 import { deriveContentWrapperChain } from "./theme-canvas-wrapper";
 
@@ -366,10 +365,4 @@ export function useThemeCanvasStyling(
  * @param templateChoice - See {@link useThemeCanvasStyling}.
  * @returns The current {@link ThemeCanvasStylingState}.
  */
-export function useWiredThemeCanvasStyling(
-  themeId: string | null,
-  apiVersion: 2 | undefined,
-  templateChoice: string | null = null,
-): ThemeCanvasStylingState {
-  return useThemeCanvasStyling(themeId, apiVersion, defaultThemeCanvasPort, templateChoice);
-}
+// useWiredThemeCanvasStyling (apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
