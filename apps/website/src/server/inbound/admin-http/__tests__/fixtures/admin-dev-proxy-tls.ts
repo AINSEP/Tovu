@@ -1,50 +1,25 @@
 // Self-signed localhost fixture; used only by hermetic dev-proxy tests.
-export const DEV_PROXY_TLS = {
-  key: `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsZOhICbg+JLi2
-R6Rrb2fQR+z/IsKPq2Hrn07+5B8Mpaqrfb+n9WSILTBHf1Lb1JpuolQr/KXokuxY
-Iwwnmpie645byWw0tpg3WnhopYv1l/GQlK6IPqGjz1ozYoUUGsZE4aLw8W7t/arh
-60Db4zm1wbxMWr+mIm2/1h7jSgjTjQkuiba+Pj12JhLQyh0PhM0zreJaKkfCACaZ
-ovn/G6ZxCB3v6nNJE866bRsgPTBS8CdJAXon3yVB6YBe/QuASNLafqwHS9NpqDv9
-eowkB8l1qTr90kpXlB5APsw7ZJFZa5jr3FRq31hCpA1Ve45FzeDHjrDaINFTVt0/
-7gK/cs/jAgMBAAECggEAJogHQtKpU3pxrowku76SvYLV/dCPG/16TWe2CFKEfhcp
-Jltc0vWOGsG+4LwckPXb7o5pscsuaeUs3iY3OULcieisUOecP8vwCa826mzV83aa
-j24r9FfLWQmnZ4TFqdCyMAMeoCvWV2szHnuua3dGFtHOfGJsI33eedop3TNW9bFa
-O6gqTzKZz/6hkniTuRLVXXpGj5SbEAiJjgjmI6MW/57eZTSfVPWGSmWgylYWgrhZ
-N6cvP1Lm5dIGNWjn0LLEjr7iPEpPMNO34q1y1+YAz9rPfj0pVCmKBQNgI3cbOPTG
-zvHoAH+vx+wxmtum+E+2fVa42ef22/Ot+ZHF8VasQQKBgQDZw6Cw6fKxaDhGBpGX
-bHa4d/FAJdg1NkaYbdnB3qZYRQOmVDKR6W3cD9ErmVmOKNv8xhsU8W/GYJ4kHWOT
-Iz2tPBWUVc7jpH2S0ejVvKLoAkWuq/6WotW3hb8OqLMpFGyF7B7mYLg9AJLPRO8I
-7sL/GZY8NYqYymxTEBBkt5e41wKBgQDKqeyxiEpFZx9oGrddezuwD8WC2oEkx8g1
-RisELSjrsf8wXyA+CvnHmuGltKDJk/AqO07bGietTaJk70OsNN8nRSYatri3XsWQ
-CBpau2hdFYKZKgnRUtLYkAp8cJdsvhNZ9aks2BrMRRLkvWhG6d7cawxXRVvnp1nw
-KOEfBmCD1QKBgGJtT9ZnB/E0ACt2kJv2xHqAjCTIdj8m9yWykThVoK5JE2s8p1bY
-QXW0GIEyYQ4mXbiU+myu7CyoQxJjzjwVM613ePGBD3BJSxDvm+PvzVo8nK5kwz/m
-/d5jr4W6rrAksSCfJyBOGzhHaBQTPk+1S6HuOL+iG7EP3YJ1wlMjwIolAoGBAKoO
-C96sTiYOcfwY7uQyE9OYaFN0pgkG2qhZSJ8ohb3AjjE4oQVukEk9XTp+Zqy+xjep
-rHGNcN2q1yl6234Un2uESoT/7d9wVraVFggsWVZCRmPfMn3C0cmGlEX29Bj7JaHG
-0T4f19yv2Tq29FkMxUSPTrusJ4Iqmv06UCyIXVRBAoGAb4nAVLkUa56jJDdi/96h
-b3M5ipaJIRCHvcVTz0J6bOi9iLwrckWwbWC5nNgNIf0jWdrcD5nMyivFV53+kYjQ
-+TamjE1/rirURZ8vqGW8+JFnCeoNYMEWoFFJ3BcbXqVVMHqctZKIoF7bANWtZF0S
-KKVnMHH9KAwtnZyLTrs0Ml8=
------END PRIVATE KEY-----
-`,
-  cert: `-----BEGIN CERTIFICATE-----
-MIICpDCCAYwCCQCAp1zeiU5O/zANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
-b2NhbGhvc3QwHhcNMjYxMDAxMjEyMDA2WhcNMzYwOTI4MjEyMDA2WjAUMRIwEAYD
-VQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCs
-ZOhICbg+JLi2R6Rrb2fQR+z/IsKPq2Hrn07+5B8Mpaqrfb+n9WSILTBHf1Lb1Jpu
-olQr/KXokuxYIwwnmpie645byWw0tpg3WnhopYv1l/GQlK6IPqGjz1ozYoUUGsZE
-4aLw8W7t/arh60Db4zm1wbxMWr+mIm2/1h7jSgjTjQkuiba+Pj12JhLQyh0PhM0z
-reJaKkfCACaZovn/G6ZxCB3v6nNJE866bRsgPTBS8CdJAXon3yVB6YBe/QuASNLa
-fqwHS9NpqDv9eowkB8l1qTr90kpXlB5APsw7ZJFZa5jr3FRq31hCpA1Ve45FzeDH
-jrDaINFTVt0/7gK/cs/jAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAIAHOp0lZEQZ
-mfGVdTtGIsulrdfpg/jJfS0ZumZflfeZ87pam0rvG5SUs7yId0pLJ1j63HGITtC8
-qvex1f3SULrH8p/TL0yHtmCqnOKrsXJjSSUQXJJAZBk/IFHkPuUO0jwIbSv8PTya
-Eb+P7B2NFb4SJJ+HaZc0dFGP2phNMW9vqadUBs6/ZkXkk372zVfODgAoSZvW+8RU
-0eOHgJHGKgbRpxjP4gcnYyGwnQx+IeW39EI8mhuFaNE6FaIZrS33gjYITqDGZYjd
-QvxzY+zLKSd6kLa8xyIipUEvrjjom41p7aS0TypxnjzGRxv6Rr6A7pNdiyDDDPd5
-HRFJ6+Jox2c=
------END CERTIFICATE-----
-`,
-};
+// Generated per test process rather than committed: the secret-scan guard
+// (features/webhooks/__tests__/secret-scan-guard.test.ts) forbids private-key blocks in tracked
+// files, throwaway test keys included. node:crypto cannot issue an X.509 certificate, so this uses
+// `openssl req` the same way development/scripts/__tests__/dev-desktop.test.mjs does. The proxy's
+// dev upstream agent skips verification (`rejectUnauthorized: false`), so the certificate's
+// identity does not matter, only that the upstream speaks real TLS.
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+function generateSelfSignedLocalhostTls(): { key: Buffer; cert: Buffer } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-dev-proxy-tls-"));
+  try {
+    const keyPath = path.join(dir, "key.pem");
+    const certPath = path.join(dir, "cert.pem");
+    execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", keyPath, "-out", certPath, "-days", "1", "-subj", "/CN=localhost"], { stdio: "pipe" });
+    return { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+export const DEV_PROXY_TLS = generateSelfSignedLocalhostTls();
