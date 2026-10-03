@@ -130,7 +130,7 @@ test("BEFORE the fix: neither owner query surfaces any word/count/reading-time c
   const query = buildToolCatalogQuery({ list: () => descriptors });
 
   for (const q of [QUERY_1, QUERY_2]) {
-    const hits = query.search(q, 10);
+    const hits = query.search({ query: q }, { limit: 10 });
     assert.ok(
       !hits.some((hit) => hit.id === "plugin_capability_word_count"),
       "the fix's tool id must not exist in the catalog before the fix is applied",
@@ -143,7 +143,7 @@ test("AFTER the fix: plugin_capability_word_count surfaces in the top-10 for bot
   const query = buildToolCatalogQuery({ list: () => descriptors });
 
   for (const q of [QUERY_1, QUERY_2]) {
-    const hits = query.search(q, 10);
+    const hits = query.search({ query: q }, { limit: 10 });
     assert.ok(
       hits.some((hit) => hit.id === "plugin_capability_word_count"),
       `expected plugin_capability_word_count in the top-10 for "${q}", got: ${hits.map((h) => `${h.id}(${h.score.toFixed(2)})`).join(", ")}`,
@@ -162,7 +162,7 @@ test("AFTER the fix: a DISABLED word-count plugin still produces zero on-topic c
   const descriptors = await buildCatalogDescriptors(false);
   const query = buildToolCatalogQuery({ list: () => descriptors });
   for (const q of [QUERY_1, QUERY_2]) {
-    const hits = query.search(q, 10);
+    const hits = query.search({ query: q }, { limit: 10 });
     assert.ok(!hits.some((hit) => hit.id === "plugin_capability_word_count"));
   }
 });

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createByokToolSurface } from "#src/assistant/index";
+import { createContributionRegistry } from "@jini-ai/core";
+import { createByokToolSurface, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
 import { registerInstalledExtensionTools } from "#src/server/runtime/composition/installed-extension-tools";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
@@ -53,8 +54,12 @@ interface SearchHit {
 }
 
 function surface() {
-  installFirstPartyToolContributors();
-  return createByokToolSurface(fakeEvalRouteDeps() as never, { registerInstalledExtensions: registerInstalledExtensionTools });
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
+  return createByokToolSurface(fakeEvalRouteDeps() as never, { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string): Promise<SearchHit[]> {
