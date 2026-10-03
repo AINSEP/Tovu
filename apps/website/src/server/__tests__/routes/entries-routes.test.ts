@@ -700,8 +700,9 @@ test("entries routes: unpublish preserves an entry-scoped grant through the writ
     body: JSON.stringify({ op: "unpublish", expectedVersion: published.entry.version }),
   });
   assert.equal(res.status, 200);
-  assert.equal((await res.json()).entry.status, "draft");
-  assert.equal((await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: entry.id }))?.status, "draft");
+  // Unpublish lands on "unpublished", not "draft" — the same contract the unpublish tests below pin.
+  assert.equal((await res.json()).entry.status, "unpublished");
+  assert.equal((await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: entry.id }))?.status, "unpublished");
 });
 
 test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
