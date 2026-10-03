@@ -94,8 +94,11 @@ test("the in-memory runtime registers both tools, and they answer UNAVAILABLE ra
   assert.equal(result.code, "UNAVAILABLE");
 });
 
-test("site_backup_push is on the MCP-UI allowlist, so the dialog's Back up and Cancel buttons are not refused", () => {
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("site_backup_push"));
+// 6eac86229 ("confirm destructive and protected actions only") retired site_backup_push's Back up/
+// Cancel card: the push now runs immediately after authorization, so it parks on no exchange and an
+// allowlist entry would only let surface HTML redeem a tool that has no dialog.
+test("neither site-backup tool is on the MCP-UI allowlist, since neither raises a dialog to redeem", () => {
+  assert.ok(!MCP_UI_REDEEMABLE_TOOL_IDS.has("site_backup_push"), "the push raises no dialog since 6eac86229 and has nothing to redeem");
   assert.ok(!MCP_UI_REDEEMABLE_TOOL_IDS.has("site_backup_plan"), "the plan raises no dialog and has nothing to redeem");
 });
 

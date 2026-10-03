@@ -74,7 +74,9 @@ export async function captureDaemonRun(
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
     failRunBeforeStart: async (_lifecycle: unknown, _id: string, message: string) => { reject(new Error(message)); },
     console: { error: (...args: unknown[]) => reject(new Error(args.map(String).join(" "))) },
-    agentExecutor: { run: async (input: AgentExecutorRunInput) => resolve(input) },
+    // `run()` takes Jini's (required, optional) pair; the executor reassembles one
+    // AgentExecutorRunInput from them, so the capture does the same.
+    agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
   };
   try {
     assert.equal(context.conversationId, undefined, "this harness covers runs without session I/O");

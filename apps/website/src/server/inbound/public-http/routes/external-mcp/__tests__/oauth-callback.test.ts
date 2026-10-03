@@ -267,7 +267,7 @@ test("callback IP budgets stay independent after another client exhausts its all
     oauth: fakeOAuthService(async () => { exchanges++; }),
     callbackLimiter: createRateLimiter({
       profile: { max: 2, burst: 0, windowSeconds: 60 },
-      clock: { nowIso: () => "2026-01-01T00:00:00.000Z" },
+      clock: { nowMs: () => Date.parse("2026-01-01T00:00:00.000Z") },
     }),
   };
   const app = buildApp(deps);
