@@ -206,9 +206,9 @@ test("entries routes: create drains the outbox so entry.created reaches bus subs
   await registerRecipeType(baseUrl, cookie);
 
   const delivered: unknown[] = [];
-  await deps.bus.subscribe("entry.created", async (event) => {
+  await deps.bus.subscribe({ eventName: "entry.created", handler: async (event) => {
     delivered.push(event);
-  });
+  } });
 
   await createRecipeEntry(baseUrl, cookie, "eggs");
 
@@ -222,9 +222,9 @@ test("entries routes: update drains the outbox so entry.updated reaches bus subs
   const entry = await createRecipeEntry(baseUrl, cookie);
 
   const delivered: unknown[] = [];
-  await deps.bus.subscribe("entry.updated", async (event) => {
+  await deps.bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     delivered.push(event);
-  });
+  } });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
     method: "PUT",
@@ -809,16 +809,17 @@ test("entries routes: republishing an already-published, unchanged entry succeed
   // pending outbox row (see `countPendingEntryEvents`'s doc below) — it must be observed at the
   // bus, the same way a real `bus.subscribe`d consumer (SEO's sitemap-cache invalidation) would.
   const deliveredPublishedEvents: Array<{ payload: { entryId?: string } }> = [];
-  await deps.bus.subscribe("entry.published", async (event) => {
+  await deps.bus.subscribe({ eventName: "entry.published", handler: async (event) => {
     if ((event.payload as { entryId?: string }).entryId === entry.id) {
       deliveredPublishedEvents.push(event as { payload: { entryId?: string } });
     }
-  });
+  } });
 
   const firstTime = deps.clock.nowIso();
   const secondTime = new Date(Date.parse(firstTime) + 1000).toISOString();
   let now = firstTime;
   deps.clock.nowIso = () => now;
+  deps.clock.nowMs = () => Date.parse(now);
 
   const firstPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST",
@@ -932,7 +933,7 @@ test("entries routes: unpublishing a published entry persists the takedown and d
   const published = (await publishRes.json()).entry;
   assert.equal(published.status, "published");
   const delivered: Array<{ entryId?: string }> = [];
-  await deps.bus.subscribe("entry.unpublished", async (event) => { delivered.push(event.payload as { entryId?: string }); });
+  await deps.bus.subscribe({ eventName: "entry.unpublished", handler: async (event) => { delivered.push(event.payload as { entryId?: string }); } });
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ op: "unpublish", expectedVersion: published.version }),
   });

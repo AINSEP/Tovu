@@ -75,12 +75,12 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
   // Same ordering as the real boot: `index.ts` spawns the daemon only after these settle.
   await settle(server);
   const received: string[] = [];
-  await server.bus.subscribe("entry.updated", async (event) => {
+  await server.bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
-  });
-  await server.bus.subscribe("comments.approved", async (event) => {
+  } });
+  await server.bus.subscribe({ eventName: "comments.approved", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
 
   const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_WORKSPACE: server.workspaceId } }, { dbPath });
   roots.push(daemon);

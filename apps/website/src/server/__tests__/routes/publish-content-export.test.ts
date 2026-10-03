@@ -229,7 +229,12 @@ test("GET .../publish-content/export includes deduplicated required blobs with d
     assert.ok(entity);
     assert.deepEqual(entity.requiredBlobs, [sha]);
   }
-  assert.deepEqual(bundle.blobManifest, [sha]);
+  // The manifest is the deduplicated union of every entity's requiredBlobs. Not just `[sha]`: since
+  // 5d308ae7d (2026-09-24) the built-in `theme-files` entities carry their own blobs in every install.
+  const requiredUnion = new Set(bundle.entities.flatMap((entity) => entity.requiredBlobs ?? []));
+  assert.equal(new Set(bundle.blobManifest).size, bundle.blobManifest.length, "the manifest must not repeat a blob");
+  assert.deepEqual([...bundle.blobManifest].sort(), [...requiredUnion].sort());
+  assert.equal(bundle.blobManifest.filter((entry) => entry === sha).length, 1, "two media rows sharing bytes must list their blob once");
   const download = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha}`, { headers: { cookie } });
   assert.equal(download.status, 200);
   const body = await download.json() as { sha256: string; dataBase64: string };

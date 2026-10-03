@@ -130,6 +130,7 @@ test("UNSUBSCRIBE (GET): succeeds (200, HTML) with zero cookies sent and never s
   assert.ok(persisted?.unsubscribedAt);
   const later = new Date(Date.parse(persisted.unsubscribedAt) + 60_000).toISOString();
   deps.clock.nowIso = () => later;
+  deps.clock.nowMs = () => Date.parse(later);
 
   const repeat = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`);
   assert.equal(repeat.status, 200, "REQ-15/EC-03: a repeat click of an already-processed token is idempotent success");
@@ -163,6 +164,7 @@ test("UNSUBSCRIBE (POST, RFC 8058 one-click): succeeds (200) with zero cookies s
   assert.ok(persisted?.unsubscribedAt);
   const later = new Date(Date.parse(persisted.unsubscribedAt) + 60_000).toISOString();
   deps.clock.nowIso = () => later;
+  deps.clock.nowMs = () => Date.parse(later);
 
   const repeat = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
   assert.equal(repeat.status, 200);

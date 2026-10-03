@@ -12,13 +12,20 @@ import { createContentTypesModule } from "../runtime/composition/modules/content
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
+import { createContributionRegistry } from "@jini-ai/core";
+import type { DerivedToolContributor, ToolContributor } from "../../assistant/index.js";
 
 // content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
 // entirely (2026-08-27, "invert AI-tool contribution registration") — nothing puts content-types
 // tools into the registry now unless something explicitly installs them first, mirroring what the
-// real composition roots do via `installFirstPartyToolContributors()`.
-installFirstPartyToolContributors();
+// real composition roots do via `installFirstPartyToolContributors()`. The registry is no longer a
+// module global, so this suite owns one and hands it to both the installer and the registrations.
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+};
+installFirstPartyToolContributors({ contributions });
 
 /**
  * @file Audit-trail provenance on the `content_types` write chokepoint (ADR-022 §1/§4's
@@ -197,7 +204,7 @@ test("an agent-tool write records principalKind 'agent' while carrying the SAME 
 
   // 2. The SAME human asks the assistant to make the next change. The daemon executes the tool
   //    under the principal Tovu's proxy stamped into the run — the same principal id as above.
-  const registration = buildAssistantToolRegistrations(deps).find(
+  const registration = buildAssistantToolRegistrations(deps, undefined, { contributions }).find(
     (r) => r.descriptor.id === "collections_content_type_update_fields"
   );
   assert.ok(registration);
@@ -231,7 +238,7 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
     body: JSON.stringify({ key: "recipe", label: "Recipe", fields: FIELDS }),
   });
 
-  const byId = new Map(buildAssistantToolRegistrations(deps).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
   const ctx = (input: Record<string, unknown>) => ({
     executionId: "exec-1",
     principal: { id: principalId },

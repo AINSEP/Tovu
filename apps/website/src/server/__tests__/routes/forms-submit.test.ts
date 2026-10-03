@@ -149,7 +149,7 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
   await definitionRepo.create(makeDefinition());
 
   let delivered = 0;
-  await bus.subscribe("form.submission.received", async () => { delivered++; });
+  await bus.subscribe({ eventName: "form.submission.received", handler: async () => { delivered++; } });
 
   const res = await fetch(`${baseUrl}/forms/contact/submit`, {
     method: "POST",

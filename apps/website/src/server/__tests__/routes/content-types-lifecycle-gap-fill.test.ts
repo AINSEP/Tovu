@@ -134,12 +134,12 @@ test("lifecycle: deprecate and tombstone drain the outbox so their events reach 
 
   const deliveredDeprecated: unknown[] = [];
   const deliveredTombstoned: unknown[] = [];
-  await deps.bus.subscribe("content_type.deprecated", async (event) => {
+  await deps.bus.subscribe({ eventName: "content_type.deprecated", handler: async (event) => {
     deliveredDeprecated.push(event);
-  });
-  await deps.bus.subscribe("content_type.tombstoned", async (event) => {
+  } });
+  await deps.bus.subscribe({ eventName: "content_type.tombstoned", handler: async (event) => {
     deliveredTombstoned.push(event);
-  });
+  } });
 
   const deprecated = await lifecycle(baseUrl, cookie, "drain_check_type", "deprecate", 1);
   assert.equal(deprecated.status, 200);

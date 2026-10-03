@@ -211,16 +211,16 @@ test("admin redirects update route: workspace mismatch, update happy path, undef
       fromPattern: "/old-path",
       toTarget: "/updated-target",
       statusCode: 302,
-      status: "inactive",
+      status: "disabled",
       override: true,
       priority: 5,
     }),
   });
-  assert.equal(patchRes.status, 200);
+  assert.equal(patchRes.status, 200, await patchRes.clone().text());
   const patchedJson = (await patchRes.json()) as { data: { toTarget: string; statusCode: number; status: string; override: boolean; priority: number } };
   assert.equal(patchedJson.data.toTarget, "/updated-target");
   assert.equal(patchedJson.data.statusCode, 302);
-  assert.equal(patchedJson.data.status, "inactive");
+  assert.equal(patchedJson.data.status, "disabled");
   assert.equal(patchedJson.data.override, true);
   assert.equal(patchedJson.data.priority, 5);
 

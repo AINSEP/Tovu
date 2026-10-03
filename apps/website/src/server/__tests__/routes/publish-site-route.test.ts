@@ -9,7 +9,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
@@ -382,27 +382,22 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     run: { id: "run-cross-path" },
     input: { target: "vercel", projectName: "demo-from-tool" },
     signal: new AbortController().signal,
+  }, {
     emitSurface: async (s) => void emitted.push(s as { payload: { resource: { resource: { text: string } } } }),
   });
-  // Bounded: planning loads the deploy registry (async module imports) before the dialog is raised.
-  for (let attempt = 0; attempt < 400 && emitted.length === 0; attempt++) await delay(5);
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const html = emitted[0]!.payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
-  const exchangeId = match[1]!;
-
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: "principal-cross-path", params: { decision: "confirm" } });
-  assert.deepEqual(delivered, { ok: true });
-
-  const result = (await pending) as { published: boolean; cancelled: boolean; reason?: string; message?: string };
+  // 6eac86229 ("confirm destructive and protected actions only") removed this tool's confirmation
+  // card: it now publishes immediately, so there is no dialog to answer. A call that lands while the
+  // HTTP route's run is in flight is refused with ALREADY_RUNNING before any export or provider call,
+  // and emits no surface (the refusal returns before the outcome card is sent).
+  const result = (await pending) as { published: boolean; cancelled: boolean; code?: string; message?: string };
   assert.equal(result.published, false);
   assert.equal(result.cancelled, false);
   assert.equal(
-    result.reason,
-    "already-running",
+    result.code,
+    "ALREADY_RUNNING",
     `expected the tool call to be refused while the HTTP route's own publish was still in flight, got: ${JSON.stringify(result)}`
   );
+  assert.equal(emitted.length, 0, "a refused publish must not send an outcome card");
 
   let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
   for (let attempt = 0; attempt < 200 && finalStatusBody.status === "running"; attempt++) {

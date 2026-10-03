@@ -30,9 +30,9 @@ async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boo
 test("taxonomy create, a route that never drains inline, reaches its bus subscriber through the serving app's background drainer", async (t) => {
   const deps = createRouteDeps();
   const received: string[] = [];
-  await deps.bus.subscribe("taxonomy.created", async (event) => {
+  await deps.bus.subscribe({ eventName: "taxonomy.created", handler: async (event) => {
     received.push(event.name);
-  });
+  } });
 
   const { app, outboxDrainer } = createServingApp(deps, { outboxDrainIntervalMs: 20 });
   t.after(() => outboxDrainer.stop());
