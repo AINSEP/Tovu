@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import type { NormalizedHit } from "../index.js";
-import { LocalBufferSink } from "../repo.memory.js";
+import { createLocalAnalyticsSink } from "../jini-adapters.js";
 import { buildAnalyticsRegistrations, analyticsDerivedRisk } from "../tool-registrations.js";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 const hit = (path: string, overrides: Partial<NormalizedHit> = {}): NormalizedHit => ({ workspaceId: "ws", occurredAt: "2026-10-01T00:00:00Z", kind: "pageview", path, referrerHost: null, deviceClass: "desktop", browserFamily: "Firefox", eventName: null, eventProps: null, utm: { source: null, medium: null, campaign: null, term: null, content: null }, visitorHash: "secret", sessionId: "session", osFamily: null, country: null, region: null, ...overrides });
 function harness(allow = true) {
-  const sink = new LocalBufferSink([hit("/old"), hit("/a"), hit("/b", { referrerHost: "google.com", deviceClass: "mobile" }), hit("/a", { referrerHost: "google.com", kind: "event", eventName: "click" })]);
+  const sink = createLocalAnalyticsSink({}, { initialHits: [hit("/old"), hit("/a"), hit("/b", { referrerHost: "google.com", deviceClass: "mobile" }), hit("/a", { referrerHost: "google.com", kind: "event", eventName: "click" })] });
   const deps = { workspaceId: "ws", analyticsSink: sink, authorize: async (request: any) => { assert.deepEqual(request, { principalId: "owner", workspaceId: "ws", permission: "analytics.read", entityType: "analytics-hit" }); return { allowed: allow, reason: "fixture grant" }; } };
   return { deps, tool: buildAnalyticsRegistrations(deps)[0]! };
 }
@@ -44,7 +44,7 @@ test("exact path filtering applies after the window; summary math includes only 
 
 test("top ten summaries sort by count, with deterministic ties", async () => {
   const { deps, tool } = harness();
-  deps.analyticsSink = new LocalBufferSink(Array.from({ length: 12 }, (_, n) => hit(`/p${String(n).padStart(2, "0")}`, { referrerHost: `h${String(n).padStart(2, "0")}` })));
+  deps.analyticsSink = createLocalAnalyticsSink({}, { initialHits: Array.from({ length: 12 }, (_, n) => hit(`/p${String(n).padStart(2, "0")}`, { referrerHost: `h${String(n).padStart(2, "0")}` })) });
   const result = await tool.handler(ctx({ summarize: true })) as any;
   assert.deepEqual(result.summary.byPath, Array.from({ length: 10 }, (_, n) => ({ path: `/p${String(n).padStart(2, "0")}`, hits: 1 })));
   assert.deepEqual(result.summary.byReferrerHost, Array.from({ length: 10 }, (_, n) => ({ referrerHost: `h${String(n).padStart(2, "0")}`, hits: 1 })));

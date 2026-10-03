@@ -12,7 +12,7 @@
  * production-classified-relevant). Per INV-03, this field is this inventory's own
  * independently-asserted verification, not a passthrough of any adapter's self-reported
  * `capabilities().durable` flag (the exact gap ADR-046's debate found in
- * `LocalBufferSink.capabilities().durable`, which misreports `true`).
+ * the former LocalBufferSink durability claim, now corrected to false).
  */
 
 export type CapabilityClassification = "production" | "local-only" | "experimental";

@@ -1,3 +1,4 @@
+// Deleted analytics/repo.memory.ts fork: @jini-ai/analytics owns the memory sink (DELETED-CODE.md).
 import type { Insertable, Selectable } from "kysely";
 
 import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "#src/features/analytics/ports";
@@ -8,11 +9,11 @@ import type { AnalyticsEventsTable } from "../content-database.generated.js";
 /**
  * @file ADR-046 Phase 1 (final capability slice) — THE durable adapter for `AnalyticsSinkPort`: one
  * Kysely query body for every dialect (storage plan §4, ADR-066); ADR-006 rule-of-two "second
- * adapter" half, `analytics/repo.memory.ts`'s `LocalBufferSink` is the first.
+ * adapter" half, Jini's `LocalBufferSink` (via `analytics/jini-adapters.ts`) is the first.
  * `sqlite/analytics-sink.sqlite.ts` is the thin subclass the composition root builds from the
  * content db handle. This durably persists the raw ingest buffer that `LocalBufferSink` only held
  * in a process-local array — the exact gap ADR-046's debate/capability-inventory flagged
- * (`LocalBufferSink.capabilities().durable` misreporting `true`).
+ * (the former LocalBufferSink durability misreport is now fixed).
  *
  * Scope: this is ONLY the `AnalyticsSinkPort` WRITE seam (raw hit buffer). `AnalyticsRepoPort`
  * (the aggregate/time-series/rollup/goals storage surface) has NO adapter at all yet — per
@@ -30,7 +31,7 @@ import type { AnalyticsEventsTable } from "../content-database.generated.js";
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 500;
 
-/** Same clamp discipline as `LocalBufferSink`'s (see that file for the resource-bounds rationale). */
+/** Same clamp discipline as Jini LocalBufferSink: a caller cannot force an unbounded array copy. */
 function clampListLimit(requested: number | undefined): number {
   if (requested === undefined || !Number.isFinite(requested)) return DEFAULT_LIST_LIMIT;
   return Math.min(Math.max(Math.trunc(requested), 1), MAX_LIST_LIMIT);

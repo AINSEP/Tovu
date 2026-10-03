@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { LocalBufferSink } from "#src/features/analytics/repo.memory";
+import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -14,7 +14,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 
 function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
-  return { ...createRouteDeps(), analyticsSink: new LocalBufferSink(), ...overrides };
+  return { ...createRouteDeps(), analyticsSink: createLocalAnalyticsSink({}), ...overrides };
 }
 
 test("analytics-ingest: a real pageview beacon through the composed app always 204s and lands in the sink", async (t) => {
@@ -218,7 +218,7 @@ test("analytics-ingest: a real DNT:true beacon is excluded end-to-end (never rea
 });
 
 test("analytics-ingest: a sink that throws is swallowed by the real app too — still 204s", async (t) => {
-  const sink = new LocalBufferSink();
+  const sink = createLocalAnalyticsSink({});
   sink.accept = async () => {
     throw new Error("sink boom");
   };

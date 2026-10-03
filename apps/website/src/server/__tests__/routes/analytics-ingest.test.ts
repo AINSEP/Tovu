@@ -9,8 +9,8 @@ import express from "express";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { AnalyticsConfigPort } from "#src/features/analytics/index";
 import type { AnalyticsSiteConfig } from "#src/features/analytics/index";
-import { LocalBufferSink } from "#src/features/analytics/repo.memory";
-import type { IngestHitDeps } from "#src/features/analytics/ingest";
+import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
+import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
 
 /**
@@ -45,7 +45,7 @@ function makeConfigPort(config: AnalyticsSiteConfig): AnalyticsConfigPort {
 const clock: ClockPort = { nowMs: () => Date.parse("2026-07-10T12:00:00.000Z") };
 const ids: IdGeneratorPort = { newId: () => "id-1" as UUID };
 
-async function startTestApp(deps: IngestHitDeps) {
+async function startTestApp(deps: AnalyticsIngestRouteDeps) {
   const app = express();
   app.use(express.json());
   registerAnalyticsIngestRoute(app, deps);
@@ -57,9 +57,9 @@ async function startTestApp(deps: IngestHitDeps) {
   return { server, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
-function makeDeps(overrides: Partial<IngestHitDeps> = {}): { deps: IngestHitDeps; sink: LocalBufferSink } {
-  const sink = new LocalBufferSink();
-  const deps: IngestHitDeps = {
+function makeDeps(overrides: Partial<AnalyticsIngestRouteDeps> = {}): { deps: AnalyticsIngestRouteDeps; sink: ReturnType<typeof createLocalAnalyticsSink> } {
+  const sink = createLocalAnalyticsSink({});
+  const deps: AnalyticsIngestRouteDeps = {
     clock,
     ids,
     sink,

@@ -8,7 +8,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { SqlBufferSink } from "#src/platform/db/repos/analytics-sink";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
-import { LocalBufferSink } from "../repo.memory.js";
+import { createLocalAnalyticsSink } from "../jini-adapters.js";
 import type { AnalyticsSinkPort } from "../ports.js";
 import type { NormalizedHit } from "../types.js";
 
@@ -86,7 +86,7 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
   });
 }
 
-runSuite("memory", () => new LocalBufferSink());
+runSuite("memory", () => createLocalAnalyticsSink({}));
 describeEachDialect("AnalyticsSinkPort (SQL)", { tables: ["analytics_events"], make: (kernel) => new SqlBufferSink({ kernel, workspaceId: WORKSPACE_ID }) }, (makeSink, dialect) => {
   runSuite(dialect, makeSink);
 
@@ -100,7 +100,7 @@ describeEachDialect("AnalyticsSinkPort (SQL)", { tables: ["analytics_events"], m
 
 test("SqliteBufferSink reports durable: true, LocalBufferSink reports durable: false", () => {
   const sqlite = new SqliteBufferSink({ db: openContentDb(":memory:"), workspaceId: WORKSPACE_ID });
-  const memory = new LocalBufferSink();
+  const memory = createLocalAnalyticsSink({});
   assert.equal(sqlite.capabilities().durable, true);
   assert.equal(memory.capabilities().durable, false);
 });

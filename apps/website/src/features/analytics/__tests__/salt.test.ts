@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { hkdfSync } from "node:crypto";
 
 import { deriveDailySalt } from "../salt.js";
 
@@ -11,6 +12,10 @@ test("deriveDailySalt is deterministic for a fixed (rootKeySeed, workspaceId, ut
 
   assert.equal(first.equals(second), true);
   assert.equal(first.length, 32);
+  // PARITY: migration must keep the original host HKDF context byte-for-byte.
+  const expected = Buffer.from(hkdfSync("sha256", ROOT_KEY_SEED,
+    "tovu-analytics-daily-salt-hkdf-v1", "analytics-salt:workspace-1:2026-07-10", 32));
+  assert.deepEqual(first, expected);
 });
 
 test("deriveDailySalt rotates across UTC days (salt rotation)", () => {

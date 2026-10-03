@@ -113,7 +113,7 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
-import { LocalBufferSink } from "#src/features/analytics/repo.memory";
+import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import {
   ConsoleMailerAdapter,
   InMemoryMagicLinkTokenRepo,
@@ -1075,7 +1075,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     observability: createNoopObservabilityPort({}),
     clock,
     idGen,
-    analyticsSink: new LocalBufferSink(),
+    analyticsSink: createLocalAnalyticsSink({}),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
     principalRepo: settingsPrincipals,

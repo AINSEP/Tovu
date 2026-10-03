@@ -6,9 +6,9 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { LocalBufferSink } from "#src/features/analytics/repo.memory";
+import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";
-import type { IngestHitDeps } from "#src/features/analytics/ingest";
+import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 
 /**
  * @file Unit-tier coverage for `POST /_analytics/e` (`registerAnalyticsIngestRoute`) — a PUBLIC,
@@ -19,9 +19,9 @@ import type { IngestHitDeps } from "#src/features/analytics/ingest";
  * for malformed/rejected input.
  */
 
-function buildApp(sink: LocalBufferSink = new LocalBufferSink(), overrides: Partial<IngestHitDeps> = {}): { app: express.Express; sink: LocalBufferSink } {
+function buildApp(sink: ReturnType<typeof createLocalAnalyticsSink> = createLocalAnalyticsSink({}), overrides: Partial<AnalyticsIngestRouteDeps> = {}): { app: express.Express; sink: ReturnType<typeof createLocalAnalyticsSink> } {
   const base = createRouteDeps();
-  const deps: IngestHitDeps = {
+  const deps: AnalyticsIngestRouteDeps = {
     clock: base.clock,
     ids: base.idGen,
     sink,
@@ -113,7 +113,7 @@ test("analytics-ingest: disabled analytics and configured path/IP exclusions sti
 });
 
 test("analytics-ingest: beforeIngest can transform or drop the normalized hit while the route keeps 204", async (t) => {
-  let transformed: ReturnType<LocalBufferSink["all"]>[number] | undefined;
+  let transformed: ReturnType<ReturnType<typeof createLocalAnalyticsSink>["all"]>[number] | undefined;
   const { app, sink } = buildApp(undefined, {
     hooks: { beforeIngest: async (hit) => {
       assert.equal(hit.path, "/original");
@@ -331,8 +331,8 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
   // req.hostname ?? "")`.
   let resolvedHost: string | undefined;
   const base = createRouteDeps();
-  const sink = new LocalBufferSink();
-  const deps: IngestHitDeps = {
+  const sink = createLocalAnalyticsSink({});
+  const deps: AnalyticsIngestRouteDeps = {
     clock: base.clock,
     ids: base.idGen,
     sink,
@@ -412,7 +412,7 @@ test("analytics-ingest: `parseBeacon`'s `(body ?? {})` fallback, forced via a di
 });
 
 test("analytics-ingest: a sink failure is swallowed — still 204s, never leaks the error to the caller", async (t) => {
-  const sink = new LocalBufferSink();
+  const sink = createLocalAnalyticsSink({});
   sink.accept = async () => {
     throw new Error("sink boom");
   };

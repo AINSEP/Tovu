@@ -1,7 +1,8 @@
 import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { ingestHit, type IngestHitDeps } from "#src/features/analytics/ingest";
+import { ingestHit } from "@jini-ai/analytics";
+import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import type { IngestBeacon, IngestContext } from "#src/features/analytics/index";
 
 /**
@@ -14,7 +15,8 @@ import type { IngestBeacon, IngestContext } from "#src/features/analytics/index"
  * (ADR-035 §5 — the beacon must work for anonymous visitors).
  *
  * How it relates to the project:
- * - Delegates all normalization/policy logic to `ingestHit` (`src/features/analytics/ingest.ts`); this file
+ * - Delegates normalization/policy logic to @jini-ai/analytics. The former ingest.ts fork is
+ *   deleted (DELETED-CODE.md); this file
  *   owns only the HTTP boundary: parsing the untrusted request body into an `IngestBeacon`, and
  *   pulling `ip`/`userAgent`/`acceptLanguage` off the request into an `IngestContext`.
  * - The response is ALWAYS `204 No Content`, regardless of `ingestHit`'s `{ accepted, reason }`
@@ -81,19 +83,19 @@ function buildContext(req: Request, receivedAt: string): IngestContext {
 }
 
 /**
- * Registers the public analytics beacon route. Deps mirror `IngestHitDeps` exactly (the same
- * dependency shape `ingestHit` already declares) rather than the admin `RouteDeps` shape — this is
- * a site route wired up separately in the composition root (see handoff notes for the exact
- * `createApp()` wiring, since `app.ts` is out of this task's scope to edit directly).
+ * Registers the public analytics beacon route with host clock, configuration and sink ports.
+ * The binding adapter supplies Jini's required policy/salt context and converts port/hook arguments.
+ * createApp wires this public route separately from admin RouteDeps.
  */
-export function registerAnalyticsIngestRoute(app: Express, deps: IngestHitDeps): void {
+export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngestRouteDeps): void {
   app.post("/_analytics/e", async (req, res) => {
     const receivedAt = new Date(deps.clock.nowMs()).toISOString();
     const beacon = parseBeacon(req.body, req.hostname ?? "");
     const context = buildContext(req, receivedAt);
 
     try {
-      await ingestHit({ input: { beacon, context }, deps });
+      const binding = createAnalyticsIngestBinding({ deps });
+      await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
     } catch {
       // Never let an ingest-side failure surface to the public beacon caller — see file header.
     }

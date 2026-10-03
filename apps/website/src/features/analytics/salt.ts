@@ -2,7 +2,7 @@
  * @file Daily salt derivation for the Tovu `analytics` ingest seam (ADR-035 Round-3 fold item 2).
  *
  * Purpose:
- * Derives the per-workspace, per-day salt folded into `visitorHash` (see `ingest.ts`). The salt
+ * Derives the per-workspace, per-day salt folded into `visitorHash` (see `@jini-ai/analytics`). The salt
  * is NEVER persisted — every call re-derives it on demand from a root key seed, so a copied or
  * backed-up `content.db` alone cannot reconstruct it (closing the dictionary-attack risk the
  * Round-3 audit fold names).
@@ -21,23 +21,13 @@
  * fixed (today's `KeyringPort.deriveSigningSecret` shape is webhook-specific and out of scope for
  * this ingest-only slice to redesign).
  */
-import { hkdfSync } from "node:crypto";
-
-/**
- * Fixed, non-secret HKDF extraction salt (RFC 5869 "salt" parameter — distinct from the derived
- * "daily salt" this module produces). Uniqueness comes from `rootKeySeed` (secret) and the `info`
- * string (workspace + date), not from this constant; it only pins the extraction step so the
- * derivation is reproducible byte-for-byte across processes.
- */
-const HKDF_EXTRACTION_SALT = Buffer.from("tovu-analytics-daily-salt-hkdf-v1", "utf8");
-
-/** Output length, in bytes, of the derived daily salt. */
-const DAILY_SALT_LENGTH_BYTES = 32;
+import { deriveDailySalt as deriveJiniDailySalt } from "@jini-ai/analytics";
+import { analyticsSaltContext } from "./jini-adapters.js";
 
 /**
  * Derives the daily-rotating, per-workspace analytics salt used to compute `visitorHash`.
  *
- * Mechanism: `HKDF-SHA256(rootKeySeed, salt=HKDF_EXTRACTION_SALT, info="analytics-salt:<workspaceId>:<utcDate>", 32)`
+ * Mechanism: `HKDF-SHA256(rootKeySeed, salt=analyticsSaltContext.extractionSalt, info="analytics-salt:<workspaceId>:<utcDate>", 32)`
  * via Node's built-in `crypto.hkdfSync`. HKDF (not a plain HMAC) is used because this is a true
  * key-derivation step — expanding one long-lived root secret into many independent, fixed-length,
  * context-bound subkeys (one per workspace/day) is exactly HKDF's designed job (RFC 5869), and
@@ -66,21 +56,6 @@ export function deriveDailySalt(
   required: { rootKeySeed: string; workspaceId: string; utcDate: string },
   _optional: Record<string, never> = {}
 ): Buffer {
-  const { rootKeySeed, workspaceId, utcDate } = required;
-  if (!workspaceId) {
-    throw new RangeError("deriveDailySalt: workspaceId must not be empty");
-  }
-  if (!utcDate) {
-    throw new RangeError("deriveDailySalt: utcDate must not be empty");
-  }
-
-  const info = `analytics-salt:${workspaceId}:${utcDate}`;
-  const derived = hkdfSync(
-    "sha256",
-    rootKeySeed,
-    HKDF_EXTRACTION_SALT,
-    info,
-    DAILY_SALT_LENGTH_BYTES
-  );
-  return Buffer.from(derived);
+  // The host pins the derivation bytes; the package owns HKDF and scope validation.
+  return deriveJiniDailySalt({ ...required, saltContext: analyticsSaltContext });
 }

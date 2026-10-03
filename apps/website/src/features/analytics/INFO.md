@@ -5,18 +5,22 @@ beacon-facing normalization path, the PII-death-at-the-sink-boundary guarantee, 
 custody. **Storage, rollup, dashboards, goals, and export are a separate, later concern** (ADR-035
 Round-2 fold) and are NOT implemented in this module yet.
 
+The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jini-ai/analytics`
+(see `development/DELETED-CODE.md`). Tovu owns its privacy/HKDF presets and port converters in
+`jini-adapters.ts`; the Jini package owns normalization, policy enforcement and the local buffer.
+
 ## Responsibilities
 
 - Derive the daily-rotating, per-workspace analytics salt on demand, never persisting it (`salt.ts`).
 - Normalize raw per-request signals (IP, User-Agent) into a salted `visitorHash` plus coarse
   device/browser/os classes, and discard the raw inputs at that boundary — they never reach any
-  returned object (`ingest.ts#normalizeIngestContext`).
-- Validate bounded custom event properties and reject PII-shaped values (`ingest.ts#validateEventProps`,
+  returned object (`@jini-ai/analytics#normalizeIngestContext`).
+- Validate bounded custom event properties and reject PII-shaped values (`@jini-ai/analytics#validateEventProps`,
   `AnalyticsPiiRejectedError`).
 - Compose workspace resolution, DNT/GPC/exclusion policy checks, PII rejection, and sink hand-off
-  into a single ingest entry point (`ingest.ts#ingestHit`).
-- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`repo.memory.ts#LocalBufferSink`)
-  and a durable SQLite adapter for real composition (`infra/sqlite/analytics-sink.sqlite.ts#SqliteBufferSink`,
+  into a single ingest entry point (`@jini-ai/analytics#ingestHit`).
+- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`jini-adapters.ts#createLocalAnalyticsSink`, backed by `@jini-ai/analytics#LocalBufferSink`)
+  and a durable SQLite adapter for real composition (`platform/db/sqlite/analytics-sink.sqlite.ts#SqliteBufferSink`,
   ADR-046 Phase 1, final capability slice — the raw hit buffer now survives a restart).
 
 ## Rules
@@ -40,11 +44,11 @@ Round-2 fold) and are NOT implemented in this module yet.
   `salt.ts#deriveDailySalt` therefore takes a raw `rootKeySeed` string instead of calling
   `KeyringPort` — see the `TODO` in that file. Rewire once a corrected, generic
   `KeyringPort.derive()` ships.
-- **Session-id v1 simplification.** `ingest.ts#deriveSessionId` buckets by a fixed 30-minute
+- **Session-id v1 simplification.** The Jini engine buckets by a fixed 30-minute
   same-day window; true cross-window session stitching belongs to the later rollup/session-table
   logic, not this ingest-only slice.
 - **UTM extraction fallback.** `IngestBeacon.path` is documented as already query-stripped upstream
-  (UTMs "extracted server-side"); `ingest.ts#extractUtm` is a defensive fallback in case a query
+  (UTMs "extracted server-side"); Jini ingestion is a defensive fallback in case a query
   string is still present, not the primary extraction point.
 
 ## Future direction

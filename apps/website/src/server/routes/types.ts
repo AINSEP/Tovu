@@ -1114,7 +1114,7 @@ export interface ObservabilityDeps {
  */
 export interface AnalyticsDeps {
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
-   * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
+   * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (Jini LocalBufferSink via the host adapter; local fork deleted, DELETED-CODE.md). */
   analyticsSink: AnalyticsSinkPort;
   /**
    * The public analytics beacon's config seam (`analytics/config.settings.ts`'s

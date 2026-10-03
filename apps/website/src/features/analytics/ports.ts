@@ -3,13 +3,14 @@
  *
  * Purpose:
  * Declares the dependency-inversion seams the analytics design introduces. INTERFACES ONLY —
- * no adapters, no feature logic. Adapters live in `repo.memory.ts` / `repo.sqlite.ts` and a
+ * no adapters, no feature logic. The old `repo.memory.ts` fork is deleted: Jini owns the buffer (DELETED-CODE.md). Adapters use
+ * `jini-adapters.ts` / the storage-layer analytics sink and a
  * `sink.local.ts` / `sink.forwarding.ts` split (built later), following the feature-module
  * pattern used by `src/features/*`.
  *
  * Port decisions (ADR-006 rule-of-two — a port needs two plausible adapters, one built now):
  * - `AnalyticsSinkPort` (WRITE seam): the ingest beacon hands each normalized, PII-free hit to
- *   this port. Adapters: `LocalBufferSink` (writes the raw buffer + schedules rollup) built now
+ *   this port. Adapters: `@jini-ai/analytics` LocalBufferSink (writes only the process-local raw buffer) built now
  *   / `ForwardingSink` (normalizes + forwards to an external collector via `HttpClientPort`)
  *   named-next. This is the seam that makes "bring your own external analytics" (the Tier-3
  *   replaceability the §3.5 placement rule wants) real without a repaint — the honest analogue

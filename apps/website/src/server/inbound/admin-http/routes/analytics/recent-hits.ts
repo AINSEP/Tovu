@@ -1,3 +1,4 @@
+// Deleted analytics/repo.memory.ts fork: Jini owns LocalBufferSink via the host adapter (DELETED-CODE.md).
 import type { Express } from "express";
 
 import type { AnalyticsSinkPort } from "#src/features/analytics/index";
