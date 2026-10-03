@@ -109,7 +109,7 @@ async function loginBarePrincipal(deps: ReturnType<typeof createRouteDeps>, base
     principalId,
     workspaceId: deps.workspaceId,
     username: "bare-apikeys",
-    passwordHash: await deps.passwordHasher.hash("bare-p4ssw0rd!"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-p4ssw0rd!" }),
   });
   const { cookie } = await loginAs(baseUrl, "bare-apikeys", "bare-p4ssw0rd!");
   return cookie;
@@ -479,7 +479,7 @@ test("INV-07: an issuer cannot snapshot a permission it does not hold unconstrai
     principalId: issuerPrincipalId,
     workspaceId: WORKSPACE,
     username: "clamped-issuer",
-    passwordHash: await deps.passwordHasher.hash("clamped-p4ssw0rd!"),
+    passwordHash: await deps.passwordHasher.hash({ password: "clamped-p4ssw0rd!" }),
   });
   const narrowPolicyId = "clamped-issuer-policy";
   await deps.policyRepo.save({

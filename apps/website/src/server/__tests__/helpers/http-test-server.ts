@@ -99,7 +99,7 @@ export async function loginAsBarePrincipal(
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash(password),
+    passwordHash: await deps.passwordHasher.hash({ password }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {

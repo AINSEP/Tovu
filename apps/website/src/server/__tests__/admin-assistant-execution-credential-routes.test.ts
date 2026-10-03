@@ -87,7 +87,7 @@ async function loginAsSecondAdmin(deps: RouteDeps, baseUrl: string): Promise<{ c
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("second-admin-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "second-admin-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {

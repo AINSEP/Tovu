@@ -31,7 +31,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-migrate-forward",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
@@ -77,7 +77,7 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {

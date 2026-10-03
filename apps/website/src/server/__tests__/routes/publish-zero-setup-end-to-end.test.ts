@@ -392,7 +392,7 @@ test("forms and the active theme publish through a publishing grant", async () =
       updatedAt: now,
       version: 1,
     });
-    const presentation = await s.sourceDeps.presentationRepo.findByWorkspaceId(workspaceId);
+    const presentation = await s.sourceDeps.presentationRepo.findByWorkspaceId({ workspaceId });
     assert.ok(presentation);
     assert.notEqual(presentation.activeThemeId, "tailark-dusk");
     await s.sourceDeps.presentationRepo.save({ ...presentation, activeThemeId: "tailark-dusk", updatedAt: now });
@@ -406,7 +406,7 @@ test("forms and the active theme publish through a publishing grant", async () =
       slug: "contact-written-here",
     });
     assert.equal(form?.name, "Contact", "the form must land on the destination");
-    const landed = await s.destinationDeps.presentationRepo.findByWorkspaceId(s.destinationDeps.workspaceId);
+    const landed = await s.destinationDeps.presentationRepo.findByWorkspaceId({ workspaceId: s.destinationDeps.workspaceId });
     assert.equal(landed?.activeThemeId, "tailark-dusk", "the active theme must switch on the destination");
   } finally {
     await s.teardown();

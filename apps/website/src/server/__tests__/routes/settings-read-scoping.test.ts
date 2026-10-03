@@ -197,7 +197,7 @@ async function loginWithPermissions(
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({
     id: policyId,

@@ -60,7 +60,7 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {

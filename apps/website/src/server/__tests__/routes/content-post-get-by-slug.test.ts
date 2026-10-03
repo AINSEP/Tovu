@@ -88,7 +88,7 @@ test("GET content post by slug: a published post is served with presentation set
   const post = makePost({ id: "p-published", slug: "public-hello", title: "Public Hello", status: "published",
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Public article body" }] }] } });
   await deps.postRepo.save(post);
-  const presentation = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+  const presentation = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
   assert.ok(presentation);
   await deps.presentationRepo.save({ ...presentation, activeThemeId: "tovu-theme" });
 

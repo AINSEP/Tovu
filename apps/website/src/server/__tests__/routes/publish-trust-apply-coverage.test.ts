@@ -161,7 +161,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
     } as never);
   },
   "active-theme": async (s) => {
-    const current = await s.presentationRepo.findByWorkspaceId(s.workspaceId);
+    const current = await s.presentationRepo.findByWorkspaceId({ workspaceId: s.workspaceId });
     await s.presentationRepo.save({ ...current!, activeThemeId: "storefront", updatedAt: at });
   },
 };

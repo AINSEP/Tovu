@@ -34,7 +34,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, permission
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-assistant-daemon-restart",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const policyId = "restart-policy";

@@ -46,7 +46,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-comments-e2e",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {

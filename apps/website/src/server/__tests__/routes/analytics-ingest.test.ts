@@ -42,7 +42,7 @@ function makeConfigPort(config: AnalyticsSiteConfig): AnalyticsConfigPort {
   return { async get() { return config; } };
 }
 
-const clock: ClockPort = { nowIso: () => "2026-07-10T12:00:00.000Z" };
+const clock: ClockPort = { nowMs: () => Date.parse("2026-07-10T12:00:00.000Z") };
 const ids: IdGeneratorPort = { newId: () => "id-1" as UUID };
 
 async function startTestApp(deps: IngestHitDeps) {

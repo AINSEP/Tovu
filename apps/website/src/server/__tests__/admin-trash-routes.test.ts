@@ -247,7 +247,7 @@ async function loginWithPermissions(
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({
     id: policyId,
@@ -410,7 +410,7 @@ test("list: resolves the deleting principal to a username, and falls back to a r
     principalId: deleterPrincipalId,
     workspaceId: h.deps.workspaceId,
     username: "row-deleter",
-    passwordHash: await h.deps.passwordHasher.hash("irrelevant-pw"),
+    passwordHash: await h.deps.passwordHasher.hash({ password: "irrelevant-pw" }),
   });
 
   seedRedirect(h.client, h.deps.workspaceId, "redirect-known");

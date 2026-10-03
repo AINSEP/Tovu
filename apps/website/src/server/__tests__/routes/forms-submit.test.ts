@@ -40,7 +40,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
 async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo } = {}) {
   const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
   const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
 
@@ -161,7 +161,7 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
   assert.equal(body.status, "accepted");
   assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
   assert.equal(delivered, 0);
-  assert.deepEqual(await outbox.claimPending(20, NOW), []);
+  assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: NOW }), []);
 
   // The bot must not consume any of this IP/form's five real-submission allowances.
   for (let i = 0; i < 5; i++) {

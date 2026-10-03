@@ -68,7 +68,7 @@ async function loginWithPermissions(
     principalId,
     workspaceId: WORKSPACE,
     username: args.username,
-    passwordHash: await deps.passwordHasher.hash("p4ssw0rd-not-secret!"),
+    passwordHash: await deps.passwordHasher.hash({ password: "p4ssw0rd-not-secret!" }),
   });
   if (args.permissions.length > 0) {
     const policyId = `${args.username}-policy`;

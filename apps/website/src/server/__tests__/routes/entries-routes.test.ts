@@ -794,7 +794,7 @@ test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) wi
  *  outbox's private storage — the same surface `processOutbox` itself uses to drain the queue. */
 async function countPendingEntryEvents(deps: RouteDeps, entryId: string, eventName: string): Promise<number> {
   const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  const claimed = await deps.outbox.claimPending(1000, farFuture);
+  const claimed = await deps.outbox.claimPending({ batchSize: 1000, nowIso: farFuture });
   return claimed.filter((row) => row.event.name === eventName && (row.event.payload as { entryId?: string }).entryId === entryId).length;
 }
 

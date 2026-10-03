@@ -62,7 +62,7 @@ function item(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItemRecord
 test("change-sets list + get: a workspace id that is not this site's is 404 on both routes", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  await deps.changeSets.insert(changeSet(), [item()]);
+  await deps.changeSets.insert({ record: changeSet(), items: [item()] });
 
   for (const path of ["/change-sets", "/change-sets/cs-get-1"]) {
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-this-site${path}`, { headers: { cookie } });
@@ -83,10 +83,10 @@ test("change-sets get: an unknown change set id is 404 CHANGE_SET_NOT_FOUND", as
 test("change-sets get: returns the header and every item as DTOs — revertible is derived and the inverse payload is never sent", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  await deps.changeSets.insert(changeSet({ actorId: "principal-7", intentRef: "intent-9" }), [
+  await deps.changeSets.insert({ record: changeSet({ actorId: "principal-7", intentRef: "intent-9" }), items: [
     item(),
     item({ id: "csi-2", entityId: "entity-2", operation: "create", inversePayload: undefined, entityVersionAtApply: undefined, position: 1 }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-get-1`, { headers: { cookie } });
   const raw = await res.text();
@@ -129,8 +129,8 @@ test("change-sets get: returns the header and every item as DTOs — revertible 
 test("change-sets list: returns this workspace's headers only, with no items attached", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  await deps.changeSets.insert(changeSet(), [item()]);
-  await deps.changeSets.insert(changeSet({ id: "cs-other-ws", workspaceId: "some-other-workspace" }), []);
+  await deps.changeSets.insert({ record: changeSet(), items: [item()] });
+  await deps.changeSets.insert({ record: changeSet({ id: "cs-other-ws", workspaceId: "some-other-workspace" }), items: [] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets`, { headers: { cookie } });
   assert.equal(res.status, 200);

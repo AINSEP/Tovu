@@ -441,6 +441,7 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({
       id: "delivery-mid",
+      eventId: "event-mid",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T01:00:00.000Z",
       status: "delivered",
@@ -449,6 +450,7 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({
       id: "delivery-newest",
+      eventId: "event-newest",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T03:00:00.000Z",
       status: "failed",
@@ -458,6 +460,7 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({
       id: "delivery-oldest",
+      eventId: "event-oldest",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T00:00:00.000Z",
       status: "delivered",
@@ -488,11 +491,12 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
   const { subscription } = (await created.json()) as { subscription: { id: string } };
 
   await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({ id: "d-1", subscriptionId: subscription.id, createdAt: "2026-07-10T00:00:00.000Z" })
+    makeDelivery({ id: "d-1", eventId: "event-d-1", subscriptionId: subscription.id, createdAt: "2026-07-10T00:00:00.000Z" })
   );
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({
       id: "d-2",
+      eventId: "event-d-2",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T02:00:00.000Z",
       status: "failed",
@@ -544,7 +548,7 @@ async function loginAsBarePrincipal(
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-integrations",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {

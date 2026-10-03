@@ -70,7 +70,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string) {
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-media",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
@@ -112,7 +112,7 @@ async function loginWithPermissions(
     principalId,
     workspaceId: deps.workspaceId,
     username,
-    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({
     id: policyId,

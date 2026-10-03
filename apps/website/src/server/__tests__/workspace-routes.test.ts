@@ -95,8 +95,10 @@ test("AC-03: GET /api/admin/v1/workspaces returns exactly the caller's own works
     body: JSON.stringify({ name: "Foreign Site", slug: "foreign-site" }),
   });
   assert.equal(foreign.status, 201);
-  const foreignBody = (await foreign.json()) as { workspace: { id: string } };
-  assert.notEqual(foreignBody.workspace.id, deps.workspaceId);
+  // The create route answers `{ id }` (create.ts), unlike GET/PATCH which wrap `{ workspace }`.
+  const foreignBody = (await foreign.json()) as { id: string };
+  assert.ok(foreignBody.id, "create returns the new workspace id");
+  assert.notEqual(foreignBody.id, deps.workspaceId);
   const listed = await fetch(`${baseUrl}/api/admin/v1/workspaces`, { headers: { cookie } });
   assert.equal(listed.status, 200);
   const body = (await listed.json()) as { workspaces: Array<{ id: string }> };
@@ -122,7 +124,7 @@ test("AC-03: GET /api/admin/v1/workspaces returns exactly the caller's own works
     principalId: "ws-viewer-1",
     workspaceId: deps.workspaceId,
     username: "wsviewer",
-    passwordHash: await deps.passwordHasher.hash("viewer-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "viewer-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-ws-viewer-1",
@@ -253,7 +255,7 @@ test("AC-06b: unauthenticated DELETE is 401, and a caller without workspace.mana
     principalId: "ws-viewer-del",
     workspaceId: deps.workspaceId,
     username: "wsviewerdel",
-    passwordHash: await deps.passwordHasher.hash("viewer-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "viewer-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-ws-viewer-del",

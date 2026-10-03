@@ -100,7 +100,7 @@ test("AC-03/AC-04: a viewer principal is denied content.write with a typed 403, 
     principalId: viewerPrincipalId,
     workspaceId: deps.workspaceId,
     username: "viewer1",
-    passwordHash: await deps.passwordHasher.hash("viewer-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "viewer-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-viewer-1",
@@ -160,7 +160,7 @@ test("delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a 
     principalId: "viewer-principal-2",
     workspaceId: deps.workspaceId,
     username: "viewer2",
-    passwordHash: await deps.passwordHasher.hash("viewer2-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "viewer2-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-viewer-2",
@@ -181,7 +181,7 @@ test("delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a 
     principalId: "admin-role-principal-1",
     workspaceId: deps.workspaceId,
     username: "admin-role-1",
-    passwordHash: await deps.passwordHasher.hash("admin-role-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "admin-role-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-admin-role-1",
@@ -226,7 +226,7 @@ test("AC-05/EC-02: disabling a principal mid-session invalidates its existing se
     principalId: editorPrincipalId,
     workspaceId: deps.workspaceId,
     username: "editor1",
-    passwordHash: await deps.passwordHasher.hash("editor-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "editor-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-editor-1",
@@ -278,7 +278,7 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
     principalId: editorPrincipalId,
     workspaceId: deps.workspaceId,
     username: "editor2",
-    passwordHash: await deps.passwordHasher.hash("editor2-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "editor2-pw" }),
   });
   await deps.principalRoleRepo.save({
     id: "pr-editor-2",

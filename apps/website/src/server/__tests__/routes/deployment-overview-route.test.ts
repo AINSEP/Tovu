@@ -32,7 +32,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-deployment-overview",
-    passwordHash: await deps.passwordHasher.hash("bare-pw"),
+    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
   });
 
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
@@ -178,7 +178,7 @@ test("deployment-overview: an owner whose stored password is no longer the defau
     const ownerPrincipalId = await deps.ownerPrincipalId;
     const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: ownerPrincipalId });
     assert.ok(owner);
-    await deps.userRepo.save({ ...owner, passwordHash: await deps.passwordHasher.hash("changed-in-the-admin-ui") });
+    await deps.userRepo.save({ ...owner, passwordHash: await deps.passwordHasher.hash({ password: "changed-in-the-admin-ui" }) });
   });
   assert.equal(body.defaultOwnerPasswordUnsafe, false);
 });

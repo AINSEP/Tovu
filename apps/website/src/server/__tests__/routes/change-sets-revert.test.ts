@@ -89,7 +89,7 @@ function seededItem(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItem
 test("change-sets revert: a workspace id that is not this site's is 404", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  await deps.changeSets.insert(seededChangeSet(), [seededItem()]);
+  await deps.changeSets.insert({ record: seededChangeSet(), items: [seededItem()] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-this-site/change-sets/cs-1/revert`, {
     method: "POST",
@@ -122,9 +122,9 @@ test("change-sets revert: a change set that is not 'applied' is 409 CHANGE_SET_I
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   let inverseCalls = 0;
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { inverseCalls += 1; } }));
-  await deps.changeSets.insert(seededChangeSet({ id: "cs-proposed", status: "proposed" }), [
+  await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-proposed", status: "proposed" }), items: [
     seededItem({ changeSetId: "cs-proposed" }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-proposed/revert`, {
     method: "POST",
@@ -143,9 +143,9 @@ test("change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT",
   deps.revertRegistry = createRevertRegistry();
   let inverseCalls = 0;
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, onApplyInverse: () => { inverseCalls += 1; } }));
-  await deps.changeSets.insert(seededChangeSet({ id: "cs-conflict" }), [
+  await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-conflict" }), items: [
     seededItem({ changeSetId: "cs-conflict", entityVersionAtApply: 3 }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-conflict/revert`, {
     method: "POST",
@@ -162,9 +162,9 @@ test("change-sets revert: an item with no registered reverter is 422 REVERT_NOT_
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   deps.revertRegistry = createRevertRegistry(); // nothing registered
-  await deps.changeSets.insert(seededChangeSet({ id: "cs-unrevertible" }), [
+  await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-unrevertible" }), items: [
     seededItem({ changeSetId: "cs-unrevertible" }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-unrevertible/revert`, {
     method: "POST",
@@ -182,10 +182,10 @@ test("change-sets revert: an unrevertible later item prevents even an eligible i
   let inverseCalls = 0;
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { inverseCalls += 1; } }));
   const changeSet = seededChangeSet({ id: "cs-mixed" });
-  await deps.changeSets.insert(changeSet, [
+  await deps.changeSets.insert({ record: changeSet, items: [
     seededItem({ id: "eligible", changeSetId: changeSet.id, position: 1 }),
     seededItem({ id: "unregistered", changeSetId: changeSet.id, entityType: "unregistered-type", position: 0 }),
-  ]);
+  ] });
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/${changeSet.id}/revert`, { method: "POST", headers: { cookie } });
   assert.equal(res.status, 422);
   assert.equal((await res.json()).code, "REVERT_NOT_POSSIBLE");
@@ -306,9 +306,9 @@ test("change-sets revert: force:true past a real conflict reverts the entity thr
       entity.version += 1;
     } })
   );
-  await deps.changeSets.insert(seededChangeSet({ id: "cs-force" }), [
+  await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-force" }), items: [
     seededItem({ changeSetId: "cs-force", entityVersionAtApply: 3 }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-force/revert`, {
     method: "POST",
@@ -334,9 +334,9 @@ test("change-sets revert: without force, a real conflict names the newer version
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   deps.revertRegistry = createRevertRegistry();
   deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: "principal-77" }));
-  await deps.changeSets.insert(seededChangeSet({ id: "cs-actor" }), [
+  await deps.changeSets.insert({ record: seededChangeSet({ id: "cs-actor" }), items: [
     seededItem({ changeSetId: "cs-actor", entityVersionAtApply: 3 }),
-  ]);
+  ] });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-actor/revert`, {
     method: "POST",
