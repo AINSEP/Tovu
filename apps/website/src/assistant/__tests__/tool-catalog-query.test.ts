@@ -23,47 +23,47 @@ function fakeRegistry() {
 
 test("search finds a tool by an id-term match", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("form").map((hit) => hit.id);
+  const hits = catalog.search({ query: "form" }).map((hit) => hit.id);
   assert.deepEqual(hits.sort(), ["forms_create_definition", "forms_update_definition"]);
 });
 
 test("search ranks a tool matching more query terms above one matching fewer", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("form create");
+  const hits = catalog.search({ query: "form create" });
   assert.equal(hits[0]?.id, "forms_create_definition", "the tool matching both terms must rank first");
 });
 
 test("search returns an empty array, not an error, for no matches", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  assert.deepEqual(catalog.search("nonexistent-keyword-xyz"), []);
+  assert.deepEqual(catalog.search({ query: "nonexistent-keyword-xyz" }), []);
 });
 
 test("search respects the limit parameter", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  assert.ok(catalog.search("a", 1).length <= 1);
-  const all = catalog.search("form create");
+  assert.ok(catalog.search({ query: "a" }, { limit: 1 }).length <= 1);
+  const all = catalog.search({ query: "form create" });
   assert.deepEqual(all.map((hit) => hit.id).sort(), ["forms_create_definition", "forms_update_definition", "identity_user_create"]);
-  const limited = catalog.search("form create", 1);
+  const limited = catalog.search({ query: "form create" }, { limit: 1 });
   assert.equal(limited.length, 1);
   assert.equal(limited[0].id, "forms_create_definition");
 });
 
 test("search derives 'source' from the id's domain prefix", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hit = catalog.search("identity")[0];
+  const hit = catalog.search({ query: "identity" })[0];
   assert.equal(hit?.source, "identity");
 });
 
 test("every hit carries a positive score", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("form create user");
+  const hits = catalog.search({ query: "form create user" });
   assert.ok(hits.length > 0);
   for (const hit of hits) assert.ok(hit.score > 0);
 });
 
 test("describe returns the full entry including inputSchema for a known id", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const entry = catalog.describe("forms_create_definition");
+  const entry = catalog.describe({ id: "forms_create_definition" });
   assert.ok(entry);
   assert.equal(entry.id, "forms_create_definition");
   assert.deepEqual(entry.inputSchema, { type: "object" });
@@ -72,12 +72,12 @@ test("describe returns the full entry including inputSchema for a known id", () 
 
 test("describe returns null, not throws, for an unknown id", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  assert.equal(catalog.describe("nonexistent_tool"), null);
+  assert.equal(catalog.describe({ id: "nonexistent_tool" }), null);
 });
 
 test("describe omits inputSchema for a descriptor that declared none", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const entry = catalog.describe("identity_user_create");
+  const entry = catalog.describe({ id: "identity_user_create" });
   assert.ok(entry);
   assert.equal("inputSchema" in entry, false);
   assert.equal(entry.description, "Creates a new human operator user.");
@@ -85,8 +85,8 @@ test("describe omits inputSchema for a descriptor that declared none", () => {
 
 test("an empty registry seeds an empty, non-throwing catalog", () => {
   const catalog = buildToolCatalogQuery({ list: () => [] });
-  assert.deepEqual(catalog.search("anything"), []);
-  assert.equal(catalog.describe("anything"), null);
+  assert.deepEqual(catalog.search({ query: "anything" }), []);
+  assert.equal(catalog.describe({ id: "anything" }), null);
 });
 
 /**
@@ -100,7 +100,7 @@ test("search vocabulary makes a tool findable by a word its authored description
   const catalog = buildToolCatalogQuery(fakeRegistry());
   // "invite" and "staff" appear nowhere in the authored description above.
   for (const term of ["invite", "staff", "account"]) {
-    const hits = catalog.search(term, 10).map((hit) => hit.id);
+    const hits = catalog.search({ query: term }, { limit: 10 }).map((hit) => hit.id);
     assert.ok(hits.includes("identity_user_create"), `expected identity_user_create to rank for "${term}"; got ${hits.join(", ") || "(none)"}`);
   }
 });
@@ -109,8 +109,8 @@ test("no caller ever sees the folded vocabulary — describe and search both ret
   const catalog = buildToolCatalogQuery(fakeRegistry());
   const authored = "Creates a new human operator user.";
 
-  assert.equal(catalog.describe("identity_user_create")?.description, authored, "describe must return authored text, not indexed text");
-  const hits = catalog.search("invite", 10);
+  assert.equal(catalog.describe({ id: "identity_user_create" })?.description, authored, "describe must return authored text, not indexed text");
+  const hits = catalog.search({ query: "invite" }, { limit: 10 });
   assert.ok(hits.some((hit) => hit.id === "identity_user_create"));
   for (const hit of hits) {
     assert.doesNotMatch(hit.description, /also known as:/, `${hit.id}'s search hit leaked its search vocabulary`);
@@ -127,13 +127,13 @@ test("a descriptor with no description at all seeds an empty string, both with a
 
   // "bare_tool_action" has no TOOL_SEARCH_KEYWORDS entry and no DOC2QUERY entry, so with folding on
   // there is nothing to fold either — both paths land on the same `?? ""` fallback.
-  assert.equal(withKeywords.describe("bare_tool_action")?.description, "");
-  assert.equal(withoutKeywords.describe("bare_tool_action")?.description, "");
+  assert.equal(withKeywords.describe({ id: "bare_tool_action" })?.description, "");
+  assert.equal(withoutKeywords.describe({ id: "bare_tool_action" })?.description, "");
 });
 
 test("an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'", () => {
   const catalog = buildToolCatalogQuery({ list: () => [{ id: "_orphan", description: "An id with no leading domain segment." }] });
-  const hit = catalog.search("orphan")[0];
+  const hit = catalog.search({ query: "orphan" })[0];
   assert.equal(hit?.source, "tovu");
 });
 
@@ -144,14 +144,14 @@ test("includeDoc2query: false is forwarded through to indexedDescriptionFor, omi
   // "password" appears only in one of identity_user_create's DOC2QUERY questions ("How do I make a
   // new user account with a username and password?") — never in its TOOL_SEARCH_KEYWORDS entry
   // ("add user account new person invite staff admin create") — so it isolates the doc2query fold.
-  const withHits = withQuestions.search("password", 10).map((hit) => hit.id);
+  const withHits = withQuestions.search({ query: "password" }, { limit: 10 }).map((hit) => hit.id);
   assert.ok(withHits.includes("identity_user_create"), "with doc2query included, a doc2query-only term must still find the tool");
 
-  const withoutHits = withoutQuestions.search("password", 10).map((hit) => hit.id);
+  const withoutHits = withoutQuestions.search({ query: "password" }, { limit: 10 }).map((hit) => hit.id);
   assert.equal(withoutHits.includes("identity_user_create"), false, "with doc2query excluded, that same term must no longer find it");
 
   // The keyword-vocabulary fold is unaffected either way.
-  assert.ok(withoutQuestions.search("invite", 10).map((hit) => hit.id).includes("identity_user_create"));
+  assert.ok(withoutQuestions.search({ query: "invite" }, { limit: 10 }).map((hit) => hit.id).includes("identity_user_create"));
 });
 
 test("a tool with no keyword entry is untouched, and the seam can disable folding entirely", () => {
@@ -159,9 +159,9 @@ test("a tool with no keyword entry is untouched, and the seam can disable foldin
   const without = buildToolCatalogQuery(fakeRegistry(), { includeSearchKeywords: false });
 
   // `forms_update_definition` has no entry in TOOL_SEARCH_KEYWORDS — identical either way.
-  assert.equal(withKeywords.describe("forms_update_definition")?.description, without.describe("forms_update_definition")?.description);
+  assert.equal(withKeywords.describe({ id: "forms_update_definition" })?.description, without.describe({ id: "forms_update_definition" })?.description);
 
   // And with folding off, the keyword-bearing tool is no longer findable by its vocabulary — which
   // is what proves the earlier assertions are measuring the fold rather than a coincidence.
-  assert.equal(without.search("invite", 10).length, 0);
+  assert.equal(without.search({ query: "invite" }, { limit: 10 }).length, 0);
 });
