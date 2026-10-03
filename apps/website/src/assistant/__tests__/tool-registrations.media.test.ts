@@ -37,7 +37,7 @@ import {
 
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
 
 const contributions = {
@@ -138,29 +138,15 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
 }
 
 /**
- * `media_trash_asset` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
- * 2026-09-08-delete-confirmation-build.md) rather than trashing synchronously — this helper raises
- * it and immediately confirms, standing in for the human's click, for tests (like most of this file's
- * own) that only need a trashed asset to exist and are not themselves certifying the confirmation
- * gate (that is `media/__tests__/agent-tools.trash-confirmation.test.ts`'s job). Mirrors
- * `widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts`'s identical
- * `trashInstance` helper.
+ * Trashes an asset through the real `media_trash_asset` tool, for tests (like most of this file's
+ * own) that only need a trashed asset to exist. It used to raise the 2026-09-08 confirmation dialog
+ * (ADS-memory/reports/2026-09-08-delete-confirmation-build.md) and immediately confirm it.
+ * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
+ * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
+ * one plain call, which is all this helper ever needed (it was never certifying the gate).
  */
 async function trashAsset(deps: RouteDeps, mediaId: string): Promise<unknown> {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = mediaRegistrations(deps, { surfaceExchanges }).get("media_trash_asset");
-  assert.ok(trashTool, "expected 'media_trash_asset' to be wired");
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({
-    ...executionContext({ mediaId }),
-    emitSurface: async (s) => void emitted.push(s),
-  });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "media_trash_asset", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending;
+  return wired("media_trash_asset", deps).handler(executionContext({ mediaId }));
 }
 
 /** Seeds an asset through the real upload tool, so tests operate on genuine domain output. */
@@ -490,18 +476,14 @@ test("every wired Media tool has a known input fixture and expected permission �
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
   test(`${toolId}: calls authorize() with the catalog's declared permission and the run's principal`, async (t) => {
-    // `media_trash_asset` now raises a confirmation dialog before writing (2026-09-08,
-    // ADS-memory/reports/2026-09-08-delete-confirmation-build.md) — its shim checks `media.delete`
-    // BEFORE opening the dialog (unlike widgets' read/write split), so `authorize()` genuinely would
-    // be called once here, but this generic loop calls the handler with no `emitSurface` at all, and
-    // the handler throws "no interactive confirmation channel" right after that check succeeds,
-    // failing this test for a reason unrelated to what it is pinning. The SAME authorization
-    // ordering (permission checked pre-dialog, denied principal never sees one) is certified
-    // directly by `media/__tests__/agent-tools.trash-confirmation.test.ts`, mirroring the exclusion
-    // `tool-registrations.post.test.ts`/`tool-registrations.widgets-authorization.test.ts` already
-    // carry for `content_post_delete`/`widgets_trash_instance`.
+    // `media_trash_asset` is excluded from this "exactly one evaluation" check. The original reason
+    // (2026-09-08: it raised a confirmation dialog and threw with no `emitSurface`) is gone since
+    // 6eac86229 (2026-10-01) removed that dialog. The reason that remains: Tovu's Trash shim
+    // (`features/media/tool-registrations.ts` `buildMediaTrashHandler`) checks `media.delete` and the
+    // package handler it wraps checks again ("Both permission checks ... remain"), so it evaluates
+    // twice by design. The denied-principal case below still covers it.
     if (toolId === "media_trash_asset") {
-      t.skip("confirmation-gated — see media/__tests__/agent-tools.trash-confirmation.test.ts");
+      t.skip("authorized twice by design (Trash shim + package handler) — see comment");
       return;
     }
 

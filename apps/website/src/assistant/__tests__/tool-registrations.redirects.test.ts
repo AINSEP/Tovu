@@ -19,8 +19,6 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "../../contracts/core/events/index.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
-import type { UIResource } from "../index.js";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../features/origin/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
@@ -127,26 +125,15 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
 }
 
 /**
- * `redirects_tombstone` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
- * 2026-09-08-delete-confirmation-build.md) rather than tombstoning synchronously. `wired()`/
- * `redirectsRegistrations()` above build a FRESH `buildAssistantToolRegistrations` (and so a fresh,
- * unshared `SurfaceExchangeStore`) on every call, which cannot answer a dialog raised by an earlier
- * call — this helper builds against ONE explicit store so the raise-then-confirm round trip lands on
- * the same exchange, standing in for the human's click in this workflow test (the confirmation gate
- * itself is certified by `redirects/__tests__/agent-tools.tombstone-confirmation.test.ts`).
+ * Tombstones a rule through the real `redirects_tombstone` tool for this workflow test. It used to
+ * raise the 2026-09-08 confirmation dialog (ADS-memory/reports/2026-09-08-delete-confirmation-build.md)
+ * against one explicit `SurfaceExchangeStore` and immediately confirm it.
+ * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
+ * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
+ * one plain call, which is all this helper ever needed (it was never certifying the gate).
  */
 async function tombstoneRule(deps: RouteDeps, id: string): Promise<{ rule: { status: string; version: number } }> {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "redirects_tombstone");
-  assert.ok(trashTool, "expected 'redirects_tombstone' to be wired");
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({ ...executionContext({ id }), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "redirects_tombstone", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending as Promise<{ rule: { status: string; version: number } }>;
+  return wired(deps, "redirects_tombstone").handler(executionContext({ id })) as Promise<{ rule: { status: string; version: number } }>;
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
