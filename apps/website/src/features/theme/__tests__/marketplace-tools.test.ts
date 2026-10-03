@@ -76,7 +76,7 @@ test("marketplace install copies real bytes, rescans and suffixes a repeat witho
   assert.equal(readFileSync(join(f.root, "static", "aurora-1", "pages", "index.html"), "utf8"), "<h1>Aurora fixture</h1>");
   assert.deepEqual(f.deps.themes.map((theme) => [theme.manifest.id, theme.status]), [["aurora", "valid"], ["aurora-1", "valid"], ["old-theme", "valid"]]);
   assert.equal(await resolveActiveThemeId(activeDeps), "old-theme");
-  assert.deepEqual(await presentationRepo.findByWorkspaceId("ws-t11"), {
+  assert.deepEqual(await presentationRepo.findByWorkspaceId({ workspaceId: "ws-t11" }), {
     workspaceId: "ws-t11", activeThemeId: "old-theme", updatedAt: "2026-10-01T00:00:00.000Z",
   });
   assert.deepEqual(f.calls, Array(2).fill({ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation", entityId: undefined }));
