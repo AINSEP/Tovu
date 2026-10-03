@@ -72,7 +72,10 @@ async function bootDaemonRoutes(): Promise<Harness> {
   app.use(express.json());
   app.use("/api/runs/:runId", requireRunOwnership(registry, lifecycle));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }));
-  const adapter: AdapterContext = { resolvedPortRef: { current: 0 } };
+  const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
+    // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
+    // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
+    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
   registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
@@ -172,11 +175,11 @@ test("a non-owner cannot cancel another principal's in-flight run, and the run k
   const runId = await startRun(harness, ALICE);
 
   const cancellations: unknown[] = [];
-  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
+  t.after(harness.lifecycle.onCancelRequested({ runId, listener: (request) => cancellations.push(request) }));
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(BOB) });
 
   assert.equal(res.status, 404);
-  assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+  assert.equal((await harness.lifecycle.get({ runId }))?.state, "running", "a refused cancel must have no side effect");
   assert.deepEqual(cancellations, [], "a refused cancel must not record cancellation intent");
 });
 
@@ -195,14 +198,14 @@ test("a run with no recorded owner is unreadable and uncancellable by every admi
   assert.equal(harness.registry.ownerOf(runId), undefined);
 
   const cancellations: unknown[] = [];
-  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
+  t.after(harness.lifecycle.onCancelRequested({ runId, listener: (request) => cancellations.push(request) }));
   const read = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asPrincipal(BOB) });
   const cancel = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(BOB) });
 
   assert.equal(read.status, 404);
   assert.deepEqual(await read.json(), { error: { code: "NOT_FOUND", message: `run "${runId}" was not found` } });
   assert.equal(cancel.status, 404);
-  assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+  assert.equal((await harness.lifecycle.get({ runId }))?.state, "running", "a refused cancel must have no side effect");
   assert.deepEqual(cancellations, [], "an ownerless run must receive no cancellation intent");
 });
 
@@ -220,7 +223,7 @@ test("the owner can cancel their own run", async (t) => {
   const otherRunId = await startRun(harness, ALICE, "another run");
   const cancelledRunIds: string[] = [];
   for (const id of [runId, otherRunId]) {
-    t.after(harness.lifecycle.onCancelRequested(id, () => cancelledRunIds.push(id)));
+    t.after(harness.lifecycle.onCancelRequested({ runId: id, listener: () => cancelledRunIds.push(id) }));
   }
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(ALICE) });
@@ -247,7 +250,7 @@ test("run-scoped routes fail closed when no principal is asserted", async (t) =>
   t.after(harness.close);
   const runId = await startRun(harness, ALICE);
   const cancellations: unknown[] = [];
-  t.after(harness.lifecycle.onCancelRequested(runId, (request) => cancellations.push(request)));
+  t.after(harness.lifecycle.onCancelRequested({ runId, listener: (request) => cancellations.push(request) }));
 
   const status = await fetch(`${harness.baseUrl}/api/runs/${runId}`);
   const events = await fetch(`${harness.baseUrl}/api/runs/${runId}/events`);
@@ -258,7 +261,7 @@ test("run-scoped routes fail closed when no principal is asserted", async (t) =>
     assert.equal(res.status, 401);
     assert.equal(((await res.json()) as { error: { code: string } }).error.code, "UNAUTHENTICATED");
   }
-  assert.equal((await harness.lifecycle.get(runId))?.state, "running", "the unauthenticated cancel must not have landed");
+  assert.equal((await harness.lifecycle.get({ runId }))?.state, "running", "the unauthenticated cancel must not have landed");
   assert.deepEqual(cancellations, [], "an unauthenticated cancel must receive no cancellation intent");
 });
 
@@ -288,7 +291,7 @@ test("the ?contextRef= filter still applies, and stays owner-scoped underneath i
   // Byte-identical contextRef, different principal — the filter alone would return both.
   const { run: bobRun } = await harness.lifecycle.start({ contextRef: contextRefFor(ALICE, "second") });
   harness.registry.record(bobRun.id, BOB);
-  assert.equal((await harness.lifecycle.get(bobRun.id))?.contextRef, (await harness.lifecycle.get(second))?.contextRef);
+  assert.equal((await harness.lifecycle.get({ runId: bobRun.id }))?.contextRef, (await harness.lifecycle.get({ runId: second }))?.contextRef);
 
   const res = await fetch(
     `${harness.baseUrl}/api/runs?contextRef=${encodeURIComponent(contextRefFor(ALICE, "second"))}`,

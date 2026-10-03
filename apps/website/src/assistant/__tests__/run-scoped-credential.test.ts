@@ -79,7 +79,10 @@ async function bootDaemon(): Promise<Harness> {
   app.use("/api/runs/:runId", requireRunOwnership(owners, lifecycle));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }));
   app.post("/api/federation/reload", (_req, res) => void res.json({ reloaded: true }));
-  const adapter: AdapterContext = { resolvedPortRef: { current: 0 } };
+  const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
+    // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
+    // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
+    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
   registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
