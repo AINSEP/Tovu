@@ -116,11 +116,19 @@ test("exactly the 5 safe menu-service.ts operations are wired — no invented de
   ]);
 });
 
+/** The exact sentence `@jini-ai/cms`'s menu catalog appends to point deletions at `trash_item`. */
+const MENU_DELETE_HINT = "To delete a menu, use trash_item with entityType 'menu' (it moves to the Trash and can be restored).";
+
 test("no wired menus tool is named or claims a delete/purge — deleteMenu conflates trash and purge with no decomposed trash-only entrypoint", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of menusRegistrations(deps)) {
     assert.equal(/delete|destroy|purge|drop|trash/i.test(id), false, `'${id}' must not be named for a delete/trash/purge`);
-    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
+    // `@jini-ai/cms` (070311a0) ends three menu tools with this exact pointer to a DIFFERENT tool,
+    // pinned by its own `navigation/__tests__/agent-tools.menu-delete-hint.test.ts`. It routes a
+    // delete request to `trash_item`; it is not a claim that this tool deletes anything. Only that
+    // exact sentence is set aside — any other delete/trash wording still fails below.
+    const withoutTrashPointer = registration.descriptor.description.replace(MENU_DELETE_HINT, "");
+    const claim = withoutTrashPointer.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
     assert.equal(/\b(delete|destroy|purge|drop|trash)(s|d|ing)?\b/i.test(claim), false, `'${id}' must not claim a delete/trash/purge capability`);
   }
 });
