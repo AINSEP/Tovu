@@ -73,7 +73,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       // inside the domain's field-name grammar guard. Shared with the agent-tool path so the two
       // boundaries cannot drift. Domain rules (grammar, kind enum, queryable cap) stay in
       // `write-service.ts`'s CIC U-002-B1 chain — see `field-defs.ts`'s header.
-      const fields = parseContentTypeFieldDefs(body.fields);
+      const fields = parseContentTypeFieldDefs({ value: body.fields });
       if (!fields.ok) {
         const { status, code } = statusFor(fields.error);
         res.status(status).json({ error: fields.error.message, code });

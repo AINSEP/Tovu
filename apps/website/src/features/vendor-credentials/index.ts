@@ -4,7 +4,7 @@
  * `deployments/publish-credentials/store.ts` (deploy hosts, validated against the deploy plugin's
  * descriptors); legacy publish rows are copied in at boot (`vendor-table-backfill.ts`).
  */
-export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "./types.js";
+export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
 
 export { buildVendorCredentialAad } from "./aad.js";
 

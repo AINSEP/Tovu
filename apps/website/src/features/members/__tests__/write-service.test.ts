@@ -9,7 +9,7 @@ import type {
   MailerSendResult,
   OutboundEmail,
 } from "#src/platform/mail/index";
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import {
   InMemoryMagicLinkTokenRepo,
@@ -106,7 +106,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
 function makeOriginRegistry(overrides: Partial<OriginRegistryPort> = {}): OriginRegistryPort {
   return {
     canonicalOrigin: async () => {
-      throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
     },
     isAllowedRedirectTarget: async () => false,
     isAllowedEgressTarget: async () => false,

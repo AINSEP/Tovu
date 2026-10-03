@@ -81,7 +81,7 @@ function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,
@@ -91,7 +91,7 @@ function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as RouteDeps;
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -133,16 +133,9 @@ async function openRealDialog(
   principalId: string,
 ): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: principalId },
-    { id: "run-1" },
-    "content_post_delete",
-    { id: "p1", kind: "post" },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: principalId }, run: { id: "run-1" }, toolId: "content_post_delete", input: { id: "p1", kind: "post" } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };

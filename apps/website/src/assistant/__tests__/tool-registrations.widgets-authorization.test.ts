@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file The ADR-021 §2 half of the Widgets tool wiring — the sibling of
  * `tool-registrations.widgets-contracts.test.ts`, and the Widgets counterpart of
@@ -23,21 +25,27 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
-import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeWidgetsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeWidgetsTools() });
 
 const WORKSPACE_ID = "ws-widgets-auth";
 const PRINCIPAL_ID = "principal-under-test";
@@ -54,7 +62,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined },
     entryRepo,
@@ -94,7 +102,7 @@ function widgetsWiredId(toolId: string): string {
 
 function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => WIDGETS_TOOL_IDS.has(r.descriptor.id) || Object.values(WIDGETS_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -132,11 +140,11 @@ async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string;
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory.js");
   const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
   await registerContentType({
-    deps: { repo: contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
+    deps: { repo: contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: "article", label: "Article", fields: [] },
   });
   const hostCreated = await createEntry({
-    deps: { entryRepo, contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => "entry-seed" }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo, contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => "entry-seed" }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, type: "article", slug: "host-seed", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [] } },
   });
   if (!hostCreated.ok) throw hostCreated.error;

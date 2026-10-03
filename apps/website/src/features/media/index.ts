@@ -117,10 +117,8 @@ export { SharpImageTransformer, ImageTransformUnavailableError, ImageSourceCorru
 
 export { sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
 
-export {
-  mediaAgentToolCatalog,
-  type MediaAgentToolDefinition as AgentToolDefinition,
-} from "@jini-ai/cms/media";
+export { mediaAgentToolCatalog } from "@jini-ai/cms/media";
+export type { AgentToolDefinition } from "@jini-ai/core";
 
 export type { MediaContentTypeStorePort } from "./content-type-store.js";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";

@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import { lintLiquidTemplate } from "#src/features/theme/index";
 import {
   buildTemplateRenderData,

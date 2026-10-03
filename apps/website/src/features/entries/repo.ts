@@ -104,9 +104,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
       );
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new EntrySlugConflictError(
-          `an entry with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
-        );
+        throw new EntrySlugConflictError({ message: `an entry with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
       }
       throw error;
     }
@@ -116,15 +114,12 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     await this.kernel.run((db) => db.insertInto("entry_revisions").values(toRevisionRow(revision)).execute());
   }
 
-  async listByWorkspace(params: {
-    workspaceId: string;
-    type?: string;
-    status?: EntryStatus;
-    orderBy?: "updatedAt";
-    orderDirection?: "asc" | "desc";
-    limit?: number;
-  }): Promise<EntryRecord[]> {
-    return this.listLive(params, params.type ? (query) => query.where("type", "=", params.type as string) : undefined);
+  async listByWorkspace(
+    required: Parameters<EntryListPort["listByWorkspace"]>[0],
+    optional: NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]> = {}
+  ): Promise<EntryRecord[]> {
+    const { type } = optional;
+    return this.listLive({ ...required, ...optional }, type ? (query) => query.where("type", "=", type) : undefined);
   }
 
   /**
@@ -151,7 +146,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
 
   /** The shared body of the two workspace lists: live rows, an optional type filter, status, order, limit. */
   private async listLive(
-    params: { workspaceId: string; status?: EntryStatus; orderBy?: "updatedAt"; orderDirection?: "asc" | "desc"; limit?: number },
+    params: Parameters<EntryListPort["listByWorkspace"]>[0] & NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]>,
     narrow?: (query: EntriesSelect) => EntriesSelect
   ): Promise<EntryRecord[]> {
     const rows = await this.kernel.run((db) => {
@@ -167,7 +162,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
 
   /** Callback repo calls join ONE transaction; nested calls join the outer one (the widget adoption
    *  runs an entry update and its Trash move as one). */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
     return this.kernel.transaction(fn);
   }
 

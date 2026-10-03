@@ -5,7 +5,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { createCommentHookRegistry } from "../hooks.js";
 import { InMemoryCommentRepo } from "../repo.memory.js";
@@ -30,8 +30,8 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let allow = options.allow ?? true;
   const commentRepo = new InMemoryCommentRepo();
   const settingsRepo = new InMemorySettingsRepo();
-  const principalRepo = new InMemoryPrincipalRepo();
-  const clock = { nowIso: () => NOW };
+  const principalRepo = new InMemoryPrincipalRepo({});
+  const clock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
   const idGen = counterIdGen();
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const authorize = async (params: Record<string, unknown>) => {
@@ -117,9 +117,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     run: { id: "run-1" },
     input: options.input ?? { commentId: "comment-1", expectedVersion: 1 },
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, { emitSurface: options.emitSurface });
 }
 
 

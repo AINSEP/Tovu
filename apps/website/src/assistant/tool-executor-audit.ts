@@ -158,15 +158,11 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
 
   return {
     execute: async (
-      principal: Principal,
-      run: RunRef,
-      toolId: string,
-      input: unknown,
-      signal?: AbortSignal,
-      // Forwarded verbatim, and it must stay that way: a handler reads `ctx.emitSurface` to decide
+      { principal, run, toolId, input }: { principal: Principal; run: RunRef; toolId: string; input: unknown },
+      // Forwarded verbatim, and it must stay that way: a handler reads `options.emitSurface` to decide
       // whether it may park on a human's answer. Dropping it here would not degrade to "no
       // surface" — it would silently push every human-in-the-loop tool onto its fallback path.
-      emitSurface?: SurfaceEmitter,
+      { signal, emitSurface }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter } = {},
     ): Promise<ToolExecutionResult> => {
       const attemptId = newAttemptId();
       const base = { attemptId, workspaceId: options.workspaceId, runId: run.id, toolId, principalId: principal.id };
@@ -176,7 +172,7 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
       await appendSafely({ ...base, executionId: null, phase: "requested", at: now(), detail: describeInput(input) });
 
       try {
-        const result = await inner.execute(principal, run, toolId, input, signal, emitSurface);
+        const result = await inner.execute({ principal, run, toolId, input }, { signal, emitSurface });
         await appendSafely({ ...base, executionId: result.executionId, phase: phaseForStatus(result.status), at: now(), detail: attemptResultDetail(result) });
         return result;
       } catch (error) {
@@ -186,7 +182,7 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
         throw error;
       }
     },
-    resumeConfirmation: (executionId, decision) => inner.resumeConfirmation(executionId, decision),
+    resumeConfirmation: (args) => inner.resumeConfirmation(args),
     cancel: (executionId) => inner.cancel(executionId),
     getAuditRecord: (executionId) => inner.getAuditRecord(executionId),
   };

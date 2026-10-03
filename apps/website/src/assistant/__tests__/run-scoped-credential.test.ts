@@ -11,7 +11,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type AdapterContext, type RunStartHandler } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
+import { type AdapterContext } from "@jini-ai/http-kit";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-auth.js";
 import {
@@ -54,7 +55,7 @@ interface Harness {
 }
 
 async function bootDaemon(): Promise<Harness> {
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const owners = createRunOwnerRegistry();
   /** Twin of `agent-daemon-server.ts`'s `principalByRunId`: live runs only. */
   const livePrincipals = new Map<string, string>();
@@ -79,7 +80,7 @@ async function bootDaemon(): Promise<Harness> {
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }));
   app.post("/api/federation/reload", (_req, res) => void res.json({ reloaded: true }));
   const adapter: AdapterContext = { resolvedPortRef: { current: 0 } };
-  registerRunRoutes(app, { lifecycle, onStarted: recordOwnerOnStart }, adapter);
+  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -312,7 +313,7 @@ test("each run gets its own 256-bit token, and minting twice for one run returns
  * a route. A sibling owned by ALICE distinguishes run isolation from principal isolation (F4.4).
  */
 async function scopeHarness({ exempt = false } = {}) {
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const owners = createRunOwnerRegistry();
   const live = new Map<string, string>();
   const credentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => live.get(runId) });
@@ -329,7 +330,7 @@ async function scopeHarness({ exempt = false } = {}) {
   const cancellations: string[] = [];
   const unsubscribe = [own, sibling, other].map((id) => lifecycle.onCancelRequested(id, () => cancellations.push(id)));
   const executions: { runId: string; principalId: string }[] = [];
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({
     descriptor: { id: "scope_probe" },
     policy: { authorize: () => "allow" },
@@ -577,7 +578,7 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const auth = statements.indexOf("app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
   const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));");
-  const route = statements.indexOf("registerDelegatedToolRoutes(app, delegatedToolRouteDeps, adapter);");
+  const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,
     "delegated run binding must execute after JSON parsing and before the real delegated route");

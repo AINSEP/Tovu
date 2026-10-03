@@ -1,7 +1,9 @@
 import type { Express } from "express";
 
-import type { AuthServiceDeps, IdentityRepos } from "@jini-ai/cms/identity";
+import type { IdentityRepos } from "@jini-ai/user-management";
+import type { AuthServiceDeps } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "#src/server/routes/types";
+import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 
 /**
  * @file `RouteDeps` -> `identity` service-deps mapping for the users/roles/policies admin routes,
@@ -59,7 +61,7 @@ export type UsersRouteDeps = Pick<
    *  `trashUser`'s `DeleteUserDeps.removeUser`/`.isInTrash`. */
   | "removeUser"
   | "isInTrash"
->;
+> & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
 export type UsersRouteRegistrar = (app: Express, deps: UsersRouteDeps) => void;
@@ -67,6 +69,7 @@ export type UsersRouteRegistrar = (app: Express, deps: UsersRouteDeps) => void;
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 export function identityReposFrom(deps: UsersRouteDeps): IdentityRepos {
   return {
+    transactions: deps.transactions,
     principals: deps.principalRepo,
     users: deps.userRepo,
     sessions: deps.sessionRepo,
@@ -84,7 +87,8 @@ export function identityServiceDepsFrom(deps: UsersRouteDeps): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
     hasher: deps.passwordHasher,
-    clock: deps.clock,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
+    tokens: deps.tokens,
   };
 }

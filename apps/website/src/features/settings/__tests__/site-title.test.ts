@@ -1,7 +1,8 @@
+import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   clear,
   getEffective,
@@ -35,7 +36,7 @@ const OWNER_TITLE = "Acme Field Notes";
 const SITE_DISPLAY_NAME = "My Site";
 const WORKSPACE_NAME = "Local Tovu Workspace";
 
-const clock = { nowIso: () => "2026-09-12T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-12T00:00:00.000Z", nowMs: () => Date.parse("2026-09-12T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `site-title-id-${++idCounter}` };
 const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
@@ -44,7 +45,7 @@ interface Ledger {
   settingsRepo: InMemorySettingsRepo;
   clock: typeof clock;
   ids: typeof ids;
-  principals: InMemoryPrincipalRepo;
+  principals: ReturnType<typeof createSettingsPrincipalLookup>;
   preservationStore: InMemorySiteTitlePreservationStore;
 }
 
@@ -53,7 +54,7 @@ async function makeLedger(pendingWorkspaceIds: string[] = [], options: { registe
     settingsRepo: new InMemorySettingsRepo(),
     clock,
     ids,
-    principals: new InMemoryPrincipalRepo([]),
+    principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
     preservationStore: new InMemorySiteTitlePreservationStore(pendingWorkspaceIds),
   };
   if (options.register !== false) {
@@ -107,7 +108,7 @@ function resolveDeps(
   options: { siteDisplayName?: string; workspaceRepo?: Pick<WorkspaceRepoPort, "findById"> } = {}
 ) {
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = options.workspaceRepo ?? {
-    findById: async (id) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
   };
   return {
     settingsRepo: ledger.settingsRepo,
@@ -279,7 +280,7 @@ test("REQ-09: an unusable owner value renders the no-owner-title value: the disp
 test("REQ-09: a blank display name falls back to workspaces.name, and a blank workspace name to Tovu Demo Site", async () => {
   const ledger = await makeLedger();
   const blankWorkspace: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async (id) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
   };
   const missingWorkspace: Pick<WorkspaceRepoPort, "findById"> = { findById: async () => null };
 

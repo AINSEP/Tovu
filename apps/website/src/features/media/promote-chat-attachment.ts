@@ -2,7 +2,7 @@
  * @file The chat-attachment -> media-library bridge: `media_promote_chat_attachment`, closing the
  * capability gap `2026-09-06-handoff-to-tovu-73.md` diagnosed — `media_upload_asset`
  * (`@jini-ai/cms/media`) only ever accepted `dataBase64`, and nothing bridged a file the chat
- * composer had already uploaded (`@jini-ai/http-kit`'s `AttachmentStore`) into it.
+ * composer had already uploaded (`@jini-ai/daemon/http`'s `AttachmentStore`) into it.
  *
  * ## Design: delegate to `media_upload_asset`'s own handler, don't re-implement it
  *
@@ -30,7 +30,7 @@
  * the original upload response carried (that id reaches only the composer's own client state, never
  * the model). A same-turn "attach this and add it to my library" ask is therefore the common case
  * where the model has the path but was never given the id at all. `AttachmentStore.resolveForRun`
- * (`@jini-ai/http-kit`) accepts either form and resolves both through the store's own record —
+ * (`@jini-ai/daemon/http`) accepts either form and resolves both through the store's own record —
  * never a bare `fs.readFile` of a caller-asserted path. A path/id the store never issued or claimed
  * resolves to `undefined`, exactly like an unrecognized id; this bridge never reads a path the store
  * itself did not already vouch for.
@@ -53,7 +53,7 @@
  */
 import { ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { sniffContentType } from "@jini-ai/cms/media";
-import { AttachmentRejectedError, type AttachmentStore } from "@jini-ai/http-kit";
+import { AttachmentRejectedError, type AttachmentStore } from "@jini-ai/daemon/http";
 
 export const MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID = "media_promote_chat_attachment";
 
@@ -85,16 +85,16 @@ export async function resolveChatAttachmentBytes(
 ): Promise<{ readonly bytes: Uint8Array; readonly name: string }> {
   let resolved;
   try {
-    resolved = await deps.store.resolveForRun(input.ref, input.runId);
+    resolved = await deps.store.resolveForRun({ ref: input.ref, runId: input.runId });
   } catch (error) {
     // `AttachmentRejectedError` here can only be `'attachment-unknown-or-claimed'` (a different run's
     // claim) or `'attachment-integrity'` (the file changed since upload) — both caller-facing facts a
     // model can act on ("try again", "re-attach it"), and neither message leaks a filesystem path
     // (see `attachments.ts`'s own SEC-005 doc), so re-classifying as `ToolInputError` here is safe.
-    if (error instanceof AttachmentRejectedError) throw new ToolInputError(unknownAttachmentMessage(input.ref));
+    if (error instanceof AttachmentRejectedError) throw new ToolInputError({ message: unknownAttachmentMessage(input.ref) });
     throw error;
   }
-  if (!resolved) throw new ToolInputError(unknownAttachmentMessage(input.ref));
+  if (!resolved) throw new ToolInputError({ message: unknownAttachmentMessage(input.ref) });
   const bytes = await deps.readFile(resolved.path);
   return { bytes, name: resolved.name };
 }
@@ -135,7 +135,7 @@ function requireAttachmentRef(input: unknown): string {
   const record = input as Record<string, unknown> | null | undefined;
   const ref = record?.attachmentRef;
   if (typeof ref !== "string" || ref.length === 0) {
-    throw new ToolInputError("'attachmentRef' is required and must be a non-empty string");
+    throw new ToolInputError({ message: "'attachmentRef' is required and must be a non-empty string" });
   }
   return ref;
 }
@@ -161,7 +161,7 @@ export function buildPromoteChatAttachmentTool(deps: {
   readonly mediaUploadHandler: ToolHandler;
   readonly readFile: (path: string) => Promise<Uint8Array>;
 }): ToolRegistration {
-  const handler: ToolHandler = async (ctx: ToolExecutionContext) => {
+  const handler: ToolHandler = async (ctx: ToolExecutionContext, optional = {}) => {
     const attachmentRef = requireAttachmentRef(ctx.input);
     const store = deps.getStore();
     if (!store) {
@@ -177,16 +177,16 @@ export function buildPromoteChatAttachmentTool(deps: {
     const uploadInput: Record<string, unknown> = {
       filename: typeof input.filename === "string" && input.filename.length > 0 ? input.filename : defaultFilename(name),
       // Sniffed, never the caller's — see this file's header ("Design").
-      contentType: sniffContentType(bytes),
+      contentType: sniffContentType({ bytes }),
       dataBase64: Buffer.from(bytes).toString("base64"),
     };
     if (typeof input.alt === "string") uploadInput.alt = input.alt;
     if (typeof input.caption === "string") uploadInput.caption = input.caption;
     if (typeof input.credit === "string") uploadInput.credit = input.credit;
-    // Same `ctx` (principal, run, executionId, signal, emitSurface), only `input` replaced — this is
+    // Same context and optional transport ports, only `input` replaced — this is
     // what makes `media_upload_asset`'s own permission check and gate apply unmodified. See this
     // file's header.
-    return deps.mediaUploadHandler({ ...ctx, input: uploadInput });
+    return deps.mediaUploadHandler({ ...ctx, input: uploadInput }, optional);
   };
 
   return {

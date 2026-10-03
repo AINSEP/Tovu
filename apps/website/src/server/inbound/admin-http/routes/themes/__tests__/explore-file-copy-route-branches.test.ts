@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -140,4 +141,38 @@ test("copy that fails for a reason OTHER than ThemePathError 500s via the route'
   }
   assert.equal(res.status, 500, `expected a permission-denied copy to 500, got ${res.status}: ${JSON.stringify(body)}`);
   assert.equal(body.error, "internal error");
+});
+
+
+test("copy: an injected filesystem failure returns 500 and leaves no destination", async (t) => {
+  const root = makeThemesRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const app = buildTestApp(root);
+  const baseUrl = await startTestServer(app, t);
+  const source = path.join(root, "static", "plain", "pages", "about.html");
+  const destination = path.join(root, "static", "plain", "pages", "about-2.html");
+  const before = fs.readFileSync(source, "utf8");
+  const originalCopy = fs.copyFileSync;
+  let reached = false;
+  const injected = t.mock.method(fs, "copyFileSync", (...args: Parameters<typeof fs.copyFileSync>) => {
+    if (String(args[0]) === source && String(args[1]) === destination) {
+      reached = true;
+      throw Object.assign(new Error("injected copy failure"), { code: "EIO" });
+    }
+    return originalCopy(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const response = await fetch(`${baseUrl}${BASE("plain")}/file/copy`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "pages/about.html" }),
+    });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: "internal error" });
+    assert.equal(reached, true);
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.readFileSync(source, "utf8"), before);
+  } finally {
+    injected.mock.restore();
+    syncBuiltinESMExports();
+  }
 });

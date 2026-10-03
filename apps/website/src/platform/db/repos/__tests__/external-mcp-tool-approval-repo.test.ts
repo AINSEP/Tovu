@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpToolApprovalRecord } from "#src/assistant/external-mcp-tool-approvals";
 import type { ContentKernel } from "#src/platform/db/content-kernel";

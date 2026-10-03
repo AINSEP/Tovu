@@ -10,7 +10,7 @@ import { registerAdminChangeSetRevertRoute } from "../../inbound/admin-http/rout
 import { createRevertRegistry, type EntityReverter } from "../../../contracts/core/commands/index.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
-import type { PrincipalRecord } from "@jini-ai/cms/identity";
+import type { PrincipalRecord } from "@jini-ai/user-management";
 
 /**
  * @file Route-level tests for `POST .../change-sets/:changeSetId/revert` — the HTTP wiring

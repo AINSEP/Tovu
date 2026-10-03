@@ -117,6 +117,16 @@ test("parseSmtpEndpoint: explicit 465/443 are secure, explicit 587 and other non
   assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com"), { host: "smtp.example.com", port: 443, secure: true });
 });
 
+test("settle refreshes console configuration without sending a message", async () => {
+  const credentials = makeCredentialWriteDeps();
+  const resolved = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentials.repo, sealer: credentials.sealer, loadMailAdapters: async () => EMPTY_REGISTRY }));
+  await resolved.ready;
+  assert.equal(resolved.mailer.capabilities().driver, "console");
+  await createCustomCredential(credentials, { workspaceId: WORKSPACE, label: MAIL_SMTP_CREDENTIAL_LABEL, category: "ops", baseUrl: "https://smtp.example.com:587", connection: { token: "smtp-password", username: "smtp-user" } });
+  await resolved.settle();
+  assert.equal(resolved.mailer.capabilities().driver, "smtp");
+});
+
 test("no credential configured + production mode: falls back to console and warns naming both labels", async () => {
   const warnings: string[] = [];
   const deps = makeResolveDeps({}, warnings);

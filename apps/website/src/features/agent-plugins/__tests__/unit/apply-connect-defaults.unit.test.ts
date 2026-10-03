@@ -1,3 +1,4 @@
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -56,7 +57,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-27T12:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-27T12:00:00.000Z"), nowIso: () => "2026-09-27T12:00:00.000Z" };
 
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
@@ -101,7 +102,8 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     clock,
     pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: tokenFetch,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (tokenFetch)(url, init) },
     lookupProvider: () => PROVIDER,
     onConnected,
   });

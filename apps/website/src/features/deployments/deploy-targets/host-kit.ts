@@ -1,7 +1,9 @@
+import { createNodeReachabilityPorts } from "@jini-ai/devops/deploy/node";
+import type { lookup } from "node:dns";
 import { AwsClient } from "aws4fetch";
 
 import {
-  DeployError,
+  DeployError as DevopsDeployError,
   assertNotRedirected,
   checkDeploymentUrl,
   normalizeDeploymentUrl,
@@ -43,6 +45,21 @@ async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: Reques
   }
 }
 
+/** Preserve the installed plugin constructor ABI, including status/details and instanceof. */
+class PluginDeployError extends DevopsDeployError {
+  // Shared helpers throw the library class; plugins must recognize those refusals too.
+  static [Symbol.hasInstance](value: unknown): boolean { return value instanceof DevopsDeployError; }
+  constructor(message: string, status = 400, details?: DevopsDeployError["details"]) {
+    super({ message }, { status, details });
+  }
+}
+
+/** A plugin's response detector is positional; the Jini response port is an object. */
+function reachabilityOptions(options: NonNullable<Parameters<DeployHostKit["waitForReachableDeploymentUrl"]>[1]> = {}) {
+  const { detectProtected, ...rest } = options;
+  return { ...rest, ...(detectProtected ? { detectProtected: ({ resp, body }: { resp: Response; body: string }) => detectProtected(resp, body) } : {}) };
+}
+
 /**
  * The kit handed to a deploy module.
  *
@@ -50,22 +67,28 @@ async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: Reques
  * @param options.timeouts - Overrides the timeout classes, e.g. a shorter `QUICK` while a person waits.
  * @complexity O(1).
  */
-export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; readonly timeouts?: DeployFetchTimeouts } = {}): DeployHostKit {
+export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; readonly timeouts?: DeployFetchTimeouts; readonly lookupImpl?: typeof lookup } = {}): DeployHostKit {
   // The global is read per call, not captured here, so a test that swaps `globalThis.fetch` after
   // building a kit is still the one called.
   const fetchFn: typeof fetch = options.fetchFn ?? ((input, init) => fetch(input, init));
+  const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
   return {
     fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
     timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    checkDeploymentUrl,
-    waitForReachableDeploymentUrl,
-    normalizeDeploymentUrl,
-    safeDnsLabel,
-    safeProjectLabel,
-    redirectGuardInit,
-    assertNotRedirected,
+    // Standalone installed plugins keep their ABI. Every shared helper receives
+    // object args and explicit host ports, including native fetch and polling time.
+    checkDeploymentUrl: (url, options) => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options)),
+    waitForReachableDeploymentUrl: (urls, options) => waitForReachableDeploymentUrl({
+      urls, ...reachability, now: () => Date.now(),
+      sleep: ({ ms }) => new Promise(resolve => setTimeout(resolve, ms)),
+    }, reachabilityOptions(options)),
+    normalizeDeploymentUrl: (url) => normalizeDeploymentUrl({ url }),
+    safeDnsLabel: (raw) => safeDnsLabel({ raw }),
+    safeProjectLabel: (raw, maxLength) => safeProjectLabel({ raw, maxLength }),
+    redirectGuardInit: (init) => redirectGuardInit({ init }),
+    assertNotRedirected: (resp, providerLabel) => assertNotRedirected({ resp, providerLabel }),
     createSigV4Client: (options) => new AwsClient(options),
-    DeployError,
+    DeployError: PluginDeployError,
   };
 }

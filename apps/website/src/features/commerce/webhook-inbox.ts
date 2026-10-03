@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 
 import type { ApplyProviderEventResult, CommerceWebhookEventRepoPort } from "./ports.js";
 import type { CommerceOrderStatus } from "./types.js";
@@ -76,7 +77,7 @@ export async function ingestProviderEvent(
   required: IngestProviderEventRequired
 ): Promise<ApplyProviderEventResult> {
   const { deps, event, projection } = required;
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
 
   return deps.webhookEvents.applyProviderEvent({
     event: {

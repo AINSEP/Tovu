@@ -1,4 +1,4 @@
-import { registerPermissionMigration } from "@jini-ai/cms/identity";
+import { registerPermissionMigration } from "@jini-ai/user-management/server";
 
 import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
 
@@ -33,7 +33,7 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  * Both this route's header and `tool-registrations.ts` previously recorded REQ-9 as blocked outside
  * this repository, on the reasoning that `authorize()` matches literal `policy_permissions` rows and
  * the seed that would create one lives in the library. The first half is true; the conclusion was
- * not. `registerPermissionMigration` is exported to hosts from `@jini-ai/cms/identity` precisely so
+ * not. `registerPermissionMigration` is exported to hosts from `@jini-ai/user-management` precisely so
  * a host can add its own pair (the library's own `identity/index.ts` says so), and the boot-time
  * fan-out that consumes the registry already lives in THIS repo. No library change is needed.
  *

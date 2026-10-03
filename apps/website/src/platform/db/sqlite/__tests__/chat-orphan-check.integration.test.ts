@@ -46,7 +46,7 @@ interface Fixture {
 }
 
 function makeFixture(): Fixture {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "chat-orphan-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "chat orphan fixture-"));
   return {
     tmpDir,
     contentDbPath: path.join(tmpDir, "content.db"),
@@ -181,6 +181,10 @@ test("warnOnOrphanedChatRows names the counts, both database paths, and the exac
       warning.includes("--db"),
       "the script requires --db and has no default; the printed command must include it"
     );
+    assert.deepEqual(warning.split("\n").filter((line) => line.trimStart().startsWith("npx tsx ")), [
+      `    npx tsx development/scripts/split-chat-data-into-chat-db.ts --db "${contentDbPath}"`,
+      `    npx tsx development/scripts/split-chat-data-into-chat-db.ts --db "${contentDbPath}" --apply`,
+    ]);
   } finally {
     contentDb.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -272,4 +276,49 @@ test("deps.ts wires the check into createSiteRouteDeps right where chat.db is op
   const warnIndex = source.indexOf("warnOnOrphanedChatRows(");
   assert.ok(openIndex !== -1, "guard: the store open must still exist");
   assert.ok(warnIndex > openIndex, "the check must run after chat.db is opened, per its own contract");
+});
+
+test("createSiteRouteDeps emits the orphan warning with this isolated site's counts", async (t) => {
+  const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
+  const env = {
+    TOVU_SITE_DIR: tmpDir, TOVU_CHAT_DB: chatDbPath,
+    TOVU_DATABASE_JOURNAL_DB: path.join(tmpDir, "ops", "database-journal.db"),
+    TOVU_MEDIA_BLOB_STORE: "local", TOVU_PLUGINS_DIR: path.join(tmpDir, "plugins"),
+    TOVU_STOCK_CONTENT_SEED_DIR: path.join(tmpDir, "no-stock-seed"),
+  };
+  const saved = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, env);
+  const logged: string[] = [];
+  t.mock.method(console, "error", (message: unknown) => logged.push(String(message)));
+  const { openContentDb } = await import("../content-db.js");
+  const { createSiteRouteDeps } = await import("#src/server/runtime/composition/deps");
+  const db = openContentDb(contentDbPath);
+  let store: import("#src/server/runtime/composition/open-site-store").SiteStore | undefined;
+  try {
+    db.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES ('ws-1', 'Orphan Test', 'orphan-test', '2026-09-10T00:00:00.000Z')").run();
+    const legacy = openChatDb(contentDbPath);
+    try { seedChatRows(legacy, 2, "boot-orphan"); } finally { legacy.close(); }
+    const chat = openChatDb(chatDbPath);
+    try { seedChatRows(chat, 5, "already-in-chat"); } finally { chat.close(); }
+    const deps = await createSiteRouteDeps(contentDbPath, {
+      db, workspaceId: "ws-1", themesDir: path.join(tmpDir, "themes"), uploadsDir: path.join(tmpDir, "uploads"),
+      siteBinding: { dir: tmpDir, name: "Orphan Test", dirOverridden: true, switcherCompatible: false },
+      storeRole: "client", onStoreOpened: (opened) => { store = opened; },
+    });
+    await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
+    // Finish the remaining SQLite boot writes chained from those readiness promises before close.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const warnings = logged.filter((message) => message.includes("UNMIGRATED CONVERSATIONS"));
+    assert.equal(warnings.length, 1);
+    assert.equal(warnings[0], formatOrphanedChatRowsWarning({
+      orphaned: true, total: 6, counts: { aiChats: 2, aiChatMessages: 2, assistantAgentSessions: 2 },
+    }, { contentDbPath, chatDbPath }));
+  } finally {
+    await store?.close();
+    db.$client.close();
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });

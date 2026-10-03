@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings/index.js";
 
 /**

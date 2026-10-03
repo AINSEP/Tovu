@@ -19,7 +19,7 @@ const WORKSPACE_ID = "workspace-1";
 const OPEN_ENTRY: EntryLookupResult = { id: "entry-1", commentsClosed: false };
 
 function alwaysAllowRateLimiter(): RateLimiter {
-  return { check: () => ({ allowed: true }) };
+  return { check: async ({ key: _key }) => ({ allowed: true }) };
 }
 
 function defaultSettings(overrides: Partial<CommentsSettings> = {}): CommentsSettings {
@@ -63,7 +63,7 @@ function makePolicy(overrides: {
     repo,
     spamCheck: overrides.spamCheck ?? new HeuristicSpamCheck(),
     hooks: overrides.hooks ?? createCommentHookRegistry(),
-    clock: { nowIso: () => "2026-07-16T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") },
     idGen: { newId: () => `comment-${Math.random().toString(36).slice(2)}` },
     getSettings: async () => defaultSettings(overrides.settings),
     entryLookup: overrides.entryLookup ?? (async () => OPEN_ENTRY),
@@ -184,7 +184,7 @@ test("max-depth-exceeded", async () => {
 });
 
 test("rate-limited", async () => {
-  const policy = makePolicy({ rateLimiter: { check: () => ({ allowed: false, retryAfterSeconds: 60 }) } });
+  const policy = makePolicy({ rateLimiter: { check: async ({ key: _key }) => ({ allowed: false, retryAfterSeconds: 60 }) } });
   const result = await policy.submit(makeSubmission());
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.reason, "rate-limited");
@@ -221,7 +221,7 @@ test("body and link caps accept the limit and reject one above it", async () => 
 test("rate-limit buckets use the submission's author IP hash independently", async () => {
   const calls: string[] = [];
   const counts = new Map<string, number>();
-  const policy = makePolicy({ rateLimiter: { check: (key) => {
+  const policy = makePolicy({ rateLimiter: { check: async ({ key }) => {
     calls.push(key);
     const count = (counts.get(key) ?? 0) + 1;
     counts.set(key, count);
@@ -381,7 +381,7 @@ test("getSettings is read fresh on every submit() call, not captured once at con
     repo,
     spamCheck: new HeuristicSpamCheck(),
     hooks: createCommentHookRegistry(),
-    clock: { nowIso: () => "2026-07-16T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") },
     idGen: { newId: () => `comment-${Math.random().toString(36).slice(2)}` },
     getSettings: async () => defaultSettings({ requireModeration }),
     entryLookup: async () => OPEN_ENTRY,

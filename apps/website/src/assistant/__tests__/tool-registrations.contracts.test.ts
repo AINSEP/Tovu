@@ -1,3 +1,6 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import { postPreviewAgentToolCatalog } from "../../features/post/preview-tool.js";
 import { catalog as identityPolicyPermissionsCatalog } from "../../features/identity/permission-list-tool.js";
 import { catalog as sitesListCatalog } from "../../features/sites/list-tool.js";
 import { catalog as publishDisconnectCatalog } from "../../features/publish-content/disconnect-tool.js";
@@ -36,6 +39,7 @@ import {
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
+import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "../../features/entries/index.js";
@@ -53,7 +57,7 @@ import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
-import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
+import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
 import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
@@ -61,11 +65,16 @@ import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
+import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
+import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
+import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
+import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
+import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
@@ -77,9 +86,14 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { listToolContributors, resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 // `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
 // `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see
@@ -90,8 +104,8 @@ import { RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 // `registrationsById()` below rather than exercised. (`post` was also tried and reverted the same
 // night — see `features/post/tool-registrations.ts`'s trailing comment — so it stays on the static
 // seam and needs no install call.)
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 /**
  * @file The model-facing contract half of `tool-registrations.ts` — companion to
@@ -113,7 +127,7 @@ const PRINCIPAL_ID = "principal-under-test";
 function fakeRouteDeps(existing?: ContentTypeRecord) {
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-07-29T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-07-29T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {
@@ -138,7 +152,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(fakeRouteDeps(existing)).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(fakeRouteDeps(existing), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 }
 
 /** The one registration under test, asserted present so no call site needs a non-null assertion. */
@@ -184,6 +198,10 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * `assistant/tool-registration-kit.ts`.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
+  analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],
+  "system-mail": mailStatusAgentToolCatalog as unknown as AgentToolDefinition[],
+  "post-preview": postPreviewAgentToolCatalog,
   "identity-policy-list-permissions": identityPolicyPermissionsCatalog as unknown as AgentToolDefinition[],
   "sites-list": sitesListCatalog as unknown as AgentToolDefinition[],
   "publish-content-disconnect": publishDisconnectCatalog as unknown as AgentToolDefinition[],
@@ -198,6 +216,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   comments: commentsAgentToolCatalog,
   members: membersAgentToolCatalog,
   newsletter: newsletterAgentToolCatalog,
+  "newsletter-delivery": newsletterDeliveryAgentToolCatalog,
   media: mediaAgentToolCatalog,
   widgets: widgetsAgentToolCatalog,
   menus: menusAgentToolCatalog,
@@ -220,6 +239,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `change-sets` (F7b option A, S6, 2026-09-24): `change_sets_list`/`change_sets_revert`, wired via
   // `contributeChangeSetsTools()`. See `features/change-sets/tool-registrations.ts`'s own header.
   "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
+  "deploy-ops": deployOpsAgentToolCatalog as unknown as AgentToolDefinition[],
   deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],
   pages: pagesAgentToolCatalog as unknown as AgentToolDefinition[],
   "static-publish": staticPublishAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -235,6 +255,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
   // header. The entry this dispatch was sent to add; see this const's own doc above.
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
+  "media-providers": mediaProvidersAgentToolCatalog as unknown as AgentToolDefinition[],
   // `media-import` (2026-09-06): `media_import_from_url`, wired via `contributeMediaImportTools()` —
   // see `features/media-import/tool-registrations.ts`'s own header. Added at the same time the
   // contributor was, rather than after the completeness test above caught it.
@@ -295,7 +316,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // its own catalog the same way, from `trashToolEntityTypes(routeDeps.registry)`, and
   // `fakeRouteDeps()` below sets no `registry`, so `trashToolEntityTypes(undefined)` (the bespoke
   // six kinds, no phase-2 registry kinds) is what actually gets registered. Comparing against the
-  // static `getTrashAgentToolCatalog()` (still the phase-1 four) would fail the generic
+  // former static four-kind catalog would fail the generic
+  // getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
   // published-schema loop below on a real, expected difference rather than drift.
   trash: buildTrashAgentToolCatalog(trashToolEntityTypes(undefined)) as unknown as AgentToolDefinition[],
   // 2026-09-20: `trash-item` — `trash_item`, built by a post-processing pass in
@@ -311,7 +333,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
 const WIRED_CATALOGS: AgentToolDefinition[] = Object.values(CATALOGS_BY_DOMAIN).flat();
 
 test("CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add", () => {
-  const registeredDomains = listToolContributors().map((contributor) => contributor.domain);
+  const registeredDomains = contributions.contributors.list({}).map((contributor) => contributor.domain);
   assert.ok(registeredDomains.length > 0, "installFirstPartyToolContributors() must have run (see this file's top-level call) before this check means anything");
 
   for (const domain of registeredDomains) {
@@ -389,7 +411,7 @@ test("every wired registration publishes the inputSchema from its catalog entry 
 
 test("every content_read card preserves all member tools' published input properties", () => {
   const cards = registrationsById();
-  const members = new Map(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })
+  const members = new Map(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { ...( { includeContentReadCollapse: false }), contributions })
     .map((registration) => [registration.descriptor.id, registration]));
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
     const member = members.get(memberId);
@@ -536,34 +558,34 @@ test("the returned fields array is a copy — a tool caller cannot mutate domain
 // ---------------------------------------------------------------------------
 
 /** The gated-mutation execute tools wired through `humanConfirmedToolHandler` (2026-09-24). */
-const HUMAN_CONFIRMED_TOOL_IDS: readonly string[] = ["backup_execute_restore", "database_execute_migrate_forward", "taxonomy_execute_merge_term"];
+const HUMAN_CONFIRMED_TOOL_IDS: readonly string[] = ["backup_execute_restore", "database_execute_migrate_forward", "taxonomy_execute_merge_term", "publish_content_execute_pull"];
 
 test("the real catalog and this layer's independent classification agree for every wired tool", () => {
   for (const id of registrationsById().keys()) {
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // already cross-checked pre-collapse, under its original id — see DERIVED_CONTENT_READ_IDS's own doc
     // The human-confirmed tools pass only with their handler — the build itself checked that.
     if (HUMAN_CONFIRMED_TOOL_IDS.includes(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_future_tool", { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" }),
+    () => assertRiskMetadataIsWirable("collections_future_tool", { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" }, contributions),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/,
   );
 });
 
 test("the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" }),
+    () => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" }, contributions),
     /declares sideEffects 'mints-token' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -574,7 +596,7 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 
 test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
+    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }, contributions),
     {
       message:
         "tool-registrations: 'collections_content_type_tombstone' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
@@ -583,7 +605,7 @@ test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with
   );
 });
 
-test("the only wired tools carrying a confirmation-requiring actor-class rule are the three that ask the human in chat", () => {
+test("the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat", () => {
   const carrying: string[] = [];
   for (const id of registrationsById().keys()) {
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // read-only by construction — see DERIVED_CONTENT_READ_IDS's own doc
@@ -600,8 +622,8 @@ test("collections_execute_cleanup — the one catalog entry that DOES carry the 
 });
 
 test("an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" }));
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" }));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" }, contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" }, contributions));
 });
 
 // ---------------------------------------------------------------------------
@@ -626,8 +648,8 @@ test("an actorClassRule that does NOT require confirmation is wirable — the gu
 async function buildRealAssembledSurface() {
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) {
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
@@ -641,16 +663,16 @@ test("deployment_execute_static_publish and deployment_get_static_publish_capabi
   // `registry.has()` reflects `.register()` having actually been called for this id — unreachable
   // if `DOMAIN_SLICES` did not include `static-publish`, or if `buildStaticPublishRegistrations`
   // left either id out of its returned `ToolRegistration[]` (both real ways this could regress).
-  assert.equal(registry.has("deployment_execute_static_publish"), true);
-  assert.equal(registry.has("deployment_get_static_publish_capabilities"), true);
-  assert.equal(registry.has("deployment_preview_static_publish"), true);
+  assert.equal(registry.has({ toolId: "deployment_execute_static_publish" }), true);
+  assert.equal(registry.has({ toolId: "deployment_get_static_publish_capabilities" }), true);
+  assert.equal(registry.has({ toolId: "deployment_preview_static_publish" }), true);
 });
 
 test("both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it", async () => {
   const { catalog } = await buildRealAssembledSurface();
 
   // `describe()` is an exact id lookup against `buildToolCatalogQuery`'s FTS5 seed
-  // (`registry.list()` — see that function's own doc), not a fuzzy `.search()` match that could
+  // (`registry.list({})` — see that function's own doc), not a fuzzy `.search()` match that could
   // pass by coincidentally matching an unrelated tool's description.
   const execute = catalog.describe("deployment_execute_static_publish");
   const capabilities = catalog.describe("deployment_get_static_publish_capabilities");
@@ -671,7 +693,7 @@ test("deployment_get_static_publish_capabilities actually executes through the R
   // canary rather than working around the denial.
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
 
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "deployment_get_static_publish_capabilities", {});
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   const output = result.output as { executionMode: string; providers: Array<{ providerId: string }> };
@@ -704,8 +726,8 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 test("search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it", async () => {
   const { registry } = await buildRealAssembledSurface();
 
-  assert.equal(registry.has("search_components"), true);
-  assert.equal(registry.has("describe_component"), true);
+  assert.equal(registry.has({ toolId: "search_components" }), true);
+  assert.equal(registry.has({ toolId: "describe_component" }), true);
 });
 
 test("both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them", async () => {
@@ -728,7 +750,7 @@ test("search_components actually executes through the REAL ToolExecutor and retu
   const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
 
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "search_components", { query: "button" });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: { id: "run-1" }, toolId: "search_components", input: { query: "button" } });
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   assert.ok(Array.isArray(result.output), "search_components must return an array of hits");
@@ -742,7 +764,7 @@ test("search_components actually executes through the REAL ToolExecutor and retu
 test("describe_component executes through the REAL ToolExecutor and returns a known button's manifest", async () => {
   const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "describe_component", { id: "shadcn.button" });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: { id: "run-1" }, toolId: "describe_component", input: { id: "shadcn.button" } });
 
   assert.equal(result.status, "completed", JSON.stringify(result));
   const output = result.output as { id: string; provider: string; capabilities: string[]; propsSchema: { type: string; required: string[]; properties: Record<string, unknown> } };
@@ -758,7 +780,7 @@ test("describe_component actually executes and rejects an unknown id with a plai
   const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
 
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "describe_component", { id: "nonexistent.component" });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: { id: "run-1" }, toolId: "describe_component", input: { id: "nonexistent.component" } });
 
   assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /nonexistent\.component.*was not found/);
@@ -789,8 +811,8 @@ test("plugins_uninstall is present in the REAL ToolRegistry built the same way a
   const { registry } = await buildRealAssembledSurface();
 
   // `registry.has()` reflects `.register()` having actually been called for this id.
-  assert.equal(registry.has("plugins_uninstall"), true);
-  assert.equal(registry.has("agent_plugins_uninstall"), false);
+  assert.equal(registry.has({ toolId: "plugins_uninstall" }), true);
+  assert.equal(registry.has({ toolId: "agent_plugins_uninstall" }), false);
 
   const registration = wiredRegistration("plugins_uninstall");
   assert.equal(registration.descriptor.readOnly, false, "a delete must never be reported read-only");
@@ -811,8 +833,18 @@ test("plugins_uninstall (family agent-plugin) actually executes through the REAL
   const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
 
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "plugins_uninstall", { family: "agent-plugin", pluginId: "definitely-not-installed" });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: { id: "run-1" }, toolId: "plugins_uninstall", input: { family: "agent-plugin", pluginId: "definitely-not-installed" } });
 
   assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /not installed/);
+});
+
+// t09 — pull tools reach the assembled registry; staging is a durable write.
+test("publish pull tools are wired with honest risk and the human-confirmed execute contract", async () => {
+  const { registry } = await buildRealAssembledSurface();
+  for (const id of ["publish_content_plan_pull", "publish_content_execute_pull"]) {
+    assert.equal(registry.has({ toolId: id }), true, `${id} must reach the real registry`);
+    assert.equal(wiredRegistration(id).descriptor.readOnly, false);
+  }
+  assert.equal(catalogEntry("publish_content_execute_pull").actorClassRule, "confirmer-must-equal-own-delegatedBy");
 });

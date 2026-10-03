@@ -4,7 +4,7 @@
  * ## The bug this exists to close
  *
  * `@jini-ai/daemon`'s `ToolExecutor` tags any rejection that is not `instanceof ToolInputError` as
- * `errorKind: 'internal'`, and `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts an
+ * `errorKind: 'internal'`, and `@jini-ai/daemon/http`'s `delegatedToolExecuteRoute` SEC-005-redacts an
  * `'internal'` failure into a message-stripped `{ code: "INTERNAL_ERROR", message: "an internal
  * error occurred" }` 500. Every typed domain error a tool handler throws — "that member does not
  * exist", "you lack `member.manage`", "that campaign is already sent" — therefore reached the model
@@ -51,13 +51,19 @@
  * {@link describeErrorForLog} is its server-side half: what a log line may say about an error whose
  * message is not known to be safe.
  *
+ * Generic implementations and rationale now live in Jini/core/src/model-facing-tool-errors.ts.
+ * These original wrappers remain temporarily because consumers outside r14 still import them;
+ * r15 must rewire those consumers before deleting the originals. No re-export aliases are used.
+ *
  * ## Architectural role
  *
  * `contracts/core`, domain-agnostic — it names no member, form, webhook, campaign, post, or
  * credential concept, so any feature can adopt it without this file growing an edge back into that
  * feature. Pure: no I/O, no state, no logging.
  */
-import { ForbiddenError, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import type { ToolHandler, ToolRegistration } from "@jini-ai/core";
+import { forbiddenRule as createForbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { ToolInputError } from "@jini-ai/core";
 
 /**
@@ -121,7 +127,7 @@ export interface ModelFacingErrorRule {
  * @complexity O(1).
  */
 export function forbiddenRule(domainPrefix: string): ModelFacingErrorRule {
-  return { error: ForbiddenError, code: `${domainPrefix}_FORBIDDEN` };
+  return createForbiddenRule({ domainPrefix, error: ForbiddenError });
 }
 
 /**
@@ -151,7 +157,7 @@ export function reclassifyToolError(err: unknown, rules: readonly ModelFacingErr
   for (const rule of rules) {
     if (err instanceof rule.error) {
       const message = `${rule.code}: ${rule.message ?? err.message}`;
-      return new ToolInputError(rule.guidance ? `${message}. ${rule.guidance}` : message);
+      return new ToolInputError({ message: rule.guidance ? `${message}. ${rule.guidance}` : message });
     }
   }
   return err;
@@ -182,9 +188,9 @@ export function withModelFacingErrors(
   return Object.fromEntries(
     Object.entries(handlers).map(([toolId, handler]) => [
       toolId,
-      async (ctx: Parameters<ToolHandler>[0]) => {
+      async (ctx: Parameters<ToolHandler>[0], optional: Parameters<ToolHandler>[1] = {}) => {
         try {
-          return await handler(ctx);
+          return await handler(ctx, optional);
         } catch (err) {
           throw reclassifyToolError(err, rules);
         }
@@ -217,13 +223,13 @@ export function withModelFacingRegistrationErrors(
 ): ToolRegistration[] {
   return registrations.map((registration) => ({
     ...registration,
-    handler: (async (ctx: Parameters<ToolHandler>[0]) => {
+    handler: (async (ctx: Parameters<ToolHandler>[0], optional: Parameters<ToolHandler>[1] = {}) => {
       try {
-        return await registration.handler(ctx);
+        return await registration.handler(ctx, optional);
       } catch (err) {
         throw reclassifyToolError(err, rules);
       }
-    }) as ToolHandler,
+    }),
   }));
 }
 

@@ -1,18 +1,7 @@
 import path from "node:path";
 
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -48,7 +37,7 @@ import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";
  * HTTP route already does for the identical reason.
  */
 
-const CATALOG_BY_ID = indexCatalogById(sitesAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: sitesAgentToolCatalog });
 
 export type { SitesToolDeps } from "./deps.js";
 
@@ -129,7 +118,7 @@ function isShapeRejection(error: unknown): boolean {
 /** Validates one folder-name argument against `SITE_NAME_PATTERN` — the one check that makes it
  *  safe to `path.join` under `sites/` at all. @complexity O(1); cyclomatic 2. */
 function requireSiteFolderName(input: Record<string, unknown>, field: string): string {
-  const value = requireString(input, field);
+  const value = requireString({ input: input, key: field });
   if (!SITE_NAME_PATTERN.test(value)) {
     throw new SitesInputError(`${field} must be 1..100 lowercase letters, digits, and dashes (got '${value}')`);
   }
@@ -145,10 +134,10 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
 
   const handlers: Record<string, ToolHandler> = {
     sites_duplicate_site: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       const sourceName = requireSiteFolderName(input, "sourceName");
       const targetName = requireSiteFolderName(input, "targetName");
-      const displayName = optionalString(input, "displayName");
+      const displayName = optionalString({ input: input, key: "displayName" });
 
       if (!switcherEnabled) {
         throw new SiteSwitchingDisabledError();
@@ -160,13 +149,9 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
         throw new SiteBindingNotSwitchableError();
       }
 
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: SITES_WRITE_PERMISSION,
-        entityType: "site-registry",
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
 
-      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const source = resolved.listSites({ cwd: resolved.cwd }).find((site) => site.name === sourceName);
         if (!source) {
           throw new SourceSiteNotFoundError(sourceName);
@@ -175,7 +160,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
         const targetDir = path.join(resolved.cwd, "sites", targetName);
         const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
-      });
+      } });
     },
   };
 

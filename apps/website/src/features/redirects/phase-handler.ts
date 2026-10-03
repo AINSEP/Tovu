@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file `RedirectResolver` (read-path resolution) + `registerRedirectsPhaseHandlers`
  * (routing-chain adapter) — SPEC-009 REQ-09/10/18/19/20; ADR-PIPE-009 C-006/C-007.
@@ -39,7 +40,8 @@
  * (`registerRedirectsPhaseHandlers`) that adapts to/from `routing`'s
  * `RouteResolvePhaseHandler` shape. No Express/route code.
  */
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../features/origin/index.js";
 import { registerResolvePhase } from "../../platform/routing/index.js";
 import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
@@ -191,10 +193,10 @@ export class RedirectPhaseHandlerResolver implements RedirectResolver {
     const event: RedirectHitEvent = {
       id: idGen.newId(),
       name: "redirect.hit",
-      occurredAt: clock.nowIso(),
+      occurredAt: clockNowIso({ clock: clock }),
       aggregateId: redirectId,
       workspaceId,
-      payload: { workspaceId, redirectId, at: clock.nowIso() },
+      payload: { workspaceId, redirectId, at: clockNowIso({ clock: clock }) },
     };
     // See redirects.ts's `enqueueMutatedEvent` comment for why this cast is needed (a named
     // interface payload isn't auto-assignable to DomainEvent's default Record<string,unknown>).

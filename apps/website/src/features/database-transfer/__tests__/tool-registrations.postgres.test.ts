@@ -1,3 +1,4 @@
+import Database from "better-sqlite3";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -66,6 +67,13 @@ function harness(t: test.TestContext) {
     workspaceId: WORKSPACE_ID,
     dbOps,
     siteBinding: { name: "fixture-site" },
+    databaseTransferChatSnapshot: async () => {
+      const chat = new Database(":memory:");
+      try {
+        chat.exec("CREATE TABLE ai_chats (id TEXT PRIMARY KEY); CREATE TABLE ai_chat_messages (id TEXT PRIMARY KEY, conversation_id TEXT REFERENCES ai_chats(id)); CREATE TABLE assistant_agent_sessions (id TEXT PRIMARY KEY); CREATE TABLE tovu_chat_migrations (id TEXT PRIMARY KEY)");
+        return chat.serialize();
+      } finally { chat.close(); }
+    },
     databaseTransferPlanStore: new DatabaseTransferPlanStore(),
     databaseTransferDestinationStore: new InMemoryDatabaseDestinationStore(),
     databaseTransferFailureLog: (line) => logs.push(line),

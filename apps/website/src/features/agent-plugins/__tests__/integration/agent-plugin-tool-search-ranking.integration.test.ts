@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -14,8 +16,13 @@ import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file THE crux test for the one-tool-per-plugin design (2026-08-24, superseding the 2026-08-23
@@ -145,28 +152,28 @@ async function installRealUiUxDesignPlugin(workspaceId: string) {
 /** Builds the real production surface, WITHOUT the plugin tool — the "before" side of the
  *  freed-up-slots comparison this file's report draws on. */
 async function buildRealNativeOnlySurface() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
 }
 
 async function buildRealSurfaceWithPluginTool() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
   await installRealUiUxDesignPlugin(routeDeps.workspaceId);
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
   await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
 
   const catalog = buildToolCatalogQuery(registry);
@@ -180,14 +187,14 @@ function logHits(query: string, hits: readonly { id: string; score: number }[]):
   hits.forEach((hit, index) => console.log(`  ${index + 1}. ${hit.id}  (score ${hit.score.toFixed(3)})`));
 }
 
-test("the plugin tool IS present in registry.list() and describable by exact id — the registration mechanism itself works, and collapsing 7 tools into 1 shows up as exactly +1 in the real catalog size", async () => {
+test("the plugin tool IS present in registry.list({}) and describable by exact id — the registration mechanism itself works, and collapsing 7 tools into 1 shows up as exactly +1 in the real catalog size", async () => {
   await withAgentPluginsDir(async () => {
     const { registry: nativeOnly } = await buildRealNativeOnlySurface();
     const { registry, catalog } = await buildRealSurfaceWithPluginTool();
 
-    assert.equal(registry.has("agent_plugin_ui_ux_design"), true);
+    assert.equal(registry.has({ toolId: "agent_plugin_ui_ux_design" }), true);
     assert.equal(
-      registry.list().length,
+      registry.list({}).length,
       nativeOnly.list().length + 1,
       "one installed plugin must add exactly ONE tool to the real catalog, not seven",
     );

@@ -12,13 +12,32 @@
  *   is not a generic library capability — it stays here and keeps importing `../presentation`
  *   locally (`features/presentation` is not ported; see the port's own decision note).
  *
- * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
+ * The title write policy and active-principal lookup below are host adapters. The remaining
+ * package surface is re-exported, and the shape of what is *not* re-exported is the point:
  * there is no SQLite adapter export on this barrel, so nothing outside the composition root can
  * accidentally depend on this host's persistence choice. This directory previously had no
  * `index.ts` at all — every internal submodule was imported deep by name. This barrel is new, and
  * every prior deep importer in this host was rewritten to go through it (mirrors `identity`'s and
  * `media`'s identical shim pattern).
  */
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { SettingsPrincipalLookupPort } from "@jini-ai/cms/settings";
+
+/** Bind Tovu's membership/status policy to the CMS lookup port.
+ * Missing, disabled and foreign-workspace records never become settings targets (REQ-13/INV-09).
+ * @complexity O(1) beyond one repository lookup; no writes or authorization effects.
+ */
+export function createSettingsPrincipalLookup(required: { repo: PrincipalRepoPort }): SettingsPrincipalLookupPort {
+  return {
+    findActiveById: async ({ workspaceId, id }) => {
+      const principal = await required.repo.findById({ workspaceId, id });
+      return principal?.status === "active" && principal.workspaceId === workspaceId && principal.id === id
+        ? { id: principal.id }
+        : null;
+    },
+  };
+}
+
 export {
   SCOPE_BIT,
   type SettingScope,
@@ -90,6 +109,8 @@ export {
 
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
 export { set } from "./site-title-write.js";
+// Renderers consume the title resolver through the settings public surface.
+export { resolveSiteTitle } from "./site-title.js";
 
 export {
   type PurgeServiceDeps,
@@ -140,7 +161,5 @@ export {
   AGENT_PREFERENCE_REQUIRED_SCOPE_BIT,
 } from "@jini-ai/cms/settings";
 
-export {
-  getSettingsAgentToolCatalog,
-  type SettingsAgentToolDefinition as AgentToolDefinition,
-} from "@jini-ai/cms/settings";
+export { getSettingsAgentToolCatalog } from "@jini-ai/cms/settings";
+export type { AgentToolDefinition } from "@jini-ai/core";

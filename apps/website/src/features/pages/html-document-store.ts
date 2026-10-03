@@ -1,6 +1,8 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Kysely, Updateable } from "kysely";
 
-import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
+import { type Clock as ClockPort } from "@jini-ai/core/primitives";
+import { assertEntityLive } from "@jini-ai/cms/core";
 
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -334,7 +336,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     }
 
     const nextVersion = row.version + 1;
-    const updatedAt = this.deps.clock.nowIso();
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
 
     const runConversion = async () => {
       // S1 (fix plan 2026-09-24 row 14) — the PRE-conversion snapshot. `bodyJson` is about to be
@@ -463,7 +465,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     }
     const expectedVersion = this.lastReadVersion;
     const nextVersion = expectedVersion + 1;
-    const updatedAt = this.deps.clock.nowIso();
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
 
     const runWrite = async () => {
       const changes = await this.updateThisRow(

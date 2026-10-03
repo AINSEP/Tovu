@@ -53,10 +53,13 @@
  * that don't want to wire the ledger) AND the per-key default `getCommentsSettings` itself falls
  * back to before `ensureCommentsSettingDefinitions` has run in a real composition.
  */
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import { nowIso } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { EntryRecord, EntryRepoPort } from "../entries/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import type { RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createCommentHookRegistry } from "./hooks.js";
 import { createCommentIngressPolicy } from "./ingress.js";
@@ -156,7 +159,10 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
   // reconfigurable per-workspace is a larger change to `core/rate-limit/rate-limit.ts`'s
   // fixed-window counter store, out of this slice's scope (mirrors the task's own "don't build a
   // large amount of new plumbing beyond what already exists for SEO's pattern" guidance).
-  const rateLimiter = createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: deps.clock });
+  const rateLimiter = createRateLimiter(
+    { profile: COMMENTS_SUBMIT_PROFILE, clock: deps.clock },
+    { store: createMemoryCounterStore({}) },
+  );
 
   // SPEC-035 — the live settings resolver: reads the ADR-028 ledger per call when `settingsRepo`
   // is supplied, else falls back to the fixed `deps.settings ?? DEFAULT_COMMENTS_SETTINGS`
@@ -172,7 +178,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
     const settings = await getSettings(required.workspaceId);
     return {
       id: entry.id,
-      commentsClosed: !isEntryOpenForComments(entry, settings.closeAfterDays, deps.clock.nowIso()),
+      commentsClosed: !isEntryOpenForComments(entry, settings.closeAfterDays, nowIso({ clock: deps.clock })),
     };
   };
 

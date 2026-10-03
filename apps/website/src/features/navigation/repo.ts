@@ -152,9 +152,7 @@ export class SqlMenuRepo implements MenuRepoPort {
       );
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new MenuConflictError(
-          `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
-        );
+        throw new MenuConflictError({ message: `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
       }
       throw error;
     }

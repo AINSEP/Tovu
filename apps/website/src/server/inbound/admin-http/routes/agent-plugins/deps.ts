@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Narrow `RouteDeps` slice for the `agent-plugins` admin HTTP surface (2026-09-09) — mirrors

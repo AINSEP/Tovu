@@ -49,7 +49,8 @@ test("AC-25 / REQ-21: the catalog contains a plan tool and an execute tool, both
   assert.ok(!names.some((n) => /confirm/i.test(n)), "no confirm-equivalent tool may ever exist in the catalog");
 });
 
-test("AC-33 / REQ-25: no tool in the catalog exposes the Tier-3 browser (tier3ReadRows/describeTables are never agent-callable)", () => {
+// describeTables (features/database/tier3-browser.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+test("AC-33 / REQ-25: no tool in the catalog exposes a Tier-3 table browser", () => {
   const catalog = getDatabaseAgentToolCatalog();
   const names = catalog.map((t) => t.name);
 

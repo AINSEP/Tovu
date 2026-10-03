@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { sql } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import { buildExecutionCredentialAad } from "#src/assistant/execution-credential-aad";
 import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "#src/assistant/external-mcp-aad";

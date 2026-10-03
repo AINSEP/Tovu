@@ -1,3 +1,5 @@
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Members' half of ADR-049 Decision 4 (ADR-030/ADR-PIPE-013): maps `agent-tools.ts`'s four
  * catalog entries onto the member roster reads and the two `write-service.ts` transitions the admin
@@ -8,26 +10,14 @@
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import {
-  forbiddenRule,
-  withModelFacingErrors,
-  type ModelFacingErrorRule,
-} from "#src/contracts/core/model-facing-tool-errors";
+import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
+import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "./agent-tools.js";
 import type {
   MagicLinkTokenRepoPort,
@@ -40,10 +30,10 @@ import type {
 import { MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
 import { disableMember, requestSignInLink } from "./write-service.js";
 
-const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: membersAgentToolCatalog });
 
 /**
- * The rate-limiter shape `members_request_magic_link` actually calls (`.check(key)`), declared
+ * The rate-limiter shape `members_request_magic_link` actually calls (`await limiter.check({ key })`), declared
  * structurally instead of importing `core/rate-limit/rate-limit`'s nominal `RateLimiter` type.
  *
  * This is the one field in this file that would otherwise cost Members its whole architectural win:
@@ -54,7 +44,7 @@ const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
  * shape, so it satisfies this structurally with no adapter needed.
  */
 export interface MagicLinkRateLimiter {
-  check(key: string): { allowed: true } | { allowed: false; retryAfterSeconds: number };
+  check(required: { key: string }): Promise<{ allowed: true } | { allowed: false; retryAfterSeconds: number }>;
 }
 
 /**
@@ -67,7 +57,7 @@ export interface MagicLinkRateLimiter {
 export interface MembersToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
   memberRepo: MemberRepoPort;
   memberTierRepo: MemberTierRepoPort;
@@ -75,6 +65,9 @@ export interface MembersToolDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MembersWriteServiceDeps["mailer"];
+  /** Resolves configuration independently of sending; production supplies this so disabled
+   * members (which skip sends) cannot be distinguished during a lazy driver swap. */
+  settleMailer?: () => Promise<void>;
   magicLinkPerEmailLimiter: MagicLinkRateLimiter;
 }
 
@@ -112,7 +105,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   // -> disableMember (write-service.ts): status flip + revokes every live session.
   ["members_disable", "mutates-durable-state"],
   // -> requestSignInLink (write-service.ts): may create a pending member row, saves a magic-link
-  //    token row, and sends mail.
+  //    token row, and sends mail; settleMailer refreshes configuration without sending.
   ["members_request_magic_link", "mutates-durable-state"],
 ]);
 
@@ -175,9 +168,9 @@ const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     members_list: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "member.manage", entityType: "member" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
 
       const afterId = typeof input.afterId === "string" ? input.afterId : undefined;
       const limit = typeof input.limit === "number" ? input.limit : undefined;
@@ -186,9 +179,9 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     },
 
     members_get_by_id: async (ctx) => {
-      const memberId = requireString(requireInputRecord(ctx.input), "memberId");
+      const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "member.manage", entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
 
       const member = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: memberId });
       if (!member) throw new MemberNotFoundError(`member '${memberId}' was not found`);
@@ -196,24 +189,27 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     },
 
     members_disable: async (ctx) => {
-      const memberId = requireString(requireInputRecord(ctx.input), "memberId");
+      const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "member.manage", entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
 
       const { member } = await disableMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },
 
     members_request_magic_link: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const email = requireString(input, "email");
+      const input = requireInputRecord({ input: ctx.input });
+      const email = requireString({ input: input, key: "email" });
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "member.manage", entityType: "member" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
 
       // INV-NEW-03: the shared per-email rate limit is consulted strictly AFTER authorize() —
       // mirrors `request-magic-link.ts`'s own ordering, so an unauthorized caller can never spend
       // rate-limit budget for a target email as a side channel.
-      const rateLimitResult = deps.magicLinkPerEmailLimiter.check(email.trim().toLowerCase());
+      const emailKey = email.trim().toLowerCase();
+      // Preserve model-facing validation instead of passing an empty key to the limiter.
+      if (!emailKey) throw new MemberValidationError(`'${email}' is not a valid email address`);
+      const rateLimitResult = await deps.magicLinkPerEmailLimiter.check({ key: emailKey });
       if (!rateLimitResult.allowed) {
         // A `ToolInputError`, not a bare `Error`: that marker is the ONLY thing `@jini-ai/daemon`'s
         // `ToolExecutor` reads to keep a rejection out of the `errorKind: 'internal'` bucket the
@@ -223,12 +219,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
         // this is THIS wiring layer's own check against an injected limiter, not a domain error
         // class `write-service.ts` raises — the same shape `features/forms/tool-registrations.ts`'s
         // `requireSubmissionsLimit` uses for its own ad-hoc check.
-        throw new ToolInputError(
-          `MEMBERS_RATE_LIMITED: too many sign-in requests for '${email}' — retry after ${rateLimitResult.retryAfterSeconds}s`
-        );
+        throw new ToolInputError({ message: `MEMBERS_RATE_LIMITED: too many sign-in requests for '${email}' — retry after ${rateLimitResult.retryAfterSeconds}s` });
       }
 
-      return requestSignInLink({
+      await deps.settleMailer?.();
+      await requestSignInLink({
         deps: toMembersWriteServiceDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
@@ -236,6 +231,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
           redirectPath: typeof input.redirectPath === "string" ? input.redirectPath : undefined,
         },
       });
+      // send() awaits lazy driver resolution; checking afterwards avoids misreporting the
+      // boot-time console fallback. Neither result discloses the address's membership status.
+      return isMailDeliveryAvailable(deps.mailer)
+        ? { delivered: true, mailDeliveryAvailable: true }
+        : { delivered: false, mailDeliveryAvailable: false, note: MAIL_DELIVERY_UNAVAILABLE_NOTE };
     },
   };
 
@@ -246,7 +246,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     catalog: CATALOG_BY_ID,
     // The whole map at once, so no handler can be the one that forgot — see
     // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
-    handlers: withModelFacingErrors(handlers, MEMBERS_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: MEMBERS_MODEL_FACING_ERRORS }),
     derivedRisk: membersDerivedRisk,
   });
 }

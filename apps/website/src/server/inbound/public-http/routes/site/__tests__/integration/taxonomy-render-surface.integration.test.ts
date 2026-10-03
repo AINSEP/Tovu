@@ -126,11 +126,12 @@ test("integration: GET /:slug renders a Page's assigned category/tag terms as pl
 
 test("integration: GET /:slug renders no terms block when nothing is assigned (byte-identical to before this feature)", async (t) => {
   const post = htmlPageWithNoTemplateChoice({ id: "page-without-terms-int", slug: "page-without-terms-int" });
+  const tagged = htmlPageWithNoTemplateChoice({ id: "positive-control-terms", slug: "positive-control-terms" });
   const app = createApp(
     testDeps({
       themes: [pageShellTheme()],
-      postRepo: new InMemoryPostRepo([post]),
-      entryTermReadRepo: stubEntryTermReadRepo("some-other-content-id"),
+      postRepo: new InMemoryPostRepo([post, tagged]),
+      entryTermReadRepo: stubEntryTermReadRepo(tagged.id),
     })
   );
   const baseUrl = await startTestServer(app, t);
@@ -138,7 +139,14 @@ test("integration: GET /:slug renders no terms block when nothing is assigned (b
   const res = await fetch(`${baseUrl}/page-without-terms-int`);
   assert.equal(res.status, 200);
   const html = await res.text();
+  const control = await fetch(`${baseUrl}/positive-control-terms`);
+  assert.equal(control.status, 200);
+  const positiveHtml = await control.text();
+  assert.match(positiveHtml, />QA</);
+  assert.match(positiveHtml, />e2e</);
+  assert.match(positiveHtml, /class="entry-terms"/);
   assert.ok(!html.includes("entry-terms"), "no assigned terms should mean no entry-terms block at all");
+  assert.doesNotMatch(html, />QA<|>e2e<|class="entry-terms"/);
 });
 
 /** A `doc`-format Post, rendered through `renderGenericPostPage` (never `renderViaTemplate`) by every
@@ -205,7 +213,7 @@ function templatedTierTheme(): DiscoveredTheme {
     tokens: {},
     tokensLight: {},
     templates: {},
-    liquidTemplates: { post: "<article>{{ post.content | raw }}</article>" },
+    liquidTemplates: { post: '<article id="liquid-owner-template">{{ post.content | raw }}</article>' },
     handlebarsTemplates: {},
     pages: {},
     partials: {},
@@ -233,7 +241,7 @@ function handlebarsTierTheme(): DiscoveredTheme {
     tokensLight: {},
     templates: {},
     liquidTemplates: {},
-    handlebarsTemplates: { post: "<article>{{{post.content}}}</article>" },
+    handlebarsTemplates: { post: '<article id="handlebars-owner-template">{{{post.content}}}</article>' },
     pages: {},
     partials: {},
     css: "",
@@ -275,6 +283,8 @@ test("integration: GET /:slug renders assigned terms through the TEMPLATED (Liqu
   const res = await fetch(`${baseUrl}/post-templated-terms-int`);
   assert.equal(res.status, 200);
   const html = await res.text();
+  assert.match(html, /<article id="liquid-owner-template">[\s\S]*>QA<[\s\S]*>e2e<[\s\S]*<\/article>/);
+  assert.doesNotMatch(html, /theme render error/);
   assert.ok(html.includes(">QA<"), "templated tier: expected the assigned Category term 'QA' to render in the page HTML");
   assert.ok(html.includes(">e2e<"), "templated tier: expected the assigned Tag term 'e2e' to render in the page HTML");
 });
@@ -293,6 +303,8 @@ test("integration: GET /:slug renders assigned terms through the HANDLEBARS tier
   const res = await fetch(`${baseUrl}/post-handlebars-terms-int`);
   assert.equal(res.status, 200);
   const html = await res.text();
+  assert.match(html, /<article id="handlebars-owner-template">[\s\S]*>QA<[\s\S]*>e2e<[\s\S]*<\/article>/);
+  assert.doesNotMatch(html, /theme render error/);
   assert.ok(html.includes(">QA<"), "handlebars tier: expected the assigned Category term 'QA' to render in the page HTML");
   assert.ok(html.includes(">e2e<"), "handlebars tier: expected the assigned Tag term 'e2e' to render in the page HTML");
 });

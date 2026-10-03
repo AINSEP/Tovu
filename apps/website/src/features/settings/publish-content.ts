@@ -1,4 +1,4 @@
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
@@ -6,6 +6,7 @@ import type { PublishContentContributor, PublishContentPorts } from "#src/featur
 
 import {
   clear,
+  createSettingsPrincipalLookup,
   DefinitionNotFoundError,
   DefinitionTombstonedError,
   ForbiddenError,
@@ -138,7 +139,7 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
       if (!(await publishableDefinition(ports, workspaceId, id))) throw new PublishContentApplyRowError("blocked", notPublishable(id));
       if (id === OG_IMAGE && pointsAtThisComputer(state.value)) throw new PublishContentApplyRowError("blocked", localOnly(id));
       const { authorize } = gatewayDeps(deps, "site-setting");
-      const writeDeps = { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: ports.principals };
+      const writeDeps = { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: createSettingsPrincipalLookup({ repo: ports.principals }) };
       const target = { ...splitKey(id), scope: "workspace" as const, workspaceId, callerPrincipalId: principalId, authWorkspaceId: workspaceId };
       const { revisionSeq } =
         state.cleared === true

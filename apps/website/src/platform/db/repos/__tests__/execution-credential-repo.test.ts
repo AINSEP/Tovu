@@ -83,6 +83,7 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["admin_execut
       maxTokens: 4096,
       sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
       masked: "••••7777",
+      aadVersion: 1,
     });
 
     await repo.upsert(record);
@@ -92,11 +93,19 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["admin_execut
 
   test("upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row", async () => {
     const repo = await makeRepo();
-    await repo.upsert(makeRecord({ model: "first-model" }));
-    await repo.upsert(makeRecord({ model: "second-model", updatedAt: "2026-08-05T01:00:00.000Z" }));
+    await repo.upsert(makeRecord({
+      model: "first-model", aadVersion: 0,
+      sealed: { keyId: "v1", ciphertext: "bGVnYWN5", nonce: "bm9uY2U=", alg: "aes-256-gcm" }, masked: "••••7777",
+    }));
+    const updated = makeRecord({
+      model: "second-model", updatedAt: "2026-08-05T01:00:00.000Z", aadVersion: 1,
+      sealed: { keyId: "v2", ciphertext: "bmV3", nonce: "bm9uY2Uy", alg: "aes-256-gcm" }, masked: "••••8888",
+    });
+    await repo.upsert(updated);
 
     const found = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.equal(found?.model, "second-model");
+    assert.deepEqual(found, updated);
   });
 
   test("clearKey nulls the sealed columns and masked, and leaves everything else untouched", async () => {
@@ -109,6 +118,12 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["admin_execut
       })
     );
 
+    const siblings = [
+      makeRecord({ principalId: ADMIN_B, sealed: { keyId: "v2", ciphertext: "b3RoZXI=", nonce: "bm9uY2Uy", alg: "aes-256-gcm" }, masked: "••••8888", aadVersion: 1 }),
+      makeRecord({ workspaceId: OTHER_WORKSPACE, sealed: { keyId: "v3", ciphertext: "dGhpcmQ=", nonce: "bm9uY2Uz", alg: "aes-256-gcm" }, masked: "••••9999", aadVersion: 1 }),
+    ];
+    for (const sibling of siblings) await repo.upsert(sibling);
+
     await repo.clearKey({ workspaceId: WORKSPACE, principalId: ADMIN_A, updatedAt: "2026-08-05T02:00:00.000Z" });
 
     const found = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
@@ -116,6 +131,9 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["admin_execut
     assert.equal(found?.masked, null);
     assert.equal(found?.model, "gpt-4o");
     assert.equal(found?.updatedAt, "2026-08-05T02:00:00.000Z");
+    for (const sibling of siblings) {
+      assert.deepEqual(await repo.findByWorkspaceAndPrincipal({ workspaceId: sibling.workspaceId, principalId: sibling.principalId }), sibling);
+    }
   });
 
   test("clearKey on a (workspace, principal) with no row is a harmless no-op", async () => {

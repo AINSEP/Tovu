@@ -43,7 +43,7 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
       }
 
       const body = req.body ?? {};
-      const op = parseEntryLifecycleOp(body.op);
+      const op = parseEntryLifecycleOp({ op: body.op });
       if (!op) {
         res.status(400).json({ error: "'op' must be one of 'publish', 'unpublish'", code: "VALIDATION_ERROR" });
         return;

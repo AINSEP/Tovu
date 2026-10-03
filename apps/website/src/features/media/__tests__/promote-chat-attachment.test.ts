@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -7,7 +9,7 @@ import test, { describe } from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
-import { AttachmentRejectedError, createDiskAttachmentStore } from "@jini-ai/http-kit";
+import { AttachmentRejectedError, createDiskAttachmentStore } from "@jini-ai/daemon/http";
 
 import {
   buildPromoteChatAttachmentTool,
@@ -25,8 +27,13 @@ import {
 } from "../index.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
-import { resetToolContributorsForTests, registerToolContributor } from "../../../assistant/tool-contribution-registry.js";
+
 import { contributeMediaTools } from "../tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * Regression coverage for the bridge diagnosed in `2026-09-06-handoff-to-tovu-73.md`'s "Task 2": an
@@ -40,8 +47,8 @@ import { contributeMediaTools } from "../tool-registrations.js";
  * the concrete proof that no second, laxer path was created.
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributeMediaTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMediaTools() });
 
 const WORKSPACE_ID = "ws-attachment-bridge";
 const PRINCIPAL_ID = "principal-under-test";
@@ -74,17 +81,17 @@ function executionContext(input: Record<string, unknown>, runId = "run-1"): Tool
 }
 
 function fakeRouteDeps() {
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     assetBlobRepo,
@@ -99,7 +106,7 @@ function fakeRouteDeps() {
 /** Finds the real, already-wired `media_upload_asset` registration — the same handler this bridge
  *  must delegate to, never a second implementation of it. */
 function wiredMediaUploadAsset(deps: RouteDeps): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "media_upload_asset");
+  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === "media_upload_asset");
   assert.ok(found, "expected 'media_upload_asset' to be wired");
   return found;
 }
@@ -135,7 +142,7 @@ describe("resolveChatAttachmentBytes", () => {
   test("re-classifies AttachmentRejectedError (a different run's claim) as ToolInputError", async () => {
     const store: ChatAttachmentLookup = {
       resolveForRun: async () => {
-        throw new AttachmentRejectedError("attachment-unknown-or-claimed", "Attachment is unknown or already claimed");
+        throw new AttachmentRejectedError({ reason: "attachment-unknown-or-claimed", message: "Attachment is unknown or already claimed" });
       },
     };
     await assert.rejects(

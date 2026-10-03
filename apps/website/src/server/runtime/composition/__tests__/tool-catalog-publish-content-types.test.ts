@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Regression (2026-09-23): the assistant's `publish_content_*` tools run in the agent daemon,
  * a separate process that boots through `installFirstPartyToolContributors()` and never calls
@@ -9,7 +11,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { describePublishReadiness } from "#src/features/publish-content/publish-readiness";
 import {
   listPublishContentContributors,
@@ -19,13 +21,18 @@ import {
 import { installFirstPartyPublishContentTypes } from "../publish-content-manifest.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
 });
 
 test("installFirstPartyToolContributors also registers the publishable content types the publish tools read", () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   const viaTools = listPublishContentContributors().map((c) => c.entityType);
   resetPublishContentContributorsForTests();
   installFirstPartyPublishContentTypes();
@@ -33,7 +40,7 @@ test("installFirstPartyToolContributors also registers the publishable content t
 });
 
 test("a tool-hosting process booted only through installFirstPartyToolContributors is not told its site has nothing to publish", () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   const readiness = describePublishReadiness({
     connectedSiteLabel: null,
     otherSiteLabels: [],

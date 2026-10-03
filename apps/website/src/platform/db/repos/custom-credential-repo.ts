@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/types";
 import type { ContentKernel } from "../content-kernel.js";
 import type { CustomCredentialSetsTable } from "../content-database.generated.js";

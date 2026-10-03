@@ -111,7 +111,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
                   actorId: principal.id,
                 },
               }),
-            captureEntityVersion: (r) => r.post.version,
+            captureEntityVersion: ({ result }) => result.post.version,
           },
         });
 

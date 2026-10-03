@@ -64,7 +64,7 @@ async function startThemelessServer() {
     }] : [],
     save: async () => { throw new Error("not used by this read-only route"); },
   };
-  return startServer({ presentationRepo: new InMemoryPresentationSettingsRepo([NO_THEME_SETTINGS]), commerceProductRepo, commercePriceRepo });
+  return startServer({ presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [NO_THEME_SETTINGS] }), commerceProductRepo, commercePriceRepo });
 }
 
 test("GET / with the theme off serves a real, unstyled page — 200, not the no-themes 500", async (t) => {

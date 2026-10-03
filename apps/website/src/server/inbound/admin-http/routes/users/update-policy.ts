@@ -1,11 +1,7 @@
 import type { Response } from "express";
 
-import {
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  updatePolicy,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { updatePolicy } from "@jini-ai/user-management/server";
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
@@ -52,15 +48,7 @@ export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = (app, deps) =
     try {
       const caller = getAuthedPrincipal(res);
 
-      const { policy } = await updatePolicy({
-        deps: identityServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          policyId: String(req.params.policyId ?? ""),
-          ...parsePolicyUpdateBody(req.body),
-        },
-      });
+      const { policy } = await updatePolicy({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? "") } }, { ...parsePolicyUpdateBody(req.body) });
 
       res.json({ policy: toAdminPolicyResponse(policy) });
     } catch (err) {

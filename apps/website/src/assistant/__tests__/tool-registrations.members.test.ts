@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers the 4 Members tools: catalog completeness, published contracts, risk cross-check,
  * the ADR-021 authorization half (explicit-handler style — Members' `write-service.ts` has no
@@ -15,7 +17,8 @@ import { createHash } from "node:crypto";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { membersAgentToolCatalog, type AgentToolDefinition } from "../../features/members/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
@@ -28,16 +31,21 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeMembersTools } from "../../features/members/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Members moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeMembersTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMembersTools() });
 
 const WORKSPACE_ID = "ws-members-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -66,7 +74,7 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
   const memberRepo = new InMemoryMemberRepo(options.seed ?? []);
   const memberSessionRepo = new InMemoryMemberSessionRepo();
   const magicLinkRepo = new InMemoryMagicLinkTokenRepo();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = counterIdGen();
   const sentMail: unknown[] = [];
 
@@ -77,7 +85,7 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
   };
 
   const mailer = {
-    capabilities: () => ({ maxBatchSize: 1 }),
+    capabilities: () => ({ driver: "smtp", maxBatchSize: 1, supportsIdempotencyKey: false, supportsWebhookFeedback: false, supportsAttachments: true }),
     send: async (message: unknown) => {
       sentMail.push(message);
       return { accepted: true };
@@ -116,7 +124,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function membersRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("members_") || r.descriptor.id === "content_read.member")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -184,13 +192,13 @@ test("the real Members catalog and tool-registrations' independent risk classifi
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.member") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Members catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("members_disable", { ...catalogEntry("members_disable"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("members_disable", { ...catalogEntry("members_disable"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -322,7 +330,7 @@ test("members_request_magic_link: authorize() is checked strictly BEFORE the rat
   // itself — the real proof is that a denied call, viewed alone, never reaches `.check()`. Assert
   // that directly against a spy limiter.
   const denials: string[] = [];
-  const spyLimiter = { check: (key: string) => { denials.push(key); return { allowed: true } as const; } };
+  const spyLimiter = { check: async ({ key }: { key: string }) => { denials.push(key); return { allowed: true } as const; } };
   const deps2 = { ...deniedDeps, magicLinkPerEmailLimiter: spyLimiter } as unknown as RouteDeps;
   await wired("members_request_magic_link", deps2).handler(executionContext({ email: "target@example.test" })).catch(() => undefined);
   assert.equal(denials.length, 0, "a denied caller must never reach the rate limiter");
@@ -331,7 +339,7 @@ test("members_request_magic_link: authorize() is checked strictly BEFORE the rat
 test("members_request_magic_link: delivers {delivered:true} for a valid email and sends mail", async () => {
   const { deps, sentMail, magicLinkRepo } = fakeRouteDeps({ seed: [seedMember()] });
   const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
-  assert.deepEqual(result, { delivered: true });
+  assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
   assert.deepEqual((sentMail[0] as { to: unknown }).to, { email: "member@example.test" });
   const url = signInUrl(sentMail[0]);
@@ -347,7 +355,7 @@ for (const status of ["unknown", "disabled"] as const) {
   test(`members_request_magic_link: a ${status} email returns the same anti-enumeration result`, async () => {
     const { deps, sentMail } = fakeRouteDeps({ seed: status === "disabled" ? [seedMember({ status: "disabled" })] : [] });
     const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
-    assert.deepEqual(result, { delivered: true });
+    assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
     assert.equal(sentMail.length, status === "disabled" ? 0 : 1);
   });
 }
@@ -359,11 +367,11 @@ test("members_request_magic_link: a string redirectPath in the input is threaded
   const result = await wired("members_request_magic_link", deps).handler(
     executionContext({ email: "member@example.test", redirectPath: "/welcome" }),
   );
-  assert.deepEqual(result, { delivered: true });
+  assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
   assert.equal(signInUrl(sentMail[0]).searchParams.get("redirect"), "/welcome");
   const withoutRedirect = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
-  assert.deepEqual(withoutRedirect, { delivered: true });
+  assert.deepEqual(withoutRedirect, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 2);
   assert.equal(signInUrl(sentMail[1]).searchParams.has("redirect"), false);
 });

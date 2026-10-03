@@ -57,29 +57,34 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
       return;
     }
 
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    const email = String(body.email ?? "");
-    const emailKey = email.trim().toLowerCase();
-    const clientIp = resolveClientIp(req);
-
-    // Both checks must pass before `requestSignInLink` runs (W-002/W-003) —
-    // neither check is skipped, and both consult a shared, app-boot-scoped
-    // limiter instance (C-015), not a per-request one.
-    const exceeded = findExceededRateLimit([
-      { result: deps.magicLinkPerEmailLimiter.check(emailKey), message: "too many sign-in requests for this email" },
-      { result: deps.magicLinkPerIpLimiter.check(clientIp), message: "too many sign-in requests from this address" },
-    ]);
-    if (exceeded) {
-      res.setHeader("Retry-After", String(exceeded.retryAfterSeconds));
-      res.status(429).json({
-        error: exceeded.message,
-        code: "RATE_LIMIT_EXCEEDED",
-        details: { retryAfterSeconds: exceeded.retryAfterSeconds },
-      });
-      return;
-    }
-
     try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const email = String(body.email ?? "");
+      const emailKey = email.trim().toLowerCase();
+      // Empty emails have no valid counter key; preserve the service's validation response.
+      if (!emailKey) {
+        res.status(400).json({ error: `'${email}' is not a valid email address` });
+        return;
+      }
+      const clientIp = resolveClientIp(req);
+
+      // Both checks must pass before `requestSignInLink` runs (W-002/W-003) —
+      // neither check is skipped, and both consult a shared, app-boot-scoped
+      // limiter instance (C-015), not a per-request one.
+      const exceeded = findExceededRateLimit([
+        { result: await deps.magicLinkPerEmailLimiter.check({ key: emailKey }), message: "too many sign-in requests for this email" },
+        { result: await deps.magicLinkPerIpLimiter.check({ key: clientIp }), message: "too many sign-in requests from this address" },
+      ]);
+      if (exceeded) {
+        res.setHeader("Retry-After", String(exceeded.retryAfterSeconds));
+        res.status(429).json({
+          error: exceeded.message,
+          code: "RATE_LIMIT_EXCEEDED",
+          details: { retryAfterSeconds: exceeded.retryAfterSeconds },
+        });
+        return;
+      }
+
       const result = await requestSignInLink({
         deps: toPublicMembersWriteServiceDeps(deps),
         input: {

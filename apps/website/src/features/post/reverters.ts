@@ -1,4 +1,6 @@
-import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
 import {
   classifyStatusTransition,
@@ -120,7 +122,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
         status: inverse.status,
         // Bump version by 1 and refresh updatedAt — INV-04 (never restore the old number). This is
         // what `updatePost` used to do for us; it is reproduced here rather than delegated.
-        updatedAt: deps.clock.nowIso(),
+        updatedAt: clockNowIso({ clock: deps.clock }),
         version: existing.version + 1,
         ...(inverse.ext !== undefined && Object.keys(inverse.ext).length > 0
           ? { ext: inverse.ext as JsonObject }
@@ -203,7 +205,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         ...existing,
         deletedAt: null,
         // Bump and refresh, never restore the old number — INV-04, same as postUpdateReverter.
-        updatedAt: deps.clock.nowIso(),
+        updatedAt: clockNowIso({ clock: deps.clock }),
         version: existing.version + 1,
       };
 

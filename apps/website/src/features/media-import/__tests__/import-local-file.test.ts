@@ -34,8 +34,8 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   let ids = 0;
   const deps: MediaImportToolDeps = {
     workspaceId: "ws-local", clock: { nowIso: () => "2026-10-01T00:00:00.000Z" }, idGen: { newId: () => `local-${++ids}` },
-    mediaRepo: new InMemoryMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo(), assetRenditionRepo: new InMemoryAssetRenditionRepo(),
-    blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo(),
+    mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
+    blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     mediaImportHttpClient: { send: async () => { assert.fail("local import must not use HTTP"); } },
     authorize: async (request) => { authorizeCalls.push(request); return { allowed: options.allow !== false, reason: "no_grant" }; },
     resolveRoots: () => { resolutions++; return { repo: rootPath, site: rootPath, custom: options.unsetCustom ? undefined : rootPath }; },

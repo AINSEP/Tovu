@@ -22,7 +22,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
@@ -38,7 +38,7 @@ function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMedia
   const mediaRepo = new InMemoryVersionedMediaRepo();
   return {
     mediaRepo,
-    assetBlobRepo: new InMemoryAssetBlobRepo(),
+    assetBlobRepo: new InMemoryAssetBlobRepo({}),
     blobStore: new InMemoryBlobStore(),
     clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
     idGen: (() => {

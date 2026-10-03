@@ -1,17 +1,5 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type AuthorizeFn,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 
@@ -38,7 +26,7 @@ import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
  * in-memory `routeDeps` entry — both handlers are pure reads.
  */
 
-const CATALOG_BY_ID = indexCatalogById(getFsFilesAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getFsFilesAgentToolCatalog() });
 
 export interface FsFilesToolDeps {
   authorize: AuthorizeFn;
@@ -111,42 +99,32 @@ export const fsFilesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [FS_LIST_FILES_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const root = requireString(input, "root");
-      const relativePath = optionalString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: FS_FILES_READ_PERMISSION,
-        entityType: "fs-root",
-        entityId: root,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const root = requireString({ input: input, key: "root" });
+      const relativePath = optionalString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
-      return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const rootPath = resolveRootPathOrThrow(routeDeps, root);
         // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
         // caller handed only a short array cannot tell a small directory from a cut-off listing —
         // which is exactly the wrong thing for a model about to conclude "that file does not exist".
         const { files, truncated } = listFsFiles({ rootPath, relativePath });
         return { root, path: relativePath ?? "", files, truncated };
-      });
+      } });
     },
 
     [FS_READ_FILE_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const root = requireString(input, "root");
-      const relativePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: FS_FILES_READ_PERMISSION,
-        entityType: "fs-root",
-        entityId: root,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const root = requireString({ input: input, key: "root" });
+      const relativePath = requireString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
-      return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const rootPath = resolveRootPathOrThrow(routeDeps, root);
         const { content, bytes } = readFsFile({ rootPath, relativePath });
         return { root, path: relativePath, content, bytes };
-      });
+      } });
     },
   };
 

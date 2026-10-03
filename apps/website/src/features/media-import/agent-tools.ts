@@ -1,4 +1,4 @@
-import type { AgentToolSideEffect } from "@jini-ai/cms/core";
+import type { AgentToolSideEffect } from "@jini-ai/core";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 
 /**

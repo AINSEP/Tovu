@@ -61,7 +61,7 @@ import type { AuthorizeFn, PrincipalKind } from "../../ports.js";
  */
 
 const NOW = "2026-07-15T00:00:00.000Z";
-const clock = { nowIso: () => NOW };
+const clock = { nowMs: () => Date.parse(NOW) };
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };
@@ -241,7 +241,7 @@ test("AC-15 / U-001-B1 / U-001-ORD1: authorize() is evaluated fresh before the t
   const hooks = makeHooks();
   const expiredNow = "2026-07-15T00:10:01.000Z";
   assert.equal(isRedeemable({ record, now: expiredNow }), false, "the token is independently expired");
-  const deps = makeDeps({ authorize: alwaysDeny("revoked"), tokens, clock: { nowIso: () => expiredNow } });
+  const deps = makeDeps({ authorize: alwaysDeny("revoked"), tokens, clock: { nowMs: () => Date.parse(expiredNow) } });
 
   await assert.rejects(
     execute({

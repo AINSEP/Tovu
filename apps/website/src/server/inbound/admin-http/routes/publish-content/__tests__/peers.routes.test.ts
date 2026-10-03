@@ -248,7 +248,7 @@ test("push/pull address a peer by peerId only — an unknown one is 404 PEER_NOT
 test("a private-address peer answers 502 with the devHostAllowlist diagnosis intact, never a generic 500", async (t) => {
   const refusing: HttpClientPort = {
     send: async () => {
-      throw new EgressRefusedError("egress to 'peer.internal' (10.1.2.3) rejected: resolved address is private", {
+      throw new EgressRefusedError({ message: "egress to 'peer.internal' (10.1.2.3) rejected: resolved address is private" }, {
         callerSafeMessage: "egress to 'peer.internal' rejected: resolved address is private",
       });
     },

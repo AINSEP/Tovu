@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import type { TrashAuthorizeFn, TrashDb, TrashPort, TrashRegistry } from "#src/features/trash/index";
-import type { UserRepoPort } from "@jini-ai/cms/identity";
+import type { UserRepoPort } from "@jini-ai/user-management";
 
 /**
  * @file The narrow dependency slice the four Trash admin routes read, and the registrar shape

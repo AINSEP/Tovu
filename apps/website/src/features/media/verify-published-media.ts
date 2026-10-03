@@ -34,7 +34,7 @@ function labelOf(entity: PackedEntity): string {
 async function repairContentType(ports: MediaPorts, workspaceId: string, sha256: string): Promise<boolean> {
   try {
     const bytes = await ports.blobStore.get({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) });
-    await ports.contentTypeStore.set({ workspaceId, sha256, contentType: sniffContentType(bytes) });
+    await ports.contentTypeStore.set({ workspaceId, sha256, contentType: sniffContentType({ bytes }) });
     return true;
   } catch {
     return false;

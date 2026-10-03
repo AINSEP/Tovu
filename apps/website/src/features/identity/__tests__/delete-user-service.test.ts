@@ -1,3 +1,4 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -13,15 +14,8 @@ import {
   type TrashPort,
 } from "#src/features/trash/index";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
-import {
-  assignRole,
-  createUser,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  OwnerRequiredError,
-  type AuthServiceDeps,
-} from "@jini-ai/cms/identity";
+import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 import { trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
 
@@ -38,7 +32,7 @@ import { trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-
  */
 
 const NOW = "2026-09-24T00:00:00.000Z";
-const clock = { nowIso: () => NOW };
+const clock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };
@@ -69,7 +63,9 @@ async function setup(workspaceId: string): Promise<Fixture> {
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
   const identity: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}),
     repos: {
+      transactions: wiring.transactions,
       principals: wiring.principalRepo,
       users: wiring.userRepo,
       sessions: wiring.sessionRepo,
@@ -290,7 +286,7 @@ test("trashUser: the seeded owner can never be deleted, even by another owner", 
   );
 });
 
-test("trashUser: refuses to drop the workspace's last active owner-`*` principal (INV-08)", async () => {
+test("trashUser: refuses to drop the workspace's last active owner-`*` principal", async () => {
   const f = await setup("ws-inv08");
   const lastOwnerId = await createBareUser(f, "last-owner");
   await makeOwnerWildcard(f, lastOwnerId);
@@ -305,7 +301,7 @@ test("trashUser: refuses to drop the workspace's last active owner-`*` principal
     trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: callerId, principalId: lastOwnerId, seededOwnerPrincipalId: f.ownerPrincipalId } }),
     (err: unknown) =>
       err instanceof OwnerRequiredError &&
-      err.message === "the workspace must keep at least one active owner-`*` principal (INV-08)"
+      err.message === "the workspace must keep at least one active owner-`*` principal"
   );
 });
 

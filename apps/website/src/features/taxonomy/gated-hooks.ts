@@ -1,4 +1,5 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import type { MergeTermPlanDetails, TermRepoPort, TaxonomyRevisionRepoPort } from "./index.js";
@@ -72,7 +73,7 @@ export function buildMergeTermHooks(input: BuildMergeTermHooksInput): GatedMutat
     executeMutation: async () => {
       const { repointedCount } = await input.entryTermRepo.repointTerm({ fromTermId: input.fromTermId, intoTermId: input.intoTermId });
 
-      const fromTerm = await input.termRepo.findById(input.fromTermId);
+      const fromTerm = await input.termRepo.findById({ id: input.fromTermId });
       if (fromTerm) {
         await input.termRepo.update({
           id: fromTerm.id,
@@ -80,7 +81,7 @@ export function buildMergeTermHooks(input: BuildMergeTermHooksInput): GatedMutat
           parentId: null,
           name: fromTerm.name ?? input.fromTermId,
           status: "deprecated",
-          updatedAt: input.clock.nowIso(),
+          updatedAt: clockNowIso({ clock: input.clock }),
           version: 1,
         });
         await input.taxonomyRevisionRepo.insert({
@@ -88,7 +89,7 @@ export function buildMergeTermHooks(input: BuildMergeTermHooksInput): GatedMutat
           op: "deprecate",
           previousState: { mergedInto: input.intoTermId, fromTermId: input.fromTermId, repointedCount },
           actorId: input.actorId,
-          recordedAt: input.clock.nowIso(),
+          recordedAt: clockNowIso({ clock: input.clock }),
         });
       }
 

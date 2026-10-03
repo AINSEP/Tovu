@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
-import {
-  InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo,
-} from "@jini-ai/cms/identity";
+import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { InMemoryApiKeyRepo } from "#src/features/identity/repo.memory";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { ApiKeysRouteDeps, ApiKeysRouteRegistrar } from "../deps.js";
@@ -13,17 +11,25 @@ import { registerAdminApiKeyPrincipalCreateRoute } from "../create-principal.js"
 import { registerAdminApiKeyIssueRoute } from "../issue.js";
 import { registerAdminApiKeyRevokeRoute } from "../revoke.js";
 
-const NOW = "2026-09-15T01:02:03Z";
+const NOW = "2026-09-15T01:02:03.000Z";
 
 async function depsForHandler(): Promise<ApiKeysRouteDeps> {
   let id = 0;
-  const deps = {
-    workspaceId: "ws-7", clock: { nowIso: () => NOW }, idGen: { newId: () => `new-${++id}` },
-    principalRepo: new InMemoryPrincipalRepo(), userRepo: new InMemoryUserRepo(), sessionRepo: new InMemorySessionRepo(),
-    roleRepo: new InMemoryRoleRepo(), policyRepo: new InMemoryPolicyRepo(), policyPermissionRepo: new InMemoryPolicyPermissionRepo(),
-    rolePolicyRepo: new InMemoryRolePolicyRepo(), principalRoleRepo: new InMemoryPrincipalRoleRepo(), principalPolicyRepo: new InMemoryPrincipalPolicyRepo(),
+  const repos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
+  const deps: ApiKeysRouteDeps = {
+    workspaceId: "ws-7", clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) }, idGen: { newId: () => `new-${++id}` },
+    principalRepo: repos.principals, userRepo: repos.users, sessionRepo: repos.sessions,
+    roleRepo: repos.roles, policyRepo: repos.policies, policyPermissionRepo: repos.policyPermissions,
+    rolePolicyRepo: repos.rolePolicies, principalRoleRepo: repos.principalRoles, principalPolicyRepo: repos.principalPolicies,
+    transactions: repos.transactions, tokens: new NodeSessionTokens({}),
+    passwordHasher: { hash: async ({ password }) => password, verify: async ({ hash, password }) => hash === password },
+    apiKeySecretHasher: { hash: async (secret) => secret, verify: async (hash, secret) => hash === secret },
     apiKeyRepo: new InMemoryApiKeyRepo(),
-  } as ApiKeysRouteDeps;
+  };
   await deps.principalRepo.save({ id: "operator-9", workspaceId: "ws-7", kind: "user", displayName: "Operator", status: "active", createdAt: NOW });
   await deps.principalRepo.save({ id: "machine-3", workspaceId: "ws-7", kind: "api_key", displayName: "Exporter", status: "active", createdAt: NOW });
   await deps.policyRepo.save({ id: "manage-keys", workspaceId: "ws-7", name: "Manage keys", isBuiltin: false, isFrozen: false });

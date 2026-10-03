@@ -392,7 +392,7 @@ test("a redirect refusal (DeployError thrown by the shared redirect guard) maps 
   // Simulates what `assertNotRedirected` throws for an opaque-redirect response — proves THIS file's
   // own mapping (`err instanceof DeployError -> provider-rejected -> 'provider-error'`), not Jini's
   // already-reviewed redirect-refusal logic itself.
-  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", throw: new DeployError("GitHub attempted to redirect an authenticated request — refused to follow it.", 502) }]);
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", throw: new DeployError({ message: "GitHub attempted to redirect an authenticated request — refused to follow it." }, { status: 502 }) }]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
     assert.equal(result.ok, false);

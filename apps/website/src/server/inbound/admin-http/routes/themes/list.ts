@@ -78,7 +78,7 @@ export const registerAdminThemesListRoute: ContentRouteRegistrar = (app, deps) =
       // No settings-not-found 404 here (unlike PRESENTATION_GET) — api.spec.md §6's THEMES_LIST
       // status map lists only "unknown workspace" as a 404 cause. A missing/absent presentation
       // row just means no theme in the list matches `active: true`, not a listing failure.
-      const settings = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+      const settings = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
       // The theme the stored id resolves to, retired ids included (`theme-id-aliases.ts`).
       const activeId = settings ? findStoredTheme({ themes: deps.themes, id: settings.activeThemeId })?.manifest.id : undefined;
 

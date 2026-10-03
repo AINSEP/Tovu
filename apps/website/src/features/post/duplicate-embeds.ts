@@ -1,4 +1,4 @@
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 /**
  * @file `content_post_duplicate`'s widgetEmbed handling — see `tool-registrations.ts`'s own

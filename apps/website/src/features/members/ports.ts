@@ -21,7 +21,7 @@
  *
  * Interfaces and types only — no feature logic.
  */
-import type { ClockPort, IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type {

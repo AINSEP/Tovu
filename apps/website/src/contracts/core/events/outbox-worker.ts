@@ -1,4 +1,5 @@
-import type { ClockPort, EventBusPort, ISODateTime, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
+import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime } from "@jini-ai/core/primitives";
+import type { EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
 /**
  * @file Outbox processing orchestration.
@@ -122,7 +123,7 @@ export async function processOutbox(
   optional: { batchSize?: number; random?: () => number; deliveryTimeoutMs?: number } = {}
 ): Promise<number> {
   const { batchSize = 20, random, deliveryTimeoutMs = DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } = optional;
-  const rows = await required.outbox.claimPending(batchSize, required.clock.nowIso());
+  const rows = await required.outbox.claimPending({ batchSize, nowIso: readNowIso({ clock: required.clock }) });
 
   for (const row of rows) {
     await deliverClaimedRow({ ...required, row }, { random, deliveryTimeoutMs });
@@ -149,7 +150,7 @@ async function deliverClaimedRow(
   const { random, deliveryTimeoutMs } = optional;
   if (row.attempts > MAX_OUTBOX_ATTEMPTS) {
     const reason = `claimed ${row.attempts} times; the last claim expired with no recorded outcome (its claimer likely died mid-delivery)`;
-    await outbox.markFailed(row.id, reason, clock.nowIso(), "failed");
+    await outbox.markFailed({ id: row.id, error: reason, nextAttemptAt: readNowIso({ clock }), nextStatus: "failed" });
     return;
   }
 
@@ -225,7 +226,7 @@ async function recordDeliveryOutcome(
   let err: unknown;
   if (outcome.ok) {
     try {
-      await outbox.markDelivered(row.id);
+      await outbox.markDelivered({ id: row.id });
       return;
     } catch (markError) {
       err = markError;
@@ -242,8 +243,8 @@ async function recordDeliveryOutcome(
   // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
   // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
   // because the correct anchor costs one clock read, not because it was observed in the wild.
-  const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random: optional.random }));
-  await outbox.markFailed(row.id, message, nextAttemptAt, nextStatusAfterFailure(row));
+  const nextAttemptAt = addMsToIso(readNowIso({ clock }), computeOutboxBackoffMs(row.attempts, { random: optional.random }));
+  await outbox.markFailed({ id: row.id, error: message, nextAttemptAt, nextStatus: nextStatusAfterFailure(row) });
 }
 
 /**
@@ -269,12 +270,12 @@ async function recordOverrun(
 ): Promise<void> {
   const { outbox, clock, row, publishing, timeoutMs } = required;
   try {
-    await outbox.markFailed(
-      row.id,
-      `delivery of outbox event "${row.event.name}" (${row.id}) timed out after ${timeoutMs}ms`,
-      addMsToIso(clock.nowIso(), DEFAULT_OUTBOX_CLAIM_LEASE_MS),
-      nextStatusAfterFailure(row)
-    );
+    await outbox.markFailed({
+      id: row.id,
+      error: `delivery of outbox event "${row.event.name}" (${row.id}) timed out after ${timeoutMs}ms`,
+      nextAttemptAt: addMsToIso(readNowIso({ clock }), DEFAULT_OUTBOX_CLAIM_LEASE_MS),
+      nextStatus: nextStatusAfterFailure(row),
+    });
   } finally {
     // Attached only after the timeout record settles, so a publish that settles meanwhile is still
     // written LAST. `settlePublish` never rejects, so this chain never produces an unhandled

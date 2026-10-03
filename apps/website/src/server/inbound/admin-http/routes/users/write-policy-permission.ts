@@ -1,13 +1,7 @@
 import type { Request, Response } from "express";
 
-import {
-  GrantExceedsIssuerError,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  PermissionUnknownError,
-  writePolicyPermission,
-} from "@jini-ai/cms/identity";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, PermissionUnknownError } from "@jini-ai/user-management";
+import { writePolicyPermission } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
@@ -64,17 +58,7 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app
       const caller = getAuthedPrincipal(res);
       const body = (req.body ?? {}) as Record<string, unknown>;
 
-      const { policyPermission } = await writePolicyPermission({
-        deps: identityServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          policyId: String(req.params.policyId ?? ""),
-          permission: String(body.permission ?? ""),
-          resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined,
-          constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined,
-        },
-      });
+      const { policyPermission } = await writePolicyPermission({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? ""), permission: String(body.permission ?? "") } }, { resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined, constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined });
 
       res.status(201).json({ policyPermission });
     } catch (err) {

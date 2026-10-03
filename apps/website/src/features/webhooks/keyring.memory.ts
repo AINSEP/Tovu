@@ -1,46 +1,37 @@
-import { hkdfSync, randomBytes } from "node:crypto";
-
+import { randomBytes } from "node:crypto";
+import { FixedRootKeyKeyring } from "@jini-ai/platform/secrets";
+import { HKDF_EXTRACTION_SALT } from "./keyring.env.js";
 import type { KeyringPort } from "./ports.js";
 
-/**
+/** Ephemeral host keyring with the same Tovu salt and Jini derivation as persisted keys.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
  * @file An in-memory `KeyringPort` test/dev double (ADR-PIPE-015 Phase 1 T017).
  *
  * Purpose:
  * Backs the hermetic `RouteDeps` composition (`server/app.ts`'s `createRouteDeps()`, used by
  * every route test) with the REAL `createKeyringBackedSigner`/HKDF derivation code path, without
  * touching the filesystem or an env var the way `EnvOrFileKeyring` does. A random root key is
- * generated once per process and held only in memory.
- */
-const HKDF_EXTRACTION_SALT = Buffer.from("tovu-integrations-root-key-hkdf-v1", "utf8");
-const DERIVED_SECRET_LENGTH_BYTES = 32;
-
+ * generated once per instance and held only in memory.
+ *
+ * Hermetic route composition exercises the real signer/HKDF path without reading an env var
+ * or the filesystem. This instance retains one random root key only in memory. */
+// Shared derivation: Jini/packages/platform/src/secrets/keyring.env.ts (FixedRootKeyKeyring).
 export class InMemoryKeyring implements KeyringPort {
-  private readonly rootKey = randomBytes(32);
-  private readonly keyId: string;
+  private readonly keyring: FixedRootKeyKeyring;
 
   constructor(keyId = "v1") {
-    this.keyId = keyId;
+    this.keyring = new FixedRootKeyKeyring({
+      hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT,
+    }, { keyId });
   }
 
-  async activeKey(): Promise<{ readonly keyId: string }> {
-    return { keyId: this.keyId };
+  activeKey(): Promise<{ readonly keyId: string }> { return this.keyring.activeKey({}); }
+  deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
+    return this.keyring.deriveSigningSecret(input);
   }
-
-  async deriveSigningSecret(input: {
-    workspaceId: string;
-    subscriptionId: string;
-    version: number;
-  }): Promise<Uint8Array> {
-    const info = `${input.workspaceId}:${input.subscriptionId}:v${input.version}`;
-    return new Uint8Array(
-      hkdfSync("sha256", this.rootKey, HKDF_EXTRACTION_SALT, info, DERIVED_SECRET_LENGTH_BYTES)
-    );
-  }
-
-  async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    const effectiveInfo = `${input.purpose}:${input.workspaceId}:${input.info}`;
-    return new Uint8Array(
-      hkdfSync("sha256", this.rootKey, HKDF_EXTRACTION_SALT, effectiveInfo, DERIVED_SECRET_LENGTH_BYTES)
-    );
+  derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
+    return this.keyring.derive(input);
   }
 }

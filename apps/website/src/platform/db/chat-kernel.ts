@@ -1,50 +1,22 @@
-import type { Generated } from "kysely";
+import type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
+export type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
 
-// The driver and port directly, not `kernel/index.js` (as `content-kernel.ts`): the migration list
-// imports this module and must not pull the Postgres drivers into a build script's graph.
-import { type SqliteConnectionSource, sqliteKernel } from "./kernel/drivers/sqlite.js";
-import type { StorageKernel } from "./kernel/port.js";
-import { scopeToSchema } from "./kernel/schema-scope.js";
+// Dedicated db entries keep migrations driver-free; sqliteKernel memoizes the same host client
+// used by the packaged history adapter, sessions and Tovu's run ledger.
+import { type SqliteConnectionSource, sqliteKernel } from "@jini-ai/db/kernel/sqlite";
+import { scopeToSchema, type StorageKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The chat database (`chat.db`, see `sqlite/chat-db.ts`) as a storage kernel:
  * `StorageKernel<ChatDatabase>`, whichever driver is underneath. The chat twin of
  * `content-kernel.ts`.
  *
- * `content-database.generated.ts` covers `content.db` only, so the chat tables are typed here by
- * hand, snake_case, exactly as `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus `sqlite/chat-db.ts`
+ * `content-database.generated.ts` covers `content.db` only. The chat tables compose Jini's shared
+ * types with host sessions/approvals, exactly as `@jini-ai/chat/store/sqlite`'s `CHAT_HISTORY_DDL`
+ * plus `sqlite/chat-db.ts`
  * (SQLite) and chat migration `0000_chat_baseline` (Postgres, schema {@link AI_CHAT_SCHEMA}) create them. Type aliases, not interfaces: Kysely's table
  * typing needs them (see `features/comments/repo.rows.ts`). Times are epoch milliseconds.
  */
-
-export type AiChatsTable = {
-  id: string;
-  scope_id: string;
-  owner_kind: string;
-  owner_id: string;
-  title: string | null;
-  title_source: Generated<string>;
-  created_at: number;
-  updated_at: number;
-  expires_at: number | null;
-};
-
-export type AiChatMessagesTable = {
-  id: string;
-  conversation_id: string;
-  role: string;
-  content: string;
-  agent_id: string | null;
-  agent_name: string | null;
-  events_json: string | null;
-  attachments_json: string | null;
-  run_id: string | null;
-  run_status: string | null;
-  position: number;
-  created_at: number;
-  started_at: number | null;
-  ended_at: number | null;
-};
 
 /** Tovu-owned (`sqlite/chat-db.ts`): which agent-CLI session a conversation's agent resumes. */
 export type AssistantAgentSessionsTable = {
@@ -88,8 +60,9 @@ export const AI_CHAT_SCHEMA = "ai_chat";
 
 /**
  * The chat kernel over a Postgres/PGlite content database: the same connection, every chat
- * statement addressed to {@link AI_CHAT_SCHEMA} (`kernel/schema-scope.ts`). The tables come from
+ * statement addressed to {@link AI_CHAT_SCHEMA} (`@jini-ai/db/kernel`). The tables come from
  * `migrateChatDatabase`.
+ * schema-scope.ts (platform/db/kernel/schema-scope.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function pgChatKernel(kernel: StorageKernel<unknown>): ChatKernel {
   return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);

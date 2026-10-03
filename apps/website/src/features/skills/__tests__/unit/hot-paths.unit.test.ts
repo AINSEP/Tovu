@@ -22,7 +22,7 @@ async function fixture(fn: () => Promise<void>) {
 const upload = () => installSkill({ ...ctx, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] });
 
 test("daemon skill middleware refreshes discovery and refuses removed tools on the same real executor", () => fixture(async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   await registerInstalledSkillTools(registry, ctx);
   const executor = createToolExecutor({ registry });
   let catalog = buildToolCatalogQuery(registry);
@@ -43,7 +43,7 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
 }));
 
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
-  const deps = { ...ctx, clock: { nowIso: () => "2026-10-01T00:00:00Z" }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
+  const deps = { ...ctx, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
   const surface = createByokToolSurface(deps, { installExtensions: false });
   await registerInstalledSkillTools(surface.registry, ctx);
   await upload();
@@ -55,6 +55,6 @@ test("BYOK meta-tools discover and execute a post-boot installation, then drop a
   await setSkillEnabled({ ...ctx, toolId: "skill_incident_response", enabled: false });
   const disabled = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
   assert.equal(disabled.isError, true);
-  assert.equal(surface.registry.has("skill_incident_response"), false);
+  assert.equal(surface.registry.has({ toolId: "skill_incident_response" }), false);
   assert.equal((await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } })).isError, true);
 }));

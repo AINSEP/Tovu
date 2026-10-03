@@ -18,7 +18,7 @@
  *
  * INTERFACES + TYPES ONLY — no feature logic lives here.
  */
-import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { ColumnType, DataModuleDecl } from "../plugins/index.js";
 
 /**

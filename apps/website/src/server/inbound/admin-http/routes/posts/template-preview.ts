@@ -1,23 +1,11 @@
 import express, { type RequestHandler } from "express";
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
-import { getPresentationSettings } from "#src/features/presentation/index";
-import { postPublicPath } from "#src/platform/routing/index";
-import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
-import {
-  renderViaTemplate,
-  resolveActiveTheme,
-  resolveHtmlEmbedsForRender,
-  resolveMediaAssetMetadataForRender,
-  resolveMediaTransformVersionsForRender,
-  resolveStaticMenusForRender,
-  resolveWidgetsForRender,
-} from "#src/server/inbound/public-http/routes/site/pages";
-import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
-import { resolveSiteTitle } from "#src/features/settings/site-title";
+import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
+import { renderPostPreview, TemplatePreviewRenderError } from "./template-preview-render.js";
+// Clone/draft/theme-branch rationale lives beside renderPostPreview in template-preview-render.ts.
 import { getAuthedPrincipal } from "../../dev-auth.js";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * @file Template-preview fix (2026-08-11, extended 2026-08-12) — `ADS-memory/reports/implementation/
@@ -76,7 +64,7 @@ import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js
  * `pendingHtmlOverride` — the equivalent bypass of that function's OWN `findPublishedPostById`
  * visibility guard, for the exact same reason and under the exact same "matches only the one id this
  * caller already fetched and authorized" scoping `pendingContentOverride` already uses for `bodyJson`.
- * `buildPreviewPost` below only builds this override when the FETCHED row's own `bodyFormat` is
+ * The extracted renderer only builds this override when the FETCHED row's own `bodyFormat` is
  * `"html"` — an `bodyHtml` field sent for a `"doc"`-format post is ignored, never applied, since that
  * row has no `bodyHtml` column to preview in the first place.
  *
@@ -179,67 +167,6 @@ function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | nul
   return rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
 }
 
-/**
- * Never persisted — a shallow clone rendered once for this response and discarded.
- *
- * `pendingBodyHtml` is only ever applied when `post.bodyFormat === "html"` — a `"doc"`-format post
- * has no `bodyHtml` column to preview, and applying it there would silently disagree with the
- * `bodyJson` override on the same clone. See this file's own header for why `bodyJson` and `bodyHtml`
- * need separate overrides in the first place.
- *
- * @complexity O(1).
- */
-function buildPreviewPost(
-  post: PostRecord,
-  overrideTemplateChoice: string | null,
-  pendingBodyJson: JsonObject | undefined,
-  pendingBodyHtml: string | undefined
-): PostRecord {
-  return {
-    ...post,
-    templateChoice: overrideTemplateChoice,
-    ...(pendingBodyJson !== undefined ? { bodyJson: pendingBodyJson } : {}),
-    ...(pendingBodyHtml !== undefined && post.bodyFormat === "html" ? { bodyHtml: pendingBodyHtml } : {}),
-  };
-}
-
-/**
- * Bare-page preview (owner ruling 2026-09-23, S5) — mirrors `pages.ts`'s own `renderBarePage`, but
- * built from `ContentRouteDeps`-compatible (Pick-typed) exports only, since this route's `deps` is
- * narrower than the full `RouteDeps` those two functions require. Inline `widgetEmbed` nodes resolve
- * through `resolveWidgetsForRender(deps, null, post)`, the same `theme: null` call the live bare
- * render makes: a doc-format Page can be bare too (the `templateChoice` query/API, not only the Pages
- * picker), and skipping it previewed every inline widget as the placeholder. Skips the SEO
- * `extraHead` fold (`buildExtraHead` is private to `pages.ts` and needs `originRegistry`, not in
- * `ContentRouteDeps`) — a disclosed, low-stakes trim: this is a never-indexed admin iframe, not the
- * public site S4 already covers.
- */
-async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Promise<string> {
-  const [siteTitle, widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata] = await Promise.all([
-    resolveSiteTitle(
-      {
-        settingsRepo: deps.settingsRepo,
-        preservationStore: deps.siteTitlePreservationStore,
-        workspaceRepo: deps.workspaceRepo,
-        siteDisplayName: deps.siteDisplayName,
-      },
-      { workspaceId: deps.workspaceId }
-    ),
-    resolveWidgetsForRender(deps, null, post),
-    resolveHtmlEmbedsForRender(deps, post),
-    resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post),
-  ]);
-  return renderBareEntryDocument({
-    post,
-    siteTitle,
-    pageHtmlEmbeds,
-    widgetInlineResolved: widgets.inlineResolved,
-    mediaTransformVersions,
-    mediaAssetMetadata,
-  });
-}
-
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -273,99 +200,20 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       // existed" behavior this file's header promises for `GET`.
       const pendingBodyJson = extractPendingBodyJson(req.body);
       const pendingBodyHtml = extractPendingBodyHtml(req.body);
-      // Only forwarded to the render pipeline when the FETCHED row is actually html-format (see
-      // `buildPreviewPost`'s own doc) — never applied to a `"doc"`-format post's render, even if a
-      // caller sent a `bodyHtml` field for one.
-      const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
-
-      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
-
-      // Bare-page preview (owner ruling 2026-09-23, S5) — checked BEFORE any theme resolution/409: a
-      // bare Page renders identically regardless of theme, mirroring `renderBarePage`'s own placement
-      // ahead of the `theme === null` check on the public site (`pages.ts`'s
-      // `renderTemplateBranchIfEligible`).
-      if (isBarePageChoice(previewPost)) {
-        const html = await renderBarePreview(deps, previewPost);
-        res.set("Cache-Control", "no-store").type("html").send(html);
-        return;
-      }
-
-      const { settings } = await getPresentationSettings({
-        deps: { repo: deps.presentationRepo },
-        input: { workspaceId: deps.workspaceId },
+      const { html } = await renderPostPreview(deps, {
+        post, templateChoice: overrideTemplateChoice,
+        bodyJson: pendingBodyJson, bodyHtml: pendingBodyHtml,
       });
-      const resolved = resolveActiveTheme(deps, settings.activeThemeId);
-      if (resolved === null) {
-        res.status(500).type("text/plain").send("no themes installed");
-        return;
-      }
-      // Producer 4 of the optional-theme design. The thing this route previews IS a theme file, so
-      // with the theme deliberately off there is nothing coherent to render. Before this guard the
-      // route did not fail — it walked `resolveTemplate` -> `renderStaticPage` -> a `theme.pages`
-      // lookup returning `undefined`, and landed on a `?? ""`, serving an EMPTY BODY with a 200.
-      // The operator saw a blank preview pane and no reason for it, indistinguishable from a broken
-      // template. 409 rather than 500: nothing is broken and nothing about the request is
-      // malformed; the site's current state simply conflicts with what was asked for. This is an
-      // admin tool, not a public surface, so an explicit error is right here even though the public
-      // site answers the same state by rendering unstyled.
-      if (resolved === NO_THEME_ID) {
-        res
-          .status(409)
-          .type("text/plain")
-          .send("this site has no active theme, so there is no template to preview — activate a theme to use the template picker");
-        return;
-      }
-      const theme = resolved;
-
-      // 2026-09-16, owner: "it should render even in unpublished state." The template's own
-      // `{"type":"content"}` slot resolves through a VISIBILITY-FILTERED resolver
-      // (`resolver-service.ts`'s `findPublishedPostById`), which finds nothing for an unpublished
-      // row — so a draft previewed with styled chrome and NO BODY AT ALL, the REQ-28 placeholder
-      // where its content should be. Measured, not inferred, before this change.
-      //
-      // The row's own body is the right answer here and is already in hand: this request fetched it
-      // by id and `deps.authorize` already cleared this principal for `content.read` above, so the
-      // operator can read this exact body from the admin API anyway. Rendering it into a `no-store`,
-      // admin-only preview response exposes nothing new — the guard exists to keep unpublished
-      // content off the PUBLIC site, and this route is not that.
-      //
-      // Scoped to unpublished rows deliberately: a published row's preview keeps resolving through
-      // the resolver exactly as before, byte for byte, so this cannot change what the owner already
-      // sees for the overwhelmingly common case. A genuine pending override always wins over it.
-      const unpublished = post.status !== "published";
-      const previewBodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
-      const previewBodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
-
-      // 2026-09-16 fix. This route used to hand `previewPost` straight to `renderViaTemplate`, while
-      // the PUBLIC route reaches that same function only through `renderTemplateBranchIfEligible`,
-      // which first asks `resolveTemplateBranchChoice` which template actually applies. For a
-      // `kind: "page"`, `bodyFormat: "html"` row with no `templateChoice` — the state every
-      // agent-created Page starts in, and the state the picker's "No template chosen" puts one back
-      // into — the two answers differed: the public site resolved the theme's page shell, this route
-      // fell through `resolveTemplate`'s "never chosen" arm onto `theme.manifest.templates[0]`
-      // (`posts-default.html` on live `basic`) or, for the explicit `""`, onto the diagnostic page.
-      // Either way the preview pane showed something the public URL never would. Asking the same
-      // question the public route asks is the whole fix.
-      //
-      // `"ineligible"` keeps this route's PRE-EXISTING behavior (render `previewPost` as-is) rather
-      // than matching the public site, which falls to a generic non-template render this route has no
-      // access to. That remains a divergence for a `doc`-format Page with no template — narrower than
-      // the one being closed, unreachable from the Pages picker (which only renders for `"html"`
-      // format), and closing it means wiring a second render pipeline into an admin route, which is a
-      // different change from this bug fix.
-      const branch = resolveTemplateBranchChoice({ theme, post: previewPost });
-      // A shallow clone for THIS render only — nothing is written back, exactly as the public route's
-      // own page-shell arm does it, so the row stays untemplated and a later explicit pick still wins.
-      const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
-
-      const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
-      const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml);
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this
       // route exists to fix (mirrors `theme-page-preview.ts`'s identical no-store rule).
       res.set("Cache-Control", "no-store").type("html").send(html);
     } catch (err) {
+      if (err instanceof TemplatePreviewRenderError) {
+        res.status(err.status).type("text/plain").send(err.message);
+        return;
+      }
       if (err instanceof PostNotFoundError) {
         res.status(404).type("text/plain").send(err.message);
         return;

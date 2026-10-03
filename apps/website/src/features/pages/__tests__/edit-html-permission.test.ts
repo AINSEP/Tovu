@@ -1,21 +1,9 @@
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  authorize,
-  migrateDeprecatedPermissionGrants,
-  seedIdentity,
-  type IdentityRepos,
-} from "@jini-ai/cms/identity";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
+import { type IdentityRepos } from "@jini-ai/user-management";
 
 import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
@@ -77,7 +65,7 @@ const PAGES_EDIT_HTML = "pages.edit_html";
 const CONTENT_WRITE = "content.write";
 
 const WORKSPACE = "ws-edit-html-privilege";
-const clock = { nowIso: () => "2026-09-05T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-05T00:00:00.000Z", nowMs: () => Date.parse("2026-09-05T00:00:00.000Z") };
 
 function counterIdGen(prefix: string) {
   let n = 0;
@@ -90,8 +78,8 @@ function counterIdGen(prefix: string) {
  * file actually asserts.
  */
 const fakeHasher = {
-  hash: async (password: string) => `hashed:${password}`,
-  verify: async (hash: string, password: string) => hash === `hashed:${password}`,
+  hash: async ({ password }: { password: string }) => `hashed:${password}`,
+  verify: async ({ hash, password }: { hash: string; password: string }) => hash === `hashed:${password}`,
 };
 
 interface Chain {
@@ -129,27 +117,24 @@ type Vintage = "fresh" | "pre-theme-edit";
  * actually ships.
  */
 async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   const idGen = counterIdGen("seed");
 
-  await seedIdentity({
-    deps: { repos, hasher: fakeHasher, clock, idGen },
-    input: { workspaceId: WORKSPACE, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
-  });
+  await seedIdentity({ deps: { repos, hasher: fakeHasher, clock, idGen }, input: { workspaceId: WORKSPACE, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" } });
 
   if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
 
-  await migrateDeprecatedPermissionGrants({
+  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
@@ -203,8 +188,8 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
       // `"post"` is what both sinks pass — a Page is a `posts` row. Seeded grants carry
       // `resourceType: null`, so this is the same match either way; passing it keeps the harness
       // identical to the production call rather than an easier version of it.
-      context: { workspaceId: WORKSPACE, entityType: "post" },
-    });
+      context: { workspaceId: WORKSPACE },
+    }, { entityType: "post" });
 
   return { repos, principals, can };
 }

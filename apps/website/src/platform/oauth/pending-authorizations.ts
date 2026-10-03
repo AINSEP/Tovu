@@ -1,9 +1,11 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { createPendingAuthorizationStore as createJiniPendingStore, secureEqualsForOwnerBinding, OAuthError as JiniOAuthError } from "@jini-ai/oauth";
+// State-store implementation and security rationale: Jini/packages/oauth/src/pending-authorizations.ts.
 
-import type { ISODateTime } from "@jini-ai/cms/core";
+import type { Clock, ISODateTime } from "@jini-ai/core/primitives";
 
 import { OAuthError } from "./errors.js";
-import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
+import type { OAuthRandomBytes } from "./ports.js";
 
 /**
  * @file The in-flight `state` ledger for authorization-code flows — single-use, expiring, and BOUND
@@ -26,7 +28,7 @@ import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
  *
  * The port is `Promise`-returning even though this file's own `createPendingAuthorizationStore`
  * implementation does no I/O at all: the REAL adapter
- * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `createSqlitePendingAuthorizationStore`)
+ * (`platform/db/repos/oauth-pending-store.ts`'s `createSqlitePendingAuthorizationStore`)
  * persists every entry to `content.db` and seals `codeVerifier` through the same ADR-058
  * sealer/keyring every other secret in that database goes through, and sealing is Promise-based
  * everywhere else in this codebase (`SecretSealerPort.seal`/`.open`). A synchronous port would have
@@ -43,12 +45,17 @@ import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
  * the agent daemon) and its completion (the public OAuth callback, an Express route on the main web
  * server) are ALREADY two separate OS processes today — not a hypothetical future multi-process web
  * tier — and an in-memory `Map` in either process was invisible to the other. That gap is what
- * `oauth-pending-store.sqlite.ts` closes; this file's own store remains correct for the callers that
+ * `oauth-pending-store.ts` closes; this file's own store remains correct for the callers that
  * still only need one process to see the whole handshake.
+ *
+ * Delegated state-store rationale:
+ * Insertion-ordered, which is what makes "evict the oldest" a first-key delete.
+ * Consumed BEFORE the owner check, not after: a caller who guesses a state and then fails the
+ * binding must still burn it, or the binding check becomes an oracle they can retry against.
  */
 
 /** The `state` width. Exported so
- *  `oauth-pending-store.sqlite.ts` mints `state` at the identical width rather than restating the
+ *  `oauth-pending-store.ts` mints `state` at the identical width rather than restating the
  *  number. */
 export const STATE_BYTES = 24;
 /** Long enough for a human to complete a provider's consent screen including an MFA prompt, short
@@ -76,7 +83,7 @@ export interface PendingAuthorization {
    */
   readonly ownerKey: string;
   readonly providerId: string;
-  /** RFC 7636 verifier. Never leaves this process. */
+  /** RFC 7636 verifier. Kept server-side; durable adapters seal it before crossing processes. */
   readonly codeVerifier: string;
   /**
    * The exact `redirect_uri` sent on the authorization request. Replayed verbatim on the token
@@ -106,7 +113,7 @@ export interface PendingAuthorizationStore {
 }
 
 export interface PendingAuthorizationStoreDeps {
-  readonly clock: OAuthClock;
+  readonly clock: Clock;
   readonly ttlMs?: number;
   readonly maxEntries?: number;
   /** Injected only so tests can pin `state`. Defaults to `node:crypto`'s CSPRNG. */
@@ -115,12 +122,10 @@ export interface PendingAuthorizationStoreDeps {
 
 /** Constant-time string comparison for the owner binding. Length is compared first because
  *  `timingSafeEqual` throws on a length mismatch; length is not the secret. Exported so
- *  `oauth-pending-store.sqlite.ts` enforces the identical owner-binding check against a DB row
+ *  `oauth-pending-store.ts` enforces the identical owner-binding check against a DB row
  *  rather than restating (and risking drift from) the comparison. */
 export function secureEquals(a: string, b: string): boolean {
-  const left = Buffer.from(a, "utf8");
-  const right = Buffer.from(b, "utf8");
-  return left.length === right.length && timingSafeEqual(left, right);
+  return secureEqualsForOwnerBinding({ a, b });
 }
 
 /** The one error every "this state cannot be redeemed" case throws — unknown, expired, replayed, or
@@ -136,7 +141,7 @@ export function invalidState(): OAuthError {
  * Builds a pending-authorization store.
  *
  * @param deps.clock - Every expiry decision goes through this, so tests advance time instead of sleeping.
- * @returns The store. Never throws at construction.
+ * @returns The store. Invalid TTL or capacity is rejected at construction rather than failing open.
  * @complexity `put` is amortized O(1) plus an O(n) prune bounded by `maxEntries`; `take` is O(1)
  *   plus the same prune. `n` is capped, so both are effectively constant.
  * @tradeoffs Pruning on access rather than on a timer keeps this module free of background work and
@@ -144,55 +149,20 @@ export function invalidState(): OAuthError {
  *   unredeemable the whole time, so the only cost is memory, and `maxEntries` bounds that.
  */
 export function createPendingAuthorizationStore(deps: PendingAuthorizationStoreDeps): PendingAuthorizationStore {
-  const ttlMs = deps.ttlMs ?? DEFAULT_TTL_MS;
-  const maxEntries = deps.maxEntries ?? DEFAULT_MAX_ENTRIES;
-  const randomBytesFn = deps.randomBytesFn ?? ((n: number) => randomBytes(n));
-  /** Insertion-ordered, which is what makes "evict the oldest" a first-key delete. */
-  const pending = new Map<string, PendingAuthorization>();
-
-  const pruneExpired = (nowMs: number): void => {
-    for (const [state, entry] of pending) {
-      if (Date.parse(entry.expiresAt) <= nowMs) pending.delete(state);
-    }
-  };
-
+  const store = createJiniPendingStore({
+    clock: deps.clock,
+    randomBytesFn: ({ byteLength }) => deps.randomBytesFn?.(byteLength) ?? randomBytes(byteLength),
+  }, { ttlMs: deps.ttlMs ?? DEFAULT_TTL_MS, maxEntries: deps.maxEntries ?? DEFAULT_MAX_ENTRIES });
   return {
-    async put(input) {
-      const nowIso = deps.clock.nowIso();
-      const nowMs = Date.parse(nowIso);
-      pruneExpired(nowMs);
-      while (pending.size >= maxEntries) {
-        const oldest = pending.keys().next();
-        if (oldest.done) break;
-        pending.delete(oldest.value);
-      }
-
-      const entry: PendingAuthorization = {
-        ...input,
-        state: Buffer.from(randomBytesFn(STATE_BYTES)).toString("base64url"),
-        createdAt: nowIso,
-        expiresAt: new Date(nowMs + ttlMs).toISOString(),
-      };
-      pending.set(entry.state, entry);
-      return entry;
-    },
-
+    put: (input) => store.put(input),
     async take(input) {
-      const nowMs = Date.parse(deps.clock.nowIso());
-      pruneExpired(nowMs);
-
-      const entry = pending.get(input.state);
-      if (!entry) throw invalidState();
-      // Consumed BEFORE the owner check, not after: a caller who guesses a state and then fails the
-      // binding must still burn it, or the binding check becomes an oracle they can retry against.
-      pending.delete(input.state);
-      if (!secureEquals(entry.ownerKey, input.ownerKey)) throw invalidState();
-      return entry;
+      try { return await store.take(input); }
+      catch (error) {
+        // One indistinguishable host error keeps the durable adapter and memory adapter aligned.
+        if (error instanceof JiniOAuthError && error.code === "OAUTH_INVALID_STATE") throw invalidState();
+        throw error;
+      }
     },
-
-    async size() {
-      pruneExpired(Date.parse(deps.clock.nowIso()));
-      return pending.size;
-    },
+    size: () => store.size({}),
   };
 }

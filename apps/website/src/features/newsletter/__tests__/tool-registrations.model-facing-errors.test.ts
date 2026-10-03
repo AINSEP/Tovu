@@ -14,7 +14,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { newsletterAgentToolCatalog } from "../agent-tools.js";
 import { createHookRegistry } from "../hooks.js";
@@ -37,7 +37,7 @@ function makeRouteDeps(options: { allow?: boolean; readOnly?: boolean } = {}): N
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as NewsletterToolDeps["outbox"],
     bus: { publish: async () => undefined, subscribe: () => undefined } as unknown as NewsletterToolDeps["bus"],
@@ -58,7 +58,7 @@ function makeRouteDeps(options: { allow?: boolean; readOnly?: boolean } = {}): N
 }
 
 async function buildHarness(routeDeps: NewsletterToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildNewsletterRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
@@ -266,8 +266,8 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
   assert.equal(sentEmails.length, 1);
   assert.equal(sentEmails[0].to.email, "reader@example.com");
   assert.match(sentEmails[0].html ?? "", /href="https:\/\/example.com\/newsletter\/confirm\?token=/);
-  assert.deepEqual(await output("newsletter_resend_confirmation", { subscriptionId: "id-1" }), { delivered: true });
-  assert.equal(sentEmails.length, 2);
+  assert.deepEqual(await output("newsletter_resend_confirmation", { subscriptionId: "id-1" }), { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." });
+  assert.equal(sentEmails.length, 1);
   assert.equal((await deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "id-1" })).length, 1);
   assert.deepEqual(await output("newsletter_remove_subscription", { listId: "l-1", subscriptionId: "id-1" }), { subscription: { ...pending, status: "unsubscribed", unsubscribedAt: NOW } });
   assert.equal((await deps.newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "id-1" }))?.status, "unsubscribed");

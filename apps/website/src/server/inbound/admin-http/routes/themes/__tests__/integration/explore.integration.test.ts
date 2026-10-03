@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { syncBuiltinESMExports } from "node:module";
 
 import type { Response } from "express";
 
@@ -98,32 +99,88 @@ test("explore: detail lists the fixture's own files, real login, real composed a
   assert.ok(body.files.some((f) => f.path === "style.css"));
 });
 
+// Port test, not run in the Codex sandbox.
 test("explore: an unreadable theme directory 500s via the detail route's generic catch, not a 404/403", async (t) => {
   const themesDir = makeThemesRoot();
-  const liveThemeDir = path.join(themesDir, "static", THEME_ID);
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const liveThemeDir = fs.realpathSync(path.join(themesDir, "static", THEME_ID));
   const app = createApp(testDeps(themesDir));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  // Chmod AFTER app boot (the theme catalog is discovered once, up front, from `deps.themes` -- see
-  // `testDeps`/`discoverAllBuiltInThemes` above -- so `findThemeOrRespond`'s lookup is unaffected)
-  // and right before the request, so only `listThemeFiles`'s own live `readdirSync(themeDir)`
-  // inside the route's try block hits the permission error, not theme discovery/lookup.
-  fs.chmodSync(liveThemeDir, 0o000);
-  t.after(() => fs.chmodSync(liveThemeDir, 0o755));
-
-  const res = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
-  if (process.getuid && process.getuid() === 0) {
-    t.skip("running as root: chmod 000 does not deny root a read");
-    return;
+  // Inject after discovery and login, on the canonical path the listing actually reads.
+  const original = fs.readdirSync;
+  let failureReached = false;
+  const injected = t.mock.method(fs, "readdirSync", (...args: Parameters<typeof fs.readdirSync>) => {
+    if (String(args[0]) === liveThemeDir) {
+      failureReached = true;
+      throw Object.assign(new Error("injected permission failure"), { code: "EACCES" });
+    }
+    return original(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const res = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+    assert.equal(failureReached, true);
+  } finally {
+    injected.mock.restore();
+    syncBuiltinESMExports();
   }
-  assert.equal(res.status, 500);
-  const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+});
+
+// Port test, not run in the Codex sandbox.
+test("explore: filesystem I/O failures return 500 through the composed app without chmod", async (t) => {
+  const themesDir = makeThemesRoot();
+  const compiledRoot = makeCompiledThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(compiledRoot, { recursive: true, force: true }));
+  const authored = await bootAuthenticated(createApp(testDeps(themesDir)), t);
+  const compiled = await bootAuthenticated(createApp(testDeps(compiledRoot)), t);
+  // Match the containment adapter's canonical paths, including macOS's /var -> /private/var alias.
+  const live = fs.realpathSync(path.join(themesDir, "static", THEME_ID));
+  const catalog = fs.realpathSync(path.join(themesDir, THEME_CATALOG_DIR, "static", THEME_ID));
+  const compiledCatalog = fs.realpathSync(path.join(compiledRoot, THEME_CATALOG_DIR, "static", COMPILED_ID));
+  fs.writeFileSync(path.join(live, "style.css"), "modified live stylesheet");
+  const fault = Object.assign(new Error("filesystem I/O failure"), { code: "EIO" });
+  const cases = [
+    { server: authored, url: BASE, method: "GET", operation: "readdirSync" as const, target: live },
+    { server: authored, url: `${BASE}/file`, method: "PUT", operation: "renameSync" as const, target: path.join(live, "style.css"), body: { path: "style.css", content: "body{}" } },
+    { server: authored, url: `${BASE}/file?path=style.css`, method: "GET", operation: "readFileSync" as const, target: path.join(live, "style.css") },
+    { server: authored, url: `${BASE}/file/reset`, method: "POST", operation: "copyFileSync" as const, target: path.join(catalog, "style.css"), body: { path: "style.css" } },
+    { server: compiled, url: `${COMPILED_BASE}/file/reset`, method: "POST", operation: "copyFileSync" as const, target: path.join(compiledCatalog, "pages", "index.html"), body: { path: "pages/index.html" } },
+  ];
+  for (const scenario of cases) {
+    const original = fs[scenario.operation] as unknown as (...args: unknown[]) => unknown;
+    let failedOperationReached = false;
+    const mocked = t.mock.method(fs, scenario.operation, (...args: unknown[]) => {
+      const targetArgument = scenario.operation === "renameSync" ? args[1] : args[0];
+      if (String(targetArgument) === scenario.target) {
+        failedOperationReached = true;
+        throw fault;
+      }
+      return original(...args);
+    });
+    syncBuiltinESMExports();
+    try {
+      const response = await fetch(`${scenario.server.baseUrl}${scenario.url}`, {
+        method: scenario.method, headers: { cookie: scenario.server.cookie, "content-type": "application/json" },
+        ...(scenario.body ? { body: JSON.stringify(scenario.body) } : {}),
+      });
+      assert.equal(response.status, 500, `${scenario.method} ${scenario.url}`);
+      assert.deepEqual(await response.json(), { error: "internal error" });
+      assert.equal(failedOperationReached, true, `${scenario.operation} must cause this failure`);
+    } finally {
+      mocked.mock.restore();
+      syncBuiltinESMExports();
+    }
+  }
 });
 
 test("explore: PUT a writable file, then GET reflects the reload (not stale)", async (t) => {
   const themesDir = makeThemesRoot();
-  const app = createApp(testDeps(themesDir));
+  const deps = testDeps(themesDir);
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const put = await fetch(`${baseUrl}${BASE}/file`, {
@@ -136,6 +193,47 @@ test("explore: PUT a writable file, then GET reflects the reload (not stale)", a
   const get = await fetch(`${baseUrl}${BASE}/file?path=style.css`, { headers: { cookie } });
   const body = (await get.json()) as { content: string };
   assert.equal(body.content, "body { color: red; }");
+  const pagePut = await fetch(`${baseUrl}${BASE}/file`, {
+    method: "PUT", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/index.html", content: "<h1>Reloaded home</h1>" }),
+  });
+  assert.equal(pagePut.status, 200);
+  assert.equal(deps.themes.find((theme) => theme.manifest.id === THEME_ID)?.pages.index, "<h1>Reloaded home</h1>");
+});
+
+test("explore: copy, rename, delete and reset refresh the in-memory page map", async (t) => {
+  const themesDir = makeThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const deps = testDeps(themesDir);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const pages = () => deps.themes.find((theme) => theme.manifest.id === THEME_ID)!.pages;
+  const mutate = async (action: string, body: unknown) => {
+    const response = await fetch(`${baseUrl}${BASE}/file/${action}`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 200, action);
+    return response.json() as Promise<{ path: string }>;
+  };
+  const copied = await mutate("copy", { path: "pages/index.html" });
+  assert.equal(copied.path, "pages/index-1.html");
+  assert.equal(pages()["index-1"], "<h1>Home</h1>");
+  await mutate("rename", { path: copied.path, name: "renamed.html" });
+  assert.equal(pages()["index-1"], undefined);
+  assert.equal(pages().renamed, "<h1>Home</h1>");
+  const deleted = await fetch(`${baseUrl}${BASE}/file/delete`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/renamed.html" }),
+  });
+  assert.equal(deleted.status, 200);
+  assert.equal(pages().renamed, undefined);
+  const put = await fetch(`${baseUrl}${BASE}/file`, {
+    method: "PUT", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/index.html", content: "<h1>Modified</h1>" }),
+  });
+  assert.equal(put.status, 200);
+  assert.equal(pages().index, "<h1>Modified</h1>");
+  await mutate("reset", { path: "pages/index.html" });
+  assert.equal(pages().index, "<h1>Home</h1>");
 });
 
 test("explore: PUT of a script (.js) file succeeds -- 2026-08-29 owner ask, script is no longer a content-read-only group", async (t) => {
@@ -410,7 +508,8 @@ test("explore: PUT into a built theme's generated tree is refused, theme.json an
 
 test("explore: reset on a built theme's generated file restores the whole tree atomically (scope: release)", async (t) => {
   const themesDir = makeCompiledThemesRoot();
-  const app = createApp(testDeps(themesDir));
+  const deps = testDeps(themesDir);
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}${COMPILED_BASE}/file/reset`, {
@@ -425,6 +524,7 @@ test("explore: reset on a built theme's generated file restores the whole tree a
     fs.readFileSync(path.join(themesDir, "static", COMPILED_ID, "pages", "index.html"), "utf8"),
     "<html><body>built</body></html>"
   );
+  assert.equal(deps.themes.find((theme) => theme.manifest.id === COMPILED_ID)?.pages.index, "<html><body>built</body></html>");
 });
 
 test("explore: copy/rename refuse a path inside a built theme's generated tree (preview/, outside sourceDir)", async (t) => {

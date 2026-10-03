@@ -45,9 +45,9 @@ const PNG_BYTES = new Uint8Array([
 ]);
 
 function fakeRouteDeps(allowedPermissions: string[] = ["media.upload"]) {
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypes = new Map<string, string>();
 

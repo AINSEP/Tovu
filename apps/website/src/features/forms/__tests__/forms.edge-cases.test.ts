@@ -3,13 +3,13 @@ import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { FormFieldValidationError } from "../errors.js";
+import { FormFieldValidationError } from "@jini-ai/cms-forms";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
 import { createFormDefinition } from "../write-service.js";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import type { FormDefinitionRecord } from "../types.js";
+import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Additional edge-case coverage (tasks.md T046): EC-01 (only-required-fields submission, at

@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserDisableRoute } from "../disable.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createUser } from "@jini-ai/cms/identity";
+import { createUser } from "@jini-ai/user-management/server";
 
 /**
  * @file Route-level branch coverage for `POST .../users/:principalId/disable` (`DISABLE_PRINCIPAL`,

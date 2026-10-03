@@ -176,6 +176,9 @@ async function callPeer(
       },
       ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
       timeoutMs: PEER_REQUEST_TIMEOUT_MS,
+      // Publishing can carry a 96 MB bundle. Keep the feature's intended 60 s
+      // total budget explicit; the egress policy's 30 s limit is socket inactivity.
+      totalDeadlineMs: PEER_REQUEST_TIMEOUT_MS,
     });
   } catch (err) {
     throw toTransportError(err, baseUrl);

@@ -21,7 +21,7 @@
  *
  * Grounding imports (typecheck against real code): `../core/ports`, `../mail`.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,

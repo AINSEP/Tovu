@@ -1,52 +1,18 @@
-import type { StorageKernel } from "../kernel/port.js";
+import { UnknownAppliedMigrationError as JiniUnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
-/**
- * @file What a migration step is (ADR-066). Steps form ONE ordered history for every dialect; the
- * runner (`runner.ts`) applies each pending one in its own transaction and records it in
- * `tovu_migrations`.
- */
+/** @file Shared step contracts, with Tovu's historical diagnostic and legacy-adoption error. */
+// Ordered-history/checksum/backup rationale: Jini/packages/db/src/migrate/step.ts (ADR-066).
+// The host runner records that history in tovu_migrations; shipped step IDs are never reused.
+export { MIGRATION_ID, MigrationChecksumError, type MigrationContext, type MigrationStep } from "@jini-ai/db/migrate";
 
-/** `NNNN_snake_name`. Ordered by the number; never renamed or reused once shipped. */
-export const MIGRATION_ID = /^\d{4}_[a-z0-9_]+$/;
-
-export interface MigrationContext {
-  /** Where the runner copied (or would copy) the database before the first pending step; the caller decides. */
-  readonly backupPath?: string;
-  /** Something worth telling the operator (a backup taken, a legacy tail applied). */
-  note(message: string): void;
-}
-
-export interface MigrationStep {
-  readonly id: string;
-  /** sha256 hex of what the step does, pinned in `checksums.ts` (a test re-derives it from the sources). */
-  readonly checksum: string;
-  /** Runs OUTSIDE the transaction, only when the step is pending (backups: they cannot run inside one). */
-  prepare?(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void>;
-  /** Runs inside the step's transaction, after the runner holds the migration lock. */
-  up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void>;
-}
-
-/** An applied step's recorded checksum differs from this runtime's: the step was edited after shipping. */
-export class MigrationChecksumError extends Error {
-  constructor(
-    readonly id: string,
-    readonly recorded: string,
-    readonly expected: string
-  ) {
-    super(`migration ${id} was applied with checksum ${recorded}, but this runtime's ${id} has ${expected}; an applied migration must never change`);
-    this.name = "MigrationChecksumError";
+/** Preserve the old constructor shape and the product name for direct callers. */
+export class UnknownAppliedMigrationError extends JiniUnknownAppliedMigrationError {
+  constructor(ids: readonly string[]) {
+    super(ids, "Tovu");
   }
 }
 
-/** The database records steps this runtime does not have: it was migrated by a newer Tovu. */
-export class UnknownAppliedMigrationError extends Error {
-  constructor(readonly ids: readonly string[]) {
-    super(`the database has migrations this runtime does not know (${ids.join(", ")}); it was upgraded by a newer Tovu — run that version`);
-    this.name = "UnknownAppliedMigrationError";
-  }
-}
-
-/** The legacy drizzle history of a SQLite database cannot be matched to the frozen chain. Needs a human. */
+/** Tovu's frozen Drizzle history cannot be matched; legacy adoption remains host-owned. */
 export class LegacyHistoryError extends Error {
   constructor(message: string) {
     super(message);

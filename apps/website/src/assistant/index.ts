@@ -319,8 +319,7 @@ export type { ExternalMcpRosterChangeListener } from "./external-mcp-roster-chan
 // discovery index was no longer worth the ambiguity of two surfaces for the model to guess
 // between. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
 // ---------------------------------------------------------------------------------------------
-export { registerDerivedToolContributor, registerToolContributor } from "./tool-contribution-registry.js";
-export type { DerivedToolContributor, ToolContributor } from "./tool-contribution-registry.js";
+export type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "./tool-contribution-registry.js";
 
 // A SIBLING registry, not a field on `ToolContributor` above: a resource's "how do I copy myself"
 // contribution to `content_duplicate` (`features/content-duplication/`) is a different concern from

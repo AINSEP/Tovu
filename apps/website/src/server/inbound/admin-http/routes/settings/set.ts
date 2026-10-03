@@ -1,4 +1,4 @@
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   DefinitionNotFoundError,
   DefinitionTombstonedError,
@@ -8,11 +8,10 @@ import {
   ValueValidationFailedError,
   type SettingScope,
   deriveRequiredPermission,
-  set,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
+import { resolveTargetWorkspaceId, respondToSettingsError, createTovuSettingsService, type SettingsErrorMapping } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -143,18 +142,15 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
         return;
       }
 
-      const result = await set({
-        deps: toWriteServiceDeps(deps),
-        input: {
-          namespace,
-          key,
-          scope,
-          value: valueJson,
-          workspaceId,
-          principalId,
-          callerPrincipalId: principal.id,
-          authWorkspaceId,
-        },
+      const result = await createTovuSettingsService({ deps }).set({
+        namespace,
+        key,
+        scope,
+        value: valueJson,
+        workspaceId,
+        principalId,
+        callerPrincipalId: principal.id,
+        authWorkspaceId,
       });
 
       res.json({ key: `${namespace}.${key}`, scope, value: result.value, revisionSeq: result.revisionSeq });

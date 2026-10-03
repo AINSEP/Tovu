@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
@@ -2035,7 +2035,7 @@ export async function saveExternalMcpServer(
     existing,
   });
 
-  const now = deps.clock.nowIso();
+  const now = nowIso({ clock: deps.clock });
   const writeGrantAttribution = resolveWriteGrantAttribution(input, writeAllowedToolNames, existing, now);
   const record: ExternalMcpServerRecord = {
     workspaceId: input.workspaceId,

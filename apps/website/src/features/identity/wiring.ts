@@ -1,23 +1,15 @@
+// Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
 import type { AuthorizeFn } from "@jini-ai/cms/core";
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { ContentKernel } from "../../platform/db/content-kernel.js";
+// Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import { contentKernel, type ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { authorize as authorizeCore } from "@jini-ai/cms/identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
-import { migrateDeprecatedPermissionGrants } from "@jini-ai/cms/identity";
+import { authorize as authorizeCore } from "@jini-ai/user-management/server";
+import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
+import { migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
 import { applyBuiltinRoleGrants } from "./builtin-role-grants.js";
-import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/cms/identity";
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-} from "@jini-ai/cms/identity";
+import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/user-management";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { InMemoryApiKeyRepo } from "./repo.memory.js";
 import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
@@ -34,7 +26,9 @@ import {
   SqliteSessionRepo,
   SqliteUserRepo,
 } from "./repo.sqlite.js";
-import { seedIdentity } from "@jini-ai/cms/identity";
+import { seedIdentity } from "@jini-ai/user-management/server";
+import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
+import { createIdentityTransactions } from "./repo.js";
 
 /**
  * @file Shared identity wiring for the composition roots (`server/app.ts` /
@@ -65,6 +59,9 @@ export const DEFAULT_OWNER_PASSWORD = "tovu-dev";
 
 /** The identity-owned slice of `RouteDeps` (see that file's fields of the same names). */
 export interface IdentityRouteDepsSlice {
+  /** Every route/tool writer shares these ports; see Jini user-management's transaction contract. */
+  transactions: IdentityRepos["transactions"];
+  tokens: import("@jini-ai/user-management").SessionTokenPort;
   principalRepo: IdentityRepos["principals"];
   userRepo: IdentityRepos["users"];
   sessionRepo: IdentityRepos["sessions"];
@@ -77,7 +74,7 @@ export interface IdentityRouteDepsSlice {
   passwordHasher: PasswordHasherPort;
   /**
    * SPEC-006 REQ-08 — the api-keys table's repo port and its own hashing seam. Both live in this
-   * repo (`api-key-types.ts`), not in `@jini-ai/cms/identity`, which scopes API keys out; they ride
+   * repo (`api-key-types.ts`), not in `@jini-ai/user-management`, which scopes API keys out; they ride
    * on this slice so both composition roots wire them the same way the other nine repos are wired.
    */
   apiKeyRepo: ApiKeyRepoPort;
@@ -124,24 +121,19 @@ export interface IdentityRouteDepsSlice {
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
+  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
 ): IdentityRouteDepsSlice {
-  const passwordHasher = new Argon2PasswordHasher();
+  const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
   const apiKeySecretHasher = new ScryptApiKeySecretHasher();
+  const hostClock = required.clock;
+  const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
 
-  const seedResult = seedIdentity({
-    deps: { repos, hasher: passwordHasher, clock: required.clock, idGen: required.idGen },
-    input: {
-      workspaceId: required.workspaceId,
-      // Read here, not in the library. `@jini-ai/cms` deliberately requires `ownerPassword` with no
+  const seedResult = seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Read here, not in the library. `@jini-ai/user-management` deliberately requires `ownerPassword` with no
       // default: a library fallback would mean every host that forgot to pass one shipped the same
       // owner credential. These two env vars and their defaults are exactly what `seedIdentity`
       // itself used to read before the extraction, so first-boot behavior is unchanged — the
       // decision simply moved to the host that owns the deployment model.
-      ownerUsername: process.env.TOVU_ADMIN_USER ?? "admin",
-      ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD,
-    },
-  });
+      ownerUsername: process.env.TOVU_ADMIN_USER ?? "admin", ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } });
 
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
   // await just the owner id without waiting on the permission-migration fan-out below.
@@ -162,7 +154,7 @@ function buildIdentityRouteDeps(
       if (required.reconcileGrantsOnBoot === false) return undefined;
 
       return (
-        migrateDeprecatedPermissionGrants({
+        migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
           // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
           // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
           // fans out to any pre-existing policy still holding the deprecated string.
@@ -193,24 +185,17 @@ function buildIdentityRouteDeps(
     .then(() => undefined);
 
   const authorize: AuthorizeFn = (params) =>
-    authorizeCore({
-      deps: {
+    authorizeCore({ deps: {
         principals: repos.principals,
         principalRoles: repos.principalRoles,
         rolePolicies: repos.rolePolicies,
         principalPolicies: repos.principalPolicies,
         policyPermissions: repos.policyPermissions,
-      },
-      principalId: params.principalId,
-      permission: params.permission,
-      context: {
-        workspaceId: params.workspaceId,
-        entityType: params.entityType,
-        entityId: params.entityId,
-      },
-    });
+      }, principalId: params.principalId, permission: params.permission, context: { workspaceId: params.workspaceId } }, { entityType: params.entityType, entityId: params.entityId });
 
   return {
+    transactions: repos.transactions,
+    tokens: new NodeSessionTokens({}),
     principalRepo: repos.principals,
     userRepo: repos.users,
     sessionRepo: repos.sessions,
@@ -244,7 +229,7 @@ function buildIdentityRouteDeps(
  */
 export function createInMemoryIdentityRouteDeps(required: {
   workspaceId: UUID;
-  clock: ClockPort;
+  clock: ClockPort | { nowIso(): string };
   idGen: IdGeneratorPort;
   /** See `buildIdentityRouteDeps`'s doc. `false` skips the boot-time grant/migration reconciliation
    *  fan-out; omit (default `true`) to keep today's behavior. The in-memory store never rejects a
@@ -252,17 +237,17 @@ export function createInMemoryIdentityRouteDeps(required: {
    *  SQLite constructor below. */
   reconcileGrantsOnBoot?: boolean;
 }): IdentityRouteDepsSlice {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
 }
 
@@ -282,7 +267,7 @@ export function createSqliteIdentityRouteDeps(
     /** The content kernel, or the SQLite handle it is derived from. */
     db: ContentKernel | ContentDb;
     workspaceId: UUID;
-    clock: ClockPort;
+    clock: ClockPort | { nowIso(): string };
     idGen: IdGeneratorPort;
     /** See `buildIdentityRouteDeps`'s doc. Pass `false` when `db` is a genuinely read-only
      *  connection (e.g. `openContentDbReadOnly`) — otherwise an outstanding grant/migration attempts
@@ -292,7 +277,9 @@ export function createSqliteIdentityRouteDeps(
   }
 ): IdentityRouteDepsSlice {
   const { db, ...seedRequired } = required;
+  const kernel = contentKernel(db);
   const repos: IdentityRepos = {
+    transactions: createIdentityTransactions({ kernel }),
     principals: new SqlitePrincipalRepo(db),
     users: new SqliteUserRepo(db),
     sessions: new SqliteSessionRepo(db),

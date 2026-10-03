@@ -31,7 +31,7 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 function fakeOriginRegistry(origin?: VerifiedOrigin): OriginRegistryPort {
   return {
     async canonicalOrigin() {
-      if (!origin) throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      if (!origin) throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
       return origin;
     },
     async isAllowedRedirectTarget() {
@@ -62,9 +62,9 @@ async function makeDeps(origin?: VerifiedOrigin) {
     settingsRepo,
     settingsDeps,
     media: {
-      mediaRepo: new InMemoryMediaRepo([]),
-      assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-      transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+      mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+      assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+      transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     },
     originRegistry: fakeOriginRegistry(origin),
   };

@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "#src/features/source-control/types";
 import type { ContentKernel } from "../content-kernel.js";
 import type { SourceControlCredentialSetsTable } from "../content-database.generated.js";

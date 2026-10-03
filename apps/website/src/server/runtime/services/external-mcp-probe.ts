@@ -184,5 +184,5 @@ export async function probeExternalMcpServer(deps: ExternalMcpProbeServiceDeps, 
   if (!resolution.ok) return resolution;
   const outcome = await runProbe(deps.connect ?? defaultProbeConnect, resolution.target);
   if (!outcome.ok) return { ok: false as const, status: 502, body: { error: "could not reach this server — the probe did not complete", code: "MCP_SERVER_UNREACHABLE" } };
-  return { ok: true as const, body: { tools: outcome.tools, probedAt: deps.clock.nowIso() } };
+  return { ok: true as const, body: { tools: outcome.tools, probedAt: new Date(deps.clock.nowMs()).toISOString() } };
 }

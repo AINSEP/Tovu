@@ -122,7 +122,7 @@ export function readA2uiAction(rawBody: unknown): ReadA2uiActionResult {
   // Real spec-conformance enforcement, not a rubber stamp — mirrors `daemon.ts`'s own `/a2ui-action`
   // relay in Jini's reference app: a malformed envelope is refused at the network boundary, before
   // it can ever reach a handler waiting on `exchange.receive()`.
-  const parsed = parseRendererToAgentMessage(body.message);
+  const parsed = parseRendererToAgentMessage({ raw: body.message });
   if (!parsed.ok) return { ok: false, error: { error: parsed.reason, code: "VALIDATION_ERROR" } };
 
   const declaredSurfaceId = extractDeclaredSurfaceId(parsed.message);

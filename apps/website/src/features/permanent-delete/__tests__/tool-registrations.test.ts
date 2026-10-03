@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildPermanentDeleteRegistrations, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
 
@@ -27,7 +27,7 @@ function harness(id: string, input: unknown, permission: string) {
     workspaceId: "ws-1",
     authorize: async spec => { permissions.push(spec.permission); return { allowed, reason: "test-policy" }; },
     prepare: async () => {
-      if (!exists) throw new ToolInputError(`${id}: item was not found. List the resource and check its id.`);
+      if (!exists) throw new ToolInputError({ message: `${id}: item was not found. List the resource and check its id.` });
       return {
         details: [{ label: "Item", value: "Named item (id-1)" }],
         execute: async () => { writes.push(id); return { removed: true, id: "id-1" }; },
@@ -37,14 +37,15 @@ function harness(id: string, input: unknown, permission: string) {
   const registration = buildPermanentDeleteRegistrations(deps, { surfaceExchanges: store }).find(r => r.descriptor.id === id)!;
   const controller = new AbortController();
   const ctx: ToolExecutionContext = { executionId: "e-1", principal: { id: "owner" }, run: { id: "r-1" }, input, signal: controller.signal };
-  return { store, writes, permissions, permission, registration, ctx, controller, setAllowed: (v: boolean) => { allowed = v; }, setExists: (v: boolean) => { exists = v; } };
+  const options: ToolExecutionOptions = {};
+  return { options, store, writes, permissions, permission, registration, ctx, controller, setAllowed: (v: boolean) => { allowed = v; }, setExists: (v: boolean) => { exists = v; } };
 }
 
 for (const [id, input, permission] of CASES) {
   test(`${id}: happy path holds the call until the named human confirms; authorizes again`, async () => {
     const h = harness(id, input, permission);
     let emitted = false;
-    h.ctx.emitSurface = async emission => {
+    h.options.emitSurface = async emission => {
       emitted = true;
       assert.deepEqual(h.writes, [], "the effect must wait for the click");
       assert.equal(emission.channel, "mcp-ui");
@@ -55,7 +56,7 @@ for (const [id, input, permission] of CASES) {
       assert.deepEqual(h.store.deliver({ exchangeId, toolId: "other-tool", principalId: "owner", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
       assert.deepEqual(h.store.deliver({ exchangeId, toolId: id, principalId: "owner", params: { decision: "confirm", credentialId: "different-id" } }), { ok: true });
     };
-    assert.deepEqual(await h.registration.handler(h.ctx), { removed: true, id: "id-1" });
+    assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: true, id: "id-1" });
     assert.equal(emitted, true);
     assert.deepEqual(h.writes, [id]);
     assert.deepEqual(h.permissions, [permission, permission]);
@@ -65,18 +66,18 @@ for (const [id, input, permission] of CASES) {
 
   test(`${id}: no confirmation channel fails closed`, async () => {
     const h = harness(id, input, permission);
-    await assert.rejects(h.registration.handler(h.ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
+    await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
     assert.deepEqual(h.writes, []);
   });
 
   for (const params of [{ decision: "cancel" }, { __typedAnswer: "yes please delete it" }, { confirmed: true }]) {
     test(`${id}: ${JSON.stringify(params)} is not a confirm click`, async () => {
       const h = harness(id, input, permission);
-      h.ctx.emitSurface = async () => {
+      h.options.emitSurface = async () => {
         const exchangeId = h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
         h.store.deliver({ exchangeId, toolId: id, principalId: "owner", params });
       };
-      assert.deepEqual(await h.registration.handler(h.ctx), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+      assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
       assert.deepEqual(h.writes, []);
     });
   }
@@ -84,7 +85,7 @@ for (const [id, input, permission] of CASES) {
   for (const field of ["confirmed", "decision", "__exchangeId", "confirmationToken"]) {
     test(`${id}: rejects model-supplied ${field}`, async () => {
       const h = harness(id, { ...input, [field]: "confirm" }, permission);
-      await assert.rejects(h.registration.handler(h.ctx), { message: `'${field}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
+      await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `'${field}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
       assert.deepEqual(h.writes, []);
       assert.deepEqual(h.permissions, []);
     });
@@ -93,33 +94,33 @@ for (const [id, input, permission] of CASES) {
   test(`${id}: permission denied before the card`, async () => {
     const h = harness(id, input, permission);
     h.setAllowed(false);
-    h.ctx.emitSurface = async () => { assert.fail("must not emit a card"); };
-    await assert.rejects(h.registration.handler(h.ctx), { message: `principal 'owner' is not authorized for '${permission}' (test-policy)` });
+    h.options.emitSurface = async () => { assert.fail("must not emit a card"); };
+    await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `principal 'owner' is not authorized for '${permission}' (test-policy)` });
     assert.deepEqual(h.writes, []);
   });
 
   test(`${id}: permission revoked during confirmation`, async () => {
     const h = harness(id, input, permission);
-    h.ctx.emitSurface = async () => {
+    h.options.emitSurface = async () => {
       h.setAllowed(false);
       h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!, principalId: "owner", toolId: id, params: { decision: "confirm" } });
     };
-    await assert.rejects(h.registration.handler(h.ctx), { message: `principal 'owner' is not authorized for '${permission}' (test-policy)` });
+    await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `principal 'owner' is not authorized for '${permission}' (test-policy)` });
     assert.deepEqual(h.writes, []);
   });
 
   test(`${id}: not found before the card`, async () => {
     const h = harness(id, input, permission);
     h.setExists(false);
-    h.ctx.emitSurface = async () => { assert.fail("must not emit a card"); };
-    await assert.rejects(h.registration.handler(h.ctx), { message: `${id}: item was not found. List the resource and check its id.` });
+    h.options.emitSurface = async () => { assert.fail("must not emit a card"); };
+    await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `${id}: item was not found. List the resource and check its id.` });
     assert.deepEqual(h.writes, []);
   });
 
   test(`${id}: cancelled run abandons confirmation without an effect`, async () => {
     const h = harness(id, input, permission);
-    h.ctx.emitSurface = async () => { h.controller.abort(); };
-    assert.deepEqual(await h.registration.handler(h.ctx), { removed: false, cancelled: false, reason: "abandoned", note: "The confirmation dialog was closed because the run ended. Nothing was changed." });
+    h.options.emitSurface = async () => { h.controller.abort(); };
+    assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: false, cancelled: false, reason: "abandoned", note: "The confirmation dialog was closed because the run ended. Nothing was changed." });
     assert.deepEqual(h.writes, []);
   });
 }
@@ -133,7 +134,7 @@ test("expired human confirmation returns an explicit refusal without a delete", 
   }, { surfaceExchanges: store }).find(r => r.descriptor.id === "trash_empty")!;
   const keepAlive = setTimeout(() => {}, 50); // The production exchange timers deliberately unref().
   try {
-  assert.deepEqual(await registration.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal, emitSurface: async () => {} }), {
+  assert.deepEqual(await registration.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal }, { emitSurface: async () => {} }), {
     removed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed.",
   });
   assert.equal(deletes, 0);

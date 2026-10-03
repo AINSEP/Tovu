@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -36,7 +36,7 @@ function fakeRouteDeps() {
   const postRepo = new InMemoryPostRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),
@@ -204,7 +204,7 @@ for (const [label, value] of [
 async function delegatedHarness() {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }

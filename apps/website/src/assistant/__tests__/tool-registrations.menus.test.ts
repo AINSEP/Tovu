@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 5 Menus (navigation) tools, the union of what `tool-registrations.forms.test.ts`
  * covers for Forms: published contracts, risk cross-check, the confirmation-transport guard, the
@@ -15,28 +17,29 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ToolInputError } from "@jini-ai/core";
-import {
-  InMemoryMenuRepo,
-  InMemoryNavLocationBindingRepo,
-  menusAgentToolCatalog,
-  type NavigationAgentToolDefinition,
-} from "../../features/navigation/index.js";
+import { type AgentToolDefinition as NavigationAgentToolDefinition } from "@jini-ai/core";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "../../features/navigation/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeMenusTools } from "../../features/navigation/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Menus moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeMenusTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMenusTools() });
 
 const WORKSPACE_ID = "ws-menus-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -44,14 +47,14 @@ const NOW = "2026-07-29T00:00:00.000Z";
 
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
-  const menuRepo = new InMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const menuRepo = new InMemoryMenuRepo({});
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined },
     menuRepo,
@@ -77,7 +80,7 @@ function catalogEntry(toolId: string): NavigationAgentToolDefinition {
 
 function menusRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("menus_") || r.descriptor.id === "content_read.menu")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -219,13 +222,13 @@ test("the real Menus catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.menu") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Menus catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("menus_create_menu", { ...catalogEntry("menus_create_menu"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("menus_create_menu", { ...catalogEntry("menus_create_menu"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

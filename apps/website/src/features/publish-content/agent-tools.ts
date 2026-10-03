@@ -1,8 +1,7 @@
 /**
- * @file The publish-content domain's agent-tool catalog — the two tools that let the assistant find
- * out whether publishing works, and make it work.
+ * @file Publishing readiness, connection, and human-confirmed pulls from the live site.
  *
- * ## Why these two and not one
+ * ## Why readiness and connection are separate
  *
  * The owner's requirement was "it should be automatic, discoverable by AI, and a regular user
  * doesn't have to think about it". "Discoverable" is the part a single tool cannot deliver: a model
@@ -19,10 +18,11 @@
  *
  * ## The vocabulary rule
  *
- * The DESCRIPTIONS below are read by the model and may name mechanism. Everything these tools
- * RETURN is read by a person, and may not: no key, token, grant, principal, capability, workspace
+ * The DESCRIPTIONS below are read by the model and may name mechanism. The status/connect tools'
+ * returned sentences are read by a person and must avoid: no key, token, grant, principal, capability, workspace
  * id, installation id, generation, peer or bundle, and no error codes.
- * `__tests__/publish-content-agent-tools.test.ts` asserts that over every reachable sentence rather
+ * Pull tools return structured plan/report fields for the model.
+ * `__tests__/publish-agent-tools.test.ts` asserts that over every reachable sentence rather
  * than trusting review — the same guard `publish-trust/__tests__/provisioning.test.ts` already
  * applies to its own refusals.
  */
@@ -34,15 +34,45 @@ export interface AgentToolDefinition {
   description: string;
   sideEffects: AgentToolSideEffect;
   authorization: { permission: string };
+  actorClassRule?: "confirmer-must-equal-own-delegatedBy";
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
 export const PUBLISH_CONTENT_STATUS_TOOL_ID = "publish_content_status";
 export const PUBLISH_CONTENT_CONNECT_TOOL_ID = "publish_content_connect";
 
+export const PUBLISH_CONTENT_PLAN_PULL_TOOL_ID = "publish_content_plan_pull";
+export const PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID = "publish_content_execute_pull";
+
 const NO_ARGUMENTS_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 
 export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: PUBLISH_CONTENT_PLAN_PULL_TOOL_ID,
+    description: "Fetches the live site's content and shows what pulling it down would change here; changes no content yet. " +
+      "Call to pull, download or sync live content back to this computer. Omit peerId for the connected destination; " +
+      "several destinations require choosing a saved peerId. Returns bundleId, expiresAt, peerLabel, create/update/unchanged/blocked counts, " +
+      "up to 50 conflicts with entityKey/title/reason, and unavailable/deferred blobs. Stages an expiring bundle and stores verified blob bytes. " +
+      "Use publish_content_execute_pull to apply it. Push is NOT a tool: use the Publish dialog via admin.publish_content.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "publish_content.apply" },
+    inputSchema: { type: "object", additionalProperties: false, properties: { peerId: { type: "string", minLength: 1 } } },
+  },
+  {
+    name: PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID,
+    description: "Applies a planned pull after the owner confirms in a dialog; overwrites the listed local items. " +
+      "Call after publish_content_plan_pull, with its bundleId and optional overwriteEntityKeys chosen from its conflicts. " +
+      "Shows a fresh summary and overwritten titles; an expired plan, changed local content or unavailable backup refuses apply. " +
+      "Nothing in tool input confirms. Decline or no answer returns executed:false; success returns executed:true, counts and per-entity outcomes. " +
+      "Push is NOT a tool: use the Publish dialog via admin.publish_content.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "publish_content.apply" },
+    actorClassRule: "confirmer-must-equal-own-delegatedBy",
+    inputSchema: { type: "object", additionalProperties: false, required: ["bundleId"], properties: {
+      bundleId: { type: "string", minLength: 1 },
+      overwriteEntityKeys: { type: "array", maxItems: 1000, items: { type: "string", minLength: 1 } },
+    } },
+  },
   {
     name: PUBLISH_CONTENT_STATUS_TOOL_ID,
     description:

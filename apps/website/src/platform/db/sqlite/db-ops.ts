@@ -1,4 +1,4 @@
-import { SqliteDbOpsAdapter as InfraSqliteDbOpsAdapter } from "@jini-ai/infra/db/sqlite";
+import { SqliteDbOpsAdapter as JiniSqliteDbOpsAdapter } from "@jini-ai/db/sqlite";
 
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
 import { contentKernel } from "../content-kernel.js";
@@ -14,15 +14,15 @@ import type { ContentDb } from "./content-db.js";
  * produces a consistent copy even while the source connection has an open WAL.
  *
  * How it relates to the project:
- * The backup/restore mechanics moved to `@jini-ai/infra/db/sqlite` on 2026-08-11 — they are
+ * The backup/restore mechanics live in `@jini-ai/db/sqlite` — they are
  * genuinely product-independent (online backup, copy-then-atomic-rename, WAL/SHM sidecar
  * cleanup, restore-point artifact naming), and the trickiest code in this folder. What stays
  * here is the part that is Tovu's: this product's `DbOpsPort` shape, and where the watermark
- * lives. The infra adapter takes that as an injected `readWatermark` rather than importing
+ * lives. The Jini adapter takes that as an injected `readWatermark` rather than importing
  * `core/gated-mutations`, so the package never learns Tovu's schema.
  *
- * Why this file still exists at all rather than the composition root using the infra class
- * directly: Tovu's `RestoreCapability` union is deliberately wider than the infra one — it also
+ * Why this file still exists at all rather than the composition root using the Jini class
+ * directly: Tovu's `RestoreCapability` union is deliberately wider than the Jini one — it also
  * admits `"unavailable"` and `"external"`, which non-SQLite adapters here need. This class is
  * the seam where the narrow SQLite answer widens into Tovu's port, and it is the only place
  * that conversion happens.
@@ -32,10 +32,11 @@ import type { ContentDb } from "./content-db.js";
  * Postgres sibling) implement the port; domain code depends on the port, never on this adapter.
  */
 export class SqliteDbOpsAdapter implements DbOpsPort {
-  private readonly inner: InfraSqliteDbOpsAdapter;
+  // Online-backup, atomic replacement and restart rationale: Jini/packages/db/src/sqlite/db-ops.ts.
+  private readonly inner: JiniSqliteDbOpsAdapter;
 
   constructor(deps: { db: ContentDb; filePath: string }) {
-    this.inner = new InfraSqliteDbOpsAdapter({
+    this.inner = new JiniSqliteDbOpsAdapter({
       // `$client` is the raw better-sqlite3 handle Drizzle already returns. The package takes the
       // driver connection directly rather than an object with a `$client` property, so Drizzle's
       // naming convention — and Drizzle itself — stays out of its surface entirely.
@@ -77,7 +78,7 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
    * `buildRestoreHooks`): physically swaps `content.db` for a previously-captured artifact.
    *
    * Crash-safety and the always-`true` `restartRequired` for a real file-backed adapter are
-   * documented on the infra implementation — the short version is that the copy-then-rename is
+   * documented on the Jini implementation — the short version is that the copy-then-rename is
    * atomic under POSIX rename semantics, and the running process keeps serving from its own
    * descriptor on the now-unlinked old inode until it reopens the path fresh.
    *

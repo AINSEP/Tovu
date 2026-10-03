@@ -75,7 +75,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
     ports:
       opts.wired === false
         ? {}
-        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo([]), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
+        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo({}, { initialRows: [] }), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 }
 

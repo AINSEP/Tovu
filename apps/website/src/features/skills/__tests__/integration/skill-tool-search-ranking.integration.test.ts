@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,8 +12,13 @@ import { registerInstalledSkillTools } from "../../tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Does a realistic operator query, run against the REAL ~150-tool catalog PLUS one installed
@@ -102,28 +109,28 @@ async function installIncidentResponseSkill(skillsDir: string, workspaceId: stri
 /** Builds the real production surface, WITHOUT the skill tool — the "before" side of the
  *  freed-up-slots comparison, mirroring the agent-plugin ranking test's own helper. */
 async function buildRealNativeOnlySurface() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
 }
 
 async function buildRealSurfaceWithSkillTool(skillsDir: string) {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
   await installIncidentResponseSkill(skillsDir, routeDeps.workspaceId);
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
   await registerInstalledSkillTools(registry, { workspaceId: routeDeps.workspaceId });
 
   const catalog = buildToolCatalogQuery(registry);
@@ -136,15 +143,15 @@ function logHits(query: string, hits: readonly { id: string; score: number }[]):
   hits.forEach((hit, index) => console.log(`  ${index + 1}. ${hit.id}  (score ${hit.score.toFixed(3)})`));
 }
 
-test("the skill tool IS present in registry.list() and describable by exact id — installing one skill adds exactly +1 to the real catalog size", async () => {
+test("the skill tool IS present in registry.list({}) and describable by exact id — installing one skill adds exactly +1 to the real catalog size", async () => {
   await withSkillsDir(async () => {
     const skillsDir = process.env.TOVU_SKILLS_DIR as string;
     const { registry: nativeOnly } = await buildRealNativeOnlySurface();
     const { registry, catalog } = await buildRealSurfaceWithSkillTool(skillsDir);
 
-    assert.equal(registry.has("skill_incident_response"), true);
+    assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
     assert.equal(
-      registry.list().length,
+      registry.list({}).length,
       nativeOnly.list().length + 1,
       "one installed skill must add exactly ONE tool to the real catalog",
     );

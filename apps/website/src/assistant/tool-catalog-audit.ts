@@ -38,7 +38,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { ToolCatalogEntry, ToolCatalogQuery, ToolCatalogSearchHit } from "@jini-ai/http-kit";
+import type { ToolCatalogEntry, ToolCatalogQuery, ToolCatalogSearchHit } from "@jini-ai/daemon/http";
 
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 
@@ -122,7 +122,7 @@ export interface AppendToolCatalogAttemptOptions {
  * rather than allowed to propagate to the call it is observing.
  *
  * `phase` is always `"completed"`: unlike a delegated tool execution, a catalog read has no
- * authorization/confirmation lifecycle to distinguish — `@jini-ai/sqlite`'s `searchToolCatalog`/
+ * authorization/confirmation lifecycle to distinguish — `@jini-ai/sqlite-chat`'s `searchToolCatalog`/
  * `getToolCatalogEntry` tokenize the query into alphanumeric-only terms before building the FTS5
  * `MATCH` string (`tool-catalog.ts`), so neither can throw on caller-supplied query text.
  *
@@ -167,13 +167,13 @@ export function withToolCatalogAudit(
   options: AppendToolCatalogAttemptOptions = {},
 ): ToolCatalogQuery {
   return {
-    search(query, limit) {
-      const hits = catalog.search(query, limit);
+    search({ query }, { limit } = {}) {
+      const hits = catalog.search({ query }, { limit });
       appendToolCatalogAttempt(sink, { ...identity, toolId: SEARCH_TOOLS_TOOL_ID, detail: searchToolsAuditDetail(query, limit ?? null, hits) }, options);
       return hits;
     },
-    describe(id) {
-      const entry = catalog.describe(id);
+    describe({ id }) {
+      const entry = catalog.describe({ id });
       appendToolCatalogAttempt(sink, { ...identity, toolId: DESCRIBE_TOOL_TOOL_ID, detail: describeToolAuditDetail(id, entry) }, options);
       return entry;
     },

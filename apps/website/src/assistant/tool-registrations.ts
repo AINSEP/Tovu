@@ -66,7 +66,7 @@ import type { CommerceStatusToolDeps } from "../features/commerce/index.js";
  * `entries`; group B did `integrations`, `workspace`, `pages`, `seo`. None of these fifteen has a
  * sibling domain still statically wired through this file that reaches back into it, so nothing
  * routes back through any of them to close a new cycle. Their tools still count in the totals above;
- * they just arrive via {@link listToolContributors}/{@link allToolContributors} now, folded together
+ * they just arrive via the composition-owned core list({})/{@link allToolContributors} now, folded together
  * with {@link DOMAIN_SLICES} rather than being one of its entries. `media` joined them in a later,
  * separate pass the same day, after being retried once `widgets`'s own conversion (batch 2, group A)
  * had merged — see the `media` paragraph below for the full trace, and `media/tool-registrations.ts`'s
@@ -164,12 +164,13 @@ import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-too
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
-import { listDerivedToolContributors, listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
+import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
+import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-registrations.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps } from "../features/deployments/publish-agent-tools.js";
 import type { EntriesToolDeps } from "../features/entries/tool-registrations.js";
@@ -207,17 +208,12 @@ import type { MediaImportToolDeps } from "../features/media-import/tool-registra
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
+import type { NewsletterDeliveryToolDeps } from "../features/newsletter/delivery/tool-registrations.js";
 import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
-import {
-  assertToolIsWirable,
-  mergeDerivedRiskMaps,
-  type DerivedRiskByToolId,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 /**
  * The union of every wired domain's own narrow tool-deps contract — never `server/routes/types`'s
@@ -235,7 +231,10 @@ import {
  * this assignment at compile time for any field only a DIFFERENT extension declares — a real,
  * pre-existing gap this narrowing surfaces rather than introduces; see this dispatch's handoff notes.
  */
-export type AssistantToolRegistryDeps = CommentsToolDeps &
+export type AssistantToolRegistryDeps = import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+  import("../features/post/tool-registrations.js").ContentStatsToolDeps &
+  import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
+  DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
   ContentTypesToolDeps &
   CustomCredentialsToolDeps &
@@ -275,6 +274,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   MembersToolDeps &
   MenusToolDeps &
   NewsletterToolDeps &
+  NewsletterDeliveryToolDeps &
   RedirectsToolDeps &
   SeoToolDeps &
   SiteEvidenceToolDeps &
@@ -305,7 +305,7 @@ type DomainSlice = ToolContributor;
  * introduction) and are deliberately ABSENT from this array now — they instead call
  * `contribute<Domain>Tools()` (see each one's own `tool-registrations.ts`), installed by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` into
- * `listToolContributors()`, which {@link buildAssistantToolRegistrations} folds in below. They were
+ * the composition-owned core `list({})`, which {@link buildAssistantToolRegistrations} folds in below. They were
  * chosen first because they were the actual drivers of the `[assistant, comments,
  * features/plugins, newsletter]` strongly-connected component `check:architecture` flagged, and
  * neither imports anything else nor is imported by anything else outside `assistant`, which is what
@@ -461,7 +461,7 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // boot-time `ensure*` registrars' own remaining fields populated at each of their call sites in the
   // same 2 files). That removed the real `assistant -> features/settings` edge entirely, so
   // `features/settings` now has its own `contributeSettingsTools()` — the same standard shape every
-  // other converted domain above uses — and the one-off `registerToolContributor({domain:
+  // other converted domain above uses — and the one-off core `register({ contribution: {domain:
   // "settings", ...})` inline call that used to live in `server/tool-catalog-manifest.ts` is gone.
   // `check:architecture` confirms 0 module cycles / largest SCC 0 with `settings` wired this way. No
   // longer an entry here; it arrives via `contributeSettingsTools()`, installed by
@@ -578,7 +578,7 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
 /**
  * Every wired domain, static and registry-contributed together, in the order their tools are
  * registered — `DOMAIN_SLICES` first, then whatever `installFirstPartyToolContributors()` (or a
- * test) has registered into {@link listToolContributors}.
+ * test) has registered into its explicit core contribution registry.
  *
  * Computed fresh on every call rather than once at module load: unlike `DOMAIN_SLICES`, contributed
  * entries are populated at COMPOSITION-ROOT-BOOT time, not at module-import time (that is the whole
@@ -586,8 +586,8 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
  * module load could observe zero contributors if evaluated before the composition root's install
  * call runs. This function is cheap (one array concat) and is not on any hot request path.
  */
-function allToolContributors(): readonly DomainSlice[] {
-  return [...DOMAIN_SLICES, ...listToolContributors()];
+function allToolContributors(contributions?: AssistantToolContributions): readonly DomainSlice[] {
+  return [...DOMAIN_SLICES, ...(contributions?.contributors.list({}) ?? [])];
 }
 
 /**
@@ -603,12 +603,12 @@ function allToolContributors(): readonly DomainSlice[] {
  * declares it unwired and so contributes no risk entry, which is the resolution this check exists
  * to force.
  */
-function derivedRiskByToolId(): DerivedRiskByToolId {
+function derivedRiskByToolId(contributions?: AssistantToolContributions): DerivedRiskByToolId {
   // Derived (post-processing) contributors — today `trash_item`, a tool of its own (a new id, a new
   // schema, its own `deletes-durable-state` declaration) — are classified and cross-checked like any
   // other wired tool. The `content_read.*` cards are deliberately absent: each is a relabel of member
   // tools whose risk was already checked under their original ids (see `content-read-tool.ts`).
-  return mergeDerivedRiskMaps([...allToolContributors(), ...listDerivedToolContributors()]);
+  return mergeDerivedRiskMaps({ slices: [...allToolContributors(contributions), ...(contributions?.derivedContributors.list({}) ?? [])] });
 }
 
 /**
@@ -626,8 +626,8 @@ function derivedRiskByToolId(): DerivedRiskByToolId {
  * @complexity O(1).
  * @overallScore 100
  */
-export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: WirableToolDefinition): void {
-  assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId() });
+export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: AgentToolDefinition, contributions?: AssistantToolContributions): void {
+  assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId(contributions) });
 }
 
 /**
@@ -664,7 +664,7 @@ export function buildAssistantToolRegistrations(
    *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
    *  against the now-real thing. Every real caller (the two production composition roots) leaves
    *  this at its default. */
-  options: { readonly includeContentReadCollapse?: boolean } = {},
+  options: { readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean } = {},
 ): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
@@ -676,7 +676,7 @@ export function buildAssistantToolRegistrations(
     isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
   };
 
-  for (const slice of allToolContributors()) {
+  for (const slice of allToolContributors(options.contributions)) {
     for (const registration of slice.build(enrichedRouteDeps, surfaces)) {
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
@@ -700,7 +700,7 @@ export function buildAssistantToolRegistrations(
   // run. Pushed before the collapse's early return so both of this function's shapes include it.
   // Each derive sees only the domain contributors' registrations, not an earlier derived pass's.
   const contributed: readonly ToolRegistration[] = [...registrations];
-  for (const derived of listDerivedToolContributors()) {
+  for (const derived of options.contributions?.derivedContributors.list({}) ?? []) {
     for (const registration of derived.derive({ registrations: contributed, routeDeps: enrichedRouteDeps, surfaces })) {
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {

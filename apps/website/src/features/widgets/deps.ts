@@ -31,6 +31,7 @@
  * field this shape needs, so every existing caller passes its own deps object straight through
  * unchanged.
  */
+import type { Clock } from "@jini-ai/core/primitives";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
@@ -42,7 +43,8 @@ import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "./ports.js";
 export interface WidgetsRouteDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  /** Keep the kernel clock intact so every composed write-path dependency retains `nowMs`. */
+  clock: Clock;
   idGen: { newId(): string };
   outbox: OutboxPort;
   entryRepo: EntryRepoPort & EntryListPort;

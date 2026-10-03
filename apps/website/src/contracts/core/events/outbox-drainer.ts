@@ -1,4 +1,5 @@
-import type { ClockPort, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 
 import { processOutbox } from "./outbox-worker.js";
 

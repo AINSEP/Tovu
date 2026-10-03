@@ -57,7 +57,7 @@ const EVENTS = `p_${LIPAY_PLUGIN_ID}__events` as const;
 const REFUNDS = `p_${LIPAY_PLUGIN_ID}__refunds` as const;
 
 /** The public path the core-owned webhook route is mounted on. One route, every provider. */
-export const WEBHOOK_ROUTE_PATH = "/payments/webhook/:providerId";
+// WEBHOOK_ROUTE_PATH (apps/website/src/features/plugins/lipay/lipay-plugin.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 export const webhookUrlFor = (baseUrl: string, providerId: PaymentProviderId): string =>
   `${baseUrl.replace(/\/+$/, "")}/payments/webhook/${providerId}`;

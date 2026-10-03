@@ -415,7 +415,7 @@ export function runInterruptedNotice(): AgentEvent {
  * tool call or card sat between two text runs, so a working note is never glued onto the answer.
  */
 export function runContentFromEvents(events: readonly AgentEvent[]): string {
-  return assistantContentFromEvents(events);
+  return assistantContentFromEvents({ events });
 }
 
 /**
@@ -425,7 +425,7 @@ export function runContentFromEvents(events: readonly AgentEvent[]): string {
  * finalizer and the chat PUT route the browser saves through), so both write the same shape.
  */
 export function runEventsForSave(events: readonly AgentEvent[]): AgentEvent[] {
-  return mergeAdjacentTextEvents(events);
+  return mergeAdjacentTextEvents({ events });
 }
 
 /** What one daemon stream frame means for the turn: events to append, a failure, and whether it ended. */

@@ -56,7 +56,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     // functions in this file's test set that dereference these two — `createTaxonomy`/`createTerm`/
     // `renameTerm` above never read them, which is why `buildDeps` got away without them until now.
     workspaceId,
-    contentLookup: new InMemoryContentLookup(),
+    contentLookup: new InMemoryContentLookup({}),
     // `SqliteTaxonomyRepo.transaction` — real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the
     // same connection every other adapter above shares (all constructed with this same `db`).
     transaction: <T>(fn: () => Promise<T>) => taxonomies.transaction(fn),

@@ -78,7 +78,7 @@ test("resolveWorkspaceOrigin: returns the verified origin when one is registered
 
 test("resolveWorkspaceOrigin: degrades to undefined on OriginNotVerifiedError, the documented no-origin fallback", async () => {
   const result = await resolveWorkspaceOrigin(
-    fakeOriginRegistry(new OriginNotVerifiedError("no verified origin registered")),
+    fakeOriginRegistry(new OriginNotVerifiedError({ message: "no verified origin registered" })),
     "workspace-1"
   );
   assert.equal(result, undefined);

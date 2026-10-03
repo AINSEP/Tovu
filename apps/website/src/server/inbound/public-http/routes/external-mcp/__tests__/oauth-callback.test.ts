@@ -4,8 +4,8 @@ import test from "node:test";
 import express from "express";
 
 import { ExternalMcpValidationError, type ExternalMcpOAuthService } from "#src/assistant/index";
-import { OAuthError } from "#src/platform/oauth/index";
-import type { RateLimiter, RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
+import { OAuthError } from "@jini-ai/oauth";
+import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "../oauth-callback.js";
 
@@ -34,7 +34,7 @@ const SERVER_ID = "higgs";
 /** A `RateLimiter` double that always answers the same fixed result — this suite only needs to
  *  choose "the limiter allows" vs. "the limiter is already tripped", never real window counting. */
 function fixedRateLimiter(result: RateLimitResult): RateLimiter {
-  return { check: () => result };
+  return { check: async ({ key: _key }) => result };
 }
 
 /** An `ExternalMcpOAuthService` double. Every method the callback route does not call throws if
@@ -105,9 +105,7 @@ test("no_state: an empty state is refused before the service is ever called", as
 test("state_expired: OAUTH_INVALID_STATE from the service — covers unknown, expired and replayed alike", async (t) => {
   const deps: ExternalMcpOAuthCallbackRouteDeps = {
     oauth: fakeOAuthService(async () => {
-      throw new OAuthError("OAUTH_INVALID_STATE", "the authorization request could not be matched — it may have expired or already been used", {
-        operatorAction: "Start the connection again from Settings → External MCP.",
-      });
+      throw new OAuthError({ code: "OAUTH_INVALID_STATE", message: "the authorization request could not be matched — it may have expired or already been used", operatorAction: "Start the connection again from Settings → External MCP." });
     }),
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   };
@@ -125,10 +123,7 @@ test("state_expired: OAUTH_INVALID_STATE from the service — covers unknown, ex
 test("provider_denied: OAUTH_ACCESS_DENIED — the operator declined, or the provider denied the grant", async (t) => {
   const deps: ExternalMcpOAuthCallbackRouteDeps = {
     oauth: fakeOAuthService(async () => {
-      throw new OAuthError("OAUTH_ACCESS_DENIED", "authorization was declined", {
-        operatorAction: "Approve the request on the provider's consent screen, then connect again.",
-        providerErrorCode: "access_denied",
-      });
+      throw new OAuthError({ code: "OAUTH_ACCESS_DENIED", message: "authorization was declined", operatorAction: "Approve the request on the provider's consent screen, then connect again." }, { providerErrorCode: "access_denied" });
     }),
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   };
@@ -164,10 +159,7 @@ test("server_unknown: ExternalMcpValidationError — the serverId in the URL nam
 test("exchange_failed: every other OAuthError code — and every non-OAuth error — falls back to the generic reason", async (t) => {
   const rejectedDeps: ExternalMcpOAuthCallbackRouteDeps = {
     oauth: fakeOAuthService(async () => {
-      throw new OAuthError("OAUTH_PROVIDER_REJECTED", "the authorization server refused the authorization request", {
-        operatorAction: "Check this provider's client id, scopes and redirect URI, then try connecting again.",
-        providerErrorCode: "invalid_scope",
-      });
+      throw new OAuthError({ code: "OAUTH_PROVIDER_REJECTED", message: "the authorization server refused the authorization request", operatorAction: "Check this provider's client id, scopes and redirect URI, then try connecting again." }, { providerErrorCode: "invalid_scope" });
     }),
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   };
@@ -214,17 +206,11 @@ test("no provider response text, in any form, ever reaches the response — the 
   const cases: ReadonlyArray<{ readonly name: string; readonly error: unknown }> = [
     {
       name: "provider-denied with a providerErrorCode carrying the marker",
-      error: new OAuthError("OAUTH_ACCESS_DENIED", "authorization was declined", {
-        operatorAction: "Approve the request on the provider's consent screen, then connect again.",
-        providerErrorCode: PROVIDER_SECRET_MARKER,
-      }),
+      error: new OAuthError({ code: "OAUTH_ACCESS_DENIED", message: "authorization was declined", operatorAction: "Approve the request on the provider's consent screen, then connect again." }, { providerErrorCode: PROVIDER_SECRET_MARKER }),
     },
     {
       name: "provider-rejected with the marker in both message and providerErrorCode",
-      error: new OAuthError("OAUTH_PROVIDER_REJECTED", `the authorization server refused: ${PROVIDER_SECRET_MARKER}`, {
-        operatorAction: "Check this provider's client id, scopes and redirect URI, then try connecting again.",
-        providerErrorCode: PROVIDER_SECRET_MARKER,
-      }),
+      error: new OAuthError({ code: "OAUTH_PROVIDER_REJECTED", message: `the authorization server refused: ${PROVIDER_SECRET_MARKER}`, operatorAction: "Check this provider's client id, scopes and redirect URI, then try connecting again." }, { providerErrorCode: PROVIDER_SECRET_MARKER }),
     },
     {
       name: "an unexpected error whose own message carries the marker",
@@ -273,4 +259,33 @@ test("callback forwards the exact server and normalized query fields, including 
     assert.equal(response.status, scenario.status, scenario.query);
     assert.deepEqual(calls.slice(before), scenario.params ? [{ serverId: SERVER_ID, params: scenario.params }] : []);
   }
+});
+
+test("callback IP budgets stay independent after another client exhausts its allowance", async (t) => {
+  let exchanges = 0;
+  const deps: ExternalMcpOAuthCallbackRouteDeps = {
+    oauth: fakeOAuthService(async () => { exchanges++; }),
+    callbackLimiter: createRateLimiter({
+      profile: { max: 2, burst: 0, windowSeconds: 60 },
+      clock: { nowIso: () => "2026-01-01T00:00:00.000Z" },
+    }),
+  };
+  const app = buildApp(deps);
+  // The test's loopback peer is explicitly trusted so Express resolves each forwarded IP.
+  app.set("trust proxy", "loopback");
+  const baseUrl = await startTestServer(app, t);
+  for (const ip of ["203.0.113.1", "203.0.113.2"]) {
+    for (const expectedStatus of [400, 400, 429]) {
+      const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}`, {
+        headers: { "x-forwarded-for": ip },
+      });
+      assert.equal(response.status, expectedStatus, `${ip} must receive its own two-request budget`);
+      const html = await response.text();
+      assert.deepEqual(extractPostMessagePayload(html), {
+        type: "tovu:external-mcp-connected",
+        reason: expectedStatus === 429 ? "rate_limited" : "no_state",
+      });
+    }
+  }
+  assert.equal(exchanges, 0, "no state means no outbound exchange, even below the limit");
 });

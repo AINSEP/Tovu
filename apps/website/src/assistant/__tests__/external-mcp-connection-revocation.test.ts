@@ -48,7 +48,7 @@ const REMOTE_TOOLS: RemoteToolDescriptor[] = [
 function makeClock(startIso = "2026-09-16T00:00:00.000Z") {
   let nowMs = Date.parse(startIso);
   return {
-    nowIso: () => new Date(nowMs).toISOString(),
+    nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms: number) => {
       nowMs += ms;
     },
@@ -118,7 +118,7 @@ async function boot(options: {
   const extraConnections = toResolvedFederatedConnections(configs);
 
   const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS });
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo: options.gateRepo ?? repo });
 
   await attachFederatedMcpTools({
@@ -136,11 +136,11 @@ async function boot(options: {
 }
 
 function callReadThing(toolExecutor: ReturnType<typeof createToolExecutor>) {
-  return toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, READ_TOOL_ID, {});
+  return toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: READ_TOOL_ID, input: {} });
 }
 
 function callWriteThing(toolExecutor: ReturnType<typeof createToolExecutor>) {
-  return toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, WRITE_TOOL_ID, {});
+  return toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: WRITE_TOOL_ID, input: {} });
 }
 
 test("T1-1 control: an enabled connection's admitted tool completes and reaches the remote", async () => {
@@ -313,7 +313,7 @@ test("T1-10: a preset connection with no row still completes", async () => {
     presets: [{ config: presetConfig, launch: { url: "https://acme-preset.example/mcp", headers: {} } }],
   });
 
-  const result = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, "mcp__acme-preset__read_thing", {});
+  const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "mcp__acme-preset__read_thing", input: {} });
 
   assert.equal(result.status, "completed", JSON.stringify(result));
   assert.deepEqual(

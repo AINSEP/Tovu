@@ -1,13 +1,8 @@
-import {
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type AuthorizeFn,
-  type ClockPort,
-  type DerivedRiskByToolId,
-  type UUID,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
+import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
+import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -160,7 +155,7 @@ async function beginSignIn(oauth: ExternalMcpOAuthService, serverId: string, der
   try {
     start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin) });
   } catch (err) {
-    throw err instanceof ExternalMcpValidationError ? new ToolInputError(err.message) : err;
+    throw err instanceof ExternalMcpValidationError ? new ToolInputError({ message: err.message }) : err;
   }
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
@@ -219,7 +214,7 @@ const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
 
 /** This tool's one-entry catalog, exported so `assistant/__tests__/tool-registrations.contracts.test.ts`'s
  *  `CATALOGS_BY_DOMAIN` can import it the same way it imports every sibling domain's catalog. */
-export const agentPluginConnectAgentToolCatalog: WirableToolDefinition[] = [
+export const agentPluginConnectAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: AGENT_PLUGIN_CONNECT_TOOL_ID,
     description: AGENT_PLUGIN_CONNECT_DESCRIPTION,
@@ -274,7 +269,7 @@ async function resolvePendingOAuthServers(
       ? await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId })
       : null;
     if (!connectionId || !row) {
-      throw new ToolInputError(`agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.`);
+      throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
     }
     // A saved access token counts too: starting a sign-in here would switch the row back to OAuth.
     if (hasStoredAgentPluginCredential(row)) continue;
@@ -298,25 +293,21 @@ export async function runAgentPluginConnect(
   surfaces: AssistantSurfaceDeps,
   ctx: ToolExecutionContext,
   pluginId: string,
+  optional: ToolExecutionOptions = {},
 ): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
-  await requireToolPermission(routeDeps, {
-    principalId: ctx.principal.id,
-    permission: AGENT_PLUGIN_CONNECT_PERMISSION,
-    entityType: "agent-plugin",
-    entityId: pluginId,
-  });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
 
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(routeDeps.workspaceId, id));
   const plugin = await resolvePlugin(pluginId);
   if (!plugin) {
-    throw new ToolInputError(`agent_plugin_connect: '${pluginId}' is not an installed Agent Plugin in this workspace.`);
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' is not an installed Agent Plugin in this workspace.` });
   }
 
   const oauthServerKeys = Object.entries(plugin.servers)
     .filter(([, config]) => isOAuthServer(config))
     .map(([serverKey]) => serverKey);
   if (oauthServerKeys.length === 0) {
-    throw new ToolInputError(`agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.`);
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
   }
   if (!routeDeps.externalMcpOAuth) {
     throw new Error("agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.");
@@ -332,13 +323,11 @@ export async function runAgentPluginConnect(
   // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
   if (pending.length === 0) return { status: "connected" };
   if (pending.length > 1) {
-    throw new ToolInputError(
-      `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.`,
-    );
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
   const [server] = pending;
 
-  const emitSurface = ctx.emitSurface;
+  const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
   }

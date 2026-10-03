@@ -21,7 +21,7 @@
  *    DUPLICATE of them, not a re-export — see the block comment just above
  *    their declarations below for why.
  */
-import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { ThemeTier } from "../theme/index.js";
 
 /**

@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 
 import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "./errors.js";
 import type { CommerceOrderRepoPort, CommercePriceRepoPort, CommerceProductRepoPort } from "./ports.js";
@@ -96,7 +97,7 @@ export async function checkout(required: CheckoutRequired): Promise<CheckoutResu
     throw new CommerceProductNotFoundError(`product '${price.productId}' was not found`);
   }
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const orderId = deps.idGen.newId();
 
   const order: CommerceOrderRecord = {

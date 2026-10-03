@@ -15,7 +15,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import {
   InMemoryMagicLinkTokenRepo,
@@ -36,23 +36,27 @@ function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean }
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     memberRepo: new InMemoryMemberRepo(),
     memberTierRepo: new InMemoryMemberTierRepo(),
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
     memberSessionRepo: new InMemoryMemberSessionRepo(),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo(),
-    mailer: { send: async () => undefined } as unknown as MembersToolDeps["mailer"],
+    mailer: {
+      capabilities: () => ({ driver: "smtp", maxBatchSize: 1, supportsIdempotencyKey: false, supportsWebhookFeedback: false, supportsAttachments: true }),
+      send: async () => ({ ok: true, providerMessageId: "message", acceptedAt: NOW }),
+      sendBatch: async () => [],
+    },
     magicLinkPerEmailLimiter: {
-      check: () => (options.allowEveryRequest === false ? { allowed: false, retryAfterSeconds: 42 } : { allowed: true }),
+      check: async ({ key: _key }) => (options.allowEveryRequest === false ? { allowed: false, retryAfterSeconds: 42 } : { allowed: true }),
     },
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 }
 
 async function buildHarness(routeDeps: MembersToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildMembersRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
@@ -195,7 +199,7 @@ test("list, get, disable and magic-link success preserve the model-facing payloa
   const disabled = { ...MEMBER_VIEW, status: "disabled", updatedAt: NOW, version: 4 };
   assert.deepEqual(output(await call(harness, "members_disable", { memberId: "m-1" })), { member: disabled });
   assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.status, "disabled");
-  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "other@example.com" })), { delivered: true });
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "other@example.com" })), { delivered: true, mailDeliveryAvailable: true });
   assert.equal((await deps.memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: "other@example.com" }))?.status, "pending");
 });
 
@@ -203,7 +207,7 @@ test("magic-link limiter shares normalized email budget and authorization denial
   const deps = makeRouteDeps();
   const keys: string[] = [];
   const counts = new Map<string, number>();
-  deps.magicLinkPerEmailLimiter = { check(key) {
+  deps.magicLinkPerEmailLimiter = { async check({ key }) {
     keys.push(key);
     const count = (counts.get(key) ?? 0) + 1;
     counts.set(key, count);
@@ -215,13 +219,13 @@ test("magic-link limiter shares normalized email budget and authorization denial
   assert.equal((await call(harness, "members_request_magic_link", { email: "  ALICE@example.com  " })).ok, false);
   assert.deepEqual(keys, []);
   allowed = true;
-  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "  ALICE@example.com  " })), { delivered: true });
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "  ALICE@example.com  " })), { delivered: true, mailDeliveryAvailable: true });
   const limited = await call(harness, "members_request_magic_link", { email: "alice@example.com" });
   assert.equal(limited.ok, false);
   if (limited.ok) throw new Error("expected rate limit");
   assert.deepEqual(limited.error, { code: "BAD_REQUEST", message: "MEMBERS_RATE_LIMITED: too many sign-in requests for 'alice@example.com' — retry after 42s" });
   assert.deepEqual(keys, ["alice@example.com", "alice@example.com"]);
-  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "bob@example.com" })), { delivered: true });
+  assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "bob@example.com" })), { delivered: true, mailDeliveryAvailable: true });
 });
 
 test("a repository conflict is model-facing while an unexpected auth error remains redacted", async () => {

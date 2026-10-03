@@ -316,7 +316,7 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  const expectedWorkspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   assert.ok(expectedWorkspace);
   let continuation: Record<string, unknown> | undefined;
   const requests: StubProviderRequest[] = [];
@@ -380,7 +380,7 @@ test(`${BYOK_TURN_PATH} refuses a workspace mutation by a content.read-only sess
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read"]);
-  const before = await deps.workspaceRepo.findById(deps.workspaceId);
+  const before = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   assert.ok(before);
   const providerUrl = await stubProvider(t, (callCount) => callCount === 1
     ? sseBody(messageStart(), toolUseBlock(0, "denied-call", "execute_delegated_tool", {
@@ -396,7 +396,7 @@ test(`${BYOK_TURN_PATH} refuses a workspace mutation by a content.read-only sess
   assert.equal(result.payload.toolUseId, "denied-call");
   assert.equal(result.payload.isError, true);
   assert.match(String(result.payload.content), /not authorized|forbidden|permission|denied/i);
-  assert.deepEqual(await deps.workspaceRepo.findById(deps.workspaceId), before);
+  assert.deepEqual(await deps.workspaceRepo.findById({ id: deps.workspaceId }), before);
 });
 
 test(`${BYOK_TURN_PATH} reports a provider error on its own SSE event name, not folded into 'agent'`, async (t) => {
@@ -644,7 +644,7 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  const expectedWorkspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   assert.ok(expectedWorkspace);
   let continuation: Record<string, unknown> | undefined;
   const requests: StubProviderRequest[] = [];
@@ -729,7 +729,7 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
     return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
   }
 
-  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  const expectedWorkspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   assert.ok(expectedWorkspace);
   let continuation: Record<string, unknown> | undefined;
   const requests: StubProviderRequest[] = [];

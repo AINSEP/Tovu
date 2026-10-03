@@ -10,7 +10,7 @@
  *
  * `EntryRepoPort` (this task's frozen, real chokepoint contract) has no `findByIds`/batch-by-id
  * primitive — only `findById` (one row) and `EntryListPort.listByWorkspace` (a full-type scan).
- * REQ-24's "one batched query" is satisfied here via ONE `listByWorkspace({type: 'widget'})` call
+ * REQ-24's "one batched query" is satisfied here via ONE `listByWorkspace({workspaceId}, {type: 'widget'})` call
  * per render (not one query per placement/type), which is the batching guarantee AC-16 actually
  * tests (via `resolveWidgetType`'s single-`resolveMany`-call assertion) — a literal `WHERE id IN
  * (...)` primitive does not exist on the real, frozen `EntryRepoPort` this task must compose
@@ -19,7 +19,7 @@
  * Architectural role:
  * `widgets` domain logic (implementation outline C-004).
  */
-import type { JsonObject, UUID } from "@jini-ai/cms/core";
+import type { JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { EntryListPort, EntryRecord, EntryRepoPort } from "../entries/index.js";
 import { CORE_PUBLIC_TRANSFORM_NAME, findMediaByIdOrSlug, getLatestTransformDefinition } from "../media/index.js";
 import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
@@ -168,7 +168,7 @@ async function resolveWidgetInstances(
   context: WidgetResolveContext
 ): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
   const widgetRows =
-    referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
+    referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE }) : [];
   const byType = groupWidgetInstancesByType(widgetRows, referencedIds);
 
   const resolvedById = new Map<UUID, WidgetResolveResult>();

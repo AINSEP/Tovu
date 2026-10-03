@@ -1,8 +1,4 @@
-import { hasForbiddenRawUrlCharacter } from "./origin.js";
-import { createVerifiedOrigin, type VerifiedOrigin } from "./types.js";
-import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
-import type { ISODateTime } from "@jini-ai/cms/core";
-
+// Implementation: /Users/la/Programming/Jini/packages/http-kit/src/verified-origin/configured-origin.ts
 /**
  * @file `resolveConfiguredOrigin` — the operator-declared public origin (2026-09-18; design note:
  * `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`).
@@ -34,11 +30,42 @@ import type { ISODateTime } from "@jini-ai/cms/core";
  * every sitemap entry, canonical tag, magic link, unsubscribe link, redirect verdict, and egress
  * check — a persistent host-header injection, and the exact thing ADR-040 §2 and amendment 7
  * forbid. Nothing here imports `express`; the only input is an env record read at boot.
+ *
+ * Generic implementation and its constraints now live in Jini packages/http-kit/src/verified-origin/configured-origin.ts.
+ * This adapter keeps the Tovu environment name, boot clock and runtime-mode policy.
  */
+import {
+  resolveConfiguredOrigin as resolveJiniConfiguredOrigin,
+  planOriginBoot as planJiniOriginBoot,
+  type VerifiedOrigin,
+  type OriginBootPlan,
+} from "@jini-ai/http-kit/verified-origin";
+import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { ISODateTime } from "@jini-ai/core/primitives";
+
+export type { OriginBootPlan } from "@jini-ai/http-kit/verified-origin";
+export interface ConfiguredOriginOptions {
+  /** Defaults to the real `process.env`. Injectable so the refusal pipeline is unit-testable
+   *  without mutating the process. */
+  env?: Record<string, string | undefined>;
+  /** Defaults to `console.warn`. Every refusal emits exactly one line naming the reason, so a
+   *  misconfigured deploy is diagnosable from the boot log instead of silently serving relative
+   *  URLs. The value logged is a public URL by definition, never a credential. */
+  warn?: (message: string) => void;
+}
+
+const NO_CONFIG_IN_PRODUCTION_WARNING =
+  "No public origin is configured for this production deployment: TOVU_PUBLIC_URL is unset or was " +
+  "refused, and the localhost dev-capability seed is never written in production runtime mode. " +
+  "Public URLs (sitemap.xml, canonical, og:url, newsletter and magic links) stay relative or " +
+  "unavailable until TOVU_PUBLIC_URL names this deployment's origin.";
 
 /**
+ * Bind operator-declared trust to TOVU_PUBLIC_URL and the boot timestamp.
+ * Package-owned pipeline constraints (retained here with the host policy):
+ * Internal helper names below refer to Jini packages/http-kit/src/verified-origin/configured-origin.ts.
  * Hosts that provably mean "this machine" and can therefore never be a public canonical origin.
- * `*.localhost` and the whole `127.0.0.0/8` block are handled in {@link isLoopbackHost}.
+ * `*.localhost` and the whole `127.0.0.0/8` block are handled in the package's `isLoopbackHost`.
  *
  * Load-bearing for reuse of `TOVU_PUBLIC_URL`: this repo's own `.env` carries
  * `TOVU_PUBLIC_URL=https://localhost:3000`. Without this refusal, local dev would silently flip
@@ -50,43 +77,19 @@ import type { ISODateTime } from "@jini-ai/cms/core";
  * RFC1918 private ranges are deliberately NOT refused: an intranet deployment may legitimately have
  * a private canonical host, and refusing it would be an unasked policy call. Loopback is different
  * — it is not reachable by anyone else, by definition.
- */
-const LOOPBACK_HOSTS = new Set(["localhost", "0.0.0.0", "::1", "[::1]", "::", "[::]"]);
-
-const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
-
-/** @complexity O(1). */
-function isLoopbackHost(host: string): boolean {
-  if (LOOPBACK_HOSTS.has(host)) return true;
-  if (host.endsWith(".localhost")) return true;
-  return LOOPBACK_IPV4.test(host);
-}
-
-/** Lower-cases and strips a single trailing dot, matching `origin.ts`'s own host normalization so
- *  "same host" can never mean two different things across this library. @complexity O(n). */
-function normalizeHost(hostname: string): string {
-  const lowered = hostname.toLowerCase();
-  return lowered.endsWith(".") ? lowered.slice(0, -1) : lowered;
-}
-
-/**
+ *
+ * @complexity O(1).
+ *
+ * Lower-cases and strips a single trailing dot, matching `origin.ts`'s own host normalization so
+ * "same host" can never mean two different things across this library. @complexity O(n).
+ *
  * Rejects the raw string's forbidden characters BEFORE the WHATWG parser can normalize them away
  * (a backslash becomes a slash, whitespace is stripped) — the same predicate and the same reason as
  * ADR-040 amendment 8's redirect oracle, imported rather than re-derived.
  *
  * @returns The parsed URL, or `null` if the value is unusable. Never throws.
  * @complexity O(n) in the length of `raw` (parser-bound).
- */
-function parseConfiguredUrl(raw: string): URL | null {
-  if (hasForbiddenRawUrlCharacter(raw)) return null;
-  try {
-    return new URL(raw);
-  } catch {
-    return null;
-  }
-}
-
-/**
+ *
  * The refusal pipeline, as one decision function.
  *
  * Split out of {@link resolveConfiguredOrigin} so each refusal is a single readable branch and the
@@ -94,22 +97,7 @@ function parseConfiguredUrl(raw: string): URL | null {
  *
  * @returns The operator-facing refusal reason, or `null` when `url` names a usable public origin.
  * @complexity O(n) in the host length.
- */
-function refusalReason(url: URL): string | null {
-  // ADR-040 Round-3 fold amendment 1: `scheme: "http"` is legal only for `source:
-  // "dev-capability"`, and `createVerifiedOrigin` THROWS on the combination. Refusing here is what
-  // keeps that throw off the boot path.
-  if (url.protocol !== "https:") return "its scheme must be https";
-  if (url.username !== "" || url.password !== "") return "it carries a userinfo component";
-  if (url.search !== "" || url.hash !== "") return "it carries a query string or fragment";
-
-  const host = normalizeHost(url.hostname);
-  if (host === "") return "its host is empty";
-  if (isLoopbackHost(host)) return `'${host}' is a loopback host, not a public origin`;
-  return null;
-}
-
-/**
+ *
  * Builds the `VerifiedOrigin` for an already-validated URL.
  *
  * `port` and `basePath` keys are added CONDITIONALLY, never as `?? undefined`: an object literal
@@ -118,31 +106,9 @@ function refusalReason(url: URL): string | null {
  * `toVerifiedOrigin` is built around.
  *
  * @complexity O(1).
- */
-function buildConfiguredOrigin(url: URL, now: ISODateTime): VerifiedOrigin {
-  const candidate: VerifiedOrigin = {
-    scheme: "https",
-    host: normalizeHost(url.hostname),
-    verifiedAt: now,
-    source: "workspace-setting",
-  };
-  if (url.port !== "") candidate.port = Number(url.port);
-  const basePath = url.pathname.replace(/\/+$/, "");
-  if (basePath !== "") candidate.basePath = basePath;
-  return createVerifiedOrigin(candidate);
-}
-
-export interface ConfiguredOriginOptions {
-  /** Defaults to the real `process.env`. Injectable so the refusal pipeline is unit-testable
-   *  without mutating the process. */
-  env?: Record<string, string | undefined>;
-  /** Defaults to `console.warn`. Every refusal emits exactly one line naming the reason, so a
-   *  misconfigured deploy is diagnosable from the boot log instead of silently serving relative
-   *  URLs. The value logged is a public URL by definition, never a credential. */
-  warn?: (message: string) => void;
-}
-
-/**
+ *
+ * @complexity O(configured URL length); warnings only, no request headers or storage effects.
+ *
  * Resolves this deployment's operator-declared public origin from `TOVU_PUBLIC_URL`.
  *
  * Refuses, with one warning and no registration: a value that is unset or blank (the normal
@@ -159,48 +125,15 @@ export interface ConfiguredOriginOptions {
  */
 export function resolveConfiguredOrigin(
   required: { now: ISODateTime },
-  optional: ConfiguredOriginOptions = {}
+  optional: ConfiguredOriginOptions = {},
 ): VerifiedOrigin | undefined {
-  const env = optional.env ?? process.env;
-  const warn = optional.warn ?? ((message: string) => console.warn(message));
-
-  const raw = env.TOVU_PUBLIC_URL?.trim();
-  if (!raw) return undefined;
-
-  const refuse = (reason: string): undefined => {
-    warn(
-      `TOVU_PUBLIC_URL is set but was refused as this deployment's public origin (${reason}); ` +
-        `no origin was registered from it. Value: ${raw}`
-    );
-    return undefined;
-  };
-
-  const url = parseConfiguredUrl(raw);
-  if (!url) return refuse("it is not a parseable URL");
-
-  const reason = refusalReason(url);
-  if (reason) return refuse(reason);
-
-  return buildConfiguredOrigin(url, required.now);
+  return resolveJiniConfiguredOrigin({
+    env: optional.env ?? process.env,
+    envVarName: "TOVU_PUBLIC_URL",
+    clock: { nowIso: () => required.now },
+    warn: optional.warn ?? ((message) => console.warn(message)),
+  });
 }
-
-/**
- * What the composition root should do about the origin registry on this boot.
- *
- * - `configured` — register {@link OriginBootPlan.origin} as the workspace's public origin.
- * - `dev-seed` — call `seedDevCapabilityOrigin` exactly as before (localhost, `deriveDevScheme`).
- * - `none` — write nothing at all.
- */
-export type OriginBootPlan =
-  | { kind: "configured"; origin: VerifiedOrigin }
-  | { kind: "dev-seed" }
-  | { kind: "none" };
-
-const NO_CONFIG_IN_PRODUCTION_WARNING =
-  "No public origin is configured for this production deployment: TOVU_PUBLIC_URL is unset or was " +
-  "refused, and the localhost dev-capability seed is never written in production runtime mode. " +
-  "Public URLs (sitemap.xml, canonical, og:url, newsletter and magic links) stay relative or " +
-  "unavailable until TOVU_PUBLIC_URL names this deployment's origin.";
 
 /**
  * Decides the boot's origin-registry action. Pure decision, no I/O — the composition root owns the
@@ -223,18 +156,21 @@ const NO_CONFIG_IN_PRODUCTION_WARNING =
  * @param optional.mode - Defaults to `resolveRuntimeMode`; injectable for tests, the same
  * convention `features/seo/absolute-url.ts`'s `resolveWorkspaceOrigin` uses.
  * @complexity O(n) in the configured value's length.
+ *
+ * Only the explicit local runtime may request a development seed; unknown injected modes fail closed.
+ * Generic decision and rationale: Jini packages/http-kit/src/verified-origin/configured-origin.ts.
+ * The adapter retains the exact production warning and explicit development-mode policy.
  */
 export function planOriginBoot(
   required: { now: ISODateTime },
-  optional: ConfiguredOriginOptions & { mode?: () => RuntimeMode } = {}
+  optional: ConfiguredOriginOptions & { mode?: () => RuntimeMode } = {},
 ): OriginBootPlan {
-  const origin = resolveConfiguredOrigin(required, optional);
-  if (origin) return { kind: "configured", origin };
-
-  const mode = optional.mode ?? resolveRuntimeMode;
-  if (mode() !== "production") return { kind: "dev-seed" };
-
-  const warn = optional.warn ?? ((message: string) => console.warn(message));
-  warn(NO_CONFIG_IN_PRODUCTION_WARNING);
-  return { kind: "none" };
+  return planJiniOriginBoot({
+    env: optional.env ?? process.env,
+    envVarName: "TOVU_PUBLIC_URL",
+    clock: { nowIso: () => required.now },
+    warn: optional.warn ?? ((message) => console.warn(message)),
+    allowDevSeed: () => (optional.mode ?? resolveRuntimeMode)() === "local",
+    missingOriginWarning: NO_CONFIG_IN_PRODUCTION_WARNING,
+  });
 }

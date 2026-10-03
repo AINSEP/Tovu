@@ -838,6 +838,61 @@ function makeJob(overrides: Partial<SendBatchJob> = {}): SendBatchJob {
   return { workspaceId: WS, campaignId: "camp-1", audienceSnapshotId: "snap-1", sendIds: ["send-1"], ...overrides };
 }
 
+test("resume preserves its transition and reports a failed requeue without claiming delivery", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "paused", audienceSnapshotId: "snap-1" })] });
+  await rig.sendRepo.save(makeSendRow());
+  rig.deps.outbox.enqueue = async () => { throw new Error("private provider failure"); };
+  const result = await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+  assert.deepEqual(result, { campaign: makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" }), requeueFailed: true });
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sending");
+});
+
+test("audience freezing preserves a pause committed during contact lookup", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })] });
+  rig.deps.subscriberDirectory.getContacts = async () => {
+    await pauseCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+    return [];
+  };
+  const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
+  const current = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(current?.status, "paused");
+  assert.equal(current?.audienceSnapshotId, result.snapshot.id);
+  assert.deepEqual(result.sendIds, []);
+});
+
+test("pause stops remaining recipients in an in-flight batch; resume requeues pending rows", async () => {
+  const mailer = makeMailer(async () => {
+    if (mailer.sentTo.length === 1) await pauseCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+    return { ok: true, providerMessageId: "first", acceptedAt: clock.nowIso() };
+  });
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" })], mailer });
+  for (const subscriberId of ["sub-1", "sub-2"]) await rig.subscriptionRepo.save({ id: `subscription-${subscriberId}`, workspaceId: WS, listId: "list-1", subscriberId, status: "subscribed", source: "admin", subscribedAt: clock.nowIso(), unsubscribedAt: null, consentRevisionIdAtSubscribe: "consent", createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await rig.sendRepo.save(makeSendRow());
+  await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "second@test.com", idempotencyKey: "key-2" }));
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ sendIds: ["send-1", "send-2"] }) });
+  assert.deepEqual(mailer.sentTo, ["a@test.com"]);
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "pending");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "paused");
+  await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+  rig.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+    await handleSendBatchClaimed({ deps: rig.deps, job: event.payload as SendBatchJob });
+  });
+  rig.deps.mailer = makeMailer();
+  await claimBatch({ deps: rig.deps });
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "delivered");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sent");
+});
+
+test("a paused campaign dispatches no rows and leaves them available for resume", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "paused" })], mailer });
+  await rig.sendRepo.save(makeSendRow());
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+  assert.deepEqual(mailer.sentTo, []);
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
+});
+
 test("handleSendBatchClaimed: campaign not found -- no-op", async () => {
   const rig = makeRig();
   await assert.doesNotReject(handleSendBatchClaimed({ deps: rig.deps, job: makeJob() }));

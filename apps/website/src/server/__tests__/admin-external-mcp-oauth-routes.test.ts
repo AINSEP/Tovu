@@ -1,3 +1,4 @@
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -77,7 +78,8 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
     clock: base.clock,
     pending: createPendingAuthorizationStore({ clock: base.clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: http.fetchFn,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
     lookupProvider: () => PROVIDER,
   };
   const deps: RouteDeps = { ...base, externalMcpOAuth: createExternalMcpOAuthService(oauthDeps) };

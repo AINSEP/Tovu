@@ -426,7 +426,7 @@ test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct
  */
 test("GET /products survives a workspace with no presentation_settings row, exactly as GET / already does", async (t) => {
   const { server, baseUrl } = await startServer({
-    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
     commerceProductRepo: fakeProductRepo([]),
     commercePriceRepo: fakePriceRepo({}),
   });
@@ -463,7 +463,7 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
   };
 
   const { server, baseUrl } = await startServer({
-    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
     commerceProductRepo: fakeProductRepo([product]),
     commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
   });

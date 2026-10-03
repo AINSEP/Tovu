@@ -9,7 +9,7 @@ import {
   ExternalMcpValidationError,
   type ExternalMcpOAuthService,
 } from "#src/assistant/index";
-import { OAuthError } from "#src/platform/oauth/index";
+import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter, RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -37,7 +37,7 @@ function limiterOf(result: RateLimitResult): RateLimiter & { keys: string[] } {
   const keys: string[] = [];
   return {
     keys,
-    check(key: string) {
+    async check({ key }: { key: string }) {
       keys.push(key);
       return result;
     },
@@ -225,8 +225,8 @@ test("an OAuth slow_down forwards retryable:true and retryAfterSeconds; one with
       pollDeviceAuthorization: async () => {
         call += 1;
         throw call === 1
-          ? new OAuthError("OAUTH_SLOW_DOWN", "polling too fast", { operatorAction: "Wait, then poll again.", retryAfterSeconds: 15 })
-          : new OAuthError("OAUTH_ACCESS_DENIED", "access denied", { operatorAction: "Start again." });
+          ? new OAuthError({ code: "OAUTH_SLOW_DOWN", message: "polling too fast", operatorAction: "Wait, then poll again." }, { retryAfterSeconds: 15 })
+          : new OAuthError({ code: "OAUTH_ACCESS_DENIED", message: "access denied", operatorAction: "Start again." });
       },
     },
   });

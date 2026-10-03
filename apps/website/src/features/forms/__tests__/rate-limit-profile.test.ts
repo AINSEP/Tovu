@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFormsRateLimitKey, FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
+import { buildFormsRateLimitKey } from "@jini-ai/cms-forms";
+import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
@@ -20,28 +21,29 @@ test("buildFormsRateLimitKey: composes `${sourceIp}:${formDefinitionId}`", () =>
   assert.equal(buildFormsRateLimitKey({ sourceIp: "1.2.3.4", formDefinitionId: "def-1" }), "1.2.3.4:def-1");
 });
 
-test("buildFormsRateLimitKey: INV-09 — two different forms from the same IP get independent windows", () => {
-  const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+test("buildFormsRateLimitKey: INV-09 — two different forms from the same IP get independent windows", async () => {
+  const clock = { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
   const limiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
 
   const keyA = buildFormsRateLimitKey({ sourceIp: "1.2.3.4", formDefinitionId: "form-a" });
   const keyB = buildFormsRateLimitKey({ sourceIp: "1.2.3.4", formDefinitionId: "form-b" });
 
   for (let i = 0; i < 5; i++) {
-    assert.equal(limiter.check(keyA).allowed, true, `form-a request ${i + 1} should be allowed`);
+    assert.equal((await limiter.check({ key: keyA })).allowed, true, `form-a request ${i + 1} should be allowed`);
   }
-  assert.equal(limiter.check(keyA).allowed, false, "form-a's 6th request should be rejected");
+  assert.equal((await limiter.check({ key: keyA })).allowed, false, "form-a's 6th request should be rejected");
 
   // form-b, same IP, must not be cross-throttled by form-a's exhausted window.
-  assert.equal(limiter.check(keyB).allowed, true, "form-b's first request must still be allowed");
+  assert.equal((await limiter.check({ key: keyB })).allowed, true, "form-b's first request must still be allowed");
 });
 
-test("AC-14/behavior.spec.md §7 — the 5th submission in-window is accepted, the 6th is rejected", () => {
-  const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+test("AC-14/behavior.spec.md §7 — the 5th submission in-window is accepted, the 6th is rejected", async () => {
+  const clock = { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
   const limiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
   const key = buildFormsRateLimitKey({ sourceIp: "9.9.9.9", formDefinitionId: "form-x" });
 
-  const results = Array.from({ length: 6 }, () => limiter.check(key));
+  const results = [];
+  for (let i = 0; i < 6; i++) results.push(await limiter.check({ key }));
   assert.deepEqual(
     results.map((r) => r.allowed),
     [true, true, true, true, true, false]

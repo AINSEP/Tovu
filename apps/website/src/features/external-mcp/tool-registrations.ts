@@ -1,16 +1,6 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
-import type { UUID } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 
 import {
@@ -134,7 +124,7 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * var".
  */
 
-const CATALOG_BY_ID = indexCatalogById(externalMcpAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: externalMcpAgentToolCatalog });
 
 /** Mirrors `oauth-callback-url.ts`'s own constant — restated, not imported. See this file's header
  *  ("no live HTTP request") for why. Both must keep naming the SAME path: `mcp-federation/registrations.ts`'s
@@ -171,10 +161,10 @@ function resolveConfiguredPublicOrigin(): string | undefined {
     url = undefined;
   }
   if (url === undefined) {
-    throw new ToolInputError(`TOVU_PUBLIC_URL must be an absolute http(s) URL, but "${configured}" is not a valid URL.`);
+    throw new ToolInputError({ message: `TOVU_PUBLIC_URL must be an absolute http(s) URL, but "${configured}" is not a valid URL.` });
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new ToolInputError(`TOVU_PUBLIC_URL must be an http(s) URL, got "${configured}".`);
+    throw new ToolInputError({ message: `TOVU_PUBLIC_URL must be an http(s) URL, got "${configured}".` });
   }
   return url.origin;
 }
@@ -249,8 +239,8 @@ const SAVE_MODEL_OPTIONAL_FIELDS = [
  *  it (trim + lowercase), so the existing-row lookup below matches what a prior save actually
  *  stored. @complexity O(1) — a fixed field list. */
 function buildModelSaveInput(input: Record<string, unknown>): ExternalMcpSaveInput {
-  const id = requireString(input, "id").trim().toLowerCase();
-  const transport = requireString(input, "transport");
+  const id = requireString({ input, key: "id" }).trim().toLowerCase();
+  const transport = requireString({ input, key: "transport" });
   let save: ExternalMcpSaveInput = { id, transport };
   for (const key of SAVE_MODEL_OPTIONAL_FIELDS) {
     const value = optionalStringField(input, key);
@@ -433,12 +423,9 @@ export const externalMcpDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
 export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     external_mcp_list: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: EXTERNAL_MCP_MANAGE_PERMISSION,
-        entityType: "external-mcp-server",
-      });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
 
       const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo }, routeDeps.workspaceId);
       return { servers };
@@ -451,19 +438,14 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
      * this tool exists specifically to render cannot be skipped without abandoning the "never saves
      * silently" guarantee `agent-tools.ts`'s own description makes.
      */
-    external_mcp_save: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: EXTERNAL_MCP_MANAGE_PERMISSION,
-        entityType: "external-mcp-server",
-      });
+    external_mcp_save: async (ctx, optional = {}) => {
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
 
-      if (!ctx.emitSurface) {
-        throw new ToolInputError(
-          "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), " +
-            "so a connection form cannot be shown here. Nothing was saved.",
-        );
+      if (!optional.emitSurface) {
+        throw new ToolInputError({ message: "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), " +
+            "so a connection form cannot be shown here. Nothing was saved." });
       }
 
       const modelInput = buildModelSaveInput(input);
@@ -473,7 +455,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
 
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: EXTERNAL_MCP_SAVE_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface,
+        optional.emitSurface,
       );
 
       const closeOnAbort = () => exchange.close();
@@ -489,14 +471,11 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
 
     /** See this file's header ("`external_mcp_test_connection` never opens a socket"). */
     external_mcp_test_connection: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: EXTERNAL_MCP_MANAGE_PERMISSION,
-        entityType: "external-mcp-server",
-        entityId: id,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input, key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        entityId: id });
 
       const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
       if (!record) return { ok: false, reason: `no external MCP server is configured as '${id}'` };
@@ -513,14 +492,11 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
 
     /** See this file's header ("`external_mcp_oauth_connect` has no live HTTP request"). */
     external_mcp_oauth_connect: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: EXTERNAL_MCP_MANAGE_PERMISSION,
-        entityType: "external-mcp-server",
-        entityId: id,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input, key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        entityId: id });
 
       if (!routeDeps.externalMcpOAuth) {
         throw new Error(
@@ -539,20 +515,17 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
         // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
         // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
         // messages beyond the server id the caller already sent.
-        if (error instanceof ExternalMcpValidationError) throw new ToolInputError(error.message);
+        if (error instanceof ExternalMcpValidationError) throw new ToolInputError({ message: error.message });
         throw error;
       }
     },
 
     external_mcp_oauth_poll_device: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: EXTERNAL_MCP_MANAGE_PERMISSION,
-        entityType: "external-mcp-server",
-        entityId: id,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input, key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        entityId: id });
 
       if (!routeDeps.externalMcpOAuth) {
         throw new Error(

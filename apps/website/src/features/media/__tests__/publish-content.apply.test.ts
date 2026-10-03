@@ -22,7 +22,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -113,7 +113,7 @@ async function makeFixture(
   if (options.mediaRepo && options.mediaRows) {
     for (const row of options.mediaRows) await mediaRepo.save(row);
   }
-  const assetBlobRepo = new InMemoryAssetBlobRepo(options.blobRows ? [...options.blobRows] : []);
+  const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: options.blobRows ? [...options.blobRows] : [] });
   const blobStore = new InMemoryBlobStore();
   const outbox = new InMemoryOutbox();
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);

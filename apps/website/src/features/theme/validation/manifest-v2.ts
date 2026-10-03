@@ -1,4 +1,4 @@
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { isSourceDirGeneratedConflict } from "../theme-files.js";
 import type { ThemeValidationIssue } from "./profiles.js";

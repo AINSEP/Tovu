@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,6 +11,11 @@ import type { PublishContentPeerRecord } from "../peers.js";
 import { describePublishReadiness, siteLabelFor } from "../publish-readiness.js";
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file The publishing tools' certification. Three things are proved here, in this order:
@@ -55,7 +62,7 @@ function toolDeps(overrides: Partial<PublishContentToolDeps> = {}): PublishConte
   return {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true }),
-    clock: { nowIso: () => "2026-09-19T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-19T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     pluginBeforeSaveHook: undefined as never,
     outbox: null as never,
@@ -105,18 +112,18 @@ test("the two tools reach the catalog the daemon serves, via the real compositio
   const { resetToolContributorsForTests, listToolContributors } = await import("../../../assistant/tool-contribution-registry.js");
   const { installFirstPartyToolContributors } = await import("../../../server/runtime/composition/tool-catalog-manifest.js");
 
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
   // Positive control: nothing is installed until the manifest runs, so a pass below cannot be an
   // artifact of some earlier import having registered these for us.
-  assert.equal(listToolContributors().length, 0);
+  assert.equal(contributions.contributors.list({}).length, 0);
 
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
 
-  const contributor = listToolContributors().find((c) => c.domain === "publish-content");
+  const contributor = contributions.contributors.list({}).find((c) => c.domain === "publish-content");
   assert.ok(contributor, "installFirstPartyToolContributors() did not install publish-content");
 
   const ids = contributor.build(toolDeps() as never, NO_SURFACES).map((r) => r.descriptor.id);
-  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID].sort());
+  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, "publish_content_plan_pull", "publish_content_execute_pull"].sort());
 
   // Every wired tool must carry a risk classification, or `assertRiskMetadataIsWirable` refuses the
   // whole catalog at boot — the gate that turns a missing entry into a dead assistant, not a quiet gap.

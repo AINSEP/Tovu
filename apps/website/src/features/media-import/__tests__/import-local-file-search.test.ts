@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -5,19 +7,24 @@ import { createToolRegistry } from "@jini-ai/core";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../../contracts/core/rate-limit/rate-limit.js";
 import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
-import { resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { buildToolCatalogQuery } from "../../../assistant/tool-catalog-query.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 /** t06: full production catalog and real SQLite FTS ranking, including all competing tools. */
 async function realCatalog() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
   return { registry, catalog: buildToolCatalogQuery(registry) };
 }
 
@@ -43,7 +50,7 @@ test("local file owner requests rank media_import_local_file in the top 3 of the
 
 test("adding the local importer introduces no misses in the 127 operator requests", async (t) => {
   const { registry, catalog } = await realCatalog();
-  const before = buildToolCatalogQuery({ list: () => registry.list().filter((descriptor) => descriptor.id !== "media_import_local_file") });
+  const before = buildToolCatalogQuery({ list: () => registry.list({}).filter((descriptor) => descriptor.id !== "media_import_local_file") });
   const requests = JSON.parse(readFileSync(new URL("../../../assistant/__tests__/fixtures/tool-search-operator-requests.json", import.meta.url), "utf8")) as { id: string; query: string; expect: string[] }[];
   assert.equal(requests.length, 127);
   const regressions: string[] = [];

@@ -284,7 +284,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   // the 429 is the cheapest possible response to an excess request. A clean JSON error here
   // (not an SSE frame — `beginStream` has not run yet) is what lets the widget's transport
   // read `body.error` off a normal failed `fetch()` the same way it already does for 4xx/5xx.
-  const rateLimitResult = deps.siteAssistantRateLimiter.check(resolveClientIp(req));
+  const rateLimitResult = await deps.siteAssistantRateLimiter.check({ key: resolveClientIp(req) });
   if (!rateLimitResult.allowed) {
     res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
     res.status(429).json({

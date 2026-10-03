@@ -28,7 +28,7 @@
  *
  * Each flow gets its own type string so one flow's completion cannot make another flow's bridge
  * think it finished. `@jini-ai/ui`'s `createBrowserConnectorAuthBridge` listens for
- * {@link CONNECTOR_CALLBACK_MESSAGE_TYPE}; the external-MCP tab listens for
+ * its own `jini:connector-connected` message type; the external-MCP tab listens for
  * {@link EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE}. A shared constant would couple two unrelated screens.
  *
  * ## The focus fallback is not optional
@@ -38,10 +38,11 @@
  * message undelivered, which is why every bridge that consumes this page ALSO re-checks connection
  * status when the admin tab regains focus. An operator who abandons the popup must resolve as
  * "still not connected", not as an error — see `apps/admin`'s connectors port for the precedent.
+ * CONNECTOR_CALLBACK_MESSAGE_TYPE (server/inbound/public-http/routes/oauth/callback-page.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Posted to `window.opener` by the OAuth callback page. Must match `@jini-ai/ui`'s own constant. */
-export const CONNECTOR_CALLBACK_MESSAGE_TYPE = "jini:connector-connected";
+// CONNECTOR_CALLBACK_MESSAGE_TYPE (apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Posted by the external-MCP OAuth callback. Distinct from the connectors one on purpose. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";

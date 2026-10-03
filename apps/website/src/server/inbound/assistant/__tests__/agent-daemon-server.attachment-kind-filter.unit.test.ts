@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { describe } from "node:test";
 
-import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/http-kit";
+import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon/http";
 
 /**
  * @file Regression coverage for the bug where a non-image chat attachment (a `.md`, a PDF, any
@@ -95,7 +95,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     const filePath = path.join(batchDirectory, "report.pdf");
     fs.writeFileSync(filePath, pdfBytes, { mode: 0o600 });
 
-    const kind = detectAttachmentKind(pdfBytes);
+    const kind = detectAttachmentKind({ body: pdfBytes });
     assert.equal(
       kind,
       "file",

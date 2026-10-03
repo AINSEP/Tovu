@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -161,7 +161,7 @@ test("the handler returns evidence-shaped data when the browser is unavailable, 
 
 test("a workspace with no verified origin returns an explicit 'cannot collect' payload, not a stack trace", async () => {
   const registration = buildSiteEvidenceRegistrations(
-    toolDeps({ originRegistry: originRegistry(new OriginNotVerifiedError("no verified origin registered")) }),
+    toolDeps({ originRegistry: originRegistry(new OriginNotVerifiedError({ message: "no verified origin registered" })) }),
   ).find((entry) => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
   assert.ok(registration);
 

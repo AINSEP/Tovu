@@ -59,15 +59,15 @@ test("submission envelopes preserve boolean data and pagination while copying th
 
 // F4.4: one typed failure at a time. Mutation: drop details or map a not-found error to 500.
 const errorCases = [
-  { label: "forbidden", error: new ForbiddenError("write denied", "forms.write", "no_grant"), status: 403,
+  { label: "forbidden", error: new ForbiddenError({ message: "write denied", permission: "forms.write", reason: "no_grant" }), status: 403,
     body: { error: "write denied", code: "FORBIDDEN", details: { permission: "forms.write", reason: "no_grant" } } },
-  { label: "field validation", error: new FormFieldValidationError("invalid field", [{ field: "email", reason: "unsupported type" }]), status: 400,
+  { label: "field validation", error: new FormFieldValidationError({ message: "invalid field", fieldErrors: [{ field: "email", reason: "unsupported type" }] }), status: 400,
     body: { error: "invalid field", code: "FORMS_FIELD_VALIDATION_ERROR", details: { fieldErrors: [{ field: "email", reason: "unsupported type" }] } } },
-  { label: "slug conflict", error: new FormSlugConflictError("slug occupied", "contact"), status: 409,
+  { label: "slug conflict", error: new FormSlugConflictError({ message: "slug occupied", slug: "contact" }), status: 409,
     body: { error: "slug occupied", code: "FORMS_SLUG_CONFLICT", details: { slug: "contact" } } },
-  { label: "definition not found", error: new FormDefinitionNotFoundError("definition absent"), status: 404,
+  { label: "definition not found", error: new FormDefinitionNotFoundError({ message: "definition absent" }), status: 404,
     body: { error: "definition absent", code: "FORMS_DEFINITION_NOT_FOUND" } },
-  { label: "submission not found", error: new FormSubmissionNotFoundError("submission absent"), status: 404,
+  { label: "submission not found", error: new FormSubmissionNotFoundError({ message: "submission absent" }), status: 404,
     body: { error: "submission absent", code: "FORMS_SUBMISSION_NOT_FOUND" } },
 ];
 for (const { label, error, status, body } of errorCases) {

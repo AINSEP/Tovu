@@ -59,6 +59,7 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: Taxonom
         principalId: principal.id,
         taxonomyId: String(req.params.taxonomyId),
         name: body.name,
+      }, {
         parentId: typeof body.parentId === "string" ? body.parentId : null,
       });
 

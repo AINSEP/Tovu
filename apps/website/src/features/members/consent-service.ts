@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file The D1c consent chokepoint (ADR-PIPE-013 Decision §4, crosscutting
  * sweep D1c LOCKED 4-0).
@@ -25,7 +26,7 @@
  * ADR-022 §4a / ADR-028 §4 write-chokepoint discipline every other
  * core-owned mutation in this repo already follows.
  */
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import type { MemberConsentRepoPort, MemberRepoPort } from "./ports.js";
 import {
   MemberNotFoundError,
@@ -70,7 +71,7 @@ export async function requestConsent(required: {
   const { deps, input } = required;
   await assertMemberExists(deps, input.workspaceId, input.memberId);
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,
     memberId: input.memberId,
@@ -151,7 +152,7 @@ export async function confirmConsent(required: {
     );
   }
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const consent: MemberConsentRecord = {
     ...existing,
     status: "granted",
@@ -209,7 +210,7 @@ export async function revokeConsent(required: {
     return { consent: existing };
   }
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const consent: MemberConsentRecord = {
     ...existing,
     status: "revoked",

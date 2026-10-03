@@ -1,17 +1,4 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  optionalNumber,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -522,12 +509,13 @@ function buildPluginInputSchema(source: AgentPluginToolSource): Record<string, u
  *  see this file's header on why an unrecognized value is a graceful fallback, not a thrown error. */
 function readSkillArgument(rawInput: unknown): string | undefined {
   if (rawInput === undefined) return undefined;
-  if (!isRecord(rawInput)) throw new Error("input must be an object");
-  const unexpectedKeys = Object.keys(rawInput).filter((key) => key !== "skill");
+  const candidate = { value: rawInput };
+  if (!isRecord(candidate)) throw new Error("input must be an object");
+  const unexpectedKeys = Object.keys(candidate.value).filter((key) => key !== "skill");
   if (unexpectedKeys.length > 0) {
     throw new Error(`this tool accepts only an optional 'skill' argument — unexpected field(s): ${unexpectedKeys.join(", ")}`);
   }
-  return optionalString(rawInput, "skill");
+  return optionalString({ input: candidate.value, key: "skill" });
 }
 
 /**
@@ -756,7 +744,7 @@ export function buildAgentPluginToolRegistrations(
   sources: readonly AgentPluginToolSource[],
   gate: AgentPluginToolGate,
 ): ToolRegistration[] {
-  const catalog: WirableToolDefinition[] = sources.map((source) => ({
+  const catalog: AgentToolDefinition[] = sources.map((source) => ({
     name: source.id,
     description: source.description,
     sideEffects: "none",
@@ -774,7 +762,7 @@ export function buildAgentPluginToolRegistrations(
   const registrations = buildDomainRegistrations({
     domain: "agent-plugin-skill",
     catalogModule: "features/agent-plugins/tool-registrations.ts",
-    catalog: indexCatalogById(catalog),
+    catalog: indexCatalogById({ catalog: catalog }),
     handlers,
     derivedRisk: agentPluginToolDerivedRisk(sources),
   });
@@ -937,7 +925,7 @@ const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
  *  so `assistant/__tests__/tool-registrations.contracts.test.ts`'s `CATALOGS_BY_DOMAIN` — which
  *  cross-checks every wired domain's published schema/risk/actor-class contract against this SAME
  *  source of truth — can import it the same way it imports every sibling domain's `<domain>AgentToolCatalog`. */
-export const agentPluginSearchAgentToolCatalog: WirableToolDefinition[] = [
+export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID,
     description: SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION,
@@ -1037,9 +1025,9 @@ export const agentPluginSearchDerivedRisk: DerivedRiskByToolId = new Map<string,
 export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const query = requireString(input, "query");
-      const rawLimit = optionalNumber(input, "limit");
+      const input = requireInputRecord({ input: ctx.input });
+      const query = requireString({ input: input, key: "query" });
+      const rawLimit = optionalNumber({ input, key: "limit" });
       // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
       // caller is actually asking for, mirroring `component-catalog-tool.ts`'s identical treatment of
       // `search_components`' own `limit` argument.
@@ -1070,7 +1058,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
   return buildDomainRegistrations({
     domain: "agent-plugin-search",
     catalogModule: "features/agent-plugins/tool-registrations.ts",
-    catalog: indexCatalogById(agentPluginSearchAgentToolCatalog),
+    catalog: indexCatalogById({ catalog: agentPluginSearchAgentToolCatalog }),
     handlers,
     derivedRisk: agentPluginSearchDerivedRisk,
   });
@@ -1097,18 +1085,18 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
 export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const pluginId = requireString(input, "pluginId");
+      const input = requireInputRecord({ input: ctx.input });
+      const pluginId = requireString({ input: input, key: "pluginId" });
       return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId);
     },
     // The token fallback (`access-token-tool.ts`) for a plugin whose server declares `tovuTokenAuth`.
-    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord(ctx.input)),
+    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord({ input: ctx.input })),
   };
 
   return buildDomainRegistrations({
     domain: "agent-plugin-connect",
     catalogModule: "features/agent-plugins/connect-tool.ts",
-    catalog: indexCatalogById(agentPluginConnectDomainCatalog),
+    catalog: indexCatalogById({ catalog: agentPluginConnectDomainCatalog }),
     handlers,
     derivedRisk: agentPluginConnectDomainRisk,
   });
@@ -1123,4 +1111,3 @@ const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPlugi
 export function contributeAgentPluginConnectTools(): ToolContributor {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
 }
-

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { OriginRegistry } from "../origin.js";
 import { InMemoryOriginSettingRepo } from "../repo.memory.js";
-import { OriginNotVerifiedError, createVerifiedOrigin, InsecureOriginSourceError } from "../types.js";
+import { OriginNotVerifiedError, createVerifiedOrigin, InsecureOriginSourceError } from "@jini-ai/http-kit/verified-origin";
 
 const WORKSPACE = "workspace-1";
 

@@ -1,5 +1,6 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
   resolveConfirmationDecision,
@@ -73,7 +74,7 @@ export interface AgentPluginUninstallToolDeps {
  */
 function toModelFacingUninstallError(error: unknown): unknown {
   if (error instanceof AgentPluginNotFoundError || error instanceof AgentPluginNotUninstallableError) {
-    return new ToolInputError(error.message);
+    return new ToolInputError({ message: error.message });
   }
   return error;
 }
@@ -150,10 +151,11 @@ async function previewOrRefusal(
  */
 async function confirmUninstall(
   surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
   preview: AgentPluginUninstallPreview,
+  optional: ToolExecutionOptions = {},
 ): Promise<ConfirmationOutcome> {
-  const emitSurface = ctx.emitSurface;
+  const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error(
       "plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
@@ -253,19 +255,15 @@ export async function runAgentPluginUninstall(
   surfaces: AssistantSurfaceDeps,
   ctx: ToolExecutionContext,
   pluginId: string,
+  optional: ToolExecutionOptions = {},
 ): Promise<unknown> {
-  await requireToolPermission(routeDeps, {
-    principalId: ctx.principal.id,
-    permission: "admin.plugins.enable",
-    entityType: "agent-plugin",
-    entityId: pluginId,
-  });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
 
   const request = { layout: resolveAgentPluginLayout(), workspaceId: routeDeps.workspaceId, pluginId };
   const previewed = await previewOrRefusal(request);
   if ("refusal" in previewed) return previewed.refusal;
 
-  const outcome = await confirmUninstall(surfaces, ctx, previewed.preview);
+  const outcome = await confirmUninstall(surfaces, ctx, previewed.preview, optional);
   if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
   return uninstallConfirmedAgentPlugin(request, previewed.preview);

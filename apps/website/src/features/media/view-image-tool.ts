@@ -1,14 +1,7 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
 import sharp from "sharp";
 
 import type { ToolContributor } from "#src/assistant/index";
@@ -102,11 +95,11 @@ export const mediaViewImageDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   [MEDIA_VIEW_IMAGE_TOOL_ID, "none"],
 ]);
 
-const CATALOG_BY_ID = indexCatalogById(mediaViewImageAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: mediaViewImageAgentToolCatalog });
 
 /** Prefixes every refusal with the tool id, so the model can tell which call it came from. */
 function refusal(message: string): ToolInputError {
-  return new ToolInputError(`${MEDIA_VIEW_IMAGE_TOOL_ID}: ${message}`);
+  return new ToolInputError({ message: `${MEDIA_VIEW_IMAGE_TOOL_ID}: ${message}` });
 }
 
 type AssetLookup = { by: "id"; value: string } | { by: "slug"; value: string };
@@ -117,7 +110,7 @@ type AssetLookup = { by: "id"; value: string } | { by: "slug"; value: string };
  * @throws {ToolInputError} Unless exactly one of `mediaId`/`slug` is a non-empty string.
  */
 function readLookup(input: unknown): AssetLookup {
-  const record = requireInputRecord(input);
+  const record = requireInputRecord({ input: input });
   const keys = (["mediaId", "slug"] as const).filter((key) => record[key] !== undefined);
   const key = keys.length === 1 ? keys[0]! : undefined;
   const value = key === undefined ? undefined : record[key];
@@ -212,11 +205,11 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
   const handlers: Record<string, ToolHandler> = {
     [MEDIA_VIEW_IMAGE_TOOL_ID]: async (ctx) => {
       const lookup = readLookup(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "media.read", entityType: "media" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });
 
       const asset = await findAsset(deps, lookup);
       const bytes = await readStoredBytes(deps, asset);
-      const contentType = sniffContentType(bytes);
+      const contentType = sniffContentType({ bytes });
       assertStillImage(asset, contentType);
       const rendered = await renderForModel(asset, bytes, contentType);
 

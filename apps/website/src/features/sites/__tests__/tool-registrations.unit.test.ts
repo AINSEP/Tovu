@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,11 +7,16 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { DuplicateSiteResult, SiteListEntry } from "#src/platform/site-dir/index";
-import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 
 import { sitesAgentToolCatalog } from "../agent-tools.js";
 import type { SitesToolDeps } from "../deps.js";
 import { buildSitesRegistrations, contributeSitesTools, sitesDerivedRisk } from "../tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file `sites_duplicate_site` — TDD certification for the assistant-tool half of `duplicateSite`
@@ -103,17 +110,17 @@ test("sites: the catalog wires in full, with a published schema and a cross-chec
 });
 
 test("sites: the contributor registers under its own domain key, idempotently", () => {
-  resetToolContributorsForTests();
-  registerToolContributor(contributeSitesTools());
+  contributions.contributors.clear({});
+  contributions.contributors.register({ contribution: contributeSitesTools() });
 
-  const contributors = listToolContributors();
+  const contributors = contributions.contributors.list({});
   assert.equal(contributors.length, 1);
   assert.equal(contributors[0]?.domain, "sites");
   assert.equal(contributors[0]?.risk, sitesDerivedRisk);
 
-  registerToolContributor(contributeSitesTools());
-  assert.equal(listToolContributors().length, 1, "a double install replaces rather than duplicating");
-  resetToolContributorsForTests();
+  contributions.contributors.register({ contribution: contributeSitesTools() });
+  assert.equal(contributions.contributors.list({}).length, 1, "a double install replaces rather than duplicating");
+  contributions.contributors.clear({});
 });
 
 test("sites_duplicate_site: happy path resolves sourceName/targetName to real dirs and calls duplicateSite", async () => {

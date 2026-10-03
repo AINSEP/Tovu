@@ -1,3 +1,6 @@
+import { OAuthError as JiniOAuthError, type OAuthHttpPorts } from "@jini-ai/oauth";
+import { createTovuOAuthGuard, createTovuIssuerBoundDiscoveryPolicy } from "../endpoint-safety.js";
+import type { Clock } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
 
@@ -11,6 +14,58 @@ import type { OAuthClient, OAuthClock, OAuthFetch, OAuthProviderDescriptor } fro
  * matters in an OAuth client is what it sent: the presence of `code_verifier`, the absence of a
  * client secret for a public client, `redirect: "error"`, and the fact that a failure was not
  * retried. A double that only scripted responses would let all of those regress silently.
+
+ *
+ * Bounded-response design history; implementation and complete unit assertions now live in
+ * Jini/packages/oauth/src/bounded-json.ts and tests/bounded-json.test.ts.
+ * @file The byte-bounded JSON body reader every outbound call in `src/platform/oauth/` shares.
+ *
+ * It exists because the same twenty lines had already been written twice — once in
+ * `token-endpoint.ts` and once in `device-code.ts` — and discovery plus dynamic registration would
+ * have made four copies of a loop whose whole job is to be paranoid correctly. A reader that is
+ * subtly different in one of four places is a reader that is wrong in one of four places.
+ *
+ * The paranoia is not decorative. Every caller here is reading a body from a third party over a
+ * connection this process opened on an operator's behalf:
+ *
+ * - `response.json()` will buffer whatever arrives. A hostile or broken endpoint can stream until
+ *   the process dies, and none of these documents is legitimately large.
+ * - The cap has to be enforced MID-STREAM rather than from `Content-Length`, because a chunked
+ *   response has no such header and a lying one has a wrong one.
+ * - A body that is not a JSON *object* — an array, a bare string, HTML from a captive portal — is a
+ *   malformed response rather than something to coerce.
+ *
+ * The messages are supplied by the caller rather than built here, because each subject has its own
+ * operator-facing sentence and those strings are pinned by tests. This module owns the mechanism;
+ * the caller owns what it is talking about.
+ * Generous for any of these documents, small enough that a hostile stream cannot exhaust memory.
+ * The four exact strings one subject needs. Supplied per call site so an operator reading a failure
+ * is told which endpoint misbehaved, not merely that "an endpoint" did.
+ * Full sentence for a body past the cap.
+ * Full sentence for a body that is not a JSON object.
+ * Reads at most `maxBytes` of a response body as UTF-8, aborting the stream past that.
+ *
+ * @param response - The response whose body to read. A body-less response reads as `""`.
+ * @param messages - Only `overflowMessage`/`overflowOperatorAction` are used here.
+ * @param maxBytes - Defaults to {@link MAX_OAUTH_RESPONSE_BYTES}.
+ * @throws {OAuthError} `OAUTH_MALFORMED_RESPONSE` when the body exceeds the cap.
+ * @complexity O(n) in bytes read, hard-capped at `maxBytes`.
+ * The stream is abandoned deliberately on the overflow path; cancelling releases the socket
+ * instead of leaving the remote free to keep sending into a reader nobody is draining.
+ * Parses a JSON *object* out of text, refusing anything else.
+ *
+ * @returns The parsed object, still fully untrusted — every member is `unknown` to the caller.
+ * @throws {OAuthError} `OAUTH_MALFORMED_RESPONSE` on unparseable text, `null`, an array, or a scalar.
+ * @complexity O(n) in the text length.
+ * The two steps together: read the body under the cap, then parse it as a JSON object.
+ *
+ * @throws {OAuthError} `OAUTH_MALFORMED_RESPONSE`.
+ * @complexity O(n) in bytes read, hard-capped at `maxBytes`.
+ * RFC 8414 / RFC 7591 / RFC 6749 all publish string arrays; anything else in the slot is dropped
+ *  rather than coerced, because a half-parsed capability list is worse than an empty one.
+ *  @complexity O(n) in the array length.
+ * A non-empty string member, or `null`. @complexity O(1).
+ * F4.3/F6.2: replacing byteLength with string length or >= rejects/accepts the wrong boundary.
  */
 
 export interface RecordedRequest {
@@ -62,9 +117,10 @@ export function createFetchDouble(script: readonly ScriptedResponse[]): FetchDou
 }
 
 /** A clock the test moves by hand. */
-export function createTestClock(startIso = "2026-08-25T12:00:00.000Z"): OAuthClock & { advance(ms: number): void; setIso(iso: string): void } {
+export function createTestClock(startIso = "2026-08-25T12:00:00.000Z"): OAuthClock & Clock & { advance(ms: number): void; setIso(iso: string): void } {
   let nowMs = Date.parse(startIso);
   return {
+    nowMs: () => nowMs,
     nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms) => {
       nowMs += ms;
@@ -93,27 +149,27 @@ export const TEST_CLIENT: OAuthClient = { clientId: "tovu-client", authMethod: "
  * Asserts that `fn` rejects with an {@link OAuthError} carrying exactly `code`, and returns it so
  * the test can go on to assert the exact message.
  */
-export async function assertOAuthRejects(fn: () => Promise<unknown>, code: OAuthErrorCode): Promise<OAuthError> {
+export async function assertOAuthRejects(fn: () => Promise<unknown>, code: OAuthErrorCode): Promise<OAuthError | JiniOAuthError> {
   let caught: unknown;
   try {
     await fn();
   } catch (error) {
     caught = error;
   }
-  assert.ok(caught instanceof OAuthError, `expected an OAuthError, got ${String(caught)}`);
+  assert.ok(caught instanceof OAuthError || caught instanceof JiniOAuthError, `expected an OAuthError, got ${String(caught)}`);
   assert.equal(caught.code, code);
   return caught;
 }
 
 /** Synchronous counterpart of {@link assertOAuthRejects}. */
-export function assertOAuthThrows(fn: () => unknown, code: OAuthErrorCode): OAuthError {
+export function assertOAuthThrows(fn: () => unknown, code: OAuthErrorCode): OAuthError | JiniOAuthError {
   let caught: unknown;
   try {
     fn();
   } catch (error) {
     caught = error;
   }
-  assert.ok(caught instanceof OAuthError, `expected an OAuthError, got ${String(caught)}`);
+  assert.ok(caught instanceof OAuthError || caught instanceof JiniOAuthError, `expected an OAuthError, got ${String(caught)}`);
   assert.equal(caught.code, code);
   return caught;
 }
@@ -311,4 +367,20 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
     resourceUrl: `${server.origin}${resourcePath}`,
     wwwAuthenticate: buildChallenge(server.origin, resourcePath, resourceScopes),
   };
+}
+
+/** Bind the native HTTP test seam to Jini without permitting remote plaintext or private hosts.
+ * Loopback HTTP is explicit because the real discovery fixtures use ephemeral local servers. */
+export function createTestOAuthPorts(required: { readonly fetchFn?: OAuthFetch }): OAuthHttpPorts {
+  return {
+    guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+    fetchFn: ({ url }, init) => (required.fetchFn ?? globalThis.fetch)(url, init),
+  };
+}
+
+/** Same issuer binding as production; only loopback plaintext is explicitly enabled for fixtures. */
+export function createTestDiscoveryOptions(_required: Record<string, never>) {
+  return { metadataPolicy: createTovuIssuerBoundDiscoveryPolicy({
+    guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+  }) };
 }

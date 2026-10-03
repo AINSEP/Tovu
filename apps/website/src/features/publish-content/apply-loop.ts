@@ -1,6 +1,8 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash } from "node:crypto";
 
-import { ForbiddenError, type ClockPort, type IdGeneratorPort } from "@jini-ai/cms/core";
+import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { loadActiveBundle } from "./bundle-staging.js";
@@ -259,7 +261,7 @@ async function applyOneRow(
           entityId: row.entityId,
           hashAtLastSync: entity.contentHash,
           hashVersion: entity.hashVersion,
-          syncedAt: ctx.clock.nowIso(),
+          syncedAt: clockNowIso({ clock: ctx.clock }),
           runId: ctx.runId,
         });
       }
@@ -392,7 +394,7 @@ async function applyOneRow(
       entityId: row.entityId,
       hashAtLastSync: entity.contentHash,
       hashVersion: entity.hashVersion,
-      syncedAt: ctx.clock.nowIso(),
+      syncedAt: clockNowIso({ clock: ctx.clock }),
       runId: ctx.runId,
     });
     return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };
@@ -476,7 +478,7 @@ async function applyOneRow(
       entityId: row.entityId,
       hashAtLastSync: entity.contentHash,
       hashVersion: entity.hashVersion,
-      syncedAt: ctx.clock.nowIso(),
+      syncedAt: clockNowIso({ clock: ctx.clock }),
       runId: ctx.runId,
     });
     return { row, changeSetId, retiredChangeSetId: null };
@@ -534,7 +536,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
 
   return {
     async applyReport({ report, principalId, bundleId, restorePointId, authorize }) {
-      const startedAt = input.clock.nowIso();
+      const startedAt = clockNowIso({ clock: input.clock });
       const staged = await loadActiveBundle({
         repo: input.bundleRepo,
         workspaceId: input.workspaceId,
@@ -563,7 +565,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           changeSetIds: [],
           report,
           items: [],
-          finishedAt: input.clock.nowIso(),
+          finishedAt: clockNowIso({ clock: input.clock }),
         });
         return {
           runId,
@@ -663,7 +665,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             phase: "content_applied",
             changeSetId,
             ...(retiredChangeSetId === undefined ? {} : { retiredChangeSetId }),
-            updatedAt: input.clock.nowIso(),
+            updatedAt: clockNowIso({ clock: input.clock }),
           });
           await saveSnapshot("applying", null);
         },
@@ -775,7 +777,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
               changeSetId: result.changeSetId ?? item.changeSetId,
               retiredChangeSetId: result.retiredChangeSetId ?? item.retiredChangeSetId,
               errorSummary: null,
-              updatedAt: input.clock.nowIso(),
+              updatedAt: clockNowIso({ clock: input.clock }),
             });
           }
           await saveSnapshot("applying", null);
@@ -794,21 +796,21 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
               // failing after the domain command and its change set already landed.
               phase: item.phase === "content_applied" ? "content_applied" : "failed",
               errorSummary: error instanceof Error ? error.message : "unknown apply failure",
-              updatedAt: input.clock.nowIso(),
+              updatedAt: clockNowIso({ clock: input.clock }),
             });
           }
         }
         // R6 — whatever landed before this abort (an overwrite row's retire+create both done) still
         // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
         await runRepointPass();
-        await saveSnapshot("failed", input.clock.nowIso());
+        await saveSnapshot("failed", clockNowIso({ clock: input.clock }));
         throw error;
       }
 
       const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();
       const verificationProblems = await runVerifyPass();
 
-      await saveSnapshot("applied", input.clock.nowIso());
+      await saveSnapshot("applied", clockNowIso({ clock: input.clock }));
       return {
         runId,
         changeSetIds: currentChangeSetIds(),

@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file Dev-mode `MailerPort` adapter for the `members` library (ADR-030 §5).
  *
@@ -13,7 +14,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import type {
   MailerCapabilities,
   MailerPort,
@@ -43,7 +44,7 @@ export class ConsoleMailerAdapter implements MailerPort {
   private readonly ids: IdGeneratorPort;
 
   constructor(deps: ConsoleMailerAdapterDeps = {}) {
-    this.clock = deps.clock ?? { nowIso: () => new Date().toISOString() };
+    this.clock = deps.clock ?? { nowMs: () => Date.now() };
     this.ids = deps.ids ?? { newId: () => randomUUID() };
   }
 
@@ -76,7 +77,7 @@ export class ConsoleMailerAdapter implements MailerPort {
         `idempotencyKey=${opts.idempotencyKey} sourceContext=${JSON.stringify(opts.sourceContext)} body=${JSON.stringify(truncated)}`
     );
 
-    return { ok: true, providerMessageId: this.ids.newId(), acceptedAt: this.clock.nowIso() };
+    return { ok: true, providerMessageId: this.ids.newId(), acceptedAt: clockNowIso({ clock: this.clock }) };
   }
 
   async sendBatch(

@@ -89,7 +89,12 @@ export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, 
         return;
       }
 
-      await deleteWorkspace({ deps: { repo: deps.workspaceRepo }, input: { id: deps.workspaceId } });
+      const transaction = deps.workspaceRepo.transaction;
+      if (!transaction) throw new Error("workspace deletion requires a transaction port");
+      await deleteWorkspace({
+        deps: { repo: deps.workspaceRepo, transaction: transaction.bind(deps.workspaceRepo) },
+        input: { id: deps.workspaceId },
+      });
 
       res.status(204).send();
     } catch (err) {

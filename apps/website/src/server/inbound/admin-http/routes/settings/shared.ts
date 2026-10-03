@@ -1,6 +1,19 @@
 import type { Response } from "express";
 
-import type { SettingScope, SettingsWriteServiceDeps } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup, set, type SettingScope, type SettingsWriteServiceDeps } from "#src/features/settings/index";
+import {
+  createCmsSettingsService,
+  resolveTargetWorkspaceId as resolveCmsTargetWorkspaceId,
+  resolveUserLayerReadTarget as resolveCmsUserLayerReadTarget,
+  respondToSettingsError as respondToCmsSettingsError,
+  type SettingsPermissions,
+  type SettingsService,
+  type TargetWorkspaceResolution,
+  type UserLayerReadTarget,
+  type SettingsErrorMapping,
+} from "@jini-ai/cms/http/settings";
+
+export type { TargetWorkspaceResolution, UserLayerReadTarget, SettingsErrorMapping } from "@jini-ai/cms/http/settings";
 import type { SettingsRouteDeps } from "./deps.js";
 
 /**
@@ -21,16 +34,12 @@ import type { SettingsRouteDeps } from "./deps.js";
 export function toWriteServiceDeps(deps: SettingsRouteDeps): SettingsWriteServiceDeps {
   return {
     repo: deps.settingsRepo,
-    clock: deps.clock,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     ids: deps.idGen,
     authorize: deps.authorize,
-    principals: deps.principalRepo,
+    principals: createSettingsPrincipalLookup({ repo: deps.principalRepo }),
   };
 }
-
-export type TargetWorkspaceResolution =
-  | { ok: true; workspaceId: string | undefined }
-  | { ok: false; error: string };
 
 /**
  * Decides which workspace a settings WRITE may target, from the request body.
@@ -65,19 +74,7 @@ export function resolveTargetWorkspaceId(
   deps: Pick<SettingsRouteDeps, "workspaceId">,
   required: { bodyWorkspaceId: unknown; scope: SettingScope }
 ): TargetWorkspaceResolution {
-  const named =
-    required.bodyWorkspaceId === undefined || required.bodyWorkspaceId === null || required.bodyWorkspaceId === ""
-      ? undefined
-      : String(required.bodyWorkspaceId);
-
-  if (named !== undefined && named !== deps.workspaceId) {
-    return {
-      ok: false,
-      error: `workspaceId '${named}' does not match this route's workspace; a settings write cannot target another workspace`,
-    };
-  }
-
-  return { ok: true, workspaceId: required.scope === "global" ? undefined : deps.workspaceId };
+  return resolveCmsTargetWorkspaceId({ workspaceId: deps.workspaceId, input: required });
 }
 
 /**
@@ -93,10 +90,6 @@ export function resolveTargetWorkspaceId(
  * (the authorization check).
  */
 export const CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION = "settings.user.read";
-
-export type UserLayerReadTarget =
-  | { allowed: true; principalId: string | undefined }
-  | { allowed: false; reason: string };
 
 /**
  * Decides which principal's user layer a settings read may target.
@@ -120,30 +113,10 @@ export async function resolveUserLayerReadTarget(
   deps: Pick<SettingsRouteDeps, "authorize" | "workspaceId">,
   required: { requestedPrincipalId: string | undefined; callerPrincipalId: string }
 ): Promise<UserLayerReadTarget> {
-  const { requestedPrincipalId, callerPrincipalId } = required;
-  if (!requestedPrincipalId || requestedPrincipalId === callerPrincipalId) {
-    return { allowed: true, principalId: requestedPrincipalId };
-  }
-
-  const result = await deps.authorize({
-    principalId: callerPrincipalId,
-    permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION,
-    workspaceId: deps.workspaceId,
-    entityType: "setting-value",
+  return resolveCmsUserLayerReadTarget({
+    deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION },
+    input: required,
   });
-  return result.allowed ? { allowed: true, principalId: requestedPrincipalId } : { allowed: false, reason: result.reason };
-}
-
-/**
- * One entry in a settings route's `catch` block: which thrown error class maps to which HTTP
- * status/code pair. `matches` stays a plain predicate rather than a type-guard — every error class
- * these routes throw is a bare `class XError extends Error {}` with no fields beyond `message`, so
- * narrowing buys nothing here.
- */
-export interface SettingsErrorMapping {
-  readonly matches: (err: unknown) => boolean;
-  readonly status: number;
-  readonly code: string;
 }
 
 /**
@@ -152,14 +125,38 @@ export interface SettingsErrorMapping {
  * chains — same shape three times, differing only in which error classes and codes each route owns.
  *
  * @complexity O(n) in the mapping table length, which is a small fixed list per caller.
+ *
+ * One entry in a settings route's `catch` block: which thrown error class maps to which HTTP
+ * status/code pair. `matches` stays a plain predicate rather than a type-guard — every error class
+ * these routes throw is a bare `class XError extends Error {}` with no fields beyond `message`, so
+ * narrowing buys nothing here.
  */
 export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
-  const message = err instanceof Error ? err.message : String(err);
-  for (const mapping of mappings) {
-    if (mapping.matches(err)) {
-      res.status(mapping.status).json({ error: message, code: mapping.code });
-      return;
-    }
-  }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  respondToCmsSettingsError({ response: res, error: err, mappings });
+}
+
+/** Tovu permission ids remain host policy; CMS owns scope-to-permission translation. */
+const SETTINGS_PERMISSIONS: SettingsPermissions = {
+  read: "settings.read",
+  readRaw: "settings.read.raw",
+  readDefinitions: "settings.read.definitions",
+  readOtherUser: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION,
+  manageDefinitions: "settings.definitions.manage",
+  writeGlobal: "settings.global.write",
+  writeWorkspace: "settings.workspace.write",
+  writeUserSelf: "settings.user.self.write",
+  writeUserOther: "settings.user.write",
+  reset: { global: "settings.reset.global", workspace: "settings.reset.workspace", user: "settings.reset.user" },
+};
+
+/** Bind the CMS service to host ports and SPEC-050 REQ-08 title bounds.
+ * Generic implementation and rationale: Jini packages/cms/src/http/settings/cms-adapter.ts.
+ * Route authentication/error envelopes remain host policy. The title wrapper shares these exact
+ * deps so a rejected title never reaches the ledger, while other settings keep CMS behavior.
+ * @complexity O(1) construction, plus each delegated CMS operation's repository work.
+ */
+export function createTovuSettingsService(required: { deps: SettingsRouteDeps }): SettingsService {
+  const deps = toWriteServiceDeps(required.deps);
+  const service = createCmsSettingsService({ deps, permissions: SETTINGS_PERMISSIONS });
+  return { ...service, set: (input) => set({ deps, input }) };
 }

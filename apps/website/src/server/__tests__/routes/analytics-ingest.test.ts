@@ -6,7 +6,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { AnalyticsConfigPort } from "#src/features/analytics/index";
 import type { AnalyticsSiteConfig } from "#src/features/analytics/index";
 import { LocalBufferSink } from "#src/features/analytics/repo.memory";

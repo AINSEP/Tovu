@@ -1,12 +1,7 @@
 import type { Response } from "express";
 
-import {
-  createUser,
-  IdentityConflictError,
-  IdentityForbiddenError,
-  IdentityValidationError,
-  normalizeUsername,
-} from "@jini-ai/cms/identity";
+import { IdentityConflictError, IdentityForbiddenError, IdentityValidationError } from "@jini-ai/user-management";
+import { createUser, normalizeUsername } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UsernameInTrashError } from "#src/features/identity/delete-user-service";
@@ -52,13 +47,13 @@ function sendUserCreateError(res: Response, err: unknown): void {
  * before calling it: `createUser` runs its own permission gate first (`assertCallerHasAnyPermission`),
  * so pre-checking here would leak "a trashed user holds this username" to a caller who was never
  * authorized to reach the conflict path at all. `normalizeUsername` is the exact function
- * `createUser` normalizes with internally (`@jini-ai/cms/identity`, re-exported), so this looks up
+ * `createUser` normalizes with internally (`@jini-ai/user-management`, re-exported), so this looks up
  * the SAME row `createUser` found.
  *
  * @complexity O(1): one normalize, one indexed `findByUsername`, one `isInTrash` check.
  */
 async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: string): Promise<boolean> {
-  const username = normalizeUsername(rawUsername);
+  const username = normalizeUsername({ raw: rawUsername });
   if (!username) return false;
   const existingUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username });
   if (!existingUser) return false;
@@ -95,9 +90,10 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => 
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
-          ...body,
+          username: body.username,
+          password: body.password,
         },
-      });
+      }, { email: body.email });
 
       res.status(201).json({ user: toAdminUserResponse({ principal, user, roleIds: [], policyIds: [] }) });
     } catch (err) {

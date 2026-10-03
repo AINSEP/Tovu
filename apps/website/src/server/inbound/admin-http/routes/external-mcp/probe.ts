@@ -54,8 +54,8 @@ export function createExternalMcpProbeLimiter(deps: Pick<ExternalMcpRouteDeps, "
  *  `withinRateLimit` — not imported from there, so this route stays independent of a sibling
  *  family's file (see the implementation outline's own "different failure modes, different copy"
  *  argument for why `probe.ts` and `admissions.ts` are separate files in the first place). */
-function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Response): boolean {
-  const result = limiter.check(resolveClientIp(req));
+async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Response): Promise<boolean> {
+  const result = await limiter.check({ key: resolveClientIp(req) });
   if (result.allowed) return true;
   res.setHeader("Retry-After", String(result.retryAfterSeconds));
   res.status(429).json({
@@ -73,7 +73,7 @@ function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Response)
  */
 export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalMcpProbeRouteDeps, limiter: RateLimiter): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", async (req, res) => {
-    if (!withinProbeRateLimit(limiter, req, res)) return;
+    if (!(await withinProbeRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const serverId = String(req.params.serverId ?? "");

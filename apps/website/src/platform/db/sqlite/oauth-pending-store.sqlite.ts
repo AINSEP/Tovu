@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
 import type { DeviceAuthorizationStore } from "#src/assistant/external-mcp-oauth";

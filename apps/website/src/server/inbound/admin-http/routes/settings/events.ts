@@ -248,7 +248,9 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
           workspaceId: deps.workspaceId,
         });
 
-        const batch = await collectChangedNamespaces(revisions, viewer, resolveNamespace);
+        const batch = await collectChangedNamespaces({
+          revisions, viewer, resolveNamespace: ({ settingId }) => resolveNamespace(settingId),
+        });
         // Advance even when nothing was visible, so writes this viewer cannot see are examined once
         // rather than on every tick forever.
         //

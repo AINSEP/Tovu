@@ -1,4 +1,5 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
 import type { PluginQuarantineEvent } from "./hook-registry.js";
@@ -28,7 +29,7 @@ export async function quarantinePlugin(
     throw new Error(`cannot quarantine plugin '${input.pluginId}' without an activation record`);
   }
 
-  const quarantinedAt = deps.clock.nowIso();
+  const quarantinedAt = clockNowIso({ clock: deps.clock });
   const activation: PluginActivationRecord = {
     ...existing,
     enabled: false,

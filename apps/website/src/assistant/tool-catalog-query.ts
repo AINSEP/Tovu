@@ -1,12 +1,14 @@
 import Database from "better-sqlite3";
 import type { ToolRegistry } from "@jini-ai/core";
-import type { ToolCatalogQuery } from "@jini-ai/http-kit";
-import { ensureToolCatalogTables, getToolCatalogEntry, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import type { Clock } from "@jini-ai/core/primitives";
+import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
+import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
+import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-builder/sqlite";
 
 import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
 
 /**
- * @file Backs `@jini-ai/http-kit`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
+ * @file Backs `@jini-ai/daemon/http`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
  * `ToolRegistry` — the same registry `buildAssistantToolRegistrations` populates and
  * `ToolExecutor` already executes against, so search/describe can never drift from what
  * `execute_delegated_tool` can actually run.
@@ -18,7 +20,7 @@ import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywor
  * credential.
  *
  * Ranking backend, 2026-07-30: swapped from a hand-rolled in-memory term-count scorer to
- * `@jini-ai/sqlite`'s FTS5 + `bm25()` implementation, after benchmarking both against the real
+ * `@jini-ai/registry/tool-catalog/sqlite`'s FTS5 + `bm25()` implementation, after benchmarking both against the real
  * registered catalog. Timing is a wash either way (both sub-millisecond; a network/LLM round-trip
  * dwarfs the difference), but BM25's quality is meaningfully better: the in-memory scorer produced
  * frequent score ties on ambiguous queries (e.g. "notification email" scored
@@ -38,13 +40,21 @@ function sourceForToolId(id: string): string {
   return prefix && prefix.length > 0 ? prefix : "tovu";
 }
 
+// Generic snapshot validation and its rationale live in Jini's registry/src/tool-catalog-builder/query.ts.
+// Tovu keeps its source names and search vocabulary here; keywords affect ranking, never authored text.
+const enricher: SearchEnricher = {
+  indexedDescription: ({ id, description }, optional) => indexedDescriptionFor(id, description, optional),
+  authoredDescription: ({ description }) => stripSearchKeywords(description),
+};
+const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };
+
 /**
- * Seeds an in-memory SQLite FTS5 index from `registry.list()` and returns a `ToolCatalogQuery`
+ * Seeds an in-memory SQLite FTS5 index from `registry.list({})` and returns a `ToolCatalogQuery`
  * backed by it.
  *
  * `:memory:`, not a file, and seeded once at call time rather than kept live: the source of truth
  * is `registry` itself (a `ToolRegistry` rebuilt fresh from static code on every daemon boot), so
- * this index is a disposable snapshot, not durable state — matching `@jini-ai/sqlite`'s own module
+ * this index is a disposable snapshot, not durable state — matching `@jini-ai/registry/tool-catalog/sqlite`'s own module
  * doc ("this table only makes that id discoverable... reseeded wholesale"). Called once at daemon
  * startup (`agent-daemon-server.ts`), after every domain's registrations are wired in.
  *
@@ -57,39 +67,31 @@ export function buildToolCatalogQuery(
   /** Test seam. `false` seeds the raw descriptions with no operator vocabulary folded in — the ONLY
    *  caller is `tool-search-quality.eval.ts`, which needs a true before/after on the same case set to
    *  make its improvement attributable rather than asserted. Production always wants the default. */
-  options: { readonly includeSearchKeywords?: boolean; readonly includeDoc2query?: boolean } = {},
+  options: { readonly includeSearchKeywords?: boolean; readonly includeDoc2query?: boolean; readonly clock?: Clock } = {},
 ): ToolCatalogQuery {
-  const includeSearchKeywords = options.includeSearchKeywords ?? true;
-  const includeDoc2query = options.includeDoc2query ?? true;
   const db = new Database(":memory:");
-  ensureToolCatalogTables(db);
-  reseedToolCatalog(
-    db,
-    registry.list().map((descriptor) => ({
-      id: descriptor.id,
-      // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
-      // version: BM25 can only rank words that are in the index, and this catalog's descriptions
-      // are written in the codebase's nouns while operators search in theirs. Measured at 40%
-      // top-1 before this.
-      description: includeSearchKeywords
-        ? indexedDescriptionFor(descriptor.id, descriptor.description ?? "", { includeDoc2query })
-        : (descriptor.description ?? ""),
-      inputSchema: descriptor.inputSchema,
-      source: sourceForToolId(descriptor.id),
-    })),
-  );
+  // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
+  // version: BM25 can only rank words that are in the index, and this catalog's descriptions
+  // are written in the codebase's nouns while operators search in theirs. Measured at 40%
+  // top-1 before this.
+  const snapshot = buildCatalogSnapshot({
+    source: { list: () => registry.list({}) },
+    storeFactory: createSqliteCatalogStoreFactory({ db }),
+    enricher,
+    classifier,
+    clock: options.clock ?? { nowMs: () => Date.now() },
+  }, options);
 
   // Both accessors strip the folded search vocabulary back off. The keywords exist to be RANKED on,
   // never to be read: a tool's description is a contract the model reasons about, and padding it
   // with synonyms to game the index would degrade that in order to fix search. Stripping here keeps
   // the two concerns separate — the index sees the vocabulary, every caller sees the authored text.
   return {
-    search(query, limit = 10) {
-      return searchToolCatalog(db, query, limit).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
+    search({ query }, { limit = 10 } = {}) {
+      return snapshot.search({ query }, { limit });
     },
-    describe(id) {
-      const entry = getToolCatalogEntry(db, id);
-      return entry === null ? null : { ...entry, description: stripSearchKeywords(entry.description) };
+    describe({ id }) {
+      return snapshot.describe({ id });
     },
   };
 }
@@ -104,7 +106,7 @@ export interface ToolCatalogEntry {
 }
 
 /**
- * Reads `registry.list()` NOW and returns every tool as a {@link ToolCatalogEntry} — the reader each
+ * Reads `registry.list({})` NOW and returns every tool as a {@link ToolCatalogEntry} — the reader each
  * composition root binds to its own registry and hands `site_describe_capabilities`
  * (`features/site-inspection/deps.ts`'s `listCatalogTools`).
  *
@@ -119,9 +121,5 @@ export interface ToolCatalogEntry {
  * @complexity O(r) in registered tools.
  */
 export function listToolCatalogEntries(registry: Pick<ToolRegistry, "list">): ToolCatalogEntry[] {
-  return registry.list().map((descriptor) => ({
-    id: descriptor.id,
-    source: sourceForToolId(descriptor.id),
-    description: stripSearchKeywords(descriptor.description ?? ""),
-  }));
+  return listCatalogEntries({ source: { list: () => registry.list({}) }, enricher, classifier });
 }

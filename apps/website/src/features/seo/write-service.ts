@@ -1,4 +1,6 @@
-import { assertEntityLive, ForbiddenError, type AuthorizeFn, type ClockPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { type Clock as ClockPort } from "@jini-ai/core/primitives";
+import { assertEntityLive, ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 import { isTrashed, type PostRepoPort } from "../post/index.js";
 import {
   SeoConcurrentWriteError,
@@ -286,7 +288,7 @@ async function mergeOverridesOntoCurrentRow(
         op: "update",
         stateJson: updatedRecord,
         actorId: input.callerPrincipalId,
-        recordedAt: clock.nowIso(),
+        recordedAt: clockNowIso({ clock: clock }),
       });
       return true;
     });
@@ -316,11 +318,7 @@ export async function setEntrySeoOverrides(
     entityId: input.entryId,
   });
   if (!authResult.allowed) {
-    throw new ForbiddenError(
-      `principal '${input.callerPrincipalId}' is not authorized for 'admin.seo.manage' (${authResult.reason})`,
-      "admin.seo.manage",
-      authResult.reason
-    );
+    throw new ForbiddenError({ message: `principal '${input.callerPrincipalId}' is not authorized for 'admin.seo.manage' (${authResult.reason})`, permission: "admin.seo.manage", reason: authResult.reason });
   }
 
   validateSeoExtFieldsPatch(input.patch as Record<string, unknown>);

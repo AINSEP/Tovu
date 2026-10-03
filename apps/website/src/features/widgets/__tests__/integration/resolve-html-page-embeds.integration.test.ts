@@ -487,12 +487,12 @@ test('resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same pa
 
 test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME ("public") by default', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
     mediaRecord({ alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" }),
-  ]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([
+  ] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [
     transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 }),
-  ]);
+  ] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -518,10 +518,10 @@ test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CO
 test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const sha256 = "b".repeat(64);
-  const mediaRepo = new InMemoryMediaRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
     mediaRecord({ alt: "A hero clip", width: 1920, height: 1080, cssClass: "hero-video", source: { sha256 } }),
-  ]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([]); // deliberately empty — video must never reach this
+  ] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] }); // deliberately empty — video must never reach this
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: "video/mp4" });
 
@@ -547,8 +547,8 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO res
 
 test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset\'s sha256 falls through to the ordinary image path unchanged', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 })] });
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore(); // never `.set()` — a real "not sniffed yet" miss
 
   const resolved = await resolveHtmlPageEmbeds({
@@ -574,11 +574,11 @@ test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied
 
 test('resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves against that transform name, not the default', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord()]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord()] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [
     transformDefinition({ id: "t-public", name: CORE_PUBLIC_TRANSFORM_NAME, version: 1 }),
     transformDefinition({ id: "t-thumb", name: "thumb", version: 5, params: { width: 100, height: 100, format: "jpeg" } }),
-  ]);
+  ] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -595,8 +595,8 @@ test('resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves a
 
 test('resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset never throws — absent from the resolved map, degrades to the REQ-28 placeholder', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -608,8 +608,8 @@ test('resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset nev
 
 test('resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transform was never registered never throws — absent from the resolved map', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord()]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord()] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -621,8 +621,8 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transf
 
 test('resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord()]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ name: "evil/../../escape" })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord()] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ name: "evil/../../escape" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -657,8 +657,8 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
   const entryRepo = new InMemoryEntryRepo();
   await seedTextWidget(entryRepo, "widget-1", "Widget body");
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord()]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord()] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
@@ -690,12 +690,12 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
 
 test('resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
     mediaRecord({ id: "asset-1", slug: "hero-video", alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" }),
-  ]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([
+  ] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [
     transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 }),
-  ]);
+  ] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -711,11 +711,11 @@ test('resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that as
 
 test("resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug", async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
     mediaRecord({ id: "asset-a", slug: "asset-a-slug", alt: "Asset A" }),
     mediaRecord({ id: "asset-b", slug: "asset-b-slug", alt: "Asset B" }),
-  ]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 1 })]);
+  ] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 1 })] });
 
   // Only asset-a's own id key is populated; if this fell back to slug for a marker carrying both, it
   // would surface asset-b's data instead of asset-a's.
@@ -734,8 +734,8 @@ test("resolveHtmlPageEmbeds: a media marker with both id and slug uses id and ne
 
 test("resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw", async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
@@ -1040,8 +1040,8 @@ function postRecordWithImage(overrides: Partial<PostRecord> = {}): PostRecord {
 test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "hero" })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "hero" })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, postRepo, mediaRepo, transformRepo },
@@ -1062,8 +1062,8 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson\'s ref-based images (both "post-content" IR builders shared the same gap, not just "content")', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, postRepo, mediaRepo, transformRepo },
@@ -1092,8 +1092,8 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson with a ref-based imag
 
 test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (template-preview\'s unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor\'s own "Preview" tab, the other surface the owner reported as broken alongside the published page', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 2 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 2 })] });
   const pending = postRecordWithImage({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
@@ -1142,8 +1142,8 @@ function postRecordWithMediaNode(overrides: Partial<PostRecord> = {}): PostRecor
 
 test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (the admin Preview tab\'s own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 800, height: 500 })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 5 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 800, height: 500 })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 5 })] });
   const pending = postRecordWithMediaNode({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
@@ -1173,8 +1173,8 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, postRepo, mediaRepo, transformRepo },
@@ -1209,8 +1209,8 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
   const sha256 = "c".repeat(64);
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "video/mp4" });
 
@@ -1239,8 +1239,8 @@ test('resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" D
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
   const sha256 = "d".repeat(64);
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "image/png" });
 
@@ -1371,8 +1371,8 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widget
 test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content', async () => {
   const entryRepo = new InMemoryEntryRepo();
   await seedTextWidget(entryRepo, "opaque-widget", "slug body", "valid-widget");
-  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ id: "opaque-media", slug: "valid-media" })]);
-  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ id: "opaque-media", slug: "valid-media" })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
   const postRepo = new InMemoryPostRepo([postRecord({ workspaceId: WORKSPACE_ID, slug: "valid-content" })]);
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo, postRepo },

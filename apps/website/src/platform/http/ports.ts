@@ -1,77 +1,22 @@
-/**
- * @file Port contracts for the `http` core primitive (ADR-038).
- *
- * Purpose:
- * `HttpClientPort` — the single guarded outbound-HTTP seam. Structural enforcement: the only
- * production constructor returns a policy-enforcing decorator around a dumb transport, so a
- * consumer cannot obtain an unguarded client (ADR-038 §2 / amendment 3). Raw
- * `HttpTransportAdapter` implementations are module-private to this library + the composition
- * root (import-boundary CI canary) — declared here as a type for testability only, never
- * exported for outside use (see `index.ts`).
- *
- * Allowlists derive from `core/origin`'s `isAllowedEgressTarget` (ADR-040), never a
- * per-consumer host setting (ADR-038 amendment 6 / internal-verification F4).
- */
-import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
+/** Existing Tovu HTTP contracts adapted to Jini's guarded, object-shaped ports. */
+// Egress-contract rationale: Jini packages/platform/src/http/guarded/ports.ts.
+// ADR-038/ADR-040: host allowlists come from origin.isAllowedEgressTarget, never per-consumer settings.
+// Raw transports are composition-only; product consumers must receive createHttpClient's decorator.
+import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
+import type { EgressPolicy, PinnedPeer } from "@jini-ai/platform/http/guarded";
+export type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
+export type { EgressPolicy, PinnedPeer } from "@jini-ai/platform/http/guarded";
 
-/** The guarded port every consumer (Integrations, Newsletter, Analytics) imports and calls. */
+/** Product consumers send an existing request through the guarded host boundary. */
 export interface HttpClientPort {
   send(request: HttpRequest): Promise<HttpResponse>;
 }
 
-/**
- * SSRF / egress policy every outbound request is checked against before connecting
- * (ADR-038 amendments 1-2: address-family-complete deny list incl. IPv6/loopback/link-
- * local/metadata, IPv4-mapped-IPv6 normalization before classification, IDNA/punycode
- * normalization, credentials-in-URL rejection, redirect re-verification + auth-header
- * stripping on cross-origin redirect, decompressed-byte cap).
- */
-export interface EgressPolicy {
-  readonly allowedSchemes: readonly string[];
-  readonly denyPrivateAddresses: boolean;
-  /**
-   * Hosts exempt from `denyPrivateAddresses` — a named capability, never consumer code. Matched
-   * against the bracket-stripped form of the target hostname, so an IPv6-literal entry is written
-   * without brackets (e.g. `"fd00::1"`, not `"[fd00::1]"`) — same as a human would type it.
-   */
-  readonly devHostAllowlist: readonly string[];
-  readonly maxRedirects: number;
-  readonly connectTimeoutMs: number;
-  readonly maxResponseBytes: number;
-  readonly maxDecompressedBytes: number;
-  /**
-   * Reserved rate-limit descriptor slot (ADR-038 amendment 5, round-2 audit finding R2-003) — so
-   * adding pacing later is not an ADR-005 breaking change. Untrusted fan-out consumers (e.g. a
-   * bulk webhook re-broadcast) must supply a per-destination concurrency/budget limiter here
-   * before production enablement; `undefined` means unlimited (acceptable for first-party,
-   * low-fan-out callers only).
-   */
-  readonly rateLimit?: { readonly maxConcurrent: number; readonly maxPerMinute: number };
-}
-
-/**
- * The dumb transport a guarded `HttpClientPort` wraps. MODULE-PRIVATE (ADR-038 amendment 3) —
- * only `createHttpClient` (the composition root) may construct one; never imported by a
- * consumer. Connects only to the policy-pinned peer, never re-resolves the original URL
- * (amendment 4) — this is what makes "cannot obtain an unguarded client" true, not aspirational.
- *
- * **v0 disclosure (round-3 audit finding `fable-r3-001`):** this transport is buffered
- * (`Promise<HttpResponse>`, `bodyText` fully materialized), bounded by `EgressPolicy`'s
- * `maxResponseBytes`/`maxDecompressedBytes` caps — not the streamed `HttpResponseStream` shape
- * ADR-038 amendment 4 describes. The streamed shape is deferred to the real transport
- * implementation; this buffered v0 is module-private so the deferral has no consumer-visible
- * contract impact.
- */
+/** Composition-only transport seam; the guard supplies the already-vetted peer. */
 export interface HttpTransportAdapter {
-  requestPinned(req: HttpRequest, peer: PinnedPeer): Promise<HttpResponse>;
+  requestPinned(request: HttpRequest, peer: PinnedPeer): Promise<HttpResponse>;
 }
 
-/**
- * The only production constructor (ADR-038 §2) — returns a policy-enforcing decorator; there
- * is no other way to obtain an `HttpClientPort`. Declared here as the documented factory
- * signature; the implementation lives in the composition root, guarded by the import-boundary
- * CI canary (ADR-038 amendment 3).
- */
 export type CreateHttpClient = (
   required: { transport: HttpTransportAdapter; policy: EgressPolicy },
   optional?: Record<string, never>

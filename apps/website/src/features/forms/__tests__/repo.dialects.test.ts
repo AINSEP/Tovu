@@ -3,9 +3,9 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { FormSlugConflictError } from "../errors.js";
+import { FormSlugConflictError } from "@jini-ai/cms-forms";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "../repo.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Both forms repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE

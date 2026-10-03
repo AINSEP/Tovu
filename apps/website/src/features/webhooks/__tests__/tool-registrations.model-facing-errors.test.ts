@@ -14,7 +14,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
@@ -40,10 +40,10 @@ function makeRouteDeps(options: { allow?: boolean; allowEgress?: boolean } = {})
 }
 
 async function buildHarness(routeDeps: IntegrationsToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildWebhooksRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 }

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,9 +8,14 @@ import { createToolRegistry } from "@jini-ai/core";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Search-behavior evidence for the 2026-09-01 keyword backfill: `tool-search-keywords.ts`
@@ -95,16 +102,16 @@ function rankOf(hits: readonly { readonly id: string }[], c: RankingCase): numbe
  *  measure "before this file existed." Same registry, so the only variable between the two is
  *  whether `TOOL_SEARCH_KEYWORDS`/doc2query get folded into the indexed text. */
 async function buildBeforeAndAfterCatalogs() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
   // Both boot paths build the limiter themselves and add it to `routeDeps`; `AssistantToolRegistryDeps`
   // requires it, so passing bare `routeDeps` does not type-check.
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
     registry.register(registration);
   }
 

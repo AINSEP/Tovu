@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { buildDomainDnsRegistrations, domainDnsDerivedRisk, type DomainDnsToolDeps, type DnsQuery, type TlsStatus } from "../tools.js";
+import { buildDomainDnsRegistrations, domainDnsDerivedRisk, type DomainDnsToolDeps } from "../tools.js";
+import type { DnsQuery, TlsStatus } from "@jini-ai/diagnostics/domain-dns";
 
 const context = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "p" }, run: { id: "r" }, input, signal: new AbortController().signal });
 function harness(options: { denied?: string; hosts?: string[]; answers?: Record<string, DnsQuery>; tlsStatus?: TlsStatus } = {}) {
@@ -46,7 +47,7 @@ for (const id of ["domain_lookup_dns", "domain_check_dns", "domain_tls_status"])
   test(`${id} is read-only and permission denial prevents effects`, async () => {
     const permission = id === "domain_check_dns" ? "deployments.read" : "content.read";
     const h = harness({ denied: permission });
-    for (const registration of h.registrations) { assert.equal(isReadOnlyTool(registration.descriptor), true); assert.equal(domainDnsDerivedRisk.get(registration.descriptor.id), "none"); }
+    for (const registration of h.registrations) { assert.equal(isReadOnlyTool({ descriptor: registration.descriptor }), true); assert.equal(domainDnsDerivedRisk.get(registration.descriptor.id), "none"); }
     await assert.rejects(h.call(id, { domain: "example.com" }), ForbiddenError);
     assert.deepEqual(h.calls, [`auth:${permission}`]);
   });
@@ -74,13 +75,15 @@ test("matching host DNS exposes expected and observed records, with a routing li
 });
 test("one matching A cannot hide a wrong AAAA or an extra wrong A", async () => {
   const h = harness({ hosts: ["app.host.com"], answers: { "example.com:A": { ...a("8.8.8.8"), records: [{ value: "8.8.8.8", ttl: 300 }, { value: "1.1.1.1", ttl: 300 }] }, "example.com:AAAA": { type: "AAAA", status: "ok", records: [{ value: "2606:4700::1111", ttl: 300 }] }, "app.host.com:A": a("8.8.8.8") } });
-  const result = await h.call("domain_check_dns", { domain: "example.com" }) as any;
+  const result = await h.call("domain_check_dns", { domain: "example.com" });
+  assert.ok(typeof result === "object" && result !== null && "status" in result && "unexpected" in result);
   assert.equal(result.status, "mismatch");
   assert.deepEqual(result.unexpected, { A: ["1.1.1.1"], AAAA: ["2606:4700::1111"] });
 });
 test("host without address answers remains unknown, even when both have no records", async () => {
   const h = harness({ hosts: ["app.host.com"] });
-  const result = await h.call("domain_check_dns", { domain: "example.com" }) as any;
+  const result = await h.call("domain_check_dns", { domain: "example.com" });
+  assert.ok(typeof result === "object" && result !== null && "status" in result);
   assert.equal(result.status, "unknown");
 });
 test("TLS tool reports verification and explicitly unavailable certificate metadata", async () => {
@@ -90,7 +93,8 @@ test("TLS tool reports verification and explicitly unavailable certificate metad
 });
 test("DNS input uses IDNA without silently accepting URL separators", async () => {
   const h = harness();
-  const result = await h.call("domain_lookup_dns", { domain: "bücher.de", types: ["NS"] }) as any;
+  const result = await h.call("domain_lookup_dns", { domain: "bücher.de", types: ["NS"] });
+  assert.ok(typeof result === "object" && result !== null && "domain" in result);
   assert.equal(result.domain, "xn--bcher-kva.de");
   assert.deepEqual(h.calls, ["auth:content.read", "dns:xn--bcher-kva.de:NS"]);
 });
@@ -122,7 +126,9 @@ test("invalid domain on host and TLS tools is rejected before effects", async ()
 });
 test("independent host can be chosen among several saved hosts, normalizing input", async () => {
   const h = harness({ hosts: ["app.host.com", "second.host.com"], answers: { "example.com:A": a("8.8.8.8"), "app.host.com:A": a("8.8.8.8") } });
-  assert.equal((await h.call("domain_check_dns", { domain: "example.com", expectedHost: "APP.HOST.COM." }) as any).expectedHost, "app.host.com");
+  const result = await h.call("domain_check_dns", { domain: "example.com", expectedHost: "APP.HOST.COM." });
+  assert.ok(typeof result === "object" && result !== null && "expectedHost" in result);
+  assert.equal(result.expectedHost, "app.host.com");
   assert.equal(h.calls.some(call => call.includes("second.host.com")), false);
 });
 test("equivalent IPv6 spelling compares equally and a missing address is exposed", async () => {
@@ -131,7 +137,8 @@ test("equivalent IPv6 spelling compares equally and a missing address is exposed
     "app.host.com:AAAA": { type: "AAAA", status: "ok", records: [{ value: "2606:4700::1111", ttl: 60 }] },
     "app.host.com:A": a("8.8.8.8"),
   } });
-  const result = await h.call("domain_check_dns", { domain: "example.com" }) as any;
+  const result = await h.call("domain_check_dns", { domain: "example.com" });
+  assert.ok(typeof result === "object" && result !== null && "status" in result && "missing" in result && "unexpected" in result);
   assert.equal(result.status, "mismatch");
   assert.deepEqual(result.missing, { A: ["8.8.8.8"], AAAA: [] });
   assert.deepEqual(result.unexpected, { A: [], AAAA: [] });

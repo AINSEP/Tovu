@@ -1,4 +1,5 @@
-import type { JsonValue, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { JsonValue, UUID } from "@jini-ai/core/primitives";
 // From the package, not `./index.js`: the barrel's `set` comes from `site-title-write.ts`, which
 // imports this file.
 import {
@@ -195,7 +196,7 @@ async function pinOneWorkspace(
         },
       });
     }
-    await deps.preservationStore.markPreserved({ workspaceId, preservedAt: deps.clock.nowIso() });
+    await deps.preservationStore.markPreserved({ workspaceId, preservedAt: clockNowIso({ clock: deps.clock }) });
     return existing ? "skipped" : "pinned";
   } catch (err) {
     return logPinFailure(workspaceId, (err as Error).message);
@@ -223,7 +224,7 @@ export interface SiteDisplayNameSource {
 export interface ResolveSiteTitleDeps {
   settingsRepo: SettingsRepoPort;
   preservationStore: Pick<SiteTitlePreservationStorePort, "isPending">;
-  workspaceRepo: { findById(id: UUID): Promise<WorkspaceRecord | null> };
+  workspaceRepo: { findById(required: { id: UUID }): Promise<WorkspaceRecord | null> };
   /**
    * `config.json` `name` of the site directory this process serves (NC-2 = B), read at each
    * resolution that reaches it (REQ-13). A config rename and a `workspaces.name` rename both show on
@@ -274,6 +275,6 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
 async function resolveSiteDisplayName(deps: ResolveSiteTitleDeps, workspaceId: UUID): Promise<string | undefined> {
   const configured = normalizeSiteTitle(deps.siteDisplayName.read());
   if (configured !== undefined) return configured;
-  const workspace = await deps.workspaceRepo.findById(workspaceId);
+  const workspace = await deps.workspaceRepo.findById({ id: workspaceId });
   return normalizeSiteTitle(workspace?.name);
 }

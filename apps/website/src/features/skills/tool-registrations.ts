@@ -1,16 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireNoInput,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -337,7 +328,7 @@ const NO_INPUT_SCHEMA = {
  * uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) — not a parallel mechanism.
  */
 export function buildSkillToolRegistrations(sources: readonly SkillToolSource[]): ToolRegistration[] {
-  const catalog: WirableToolDefinition[] = sources.map((source) => ({
+  const catalog: AgentToolDefinition[] = sources.map((source) => ({
     name: source.id,
     description: source.description,
     sideEffects: "none",
@@ -348,7 +339,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
   const handlers: Record<string, ToolHandler> = {};
   for (const source of sources) {
     handlers[source.id] = async (ctx) => {
-      requireNoInput(ctx.input);
+      requireNoInput({ input: ctx.input });
       return {
         skillName: source.skillName,
         guidance: source.markdown,
@@ -360,7 +351,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
   return buildDomainRegistrations({
     domain: "skill",
     catalogModule: "features/skills/tool-registrations.ts",
-    catalog: indexCatalogById(catalog),
+    catalog: indexCatalogById({ catalog: catalog }),
     handlers,
     derivedRisk: skillToolDerivedRisk(sources),
   });

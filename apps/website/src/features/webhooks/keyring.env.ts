@@ -1,5 +1,14 @@
-import { createHash, hkdfSync, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  EnvOrFileKeyring as JiniEnvOrFileKeyring,
+  FixedRootKeyKeyring as JiniFixedRootKeyKeyring,
+  UnusableRootKeyError as JiniUnusableRootKeyError,
+  parseRootKeyHex as parseKeyHex,
+  fingerprintRootKeyHex as fingerprintKeyHex,
+  generateFileRootKey as generateKeyFile,
+  defaultPlatformMessages,
+  type PlatformMessages,
+} from "@jini-ai/platform/secrets";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -7,6 +16,7 @@ import type { KeyringPort } from "./ports.js";
 import { readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
+// Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
 /**
  * @file `KeyringPort` implementation backed by an env var, with a generated-file fallback
  * (ADR-PIPE-015 Phase 1, GAP-02/GAP-03).
@@ -46,11 +56,65 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * Production `KeyringPort` adapter. `EnvOrFileKeyring` itself has zero knowledge of webhooks —
  * `deriveSigningSecret` is the one webhook-specific method the port still carries (see
  * `ports.ts`); `derive` is the generic seam other consumers (Analytics, Newsletter) use.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
+ * Resolve (and cache) the legacy root key: env var first, else a generated file. Throws — never
+ * returns a placeholder — if neither source is available, or if the source that IS present does
+ * not pass {@link parseRootKeyHex}.
+ *
+ * Both branches validate through that ONE parser, the same one {@link inspectRootKeyMaterial}
+ * uses, so the Secrets screen and this sealer cannot disagree about whether a key is usable.
+ * Before 2026-09-16 only the env branch validated: the file branch was a bare
+ * `Buffer.from(hex, "hex")`, which turns non-hex content into a zero-length buffer that
+ * `hkdfSync` accepts — every credential was then sealed under a key computable from this
+ * module's public constants, while the status screen said the key was unusable.
+ *
+ * @throws {UnusableRootKeyError} The env var or key file is present but malformed or too short.
+ *
+ * The `sources`-driven counterpart to {@link resolveRootKey}'s hardcoded precedence (site-key
+ * plan §A.1 slice 1). Tries each source in order; the first one whose material is PRESENT wins —
+ * present-but-invalid still wins (and throws), it does not fall through to the next source, for
+ * the same reason the hardcoded path never silently skips a malformed env var: silently trying
+ * the next source could seal data under a DIFFERENT key than the operator thinks is active.
+ *
+ * Never auto-generates — a `sources` list is read-only regardless of `allowFileAutoGenerate`
+ * (see that option's doc above: minting a site key is `ensureSiteKey`'s job now).
+ *
+ * @throws {UnusableRootKeyError} The first present source's material fails {@link parseRootKeyHex}.
+ * @throws {Error} No source in the list has any material at all.
+ * @complexity O(n) in `sources.length`, each step at most one file read.
+ *
+ * The env branch of {@link resolveRootKey}. Only a too-short value can have been accepted
+ *  before 2026-09-16 (malformed hex always threw here), so only that case carries the
+ *  already-sealed warning.
+ *
+ * The file branch of {@link resolveRootKey}. Every rejection here carries the already-sealed
+ *  warning: before 2026-09-16 this branch accepted ANY file content, so an install may have been
+ *  sealing under it. Never rewrites, deletes or "repairs" the file — recovery is a separate,
+ *  owner-level decision this module does not make.
+ *
+ * HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) — shared by every keyring
+ *  here so a key checked in memory derives exactly what the installed one will.
+ *
+ * `purpose` is bound into the info string (not just a label) so it is a real domain-separation
+ *  boundary from {@link deriveSigningSecretFromRootKey} (ports.ts KeyringPort doc).
+ *
+ * A {@link KeyringPort} over one given root key, held only in memory — for checking a candidate
+ * (a pasted site token, or the key "Start fresh" keeps) against sealed rows BEFORE it is written
+ * anywhere. Derives exactly as {@link EnvOrFileKeyring} does.
+ *
+ * @throws {Error} `hex` is not a valid root key ({@link parseRootKeyHex}) — callers validate first.
  */
 
-const HKDF_EXTRACTION_SALT = Buffer.from("tovu-integrations-root-key-hkdf-v1", "utf8");
-const DERIVED_SECRET_LENGTH_BYTES = 32;
+export const HKDF_EXTRACTION_SALT = "tovu-integrations-root-key-hkdf-v1";
 const ROOT_KEY_LENGTH_BYTES = 32;
+
+/** Keep the operator warning explicit: replacing this key strands the already sealed rows. */
+const KEYRING_MESSAGES: PlatformMessages = {
+  ...defaultPlatformMessages,
+  rootKeySealedWarning: ({ subject }) => `IMPORTANT: anything this site sealed while ${subject} was in place was sealed under key material derived from these same bytes, `,
+};
 
 /** Default env var name — exported so a caller that never constructs an `EnvOrFileKeyring` (the
  *  admin "Site Token" status/generate functions below) can name the SAME var without duplicating
@@ -133,111 +197,56 @@ export interface EnvOrFileKeyringOptions {
  * @overallScore 100
  */
 export class EnvOrFileKeyring implements KeyringPort {
-  private readonly envVarName: string;
-  private readonly keyFilePath: string;
+  private readonly keyring: JiniEnvOrFileKeyring;
   private readonly keyId: string;
-  private readonly allowFileFallback: boolean;
-  private readonly allowFileAutoGenerate: boolean;
   private readonly sources: readonly SiteKeySource[] | undefined;
-  private cachedRootKey: Buffer | undefined;
 
   constructor(options: EnvOrFileKeyringOptions = {}) {
-    this.envVarName = options.envVarName ?? DEFAULT_ROOT_KEY_ENV_VAR_NAME;
-    this.keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
     this.keyId = options.keyId ?? "v1";
-    this.allowFileFallback = options.allowFileFallback ?? true;
-    this.allowFileAutoGenerate = options.allowFileAutoGenerate ?? this.allowFileFallback;
     this.sources = options.sources;
+    // The legacy env/file path caches its root material. Ordered site-key sources below
+    // reread on each derivation so Site Token recovery takes effect without a restart.
+    this.keyring = new JiniEnvOrFileKeyring({
+      hkdfSalt: HKDF_EXTRACTION_SALT,
+      // Jini requires explicit source permissions; these preserve this host's legacy defaults.
+      env: { read: ({ name }) => process.env[name] },
+      allowFileFallback: options.allowFileFallback ?? true,
+      allowFileAutoGenerate: options.allowFileAutoGenerate ?? (options.allowFileFallback ?? true),
+      envVarName: options.envVarName ?? DEFAULT_ROOT_KEY_ENV_VAR_NAME,
+      keyFilePath: options.keyFilePath ?? defaultRootKeyFilePath(),
+    }, {
+      keyId: this.keyId,
+      messages: KEYRING_MESSAGES,
+    });
   }
 
   async activeKey(): Promise<{ readonly keyId: string }> {
     return { keyId: this.keyId };
   }
 
-  async deriveSigningSecret(input: {
-    workspaceId: string;
-    subscriptionId: string;
-    version: number;
-  }): Promise<Uint8Array> {
-    return deriveSigningSecretFromRootKey(this.resolveRootKey(), input);
+  async deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
+    try { return await this.resolveKeyring().deriveSigningSecret(input); }
+    catch (error) { return rethrowKeyringError(error); }
   }
 
   async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    return deriveFromRootKey(this.resolveRootKey(), input);
+    try { return await this.resolveKeyring().derive(input); }
+    catch (error) { return rethrowKeyringError(error); }
   }
 
-  /**
-   * Resolve (and cache) the root key: env var first, else a generated file. Throws — never
-   * returns a placeholder — if neither source is available, or if the source that IS present does
-   * not pass {@link parseRootKeyHex}.
-   *
-   * Both branches validate through that ONE parser, the same one {@link inspectRootKeyMaterial}
-   * uses, so the Secrets screen and this sealer cannot disagree about whether a key is usable.
-   * Before 2026-09-16 only the env branch validated: the file branch was a bare
-   * `Buffer.from(hex, "hex")`, which turns non-hex content into a zero-length buffer that
-   * `hkdfSync` accepts — every credential was then sealed under a key computable from this
-   * module's public constants, while the status screen said the key was unusable.
-   *
-   * @throws {UnusableRootKeyError} The env var or key file is present but malformed or too short.
+  /** Ordered site sources are host policy. Reread them for each derive so recovery takes effect
+   * immediately; a present invalid source throws before trying any other source.
+   * @complexity O(sources), with one small env/file read per attempted source.
    */
-  private resolveRootKey(): Buffer {
-    if (this.cachedRootKey) return this.cachedRootKey;
-
-    // Re-read on every call, never cached: the Site Token tab's recovery (paste the old token, start
-    // fresh) and boot's auto-fix replace the key file while this process runs, and a cached key
-    // would keep sealing under the wrong one until a restart. One small file read per seal/open.
-    if (this.sources) return this.resolveRootKeyFromSources(this.sources);
-
-    const fromEnv = process.env[this.envVarName];
-    if (fromEnv) {
-      this.cachedRootKey = this.parseEnvRootKey(fromEnv);
-      return this.cachedRootKey;
-    }
-
-    if (!this.allowFileFallback) {
-      throw new Error(
-        `no root key: ${this.envVarName} is not set and allowFileFallback is disabled`
-      );
-    }
-
-    if (existsSync(this.keyFilePath)) {
-      this.cachedRootKey = this.parseFileRootKey(readFileSync(this.keyFilePath, "utf8"));
-      return this.cachedRootKey;
-    }
-
-    if (!this.allowFileAutoGenerate) {
-      throw new Error(
-        `no root key: ${this.envVarName} is not set, no key file exists at ${this.keyFilePath}, and this instance does not auto-generate one — set the env var, or generate a key file explicitly (the admin Secrets page's Site Token tab, or generateFileRootKey())`
-      );
-    }
-
-    const generated = randomBytes(ROOT_KEY_LENGTH_BYTES);
-    mkdirSync(dirname(this.keyFilePath), { recursive: true });
-    writeFileSync(this.keyFilePath, generated.toString("hex"), { mode: 0o600 });
-    this.cachedRootKey = generated;
-    return this.cachedRootKey;
-  }
-
-  /**
-   * The `sources`-driven counterpart to {@link resolveRootKey}'s hardcoded precedence (site-key
-   * plan §A.1 slice 1). Tries each source in order; the first one whose material is PRESENT wins —
-   * present-but-invalid still wins (and throws), it does not fall through to the next source, for
-   * the same reason the hardcoded path never silently skips a malformed env var: silently trying
-   * the next source could seal data under a DIFFERENT key than the operator thinks is active.
-   *
-   * Never auto-generates — a `sources` list is read-only regardless of `allowFileAutoGenerate`
-   * (see that option's doc above: minting a site key is `ensureSiteKey`'s job now).
-   *
-   * @throws {UnusableRootKeyError} The first present source's material fails {@link parseRootKeyHex}.
-   * @throws {Error} No source in the list has any material at all.
-   * @complexity O(n) in `sources.length`, each step at most one file read.
-   */
-  private resolveRootKeyFromSources(sources: readonly SiteKeySource[]): Buffer {
-    for (const source of sources) {
+  private resolveKeyring(): JiniEnvOrFileKeyring | JiniFixedRootKeyKeyring {
+    // Present-but-invalid wins and throws: falling through could seal data under a different
+    // key than the operator configured. Ordered sources are readers only; ensureSiteKey owns minting.
+    if (!this.sources) return this.keyring;
+    for (const source of this.sources) {
       const raw = readSiteKeySourceMaterial(source, process.env);
       if (raw === undefined) continue;
       const parsed = parseRootKeyHex(raw);
-      if (parsed.ok) return Buffer.from(parsed.hex, "hex");
+      if (parsed.ok) return new JiniFixedRootKeyKeyring({ hex: parsed.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: this.keyId });
       throw new UnusableRootKeyError({
         source: source.kind === "env" ? "env" : "file",
         reason: parsed.reason,
@@ -248,88 +257,40 @@ export class EnvOrFileKeyring implements KeyringPort {
         }),
       });
     }
-    throw new Error(
-      `no root key: none of the configured sources resolved (${sources.map(describeSiteKeySource).join(", ")})`
-    );
-  }
-
-  /** The env branch of {@link resolveRootKey}. Only a too-short value can have been accepted
-   *  before 2026-09-16 (malformed hex always threw here), so only that case carries the
-   *  already-sealed warning. */
-  private parseEnvRootKey(raw: string): Buffer {
-    const parsed = parseRootKeyHex(raw);
-    if (parsed.ok) return Buffer.from(parsed.hex, "hex");
-    throw new UnusableRootKeyError({
-      source: "env",
-      reason: parsed.reason,
-      message: unusableRootKeyMessage({
-        subject: this.envVarName,
-        detail: describeRootKeyRejection(parsed),
-        sealedWarningSubject: parsed.reason === "too-short" ? "this value" : undefined,
-      }),
-    });
-  }
-
-  /** The file branch of {@link resolveRootKey}. Every rejection here carries the already-sealed
-   *  warning: before 2026-09-16 this branch accepted ANY file content, so an install may have been
-   *  sealing under it. Never rewrites, deletes or "repairs" the file — recovery is a separate,
-   *  owner-level decision this module does not make. */
-  private parseFileRootKey(raw: string): Buffer {
-    const parsed = parseRootKeyHex(raw);
-    if (parsed.ok) return Buffer.from(parsed.hex, "hex");
-    throw new UnusableRootKeyError({
-      source: "file",
-      reason: parsed.reason,
-      message: unusableRootKeyMessage({
-        subject: `the root key file at ${this.keyFilePath}`,
-        detail: describeRootKeyRejection(parsed),
-        sealedWarningSubject: "this file",
-      }),
-    });
+    throw new Error(`no root key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
   }
 }
 
-/** HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) — shared by every keyring
- *  here so a key checked in memory derives exactly what the installed one will. */
-function deriveSigningSecretFromRootKey(rootKey: Buffer, input: { workspaceId: string; subscriptionId: string; version: number }): Uint8Array {
-  const info = `${input.workspaceId}:${input.subscriptionId}:v${input.version}`;
-  return new Uint8Array(hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, info, DERIVED_SECRET_LENGTH_BYTES));
-}
-
-/** `purpose` is bound into the info string (not just a label) so it is a real domain-separation
- *  boundary from {@link deriveSigningSecretFromRootKey} (ports.ts KeyringPort doc). */
-function deriveFromRootKey(rootKey: Buffer, input: { workspaceId: string; purpose: string; info: string }): Uint8Array {
-  const effectiveInfo = `${input.purpose}:${input.workspaceId}:${input.info}`;
-  return new Uint8Array(hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, effectiveInfo, DERIVED_SECRET_LENGTH_BYTES));
-}
-
-/**
- * A {@link KeyringPort} over one given root key, held only in memory — for checking a candidate
- * (a pasted site token, or the key "Start fresh" keeps) against sealed rows BEFORE it is written
- * anywhere. Derives exactly as {@link EnvOrFileKeyring} does.
- *
- * @throws {Error} `hex` is not a valid root key ({@link parseRootKeyHex}) — callers validate first.
- */
+/** Candidate-key adapter supplies Tovu's immutable HKDF salt; no root material is persisted. */
+// Recovery checks a pasted/retained Site Token against sealed rows BEFORE writing it anywhere;
+// the candidate must derive exactly what the installed keyring would derive.
 export class FixedRootKeyKeyring implements KeyringPort {
-  private readonly rootKey: Buffer;
+  private readonly keyring: JiniFixedRootKeyKeyring;
 
-  constructor(hex: string, private readonly keyId = "v1") {
-    const parsed = parseRootKeyHex(hex);
-    if (!parsed.ok) throw new Error(`FixedRootKeyKeyring: not a valid root key (${parsed.reason})`);
-    this.rootKey = Buffer.from(parsed.hex, "hex");
+  constructor(hex: string, keyId = "v1") {
+    this.keyring = new JiniFixedRootKeyKeyring({ hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId });
   }
 
-  async activeKey(): Promise<{ readonly keyId: string }> {
-    return { keyId: this.keyId };
+  activeKey(): Promise<{ readonly keyId: string }> { return this.keyring.activeKey({}); }
+  deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
+    return this.keyring.deriveSigningSecret(input);
   }
+  derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
+    return this.keyring.derive(input);
+  }
+}
 
-  async deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
-    return deriveSigningSecretFromRootKey(this.rootKey, input);
+/** Jini owns key validation; Tovu retains its operator-facing refusal wording and error identity. */
+function rethrowKeyringError(error: unknown): never {
+  if (error instanceof JiniUnusableRootKeyError) {
+    throw new UnusableRootKeyError({ source: error.source, reason: error.reason,
+      message: error.message.replace("The keyring refuses", "Tovu refuses"),
+    });
   }
-
-  async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    return deriveFromRootKey(this.rootKey, input);
+  if (error instanceof Error && error.message.endsWith("call generateFileRootKey() explicitly")) {
+    throw new Error(error.message.replace("call generateFileRootKey() explicitly", "generate a key file explicitly (the admin Secrets page's Site Token tab, or generateFileRootKey())"));
   }
+  throw error;
 }
 
 /** A short, human-readable name for a {@link SiteKeySource} — error messages and the "none of the
@@ -337,8 +298,6 @@ export class FixedRootKeyKeyring implements KeyringPort {
 function describeSiteKeySource(source: SiteKeySource): string {
   return source.kind === "env" ? `env var ${source.envVarName}` : `${source.kind} at ${source.path}`;
 }
-
-const HEX_KEY_PATTERN = /^[0-9a-f]+$/i;
 
 /** Why present root-key material was refused. `"too-short"` means valid hex of fewer than
  *  {@link ROOT_KEY_LENGTH_BYTES} bytes — the exact length this module itself generates, and the
@@ -362,12 +321,7 @@ export type ParsedRootKeyHex =
  * @complexity O(n) in the value's length.
  */
 export function parseRootKeyHex(raw: string): ParsedRootKeyHex {
-  const hex = raw.trim();
-  if (hex.length === 0) return { ok: false, reason: "empty", hexDigits: 0 };
-  if (!HEX_KEY_PATTERN.test(hex)) return { ok: false, reason: "not-hex", hexDigits: hex.length };
-  if (hex.length % 2 !== 0) return { ok: false, reason: "odd-length", hexDigits: hex.length };
-  if (hex.length < ROOT_KEY_LENGTH_BYTES * 2) return { ok: false, reason: "too-short", hexDigits: hex.length };
-  return { ok: true, hex };
+  return parseKeyHex({ raw });
 }
 
 /** Plain-language "what is wrong with it", per rejection. A `Record` over the union, so adding a
@@ -432,7 +386,7 @@ export class UnusableRootKeyError extends Error {
  * ones that could silently diverge.
  */
 export function fingerprintRootKeyHex(hex: string): string {
-  return createHash("sha256").update(Buffer.from(hex, "hex")).digest("hex").slice(0, 12);
+  return fingerprintKeyHex({ hex });
 }
 
 /** {@link inspectRootKeyMaterial}'s result — never carries the key value itself. */
@@ -527,9 +481,9 @@ function resolveReportedKeyFilePath(options: InspectRootKeyMaterialOptions): str
  * Read-only snapshot of the root key material `EnvOrFileKeyring`'s DEFAULT options would resolve
  * — backs the admin "Site Token" panel's status display.
  *
- * Deliberately NOT a method on `EnvOrFileKeyring`: that class caches its resolved key for its own
- * process lifetime (`resolveRootKey`'s `cachedRootKey`), correct for a long-lived signer/sealer
- * but wrong for a status read, which must reflect the CURRENT env/file state on every call. This
+ * Deliberately separate from `EnvOrFileKeyring`: inspection reports the CURRENT env/file state
+ * without triggering resolution or generation. The legacy env/file path caches its root key;
+ * ordered site-key sources reread on every derivation so recovery takes effect immediately. This
  * function holds no state and performs no caching — env var first (matching `resolveRootKey`'s own
  * precedence), else the key file, else `"none"`. Never touches `allowFileFallback`: this is a
  * report of what exists, not a resolution that could throw.
@@ -626,17 +580,16 @@ export interface GeneratedFileRootKey {
  */
 export function generateFileRootKey(options: { keyFilePath?: string } = {}): GeneratedFileRootKey {
   const keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
-  const generated = randomBytes(ROOT_KEY_LENGTH_BYTES);
-  const hex = generated.toString("hex");
+  // Jini performs the exclusive create; this adapter retains Tovu's directory mode and error identity.
   // 0700 like `ensureSiteKey`'s own writer (site-key plan §A.1) — only applies to directories this call creates.
   mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
-  try {
-    writeFileSync(keyFilePath, hex, { mode: 0o600, flag: "wx" });
-  } catch (err) {
-    if (isAlreadyExistsError(err)) throw new RootKeyFileAlreadyExistsError(keyFilePath);
-    throw err;
+  try { return generateKeyFile({ keyFilePath }); }
+  catch (error) {
+    if (isAlreadyExistsError(error) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) {
+      throw new RootKeyFileAlreadyExistsError(keyFilePath);
+    }
+    throw error;
   }
-  return { hex, fingerprint: fingerprintRootKeyHex(hex), keyFilePath };
 }
 
 /** Whether a failed exclusive create failed BECAUSE the path was taken (`EEXIST`), as opposed to a

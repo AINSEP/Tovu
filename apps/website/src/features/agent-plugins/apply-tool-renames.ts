@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import {
   notifyExternalMcpRosterChanged,
   type ExternalMcpServerRecord,
@@ -106,7 +107,7 @@ export async function applyAgentPluginToolRenames(deps: ApplyAgentPluginToolRena
       try {
         const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
         if (!row || row.provisionedByPluginId !== pluginId || row.url !== config.url) continue;
-        const renamed = renameRowTools(row, config.tovuRenamedTools, deps.clock.nowIso());
+        const renamed = renameRowTools(row, config.tovuRenamedTools, clockNowIso({ clock: deps.clock }));
         if (!renamed) continue;
         await deps.externalMcpServerRepo.upsert(renamed);
         changed = true;

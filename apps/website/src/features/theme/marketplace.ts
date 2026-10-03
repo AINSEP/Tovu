@@ -62,12 +62,36 @@ export interface MarketplaceListItem {
   name: string;
   tier: ThemeTier;
   description?: string;
+  /** Optional marketplace search vocabulary from the package manifest. */
+  tags?: string[];
   /**
    * Whether `id` is already claimed by an installed theme or a catalog original — i.e. whether
    * downloading this entry as-is would get suffixed (see {@link nextAvailableThemeId}) rather than
    * land at `id` itself.
    */
   idTaken: boolean;
+}
+
+/**
+ * Reads optional tags from a discovered fixture's actual folder, never its claimed manifest id.
+ * The runtime manifest omits marketing tags; malformed or missing manifests stay visible without tags.
+ * @param themeDir - Discovered marketplace package directory.
+ * @returns String tags, or undefined when absent/malformed.
+ * @throws Filesystem errors other than a missing manifest, so unexpected read failures stay visible.
+ * @complexity O(b) time/space in manifest bytes.
+ */
+function readMarketplaceTags(themeDir: string): string[] | undefined {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(join(themeDir, "theme.json"), "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError) return undefined;
+    // Discovery keeps folders with a missing manifest visible as invalid themes.
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+  if (typeof raw !== "object" || raw === null || !("tags" in raw) || !Array.isArray(raw.tags)) return undefined;
+  return raw.tags.filter((tag): tag is string => typeof tag === "string");
 }
 
 /**
@@ -101,6 +125,7 @@ export function listMarketplaceThemes(
       name: theme.manifest.name,
       tier,
       description: theme.manifest.description,
+      tags: readMarketplaceTags(theme.dir),
       idTaken:
         existsSync(join(themesRoot, tier, theme.manifest.id)) ||
         existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, theme.manifest.id)),

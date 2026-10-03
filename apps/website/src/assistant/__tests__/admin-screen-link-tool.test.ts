@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import { ADMIN_SCREEN_LINK_TOOL_ID, buildAdminScreenLinkRegistrations, buildAdminScreenPath } from "../admin-screen-link-tool.js";

@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -12,39 +11,8 @@ import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 // this), mirroring `wiring.test.ts`'s side-effect import of the Pages permission module.
 import "#src/features/publish-content/permissions";
 
-/**
- * @file Task 9 of the publish-content (Publish Content) feature —
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.2/§4 task 9.
- *
- * ## Why this runs against a COPY of the real `sites/tovu-dev/content.db`, not a fresh or simulated one
- *
- * `publish_content.read`/`publish_content.apply` are granted directly to the built-in `admin`
- * role (`permissions.ts`), not fanned out from an existing anchor permission, so — unlike
- * `pages.edit_html` — there is no "pre-anchor vintage" this repo's real database could be missing.
- * What matters instead is the much more literal question the plan's Task 9 acceptance row asks:
- * does booting identity wiring against THIS repo's actual, already-deployed `content.db` — with
- * whatever real rows, real policies, and real prior migrations it already carries — actually add
- * both grants to its real `admin-builtin-policy`. A fresh or hand-built fixture would only prove the
- * mechanism works in principle; it would not catch a real file with, say, an unexpected extra
- * `admin-builtin-policy` row, a differently-cased policy name, or any other real-world drift a
- * synthetic fixture can't reproduce.
- *
- * The real file is only ever READ (via `fs.copyFileSync`) into a throwaway temp directory. Nothing
- * in this file opens `sites/tovu-dev/content.db` itself for writing, or at all.
- */
-
-/** Walked up from this test's own directory rather than guessed, same discipline as
- *  `chat-orphan-check.integration.test.ts`'s `DEPS_PATH` — a miscounted `..` fails loudly with an
- *  ENOENT instead of silently testing the wrong file. */
-const REAL_CONTENT_DB_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../sites/tovu-dev/content.db"
-);
-
-/** The workspace slug/id this repo's real `content.db` seeds itself under (`workspaces.slug =
- *  'local-tovu'`, `workspaces.id = 'workspace-local'`) — verified directly against the file with
- *  `sqlite3 sites/tovu-dev/content.db "select id, slug from workspaces"` while writing this test. */
-const REAL_WORKSPACE_ID = "workspace-local";
+// A reproducible already-seeded workspace with publishing grants explicitly absent.
+const WORKSPACE_ID = "workspace-publish-permissions";
 
 const PUBLISH_CONTENT_READ = "publish_content.read";
 const PUBLISH_CONTENT_APPLY = "publish_content.apply";
@@ -56,80 +24,86 @@ function counterIdGen(prefix: string) {
   return { newId: () => `${prefix}-${++n}` };
 }
 
-/**
- * Copy the real content.db (plus its WAL/SHM sidecars, if present, so the copy reflects the same
- * committed state a fresh `better-sqlite3` connection to the original would see) into a fresh temp
- * directory. The original is opened nowhere in this file — only ever as the SOURCE of a
- * `copyFileSync`.
- */
-function copyRealContentDbToTempDir(): { readonly dir: string; readonly dbPath: string } {
-  assert.ok(
-    fs.existsSync(REAL_CONTENT_DB_PATH),
-    `expected the real content.db at ${REAL_CONTENT_DB_PATH} — this test needs an already-seeded ` +
-      "workspace to certify against; adjust REAL_CONTENT_DB_PATH if the fixture moved"
-  );
-
+async function createSeededContentDb(): Promise<{ dir: string; dbPath: string }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-content-perm-boot-test-"));
   const dbPath = path.join(dir, "content.db");
-  fs.copyFileSync(REAL_CONTENT_DB_PATH, dbPath);
-  for (const sidecar of ["-wal", "-shm"]) {
-    const source = `${REAL_CONTENT_DB_PATH}${sidecar}`;
-    if (fs.existsSync(source)) fs.copyFileSync(source, `${dbPath}${sidecar}`);
+  const db = openContentDb(dbPath);
+  try {
+    const setup = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID,
+      clock: fixedClock, idGen: counterIdGen("seed"), reconcileGrantsOnBoot: false });
+    await setup.identityReady;
+    const admin = await setup.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "admin-builtin-policy" });
+    assert.ok(admin);
+    const grants = await setup.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: admin.id });
+    for (const grant of grants) {
+      if ([PUBLISH_CONTENT_READ, PUBLISH_CONTENT_APPLY].includes(grant.permission)) {
+        await setup.policyPermissionRepo.delete({ workspaceId: WORKSPACE_ID, id: grant.id });
+      }
+    }
+    const before = await permissionsOfBuiltinPolicy(setup, "admin-builtin-policy");
+    assert.equal(before.includes(PUBLISH_CONTENT_READ), false);
+    assert.equal(before.includes(PUBLISH_CONTENT_APPLY), false);
+    return { dir, dbPath };
+  } catch (error) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
+  } finally {
+    db.$client.close();
   }
-  return { dir, dbPath };
 }
 
-/** Boot identity wiring (seed + both boot-time grant/migration reconciliation steps) against a
- *  fresh copy of the real content.db, and wait for it to settle. */
-async function bootAgainstRealContentDbCopy(dbPath: string, idPrefix: string) {
+async function bootSeededContentDb(dbPath: string, idPrefix: string) {
   const db = openContentDb(dbPath);
-  const deps = createSqliteIdentityRouteDeps({
-    db,
-    workspaceId: REAL_WORKSPACE_ID,
-    clock: fixedClock,
-    idGen: counterIdGen(idPrefix),
-  });
-  await deps.identityReady;
-  return deps;
+  const deps = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID,
+    clock: fixedClock, idGen: counterIdGen(idPrefix) });
+  try {
+    await deps.identityReady;
+    return { ...deps, close: () => { if (db.$client.open) db.$client.close(); } };
+  } catch (error) {
+    db.$client.close();
+    throw error;
+  }
 }
 
 async function permissionsOfBuiltinPolicy(
-  deps: Awaited<ReturnType<typeof bootAgainstRealContentDbCopy>>,
+  deps: ReturnType<typeof createSqliteIdentityRouteDeps>,
   policyName: string
 ): Promise<string[]> {
-  const policy = await deps.policyRepo.findByName({ workspaceId: REAL_WORKSPACE_ID, name: policyName });
-  assert.ok(policy, `the real content.db must already have a '${policyName}' row`);
+  const policy = await deps.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: policyName });
+  assert.ok(policy, `the seeded content.db must have a '${policyName}' row`);
   const grants = await deps.policyPermissionRepo.listByPolicyId({
-    workspaceId: REAL_WORKSPACE_ID,
+    workspaceId: WORKSPACE_ID,
     policyId: policy.id,
   });
   return grants.map((row) => row.permission);
 }
 
-test("booting against a COPY of the real, already-seeded content.db grants publish_content.read and publish_content.apply to admin", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+test("booting against a seeded content.db with no publishing grants adds publish_content.read and publish_content.apply to admin", async (t) => {
+  const { dir, dbPath } = await createSeededContentDb();
   try {
-    const deps = await bootAgainstRealContentDbCopy(dbPath, "boot");
+    const deps = await bootSeededContentDb(dbPath, "boot");
+    t.after(() => deps.close());
 
     const adminPermissions = await permissionsOfBuiltinPolicy(deps, "admin-builtin-policy");
 
     assert.ok(
       adminPermissions.includes(PUBLISH_CONTENT_READ),
-      "admin must hold publish_content.read after boot reconciles the real content.db"
+      "admin must hold publish_content.read after boot reconciles the seeded content.db"
     );
     assert.ok(
       adminPermissions.includes(PUBLISH_CONTENT_APPLY),
-      "admin must hold publish_content.apply after boot reconciles the real content.db"
+      "admin must hold publish_content.apply after boot reconciles the seeded content.db"
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("editor and viewer do NOT gain publish_content.read or publish_content.apply", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+test("editor and viewer do NOT gain publish_content.read or publish_content.apply", async (t) => {
+  const { dir, dbPath } = await createSeededContentDb();
   try {
-    const deps = await bootAgainstRealContentDbCopy(dbPath, "boot");
+    const deps = await bootSeededContentDb(dbPath, "boot");
+    t.after(() => deps.close());
 
     for (const policyName of ["editor-builtin-policy", "viewer-builtin-policy"]) {
       const permissions = await permissionsOfBuiltinPolicy(deps, policyName);
@@ -147,15 +121,43 @@ test("editor and viewer do NOT gain publish_content.read or publish_content.appl
   }
 });
 
-test("re-running boot against the same already-migrated copy is idempotent — no duplicate grant rows", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+test("boot's authorize callback permits admin and refuses editor and viewer publishing", async (t) => {
+  const { dir, dbPath } = await createSeededContentDb();
+  const deps = await bootSeededContentDb(dbPath, "boot");
+  t.after(() => { deps.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const roles = await deps.roleRepo.list({ workspaceId: WORKSPACE_ID });
+  for (const name of ["admin", "editor", "viewer"] as const) {
+    const role = roles.find((r) => r.name === name);
+    assert.ok(role);
+    const principalId = `principal-${name}`;
+    await deps.principalRepo.save({ id: principalId, workspaceId: WORKSPACE_ID, kind: "user",
+      displayName: name, status: "active", createdAt: fixedClock.nowIso() });
+    await deps.principalRoleRepo.save({ id: `assignment-${name}`, workspaceId: WORKSPACE_ID,
+      principalId, roleId: role.id });
+    // Control: each principal really has a working role/policy chain.
+    assert.equal((await deps.authorize({ workspaceId: WORKSPACE_ID, principalId, permission: "content.read" })).allowed, true);
+    for (const permission of [PUBLISH_CONTENT_READ, PUBLISH_CONTENT_APPLY]) {
+      const decision = await deps.authorize({ workspaceId: WORKSPACE_ID, principalId, permission });
+      assert.equal(decision.allowed, name === "admin", `${name}: ${permission}`);
+    }
+  }
+});
+
+test("re-running boot against the same seeded database is idempotent — no duplicate grant rows", async (t) => {
+  const { dir, dbPath } = await createSeededContentDb();
   try {
-    await bootAgainstRealContentDbCopy(dbPath, "first");
+    const first = await bootSeededContentDb(dbPath, "first");
+    t.after(() => first.close());
+    const firstPermissions = await permissionsOfBuiltinPolicy(first, "admin-builtin-policy");
+    assert.equal(firstPermissions.filter((p) => p === PUBLISH_CONTENT_READ).length, 1);
+    assert.equal(firstPermissions.filter((p) => p === PUBLISH_CONTENT_APPLY).length, 1);
+    first.close();
 
     // "Restart": a brand-new content.db handle + a brand-new createSqliteIdentityRouteDeps call
     // over the SAME, already-migrated file — same technique as `wiring.test.ts`'s own
     // simulated-restart test.
-    const second = await bootAgainstRealContentDbCopy(dbPath, "second");
+    const second = await bootSeededContentDb(dbPath, "second");
+    t.after(() => second.close());
 
     const adminPermissions = await permissionsOfBuiltinPolicy(second, "admin-builtin-policy");
     const readCount = adminPermissions.filter((permission) => permission === PUBLISH_CONTENT_READ).length;

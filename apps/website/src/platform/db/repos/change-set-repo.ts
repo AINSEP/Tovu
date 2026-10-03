@@ -77,7 +77,10 @@ export class SqlChangeSetRepo implements ChangeSetRepoPort {
   /** Header + items + (when supplied) the outbox event land as one atomic transaction — never a
    * partial write (ADR-046 Phase 1's "transaction participation" requirement, and BR-04's
    * resolution for the outbox event specifically; see this file's header). */
-  async insert(record: ChangeSetRecord, items: ChangeSetItemRecord[], event?: DomainEvent): Promise<void> {
+  async insert(
+    { record, items }: { record: ChangeSetRecord; items: ChangeSetItemRecord[] },
+    { event }: { event?: DomainEvent } = {},
+  ): Promise<void> {
     await this.kernel.transaction(async () =>
       this.kernel.run(async (db) => {
         await db

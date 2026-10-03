@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { StaticPublishTargetId } from "./types.js";
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
@@ -103,6 +103,9 @@ export interface PublishHistoryStore {
    *  reason), so an unbounded `list` call is a real resource-exhaustion risk a workspace with years of
    *  publish history could actually trigger, not a hypothetical one. */
   list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]>;
+  /** Distinct workspace-scoped saved live URLs across the full ledger (t08). At most 201:
+   * callers refuse an over-200-address set instead of silently losing older destinations. */
+  listLiveUrls(input: { workspaceId: UUID }): Promise<string[]>;
   /** Appends a new row — an append-only ledger, never a replace-in-place. Named for what it is ever
    *  called with, not what it is capable of rejecting: an `ok: false` `StaticPublishOutcome` is never
    *  passed to it at all (the caller, `publish-run.ts`'s `toHistoryEntry`, decides that, not this
@@ -131,6 +134,15 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
     const matching = input.target === undefined ? rows : rows.filter((row) => row.target === input.target);
     // Newest-first: entries are appended oldest-to-newest, so reverse before slicing to `limit`.
     return matching.slice().reverse().slice(0, limit);
+  }
+
+  async listLiveUrls(input: { workspaceId: UUID }): Promise<string[]> {
+    const urls = new Set<string>();
+    for (const entry of this.entriesByWorkspace.get(input.workspaceId) ?? []) {
+      urls.add(entry.url);
+      if (urls.size > 200) break;
+    }
+    return [...urls].sort();
   }
 
   async recordSuccess(input: { workspaceId: UUID; entry: PublishHistoryEntry }): Promise<void> {

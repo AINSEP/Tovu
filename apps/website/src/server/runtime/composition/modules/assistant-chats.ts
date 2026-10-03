@@ -34,7 +34,7 @@ import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assis
  * the shared heuristic; injected guidance never enters the stored user message. */
 function deriveAssistantConversationTitle(text: string): string {
   const trimmed = text.trim();
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed) && trimmed.length <= 64 ? trimmed : deriveConversationTitle(text);
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed) && trimmed.length <= 64 ? trimmed : deriveConversationTitle({ prompt: text });
 }
 
 /** Rejects a body that is not a plain object, so `req.body.title` can never be an array or null. */
@@ -70,10 +70,10 @@ async function maybeNameFromFirstUserMessage(
 ): Promise<void> {
   if (message.role !== "user") return;
   try {
-    const conversation = await store.get(id);
+    const conversation = await store.get({ id });
     if (!conversation || conversation.title) return;
     const derived = deriveAssistantConversationTitle(typeof body.content === "string" ? body.content : "");
-    if (derived) await store.rename(id, derived, "fallback");
+    if (derived) await store.rename({ id, title: derived }, { source: "fallback" });
   } catch {
     // Leave it untitled; the next user message gets another chance.
   }
@@ -156,7 +156,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // agent-produced title, which the store then refuses to apply over a manual rename.
         const source = body.source === "generated" ? ("generated" as const) : ("manual" as const);
         storeFor(res)
-          .rename(req.params.id!, title, source)
+          .rename({ id: req.params.id!, title }, { source })
           .then((conversation) =>
             // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
             // purpose: distinguishing them would confirm the existence of another admin's chat.
@@ -171,14 +171,14 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // proxied cancel first — Open Design hit exactly this and left orphaned CLI subprocesses
         // billing. Not reachable today: admin runs are not yet associated with a conversation id.
         storeFor(res)
-          .delete(req.params.id!)
+          .delete({ id: req.params.id! })
           .then(() => res.status(204).end())
           .catch(next);
       });
 
       app.get("/api/assistant/chats/:id/messages", (req, res, next) => {
         storeFor(res)
-          .messages(req.params.id!)
+          .messages({ conversationId: req.params.id! })
           .then((messages) => res.json({ messages }))
           .catch(next);
       });
@@ -199,7 +199,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         const id = req.params.id!;
         const store = storeFor(res);
         store
-          .appendMessage(id, message)
+          .appendMessage({ conversationId: id, message })
           .then(async (saved) => {
             if (!saved) {
               res.status(404).json({ error: "not found" });

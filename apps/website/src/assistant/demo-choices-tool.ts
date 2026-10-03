@@ -1,12 +1,6 @@
 import { buildFormSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import {
-  buildDomainRegistrations,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildUIToolResult } from "./mcp-ui.js";
 import {
@@ -59,7 +53,7 @@ import {
  * selections. A form exists to collect input *for the agent*, so that was not a rough edge — the
  * feature did not work.
  *
- * It now makes one call that blocks: emit the surface through `ctx.emitSurface`, park on the answer,
+ * It now makes one call that blocks: emit the surface through `emitSurface`, park on the answer,
  * and return the human's selections as the call's ordinary result. The emit-then-park order is
  * mandatory and not a style choice — the daemon reads surfaces out of a *completed* result, so a
  * handler that parked first would never show the form it is waiting on.
@@ -259,7 +253,7 @@ export function buildDemoChoicesRegistrations(
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    [DEMO_CHOICES_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
+    [DEMO_CHOICES_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
       const input = (ctx.input ?? {}) as Record<string, unknown>;
 
       // ---- Fallback second call: no `emitSurface` was available, so the form went out the old
@@ -273,8 +267,8 @@ export function buildDemoChoicesRegistrations(
       // The exchange is opened BEFORE the surface is built, because the surface has to carry its id.
       // `open` takes the emitter, so this is unreachable without one — the deadlock of waiting on a
       // message that was never sent is not expressible here.
-      const exchange = ctx.emitSurface
-        ? surfaces.surfaceExchanges.open({ toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface)
+      const exchange = emitSurface
+        ? surfaces.surfaceExchanges.open({ toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, emitSurface)
         : undefined;
 
       const ui = buildDemoChoicesFormSurface({ principalId: ctx.principal.id, exchange });

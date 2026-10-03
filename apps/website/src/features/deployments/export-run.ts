@@ -1,3 +1,4 @@
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
 /**
  * @file The static-site export run's process-local single-flight state, extracted out of
  * `server/routes/admin/system/export-site.ts` (2026-08-15) so a SECOND caller — the
@@ -174,43 +175,43 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * callers in the same process. This function does not re-check, so calling it while a run is
  * already in flight would silently start a second one; it is deliberately not the guard itself.
  *
- * @param routeDeps - The same full composition-root deps object the injected `runExportSite` needs
- * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowIso()` and
+ * @param required.routeDeps - The same full composition-root deps object the injected `runExportSite` needs
+ * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowMs()` and
  * `.exportOutputRootDir` — passed straight through to `runExportSite`. `exportOutputRootDir` is
  * `RouteDeps.exportOutputRootDir` (`TOVU_EXPORT_DIR` env, then `<cwd>/infra/export`), resolved ONCE
  * by the composition root (`server/app.ts`/`server/deps.ts`) — this function never reads
  * `process.env` itself, and a test overrides the directory by setting this field on the fake
  * `routeDeps` it constructs, not by mutating real process env vars.
- * @param runExportSite - The actual export engine, injected by the caller — see this file's header
+ * @param required.runExportSite - The actual export engine, injected by the caller — see this file's header
  * for why it is never imported here directly. In production this is always `routeDeps.runExportSite`
  * (bound to the real `exportSite` by `server/app.ts`/`server/deps.ts`).
- * @param options.clean - Forwarded to `runExportSite`; wipes `outputDir` first when `true`.
- * @param options.basePath - Forwarded to `runExportSite`; see `ExportSiteOptions.basePath`'s own doc
+ * @param required.clean - Forwarded to `runExportSite`; wipes `outputDir` first when `true`.
+ * @param optional.basePath - Forwarded to `runExportSite`; see `ExportSiteOptions.basePath`'s own doc
  * (`site-exporter.ts`).
  * @returns The new "running" snapshot (not a promise — the export's own completion is observed
  * later via {@link getExportRunSnapshot}).
  * @complexity O(1) synchronously; the awaited export itself is O(routes + assets) over HTTP, per
  * `site-exporter.ts`'s own complexity note.
  */
-export function startExportRun<TRouteDeps extends { clock: { nowIso(): string }; exportOutputRootDir: string }>(
-  routeDeps: TRouteDeps,
-  runExportSite: ExportEngine<TRouteDeps>,
-  options: { clean: boolean; basePath?: string },
+export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRootDir: string }>(
+  required: { routeDeps: TRouteDeps; runExportSite: ExportEngine<TRouteDeps>; clean: boolean },
+  optional?: { basePath?: string },
 ): ExportRunSnapshot {
+  const { routeDeps, runExportSite, clean } = required;
   const outputDir = routeDeps.exportOutputRootDir;
-  const startedAtIso = routeDeps.clock.nowIso();
+  const startedAtIso = nowIso({ clock: routeDeps.clock });
   currentRun = { status: "running", startedAtIso, finishedAtIso: null, outputDir };
 
   // Deliberately not awaited — the caller (an HTTP route or a tool handler) returns the "running"
   // snapshot immediately; a later poll observes the outcome via getExportRunSnapshot(). Both
   // branches always update currentRun, so a poller can never observe a stale "running" snapshot
   // after the promise has actually settled.
-  void runExportSite({ routeDeps, outputDir, clean: options.clean, basePath: options.basePath })
+  void runExportSite({ routeDeps, outputDir, clean, basePath: optional?.basePath })
     .then((report) => {
       currentRun = {
         status: "completed",
         startedAtIso,
-        finishedAtIso: routeDeps.clock.nowIso(),
+        finishedAtIso: nowIso({ clock: routeDeps.clock }),
         outputDir,
         ...summarizeCompletedReport(report),
       };
@@ -219,7 +220,7 @@ export function startExportRun<TRouteDeps extends { clock: { nowIso(): string };
       currentRun = {
         status: "errored",
         startedAtIso,
-        finishedAtIso: routeDeps.clock.nowIso(),
+        finishedAtIso: nowIso({ clock: routeDeps.clock }),
         outputDir,
         error: err instanceof Error ? err.message : String(err),
       };

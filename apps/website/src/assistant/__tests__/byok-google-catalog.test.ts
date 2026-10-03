@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file The full-catalog Gemini schema validator, made permanent.
  *
@@ -26,18 +28,23 @@ import test from "node:test";
 import type { ToolDescriptor } from "@jini-ai/core";
 
 import { META_TOOL_DESCRIPTORS } from "../byok-tool-surface.js";
-import { googleParametersOf } from "../byok-provider-turn.js";
+import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../server/routes/types.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 // `comments`/`newsletter` are contributed through the tool-contribution registry now, not
 // `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array (2026-08-17) — installed here so
 // "EVERY wired tool" above is not silently short 21 tools across 2 domains, the exact class of gap
 // this file exists to prevent.
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 /** Keys Gemini's `functionDeclarations[].parameters` validator rejects outright. */
 const FORBIDDEN_KEYS = ["additionalProperties", "$schema", "$ref", "$defs", "const", "oneOf", "allOf", "not", "if", "then", "else"];
@@ -50,7 +57,7 @@ const FORBIDDEN_KEYS = ["additionalProperties", "$schema", "$ref", "$defs", "con
 function fakeRouteDeps(): RouteDeps {
   const deps = {
     workspaceId: "ws-google-catalog",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-08-05T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {
@@ -95,7 +102,7 @@ function schemaNodes(root: unknown, path: string): ReadonlyArray<{ node: Record<
 
 /** The four structural invariants a live Gemini 400 actually enforced, applied to one tool. */
 function assertGeminiValid(descriptor: ToolDescriptor): number {
-  const parameters = googleParametersOf(descriptor);
+  const parameters = googleParametersOf({ descriptor: descriptor });
   const serialized = JSON.stringify(parameters);
 
   for (const key of FORBIDDEN_KEYS) {
@@ -133,7 +140,7 @@ function assertGeminiValid(descriptor: ToolDescriptor): number {
 }
 
 test("EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample", () => {
-  const descriptors = buildAssistantToolRegistrations(fakeRouteDeps()).map((registration) => registration.descriptor);
+  const descriptors = buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { contributions }).map((registration) => registration.descriptor);
 
   // A guard on the guard: if the registry ever comes back empty (a deps-shape change silently
   // breaking the build above, say), every assertion below would vacuously pass and this file would
@@ -156,11 +163,11 @@ test("the 3 meta-tool descriptors are structurally valid for Gemini too — they
 test("the meta-tool set is the payload reduction it claims to be, measured against the real catalog", () => {
   const wire = (tools: readonly ToolDescriptor[]) =>
     Buffer.byteLength(
-      JSON.stringify(tools.map((t) => ({ name: t.id, description: t.description, parameters: googleParametersOf(t) }))),
+      JSON.stringify(tools.map((t) => ({ name: t.id, description: t.description, parameters: googleParametersOf({ descriptor: t }) }))),
       "utf8",
     );
 
-  const full = wire(buildAssistantToolRegistrations(fakeRouteDeps()).map((r) => r.descriptor));
+  const full = wire(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { contributions }).map((r) => r.descriptor));
   const meta = wire(META_TOOL_DESCRIPTORS);
 
   // The claim this change was approved on was a ~134x reduction. Asserted as a floor with real

@@ -2,9 +2,10 @@ import { randomBytes } from "node:crypto";
 
 import type { Insertable, Selectable } from "kysely";
 
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
+import type { DeviceAuthorization } from "@jini-ai/oauth";
 import type { DeviceAuthorizationStore } from "#src/assistant/external-mcp-oauth";
 import {
   invalidPendingAuthorizationState,
@@ -12,7 +13,6 @@ import {
   PENDING_AUTHORIZATION_DEFAULT_TTL_MS,
   PENDING_AUTHORIZATION_STATE_BYTES,
   secureEqualsForOwnerBinding,
-  type DeviceAuthorization,
   type OAuthClock,
   type OAuthRandomBytes,
   type PendingAuthorization,

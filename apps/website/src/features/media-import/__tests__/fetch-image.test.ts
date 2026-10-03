@@ -142,6 +142,7 @@ test("the outbound request is a bounded GET that asks for an image and nothing e
   assert.equal(client.calls[0]!.method, "GET");
   assert.equal(client.calls[0]!.url, URL_UNDER_TEST);
   assert.equal(client.calls[0]!.timeoutMs, MEDIA_IMPORT_TIMEOUT_MS);
+  assert.equal(client.calls[0]!.totalDeadlineMs, undefined, "active media transfers have no implicit total deadline");
   assert.equal(client.calls[0]!.body, undefined, "an import must never send a request body");
   assert.deepEqual(client.calls[0]!.headers, { Accept: "image/*, video/*" });
 });

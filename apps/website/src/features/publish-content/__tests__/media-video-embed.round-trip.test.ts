@@ -79,7 +79,7 @@ const POSTER = mediaRecord({ id: "poster-asset-1", slug: "promo-poster", alt: "P
 /** One site's media ports, with every blob in `blobs` stored and typed the way an upload leaves it. */
 async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], typed: boolean) {
   const repo = new InMemoryVersionedMediaRepo(records);
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
   for (const bytes of blobs) {
@@ -129,9 +129,9 @@ test("publishing only a video media item carries its poster along, and the recei
     deps: {
       entryRepo: new InMemoryEntryRepo(),
       mediaRepo: destination.repo,
-      transformRepo: new InMemoryTransformDefinitionRepo([
+      transformRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [
         { id: "t-1", workspaceId: WORKSPACE_ID, name: CORE_PUBLIC_TRANSFORM_NAME, version: 1, params: { format: "webp" }, owner: "core", createdAt: "2026-09-26T00:00:00.000Z" },
-      ]),
+      ] }),
       mediaContentTypeStore: destination.contentTypeStore,
     },
     input: { workspaceId: WORKSPACE_ID, html },

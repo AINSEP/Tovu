@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -7,7 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
-import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ADMIN_SCREENS } from "../admin-screens.generated.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
@@ -19,6 +21,11 @@ import {
   contributeSiteInspectionTools,
   siteInspectionDerivedRisk,
 } from "../tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file The agent-tool half of Site Inspection: that the catalog wires, that `site_get_profile`'s
@@ -57,7 +64,7 @@ test("site inspection: the catalog wires in full, with a published schema and a 
 
   assert.deepEqual(
     registrations.map((registration) => registration.descriptor.id).sort(),
-    ["fetch_published_page", "site_describe_capabilities", "site_get_profile"],
+    ["fetch_live_url", "fetch_published_page", "site_describe_capabilities", "site_get_profile"],
   );
   assert.equal(registrations.length, siteInspectionAgentToolCatalog.length, "every catalog entry must be wired");
 
@@ -71,7 +78,8 @@ test("site inspection: the catalog wires in full, with a published schema and a 
     const expected = {
       site_get_profile: { properties: ["pageLimit", "sections"], required: [] },
       site_describe_capabilities: { properties: ["sections"], required: [] },
-      fetch_published_page: { properties: ["maxBytes", "path"], required: ["path"] },
+      fetch_live_url: { properties: ["find", "maxBytes", "origin", "path", "textOnly"], required: ["path"] },
+      fetch_published_page: { properties: ["find", "maxBytes", "path", "textOnly"], required: ["path"] },
     }[registration.descriptor.id]!;
     assert.equal(schema.type, "object");
     assert.equal(schema.additionalProperties, false);
@@ -83,18 +91,18 @@ test("site inspection: the catalog wires in full, with a published schema and a 
 });
 
 test("site inspection: the contributor registers under its own domain key", () => {
-  resetToolContributorsForTests();
-  registerToolContributor(contributeSiteInspectionTools());
+  contributions.contributors.clear({});
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools() });
 
-  const contributors = listToolContributors();
+  const contributors = contributions.contributors.list({});
   assert.equal(contributors.length, 1);
   assert.equal(contributors[0]?.domain, "site-inspection");
   assert.equal(contributors[0]?.risk, siteInspectionDerivedRisk);
 
   // Idempotent: a double install replaces rather than duplicating, like every other domain.
-  registerToolContributor(contributeSiteInspectionTools());
-  assert.equal(listToolContributors().length, 1);
-  resetToolContributorsForTests();
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools() });
+  assert.equal(contributions.contributors.list({}).length, 1);
+  contributions.contributors.clear({});
 });
 
 test("site_get_profile: the owner gets every section; a principal with no grants gets every section forbidden", async () => {
@@ -304,7 +312,7 @@ async function capabilitiesHandlerOverRealRegistry() {
   const deps: RouteDeps = createRouteDeps();
   await deps.identityReady;
   await deps.settingsReady;
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const registrations = buildSiteInspectionRegistrations(
     Object.assign(deps, { listCatalogTools: () => listToolCatalogEntries(registry) }),
   );
@@ -327,7 +335,7 @@ test("site_describe_capabilities: the owner gets all three sections, with tools 
     assert.equal(owner.sections[name]?.status, "ok", `${name} should be readable by the owner`);
   }
   assert.equal(owner.completeness, "complete");
-  assert.equal(owner.sections.tools.data.total, registry.list().length);
+  assert.equal(owner.sections.tools.data.total, registry.list({}).length);
   const siteDomain = owner.sections.tools.data.domains.find((domain) => domain.domain === "site");
   assert.ok(siteDomain?.tools.some((tool) => tool.id === "site_describe_capabilities"));
   assert.deepEqual(owner.sections.adminScreens.data.screens, ADMIN_SCREENS);

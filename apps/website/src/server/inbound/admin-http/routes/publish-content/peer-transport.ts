@@ -1,7 +1,8 @@
 import type { Response } from "express";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { stageBundle } from "#src/features/publish-content/bundle-staging";
+import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
+// Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
 import {
   applyPublishScope,
   buildExportBundle,
@@ -13,8 +14,6 @@ import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
   executePeerImport,
-  pullBlobsFromPeer,
-  pullBundleFromPeer,
   pushBundleToPeer,
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
@@ -301,7 +300,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
-      const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
+      const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
       const publishContentDeps = toPublishContentDeps(deps);
       const fullBundle = await buildExportBundle({
         workspaceId: deps.workspaceId,
@@ -458,61 +457,10 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const principalId = await guard(req, res);
       if (principalId === null) return;
 
-      const peer = await openPeer(deps, String(req.params.peerId ?? ""));
-      const envelope = await pullBundleFromPeer(peer);
-
-      // Blobs BEFORE staging, for the same reason the push driver uploads before it stages: this
-      // instance's own `planImport` marks an entity `blocked` when a required blob is absent HERE,
-      // so bytes that arrive after the plan would produce a plan that is wrong the moment it is
-      // acted on. Bytes are verified against the sha that was requested before they are stored —
-      // see `pullBlobsFromPeer`'s own doc; a peer serving mismatched bytes aborts the pull and
-      // stages nothing.
-      const blobs = await pullBlobsFromPeer(
-        {
-          ...peer,
-          blobSink: deps.blobStore,
-          // THIS instance's workspace id: the bytes are being stored locally. The peer's id appears
-          // only in the request path, which `peerRoute` builds from the credential.
-          workspaceId: deps.workspaceId,
-          computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
-        },
-        { blobManifest: envelope.blobManifest }
-      );
-
-      // Staged through the SAME `stageBundle` a pushed bundle arrives by, so `expiresAt` is
-      // server-computed and `sourcePrincipalId` is this request's AUTHENTICATED principal — never a
-      // peer-declared identity (plan §1.6 / §5 risk #9: baselines key on the authenticated
-      // principal, and a pulled bundle must not be able to claim someone else's sync memory).
-      const { bundleId, expiresAt } = await stageBundle(
-        {
-          workspaceId: deps.workspaceId,
-          sourcePrincipalId: principalId,
-          artifactFormatVersion: envelope.artifactFormatVersion,
-          hashVersion: envelope.hashVersion,
-          sourceLabel: envelope.sourceLabel,
-          entities: envelope.entities as unknown[],
-          blobManifest: envelope.blobManifest as string[],
-        },
-        { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
-      );
-
-      res.status(201).json({
-        peerId: peer.credential.id,
-        peerLabel: peer.credential.label,
-        bundleId,
-        expiresAt,
-        entityCount: envelope.entities.length,
-        blobManifest: envelope.blobManifest,
-        blobsDownloaded: blobs.downloaded,
-        blobsAlreadyPresent: blobs.alreadyPresent,
-        // Reported, not thrown: the peer no longer holds these bytes, so whatever entity requires
-        // one will be `blocked` by this instance's own plan — the fail-closed outcome, and the
-        // mirror of `push/plan`'s `blobsUnavailable`.
-        blobsUnavailable: blobs.unavailable,
-        // Beyond one pull's blob cap. Nothing is lost — pull again and these are fetched next
-        // (`PUBLISH_CONTENT_PULL_MAX_BLOBS`).
-        blobsDeferred: blobs.deferredOverCap,
-      });
+      res.status(201).json(await pullAndStageFromPeer(deps, {
+        peerId: String(req.params.peerId ?? ""),
+        principalId,
+      }));
     } catch (err) {
       respondWithError(res, err);
     }

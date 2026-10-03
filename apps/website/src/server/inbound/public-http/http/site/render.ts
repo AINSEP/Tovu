@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
+import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import {

@@ -83,7 +83,7 @@ export function registerAdminChatAttachmentReadRoute(
         return;
       }
 
-      const sniffed = sniffContentType(result.bytes);
+      const sniffed = sniffContentType({ bytes: result.bytes });
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
       sendMediaOriginalResponse(res, result.bytes, parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), {
         safe: forceDownload ? "application/octet-stream" : sniffed,

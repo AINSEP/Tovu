@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import type { Insertable, Updateable } from "kysely";
 
-import type { ClockPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { PostsTable } from "#src/platform/db/content-database.generated";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "#src/features/post/repo";

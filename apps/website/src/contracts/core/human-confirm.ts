@@ -13,9 +13,11 @@
  * The click carries only `decision` (plus the exchange id). Everything the action runs with was
  * fixed before the dialog was drawn and is exactly what the dialog names, so the human agrees to
  * the action on screen, not to whatever a later model turn supplies.
+ * The generic prepare/ask/run handler and its ordering rationale live in Jini/core/src/registration-kit.ts;
+ * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
-import { humanConfirmedHandler, type HumanConfirmer } from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionContext, type ToolHandler } from "@jini-ai/core";
+import { humanConfirmedHandler, type HumanConfirmer } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import {
@@ -73,20 +75,17 @@ export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract
  * @complexity O(1) plus the wait for the human.
  */
 export async function requireHumanConfirm(
-  ctx: ToolExecutionContext,
-  surfaces: AssistantSurfaceDeps,
-  spec: HumanConfirmSpec,
+  { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: AssistantSurfaceDeps; spec: HumanConfirmSpec },
+  { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
-  if (!ctx.emitSurface) {
-    throw new ToolInputError(
-      `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
-        "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
-    );
+  if (!emitSurface) {
+    throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
+        "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
   }
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
-  const exchange = surfaces.surfaceExchanges.open({ toolId, principalId: ctx.principal.id }, ctx.emitSurface);
+  const exchange = surfaces.surfaceExchanges.open({ toolId, principalId: ctx.principal.id }, emitSurface);
   const action = (decision: "confirm" | "cancel", choice?: string) => ({
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
@@ -170,12 +169,12 @@ export function humanConfirmedToolHandler<TPrepared>(
   },
 ): ToolHandler {
   return humanConfirmedHandler({
-    prepare: spec.prepare,
-    askHuman: async (ctx, prepared) => {
-      const outcome = await requireHumanConfirm(ctx, surfaces, spec.dialog(prepared));
+    prepare: ({ ctx }) => spec.prepare(ctx),
+    askHuman: async ({ ctx, prepared }, optional: ToolExecutionOptions = {}) => {
+      const outcome = await requireHumanConfirm({ ctx, surfaces, spec: spec.dialog(prepared) }, optional);
       return outcome.confirmed ? { confirmed: true } : { confirmed: false, result: { [spec.flag]: false, ...notConfirmedResult(outcome) } };
     },
-    run: spec.run,
+    run: ({ ctx, prepared, confirmer }) => spec.run(ctx, prepared, confirmer),
   });
 }
 
@@ -189,8 +188,6 @@ export function humanConfirmedToolHandler<TPrepared>(
 export function refuseUnexpectedKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
   const extra = Object.keys(input).find((key) => !allowed.includes(key));
   if (extra !== undefined) {
-    throw new ToolInputError(
-      `'${extra}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.`,
-    );
+    throw new ToolInputError({ message: `'${extra}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
   }
 }

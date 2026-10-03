@@ -5,7 +5,7 @@ import type { ContentKernel } from "../content-kernel.js";
 import { isUniqueViolation } from "../kernel/dialect.js";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { VersionedMediaRepoPort } from "#src/features/media/versioned-media-repo";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
 import type {
   AssetBlobRepoPort,
@@ -109,7 +109,7 @@ function toMediaRow(record: MediaRecord): MediaTable {
  */
 function translateSlugConflict(err: unknown, slug: string): never {
   if (isUniqueViolation(err)) {
-    throw new MediaConflictError(`slug '${slug}' is already used by another media asset in this workspace`);
+    throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
   }
   throw err;
 }
@@ -133,7 +133,7 @@ async function findSlugClaimant(db: ContentQueries, workspaceId: UUID, slug: str
  *  belongs to `mediaId` (reclaiming its own old slug), is fine. */
 function assertSlugReclaimable(claimant: Selectable<MediaSlugHistoryTable> | null, mediaId: UUID, slug: string): void {
   if (claimant && claimant.media_id !== mediaId) {
-    throw new MediaConflictError(`slug '${slug}' is already used by another media asset in this workspace`);
+    throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
   }
 }
 

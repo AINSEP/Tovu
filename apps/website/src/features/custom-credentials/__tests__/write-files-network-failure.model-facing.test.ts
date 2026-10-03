@@ -17,7 +17,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -101,9 +101,9 @@ async function buildHarness(steps: Step[]) {
     },
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges: observedExchanges })) registry.register(registration);
-  const eventLog = createInMemoryEventLog();
+  const eventLog = createInMemoryEventLog({});
   const lifecycle = createRunLifecycle({ eventLog });
   const toolExecutor = createToolExecutor({ registry });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
@@ -164,7 +164,7 @@ test("a network failure after confirmation returns a caller-safe message: no tra
 });
 
 test("an egress refusal after confirmation reaches the model without the resolved address; the log keeps the full refusal", async () => {
-  const refusal = new EgressRefusedError(`egress to 'api.github.com' (${INTERNAL_ADDRESS}) rejected: resolved address is private`, {
+  const refusal = new EgressRefusedError({ message: `egress to 'api.github.com' (${INTERNAL_ADDRESS}) rejected: resolved address is private` }, {
     callerSafeMessage: "egress to 'api.github.com' rejected: resolved address is private",
   });
   const harness = await buildHarness([...PLAN_STEPS, { match: /\/git\/blobs$/, error: refusal }]);

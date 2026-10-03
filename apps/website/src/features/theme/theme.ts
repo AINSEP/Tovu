@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
+import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { markersOfType } from "#src/contracts/core/embeds/marker";
 import { checkBuiltThemeConformance } from "./build-conformance.js";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist.js";

@@ -21,7 +21,7 @@
  * {@link extractSessionRefFromEndEvent} captures for the NEXT turn to resume.
  */
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
-import type { RunStartHandler } from "@jini-ai/http-kit";
+import type { RunStartHandler } from "@jini-ai/daemon/http";
 
 type OnStartedContext = Parameters<RunStartHandler>[0];
 /**
@@ -34,7 +34,7 @@ type OnStartedContext = Parameters<RunStartHandler>[0];
  * non-type-only import. Deriving it via `Parameters<>` needs no new dependency and can never drift
  * from what `onStarted` itself actually receives.
  */
-type RunProtocolEvent = Parameters<Parameters<OnStartedContext["lifecycle"]["stream"]>[1]>[0];
+type RunProtocolEvent = Parameters<Parameters<OnStartedContext["lifecycle"]["stream"]>[0]["onEvent"]>[0];
 
 /**
  * The `AgentExecutorRunInput` fields a stored session id resolves to.

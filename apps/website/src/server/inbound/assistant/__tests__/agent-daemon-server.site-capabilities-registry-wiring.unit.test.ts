@@ -45,7 +45,7 @@ describe("site_describe_capabilities registry wiring in the agent daemon", () =>
       "the daemon must pass listCatalogTools: () => listToolCatalogEntries(registry) — without it site_describe_capabilities reports tools 'not-wired'",
     );
 
-    const registryDeclaration = DAEMON_ENTRY_SOURCE.indexOf("const registry = createToolRegistry();");
+    const registryDeclaration = DAEMON_ENTRY_SOURCE.indexOf("const registry = createToolRegistry({});");
     assert.ok(
       registryDeclaration > -1 && registryDeclaration < anchor,
       "the registry the reader closes over must be the daemon's one module-scope registry, declared before the call",
@@ -58,7 +58,7 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const ownerId = await routeDeps.ownerPrincipalId;
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const registrations = evaluateDaemonExpression<ReturnType<typeof buildAssistantToolRegistrations>>(
     daemonInitializer("assistantRegistrations"),
     { routeDeps, registry, listToolCatalogEntries, buildAssistantToolRegistrations,
@@ -79,5 +79,5 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   assert.equal(tools.status, "ok");
   const ids = tools.data.domains.flatMap((domain) => domain.tools.map((tool) => tool.id));
   assert.ok(ids.includes("audit_distinctive_late_tool"));
-  assert.deepEqual([...ids].sort(), registry.list().map((tool) => tool.id).sort());
+  assert.deepEqual([...ids].sort(), registry.list({}).map((tool) => tool.id).sort());
 });

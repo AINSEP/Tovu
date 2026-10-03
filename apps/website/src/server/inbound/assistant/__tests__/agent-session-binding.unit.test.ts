@@ -69,7 +69,7 @@ describe("agentAcceptsHostMintedSessionId — which defs the host may mint a ses
     const accepted = AGENT_DEFS.filter((def) => agentAcceptsHostMintedSessionId(def.id));
     assert.ok(accepted.length > 0, "no def accepts a host-minted session id — the predicate cannot be exercised at all");
     for (const def of accepted) {
-      const args = def.buildArgs("hi", [], [], {}, { newSessionId: "minted-abc" });
+      const args = def.buildArgs({ prompt: "hi", imagePaths: [] }, { extraAllowedDirs: [], options: {}, runtimeContext: { newSessionId: "minted-abc" } });
       assert.ok(
         args.includes("minted-abc"),
         `def "${def.id}" is claimed to accept a host-minted session id but its buildArgs never puts it on the command line`,

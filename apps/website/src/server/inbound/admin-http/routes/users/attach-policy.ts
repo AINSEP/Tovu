@@ -1,12 +1,7 @@
 import type { Response } from "express";
 
-import {
-  attachPolicy,
-  GrantExceedsIssuerError,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-} from "@jini-ai/cms/identity";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { attachPolicy } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 

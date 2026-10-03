@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,12 +9,17 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { createPost } from "#src/features/post/post";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file S1 (fix plan 2026-09-24 row 14) — the composition roots actually connect `pages_write_html`
@@ -31,11 +38,11 @@ const HTML = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi
 const DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] };
 
 function pagesWriteHtml(routeDeps: RootDeps): ToolRegistration {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const allowAll: RegistryDeps["authorize"] = async () => ({ allowed: true, reason: "test" });
-  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps);
+  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, undefined, { contributions });
   const registration = registrations.find((r) => r.descriptor.id === "pages_write_html");
   assert.ok(registration, "pages_write_html must be registered by the real first-party registry");
   return registration;

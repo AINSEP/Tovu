@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { OriginRegistryPort, VerifiedOrigin } from "#src/features/origin/index";
 import { collectPageEvidence } from "../../collect-page-evidence.js";

@@ -1,8 +1,10 @@
+import { nowIso } from "@jini-ai/core/primitives";
 
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
-import { requireInputRecord, requireString, requireToolPermission, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
+import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
@@ -172,8 +174,8 @@ function buildMediaTrashHandler(
   originalHandler: ToolHandler
 ): ToolHandler {
   return async (ctx) => {
-    const mediaId = requireString(requireInputRecord(ctx.input), "mediaId");
-    await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.delete", entityType: "media", entityId: mediaId });
+    const mediaId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "mediaId" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "media.delete" }, { entityType: "media", entityId: mediaId });
 
     const existing = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
     if (!existing) throw new Error(`media asset '${mediaId}' was not found`);
@@ -191,7 +193,7 @@ function buildMediaTrashHandler(
       workspaceId: routeDeps.workspaceId,
       id: mediaId,
       display: { title: current.title, subtitle: current.slug },
-      at: routeDeps.clock.nowIso(),
+      at: nowIso({ clock: routeDeps.clock }),
       expectedVersion: current.version,
       actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
     });
@@ -236,9 +238,8 @@ export function buildMediaRegistrationsForTovu(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps,
   surfaces: AssistantSurfaceDeps
 ): ToolRegistration[] {
-  const registrations = buildMediaRegistrations({
-    ...routeDeps,
-    resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
+  const registrations = buildMediaRegistrations(routeDeps, {
+    resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });

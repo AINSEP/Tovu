@@ -52,7 +52,7 @@ function buildRealPostToolExecutor() {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,
@@ -62,7 +62,7 @@ function buildRealPostToolExecutor() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as RouteDeps;
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }

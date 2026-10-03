@@ -1,12 +1,5 @@
-import type {
-  ClockPort,
-  DomainEvent,
-  IdGeneratorPort,
-  OutboxPort,
-  UUID,
-  ChangeSetRecord,
-  ChangeSetRepoPort,
-} from "@jini-ai/cms/core";
+import { nowIso as readNowIso, type Clock as ClockPort, type IdGenerator as IdGeneratorPort, type UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/cms/core";
 import type { RevertRegistry } from "./appliers.js";
 
 /**
@@ -215,7 +208,7 @@ export async function revertChangeSet(
   const reverted: ChangeSetRecord = {
     ...latest.changeSet,
     status: "reverted",
-    revertedAt: deps.clock.nowIso(),
+    revertedAt: readNowIso({ clock: deps.clock }),
   };
   await changeSets.save(reverted);
 

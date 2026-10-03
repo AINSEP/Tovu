@@ -1,10 +1,17 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { isMcpUiToolCallPermitted } from "#src/assistant/mcp-ui-tool-calls";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /** Owner Q1 (2026-10-01) supersedes the purge ban: permanent deletion is callable only
  * through an authenticated human confirmation exchange. The handler suite probes bypasses. */
@@ -16,9 +23,9 @@ const IDS = [
 
 for (const id of IDS) {
   test(`${id} is registered as a durable mutation and its card can answer only an open exchange`, () => {
-    resetToolContributorsForTests();
-    installFirstPartyToolContributors();
-    const registration = buildAssistantToolRegistrations(createRouteDeps()).find(r => r.descriptor.id === id);
+    contributions.contributors.clear({});
+    installFirstPartyToolContributors({ contributions });
+    const registration = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }).find(r => r.descriptor.id === id);
     assert.ok(registration, `Missing confirmed permanent-delete tool: ${id}`);
     assert.equal(registration.descriptor.readOnly, false);
     assert.equal(isMcpUiToolCallPermitted(id, true), true);
@@ -57,7 +64,7 @@ for (const [id, input] of [
         return { purged: 1, results: [{ id: "row-1", outcome: "purged" as const }] };
       } },
     };
-    const registration = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges: store }).find(r => r.descriptor.id === id)!;
+    const registration = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges: store }, { contributions }).find(r => r.descriptor.id === id)!;
     const ctx = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal };
     await assert.rejects(registration.handler(ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
     assert.equal(purges, 0);
@@ -77,7 +84,7 @@ for (const [id, input] of [
 }
 
 test("new purge capabilities cannot enter the catalog outside the reviewed confirmed-delete set", () => {
-  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
   const unreviewed = registrations.map(r => r.descriptor.id)
     .filter(id => /purge|hard_?delete|permanently/i.test(id) && !IDS.includes(id));
   assert.deepEqual(unreviewed, [], "A new permanent-purge capability must join the confirmed-call contract tests.");

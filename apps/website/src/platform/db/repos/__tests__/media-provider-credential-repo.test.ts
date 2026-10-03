@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { MediaProviderCredentialRecord } from "#src/features/media/provider-credential-store";
+import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "#src/features/media/provider-credential-store";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaProviderCredentialRepo } from "../media-provider-credential-repo.js";
@@ -232,6 +235,53 @@ describeEachDialect(
 
       assert.deepEqual(staleSnapshot.map((r) => r.model), ["v1"]);
       assert.deepEqual(seenByPlanner, ["openai:v2"], "the planner must see committed state, not the caller's older read");
+    });
+
+    test("replaceWorkspace reads, plans and writes inside the real kernel transaction", async () => {
+      const { kernel } = make();
+      await seedWorkspaces(kernel, [WORKSPACE]);
+      const transactionStates: boolean[] = [];
+      const observedKernel: typeof kernel = { ...kernel,
+        run: (fn) => {
+          transactionStates.push(kernel.inTransaction());
+          return kernel.run(fn);
+        },
+      };
+      const repo = new SqlMediaProviderCredentialRepo(observedKernel);
+      await repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => {
+        assert.equal(kernel.inTransaction(), true, "the planner must run inside the transaction");
+        return { upserts: [makeRecord()], tombstoneProviderIds: [] };
+      } });
+      assert.ok(transactionStates.length > 0, "the real database must have been accessed");
+      assert.ok(transactionStates.every(Boolean), "every read and write must use the transaction executor");
+      assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [makeRecord()]);
+    });
+
+    test("a metadata-only SQL save preserves a rotation committed while its other key was sealing", async () => {
+      const repo = await makeRepo();
+      const keyring = new InMemoryKeyring();
+      const sealer = new AesGcmSecretSealer(keyring);
+      const deps = { repo, keyring, sealer, clock: { nowIso: () => NOW } };
+      await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } });
+      let release!: () => void;
+      let entered!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const sealing = new Promise<void>((resolve) => { entered = resolve; });
+      const slow = saveMediaProviderCredentials({ ...deps, sealer: {
+        open: sealer.open.bind(sealer),
+        seal: async (input) => { entered(); await gate; return sealer.seal(input); },
+      } }, { workspaceId: WORKSPACE, providers: { openai: { model: "edited" }, grok: { apiKey: "xai-new-3333" } } });
+      try {
+        await sealing;
+        await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-rotated-9999" } } });
+      } finally {
+        release();
+      }
+      await slow;
+      assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), {
+        apiKey: "sk-rotated-9999", baseUrl: null, model: "edited",
+      });
+      assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "grok" }))?.apiKey, "xai-new-3333");
     });
 
     test("replaceWorkspace never reads or tombstones another workspace's rows", async () => {

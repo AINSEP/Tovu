@@ -1,14 +1,14 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
-import {
-  type PublishHistoryEntry,
-  type PublishHistoryStore,
-  type PublishTrigger,
-} from "#src/features/deployments/static-publish/publish-history";
+import type {
+  PublishHistoryEntry,
+  PublishHistoryStore,
+  PublishTrigger,
+  StaticPublishTargetId,
+} from "#src/features/deployments/static-publish/index";
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
-import type { StaticPublishTargetId } from "#src/features/deployments/static-publish/types";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishHistoryTable } from "../content-database.generated.js";
 import { toBool } from "../kernel/index.js";
@@ -87,6 +87,14 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
       return query.orderBy("id", "desc").limit(limit).execute();
     });
     return rows.map(toRecord);
+  }
+
+  /** Full-ledger projection; DISTINCT prevents repeated publishes hiding an older live URL.
+   * SQL work is O(history rows), returned memory is bounded to 201 URL strings. No writes. */
+  async listLiveUrls(input: { workspaceId: UUID }): Promise<string[]> {
+    const rows = await this.kernel.run(db => db.selectFrom("publish_history").select("url")
+      .where("workspace_id", "=", input.workspaceId).distinct().orderBy("url").limit(201).execute());
+    return rows.map(row => row.url);
   }
 
   /** Append-only insert, no transaction control of its own: a single-row append has no group

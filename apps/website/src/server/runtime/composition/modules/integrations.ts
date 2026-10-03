@@ -5,7 +5,8 @@ import type {
   WebhookTopic,
 } from "#src/features/webhooks/index";
 import { enqueueDelivery } from "#src/features/webhooks/delivery";
-import type { ClockPort, EventBusPort, IdGeneratorPort, JsonObject } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonObject } from "@jini-ai/core/primitives";
+import type { EventBusPort } from "@jini-ai/cms/core";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -27,7 +28,8 @@ export interface IntegrationsModuleDeps {
   webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
   webhookDeliveryRepo: WebhookDeliveryRepoPort;
   idGen: IdGeneratorPort;
-  clock: ClockPort;
+  /** Webhook enqueueing consumes ISO time from the same host clock as the rest of the site. */
+  clock: ClockPort & { nowIso(): string };
 }
 
 export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerModuleHandle {
@@ -35,25 +37,28 @@ export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerMo
     name: "integrations",
     start: () => {
       const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
-      void deps.bus.subscribe("form.submission.received", async (event) => {
-        await enqueueDelivery({
-          deps: {
-            subscriptionRepo: deps.webhookSubscriptionRepo,
-            deliveryRepo: deps.webhookDeliveryRepo,
-            envelopeStore: formsWebhookEnvelopeStore,
-            idGenerator: deps.idGen,
-            clock: deps.clock,
-          },
-          input: {
-            event: {
-              id: event.id,
-              name: event.name as WebhookTopic,
-              workspaceId: event.workspaceId,
-              occurredAt: event.occurredAt,
-              payload: event.payload as JsonObject,
+      void deps.bus.subscribe<JsonObject>({
+        eventName: "form.submission.received",
+        handler: async (event) => {
+          await enqueueDelivery({
+            deps: {
+              subscriptionRepo: deps.webhookSubscriptionRepo,
+              deliveryRepo: deps.webhookDeliveryRepo,
+              envelopeStore: formsWebhookEnvelopeStore,
+              idGenerator: deps.idGen,
+              clock: deps.clock,
             },
-          },
-        });
+            input: {
+              event: {
+                id: event.id,
+                name: event.name as WebhookTopic,
+                workspaceId: event.workspaceId,
+                occurredAt: event.occurredAt,
+                payload: event.payload,
+              },
+            },
+          });
+        },
       });
     },
   };

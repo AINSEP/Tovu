@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import { InMemoryExternalMcpToolApprovalRepo } from "../../assistant/external-mcp-tool-approvals.js";
 import { createRouteDeps } from "../runtime/composition/app.js";

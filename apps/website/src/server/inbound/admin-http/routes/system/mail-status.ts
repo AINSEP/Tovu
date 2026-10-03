@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { MailerPort } from "#src/platform/mail/index";
+import { isMailDeliveryAvailable } from "#src/platform/mail/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -15,19 +15,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mailer">;
 
-/**
- * Whether the resolved mailer really sends mail. `ConsoleMailerAdapter` (driver `console`) is
- * `resolve-mailer.ts`'s no-credential fallback and only logs to stdout.
- *
- * Reads `capabilities()` synchronously, so a request in the first milliseconds after boot can
- * still see the pre-swap console adapter — the startup race `resolve-mailer.ts`'s header discloses.
- *
- * @complexity O(1).
- */
-export function isMailDeliveryAvailable(mailer: MailerPort): boolean {
-  return mailer.capabilities().driver !== "console";
-}
-
+// Delivery predicate: Jini/packages/platform/src/mail/delivery-availability.ts; boot-race caveat: platform/mail/delivery-availability.ts.
 export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatusDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-status", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {

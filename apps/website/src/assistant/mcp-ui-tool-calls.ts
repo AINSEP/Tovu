@@ -28,14 +28,21 @@ import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
  * `SurfaceExchangeStore` exchange and parks on the answer the way `identity_role_delete`
  * and the credential form tools do, or — for the
  * legacy shape, currently unused by any wired tool — its own handler performs its own single-use,
- * TTL-bound token redemption via `pending-confirmations.ts`. Adding an id whose handler does neither
+ * TTL-bound token redemption through a tool-owned token store. Adding an id whose handler does neither
  * would turn this into an unauthenticated remote-execution allowlist for that tool, model-callable
  * with no human in the loop.
  *
  * Originally started with the one tool this mechanism was built for (ADR-053 Decision 6: start
  * narrow, widen only per-tool by deliberate choice).
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
+  // Credential forms submit secrets only to the already parked, principal-bound exchange.
+  "media_propose_provider_credential",
+  "source_control_propose_credential",
+  // Protected privacy/instructions/runtime writes wait for an authenticated human card.
+  "settings_set_value",
+  "settings_clear_value",
   "trash_empty",
   "trash_purge_item",
   "media_purge_asset",
@@ -45,6 +52,11 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "custom_credential_delete",
   "deployment_delete_provider_credential",
   "source_control_delete_credential",
+  // Newsletter delivery parks on the same browser-only surface exchange; no model input confirms it.
+  "newsletter_send_campaign",
+  "newsletter_schedule_campaign",
+  "newsletter_resume_campaign",
+  "newsletter_resend_confirmation",
   // `agent_plugin_set_access_token` (`features/agent-plugins/access-token-tool.ts`; moved 2026-09-29
   // from SPEC-052's Supabase-only `supabase_set_access_token`) holds up the SAME held-open-exchange
   // shape `custom_credential_set_token` does: it opens a `SurfaceExchangeStore` exchange and parks on
@@ -213,6 +225,8 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // held-open exchange via `requireHumanConfirm`. The click carries only the decision; the confirm
   // step runs as the human whose click this endpoint delivered.
   "taxonomy_execute_merge_term",
+  // Pull parks on the same human-bound confirmation exchange before entering the import gateway.
+  "publish_content_execute_pull",
   "database_execute_migrate_forward",
   "backup_execute_restore",
 ]);
@@ -229,7 +243,9 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
 
 /**
  * The one rule both halves of the redemption path apply (the daemon route and Tovu's proxy):
- * an allowlisted id always passes; a FEDERATED id (`mcp__<connection>__<name>`) passes only when the
+ * the media/source-control credential forms and permanent-delete cards require an exchange;
+ * other allowlisted ids pass.
+ * A FEDERATED id (`mcp__<connection>__<name>`) passes only when the
  * request answers an open card (names an exchange, or is a typed answer resolved to one).
  *
  * Why federated ids are not simply allowlisted: they are discovered at runtime, and every one of them
@@ -242,6 +258,8 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  * @complexity O(1).
  */
 export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean): boolean {
+  // Form secrets must reach a parked handler, never a fresh tool execution or its input audit.
+  if (toolName === "media_propose_provider_credential" || toolName === "source_control_propose_credential") return answersAnExchange;
   // Permanent-delete cards may answer a parked call, never execute a new call via this endpoint.
   if (PERMANENT_DELETE_CONFIRMATION_TOOL_IDS.has(toolName)) return answersAnExchange;
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return true;

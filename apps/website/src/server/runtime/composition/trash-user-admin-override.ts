@@ -1,4 +1,4 @@
-import type { AuthServiceDeps } from "@jini-ai/cms/identity";
+import type { AuthServiceDeps } from "@jini-ai/user-management/server";
 
 import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 import { USER_ENTITY_TYPE, type TrashAuthorizeFn } from "#src/features/trash/index";

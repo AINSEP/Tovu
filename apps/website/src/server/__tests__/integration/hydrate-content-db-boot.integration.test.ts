@@ -95,7 +95,7 @@ test("first boot with no content.db hydrates it from the stock seed before openi
     const deps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
 
     assert.ok(fs.existsSync(dbPath), "hydration must have created content.db at the site's default path");
-    const found = await deps.workspaceRepo.findById("seed-marker-workspace");
+    const found = await deps.workspaceRepo.findById({ id: "seed-marker-workspace" });
     assert.ok(found, "the stock seed's marker workspace must be present — proof the seed file, not just the built-in demo data, was used");
     assert.equal(found?.name, "Seed Marker");
 
@@ -136,7 +136,7 @@ test("REGRESSION: a second boot against an already-hydrated site never re-copies
     // Second boot against the SAME site dir.
     const secondBootDeps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
 
-    const survived = await secondBootDeps.workspaceRepo.findById("post-boot-production-workspace");
+    const survived = await secondBootDeps.workspaceRepo.findById({ id: "post-boot-production-workspace" });
     assert.ok(survived, "a workspace written after the first boot must still exist after a second boot — a redeploy must never clobber live production data");
     assert.equal(survived?.name, "Written After Boot");
 

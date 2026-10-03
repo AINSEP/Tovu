@@ -9,7 +9,7 @@ import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 
 /**
  * @file The chat-history store's one Kysely body on SQLite and PGlite (storage plan §4): every
- * method, owner isolation on each of them (the cases of `@jini-ai/sqlite`'s own
+ * method, owner isolation on each of them (the cases of `@jini-ai/chat/store/sqlite`'s own
  * `chat-history/__tests__/isolation.test.ts`), a rollback, and concurrent appends to one chat.
  */
 

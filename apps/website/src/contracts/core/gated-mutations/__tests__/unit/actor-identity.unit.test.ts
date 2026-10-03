@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WorkspaceMismatchError, appendActorReference } from "../../actor-identity.js";
+import { WorkspaceMismatchError, appendActorReference } from "@jini-ai/core/gated-mutations";
 
 /**
  * @file SPEC-016 C-006 / REQ-16–REQ-18 / INV-06 / INV-07 — composite actor-identity population.
@@ -16,10 +16,11 @@ import { WorkspaceMismatchError, appendActorReference } from "../../actor-identi
  *     referencingRowWorkspaceId: string;
  *     actorWorkspaceId: string;
  *     actorId: string;
+ *   },
+ *   optional?: {
  *     delegatedByWorkspaceId?: string | null;
  *     delegatedById?: string | null;
- *   },
- *   optional?: {}
+ *   }
  * ): {
  *   actorWorkspaceId: string;
  *   actorId: string;
@@ -52,6 +53,7 @@ test("AC-23 / REQ-16: an agent-delegated action additionally carries (delegatedB
     referencingRowWorkspaceId: "ws-1",
     actorWorkspaceId: "ws-1",
     actorId: "agent-1",
+  }, {
     delegatedByWorkspaceId: "ws-1",
     delegatedById: "user-1",
   });
@@ -65,6 +67,7 @@ test("REQ-16: an api_key action acting for its owning user carries the owning us
     referencingRowWorkspaceId: "ws-1",
     actorWorkspaceId: "ws-1",
     actorId: "api-key-1",
+  }, {
     delegatedByWorkspaceId: "ws-1",
     delegatedById: "owning-user-1",
   });
@@ -110,6 +113,7 @@ test("INV-06: a mismatched delegator workspace is also rejected, independent of 
         referencingRowWorkspaceId: "ws-1",
         actorWorkspaceId: "ws-1",
         actorId: "agent-1",
+      }, {
         delegatedByWorkspaceId: "ws-2", // mismatched
         delegatedById: "user-1",
       }),

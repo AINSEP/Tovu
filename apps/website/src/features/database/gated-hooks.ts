@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 
@@ -71,7 +72,7 @@ export interface BuildMigrateForwardHooksInput {
  * run, the schema is already at head; re-invoking the migrator here would be a no-op in every
  * environment this dispatch can actually exercise, and this file has no reachable seam into the
  * hermetic (`server/app.ts`) composition's non-existent `content.db` at all. Persisting a
- * `migration_runs` row (the state machine's own attempt ledger, `state-machine.ts`) is likewise
+ * `migration_runs` row (the former state machine's attempt ledger) is likewise
  * out of this pass's scope — no composition root wires `SqliteMigrationRunsRepo`/an in-memory
  * counterpart into `RouteDeps` yet; disclosed, not silently skipped.
  *
@@ -91,6 +92,7 @@ export interface BuildMigrateForwardHooksInput {
  *
  * @complexity O(1) plus one `captureRestorePoint()` call and two persistence writes.
  * @overallScore 100
+ * state-machine.ts (features/database/migrate-forward/state-machine.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): GatedMutationHooks<{ costClass: string; siteId: string }, { migrated: true }> {
   return {
@@ -110,7 +112,7 @@ export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): 
       const capabilities = await input.dbOps.getCapabilities();
       const captured = await input.dbOps.captureRestorePoint({ scopeId: input.workspaceId });
       const restorePointId = input.idGen.newId();
-      const now = input.clock.nowIso();
+      const now = clockNowIso({ clock: input.clock });
       await input.restorePointsRepo.save({
         restorePointId,
         idempotencyKey: restorePointId,

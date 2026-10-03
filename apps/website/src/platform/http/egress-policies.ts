@@ -255,3 +255,9 @@ export function parsePublishContentDevHosts(raw: string | undefined): string[] {
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry !== "");
 }
+
+/** Live-page reads reuse the media-import pinned-peer guard with manual feature-owned redirects. */
+export const LIVE_PAGE_EGRESS_POLICY: EgressPolicy = {
+  allowedSchemes: ["https"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0,
+  connectTimeoutMs: 15_000, maxResponseBytes: 1_000_000, maxDecompressedBytes: 1_000_000,
+};

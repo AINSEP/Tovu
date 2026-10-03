@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError, type MediaRecord, type MediaRepoPort } from "@jini-ai/cms/media";
 
 /**
@@ -114,7 +114,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     const claimant = this.retired.find((row) => row.workspaceId === workspaceId && row.slug === slug);
     if (!claimant) return;
     if (claimant.mediaId !== mediaId) {
-      throw new MediaConflictError(`slug '${slug}' is already used by another media asset in this workspace`);
+      throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
     }
     this.retired = this.retired.filter((row) => row !== claimant);
   }

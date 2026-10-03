@@ -1,4 +1,4 @@
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   NON_REGISTER_DEFINITION_OPS,
   parseNonRegisterDefinitionOp,
@@ -85,7 +85,7 @@ async function applyDefinitionItem(
     return { applied: { key: `${namespace}.${key}`, op, status: "applied" } };
   }
 
-  const parsedOp = parseNonRegisterDefinitionOp(op);
+  const parsedOp = parseNonRegisterDefinitionOp({ op });
   if (!parsedOp) {
     return { unknownOp: op };
   }
@@ -100,7 +100,7 @@ async function applyDefinitionItem(
     defaultJson: defaultValue,
     coercionJson: item.coercionJson as string | { tag?: string } | undefined,
   };
-  await NON_REGISTER_DEFINITION_OPS[parsedOp](opCtx, opItem);
+  await NON_REGISTER_DEFINITION_OPS[parsedOp]({ ctx: opCtx, item: opItem });
   return { applied: { key: `${namespace}.${key}`, op, status: "applied" } };
 }
 

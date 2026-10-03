@@ -515,9 +515,9 @@ test("with the theme turned off, the template preview returns a real error — n
   // like. This is an admin tool, not a public surface, so a real error is the right answer here even
   // though the public site renders unstyled instead.
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
-  deps.presentationRepo = new InMemoryPresentationSettingsRepo([
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: new Date().toISOString() } as never,
-  ]);
+  ] });
   const post = await savePost(deps, { slug: "preview-no-theme" });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -632,9 +632,9 @@ test("an html Page with the picker's explicit 'No template chosen' previews BARE
 
 test("a bare Page preview works on a site with no active theme — the bare branch runs before the 409 check (S5)", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
-  deps.presentationRepo = new InMemoryPresentationSettingsRepo([
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: new Date().toISOString() } as never,
-  ]);
+  ] });
   const page = await saveHtmlPage(deps, {
     slug: "bare-no-theme",
     status: "published",

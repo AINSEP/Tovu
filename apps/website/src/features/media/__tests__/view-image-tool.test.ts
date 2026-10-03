@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { createToolRegistry, isReadOnlyTool, ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../index.js";
 import {
@@ -39,8 +39,8 @@ interface Harness {
 }
 
 function makeHarness(options: { allow?: boolean } = {}): Harness {
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const checkedPermissions: string[] = [];
   const deps: MediaViewImageToolDeps = {
@@ -75,11 +75,11 @@ async function seed(
 ): Promise<{ id: string; slug: string; title: string }> {
   const { media } = await uploadMedia({
     deps: {
-      clock: { nowIso: () => NOW },
+      clock: { nowMs: () => Date.parse(NOW) },
       idGen: { newId: () => `seed-${++idCounter}` },
       mediaRepo: harness.mediaRepo,
       blobRepo: harness.assetBlobRepo,
-      renditionRepo: new InMemoryAssetRenditionRepo(),
+      renditionRepo: new InMemoryAssetRenditionRepo({}),
       blobStore: harness.blobStore,
     },
     input: {
@@ -291,7 +291,7 @@ test("it requires media.read, and a denied principal gets ForbiddenError before 
 test("it is registered read-only with no side effects, so execute_readonly_delegated_tool accepts it", () => {
   const harness = makeHarness();
   const registration = viewTool(harness);
-  assert.equal(isReadOnlyTool(registration.descriptor), true);
+  assert.equal(isReadOnlyTool({ descriptor: registration.descriptor }), true);
   assert.equal(mediaViewImageDerivedRisk.get(MEDIA_VIEW_IMAGE_TOOL_ID), "none");
 });
 
@@ -300,7 +300,7 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
   const asset = await seed(harness, { bytes: await splitColorPng(800, 600), filename: "route.png", contentType: "image/png" });
   const direct = imageBlockOf(await call(viewTool(harness), { mediaId: asset.id }));
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildMediaViewImageRegistrations(harness.deps)) registry.register(registration);
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
   const { run } = await lifecycle.start({ contextRef: "ctx-view-image" });

@@ -124,7 +124,7 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
   });
 }
 
-runMediaSuite("memory", () => new InMemoryMediaRepo());
+runMediaSuite("memory", () => new InMemoryMediaRepo({}));
 const mediaDialects = eachDialect({ tables: ["media", "media_slug_history"], make: (kernel) => new SqlMediaRepo(kernel) });
 for (const each of mediaDialects) runMediaSuite(each.name, each.make);
 // `InMemoryVersionedMediaRepo` implements the plain `MediaRepoPort` surface identically to Jini's
@@ -500,7 +500,7 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
   });
 }
 
-runAssetBlobSuite("memory", () => new InMemoryAssetBlobRepo());
+runAssetBlobSuite("memory", () => new InMemoryAssetBlobRepo({}));
 for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) runAssetBlobSuite(each.name, each.make);
 
 function makeRendition(overrides: Partial<AssetRenditionRecord> = {}): AssetRenditionRecord {
@@ -558,7 +558,7 @@ function runRenditionSuite(label: string, makeRepo: () => AssetRenditionRepoPort
   });
 }
 
-runRenditionSuite("memory", () => new InMemoryAssetRenditionRepo());
+runRenditionSuite("memory", () => new InMemoryAssetRenditionRepo({}));
 for (const each of eachDialect({ tables: ["asset_renditions"], make: (kernel) => new SqlAssetRenditionRepo(kernel) })) runRenditionSuite(each.name, each.make);
 
 function makeTransformDef(overrides: Partial<TransformDefinitionRecord> = {}): TransformDefinitionRecord {
@@ -603,7 +603,7 @@ function runTransformDefSuite(label: string, makeRepo: () => TransformDefinition
   });
 }
 
-runTransformDefSuite("memory", () => new InMemoryTransformDefinitionRepo());
+runTransformDefSuite("memory", () => new InMemoryTransformDefinitionRepo({}));
 const transformDialects = eachDialect({ tables: ["transform_registry"], make: (kernel) => new SqlTransformDefinitionRepo(kernel) });
 for (const each of transformDialects) runTransformDefSuite(each.name, each.make);
 

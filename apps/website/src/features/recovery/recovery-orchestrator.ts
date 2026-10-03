@@ -1,3 +1,4 @@
+import type { Clock } from "@jini-ai/core/primitives";
 /**
  * @file SPEC-019 C-301/C-302/C-303 — the Recovery restore ceremony (ADR-045 §3, CIC U-001/U-002/
  * U-003).
@@ -154,17 +155,13 @@ interface OperationLockHandle {
   acquiredAt: string;
 }
 
-interface OperationLockClock {
-  nowIso(): string;
-}
-
 export interface ExecuteRestoreOperationLockPort {
   acquireOperationLock(params: {
-    deps: { clock: OperationLockClock };
+    deps: { clock: Clock };
     input: { siteId: string; operationKind: "migration" | "restore" };
   }): Promise<{ ok: true; value: OperationLockHandle } | { ok: false; error: { code: string; message?: string } }>;
   releaseOperationLock(params: {
-    deps: { clock: OperationLockClock };
+    deps: { clock: Clock };
     input: { siteId: string; handle: OperationLockHandle };
   }): Promise<void>;
 }
@@ -177,7 +174,7 @@ export interface ExecuteRestoreRequired {
   deps: {
     gateway: ExecuteRestoreGatewayPort;
     operationLock: ExecuteRestoreOperationLockPort;
-    clock: OperationLockClock;
+    clock: Clock;
     /** Never invoked by this function (REQ-18/EC-07) — accepted only so a caller cannot be
      * tempted to wire an implicit clear-on-success elsewhere; kept in the seam to make the
      * "never called" property directly testable. */

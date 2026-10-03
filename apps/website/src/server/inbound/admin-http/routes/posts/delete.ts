@@ -120,7 +120,7 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
               deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
               input: { workspaceId: deps.workspaceId, id: postId, actorId: principal.id },
             }),
-          captureEntityVersion: (r) => r.post.version,
+          captureEntityVersion: ({ result }) => result.post.version,
           rollback: async () => {
             if (!priorPost) return;
             // Compensates the post row, its revision ledger AND the Trash index row `deletePost`

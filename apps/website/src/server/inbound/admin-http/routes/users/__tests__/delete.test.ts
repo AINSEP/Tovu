@@ -25,7 +25,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserDeleteRoute } from "../delete.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { assignRole, createUser } from "@jini-ai/cms/identity";
+import { assignRole, createUser } from "@jini-ai/user-management/server";
 
 /**
  * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
@@ -37,7 +37,7 @@ import { assignRole, createUser } from "@jini-ai/cms/identity";
 
 const WORKSPACE_ID = "ws-delete-route";
 const NOW = "2026-09-24T00:00:00.000Z";
-const clock = { nowIso: () => NOW };
+const clock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };

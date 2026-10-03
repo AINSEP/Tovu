@@ -1,7 +1,7 @@
-import type { UUID } from "@jini-ai/cms/core";
-import { FormSlugConflictError } from "./errors.js";
+import type { UUID } from "@jini-ai/core/primitives";
+import { FormSlugConflictError } from "@jini-ai/cms-forms";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
-import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "./types.js";
+import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file In-memory adapters for `forms` (rule-of-two half #1, ADR-006).
@@ -77,7 +77,7 @@ export class InMemoryFormDefinitionRepo implements FormDefinitionRepoPort {
         conflicting.deletedAt !== null
           ? `a form with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
           : `a form with slug '${record.slug}' already exists`;
-      throw new FormSlugConflictError(message, record.slug);
+      throw new FormSlugConflictError({ message, slug: record.slug });
     }
     this.rows.set(record.id, { ...cloneStored({ ...record, deletedAt: null }) });
   }

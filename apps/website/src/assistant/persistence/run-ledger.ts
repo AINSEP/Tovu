@@ -3,7 +3,7 @@ import type { ExpressionBuilder } from "kysely";
 
 import { runInterruptedNotice } from "#src/contracts/core/assistant-run-events";
 import { type ChatDatabase, type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
-import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 
 /**
  * @file The run-status half of chat history: the writes that decide how an assistant turn ENDS.

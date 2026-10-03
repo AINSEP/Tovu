@@ -1,5 +1,5 @@
 /**
- * @file Identity's agent-tool registrations — built by `@jini-ai/cms/identity`, with Tovu's human
+ * @file Identity's agent-tool registrations — built by `@jini-ai/user-management`, with Tovu's human
  * confirmation added on top.
  *
  * A shim rather than a rewrite of the one importer, deliberately.
@@ -36,11 +36,16 @@ import {
   type AssistantSurfaceDeps,
   type ConfirmationOutcome,
 } from "#src/contracts/core/tool-surface-exchanges";
-import { buildIdentityRegistrations, identityDerivedRisk, parseIdentityToolInput, type IdentityToolDeps } from "@jini-ai/cms/identity";
-import { ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "@jini-ai/user-management/server";
+import { parseIdentityToolInput } from "@jini-ai/user-management/server";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import type { Clock } from "@jini-ai/core/primitives";
 import { buildFormSurface, buildOutcomeSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };
+
+/** Tovu keeps its ISO clock ABI at this adapter; shared service/rationale live in user-management/server. */
+type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock"> & { clock: Clock | { nowIso(): string } };
 
 const ROLE_DELETE_TOOL_ID = "identity_role_delete";
 const POLICY_DELETE_TOOL_ID = "identity_policy_delete";
@@ -57,10 +62,8 @@ export const USER_CREATE_DESCRIPTION_SUFFIX =
 function validated(toolId: string, schema: unknown, input: unknown): Readonly<Record<string, string>> {
   const parsed = parseIdentityToolInput({ schema: schema as Record<string, unknown>, input });
   if (!parsed.ok) {
-    throw new ToolInputError(
-      `${parsed.error.message}. Fix the input and retry — this will not resolve on retry without an input change. ` +
-        `Schema for '${toolId}': ${JSON.stringify(schema)}`,
-    );
+    throw new ToolInputError({ message: `${parsed.error.message}. Fix the input and retry — this will not resolve on retry without an input change. ` +
+        `Schema for '${toolId}': ${JSON.stringify(schema)}` });
   }
   return parsed.value;
 }
@@ -72,15 +75,15 @@ function validated(toolId: string, schema: unknown, input: unknown): Readonly<Re
 function gated(
   registration: ToolRegistration,
   flag: string,
-  confirm: (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => Promise<ConfirmationOutcome>,
+  confirm: (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => Promise<ConfirmationOutcome>,
 ): ToolRegistration {
   const { descriptor, handler } = registration;
   return {
     ...registration,
-    handler: async (ctx) => {
-      const outcome = await confirm(ctx, validated(descriptor.id, descriptor.inputSchema, ctx.input));
+    handler: async (ctx, options = {}) => {
+      const outcome = await confirm(ctx, validated(descriptor.id, descriptor.inputSchema, ctx.input), options);
       if (!outcome.confirmed) return { [flag]: false, ...notConfirmedResult(outcome) };
-      return handler(ctx);
+      return handler(ctx, options);
     },
   };
 }
@@ -105,7 +108,7 @@ export function withoutPassword(schema: unknown): unknown {
  * @complexity O(n) in the registration count; each gate adds one or two repo reads per call.
  */
 export function buildGatedIdentityRegistrations(
-  routeDeps: IdentityToolDeps,
+  routeDeps: TovuIdentityToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
 ): ToolRegistration[] {
   const scope = { workspaceId: routeDeps.workspaceId };
@@ -113,9 +116,9 @@ export function buildGatedIdentityRegistrations(
   const roleLabel = async (id: string) => (await routeDeps.roleRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
   const policyLabel = async (id: string) => (await routeDeps.policyRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
 
-  const confirmRoleDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => {
+  const confirmRoleDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => {
     const role = await roleLabel(input["roleId"]!);
-    return requireHumanConfirm(ctx, surfaces, {
+    return requireHumanConfirm({ ctx, surfaces, spec: {
       toolId: ROLE_DELETE_TOOL_ID,
       errorCode: "IDENTITY",
       title: `Delete the role ${role}?`,
@@ -123,12 +126,12 @@ export function buildGatedIdentityRegistrations(
       warning: "The role is deleted for good. This can't be undone.",
       danger: true,
       confirmLabel: "Delete role",
-    });
+    } }, options);
   };
 
-  const confirmPolicyDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => {
+  const confirmPolicyDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => {
     const policy = await policyLabel(input["policyId"]!);
-    return requireHumanConfirm(ctx, surfaces, {
+    return requireHumanConfirm({ ctx, surfaces, spec: {
       toolId: POLICY_DELETE_TOOL_ID,
       errorCode: "IDENTITY",
       title: `Delete the policy ${policy}?`,
@@ -136,26 +139,22 @@ export function buildGatedIdentityRegistrations(
       warning: "The policy is deleted for good. This can't be undone.",
       danger: true,
       confirmLabel: "Delete policy",
-    });
+    } }, options);
   };
 
-  const createUserWithHumanPassword = (inner: ToolHandler, publishedSchema: unknown): ToolHandler => async (ctx) => {
+  const createUserWithHumanPassword = (inner: ToolHandler, publishedSchema: unknown): ToolHandler => async (ctx, options = {}) => {
     if (typeof ctx.input === "object" && ctx.input !== null && "password" in ctx.input) {
-      throw new ToolInputError(
-        `IDENTITY_PASSWORD_NOT_ACCEPTED: ${USER_CREATE_TOOL_ID}: do not pass a password. The user types the new ` +
-          "user's first password into the form this tool shows. Nothing was created.",
-      );
+      throw new ToolInputError({ message: `IDENTITY_PASSWORD_NOT_ACCEPTED: ${USER_CREATE_TOOL_ID}: do not pass a password. The user types the new ` +
+          "user's first password into the form this tool shows. Nothing was created." });
     }
     const input = validated(USER_CREATE_TOOL_ID, publishedSchema, ctx.input);
     const username = input["username"]!;
-    if (!ctx.emitSurface) {
-      throw new ToolInputError(
-        `IDENTITY_NO_CONFIRMATION_CHANNEL: ${USER_CREATE_TOOL_ID}: this execution context has no interactive ` +
-          "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
-      );
+    if (!options.emitSurface) {
+      throw new ToolInputError({ message: `IDENTITY_NO_CONFIRMATION_CHANNEL: ${USER_CREATE_TOOL_ID}: this execution context has no interactive ` +
+          "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
     }
 
-    const exchange = surfaces.surfaceExchanges.open({ toolId: USER_CREATE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+    const exchange = surfaces.surfaceExchanges.open({ toolId: USER_CREATE_TOOL_ID, principalId: ctx.principal.id }, options.emitSurface);
     const uri = `ui://tovu/identity-user-create/${exchange.id}` as UIResourceUri;
     const email = input["email"] ? ` (${input["email"]})` : "";
     const form = buildFormSurface({
@@ -204,7 +203,7 @@ export function buildGatedIdentityRegistrations(
           };
         }
         try {
-          const created = (await inner({ ...ctx, input: { ...input, password } })) as Record<string, unknown>;
+          const created = (await inner({ ...ctx, input: { ...input, password } }, options)) as Record<string, unknown>;
           return { result: { created: true, ...created }, outcome: report("success", `${username} can now sign in with the password you typed.`) };
         } catch (error) {
           failure = error;
@@ -218,7 +217,9 @@ export function buildGatedIdentityRegistrations(
     }
   };
 
-  return buildIdentityRegistrations(routeDeps).map((registration): ToolRegistration => {
+  const hostClock = routeDeps.clock;
+  const clock: Clock = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
+  return buildIdentityRegistrations({ ...routeDeps, clock }).map((registration): ToolRegistration => {
     switch (registration.descriptor.id) {
       case ROLE_DELETE_TOOL_ID:
         return gated(registration, "deleted", confirmRoleDelete);

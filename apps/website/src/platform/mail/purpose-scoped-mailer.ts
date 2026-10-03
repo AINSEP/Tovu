@@ -1,70 +1,49 @@
-/**
- * @file SPEC-022 C-005 / CIC U-001 — the purpose-scoped mailer seam gate (REQ-09/REQ-10,
- * INV-05, EC-04).
- *
- * CIC-designated security-critical unit (`critical-internal-constraints.md` U-001). Binding
- * constraints this file must satisfy:
- * - U-001-B1: classify via an explicit ALLOWLIST of known-interactive values, never a denylist
- *   of known-notification values — an unrecognized value is notification-lane by construction.
- * - U-001-B3: in `local` mode, lane resolution still runs (for observability) but never refuses.
- * - U-001-ORD1: `mode` is resolved once by the caller and passed in already-cached — this
- *   decorator never re-reads `process.env` per send.
- *
- * Decorator over the existing `MailerPort` (Article IV) — not a new port.
+/** Tovu host adapters for Jini mail and the SPEC-022 durable notification gate.
+ * Jini preserves U-001: only explicit interactive sends bypass production readiness;
+ * local mode proceeds, and the supplied mode is never re-read from the environment.
  */
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "./ports.js";
+import {
+  wrapMailerWithPurposeGate as wrapJiniMailerWithPurposeGate,
+  type MailerPort as JiniMailerPort,
+} from "@jini-ai/platform/mail";
+import type { MailerPort } from "./ports.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
+// Lane/readiness rationale: Jini/packages/platform/src/mail/purpose-scoped-mailer.ts (SPEC-022 C-005 / U-001).
 export interface WrapMailerWithPurposeGateOptions {
   inner: MailerPort;
-  /** Already-resolved (C-001), not re-read here per U-001-ORD1. */
   mode: RuntimeMode;
-  /** Whether a durable outbox path is registered and ready for the given capability. */
   durableOutboxReady: (capabilityName: string) => boolean;
 }
 
-type MailerLane = "interactive" | "notification";
-
-/**
- * U-001-B1: allowlist, not a denylist — only the literal `"interactive"` value proceeds
- * ungated. Everything else (undefined, `"notification"`, or any value that bypassed the type
- * system via a cast) resolves to the restrictive lane.
- */
-function resolveLane(options: MailerSendOptions): MailerLane {
-  return options.lane === "interactive" ? "interactive" : "notification";
-}
-
-function refusalError(capabilityName: string): Error {
-  return new Error(
-    `MAILER_SEND_REFUSED_NO_DURABLE_PATH: notification-lane mailer send refused for capability "${capabilityName}" — no durable outbox path registered`
-  );
-}
-
-export function wrapMailerWithPurposeGate(options: WrapMailerWithPurposeGateOptions): MailerPort {
-  const { inner, mode, durableOutboxReady } = options;
-
-  function checkGate(sendOptions: MailerSendOptions): void {
-    if (mode !== "production") return; // U-001-B3 — local mode never refuses.
-    const lane = resolveLane(sendOptions);
-    if (lane !== "notification") return;
-    const capabilityName = sendOptions.sourceContext?.module ?? "unknown";
-    if (!durableOutboxReady(capabilityName)) {
-      throw refusalError(capabilityName);
-    }
-  }
-
+/** Adapts Jini's required delivery fields and optional controls to a Tovu mailer. */
+export function toJiniMailer({ mailer }: { mailer: MailerPort }): JiniMailerPort {
   return {
-    capabilities: () => inner.capabilities(),
-    async send(message: OutboundEmail, sendOptions: MailerSendOptions): Promise<MailerSendResult> {
-      checkGate(sendOptions);
-      return inner.send(message, sendOptions);
-    },
-    async sendBatch(
-      messages: readonly OutboundEmail[],
-      sendOptions: MailerSendOptions
-    ): Promise<readonly MailerSendResult[]> {
-      checkGate(sendOptions);
-      return inner.sendBatch(messages, sendOptions);
-    },
+    capabilities: () => mailer.capabilities(),
+    send: ({ message, ...required }, optional = {}) => mailer.send(message, { ...required, ...optional }),
+    sendBatch: ({ messages, ...required }, optional = {}) => mailer.sendBatch(messages, { ...required, ...optional }),
   };
+}
+
+/** Adapts a Jini mailer for current Tovu consumers, preserving all delivery controls. */
+export function toTovuMailer({ mailer }: { mailer: JiniMailerPort }): MailerPort {
+  return {
+    capabilities: () => mailer.capabilities({}),
+    send: (message, { idempotencyKey, workspaceId, sourceContext, ...optional }) =>
+      mailer.send({ message, idempotencyKey, workspaceId, sourceContext }, optional),
+    sendBatch: (messages, { idempotencyKey, workspaceId, sourceContext, ...optional }) =>
+      mailer.sendBatch({ messages, idempotencyKey, workspaceId, sourceContext }, optional),
+  };
+}
+
+/** Injects Tovu's durable-outbox readiness into Jini's fail-closed purpose gate.
+ * @example wrapMailerWithPurposeGate({ inner, mode, durableOutboxReady })
+ */
+export function wrapMailerWithPurposeGate({ inner, mode, durableOutboxReady }: WrapMailerWithPurposeGateOptions): MailerPort {
+  const mailer = wrapJiniMailerWithPurposeGate({
+    inner: toJiniMailer({ mailer: inner }),
+    mode,
+    readiness: { isReady: ({ capabilityName }) => durableOutboxReady(capabilityName) },
+  });
+  return toTovuMailer({ mailer });
 }

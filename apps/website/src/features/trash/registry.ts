@@ -103,13 +103,14 @@ export interface TrashBlockerSpec {
 
 /**
  * A term is trashed the moment its taxonomy is — there is no second write, no cascade-hide of every
- * member term. `notTrashed`/`isCurrentlyTrashed` (`not-trashed.ts`) read this to treat a live term
+ * member term. `notTrashed` (`not-trashed.ts`) read this to treat a live term
  * whose taxonomy is trashed as trashed too, so `moveToTrash` on it reads `not-found` (a caller cannot
  * re-trash what is already hidden through its parent) — same precedence `not-trashed.ts`'s own file
  * header already documents for the plain marker check.
  *
  * `isTrashedRecord` (the in-memory twin) CANNOT evaluate this: a flat record has no parent row to
  * join against, so it reports the entity's own marker only — see its doc.
+ * isCurrentlyTrashed (features/trash/not-trashed.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface TrashHiddenWithParentSpec {
   /** The parent's own table (`taxonomies`). */

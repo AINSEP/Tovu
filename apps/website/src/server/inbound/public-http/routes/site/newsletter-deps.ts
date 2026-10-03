@@ -10,7 +10,7 @@
  * Composition-boundary glue only — no business logic. Mirrors `routes/admin/newsletter/deps.ts`'s
  * `toConfirmationDeps`/`toUnsubscribeDeps` helpers, over this narrower deps shape.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import type { MailerPort } from "#src/platform/mail/index";
 import type { OriginRegistryPort } from "#src/features/origin/index";

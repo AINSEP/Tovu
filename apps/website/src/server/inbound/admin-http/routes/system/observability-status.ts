@@ -12,7 +12,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * has set `OTEL_EXPORTER_OTLP_ENDPOINT`/`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) or the process is
  * running the default no-op — never the endpoint value itself, which could carry a collector's
  * hostname or an embedded credential (the same discipline `RequestTrackingOutcome.routePattern`
- * already applies to inbound paths, per `ports.ts`). `resolveObservabilityConfig()` is already
+ * already applies to inbound paths, per `ports.ts`). `resolveObservabilityConfig({ env: process.env })` is already
  * unit-tested (`platform/observability/__tests__/unit/config.unit.test.ts`); this route only wires
  * that existing, pure decision through the same workspace-id-404 -> authorize -> 403 shape every
  * sibling route in this directory uses (`module-status.ts`, `deployment-overview.ts`).
@@ -43,7 +43,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
         return;
       }
 
-      const config = resolveObservabilityConfig();
+      const config = resolveObservabilityConfig({ env: process.env });
       res.status(200).json({
         enabled: config.enabled,
         serviceName: config.enabled ? config.serviceName : null,

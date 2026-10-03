@@ -1,3 +1,4 @@
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -6,21 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  authorize,
-  migrateDeprecatedPermissionGrants,
-  seedIdentity,
-  type IdentityRepos,
-} from "@jini-ai/cms/identity";
+import { type IdentityRepos } from "@jini-ai/user-management";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
@@ -282,30 +270,30 @@ async function realIdentityHarness(
   roleName: "admin" | "editor",
   vintage: Vintage = "fresh"
 ): Promise<{ baseUrl: string; storeCalls: string[]; principalId: string }> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const clock = { nowIso: () => "2026-09-05T00:00:00.000Z" };
+  const clock = { nowIso: () => "2026-09-05T00:00:00.000Z", nowMs: () => Date.parse("2026-09-05T00:00:00.000Z") };
 
   await seedIdentity({
     // argon2id is ~100ms and nothing here verifies a password; the seed only needs SOME hasher.
-    deps: { repos, hasher: { hash: async (p: string) => `h:${p}`, verify: async () => true }, clock, idGen },
+    deps: { repos, hasher: { hash: async ({ password: p }: { password: string }) => `h:${p}`, verify: async () => true }, clock, idGen },
     input: { workspaceId: WS, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
   });
 
   if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
 
-  await migrateDeprecatedPermissionGrants({
+  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen,
@@ -355,18 +343,13 @@ async function realIdentityHarness(
   const deps = {
     workspaceId: WS,
     authorize: (params: { principalId: string; permission: string; entityType?: string }) =>
-      authorize({
-        deps: {
+      authorize({ deps: {
           principals: repos.principals,
           principalRoles: repos.principalRoles,
           rolePolicies: repos.rolePolicies,
           principalPolicies: repos.principalPolicies,
           policyPermissions: repos.policyPermissions,
-        },
-        principalId: params.principalId,
-        permission: params.permission,
-        context: { workspaceId: WS, entityType: params.entityType },
-      }),
+        }, principalId: params.principalId, permission: params.permission, context: { workspaceId: WS } }, { entityType: params.entityType }),
     pagesHtmlStore: () => store,
     postRepo: {
       findById: async () => ({ id: PAGE_ID, kind: "page", bodyFormat: "html", bodyHtml: "<p>stored</p>" }),

@@ -1,22 +1,13 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import {
-  type IdentityRepos,
-  type IdentityToolDeps,
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  seedIdentity,
-} from "@jini-ai/cms/identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { type IdentityRepos } from "@jini-ai/user-management";
+import { type IdentityToolDeps } from "@jini-ai/user-management/server";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
+import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 
 import type { UIResource } from "#src/assistant/index";
 import {
@@ -36,7 +27,7 @@ import { buildGatedIdentityRegistrations } from "../tool-registrations.js";
  */
 
 const WORKSPACE_ID = "ws-identity-confirm";
-const HASHER = new Argon2PasswordHasher({ memoryCost: 8, timeCost: 1, parallelism: 1 });
+const HASHER = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding }, { memoryCost: 8, timeCost: 1, parallelism: 1 });
 
 interface Harness {
   deps: IdentityToolDeps;
@@ -47,25 +38,24 @@ interface Harness {
 }
 
 async function buildHarness(): Promise<Harness> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   let n = 0;
   const idGen = { newId: () => `id-${++n}` };
-  const clock = { nowIso: () => "2026-09-24T00:00:00.000Z" };
-  const { ownerPrincipalId } = await seedIdentity({
-    deps: { repos, hasher: HASHER, clock, idGen },
-    input: { workspaceId: WORKSPACE_ID, ownerPassword: "seed-owner-pw" },
-  });
+  const clock = { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") };
+  const { ownerPrincipalId } = await seedIdentity({ deps: { repos, hasher: HASHER, clock, idGen }, input: { workspaceId: WORKSPACE_ID, ownerPassword: "seed-owner-pw", ownerUsername: "admin" } });
   const deps: IdentityToolDeps = {
+    transactions: repos.transactions,
+    tokens: new NodeSessionTokens({}),
     workspaceId: WORKSPACE_ID,
     clock,
     idGen,
@@ -86,14 +76,13 @@ async function buildHarness(): Promise<Harness> {
   return { deps, repos, ownerPrincipalId, store, tools };
 }
 
-function ctx(h: Harness, input: unknown, emitSurface?: SurfaceEmitter): ToolExecutionContext {
+function ctx(h: Harness, input: unknown): ToolExecutionContext {
   return {
     executionId: "exec-1",
     principal: { id: h.ownerPrincipalId },
     run: { id: "run-1" },
     input,
     signal: new AbortController().signal,
-    ...(emitSurface ? { emitSurface } : {}),
   };
 }
 
@@ -102,7 +91,7 @@ async function raise(h: Harness, toolId: string, input: unknown) {
   const tool = h.tools.get(toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
-  const pending = tool.handler(ctx(h, input, async (s) => void emitted.push(s)));
+  const pending = tool.handler(ctx(h, input), { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, `${toolId}: the dialog must be emitted before the call parks`);
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
@@ -180,7 +169,7 @@ test("identity_user_create: the model's schema has no password field", async () 
 test("identity_user_create: a model-supplied password is refused and nothing is created", async () => {
   const h = await buildHarness();
   await assert.rejects(
-    () => h.tools.get("identity_user_create")!.handler(ctx(h, { username: "newcomer", password: "from-the-model" }, async () => {})),
+    () => h.tools.get("identity_user_create")!.handler(ctx(h, { username: "newcomer", password: "from-the-model" }), { emitSurface: async () => {} }),
     {
       name: "ToolInputError",
       message:
@@ -206,7 +195,7 @@ test("identity_user_create: the form asks for the password; the human's password
 
   const stored = await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "newcomer" });
   assert.ok(stored);
-  assert.equal(await HASHER.verify(stored.passwordHash, "typed-by-human-123"), true);
+  assert.equal(await HASHER.verify({ hash: stored.passwordHash, password: "typed-by-human-123" }), true);
 });
 
 test("identity_user_create: Cancel creates nothing", async () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 
@@ -20,14 +20,14 @@ import { ensureSeoSettingDefinitions } from "../settings.js";
  * implementation report, not silently reconciled.
  */
 
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-13T00:00:00.000Z", nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `seo-def-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 test("ensureSeoSettingDefinitions: idempotent — calling twice registers exactly 8 definitions, not 16", async () => {
   const settingsRepo = new InMemorySettingsRepo();
-  const deps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: new InMemoryPrincipalRepo([]) };
+  const deps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
   const input = { workspaceId: "workspace-1", systemPrincipalId: "system-seo" };
 
   await ensureSeoSettingDefinitions(deps, input);

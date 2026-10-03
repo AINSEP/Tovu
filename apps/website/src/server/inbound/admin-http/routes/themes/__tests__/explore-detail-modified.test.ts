@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +15,7 @@ import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
   registerAdminThemeFileRenameRoute,
+  registerAdminThemeFileResetRoute,
 } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
@@ -71,12 +73,13 @@ function makeThemesRoot(): string {
   return root;
 }
 
-async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot()): Promise<string> {
+async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(), packageThemesDir?: string): Promise<string> {
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
+    packageThemesDir,
     postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
   const app = express();
@@ -88,6 +91,7 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
   registerAdminThemeDetailRoute(app, deps);
   registerAdminThemeFileCopyRoute(app, deps);
   registerAdminThemeFileRenameRoute(app, deps);
+  registerAdminThemeFileResetRoute(app, deps);
   return startTestServer(app, t);
 }
 
@@ -147,7 +151,7 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
   assert.deepEqual(files.get("pages/index.html"), { resettable: true, modified: true });
 });
 
-test("detail listing: a same-size file that cannot be read is resettable: false, modified: null, and the listing still returns 200", async (t) => {
+test("detail listing: a same-size file that cannot be read returns 500", async (t) => {
   if (process.getuid?.() === 0) {
     t.skip("running as root: chmod 000 does not deny root a read, so EACCES cannot be forced here");
     return;
@@ -166,11 +170,9 @@ test("detail listing: a same-size file that cannot be read is resettable: false,
     fs.chmodSync(unreadableOriginal, 0o644);
   });
 
-  const files = await listing(baseUrl, "moddy");
-
-  assert.deepEqual(files.get("css/styles.css"), { resettable: false, modified: null });
-  assert.deepEqual(files.get("pages/index.html"), { resettable: false, modified: null });
-  assert.deepEqual(files.get("tokens.json"), { resettable: true, modified: false }, "a readable file is unaffected");
+  const response = await fetch(`${baseUrl}${BASE("moddy")}`);
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "internal error" });
 });
 
 test("copy response: the new copy has no catalog counterpart, so resettable: false, modified: null", async (t) => {
@@ -205,4 +207,76 @@ test("rename response: renaming onto a catalog file name compares against that c
     resettable: true,
     modified: true,
   });
+});
+
+
+test("detail and reset use a package original when the site has no catalog", async (t) => {
+  const site = makeThemesRoot();
+  const packaged = makeThemesRoot();
+  t.after(() => { fs.rmSync(site, { recursive: true, force: true }); fs.rmSync(packaged, { recursive: true, force: true }); });
+  fs.rmSync(path.join(site, THEME_CATALOG_DIR), { recursive: true });
+  const baseUrl = await startApp(t, site, packaged);
+  const response = await fetch(`${baseUrl}${BASE("moddy")}`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.hasOriginal, true);
+  const stylesheet = body.files.find((entry: FileEntry) => entry.path === "css/styles.css");
+  assert.ok(stylesheet);
+  assert.equal(stylesheet.resettable, true);
+  assert.equal(stylesheet.modified, true);
+  const reset = await fetch(`${baseUrl}${BASE("moddy")}/file/reset`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "css/styles.css" }),
+  });
+  assert.equal(reset.status, 200, await reset.clone().text());
+  assert.equal(fs.readFileSync(path.join(site, "static", "moddy", "css", "styles.css"), "utf8"), "body{color:tan}");
+  assert.deepEqual((await listing(baseUrl, "moddy")).get("css/styles.css"), { resettable: true, modified: false });
+});
+
+test("a site's own original takes precedence over different package bytes for listing and reset", async (t) => {
+  const site = makeThemesRoot();
+  const packaged = makeThemesRoot();
+  t.after(() => { fs.rmSync(site, { recursive: true, force: true }); fs.rmSync(packaged, { recursive: true, force: true }); });
+  const liveFile = path.join(site, "static", "moddy", "css", "styles.css");
+  write(path.join(site, THEME_CATALOG_DIR, "static", "moddy"), "css/styles.css", "body{color:red}");
+  const baseUrl = await startApp(t, site, packaged);
+  assert.deepEqual((await listing(baseUrl, "moddy")).get("css/styles.css"), { resettable: true, modified: false });
+  fs.writeFileSync(liveFile, "body{color:blue}", "utf8");
+  const reset = await fetch(`${baseUrl}${BASE("moddy")}/file/reset`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "css/styles.css" }),
+  });
+  assert.equal(reset.status, 200, await reset.clone().text());
+  assert.equal(fs.readFileSync(liveFile, "utf8"), "body{color:red}");
+  assert.equal(fs.readFileSync(path.join(packaged, THEME_CATALOG_DIR, "static", "moddy", "css", "styles.css"), "utf8"), "body{color:tan}");
+});
+
+test("detail comparison returns 500 for injected live and original read errors on every UID", async (t) => {
+  const root = makeThemesRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const baseUrl = await startApp(t, root);
+  const targets = [
+    fs.realpathSync(path.join(root, "static", "moddy", "css", "styles.css")),
+    fs.realpathSync(path.join(root, THEME_CATALOG_DIR, "static", "moddy", "pages", "index.html")),
+  ];
+  // Each request stops at its first I/O failure, so exercise the two sides separately.
+  for (const target of targets) {
+    const reached: string[] = [];
+    const originalOpen = fs.openSync;
+    const injected = t.mock.method(fs, "openSync", (...args: Parameters<typeof fs.openSync>) => {
+      if (String(args[0]) === target) {
+        reached.push(target);
+        throw Object.assign(new Error("injected comparison read failure"), { code: "EIO" });
+      }
+      return originalOpen(...args);
+    });
+    syncBuiltinESMExports();
+    try {
+      const response = await fetch(`${baseUrl}${BASE("moddy")}`);
+      assert.equal(response.status, 500, target);
+      assert.deepEqual(await response.json(), { error: "internal error" });
+      assert.deepEqual(reached, [target], "the selected comparison read must cause the failure");
+    } finally {
+      injected.mock.restore();
+      syncBuiltinESMExports();
+    }
+  }
 });

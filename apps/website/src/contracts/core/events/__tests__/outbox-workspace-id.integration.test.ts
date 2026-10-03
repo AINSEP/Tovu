@@ -179,11 +179,11 @@ test("taxonomy chokepoint: createTaxonomy through toTaxonomyOutbox persists work
     taxonomies: new InMemoryTaxonomyRepo(),
     terms: new InMemoryTermRepo(),
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo(),
+    revisions: new InMemoryTaxonomyRevisionRepo({}),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
-    contentLookup: new InMemoryContentLookup(),
+    contentLookup: new InMemoryContentLookup({}),
   };
 
   const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Categories", hierarchical: true });
@@ -228,11 +228,11 @@ test("taxonomy chokepoint: createTerm through toTaxonomyOutbox persists workspac
     taxonomies,
     terms: new InMemoryTermRepo(),
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo(),
+    revisions: new InMemoryTaxonomyRevisionRepo({}),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
-    contentLookup: new InMemoryContentLookup(),
+    contentLookup: new InMemoryContentLookup({}),
   };
 
   const term = await createTerm({ deps, principalId: "user-1", taxonomyId: "tax-seed-1", name: "News" });
@@ -264,11 +264,11 @@ test("taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspac
     taxonomies: new InMemoryTaxonomyRepo(),
     terms,
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo(),
+    revisions: new InMemoryTaxonomyRevisionRepo({}),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
-    contentLookup: new InMemoryContentLookup(),
+    contentLookup: new InMemoryContentLookup({}),
   };
 
   const renamed = await renameTerm({ deps, principalId: "user-1", termId: "term-seed-1", newName: "New name" });
@@ -297,7 +297,7 @@ test("taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspa
   // `assignTerms` throws `TaxonomyNotApplicableError` for any contentType NOT on that allow-list
   // (validation-chain.ts's `validateContentJoin`), so the content lookup must resolve for this
   // call to reach its own `outbox.enqueue` at all.
-  const contentLookup = new InMemoryContentLookup([{ contentType: "post", contentId: "post-1", workspaceId, kind: "post" }]);
+  const contentLookup = new InMemoryContentLookup({}, { initialRows: [{ contentType: "post", contentId: "post-1", workspaceId, kind: "post" }] });
 
   const deps: TaxonomyWriteServiceDeps = {
     authorize: ALWAYS_ALLOW,
@@ -306,7 +306,7 @@ test("taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspa
     taxonomies: new InMemoryTaxonomyRepo(),
     terms,
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo(),
+    revisions: new InMemoryTaxonomyRevisionRepo({}),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,

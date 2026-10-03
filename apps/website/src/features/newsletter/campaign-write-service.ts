@@ -9,7 +9,7 @@
  * revision write in the SAME transaction (INV-01: a campaign row must never exist without a
  * same-tx revision row).
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { transitionCampaignStatus, type CampaignActorTier } from "./campaign.js";
 import {
   NewsletterCampaignNotEditableError,
@@ -199,8 +199,11 @@ export async function cancelCampaign(required: {
   return { campaign };
 }
 
-/** Validates a timezone-qualified ISO timestamp, including the calendar date that Date.parse normalizes. */
-function isValidScheduleTimestamp(value: string): boolean {
+/** Validates a timezone-qualified ISO timestamp, including the calendar date that Date.parse normalizes.
+ * @param value - Caller-supplied schedule timestamp, shared by routes, tools and the write service.
+ * @returns False for malformed dates, missing timezone or impossible calendar dates.
+ * @complexity O(n) in timestamp length, O(1) auxiliary space. */
+export function isValidScheduleTimestamp(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false;
   if (!Number.isFinite(Date.parse(value))) return false;
   const datePart = value.slice(0, 10);

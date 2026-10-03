@@ -86,6 +86,12 @@ export type PublishContentRouteDeps = Pick<
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
 
+export type PublishContentProjectionDeps = ContentPublishSources & Pick<PublishContentRouteDeps,
+  | "clock" | "idGen" | "outbox" | "pluginBeforeSaveHook" | "blobStore"
+  | "mediaRepo" | "assetBlobRepo" | "mediaContentTypeStore" | "redirectsWriteDeps"
+  | "menuRepo" | "navLocationBindingRepo" | "themesDir" | "fileBlobIndex"
+>;
+
 /**
  * Narrows this module's `RouteDeps` slice to the `PublishContentDeps` bag every registered
  * contributor's `build()` closes over.
@@ -109,7 +115,9 @@ export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRo
  *
  * @complexity O(1) — a field projection, no I/O.
  */
-export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishContentDeps {
+// Projection needs no import ceremony, restore-point or credential ports. This narrow input lets
+// the assistant composition reuse the same content bag without asserting unrelated dependencies.
+export function toPublishContentDeps(deps: PublishContentProjectionDeps): PublishContentDeps {
   return {
     workspaceId: deps.workspaceId,
     clock: deps.clock,

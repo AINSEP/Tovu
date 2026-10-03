@@ -23,7 +23,7 @@
  * `seo.ts`/`sitemap.ts`'s exported functions, matching this shape, rather than
  * literally constructing one object with these five methods.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type {
   HeadElement,
   PageHeadContext,

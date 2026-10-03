@@ -1,12 +1,6 @@
 import { createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
 
-import {
-  buildDomainRegistrations,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../contracts/core/tool-surface-exchanges.js";
 
@@ -116,19 +110,18 @@ export function buildRenderUiRegistrations(
   const rejectionGraceMs = options.rejectionGraceMs ?? RENDER_REJECTION_GRACE_MS;
 
   const handlers: Record<string, ToolHandler> = {
-    [RENDER_UI_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
-      if (!ctx.emitSurface) {
+    [RENDER_UI_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
+      if (!emitSurface) {
         return { rendered: false, reason: "no-surface-channel", note: "No live surface channel on this execution." };
       }
-      const emitSurface = ctx.emitSurface;
       const components = (ctx.input as { components?: unknown[] }).components ?? [];
 
-      const catalog = createLabCatalog();
+      const catalog = createLabCatalog({});
       const exchange = surfaces.surfaceExchanges.open({ toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emitSurface);
       const surfaceId = exchange.id;
 
       const emitA2ui = async (message: AgentToRendererMessage): Promise<{ ok: true } | { ok: false; reason: string }> => {
-        const validated = parseAgentToRendererMessage(message);
+        const validated = parseAgentToRendererMessage({ raw: message });
         if (!validated.ok) return { ok: false, reason: validated.message };
         await emitSurface({ channel: "a2ui", payload: { message: validated.message } });
         return { ok: true };

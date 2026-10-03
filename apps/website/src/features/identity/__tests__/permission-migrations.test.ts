@@ -1,22 +1,11 @@
+import { createTransactionalInMemoryIdentityRepos, InMemoryUserRepo, InMemorySessionRepo } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { authorize } from "@jini-ai/cms/identity";
-import {
-  listPermissionMigrations,
-  migrateDeprecatedPermissionGrants,
-  registerPermissionMigration,
-} from "@jini-ai/cms/identity";
+import { authorize } from "@jini-ai/user-management/server";
+import { listPermissionMigrations, migrateDeprecatedPermissionGrants, registerPermissionMigration } from "@jini-ai/user-management/server";
 import { NAVIGATION_PERMISSIONS } from "#src/features/navigation/index";
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-} from "@jini-ai/cms/identity";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo } from "@jini-ai/user-management/server";
 
 /**
  * @file Dedicated TDD-first tests for the shared deprecate-old/grant-new
@@ -55,7 +44,7 @@ test("C-001: registerPermissionMigration registers a {from, to, reason} pair; li
     reason: "test migration B",
   });
 
-  const all = listPermissionMigrations();
+  const all = listPermissionMigrations({});
   const a = all.find((m) => m.from === "test.legacy.perm-a");
   const b = all.find((m) => m.from === "test.legacy.perm-b");
 
@@ -79,7 +68,7 @@ test("C-001: re-registering the same `from` overwrites rather than duplicates (i
     reason: "second registration supersedes the first",
   });
 
-  const matches = listPermissionMigrations().filter((m) => m.from === "test.legacy.perm-overwrite");
+  const matches = listPermissionMigrations({}).filter((m) => m.from === "test.legacy.perm-overwrite");
   assert.equal(matches.length, 1, "exactly one entry exists for this `from`, not two");
   assert.deepEqual(matches[0].to, ["test.new.perm-v2a", "test.new.perm-v2b"]);
   assert.equal(matches[0].reason, "second registration supersedes the first");
@@ -89,10 +78,19 @@ test("C-001: re-registering the same `from` overwrites rather than duplicates (i
 // T005 / C-002 / INV-NEW-01: migrateDeprecatedPermissionGrants
 // ---------------------------------------------------------------------------
 
+function memoryRepos() {
+  return createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}), roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
+}
+
 function buildFixture() {
-  const policies = new InMemoryPolicyRepo();
-  const policyPermissions = new InMemoryPolicyPermissionRepo();
-  return { policies, policyPermissions, idGen: counterIdGen("pp") };
+  const { policies, policyPermissions, transactions } = memoryRepos();
+  return { policies, policyPermissions, transactions, idGen: counterIdGen("pp") };
 }
 
 test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps the deprecated grant, and leaves an unrelated permission untouched", async () => {
@@ -109,7 +107,7 @@ test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps 
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
   });
 
-  const { policies, policyPermissions, idGen } = buildFixture();
+  const { policies, policyPermissions, transactions, idGen } = buildFixture();
   await policies.save({
     id: "policy-1",
     workspaceId: WORKSPACE,
@@ -134,7 +132,7 @@ test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps 
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({
+  const result = await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen,
@@ -176,7 +174,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
   });
 
-  const { policies, policyPermissions, idGen } = buildFixture();
+  const { policies, policyPermissions, transactions, idGen } = buildFixture();
   await policies.save({
     id: "policy-1",
     workspaceId: WORKSPACE,
@@ -193,7 +191,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
     constraintJson: null,
   });
 
-  const first = await migrateDeprecatedPermissionGrants({
+  const first = await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen,
@@ -201,7 +199,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
   });
   assert.equal(first.migratedGrantCount, 6);
 
-  const second = await migrateDeprecatedPermissionGrants({
+  const second = await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen,
@@ -220,7 +218,7 @@ test("C-002/INV-NEW-01: a policy that never held the deprecated permission is ne
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
   });
 
-  const { policies, policyPermissions, idGen } = buildFixture();
+  const { policies, policyPermissions, transactions, idGen } = buildFixture();
   await policies.save({
     id: "policy-untouched",
     workspaceId: WORKSPACE,
@@ -237,7 +235,7 @@ test("C-002/INV-NEW-01: a policy that never held the deprecated permission is ne
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({
+  const result = await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen,
@@ -258,7 +256,7 @@ test("C-002: a `to` string already held by the policy is not duplicated", async 
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
   });
 
-  const { policies, policyPermissions, idGen } = buildFixture();
+  const { policies, policyPermissions, transactions, idGen } = buildFixture();
   await policies.save({
     id: "policy-partial",
     workspaceId: WORKSPACE,
@@ -284,7 +282,7 @@ test("C-002: a `to` string already held by the policy is not duplicated", async 
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({
+  const result = await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen,
@@ -319,13 +317,7 @@ test("T012: a policy holding only navigation.manage is authorized for every new 
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
   });
 
-  const principals = new InMemoryPrincipalRepo();
-  const principalRoles = new InMemoryPrincipalRoleRepo();
-  const rolePolicies = new InMemoryRolePolicyRepo();
-  const roles = new InMemoryRoleRepo();
-  const policies = new InMemoryPolicyRepo();
-  const policyPermissions = new InMemoryPolicyPermissionRepo();
-  const principalPolicies = new InMemoryPrincipalPolicyRepo();
+  const { principals, principalRoles, rolePolicies, roles, policies, policyPermissions, principalPolicies, transactions } = memoryRepos();
 
   const ws = "workspace-t012";
   await principals.save({
@@ -366,7 +358,7 @@ test("T012: a policy holding only navigation.manage is authorized for every new 
   });
   assert.equal(beforeRead.allowed, false, "pre-migration, the new string is not yet granted");
 
-  await migrateDeprecatedPermissionGrants({
+  await migrateDeprecatedPermissionGrants({ transactions,
     policyPermissions,
     policies,
     idGen: { newId: () => `migrated-${Math.random()}` },

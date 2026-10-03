@@ -1,10 +1,16 @@
+import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import type { ByokToolSurfaceDeps } from "#src/assistant/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
+import { executeCommand } from "@jini-ai/cms/core";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { createObservabilityPort } from "#src/platform/observability/index";
+import { resolveObservabilityConfig, createObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -136,8 +142,8 @@ import {
   AdminPasswordResetVerificationFailedError,
 } from "#src/features/identity/reset-admin-password-self-verified";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
-import type { IdentityRepos } from "@jini-ai/cms/identity";
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { IdentityRepos } from "@jini-ai/user-management";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
@@ -809,6 +815,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
 
   const { dbOps, workspaceId, identity, clock, idGen } = required;
   const repos: IdentityRepos = {
+    transactions: identity.transactions,
     principals: identity.principalRepo,
     users: identity.userRepo,
     sessions: identity.sessionRepo,
@@ -830,7 +837,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
       resetAdminPasswordSelfVerified(
         // eslint-disable-next-line no-console
         {
-          auth: { repos, hasher: identity.passwordHasher, clock, idGen },
+          auth: { repos, hasher: identity.passwordHasher, clock, idGen, tokens: identity.tokens },
           dbOps,
           ownerPrincipalId: identity.ownerPrincipalId,
           log: (m) => console.error(`[admin-password-reset] ${m}`),
@@ -862,7 +869,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
 export async function createSiteRouteDeps(
   dbPath: string = defaultContentDbPath(),
   overrides?: Partial<CreateSiteRouteDepsOverrides>
-): Promise<NewsletterRouteDeps> {
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   assertOverridesPairedOrAbsent(overrides);
   const opened = await openCompositionStore(dbPath, overrides);
   try {
@@ -882,7 +889,7 @@ async function composeSiteRouteDeps(
   dbPath: string,
   store: SiteStore,
   overrides?: Partial<CreateSiteRouteDepsOverrides>
-): Promise<NewsletterRouteDeps> {
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
@@ -944,7 +951,8 @@ async function composeSiteRouteDeps(
   const postSearchBackfillReady = backfillPostSearchIndex(kernel).catch((err) => {
     console.error(`backfillPostSearchIndex failed at boot: ${(err as Error).message}`);
   });
-  const clock = { nowIso: () => new Date().toISOString() };
+  // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
+  const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   const pluginActivationRepo = new SqlitePluginActivationRepo(kernel);
   const pluginRuntime = composePluginRuntime({
@@ -966,6 +974,13 @@ async function composeSiteRouteDeps(
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen });
+  // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
+  const settingsPrincipals = {
+    ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
+    findById: (required: Parameters<typeof identity.principalRepo.findById>[0]) => identity.principalRepo.findById(required),
+    list: (required: Parameters<typeof identity.principalRepo.list>[0]) => identity.principalRepo.list(required),
+    save: (record: Parameters<typeof identity.principalRepo.save>[0]) => identity.principalRepo.save(record),
+  };
   // Fire-and-forget, mirroring `identityReady`/`blobHydrationReady` below — opt-in only (see the
   // function's own doc), so this is a genuine no-op on every ordinary boot.
   const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ dbOps: storeBound.dbOps, workspaceId, identity, clock, idGen, overrides });
@@ -980,7 +995,7 @@ async function composeSiteRouteDeps(
     settingsRepo,
     clock,
     ids: idGen,
-    principals: identity.principalRepo,
+    principals: settingsPrincipals,
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   }).then(() => undefined);
   // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
@@ -991,7 +1006,7 @@ async function composeSiteRouteDeps(
   // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
   const seoReady = settingsReady.then(() =>
     ensureSeoSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -1002,7 +1017,7 @@ async function composeSiteRouteDeps(
   // hazard `seoReady`'s own comment documents immediately above.
   const commentsSettingsReady = seoReady.then(() =>
     ensureCommentsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -1017,7 +1032,7 @@ async function composeSiteRouteDeps(
         settingsRepo,
         clock,
         ids: idGen,
-        principals: identity.principalRepo,
+        principals: settingsPrincipals,
         resolveDefinitionRaw,
         registerDefinitions,
         scopeBit: SCOPE_BIT,
@@ -1034,7 +1049,7 @@ async function composeSiteRouteDeps(
   // header for the namespace-fence reasoning.
   const executionSettingsReady = assistantSettingsReady.then(() =>
     ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo, ensureSettingDefinitions },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -1044,7 +1059,7 @@ async function composeSiteRouteDeps(
   // single-SQLite-connection-transaction reason every registration above documents.
   const settingsUiTabsReady = executionSettingsReady.then(() =>
     ensureSettingsUiTabDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -1054,7 +1069,7 @@ async function composeSiteRouteDeps(
   // single-SQLite-connection-transaction reason every registration above documents.
   const analyticsSettingsReady = settingsUiTabsReady.then(() =>
     ensureAnalyticsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -1065,7 +1080,7 @@ async function composeSiteRouteDeps(
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const siteDisplayName = createSiteDisplayNameSource(dbPath);
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
@@ -1778,7 +1793,7 @@ async function composeSiteRouteDeps(
           entryRefsRepo,
           widgetBindingRepo,
           settingsRepo,
-          principalRepo: identity.principalRepo,
+          principalRepo: settingsPrincipals,
           presentationRepo,
           themes: siteThemes,
         }),
@@ -1798,7 +1813,18 @@ async function composeSiteRouteDeps(
     getSeedHash: publishContentSeedHash,
   });
 
-  const routeDeps: NewsletterRouteDeps = {
+  // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
+  const guardedOutboundHttpClient = createGuardedMediaHttpClient({
+      ...createNodeGuardedHttpPorts({}),
+      userAgent: "Tovu/0.1.0",
+      // Preserve Jini's generation budget (10 minutes, 96 MiB); asset requests may choose less.
+      // Redirects are refused; provider-returned URLs get no private-network exception.
+      policy: { allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
+        maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
+        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
+    });
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(kernel),
     trash,
@@ -1853,6 +1879,18 @@ async function composeSiteRouteDeps(
     siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(kernel),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
+    // Transfer uses this composition's exact chat store, including any TOVU_CHAT_DB override.
+    // Online backup includes WAL writes; copying the database file alone would silently omit them.
+    databaseTransferChatSnapshot: async () => {
+      const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));
+      try {
+        const snapshotPath = join(dir, "chat.db");
+        await chat.backupTo(snapshotPath);
+        return await readFile(snapshotPath);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
     databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(kernel), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
@@ -1873,6 +1911,7 @@ async function composeSiteRouteDeps(
      * than built fresh here.
      */
     externalMcpOAuth: createExternalMcpOAuthService({
+      httpPorts: externalMcpOAuthHttpPorts,
       workspaceId,
       repo: externalMcpServerRepo,
       sealer: siteAssistantSecretSealer,
@@ -1935,7 +1974,7 @@ async function composeSiteRouteDeps(
     // serve`), so this is the one call site where the real (non-hermetic) adapter choice belongs —
     // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
     // `ObservabilityDeps` doc for the rule-of-two this mirrors.
-    observability: createObservabilityPort(),
+    observability: createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) }),
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
@@ -1946,6 +1985,7 @@ async function composeSiteRouteDeps(
     analyticsSink: new SqliteBufferSink({ db: kernel, workspaceId: workspaceId }),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
+    principalRepo: settingsPrincipals,
     // Overrides `identity`'s placeholder default (`undefined`/`async () => false`) — see
     // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc. Must stay AFTER `...identity` above.
     removeUser,
@@ -1973,6 +2013,7 @@ async function composeSiteRouteDeps(
       mode: runtimeMode,
       durableOutboxReady: () => false,
     }),
+    settleMailer: resolvedMailer.settle,
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
@@ -2039,6 +2080,7 @@ async function composeSiteRouteDeps(
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
     removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
+    executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // just above it so the two process-lifetime rate limiters stay visually paired.
@@ -2202,9 +2244,11 @@ async function composeSiteRouteDeps(
     // See `routes/types.ts`'s own doc — a genuinely separate `HttpClientPort` instance from
     // `resolvedMailer`'s, built above.
     customCredentialsHttpClient,
+    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
     // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
     // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
     mediaImportHttpClient,
+    mediaGenerationHttpClient: guardedOutboundHttpClient,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
@@ -2302,7 +2346,7 @@ export async function createSiteRouteDepsForWorkspace(
   workspaceIdOverride: string | undefined,
   dbPath: string = defaultContentDbPath(),
   storeRole: SiteStoreRole = "owner"
-): Promise<NewsletterRouteDeps> {
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { storeRole });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
@@ -2314,4 +2358,3 @@ export async function createSiteRouteDepsForWorkspace(
   const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
   return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole });
 }
-

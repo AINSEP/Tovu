@@ -1,17 +1,8 @@
-import type { ClockPort, IdGeneratorPort, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { DeliveryEnvelopeStore } from "./repo.memory.js";
-import type { HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
-import type { WebhookSigner } from "./signing.js";
-import type {
-  IntegrationId,
-  WebhookBeforeDispatchHook,
-  WebhookDeliveryRecord,
-  WebhookEventEnvelope,
-  WebhookSubscriptionRecord,
-  WebhookTopic,
-} from "./types.js";
-
-/**
+// Implementation: /Users/la/Programming/Jini/packages/integrations/src/webhooks/delivery.ts
+/** Translate existing durable ports and supply Tovu's webhook header vocabulary.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
  * @file The two-stage webhook delivery worker (ADR-036 §4): fan-out enqueue + the
  * claim/sign/POST/retry loop.
  *
@@ -33,20 +24,15 @@ import type {
  * Architectural role:
  * Core business logic for the webhook subsystem. No HTTP transport, no signing algorithm, no
  * persistence details live here — those are injected (`HttpClientPort`, `WebhookSigner`,
- * the repo ports) so this file stays a pure orchestration of the retry/backoff/hook state
+ * the repo ports) so the Jini implementation stays a pure orchestration of the retry/backoff/hook state
  * machine, which is the part actually worth testing in isolation.
- */
-
-/** Capped delivery attempts before a row dead-letters (ADR-036 §4: "default 8 over ~ a day"). */
-export const MAX_DELIVERY_ATTEMPTS = 8;
-
-/** Backoff base: the first retry after a failure waits (before jitter) this long. */
-const BASE_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes
-
-/** Backoff cap: no single step waits longer than this, however high `attempts` climbs. */
-const MAX_BACKOFF_STEP_MS = 6 * 60 * 60 * 1000; // 6 hours
-
-/**
+ *
+ * Capped delivery attempts before a row dead-letters (ADR-036 §4: "default 8 over ~ a day").
+ *
+ * Backoff base: the first retry after a failure waits (before jitter) this long.
+ *
+ * Backoff cap: no single step waits longer than this, however high `attempts` climbs.
+ *
  * Exponential backoff with "equal jitter": `half = min(cap, base * 2^(attempts-1)) / 2`, then
  * `half + random() * half` — always at least `half`, at most the full exponential step, so
  * retries never collapse to zero delay (thundering-herd risk) or drift outside the exponential
@@ -60,50 +46,13 @@ const MAX_BACKOFF_STEP_MS = 6 * 60 * 60 * 1000; // 6 hours
  *
  * @complexity O(1).
  * @overallScore 100
- */
-export function computeBackoffMs(attempts: number, optional: { random?: () => number } = {}): number {
-  const { random = Math.random } = optional;
-  const exponentialStep = Math.min(MAX_BACKOFF_STEP_MS, BASE_BACKOFF_MS * 2 ** (attempts - 1));
-  const half = exponentialStep / 2;
-  return Math.round(half + random() * half);
-}
-
-function addMsToIso(iso: ISODateTime, ms: number): ISODateTime {
-  return new Date(Date.parse(iso) + ms).toISOString();
-}
-
-/** Thrown when a `webhooks.beforeDispatch` hook explicitly vetoes a delivery (`send: false`). */
-export class WebhookDeliveryVetoedError extends Error {}
-
-/**
+ *
+ * Thrown when a `webhooks.beforeDispatch` hook explicitly vetoes a delivery (`send: false`).
+ *
  * The minimal shape `enqueueDelivery` needs from a delivered domain event — a narrowed
  * `DomainEvent` (../core/ports) with a JSON-safe payload, since the envelope this becomes must
  * be structured-clone-safe (ADR-024 §3 ABI).
- */
-export interface WebhookSourceEvent {
-  id: UUID;
-  name: WebhookTopic;
-  workspaceId: UUID;
-  occurredAt: ISODateTime;
-  payload: JsonObject;
-}
-
-export interface EnqueueDeliveryDeps {
-  subscriptionRepo: WebhookSubscriptionRepoPort;
-  deliveryRepo: WebhookDeliveryRepoPort;
-  envelopeStore: DeliveryEnvelopeStore;
-  idGenerator: IdGeneratorPort;
-  clock: ClockPort;
-}
-
-export interface EnqueueDeliveryRequired {
-  deps: EnqueueDeliveryDeps;
-  input: { event: WebhookSourceEvent };
-}
-
-export interface EnqueueDeliveryOptional {}
-
-/**
+ *
  * Stage A: fan a delivered event out to one `webhook_deliveries` row per matching active
  * subscription, idempotently on `(eventId, subscriptionId)` (ADR-036 §4 — "an outbox
  * re-delivery cannot double-enqueue"). Safe to call more than once for the same event.
@@ -116,125 +65,23 @@ export interface EnqueueDeliveryOptional {}
  * Findings (Low): the idempotency check is O(n) in a subscription's delivery history for the
  * in-memory adapter; acceptable for dev/test data volumes, called out so it isn't silently
  * assumed to scale — a production adapter must back this with a unique index, not a scan.
- */
-export async function enqueueDelivery(
-  required: EnqueueDeliveryRequired,
-  _optional: EnqueueDeliveryOptional = {}
-): Promise<{ enqueued: WebhookDeliveryRecord[] }> {
-  const { deps, input } = required;
-  const { event } = input;
-
-  const matches = await deps.subscriptionRepo.findMatching({
-    workspaceId: event.workspaceId,
-    topic: event.name,
-  });
-
-  const enqueued: WebhookDeliveryRecord[] = [];
-
-  for (const subscription of matches) {
-    const duplicate = await isAlreadyEnqueued({
-      deliveryRepo: deps.deliveryRepo,
-      workspaceId: event.workspaceId,
-      subscriptionId: subscription.id,
-      eventId: event.id,
-    });
-    if (duplicate) continue;
-
-    const now = deps.clock.nowIso();
-    const record: WebhookDeliveryRecord = {
-      id: deps.idGenerator.newId(),
-      workspaceId: event.workspaceId,
-      subscriptionId: subscription.id,
-      eventId: event.id,
-      topic: event.name,
-      status: "pending",
-      attempts: 0,
-      nextAttemptAt: now,
-      lastResponseStatus: null,
-      lastError: null,
-      signedWithVersion: null,
-      createdAt: now,
-      deliveredAt: null,
-      deadAt: null,
-    };
-
-    const envelope: WebhookEventEnvelope = {
-      deliveryId: record.id,
-      eventId: event.id,
-      topic: event.name,
-      workspaceId: event.workspaceId,
-      occurredAt: event.occurredAt,
-      data: event.payload,
-    };
-
-    // ADR-046 fold-in item 5 (GAP-05/GAP-12): `enqueue()` now takes the envelope as an optional
-    // second argument — a durable adapter (SqliteWebhookDeliveryRepo) writes it in the SAME
-    // `INSERT` as the delivery row, closing the gap on its own. The `envelopeStore.save()` call
-    // immediately after is kept, unchanged, for adapters (the in-memory one) that don't durably
-    // co-persist it inline — for those, `save()` remains the actual write; for the SQLite adapter,
-    // it becomes a redundant-but-harmless re-set of the same value, never the sole write path.
-    await deps.deliveryRepo.enqueue(record, envelope);
-    await deps.envelopeStore.save({ deliveryId: record.id, envelope });
-    enqueued.push(record);
-  }
-
-  return { enqueued };
-}
-
-/**
+ *
  * Check-before-insert idempotency guard for `(eventId, subscriptionId)`. `WebhookDeliveryRepoPort`
  * has no direct by-event lookup, so this scans the subscription's deliveries via
  * `listBySubscription` — see this function's caller's `@complexity` note for the scaling caveat.
- */
-async function isAlreadyEnqueued(params: {
-  deliveryRepo: WebhookDeliveryRepoPort;
-  workspaceId: UUID;
-  subscriptionId: IntegrationId;
-  eventId: UUID;
-}): Promise<boolean> {
-  const existing = await params.deliveryRepo.listBySubscription({
-    workspaceId: params.workspaceId,
-    subscriptionId: params.subscriptionId,
-    limit: Number.MAX_SAFE_INTEGER,
-  });
-  return existing.some((delivery) => delivery.eventId === params.eventId);
-}
-
-export interface ProcessDueDeliveriesDeps {
-  deliveryRepo: WebhookDeliveryRepoPort;
-  subscriptionRepo: WebhookSubscriptionRepoPort;
-  envelopeStore: DeliveryEnvelopeStore;
-  httpClient: HttpClientPort;
-  signer: WebhookSigner;
-  clock: ClockPort;
-}
-
-export interface ProcessDueDeliveriesRequired {
-  deps: ProcessDueDeliveriesDeps;
-}
-
-export interface ProcessDueDeliveriesOptional {
-  batchSize?: number;
-  /** Ordered by `priority` internally regardless of input order (ADR-024 §7). Defaults to none. */
-  hooks?: readonly WebhookBeforeDispatchHook[];
-  requestTimeoutMs?: number;
-  /** Override for tests; production always uses `MAX_DELIVERY_ATTEMPTS`. */
-  maxAttempts?: number;
-  /** Injected into `computeBackoffMs` for deterministic tests. */
-  random?: () => number;
-}
-
-export interface ProcessDueDeliveriesResult {
-  /** Rows claimed this pass. */
-  processed: number;
-  delivered: number;
-  /** Failed but still retryable (re-entered "pending" with a future `nextAttemptAt`). */
-  failed: number;
-  /** Failed and exhausted `maxAttempts` — transitioned to `dead`. */
-  dead: number;
-}
-
-/**
+ *
+ * Ordered by `priority` internally regardless of input order (ADR-024 §7). Defaults to none.
+ *
+ * Override for tests; production always uses `MAX_DELIVERY_ATTEMPTS`.
+ *
+ * Injected into `computeBackoffMs` for deterministic tests.
+ *
+ * Rows claimed this pass.
+ *
+ * Failed but still retryable (re-entered "pending" with a future `nextAttemptAt`).
+ *
+ * Failed and exhausted `maxAttempts` — transitioned to `dead`.
+ *
  * Stage B: claim due rows, run `webhooks.beforeDispatch`, sign, POST, and record the outcome.
  *
  * Fail-closed hook semantics (ADR-036 Round-3 audit fold): if any registered `beforeDispatch`
@@ -245,183 +92,21 @@ export interface ProcessDueDeliveriesResult {
  *
  * @complexity O(batchSize) delivery attempts, each O(rawBody length) for signing + one HTTP call.
  * @overallScore 100
- */
-export async function processDueDeliveries(
-  required: ProcessDueDeliveriesRequired,
-  optional: ProcessDueDeliveriesOptional = {}
-): Promise<ProcessDueDeliveriesResult> {
-  const { deliveryRepo, subscriptionRepo, envelopeStore, httpClient, signer, clock } = required.deps;
-  const { batchSize, hooks, requestTimeoutMs, maxAttempts, random } = resolveProcessDueDeliveriesOptions(optional);
-
-  const nowIso = clock.nowIso();
-  const claimed = await deliveryRepo.claimPending({ batchSize, nowIso });
-
-  const result: ProcessDueDeliveriesResult = { processed: claimed.length, delivered: 0, failed: 0, dead: 0 };
-
-  for (const row of claimed) {
-    const outcome = await attemptOneDelivery(row, {
-      subscriptionRepo,
-      envelopeStore,
-      httpClient,
-      signer,
-      hooks,
-      requestTimeoutMs,
-    });
-
-    const disposition = await recordDeliveryOutcome(row, outcome, { deliveryRepo, clock, maxAttempts, random });
-    result[disposition] += 1;
-  }
-
-  return result;
-}
-
-interface ResolvedProcessDueDeliveriesOptions {
-  batchSize: number;
-  hooks: readonly WebhookBeforeDispatchHook[];
-  requestTimeoutMs: number;
-  maxAttempts: number;
-  random?: () => number;
-}
-
-/** Applies `processDueDeliveries`' documented defaults to the caller-supplied optional bag —
+ *
+ * Applies `processDueDeliveries`' documented defaults to the caller-supplied optional bag —
  *  extracted purely so the defaulting decisions don't count against the orchestrator's own
- *  complexity budget (see the batch's complexity-refactor brief on default-parameter cost). */
-function resolveProcessDueDeliveriesOptions(
-  optional: ProcessDueDeliveriesOptional
-): ResolvedProcessDueDeliveriesOptions {
-  const {
-    batchSize = 20,
-    hooks = [],
-    requestTimeoutMs = 10_000,
-    maxAttempts = MAX_DELIVERY_ATTEMPTS,
-    random,
-  } = optional;
-  return { batchSize, hooks, requestTimeoutMs, maxAttempts, random };
-}
-
-type DeliveryDisposition = "delivered" | "failed" | "dead";
-
-/** Persists one claimed row's attempt outcome (mark delivered, or compute backoff/dead-letter and
+ *  complexity budget (see the batch's complexity-refactor brief on default-parameter cost).
+ *
+ * Persists one claimed row's attempt outcome (mark delivered, or compute backoff/dead-letter and
  *  mark failed) and reports which bucket the caller's result tally should credit. Pure sequencing
  *  in `processDueDeliveries` calls this once per claimed row; extracting it is what let the loop
- *  body stop carrying the mark-delivered/backoff/dead-letter branching itself. */
-async function recordDeliveryOutcome(
-  row: WebhookDeliveryRecord,
-  outcome: DeliveryAttemptOutcome,
-  deps: { deliveryRepo: WebhookDeliveryRepoPort; clock: ClockPort; maxAttempts: number; random?: () => number }
-): Promise<DeliveryDisposition> {
-  if (outcome.ok) {
-    await deps.deliveryRepo.markDelivered({
-      workspaceId: row.workspaceId,
-      id: row.id,
-      responseStatus: outcome.responseStatus,
-      deliveredAtIso: deps.clock.nowIso(),
-    });
-    return "delivered";
-  }
-
-  const isExhausted = row.attempts >= deps.maxAttempts;
-  const nextStatus = isExhausted ? "dead" : "failed";
-  const failedAtIso = deps.clock.nowIso();
-  const nextAttemptAt = isExhausted
-    ? failedAtIso
-    : addMsToIso(failedAtIso, computeBackoffMs(row.attempts, { random: deps.random }));
-
-  await deps.deliveryRepo.markFailed({
-    workspaceId: row.workspaceId,
-    id: row.id,
-    error: outcome.error,
-    responseStatus: outcome.responseStatus,
-    nextStatus,
-    nextAttemptAt,
-    deadAtIso: isExhausted ? failedAtIso : undefined,
-  });
-
-  return isExhausted ? "dead" : "failed";
-}
-
-type DeliveryAttemptOutcome =
-  | { ok: true; responseStatus: number }
-  | { ok: false; error: string; responseStatus: number | null };
-
-/**
+ *  body stop carrying the mark-delivered/backoff/dead-letter branching itself.
+ *
  * One claimed row's full attempt: resolve subscription + envelope, run hooks, sign, POST.
  * Every failure mode (missing subscription, paused/disabled subscription, missing envelope, a
  * throwing/vetoing hook, a transport error, a non-2xx response) funnels into the same
  * `{ ok: false }` shape so the caller's retry/backoff/dead-letter logic is a single code path.
- */
-async function attemptOneDelivery(
-  row: WebhookDeliveryRecord,
-  deps: {
-    subscriptionRepo: WebhookSubscriptionRepoPort;
-    envelopeStore: DeliveryEnvelopeStore;
-    httpClient: HttpClientPort;
-    signer: WebhookSigner;
-    hooks: readonly WebhookBeforeDispatchHook[];
-    requestTimeoutMs: number;
-  }
-): Promise<DeliveryAttemptOutcome> {
-  try {
-    const subscription = await deps.subscriptionRepo.findById({
-      workspaceId: row.workspaceId,
-      id: row.subscriptionId,
-    });
-    if (!subscription) {
-      return { ok: false, error: `subscription '${row.subscriptionId}' was not found`, responseStatus: null };
-    }
-    if (subscription.status !== "active") {
-      return {
-        ok: false,
-        error: `subscription '${row.subscriptionId}' is '${subscription.status}', not active`,
-        responseStatus: null,
-      };
-    }
-
-    const storedEnvelope = await deps.envelopeStore.find({ deliveryId: row.id });
-    if (!storedEnvelope) {
-      return { ok: false, error: `no envelope recorded for delivery '${row.id}'`, responseStatus: null };
-    }
-
-    // Fail-closed: any hook throwing/rejecting propagates out of this try block and becomes a
-    // failed attempt below — it never falls through to httpClient.send with an unfiltered body.
-    const envelope = await runBeforeDispatchHooks(deps.hooks, { subscription, envelope: storedEnvelope });
-
-    const rawBody = JSON.stringify(envelope);
-    const timestampSeconds = Math.floor(Date.now() / 1000);
-    const signatureHeader = await deps.signer.signForSubscription({
-      subscription,
-      rawBody,
-      timestampSeconds,
-    });
-
-    const response = await deps.httpClient.send({
-      method: "POST",
-      url: subscription.targetUrl,
-      headers: {
-        "content-type": "application/json",
-        "tovu-signature": signatureHeader,
-        "tovu-delivery-id": row.id,
-        "tovu-event-id": row.eventId,
-      },
-      body: rawBody,
-      timeoutMs: deps.requestTimeoutMs,
-    });
-
-    if (response.status >= 200 && response.status < 300) {
-      return { ok: true, responseStatus: response.status };
-    }
-    return {
-      ok: false,
-      error: `non-2xx response: ${response.status}`,
-      responseStatus: response.status,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown webhook delivery error";
-    return { ok: false, error: message, responseStatus: null };
-  }
-}
-
-/**
+ *
  * Run `webhooks.beforeDispatch` contributors in deterministic priority order (ADR-024 §7, lower
  * runs first), threading each contributor's optional replacement envelope to the next. Throws
  * `WebhookDeliveryVetoedError` on an explicit `{ send: false }` veto; a contributor's own
@@ -431,22 +116,75 @@ async function attemptOneDelivery(
  * same backoff→dead path as any other failure (flagged as an open item: ADR-036 doesn't specify
  * a vetoed delivery's terminal status, and the port doesn't yet offer one).
  */
-async function runBeforeDispatchHooks(
-  hooks: readonly WebhookBeforeDispatchHook[],
-  input: { subscription: WebhookSubscriptionRecord; envelope: WebhookEventEnvelope }
-): Promise<WebhookEventEnvelope> {
-  const ordered = [...hooks].sort((a, b) => a.priority - b.priority);
-  let envelope = input.envelope;
+import {
+  enqueueDelivery as enqueueWebhookDelivery,
+  processDueDeliveries as processWebhookDeliveries,
+  type WebhookDeliveryRepoPort as JiniDeliveryRepo,
+  type EnqueueDeliveryDeps as JiniEnqueueDeps,
+  type ProcessDueDeliveriesDeps as JiniProcessDeps,
+  type EnqueueDeliveryOptional,
+  type ProcessDueDeliveriesOptional,
+  type ProcessDueDeliveriesResult,
+  type WebhookSourceEvent,
+} from "@jini-ai/integrations/webhooks";
+import type { WebhookDeliveryRepoPort, HttpClientPort } from "./ports.js";
 
-  for (const hook of ordered) {
-    const result = await hook.handle({ subscription: input.subscription, envelope });
-    if (!result.send) {
-      throw new WebhookDeliveryVetoedError(
-        `webhooks.beforeDispatch hook vetoed delivery for subscription '${input.subscription.id}'`
-      );
-    }
-    if (result.envelope) envelope = result.envelope;
-  }
+export { computeBackoffMs, MAX_DELIVERY_ATTEMPTS, WebhookDeliveryVetoedError } from "@jini-ai/integrations/webhooks";
+export type { EnqueueDeliveryOptional, ProcessDueDeliveriesOptional, ProcessDueDeliveriesResult, WebhookSourceEvent } from "@jini-ai/integrations/webhooks";
 
-  return envelope;
+export interface EnqueueDeliveryDeps extends Omit<JiniEnqueueDeps, "deliveryRepo" | "clock"> {
+  deliveryRepo: WebhookDeliveryRepoPort;
+  clock: { nowIso(): string };
+}
+export interface EnqueueDeliveryRequired { deps: EnqueueDeliveryDeps; input: { event: WebhookSourceEvent }; }
+export interface ProcessDueDeliveriesDeps extends Omit<JiniProcessDeps, "deliveryRepo" | "httpClient" | "headers" | "clock"> {
+  deliveryRepo: WebhookDeliveryRepoPort;
+  httpClient: HttpClientPort;
+  clock: { nowIso(): string };
+}
+export interface ProcessDueDeliveriesRequired { deps: ProcessDueDeliveriesDeps; }
+
+/** Retain atomic durable enqueue(record, envelope) and the host's failed-at field placement.
+ * ADR-046 fold-in item 5 (GAP-05/GAP-12): the durable adapter writes the envelope in the SAME
+ * INSERT as the delivery row, closing the crash gap. Jini's following envelopeStore.save remains
+ * the actual write for memory adapters and a harmless repeated write for co-persisting adapters.
+ */
+function adaptDeliveryRepo(repo: WebhookDeliveryRepoPort): JiniDeliveryRepo {
+  return {
+    enqueue: ({ record }, optional = {}) => repo.enqueue(record, optional.envelope),
+    claimPending: (required) => repo.claimPending(required),
+    markDelivered: (required) => repo.markDelivered(required),
+    markFailed: (required, optional = {}) => repo.markFailed({ ...required, ...optional }),
+    findById: (required) => repo.findById(required),
+    listBySubscription: (required) => repo.listBySubscription(required),
+  };
+}
+
+/** Delegate fan-out without changing durable deduplication or envelope co-persistence.
+ * @complexity O(matching subscriptions × delivery history), as defined by the existing repo port.
+ */
+export function enqueueDelivery({ deps, input }: EnqueueDeliveryRequired, optional: EnqueueDeliveryOptional = {}) {
+  return enqueueWebhookDelivery({ deps: {
+    ...deps,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
+    deliveryRepo: adaptDeliveryRepo(deps.deliveryRepo),
+  }, input }, optional);
+}
+
+/** Jini owns claim/retry/hooks/sign/send; host adapters preserve transport and signature headers.
+ * @complexity O(batch size × bounded envelope bytes), with one bounded HTTP request per delivery.
+ */
+export function processDueDeliveries({ deps }: ProcessDueDeliveriesRequired, optional: ProcessDueDeliveriesOptional = {}): Promise<ProcessDueDeliveriesResult> {
+  return processWebhookDeliveries({ deps: {
+    ...deps,
+    deliveryRepo: adaptDeliveryRepo(deps.deliveryRepo),
+    // Preserve the signed body bytes; only unwrap the canonical HTTP request object.
+    // Redirect policy comes from host composition; unsupported per-call controls fail closed.
+    httpClient: { send: ({ request }, options = {}) => {
+      if (options.redirect !== undefined) throw new Error("webhook HTTP adapter does not support per-request redirect controls");
+      return deps.httpClient.send(request);
+    } },
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
+    headers: { signature: "tovu-signature", deliveryId: "tovu-delivery-id", eventId: "tovu-event-id" },
+  } }, optional);
 }

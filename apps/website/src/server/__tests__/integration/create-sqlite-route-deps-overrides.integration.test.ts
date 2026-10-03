@@ -80,7 +80,7 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
 
   assert.equal(deps.workspaceId, customWorkspaceId, "REQ-06: the override's workspaceId must be honored verbatim, not the legacy literal");
 
-  const found = await deps.workspaceRepo.findById(customWorkspaceId);
+  const found = await deps.workspaceRepo.findById({ id: customWorkspaceId });
   assert.ok(found, "the SAME db handle passed in overrides.db must be the one deps' repos read from — a fresh second db would not see this pre-inserted row");
   assert.equal(found?.name, "Custom Override");
 
@@ -89,7 +89,7 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
   // be visible through `deps.workspaceRepo`.
   const secondId = "custom-override-workspace-2";
   db.insert(workspaces).values({ id: secondId, name: "Second", slug: "second-override", createdAt: "2026-07-28T00:00:01.000Z" }).run();
-  const foundSecond = await deps.workspaceRepo.findById(secondId);
+  const foundSecond = await deps.workspaceRepo.findById({ id: secondId });
   assert.ok(foundSecond, "a row inserted directly via the original db object after construction must be visible through deps' repo — proving deps and the caller share the identical handle");
 });
 

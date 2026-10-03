@@ -13,8 +13,8 @@ export function createLiveSkillRegistration(registry: ToolRegistry): (tools: rea
   const slots = new Map<string, ToolRegistration>();
   const list = registry.list.bind(registry);
   const has = registry.has.bind(registry);
-  registry.list = () => list().filter(d => !slots.has(d.id) || active.has(d.id));
-  registry.has = id => slots.has(id) ? active.has(id) : has(id);
+  registry.list = required => list(required).filter(d => !slots.has(d.id) || active.has(d.id));
+  registry.has = ({ toolId }) => slots.has(toolId) ? active.has(toolId) : has({ toolId });
   let fingerprint = "";
   return tools => {
     // Discovery changes invalidate the search snapshot; handlers always use current guidance.
@@ -28,10 +28,10 @@ export function createLiveSkillRegistration(registry: ToolRegistry): (tools: rea
         const slot: ToolRegistration = {
           descriptor: { ...tool.descriptor },
           policy: { authorize: ctx => active.get(id)?.policy.authorize(ctx) ?? "deny" },
-          handler: ctx => {
+          handler: (ctx, optional = {}) => {
             const current = active.get(id);
-            if (!current) throw new ToolInputError("This skill is no longer enabled or installed. Choose an installed skill.");
-            return current.handler(ctx);
+            if (!current) throw new ToolInputError({ message: "This skill is no longer enabled or installed. Choose an installed skill." });
+            return current.handler(ctx, optional);
           },
         };
         registry.register(slot);

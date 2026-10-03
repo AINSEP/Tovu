@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry, type Principal, type ToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { createAssistantToolExecutor } from "../tool-executor-stack.js";
@@ -34,11 +34,11 @@ interface Harness {
 }
 
 /** Builds the daemon's route deps over `registry`: Tovu's executor stack plus the disclosure options. */
-async function harness(registry: ToolRegistry = createToolRegistry()): Promise<Harness> {
+async function harness(registry: ToolRegistry = createToolRegistry({})): Promise<Harness> {
   const records: ToolFailureRecord[] = [];
   const toolFailures = { mintErrorId: () => FIXED_ID, onFailure: (record: ToolFailureRecord) => records.push(record) };
   const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges: createSurfaceExchangeStore(), toolFailures });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-disclosure" });
   return {
     records,
@@ -78,7 +78,7 @@ test("ROUTE: an unknown tool id (the executor throws) reaches the model as its r
 });
 
 test("ROUTE: a tool that runs past its timeout says it timed out", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({
     descriptor: { id: "slow_tool", timeoutMs: 5 },
     policy: { authorize: () => "allow" },
@@ -90,7 +90,7 @@ test("ROUTE: a tool that runs past its timeout says it timed out", async () => {
 });
 
 test("ROUTE: a call abandoned before it ran says it was cancelled", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({ descriptor: { id: "noop" }, policy: { authorize: () => "allow" }, handler: async () => "ok" });
   const h = await harness(registry);
 
@@ -115,7 +115,7 @@ test("ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped val
 });
 
 test("ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({
     descriptor: { id: "throws_secret" },
     policy: { authorize: () => "allow" },
@@ -136,7 +136,7 @@ test("ROUTE: a failed result that skipped the redaction layer is redacted here i
 });
 
 test("ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({
     descriptor: { id: "throws_plain" },
     policy: { authorize: () => "allow" },

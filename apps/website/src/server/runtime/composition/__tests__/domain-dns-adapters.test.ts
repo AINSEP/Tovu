@@ -74,7 +74,7 @@ for (const [code, status] of [["CERT_HAS_EXPIRED", "invalid"], ["ERR_TLS_CERT_AL
   });
 }
 test("egress refusal uses only the caller-safe message", async () => {
-  const client = { send: async () => { throw new EgressRefusedError("private address 10.2.3.4", { callerSafeMessage: "non-public destination refused" }); } };
+  const client = { send: async () => { throw new EgressRefusedError({ message: "private address 10.2.3.4" }, { callerSafeMessage: "non-public destination refused" }); } };
   await assert.rejects(createTlsProbe(client)({ domain: "example.com" }), { name: "ToolInputError", message: "domain_tls_status: non-public destination refused" });
 });
 test("production policy blocks all non-public addresses before transport and rechecks subsequent lookups", async () => {

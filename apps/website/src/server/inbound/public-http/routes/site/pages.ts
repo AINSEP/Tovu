@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import type { PostRecord } from "#src/features/post/index";
 import {
@@ -618,7 +618,7 @@ export async function resolveStaticMenusForRender(
   const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
   if (menuIds.length === 0) return {};
 
-  const resolveTargetHref: ResolveTargetHrefFn = async (target) => {
+  const resolveTargetHref: ResolveTargetHrefFn = async ({ target }) => {
     const resolved = await urlFor({
       deps: { postRepo: deps.postRepo },
       target: navTargetToRouteTarget(target),

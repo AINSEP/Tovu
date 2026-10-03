@@ -16,15 +16,15 @@ import { resolveActiveThemeId } from "../active-theme-id.js";
  */
 
 test("resolveActiveThemeId: returns the workspace's stored activeThemeId when a row exists", async () => {
-  const presentationRepo = new InMemoryPresentationSettingsRepo([
+  const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
     { workspaceId: "ws-1", activeThemeId: "atlas", updatedAt: "2026-07-15T00:00:00.000Z" },
-  ]);
+  ] });
   const result = await resolveActiveThemeId({ presentationRepo, workspaceId: "ws-1" });
   assert.equal(result, "atlas");
 });
 
 test("resolveActiveThemeId: degrades to '' when the workspace has no presentation-settings row yet", async () => {
-  const presentationRepo = new InMemoryPresentationSettingsRepo([]);
+  const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [] });
   const result = await resolveActiveThemeId({ presentationRepo, workspaceId: "ws-1" });
   assert.equal(result, "");
 });
@@ -47,7 +47,7 @@ test("resolveActiveThemeId: any OTHER repo error propagates uncaught, not silent
 test("resolveActiveThemeId: sanity — PresentationSettingsNotFoundError is exactly the error class this function narrows", async () => {
   const explicitlyThrowingRepo = {
     findByWorkspaceId: async () => {
-      throw new PresentationSettingsNotFoundError("no row for this workspace");
+      throw new PresentationSettingsNotFoundError({ message: "no row for this workspace" });
     },
     save: async () => {},
     listAll: async () => [],

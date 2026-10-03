@@ -1,16 +1,10 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalNumber,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
+import type { HttpClientPort } from "#src/platform/http/index";
+import { readPageBodyOptions } from "./page-body.js";
+import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./live-url.js";
+import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 
@@ -56,7 +50,7 @@ import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "./site-profile.js"
  * inside `buildSiteCapabilities`, no blanket check here.
  */
 
-const CATALOG_BY_ID = indexCatalogById(siteInspectionAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: siteInspectionAgentToolCatalog });
 
 export type { SiteInspectionToolDeps } from "./deps.js";
 
@@ -77,6 +71,8 @@ export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   //    See the catalog entry's own comment for the one disclosed caveat (a path matching a live
   //    redirect rule records a redirect hit, exactly as a real visit would).
   ["fetch_published_page", "none"],
+  // -> fresh live-origin reads + guarded credential-free GETs; no writes.
+  ["fetch_live_url", "none"],
 ]);
 
 /** Raised for a bad `sections`/`pageLimit` input, so {@link isShapeRejection} can decorate it with
@@ -128,51 +124,50 @@ function readSections<N extends string>(input: Record<string, unknown>, vocabula
   return raw as N[];
 }
 
-export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps): ToolRegistration[] {
+export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: FetchLiveUrlDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     site_get_profile: async (ctx) => {
-      const input = requireInputRecord(ctx.input ?? {});
+      const input = requireInputRecord({ input: ctx.input ?? {} });
 
       // NO blanket `requireToolPermission` here — see this file's header. `buildSiteProfile`
       // authorizes each section against that section's own domain permission.
-      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection }, async () =>
+      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () =>
         buildSiteProfile(
           toSiteProfileDeps(routeDeps),
           { principalId: ctx.principal.id },
-          { sections: readSections(input, SITE_PROFILE_SECTION_NAMES), pageLimit: optionalNumber(input, "pageLimit") },
-        ),
-      );
+          { sections: readSections(input, SITE_PROFILE_SECTION_NAMES), pageLimit: optionalNumber({ input: input, key: "pageLimit" }) },
+        ) });
     },
 
     site_describe_capabilities: async (ctx) => {
-      const input = requireInputRecord(ctx.input ?? {});
+      const input = requireInputRecord({ input: ctx.input ?? {} });
 
       // NO blanket gate here either — `buildSiteCapabilities` authorizes each of its three sections
       // against that section's own permission.
-      return withSchemaOnRejection(
-        { toolId: "site_describe_capabilities", catalog: CATALOG_BY_ID, isShapeRejection },
-        async () =>
+      return withSchemaOnRejection({ toolId: "site_describe_capabilities", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () =>
           buildSiteCapabilities(
             toSiteCapabilitiesDeps(routeDeps),
             { principalId: ctx.principal.id },
             { sections: readSections(input, SITE_CAPABILITIES_SECTION_NAMES) },
-          ),
-      );
+          ) });
     },
 
+    fetch_live_url: async ctx => {
+      const input = requireInputRecord({ input: ctx.input });
+      const path = requireString({ input: input, key: "path" });
+      const options = readPageBodyOptions(input);
+      if (input.origin !== undefined && typeof input.origin !== "string") throw new ToolInputError({ message: "fetch_live_url: origin must be a known HTTPS origin string." });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
+      if (!liveDeps) throw new ToolInputError({ message: "fetch_live_url: the guarded live HTTP client is not wired on this host." });
+      return fetchLiveUrl(liveDeps, { path, origin: input.origin as string | undefined, ...options });
+    },
     fetch_published_page: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const path = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: SITE_INSPECTION_READ_PERMISSION,
-        entityType: "published-page",
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const path = requireString({ input: input, key: "path" });
+      const options = readPageBodyOptions(input);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
 
-      return withSchemaOnRejection(
-        { toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection },
-        async () => fetchPublishedPage(routeDeps, { path }, { maxBytes: optionalNumber(input, "maxBytes") }),
-      );
+      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => fetchPublishedPage(routeDeps, { path }, options) });
     },
   };
 
@@ -192,10 +187,17 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
  */
-export function contributeSiteInspectionTools(): ToolContributor {
+export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor {
   return {
     domain: "site-inspection",
-    build: buildSiteInspectionRegistrations,
+    build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {
+      httpClient,
+      listKnownOrigins: () => listKnownLiveOrigins(deps),
+      observeFetch: event => console.info(JSON.stringify({
+        timestamp: new Date().toISOString(), level: "info", service: "site-inspection",
+        message: "fetch_live_url", context: event,
+      })),
+    } : undefined),
     risk: siteInspectionDerivedRisk,
   };
 }

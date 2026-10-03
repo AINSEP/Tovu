@@ -1,3 +1,4 @@
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -47,7 +48,8 @@ function scriptedFetch(script: readonly unknown[]): OAuthFetch {
 
 function makeClock() {
   let nowMs = Date.parse("2026-08-25T12:00:00.000Z");
-  return { nowIso: () => new Date(nowMs).toISOString(), advance: (ms: number) => void (nowMs += ms) };
+  return { nowMs: () => nowMs,
+    nowIso: () => new Date(nowMs).toISOString(), advance: (ms: number) => void (nowMs += ms) };
 }
 
 async function harness(fetchFn?: OAuthFetch) {
@@ -73,7 +75,8 @@ async function harness(fetchFn?: OAuthFetch) {
     workspaceId: WORKSPACE, repo, sealer, keyring, clock,
     pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: fetchFn ?? scriptedFetch([{ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }]),
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (fetchFn ?? scriptedFetch([{ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }]))(url, init) },
     lookupProvider: () => PROVIDER,
   });
 

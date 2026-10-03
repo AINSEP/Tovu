@@ -405,9 +405,9 @@ export function listThemeFiles(
 }
 
 /**
- * `statSync(target, { throwIfNoEntry: false })`, but converts any OTHER thrown error into this
- * module's own {@link ThemePathError} instead of letting it escape raw. `throwIfNoEntry: false` only
- * suppresses `ENOENT`; the realistic other case is `ELOOP` from `target` itself being a circular
+ * `statSync(target, { throwIfNoEntry: false })`, converting circular-symlink `ELOOP` into this
+ * module's {@link ThemePathError}. Storage failures such as `EIO` and `EACCES` propagate unchanged,
+ * so callers cannot mistake an unreadable original for a missing one. `ELOOP` comes from a circular
  * symlink (`a -> b -> a`) — {@link resolveThemeFilePath}'s own containment check does not resolve this
  * case: its walk-up to find an EXISTING ancestor stops at the theme folder itself, because a
  * self-referential symlink never "exists" by `existsSync`'s own ELOOP-swallowing definition, so it
@@ -422,11 +422,13 @@ export function listThemeFiles(
  * the type's LAST overload (`Stats | BigIntStats | undefined`), which is why callers of this
  * function (`writeFileAtomically`) saw a `bigint` in `existing.mode`'s type that can never actually
  * occur at runtime.
+ * @complexity O(1) time and space, with one filesystem stat.
  */
 function statOrThemePathError(target: string, relativePath: string): Stats | undefined {
   try {
     return statSync(target, { throwIfNoEntry: false });
   } catch (err) {
+    if ((err as NodeJS.ErrnoException | null)?.code !== "ELOOP") throw err;
     throw new ThemePathError(`path '${relativePath}' could not be read: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
@@ -536,9 +538,9 @@ function originalRegularFile(required: {
  * @returns `null` when the catalog has no regular file at `relativePath` (so there is nothing to
  * compare against, and nothing to reset to). Otherwise `true` when the live file is missing, is not
  * a regular file, or its bytes differ; `false` when the bytes are identical.
- * @throws {ThemePathError} When `relativePath` fails containment against the LIVE folder, or the live
- * path cannot be stat'ed for a reason other than not existing (e.g. a circular symlink).
- * @throws Whatever `openSync`/`readSync` throw when equal-size files cannot be read (e.g. `EACCES`).
+ * @throws {ThemePathError} When `relativePath` fails containment against the LIVE folder or names
+ * a circular symlink.
+ * @throws Filesystem failures from either side's stat or byte comparison (e.g. `EIO` or `EACCES`).
  * @complexity O(1) stats when there is no original or the sizes differ; otherwise O(s) time in the
  * file size and O(1) space.
  */
@@ -581,7 +583,7 @@ export function themeFileDiffersFromOriginal(
  * When `target` does not exist yet, the new file keeps the mode `fillTemp` created it with.
  *
  * @throws whatever `accessSync`, `fillTemp`, `chmodSync` or `renameSync` throws, or
- * {@link ThemePathError} if the pre-write stat on `target` hits anything other than ENOENT (see
+ * {@link ThemePathError} if the pre-write stat on `target` hits a circular symlink (see
  * {@link statOrThemePathError}). The temp file is removed before the error propagates,
  * so a failed write leaves no artifact behind in the theme folder.
  * @complexity O(s) in the size of what `fillTemp` writes.

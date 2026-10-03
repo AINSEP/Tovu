@@ -21,8 +21,8 @@ import {
   MAX_ATTRIBUTES_PER_FIELD,
   MAX_CLASS_NAME_LENGTH,
   validateFieldDescriptors,
-} from "../forms.js";
-import type { FieldDescriptor } from "../types.js";
+} from "@jini-ai/cms-forms";
+import type { FieldDescriptor } from "@jini-ai/cms-forms";
 
 function field(overrides: Partial<FieldDescriptor> = {}): FieldDescriptor {
   return { id: "name", label: "Name", type: "text", required: false, ...overrides };
@@ -30,7 +30,7 @@ function field(overrides: Partial<FieldDescriptor> = {}): FieldDescriptor {
 
 /** The `fieldErrors` array, or a failing assertion if the input was unexpectedly accepted. */
 function errorsOf(fields: FieldDescriptor[]) {
-  const result = validateFieldDescriptors(fields);
+  const result = validateFieldDescriptors({ fields });
   assert.equal(result.valid, false, "expected these descriptors to be rejected");
   return result.valid === false ? result.fieldErrors : [];
 }
@@ -175,14 +175,14 @@ test("validateFieldDescriptors: a non-string attribute value is rejected as a ty
 
 test("validateFieldDescriptors: null/absent optionals and an empty attributes map are all accepted", () => {
   const nullMaxLength = { ...field(), maxLength: null } as FieldDescriptor;
-  assert.equal(validateFieldDescriptors([nullMaxLength]).valid, true);
-  assert.equal(validateFieldDescriptors([field({ type: "checkbox", maxLength: null })]).valid, true);
-  assert.equal(validateFieldDescriptors([field({ attributes: {} })]).valid, true);
-  assert.equal(validateFieldDescriptors([field({ className: "" })]).valid, true);
-  assert.equal(validateFieldDescriptors([field({ maxLength: 1 })]).valid, true);
-  assert.equal(validateFieldDescriptors([field({ maxLength: 5000 })]).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [nullMaxLength] }).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [field({ type: "checkbox", maxLength: null })] }).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [field({ attributes: {} })] }).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [field({ className: "" })] }).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [field({ maxLength: 1 })] }).valid, true);
+  assert.equal(validateFieldDescriptors({ fields: [field({ maxLength: 5000 })] }).valid, true);
 });
 
 test("validateFieldDescriptors: a valid input returns the bare `{ valid: true }` shape, with no fieldErrors key", () => {
-  assert.deepEqual(validateFieldDescriptors([field()]), { valid: true });
+  assert.deepEqual(validateFieldDescriptors({ fields: [field()] }), { valid: true });
 });

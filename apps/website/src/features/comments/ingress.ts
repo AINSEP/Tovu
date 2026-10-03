@@ -23,7 +23,9 @@
  * `settingsRepo` when the composition root supplies one, falling back to a fixed snapshot
  * otherwise (hermetic tests that don't wire the ledger).
  */
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import { nowIso } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { CommentHookRegistry } from "./hooks.js";
 import type {
@@ -127,9 +129,9 @@ async function resolveParentContext(
 }
 
 /** rate-limit → honeypot gate (per this file's header). */
-function checkRateLimitAndHoneypot(deps: CommentIngressDeps, submission: CommentSubmission): { ok: true; authorIpHash: string | null } | StepRejected {
+async function checkRateLimitAndHoneypot(deps: CommentIngressDeps, submission: CommentSubmission): Promise<{ ok: true; authorIpHash: string | null } | StepRejected> {
   const authorIpHash = readIngressString(submission.ingressContext.authorIpHash);
-  if (!deps.rateLimiter.check(authorIpHash ?? "unknown").allowed) return { ok: false, reason: "rate-limited" };
+  if (!(await deps.rateLimiter.check({ key: authorIpHash ?? "unknown" })).allowed) return { ok: false, reason: "rate-limited" };
   if (readIngressString(submission.ingressContext.honeypotValue)) return { ok: false, reason: "honeypot-tripped" };
   return { ok: true, authorIpHash };
 }
@@ -232,7 +234,7 @@ export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIng
       const parentContext = await resolveParentContext(deps, submission, settings);
       if (!parentContext.ok) return parentContext;
 
-      const rateGate = checkRateLimitAndHoneypot(deps, submission);
+      const rateGate = await checkRateLimitAndHoneypot(deps, submission);
       if (!rateGate.ok) return rateGate;
 
       const bodyResult = sanitizeAndCapBody(submission.bodyRaw);
@@ -246,7 +248,7 @@ export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIng
       const status = classifyCommentStatus(verdict, settings);
 
       const id = deps.idGen.newId();
-      const now = deps.clock.nowIso();
+      const now = nowIso({ clock: deps.clock });
       const record = buildCommentRecord({
         submission,
         hookSubmission: hookResult.submission,

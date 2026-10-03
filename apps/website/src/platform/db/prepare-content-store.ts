@@ -40,7 +40,7 @@ async function insertRow(kernel: ContentKernel, table: Table, value: object): Pr
 /**
  * Seed the demo workspace/posts/presentation exactly once, in one kernel transaction.
  *
- * Guarded by workspace slug so a persisted db (with the operator's own edits) is never re-seeded or
+ * Guarded by workspace id or slug so a persisted db (including a renamed workspace) is never re-seeded or
  * overwritten on restart. Under `lockKey`: on Postgres two processes booting at once (API + agent
  * daemon) would otherwise both see no workspace and both insert (READ COMMITTED); on SQLite the
  * transaction's write lock already serializes them.
@@ -49,7 +49,9 @@ export async function seedContentStore(kernel: ContentKernel, seed: ContentDbSee
   await kernel.transaction(async () => {
     await kernel.lockKey("seed_content_store");
     const existing = await kernel.run((db) =>
-      db.selectFrom("workspaces").select("id").where("slug", "=", seed.workspace.slug).executeTakeFirst()
+      db.selectFrom("workspaces").select("id")
+        .where((eb) => eb.or([eb("id", "=", seed.workspace.id), eb("slug", "=", seed.workspace.slug)]))
+        .executeTakeFirst()
     );
     if (existing !== undefined) return;
 

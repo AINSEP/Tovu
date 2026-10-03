@@ -17,7 +17,7 @@
  * transaction. `extractEntryRefs()` handles structured entry bodies/config, while the later
  * `extractHtmlEntryRefs()` sibling indexes supported markers in HTML page bodies.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "#src/contracts/core/embeds/marker";
 import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 

@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file The blob content-type store — what lets the admin Media screen's "Images"/"Videos" tabs

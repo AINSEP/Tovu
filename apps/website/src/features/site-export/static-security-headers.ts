@@ -24,7 +24,7 @@ import { escapeHtml } from "#src/platform/html/escape";
  * exported HTML page for every host, so it holds even where a header file is not applied.
  */
 
-export const HEADERS_FILE_NAME = "_headers";
+// HEADERS_FILE_NAME (apps/website/src/features/site-export/static-security-headers.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** The Netlify / Cloudflare Pages `_headers` format: a path pattern, then two-space-indented `Name: value` lines. */
 export function renderHeadersFile(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {

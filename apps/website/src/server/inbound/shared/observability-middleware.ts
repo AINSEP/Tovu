@@ -1,13 +1,13 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /**
- * @file The one real instrumentation point this task adds: records every inbound HTTP request
- * through `RouteDeps.observability` (Constitution Article VIII). Deliberately the ONLY caller of
- * `ObservabilityPort.trackRequest` in this codebase today — `platform/observability/ports.ts`'s
- * file header names the others (`trackDbQuery`/`trackOutboundCall`/`trackAgentRun`) as later,
- * separate additions, each needing its own real call site before it is designed.
+ * @file Records inbound HTTP requests through the injected diagnostics observability port
+ * (Constitution Article VIII). Express owns routing and response completion; Jini owns tracking.
+ * Deliberately the only caller of ObservabilityPort.trackRequest in this codebase today.
+ * DB/outbound/agent signals remain separate additions: each needs its own real instrumentation
+ * call site before a port shape is designed, as explained in Jini's observability/ports.ts.
  *
  * Registered first in `createApp()`, ahead of `applySiteServingGate` and every route module (see
  * that call site's own comment), so a request the serving gate rejects or a 404 that matches no
@@ -28,11 +28,10 @@ import type { ObservabilityPort } from "#src/platform/observability/index";
  * `"/api/admin/posts/:id"`) — `req.route.path` alone is only the route's pattern local to whichever
  * `express.Router()` it was registered on, which is incomplete for any route mounted under a
  * sub-router. An unmatched request (no route resolved at all) reports the fixed literal
- * `"unmatched"` rather than the raw path — see `ports.ts`'s `RequestTrackingOutcome.routePattern`
+ * `"unmatched"` rather than the raw path — see diagnostics' `RequestTrackingOutcome.routePattern`
  * doc for why unbounded, attacker-controlled path cardinality must never reach this signal.
  *
  * @complexity O(1) per request beyond Express's own routing cost.
- * @overallScore 100
  */
 export function applyRequestTracking(app: Express, deps: { observability: ObservabilityPort }): void {
   app.use((req: Request, res: Response, next: NextFunction) => {

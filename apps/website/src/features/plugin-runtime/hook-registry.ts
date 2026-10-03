@@ -38,7 +38,7 @@
  * design-frozen; `runBeforeSave()` orders attached filters, gives each an isolated entry snapshot,
  * validates each declared-field patch, and returns the merged per-plugin `ext` object fail-closed.
  */
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { BeforeSaveFilter, ContentEntryDraft, HookContext } from "@tovu/sdk";
 
 /** Who attached a given filter — extended by ADR-057 Decision 3 with `"glue"`, ranked after

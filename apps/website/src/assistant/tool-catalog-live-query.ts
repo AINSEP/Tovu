@@ -1,4 +1,4 @@
-import type { ToolCatalogQuery } from "@jini-ai/http-kit";
+import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 /**
  * @file A `ToolCatalogQuery` whose backing snapshot can be swapped after construction — the

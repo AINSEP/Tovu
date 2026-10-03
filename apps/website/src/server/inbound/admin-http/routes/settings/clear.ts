@@ -5,12 +5,11 @@ import {
   PrincipalNotFoundError,
   ScopeNotAllowedError,
   type SettingScope,
-  clear,
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
+import { resolveTargetWorkspaceId, respondToSettingsError, createTovuSettingsService, type SettingsErrorMapping } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -112,9 +111,8 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, dep
         return;
       }
 
-      const result = await clear({
-        deps: toWriteServiceDeps(deps),
-        input: { namespace, key, scope, workspaceId, principalId, callerPrincipalId: principal.id, authWorkspaceId },
+      const result = await createTovuSettingsService({ deps }).clear({
+        namespace, key, scope, workspaceId, principalId, callerPrincipalId: principal.id, authWorkspaceId,
       });
 
       res.json({ key: `${namespace}.${key}`, scope, value: null, revisionSeq: result.revisionSeq });

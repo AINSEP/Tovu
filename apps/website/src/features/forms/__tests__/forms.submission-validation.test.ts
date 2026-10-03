@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateSubmissionPayload } from "../forms.js";
-import type { FormDefinitionRecord } from "../types.js";
+import { validateSubmissionPayload } from "@jini-ai/cms-forms";
+import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Unit tests for `validateSubmissionPayload` (C-003, REQ-06, AC-08/09/10, INV-01).

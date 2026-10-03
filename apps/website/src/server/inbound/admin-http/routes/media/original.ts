@@ -213,7 +213,7 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
       const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
       const totalLength = bytes.byteLength;
 
-      const sniffed = sniffContentType(bytes);
+      const sniffed = sniffContentType({ bytes });
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
       // Every response here reflects this principal's authorization at request time and may name
       // whether a specific asset is trashed — never shared-cached (mirrors the public rendition

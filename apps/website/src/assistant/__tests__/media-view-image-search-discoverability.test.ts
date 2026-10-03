@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,9 +8,14 @@ import { createToolRegistry } from "@jini-ai/core";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Pins the incident `media_view_image` exists for: asked to write alt text, the
@@ -24,13 +31,13 @@ import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 const TOOL_ID = "media_view_image";
 
 async function realCatalog() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
     registry.register(registration);
   }
   return buildToolCatalogQuery(registry);

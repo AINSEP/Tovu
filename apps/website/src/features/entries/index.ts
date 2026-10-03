@@ -17,14 +17,8 @@
  * deep-imports those paths and is being ported by separate work in flight; when that lands, the
  * shims retire and its imports come through this barrel like everyone else's.
  */
-export type {
-  EntryStatus,
-  EntryFieldsJson,
-  EntryRecord,
-  OwningContentType,
-  ActorIdentityInput,
-  Result,
-} from "@jini-ai/cms/entries";
+export type { EntryStatus, EntryFieldsJson, EntryRecord, OwningContentType, ActorIdentityInput } from "@jini-ai/cms/entries";
+export type { Result } from "@jini-ai/core/primitives";
 
 export type { EntryListPort } from "@jini-ai/cms/entries";
 export { listEntries } from "@jini-ai/cms/entries";
@@ -71,11 +65,8 @@ export { createEntry, updateEntry, publishEntry, unpublishEntry, importEntry } f
 export { InMemoryEntryRepo, toEntryOutbox } from "@jini-ai/cms/entries";
 
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
-export {
-  entriesAgentToolCatalog,
-  type EntriesAgentToolDefinition,
-  type EntriesAgentToolSideEffect,
-} from "@jini-ai/cms/entries";
+export { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
+export type { AgentToolDefinition as EntriesAgentToolDefinition, AgentToolSideEffect as EntriesAgentToolSideEffect } from "@jini-ai/core";
 
 /**
  * The agent-tool wiring for this domain. Also re-exported (unchanged) by `tool-registrations.ts`

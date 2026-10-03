@@ -36,19 +36,8 @@
  * test file proves that behaviorally rather than leaving it to this sentence.
  */
 
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
@@ -213,7 +202,7 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
  *
  * @complexity O(k) in the reachable kinds.
  */
-function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): WirableToolDefinition {
+function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): AgentToolDefinition {
   return {
     name: TRASH_ITEM_TOOL_ID,
     description:
@@ -243,13 +232,14 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Wi
 /**
  * `trash_item`'s declared catalog: one entry, every kind in {@link TRASH_ITEM_DELEGATES}.
  *
- * Deliberately NOT part of `getTrashAgentToolCatalog()`. That catalog is proven to hold exactly two
+ * Deliberately NOT part of the listing/restoration catalog. That catalog is proven to hold exactly two
  * tools by `__tests__/tool-registrations.purge-ban.test.ts`, and this tool is built by a
  * post-processing pass, not by the trash contributor.
  *
  * @complexity O(k) in the delegate kinds.
+ * getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
-export function getTrashItemAgentToolCatalog(): readonly WirableToolDefinition[] {
+export function getTrashItemAgentToolCatalog(): readonly AgentToolDefinition[] {
   return [trashItemToolDefinition([...TRASH_ITEM_DELEGATES.keys()])];
 }
 
@@ -295,19 +285,17 @@ async function readGenericEntityDisplay(
 function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string, outcome: Extract<MoveToTrashOutcome, { ok: false }>): ToolInputError {
   switch (outcome.reason) {
     case "not-found":
-      return new ToolInputError(`trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.`);
+      return new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
     case "forbidden":
-      return new ToolInputError(`trash_item: not authorized for '${outcome.permission}'. Nothing was changed.`);
+      return new ToolInputError({ message: `trash_item: not authorized for '${outcome.permission}'. Nothing was changed.` });
     case "version-changed":
-      return new ToolInputError(
-        `trash_item: ${entityType} '${entityId}' changed during removal. Reload and try again. Nothing was changed.`
-      );
+      return new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' changed during removal. Reload and try again. Nothing was changed.` });
     case "unknown-type":
-      return new ToolInputError(`trash_item: '${entityType}' is not a kind of thing the Trash can hold. Nothing was changed.`);
+      return new ToolInputError({ message: `trash_item: '${entityType}' is not a kind of thing the Trash can hold. Nothing was changed.` });
     default: {
       const fallback = outcome as { reason: string; code?: string };
       const code = fallback.code ? ` (${fallback.code})` : "";
-      return new ToolInputError(`trash_item: could not move ${entityType} '${entityId}' to the Trash: ${fallback.reason}${code}. Nothing was changed.`);
+      return new ToolInputError({ message: `trash_item: could not move ${entityType} '${entityId}' to the Trash: ${fallback.reason}${code}. Nothing was changed.` });
     }
   }
 }
@@ -323,14 +311,14 @@ function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string
 function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: TrashEntry; routeDeps: TrashItemToolDeps; surfaces: AssistantSurfaceDeps }): ToolHandler {
   const { entityType, entry, routeDeps, surfaces } = spec;
   return async (ctx) => {
-    const input = requireInputRecord(ctx.input);
-    const entityId = requireString(input, "entityId");
+    const input = requireInputRecord({ input: ctx.input });
+    const entityId = requireString({ input: input, key: "entityId" });
 
-    await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: entry.permission, entityType, entityId });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: entry.permission }, { entityType, entityId });
 
     const snapshot = await readGenericEntityDisplay(routeDeps, entry, entityId);
     if (!snapshot) {
-      throw new ToolInputError(`trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.`);
+      throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
     }
 
     const actor: TrashActor = { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID };
@@ -399,45 +387,44 @@ export function deriveTrashItemRegistrations(
   const reachableKinds = [...delegateHandlerByEntityType.keys(), ...genericEntryByEntityType.keys()];
 
   const handlers: Record<string, ToolHandler> = {
-    trash_item: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const entityType = requireString(input, "entityType");
-      const entityId = requireString(input, "entityId");
+    trash_item: async (ctx, options = {}) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const entityType = requireString({ input: input, key: "entityType" });
+      const entityId = requireString({ input: input, key: "entityId" });
 
       // Against the live adapter map, on every call — never a list captured when this was built.
       const delegate = delegates.get(entityType);
       const delegateHandler = delegateHandlerByEntityType.get(entityType);
       if (delegate && delegateHandler && routeDeps.isTrashableEntityType(entityType)) {
-        await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: delegate.permission, entityType, entityId });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: delegate.permission }, { entityType, entityId });
 
         const delegateInput = await delegate.toDelegateInput(routeDeps, entityId);
         if (!delegateInput) {
-          throw new ToolInputError(`trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.`);
+          throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
         }
 
         // The same `ctx` preserves the caller, signal and audit identity,
-        // with only the input swapped for the delegate's own shape.
-        const outcome = await delegateHandler({ ...ctx, input: delegateInput });
+        // with only the input swapped for the delegate's own shape. Forward the interactive
+        // options too, so a delegate that asks the human retains its confirmation channel.
+        const outcome = await delegateHandler({ ...ctx, input: delegateInput }, options);
         return { entityType, entityId, via: delegate.toolId, outcome };
       }
 
       const genericEntry = genericEntryByEntityType.get(entityType);
       if (genericEntry && routeDeps.isTrashableEntityType(entityType)) {
-        return buildGenericTrashHandler({ entityType, entry: genericEntry, routeDeps, surfaces })(ctx);
+        return buildGenericTrashHandler({ entityType, entry: genericEntry, routeDeps, surfaces })(ctx, options);
       }
 
       const accepted = reachableKinds.filter((kind) => routeDeps.isTrashableEntityType(kind));
-      throw new ToolInputError(
-        `trash_item: '${entityType}' is not a kind of thing the Trash can hold. Expected one of: ${accepted.join(", ")}. ` +
-          "Nothing was changed."
-      );
+      throw new ToolInputError({ message: `trash_item: '${entityType}' is not a kind of thing the Trash can hold. Expected one of: ${accepted.join(", ")}. ` +
+          "Nothing was changed." });
     },
   };
 
   return buildDomainRegistrations({
     domain: "trash-item",
     catalogModule: "trash/trash-item-tool.ts",
-    catalog: indexCatalogById([trashItemToolDefinition(reachableKinds)]),
+    catalog: indexCatalogById({ catalog: [trashItemToolDefinition(reachableKinds)] }),
     handlers,
     derivedRisk: trashItemDerivedRisk,
   });

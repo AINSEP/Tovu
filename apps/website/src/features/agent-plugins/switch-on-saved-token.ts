@@ -1,4 +1,4 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpServerRepoPort } from "#src/assistant/index";
 

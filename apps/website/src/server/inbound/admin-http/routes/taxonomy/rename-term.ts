@@ -25,6 +25,7 @@ export function registerAdminTaxonomyRenameTermRoute(app: Express, deps: Taxonom
           clock: deps.clock,
           idGen: deps.idGen,
           taxonomies: deps.taxonomyRepo,
+          transaction: (required) => deps.taxonomyRepo.transaction(required),
           terms: deps.termRepo,
           entryTerms: deps.entryTermRepo,
           revisions: deps.taxonomyRevisionRepo,

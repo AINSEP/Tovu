@@ -1,5 +1,7 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import type {
@@ -85,7 +87,7 @@ export const contributeMenusPublish = (): PublishContentContributor =>
     address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
     validate: async ({ entity }) => {
       try {
-        validateAndCloneTree((entity.state.doc as NavMenuDoc).items);
+        validateAndCloneTree({ items: (entity.state.doc as NavMenuDoc).items });
         return null;
       } catch (err) {
         return err instanceof Error ? err.message : String(err);
@@ -104,7 +106,7 @@ export const contributeMenusPublish = (): PublishContentContributor =>
         doc: state.doc as NavMenuDoc,
         locations: (state.locations as readonly string[] | undefined) ?? [],
         // Local bookkeeping, recomputed inside `importMenuEntity`; never read back.
-        updatedAt: deps.clock.nowIso(),
+        updatedAt: clockNowIso({ clock: deps.clock }),
         version: 0,
       };
       const importDeps = { clock: deps.clock, idGen: deps.idGen, repo: ports.repo, bindingRepo: ports.bindingRepo, outbox: deps.outbox };
@@ -268,7 +270,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
               writtenVersion = written.menu.version;
               return written;
             },
-            captureEntityVersion: (result) => result.menu.version,
+            captureEntityVersion: ({ result }) => result.menu.version,
             // Compensating undo when the change-set record fails AFTER the write landed (INV-01: no
             // mutation without a record) — same role as `retire()`'s `rollback` in
             // `features/post/publish-content.ts`. Without it the menu stays repointed with no History

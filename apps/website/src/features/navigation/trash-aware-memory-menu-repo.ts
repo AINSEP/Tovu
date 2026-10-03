@@ -18,7 +18,7 @@ import type { MenuTrashLookup } from "./menu-trash-follow-ups.js";
 export type TrashableMenuRecord = NavMenuEntry & { priorStatus: MenuStatus | null };
 
 export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup {
-  private readonly inner = new InMemoryMenuRepo();
+  private readonly inner = new InMemoryMenuRepo({});
   /** id → status held immediately before the most recent trash. */
   private readonly priorStatus = new Map<string, MenuStatus>();
 
@@ -58,9 +58,7 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
 
     const holder = await this.inner.findBySlug({ workspaceId: record.workspaceId, slug: record.slug });
     if (holder && holder.id !== record.id && holder.status === "trash") {
-      throw new MenuConflictError(
-        `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
-      );
+      throw new MenuConflictError({ message: `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
     }
     await this.inner.save(record);
   }

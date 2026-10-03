@@ -31,8 +31,8 @@ import {
  *    ordinary tool call carrying a confirmation token only the rendered dialog held. No wired tool
  *    takes this path today — `content_post_delete` was the only one, and it moved to shape 1 above.
  *    Left in place as generic infrastructure for a future tool that genuinely needs a second,
- *    independently-authorized call rather than a held-open one; `pending-confirmations.ts` and this
- *    branch are what such a tool would still need.
+ *    independently-authorized call rather than a held-open one; such a tool would need its own
+ *    token store alongside this branch.
  *
  * The discriminator is the exchange id's presence rather than the tool's identity, so a tool can move
  * from one shape to the other without this route learning its name.
@@ -57,7 +57,7 @@ import {
  *
  * Mounted inside `agent-daemon-server.ts` — the only process where the `ToolRegistry`/
  * `ToolExecutor`, the `SurfaceExchangeStore` every parked call (including `content_post_delete`,
- * ADR-055 Decision 2) is waiting in, and any future Shape 2 tool's own `PendingConfirmationStore`
+ * ADR-055 Decision 2) is waiting in, and any future Shape 2 tool's own token store
  * actually live (`buildAssistantToolRegistrations` runs exactly once there, at boot). A route in
  * Tovu's own admin server cannot call `surfaceExchanges.deliver()`, `confirmations.redeem()`, or a
  * handler directly — different process, different memory — and `@jini-ai/core`'s `ToolRegistry`
@@ -83,6 +83,7 @@ import {
  * decision being confirmed. A fresh, single-use synthetic `RunRef` (`{id}` is `@jini-ai/core`'s
  * whole structural contract for one — see `tool-registry.ts`) satisfies `ToolExecutor.execute`'s
  * signature without asserting a real run exists.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Mounted at the same path Tovu's proxy exposes to the browser, so `forwardToAgentDaemon`'s
@@ -116,7 +117,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * `policy.authorize: () => "allow"` (ADR-021 §2 — the domain's OWN inline `authorize()`/
  * `requireToolPermission` call is the real gate, and it throws rather than returning a denial
  * `ToolExecutor` would see), and `requiresConfirmation` is never set on a catalog entry (see
- * `pending-confirmations.ts`'s header). So `'denied'`/`'confirmation-denied'` are handled for
+ * `tool-registration-kit.ts`'s explanation of the missing confirmation delegate). So `'denied'`/`'confirmation-denied'` are handled for
  * completeness and to keep this switch exhaustive against `ToolExecutionStatus`, not because a live
  * path reaches them today. `'cancelled'` is similarly unreachable from this call site specifically —
  * nothing here holds the `executionId` an external `toolExecutor.cancel()` would need. `'failed'`
@@ -130,6 +131,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  *
  * @complexity O(1).
  * @overallScore 100
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function respondToExecutionResult(res: Response, toolName: string, principalId: string, result: ToolExecutionResult): void {
   switch (result.status) {
@@ -162,10 +164,11 @@ function respondToExecutionResult(res: Response, toolName: string, principalId: 
  *
  * @param deps.toolExecutor - The SAME executor `agent-daemon-server.ts` built the registry with —
  * passing a different instance would mean this route executes a tool with no relationship to the
- * `PendingConfirmationStore` that minted the token being redeemed, and every redemption would fail
- * with `unknown-or-expired`.
+ * tool handler and its process-local state; a token-based handler would fail redemption against
+ * a different store instance.
  * @complexity O(1) request handling plus the invoked tool handler's own cost.
  * @overallScore 100
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 interface ParsedMcpUiToolCallRequest {
   readonly toolName: string;
@@ -307,7 +310,7 @@ async function executeMcpUiToolCall(
 
   let result: ToolExecutionResult;
   try {
-    result = await deps.toolExecutor.execute(principal, run, input.toolName, input.params);
+    result = await deps.toolExecutor.execute({ principal, run, toolId: input.toolName, input: input.params });
   } catch (error) {
     // `ToolExecutor.execute` throws only for an unregistered `toolId` (`tool-executor.ts`) — and
     // `isMcpUiToolCallAllowed` only lets through ids `buildAssistantToolRegistrations` guarantees

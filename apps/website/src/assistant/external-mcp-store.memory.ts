@@ -1,4 +1,4 @@
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./external-mcp-store.js";
 

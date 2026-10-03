@@ -48,10 +48,11 @@ interface MarkerRow {
 
 /**
  * Whether a marker's raw column VALUE (already read from a row) currently means "live". The scalar
- * twin of `not-trashed.ts`'s SQL conditions (`notTrashed`/`isCurrentlyTrashed`) — this file always
+ * twin of `not-trashed.ts`'s SQL conditions (`notTrashed`) — this file always
  * has the value in hand from a prior read, not a `WHERE` clause left to build.
  *
  * @complexity O(1).
+ * isCurrentlyTrashed (features/trash/not-trashed.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function isMarkerValueLive(marker: TrashMarkerSpec, value: unknown): boolean {
   return marker.kind === "timestamp" ? value === null : value !== marker.trashed;

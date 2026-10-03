@@ -209,7 +209,8 @@ test("the move copies every table, seals the secret, switches the meta last, and
     const [item] = await store.content.query<{ data: string; kind: string; tags: string[] }>(
       sql`SELECT data, jsonb_typeof(data) AS kind, tags FROM p_demo__items WHERE id = 1200`
     );
-    // jsonb comes back as text on every driver (pg-types.ts); it is still an object on the server.
+    // jsonb comes back as text on every driver (@jini-ai/db/core); it is still an object on the server.
+    // pg-types.ts (platform/db/kernel/drivers/pg-types.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
     assert.deepEqual(item, { data: '{"n":1200,"list":[1200,"x"]}', kind: "object", tags: ["a", "b,c"] });
     // Identity counters moved past the copied ids: new rows insert without a duplicate key.
     await store.content.execute(sql`INSERT INTO p_demo__items (note) VALUES ('after the move')`);

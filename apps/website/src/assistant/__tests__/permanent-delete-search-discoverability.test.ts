@@ -1,11 +1,18 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /** Owner n01: real FTS catalog competition, including softer Trash and disable tools. */
 const QUERIES: Record<string, string[]> = {
@@ -21,12 +28,12 @@ const QUERIES: Record<string, string[]> = {
 };
 
 test("permanent deletes rank in the top three for owner vocabulary", async () => {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(deps)) registry.register(r);
+  const registry = createToolRegistry({});
+  for (const r of buildAssistantToolRegistrations(deps, undefined, { contributions })) registry.register(r);
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(QUERIES)) {

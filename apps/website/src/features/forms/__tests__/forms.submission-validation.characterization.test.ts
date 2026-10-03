@@ -16,8 +16,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateSubmissionPayload } from "../forms.js";
-import type { FormDefinitionRecord } from "../types.js";
+import { validateSubmissionPayload } from "@jini-ai/cms-forms";
+import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 const NOW = "2026-07-13T00:00:00.000Z";
 

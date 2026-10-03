@@ -21,7 +21,7 @@
  * Trust: every value comes from the browser via `readRunPageContext`, already validated and capped.
  */
 import type { Express } from "express";
-import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/http-kit";
+import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/daemon/http";
 
 import type { RunPageContext } from "./run-page-context.js";
 

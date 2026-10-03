@@ -76,7 +76,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
               deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
               input: { workspaceId: deps.workspaceId, id: pageId, actorId: principal.id },
             }),
-          captureEntityVersion: (r) => r.post.version,
+          captureEntityVersion: ({ result }) => result.post.version,
           rollback: async () => {
             if (!priorPost) return;
             // See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row

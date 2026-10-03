@@ -149,7 +149,7 @@ async function isOwnerOnDefaultPassword(deps: AdminDeploymentOverviewDeps): Prom
   const principalId = await deps.ownerPrincipalId;
   const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
   if (!owner) return false;
-  return deps.passwordHasher.verify(owner.passwordHash, DEFAULT_OWNER_PASSWORD);
+  return deps.passwordHasher.verify({ hash: owner.passwordHash, password: DEFAULT_OWNER_PASSWORD });
 }
 
 export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDeploymentOverviewDeps): void {

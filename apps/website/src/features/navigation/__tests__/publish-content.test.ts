@@ -79,7 +79,7 @@ test("pack() yields nothing when menuRepo is absent", async () => {
 });
 
 test("pack() skips a trashed menu and packs a live one, keyed by the menu's own id", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-live", workspaceId: WORKSPACE_ID, ...menuState({ slug: "live-nav" }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
     {
       id: "menu-trashed",
@@ -88,7 +88,7 @@ test("pack() skips a trashed menu and packs a live one, keyed by the menu's own 
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     },
-  ] as NavMenuEntry[]);
+  ] as NavMenuEntry[] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const entities: PackedEntity[] = [];
@@ -103,8 +103,8 @@ test("pack() skips a trashed menu and packs a live one, keyed by the menu's own 
 // ---------------------------------------------------------------------------
 
 test("apply() creates a new menu under the SOURCE id (never mints its own, unlike createMenu)", async () => {
-  const menuRepo = new InMemoryMenuRepo();
-  const bindingRepo = new InMemoryNavLocationBindingRepo();
+  const menuRepo = new InMemoryMenuRepo({});
+  const bindingRepo = new InMemoryNavLocationBindingRepo({});
   const handler = contributeMenusPublish().build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, idGen: { newId: () => "generated-1" } })
   );
@@ -124,15 +124,15 @@ test("apply() creates a new menu under the SOURCE id (never mints its own, unlik
 });
 
 test("apply() updates an existing destination row under OCC, re-resolved by its own id", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-header-nav", workspaceId: WORKSPACE_ID, ...menuState({ slug: "header-nav", locations: ["primary", "stale", "reassigned"] }), updatedAt: "2026-01-01T00:00:00.000Z", version: 3 },
-  ] as NavMenuEntry[]);
+  ] as NavMenuEntry[] });
   const other = { workspaceId: WORKSPACE_ID, locationKey: "reassigned", menuId: "menu-other", boundAt: "2026-01-01T00:00:00.000Z" };
   const unrelated = { ...other, locationKey: "sidebar" };
-  const bindingRepo = new InMemoryNavLocationBindingRepo([
+  const bindingRepo = new InMemoryNavLocationBindingRepo({}, { initialRows: [
     { ...other, locationKey: "primary", menuId: "menu-header-nav" },
     { ...other, locationKey: "stale", menuId: "menu-header-nav" }, other, unrelated,
-  ]);
+  ] });
   const outbox = new InMemoryOutbox();
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox }));
 
@@ -159,12 +159,12 @@ test("apply() updates an existing destination row under OCC, re-resolved by its 
 });
 
 test("apply() rebinds a location away from whatever destination menu previously held it (displacement)", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-old-header", workspaceId: WORKSPACE_ID, ...menuState({ slug: "old-header", locations: ["primary"] }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
-  ] as NavMenuEntry[]);
-  const bindingRepo = new InMemoryNavLocationBindingRepo([
+  ] as NavMenuEntry[] });
+  const bindingRepo = new InMemoryNavLocationBindingRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: "menu-old-header", boundAt: "2026-01-01T00:00:00.000Z" },
-  ]);
+  ] });
   const outbox = new InMemoryOutbox();
   const handler = contributeMenusPublish().build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox, idGen: { newId: () => "evt-1" } })
@@ -192,8 +192,8 @@ test("apply() rebinds a location away from whatever destination menu previously 
 });
 
 test("apply() accepts a doc item whose entryRef target does not exist at the destination — no precheck on refs", async () => {
-  const menuRepo = new InMemoryMenuRepo();
-  const bindingRepo = new InMemoryNavLocationBindingRepo();
+  const menuRepo = new InMemoryMenuRepo({});
+  const bindingRepo = new InMemoryNavLocationBindingRepo({});
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo }));
 
   const doc = {
@@ -215,12 +215,12 @@ test("apply() accepts a doc item whose entryRef target does not exist at the des
 });
 
 test("apply() round-trip (simulated rollback): publishing the prior record back restores the prior binding owner", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-old-header", workspaceId: WORKSPACE_ID, ...menuState({ slug: "old-header", locations: ["primary"] }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
-  ] as NavMenuEntry[]);
-  const bindingRepo = new InMemoryNavLocationBindingRepo([
+  ] as NavMenuEntry[] });
+  const bindingRepo = new InMemoryNavLocationBindingRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: "menu-old-header", boundAt: "2026-01-01T00:00:00.000Z" },
-  ]);
+  ] });
   const handler = contributeMenusPublish().build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, idGen: { newId: () => "evt" } })
   );
@@ -252,9 +252,9 @@ test("apply() round-trip (simulated rollback): publishing the prior record back 
 // ---------------------------------------------------------------------------
 
 test("precheck() rejects a slug already held by a different menu", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-other", workspaceId: WORKSPACE_ID, ...menuState({ slug: "header-nav" }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
-  ] as NavMenuEntry[]);
+  ] as NavMenuEntry[] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const reason = await handler.precheck(packedEntity("menu-incoming", menuState({ slug: "header-nav" })));
@@ -262,7 +262,7 @@ test("precheck() rejects a slug already held by a different menu", async () => {
 });
 
 test("precheck() reports the tree validator's own message for an invalid doc", async () => {
-  const menuRepo = new InMemoryMenuRepo();
+  const menuRepo = new InMemoryMenuRepo({});
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
@@ -310,7 +310,7 @@ class VersionRacingMenuRepo implements MenuRepoPort {
   private calls = 0;
 
   constructor(rows: NavMenuEntry[]) {
-    this.inner = new InMemoryMenuRepo(rows);
+    this.inner = new InMemoryMenuRepo({}, { initialRows: rows });
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<NavMenuEntry | null> {
@@ -342,7 +342,7 @@ function entryRefItem(id: string, entryId: string) {
 }
 
 test("referencesTo() finds a menu whose nested entryRef targets one of the given ids", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({
       id: "menu-header",
       ...menuState({
@@ -356,7 +356,7 @@ test("referencesTo() finds a menu whose nested entryRef targets one of the given
         },
       }),
     }),
-  ]);
+  ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const holders = await handler.referencesTo!(["post-about"]);
@@ -365,12 +365,12 @@ test("referencesTo() finds a menu whose nested entryRef targets one of the given
 });
 
 test("referencesTo() finds nothing for a menu whose only item is a url target", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({
       id: "menu-footer",
       ...menuState({ title: "Footer", doc: { type: "menu", version: 1, items: [{ id: "item-1", label: "Contact", target: { kind: "url", href: "/contact" } }] } }),
     }),
-  ]);
+  ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const holders = await handler.referencesTo!(["post-about"]);
@@ -378,9 +378,9 @@ test("referencesTo() finds nothing for a menu whose only item is a url target", 
 });
 
 test("repointReferences() rewrites a live menu's entryRef and records one revertible change set", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }), version: 5 }),
-  ]);
+  ] });
   const deps = makeRepointDeps({ menuRepo });
   const handler = contributeMenusPublish().build(deps);
 
@@ -412,9 +412,9 @@ test("repointReferences() rewrites a live menu's entryRef and records one revert
 });
 
 test("repointReferences() leaves a menu named in skipIds untouched", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
-  ]);
+  ] });
   const deps = makeRepointDeps({ menuRepo });
   const handler = contributeMenusPublish().build(deps);
 
@@ -432,9 +432,9 @@ test("repointReferences() leaves a menu named in skipIds untouched", async () =>
 });
 
 test("repointReferences() called a second time finds nothing left to repoint — no new change set", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
-  ]);
+  ] });
   const deps = makeRepointDeps({ menuRepo });
   const handler = contributeMenusPublish().build(deps);
   const replacements = [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }];
@@ -448,9 +448,9 @@ test("repointReferences() called a second time finds nothing left to repoint —
 });
 
 test("repointReferences() reports a denied authorization without writing", async () => {
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
-  ]);
+  ] });
   const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: false, reason: "grant excludes menus" }) });
   const handler = contributeMenusPublish().build(deps);
 
@@ -496,9 +496,9 @@ class FailingInsertChangeSetRepo extends InMemoryChangeSetRepo {
 
 test("repointReferences() puts the prior tree back when the change-set record fails after the write landed", async () => {
   const priorItems = [entryRefItem("item-1", "post-about")];
-  const menuRepo = new InMemoryMenuRepo([
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: priorItems } }), version: 5 }),
-  ]);
+  ] });
   const outbox = new InMemoryOutbox();
   const deps = { ...makeRepointDeps({ menuRepo }), outbox, changeSets: new FailingInsertChangeSetRepo([], [], outbox) };
   const handler = contributeMenusPublish().build(deps);
@@ -527,7 +527,7 @@ test("repointReferences() puts the prior tree back when the change-set record fa
 test("repointReferences continues after a denied menu and repairs the next menu", async () => {
   const denied = menuRow({ id: "menu-a", slug: "a", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
   const allowed = menuRow({ id: "menu-b", slug: "b", doc: { type: "menu", version: 1, items: [entryRefItem("b", "old")] } });
-  const repo = new InMemoryMenuRepo([denied, allowed]);
+  const repo = new InMemoryMenuRepo({}, { initialRows: [denied, allowed] });
   let checks = 0;
   const deps = makeRepointDeps({ menuRepo: repo, authorize: async () => ({ allowed: ++checks > 1, reason: "test" }) });
   const result = await contributeMenusPublish().build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
@@ -543,7 +543,7 @@ test("repointReferences continues after a denied menu and repairs the next menu"
 
 test("repointReferences retries a single conflict from fresh state, preserving the concurrent edit", async () => {
   const initial = menuRow({ id: "menu-race", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
-  const repo = new InMemoryMenuRepo([initial]);
+  const repo = new InMemoryMenuRepo({}, { initialRows: [initial] });
   const read = repo.findById.bind(repo);
   let reads = 0;
   repo.findById = async (request) => {

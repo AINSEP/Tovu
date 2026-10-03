@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import type { ClockPort, JsonObject, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";

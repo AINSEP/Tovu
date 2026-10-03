@@ -21,7 +21,7 @@
  * send, only (c)/(d) for a test send), every applicable precondition is checked in one pass and ALL
  * unmet ones are collected — this never short-circuits/returns on the first failure found.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MembersConsentCapability } from "./ports.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";

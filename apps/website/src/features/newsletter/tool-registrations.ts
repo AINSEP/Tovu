@@ -1,9 +1,7 @@
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
- * fourteen catalog entries onto the campaign/list/subscription operations the admin routes expose,
- * as `ToolRegistration`s. The entire catalog is wired — the 5 withheld operations
- * (send/send_test/schedule/resume/import) are simply absent from the catalog file rather than
- * present-but-declared-unwired; see `newsletter/agent-tools.ts`'s own header.
+ * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
+ * Delivery operations are contributed separately from delivery/tool-registrations.ts; bulk import is absent.
  *
  * Authorization shape: `http/admin/newsletter.ts`'s file header records that "none of Newsletter's
  * domain functions call authorize() ... every admin route therefore calls
@@ -11,23 +9,13 @@
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
-import {
-  type AuthorizeFn,
-  type EventBusPort,
-  type OutboxPort,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { ToolContributor } from "#src/assistant/index";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { confirmNewsletterDelivery } from "./delivery-confirmation.js";
 import {
   forbiddenRule,
   withModelFacingErrors,
@@ -72,7 +60,7 @@ import {
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
 
-const CATALOG_BY_ID = indexCatalogById(newsletterAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: newsletterAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Newsletter's tool handlers read. Declared structurally
@@ -100,6 +88,8 @@ export interface NewsletterToolDeps {
   newsletterSubscriberDirectory: SubscriberDirectoryPort;
   newsletterHooks: HookRegistry;
   membersConsentCapability: MembersConsentCapability | null;
+  /** Optional binding to the launch setting; absent preserves the existing fail-closed default. */
+  newsletterSendingEnabled?: (workspaceId: string) => Promise<boolean>;
 }
 
 /**
@@ -161,11 +151,10 @@ function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSub
 
 /**
  * Assembles `send-pipeline.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above.
- * `launchGateDeps.isSendingEnabled` always resolves `false`, matching
- * `server/routes/admin/newsletter/deps.ts`'s own identical, disclosed default (see that file's doc
- * comment for the full rationale — no admin route manages this toggle yet).
+ * The optional launch-setting binding defaults to false, preserving the admin routes' existing
+ * fail-closed behavior. Runtime composition still has no sending toggle or consent binding.
  */
-function toSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
+export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
   return {
     campaignRepo: deps.newsletterCampaignRepo,
     subscriptionRepo: deps.newsletterSubscriptionRepo,
@@ -175,7 +164,7 @@ function toSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
     hooks: deps.newsletterHooks,
     mailer: deps.mailer,
     launchGateDeps: {
-      isSendingEnabled: async () => false,
+      isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false),
       consentCapability: deps.membersConsentCapability,
       originRegistry: deps.originRegistry,
       mailer: deps.mailer,
@@ -283,9 +272,8 @@ function toSendLogToolView(row: SendRow) {
  * assumed: `subscriptions.ts`/`campaign-write-service.ts`/`lists.ts` interpolate `listId`,
  * `subscriberId`, `campaignId` and field/limit names only, and `NewsletterSubscriberNotFoundError`
  * names a subscriber UUID, not the person behind it. Note that
- * `newsletter_resend_confirmation`'s own anti-enumeration behaviour is unaffected: it returns a
- * constant `{ delivered: true }` whether or not a contact resolves, and that decision lives in the
- * handler, not in any error this list could surface.
+ * `newsletter_resend_confirmation` reports mail-off before looking up a subscription and otherwise
+ * returns the same acknowledgement whether or not a pending contact resolves.
  *
  * Both TOKEN classes are deliberately ABSENT. `NewsletterConfirmTokenInvalidError` and
  * `NewsletterUnsubscribeTokenInvalidError` are raised on the public confirm/unsubscribe redemption
@@ -293,9 +281,7 @@ function toSendLogToolView(row: SendRow) {
  * messages ("token was already consumed", "signature is invalid") answer a question about a token
  * HOLDER rather than about the caller's own request — the same line `features/members/tool-
  * registrations.ts` draws around `MemberAuthError`. `NewsletterLaunchGateBlockedError` is absent
- * for the plainer reason that it is raised only on the send/test-send path, and no send tool is
- * wired (see `agent-tools.ts`'s header); if one ever ships, it needs its own decision here rather
- * than inheriting a speculative one made today.
+ * because delivery/tool-registrations.ts handles launch prerequisites separately with fixed, safe vocabulary.
  */
 const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("NEWSLETTER"),
@@ -314,11 +300,11 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   },
 ];
 
-export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegistration[] {
+export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() }): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_list_campaigns: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.read", entityType: "newsletter_campaign" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const status = typeof input.status === "string" ? input.status : undefined;
@@ -328,8 +314,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_get_campaign: async (ctx) => {
-      const campaignId = requireString(requireInputRecord(ctx.input), "campaignId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.read", entityType: "newsletter_campaign" });
+      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
@@ -338,8 +324,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_list_lists: async (ctx) => {
-      requireInputRecord(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.read", entityType: "newsletter_list" });
+      requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_list" });
 
       await deps.newsletterReady;
       const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
@@ -347,8 +333,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_list_subscriptions: async (ctx) => {
-      const listId = requireString(requireInputRecord(ctx.input), "listId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read", entityType: "newsletter_subscription" });
+      const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_subscription" });
 
       await deps.newsletterReady;
       const subscriptions = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId });
@@ -356,8 +342,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_list_send_log: async (ctx) => {
-      const campaignId = requireString(requireInputRecord(ctx.input), "campaignId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read", entityType: "newsletter_campaign" });
+      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
@@ -367,8 +353,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_create_campaign: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const { campaign } = await saveCampaign({
@@ -377,12 +363,12 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
           workspaceId: deps.workspaceId,
           actorId: ctx.principal.id,
           fields: {
-            subject: requireString(input, "subject"),
+            subject: requireString({ input, key: "subject" }),
             preheader: typeof input.preheader === "string" ? input.preheader : null,
-            fromName: requireString(input, "fromName"),
-            fromEmail: requireString(input, "fromEmail"),
-            replyTo: requireString(input, "replyTo"),
-            listId: requireString(input, "listId"),
+            fromName: requireString({ input, key: "fromName" }),
+            fromEmail: requireString({ input, key: "fromEmail" }),
+            replyTo: requireString({ input, key: "replyTo" }),
+            listId: requireString({ input, key: "listId" }),
           },
         },
       });
@@ -390,9 +376,9 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_update_campaign: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const campaignId = requireString(input, "campaignId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign" });
+      const input = requireInputRecord({ input: ctx.input });
+      const campaignId = requireString({ input, key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
@@ -418,8 +404,8 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_cancel_campaign: async (ctx) => {
-      const campaignId = requireString(requireInputRecord(ctx.input), "campaignId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign" });
+      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
       const { campaign } = await cancelCampaign({
@@ -430,29 +416,29 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_pause_campaign: async (ctx) => {
-      const campaignId = requireString(requireInputRecord(ctx.input), "campaignId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send", entityType: "newsletter_campaign" });
+      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
 
       await deps.newsletterReady;
-      const { campaign } = await pauseCampaign({ deps: toSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+      const { campaign } = await pauseCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
       return { campaign: toCampaignToolView(campaign) };
     },
 
     newsletter_create_list: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.list.manage", entityType: "newsletter_list" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
 
       await deps.newsletterReady;
       const { list } = await saveList({
         deps: toListsDeps(deps),
-        input: { workspaceId: deps.workspaceId, name: requireString(input, "name"), slug: requireString(input, "slug") },
+        input: { workspaceId: deps.workspaceId, name: requireString({ input, key: "name" }), slug: requireString({ input, key: "slug" }) },
       });
       return { list: toListToolView(list) };
     },
 
     newsletter_archive_list: async (ctx) => {
-      const listId = requireString(requireInputRecord(ctx.input), "listId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.list.manage", entityType: "newsletter_list" });
+      const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
 
       await deps.newsletterReady;
       const { list } = await archiveList({ deps: toListsDeps(deps), input: { workspaceId: deps.workspaceId, id: listId } });
@@ -460,24 +446,24 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_create_subscription: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const listId = requireString(input, "listId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription" });
+      const input = requireInputRecord({ input: ctx.input });
+      const listId = requireString({ input, key: "listId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
 
       await deps.newsletterReady;
       const source = typeof input.source === "string" ? (input.source as SubscriptionRow["source"]) : "admin";
       const { subscription } = await saveSubscription({
         deps: toSubscriptionsDeps(deps),
-        input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString(input, "subscriberId"), source },
+        input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString({ input, key: "subscriberId" }), source },
       });
       return { subscription: toSubscriptionToolView(subscription) };
     },
 
     newsletter_remove_subscription: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const listId = requireString(input, "listId");
-      const subscriptionId = requireString(input, "subscriptionId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription" });
+      const input = requireInputRecord({ input: ctx.input });
+      const listId = requireString({ input, key: "listId" });
+      const subscriptionId = requireString({ input, key: "subscriptionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
 
       await deps.newsletterReady;
       const existing = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
@@ -493,23 +479,37 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     },
 
     newsletter_resend_confirmation: async (ctx) => {
-      const subscriptionId = requireString(requireInputRecord(ctx.input), "subscriptionId");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription" });
+      const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
 
       await deps.newsletterReady;
-      const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
-      if (!subscription) throw new NewsletterSubscriptionNotFoundError(`subscription ${subscriptionId} was not found`);
-
-      // Constant `{delivered:true}` response even if the underlying contact cannot be resolved
-      // (anti-enumeration) — mirrors `resend-confirmation.ts`'s route exactly.
-      const contact = await deps.newsletterSubscriberDirectory.getContact({ workspaceId: deps.workspaceId, subscriberId: subscription.subscriberId });
-      if (contact) {
-        await issueConfirmationToken({
-          deps: toConfirmationDeps(deps),
-          input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
-        });
+      const mailOff = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
+      const driver = deps.mailer.capabilities().driver;
+      if (driver === "console" || driver === "memory") return mailOff;
+      const decision = await confirmNewsletterDelivery({ ctx, surfaces, toolId: "newsletter_resend_confirmation", title: "Resend a subscription confirmation email?", details: [{ label: "Subscription", value: subscriptionId }] });
+      if (!decision.confirmed) return { ...decision, delivered: false, mailDeliveryAvailable: true };
+      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
+      const currentDriver = deps.mailer.capabilities().driver;
+      if (currentDriver === "console" || currentDriver === "memory") return mailOff;
+      try {
+        const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+        // Constant acknowledgement for missing subscriptions, missing contacts and non-pending records.
+        if (!subscription || subscription.status !== "pending") return { delivered: true, mailDeliveryAvailable: true };
+        const contact = await deps.newsletterSubscriberDirectory.getContact({ workspaceId: deps.workspaceId, subscriberId: subscription.subscriberId });
+        if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+        if (contact) {
+          await issueConfirmationToken({
+            deps: toConfirmationDeps(deps),
+            input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
+          });
+        }
+      } catch {
+        // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
+        // Keep diagnostics free of addresses, tokens and provider endpoints.
+        console.error("[newsletter] confirmation request could not be processed; inspect mail configuration");
       }
-      return { delivered: true };
+      return { delivered: true, mailDeliveryAvailable: true };
     },
   };
 

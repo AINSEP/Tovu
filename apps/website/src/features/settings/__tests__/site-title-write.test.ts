@@ -1,8 +1,9 @@
+import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JsonValue } from "@jini-ai/cms/core";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import type { JsonValue } from "@jini-ai/core/primitives";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/cms/settings";
 
 import { set, ValueValidationFailedError } from "../index.js";
@@ -22,13 +23,13 @@ const WORKSPACE_ID = "ws-site-title-write";
 const REJECTION = "value for 'core.site.title' must be 1..200 characters after trimming";
 const SITE_TITLE = { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY };
 
-const clock = { nowIso: () => "2026-09-12T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-12T00:00:00.000Z", nowMs: () => Date.parse("2026-09-12T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `site-title-write-id-${++idCounter}` };
 const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
 
 async function makeLedger() {
-  const ledger = { settingsRepo: new InMemorySettingsRepo(), clock, ids, principals: new InMemoryPrincipalRepo([]) };
+  const ledger = { settingsRepo: new InMemorySettingsRepo(), clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }) };
   await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   return ledger;
 }

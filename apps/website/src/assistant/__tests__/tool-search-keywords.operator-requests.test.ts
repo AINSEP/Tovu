@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -8,9 +10,14 @@ import { createToolRegistry } from "@jini-ai/core";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Regression guard for the 2026-10-01 tool-search eval
@@ -52,16 +59,16 @@ const SEARCH_LIMIT = 20;
 const TOP_N = 3;
 
 async function buildCatalog() {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
     registry.register(registration);
   }
-  return { catalog: buildToolCatalogQuery(registry), ids: new Set(registry.list().map((d) => d.id)) };
+  return { catalog: buildToolCatalogQuery(registry), ids: new Set(registry.list({}).map((d) => d.id)) };
 }
 
 test("the fixture names only tools that exist, and every known gap is a scored request", async () => {

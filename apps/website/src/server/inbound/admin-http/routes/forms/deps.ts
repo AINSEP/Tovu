@@ -1,3 +1,5 @@
+import type { FormCommandExecutorPort } from "@jini-ai/cms-forms";
+import type { Clock } from "@jini-ai/core/primitives";
 import type { Express } from "express";
 
 import type { FormsDeps, RouteDeps } from "#src/server/routes/types";
@@ -22,6 +24,10 @@ import type { FormsDeps, RouteDeps } from "#src/server/routes/types";
  * their own named `FormsDeps` interface in `routes/types.ts`, so this composes it directly instead
  * of listing the 2 keys via `Pick`.
  */
-export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "changeSets" | "outbox"> & FormsDeps;
+// The package clock is bound here explicitly; composition supplies nowMs rather than an ISO getter.
+export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "idGen" | "changeSets" | "outbox"> & FormsDeps & {
+  clock: Clock;
+  executeCommand: FormCommandExecutorPort;
+};
 
 export type FormsRouteRegistrar = (app: Express, deps: FormsRouteDeps) => void;

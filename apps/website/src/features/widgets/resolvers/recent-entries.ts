@@ -9,7 +9,7 @@ import {
 } from "#src/features/entries/public-list";
 import type { EntryListPort, EntryRecord } from "../../entries/index.js";
 import { getWidgetTypeRegistration } from "../registry.js";
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetInstanceView, WidgetResolveResult, WidgetResolver } from "../types.js";
 
 /**

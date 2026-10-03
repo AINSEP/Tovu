@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserUpdateRoute } from "../update.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createUser } from "@jini-ai/cms/identity";
+import { createPolicy, createRole, createUser } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId`;
@@ -93,10 +93,7 @@ test("UPDATE_USER route: direct invoke fallback for nullish params.principalId",
 
 test("UPDATE_USER route: direct invoke fallback for a nullish body (`rawBody ?? {}`)", async () => {
   const { app, deps, ownerId } = await buildApp();
-  const { principal: target } = await createUser({
-    deps: identityServiceDepsFrom(deps),
-    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "nullish-body-target", password: "nullish-body-target-p4ssw0rd!" },
-  });
+  const { principal: target } = await createUser({ deps: identityServiceDepsFrom(deps), input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "nullish-body-target", password: "nullish-body-target-p4ssw0rd!" } }, { email: "existing@example.com" });
   const handler = extractRouteHandler(app, "patch", ROUTE_PATH);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: ownerId };
@@ -104,7 +101,8 @@ test("UPDATE_USER route: direct invoke fallback for a nullish body (`rawBody ?? 
   // No `email` survives the (undefined ?? {}) coercion, so this is a legal "leave email unchanged" PATCH.
   assert.equal(capture.statusCode, 200);
   const body = capture.jsonBody as { user: { email?: string } };
-  assert.equal(body.user.email, undefined);
+  assert.equal(body.user.email, "existing@example.com");
+  assert.equal((await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id }))?.email, "existing@example.com");
 });
 
 test("UPDATE_USER route: 200 sets email, clears it back to undefined on an empty string", async (t) => {
@@ -115,14 +113,22 @@ test("UPDATE_USER route: 200 sets email, clears it back to undefined on an empty
     input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "email-target", password: "email-target-p4ssw0rd!" },
   });
 
+  const svcDeps = identityServiceDepsFrom(deps);
+  const { role } = await createRole({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, name: "update-role" } });
+  const { policy } = await createPolicy({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, name: "update-policy" } });
+  await deps.principalRoleRepo.save({ id: "role-link-update", workspaceId: WORKSPACE_ID, principalId: target.id, roleId: role.id });
+  await deps.principalPolicyRepo.save({ id: "policy-link-update", workspaceId: WORKSPACE_ID, principalId: target.id, policyId: policy.id });
+
   const set = await fetch(`${baseUrl}${urlFor(target.id)}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: "new@example.com", username: "should-be-ignored" }),
   });
   assert.equal(set.status, 200);
-  const setBody = (await set.json()) as { user: { email?: string; username: string } };
+  const setBody = (await set.json()) as { user: { email?: string; username: string; roleIds: string[]; policyIds: string[] } };
   assert.equal(setBody.user.email, "new@example.com");
+  assert.deepEqual(setBody.user.roleIds, [role.id]);
+  assert.deepEqual(setBody.user.policyIds, [policy.id]);
   assert.equal(setBody.user.username, "email-target", "username is ignored per AC-28");
 
   const cleared = await fetch(`${baseUrl}${urlFor(target.id)}`, {
@@ -228,13 +234,14 @@ test("UPDATE_USER route: 500 internal error when an unexpected error is thrown",
 });
 
 test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  let trashedTargetId = "";
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => id === trashedTargetId });
   const baseUrl = await startTestServer(app, t);
-  const { principal: target } = await createUser({
-    deps: identityServiceDepsFrom(deps),
-    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "updatetrashed", password: "updatetrashed-p4ssw0rd!" },
-  });
+  const { principal: target } = await createUser({ deps: identityServiceDepsFrom(deps), input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "updatetrashed", password: "updatetrashed-p4ssw0rd!" } }, { email: "trashed-original@example.com" });
 
+  trashedTargetId = target.id;
+  assert.notEqual(target.id, ownerId);
+  const before = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id });
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
@@ -244,4 +251,5 @@ test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the T
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
+  assert.deepEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id }), before);
 });

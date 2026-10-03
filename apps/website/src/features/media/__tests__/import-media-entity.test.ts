@@ -79,7 +79,7 @@ function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEn
 } {
   return {
     mediaRepo: new InMemoryVersionedMediaRepo(),
-    assetBlobRepo: new InMemoryAssetBlobRepo(),
+    assetBlobRepo: new InMemoryAssetBlobRepo({}),
     blobStore: new InMemoryBlobStore(),
     clock: makeClock(),
     idGen: makeIdGen(),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolCatalogQuery } from "@jini-ai/http-kit";
+import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { createLiveToolCatalogQuery } from "../tool-catalog-live-query.js";
 

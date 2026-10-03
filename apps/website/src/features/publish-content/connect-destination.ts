@@ -1,3 +1,4 @@
+import type { Clock } from "@jini-ai/core/primitives";
 import { saveConnectedDestination, removeConnectedDestination, selectConnectedDestination } from "./peers.js";
 import type { PublishContentPeerRepoPort, PublishContentPeerSummary } from "./peers.js";
 import { siteLabelFor } from "./publish-readiness.js";
@@ -56,7 +57,7 @@ export interface GrantReverseResult {
 
 export interface ConnectAndRecordDeps {
   readonly repo: PublishContentPeerRepoPort;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly idGen: { newId(): string };
   /** Writes this install's grant for `baseUrl`. Bound to `publish-trust`'s `connectDestination`. */
   connectGrant(input: { baseUrl: string; entityTypes: readonly string[] }): Promise<GrantWriteResult>;
@@ -67,7 +68,7 @@ export interface ConnectAndRecordDeps {
 
 export interface DisconnectAndForgetDeps {
   readonly repo: PublishContentPeerRepoPort;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly idGen: { newId(): string };
   reverseGrant(): Promise<GrantReverseResult>;
 }

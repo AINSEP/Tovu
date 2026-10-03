@@ -1,3 +1,4 @@
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "./peer-aad.js";
 import { normalizePeerBaseUrl } from "./peer-url.js";
@@ -138,7 +139,7 @@ export interface PublishContentPeerReadDeps {
 export interface PublishContentPeerWriteDeps extends PublishContentPeerReadDeps {
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly idGen: { newId(): string };
 }
 
@@ -267,7 +268,7 @@ export async function createPublishContentPeer(
 
   const id = deps.idGen.newId();
   const sealed = await sealApiKey(deps, { workspaceId: input.workspaceId, id, apiKey });
-  const now = deps.clock.nowIso();
+  const now = nowIso({ clock: deps.clock });
 
   const record: PublishContentPeerRecord = {
     workspaceId: input.workspaceId,
@@ -344,7 +345,7 @@ export async function updatePublishContentPeer(
     sealed,
     masked,
     aadVersion,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: nowIso({ clock: deps.clock }),
   };
 
   try {
@@ -562,7 +563,7 @@ export function selectConnectedDestination(
 }
 
 export async function saveConnectedDestination(
-  deps: PublishContentPeerReadDeps & { clock: { nowIso(): string }; idGen: { newId(): string } },
+  deps: PublishContentPeerReadDeps & { clock: Clock; idGen: { newId(): string } },
   input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string }
 ): Promise<PublishContentPeerSummary> {
   const baseUrl = requireBaseUrl(input.baseUrl);
@@ -583,7 +584,7 @@ export async function saveConnectedDestination(
   );
   const label = takenByAnother ? baseUrl : wanted;
 
-  const now = deps.clock.nowIso();
+  const now = nowIso({ clock: deps.clock });
   const record: PublishContentPeerRecord = {
     workspaceId: input.workspaceId,
     id: match?.id ?? deps.idGen.newId(),

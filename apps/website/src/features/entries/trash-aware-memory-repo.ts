@@ -89,9 +89,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     if (this.deletedAt.has(row.id)) return;
     const holder = await this.inner.findBySlug({ workspaceId: row.workspaceId, type: row.type, slug: row.slug });
     if (holder && holder.id !== row.id && this.deletedAt.has(holder.id)) {
-      throw new EntrySlugConflictError(
-        `an entry with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
-      );
+      throw new EntrySlugConflictError({ message: `an entry with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
     }
     await this.inner.save(row);
   }
@@ -100,22 +98,18 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     await this.inner.appendRevision(revision);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.inner.transaction(fn);
+  async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
+    return this.inner.transaction({ fn });
   }
 
   /** `limit` applies after trashed rows are dropped, as the SQLite `LIMIT` does.
    *  @complexity O(n log n) over the workspace's entries when ordered. */
-  async listByWorkspace(params: {
-    workspaceId: string;
-    type?: string;
-    status?: EntryStatus;
-    orderBy?: "updatedAt";
-    orderDirection?: "asc" | "desc";
-    limit?: number;
-  }): Promise<EntryRecord[]> {
-    const { limit, ...rest } = params;
-    const live = (await this.inner.listByWorkspace(rest)).filter((row) => !this.deletedAt.has(row.id));
+  async listByWorkspace(
+    required: Parameters<EntryListPort["listByWorkspace"]>[0],
+    optional: NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]> = {}
+  ): Promise<EntryRecord[]> {
+    const { limit, ...rest } = optional;
+    const live = (await this.inner.listByWorkspace(required, rest)).filter((row) => !this.deletedAt.has(row.id));
     return typeof limit === "number" ? live.slice(0, limit) : live;
   }
 
@@ -136,7 +130,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     limit?: number;
   }): Promise<EntryRecord[]> {
     const { workspaceId, excludeTypes, status, orderBy, orderDirection, limit } = params;
-    const rows = (await this.inner.listByWorkspace({ workspaceId, status, orderBy, orderDirection })).filter(
+    const rows = (await this.inner.listByWorkspace({ workspaceId }, { status, orderBy, orderDirection })).filter(
       (row) => !this.deletedAt.has(row.id) && !excludeTypes.includes(row.type)
     );
     return typeof limit === "number" ? rows.slice(0, limit) : rows;
@@ -176,7 +170,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
    */
   async listPublishedForDisplay(params: { workspaceId: string; query: CollectionListQuery }): Promise<EntryRecord[]> {
     const { workspaceId, query } = params;
-    const rows = (await this.inner.listByWorkspace({ workspaceId, type: query.type, status: "published" })).filter(
+    const rows = (await this.inner.listByWorkspace({ workspaceId }, { type: query.type, status: "published" })).filter(
       (row) => !this.deletedAt.has(row.id)
     );
     const matching = rows.filter((row) => query.where.every((clause) => siteFieldValue(row, clause.field) === clause.value));

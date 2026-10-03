@@ -1,16 +1,8 @@
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AuthorizeFn,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -48,14 +40,14 @@ import type { DiscoveredTheme } from "./theme.js";
 export interface SetActiveThemeToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   /** Boot-discovered themes — the same mutable array `ThemeToolDeps.themes` reads, only ever read
    *  here (never mutated) to compute {@link writableThemeIds}. */
   themes: DiscoveredTheme[];
   presentationRepo: PresentationSettingsRepoPort;
 }
 
-const SET_ACTIVE_THEME_CATALOG: WirableToolDefinition = {
+const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
   name: "theme_set_active",
   description:
     "Switches which theme the live site uses. Pass 'none' to turn the theme off. Returns the " +
@@ -77,9 +69,9 @@ const SET_ACTIVE_THEME_CATALOG: WirableToolDefinition = {
 };
 
 /** This domain's full catalog — read by `tool-registrations.contracts.test.ts`'s `CATALOGS_BY_DOMAIN`. */
-export const setActiveThemeAgentToolCatalog: WirableToolDefinition[] = [SET_ACTIVE_THEME_CATALOG];
+export const setActiveThemeAgentToolCatalog: AgentToolDefinition[] = [SET_ACTIVE_THEME_CATALOG];
 
-const CATALOG_BY_ID = indexCatalogById(setActiveThemeAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: setActiveThemeAgentToolCatalog });
 
 /** This wiring layer's own risk classification — `setActiveTheme` writes
  *  `presentation_settings.active_theme_id`, a real, disk-affecting durable-state mutation. */
@@ -88,14 +80,10 @@ export const setActiveThemeDerivedRisk: DerivedRiskByToolId = new Map([["theme_s
 function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<string, ToolHandler> {
   return {
     theme_set_active: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
 
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "theme.set",
-        entityType: "presentation",
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "theme.set" }, { entityType: "presentation" });
 
       const previousThemeId = await resolveActiveThemeId(routeDeps);
 
@@ -113,7 +101,7 @@ function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<
         // Re-thrown as a `ToolInputError` (a DIFFERENT themeId would fix this) with the valid ids
         // appended to the SAME message `setActiveTheme` raised — see this file's own header.
         if (err instanceof PresentationSettingsValidationError) {
-          throw new ToolInputError(`${err.message} (valid ids: ${writableThemeIds(routeDeps).join(", ")})`);
+          throw new ToolInputError({ message: `${err.message} (valid ids: ${writableThemeIds(routeDeps).join(", ")})` });
         }
         throw err;
       }

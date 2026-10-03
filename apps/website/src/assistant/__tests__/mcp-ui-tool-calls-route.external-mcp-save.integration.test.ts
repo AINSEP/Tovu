@@ -8,6 +8,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildExternalMcpRegistrations } from "#src/features/external-mcp/tool-registrations";
+import { readEnabledExternalMcpConfigs } from "#src/assistant/index";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
@@ -47,12 +48,12 @@ function buildRealExternalMcpToolExecutor(surfaceExchanges: SurfaceExchangeStore
     workspaceId: WORKSPACE_ID,
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildExternalMcpRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  return { toolExecutor };
+  return { toolExecutor, deps };
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe
@@ -70,16 +71,9 @@ test("real round trip: a browser confirmation click for external_mcp_save is acc
   const { toolExecutor } = buildRealExternalMcpToolExecutor(surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    "external_mcp_save",
-    { id: "higgsfield", transport: "streamable_http" },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "external_mcp_save", input: { id: "higgsfield", transport: "streamable_http" } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the connection form must be emitted before the call parks");
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
@@ -126,16 +120,9 @@ test("SECURITY: a Cancel click for external_mcp_save also reaches the allowlist 
   const { toolExecutor } = buildRealExternalMcpToolExecutor(surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    "external_mcp_save",
-    { id: "cancelled-one", transport: "streamable_http" },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "external_mcp_save", input: { id: "cancelled-one", transport: "streamable_http" } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
 
@@ -159,4 +146,38 @@ test("SECURITY: a Cancel click for external_mcp_save also reaches the allowlist 
   const output = executed.output as { saved: boolean; cancelled: boolean };
   assert.equal(output.saved, false);
   assert.equal(output.cancelled, true);
+});
+
+// Port test, not run in the sandbox: proves the browser's credential delivery stays out of model output.
+test("a hosted token delivered by the human MCP-UI form is stored without echoing it to the model", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor, deps } = buildRealExternalMcpToolExecutor(surfaceExchanges);
+  const emitted: SurfaceEmission[] = [];
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-token" }, toolId: "external_mcp_save", input: { id: "hosted-token", transport: "streamable_http", authMode: "static_env" } }, { emitSurface: async (emission: SurfaceEmission) => { emitted.push(emission); } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  const exchangeId = exchangeIdFromEmission(emitted[0]!);
+  const app = express();
+  app.use(express.json());
+  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  const baseUrl = await startTestServer(app, t);
+  const secret = "n04-human-form-token";
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST", headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({ toolName: "external_mcp_save", params: {
+      [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, id: "hosted-token", transport: "streamable_http", authMode: "static_env",
+      url: "https://hosted.example/mcp", accessToken: secret,
+    } }),
+  });
+  assert.equal(response.status, 202);
+  const receipt = await response.json();
+  assert.equal(receipt.delivered, true);
+  assert.equal(JSON.stringify(receipt).includes(secret), false);
+  const executed = await pending;
+  assert.equal(executed.status, "completed");
+  assert.equal((executed.output as { saved: boolean }).saved, true);
+  assert.equal(JSON.stringify(executed).includes(secret), false);
+  const resolved = await readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  assert.deepEqual(resolved.configs.find(config => config.serverId === "hosted-token")!.target,
+    { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
 });

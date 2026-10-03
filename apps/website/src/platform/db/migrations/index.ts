@@ -7,7 +7,7 @@ import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
-import { type MigrationReport, runMigrations } from "./runner.js";
+import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
 
 /**
@@ -42,7 +42,7 @@ export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
 export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: { backupPath?: string } = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, CONTENT_MIGRATIONS, optional);
+  return runMigrations(kernel, CONTENT_MIGRATIONS, { ...optional, ledgerTable: LEDGER_TABLE });
 }
 
 /**

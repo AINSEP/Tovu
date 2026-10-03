@@ -1,12 +1,7 @@
 import type { Response } from "express";
 
-import {
-  deleteRole,
-  IdentityConflictError,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-} from "@jini-ai/cms/identity";
+import { IdentityConflictError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { deleteRole } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 

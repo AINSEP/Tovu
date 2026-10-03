@@ -1,5 +1,6 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 import { buildMediaProviderCredentialAad } from "./aad.js";
@@ -361,7 +362,7 @@ export async function saveMediaProviderCredentials(
   const entries = Object.entries(providers);
   for (const [providerId, entry] of entries) assertValidEntry(providerId, entry);
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.

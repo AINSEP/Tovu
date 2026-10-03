@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file `setPluginEnabled()` / `getActivation()` — gateway-backed enable/disable feature functions
  * (SPEC-005 REQ-07; BR-05; AC-02/AC-13; INV-03/INV-05).
@@ -24,7 +25,7 @@
  * error unmasked. `getActivation()` is a thin read. Both satisfy
  * `__tests__/integration/activation.integration.test.ts`.
  */
-import type { ClockPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 
 /** `plugin_activations` row (durable, behind the gateway) — state.spec.md §2. */
@@ -185,7 +186,7 @@ export async function setPluginEnabled(
     workspaceId: input.workspaceId,
     version,
     enabled: input.enabled,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: clockNowIso({ clock: deps.clock }),
   };
 
   await deps.repo.save(activation);

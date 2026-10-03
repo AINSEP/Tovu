@@ -42,12 +42,12 @@
  * any ref they had seen in either conversation.
  */
 import type { ToolExecutionContext, ToolHandler, ToolRegistration } from "@jini-ai/core";
-import type { PendingAttachmentSummary } from "@jini-ai/http-kit";
+import type { PendingAttachmentSummary } from "@jini-ai/daemon/http";
 
 export const CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID = "chat_list_pending_attachments";
 
 /** The one `AttachmentStore` method this tool needs — narrowed so a test double never has to fake the rest. */
-export type PendingChatAttachmentLookup = { listPendingForOwner: (ownerId: string) => Promise<PendingAttachmentSummary[]> };
+export type PendingChatAttachmentLookup = { listPendingForOwner: (required: { ownerId: string }) => Promise<PendingAttachmentSummary[]> };
 
 /** No fields — this tool takes no input, matching the zero-argument schema convention used
  *  elsewhere in this codebase (`demo-image-tool.ts`, `frontend-control-capabilities.ts`). */
@@ -88,7 +88,7 @@ export function buildListPendingChatAttachmentsTool(deps: {
       // rather than asserted non-null.
       throw new Error("attachment store is not ready");
     }
-    const pending = await store.listPendingForOwner(ctx.principal.id);
+    const pending = await store.listPendingForOwner({ ownerId: ctx.principal.id });
     return { attachments: pending.map(toWireAttachment) };
   };
 

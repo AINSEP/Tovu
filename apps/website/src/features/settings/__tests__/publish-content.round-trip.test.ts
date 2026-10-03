@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { entityKey } from "#src/features/publish-content/planner";

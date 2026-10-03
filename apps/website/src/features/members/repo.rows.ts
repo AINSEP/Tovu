@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import { toBool } from "../../platform/db/kernel/index.js";
 import type {

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers the 5 Webhooks tools (formerly published as `integrations_*`, renamed 2026-08-17 to
  * match the `src/webhooks/` module rename — see that rename's own commit for why the tool IDs moved
@@ -19,14 +21,20 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import type { UIResource } from "../index.js";
-import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../features/webhooks/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
 import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Webhooks (registered under the tool-contribution registry's "integrations" domain key — see
 // `webhooks/tool-registrations.ts`'s own header for why that key itself was NOT part of this rename)
@@ -36,8 +44,8 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
 // installs it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
 // `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
 // own registration is the only one this process's registry holds while these tests run.
-resetToolContributorsForTests();
-registerToolContributor(contributeWebhooksTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeWebhooksTools() });
 
 const WORKSPACE_ID = "ws-webhooks-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -51,7 +59,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedTarget?: boolean } = {
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
 
   let idCounter = 0;
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = { newId: () => `sub-${++idCounter}` };
   const authorize = async (params: Record<string, unknown>) => {
     authorizeCalls.push(params);
@@ -77,7 +85,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function webhooksRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -97,7 +105,7 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  */
 async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
   const pending = deleteTool.handler({ ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
@@ -135,7 +143,7 @@ test("exactly the 5 webhooks catalog entries are registered — nothing withheld
 
 test("no tool id across the whole assistant tool set implies a subscription can be updated or a signing secret rotated/revealed by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("webhooks_update_subscription"), false);
   assert.equal(ids.some((id) => id.includes("rotate") || id.includes("reveal") || id.includes("keyring")), false);
 });
@@ -178,13 +186,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.webhook_subscription") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("webhooks_create_subscription", { ...catalogEntry("webhooks_create_subscription"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("webhooks_create_subscription", { ...catalogEntry("webhooks_create_subscription"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

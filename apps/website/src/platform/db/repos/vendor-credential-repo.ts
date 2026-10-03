@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import type { ContentKernel } from "../content-kernel.js";
 import type { VendorCredentialSetsTable } from "../content-database.generated.js";

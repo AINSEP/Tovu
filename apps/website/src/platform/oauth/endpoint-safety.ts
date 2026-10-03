@@ -1,4 +1,5 @@
-import { isBlockedExternalApiHostname, isLoopbackApiHost } from "@jini-ai/agent-runtime";
+import { assertSafeUserFacingUrl as assertJiniUserFacingUrl, createOAuthUrlGuard, defaultOAuthMessages, OAuthError as JiniOAuthError, type OAuthDiscoveryPolicy, type OAuthUrlGuard } from "@jini-ai/oauth";
+import { isBlockedExternalApiHostname, isLoopbackApiHost } from "@jini-ai/platform/net";
 
 import { OAuthError } from "./errors.js";
 
@@ -16,42 +17,30 @@ import { OAuthError } from "./errors.js";
  *   something to click. It is attacker-controlled the moment a provider is compromised or
  *   impersonated, so `javascript:`, `data:` and friends must never survive this function.
  *
- * The block-list itself is not reimplemented. `@jini-ai/agent-runtime`'s `connection-guard.ts`
+ * The block-list itself is not reimplemented. `@jini-ai/platform/net`
  * already owns loopback/RFC1918/link-local/CGNAT/multicast classification and is exercised by its
  * own parity tests; a second copy here would be a second thing to keep correct.
  *
- * DNS-level pinning (`validateBaseUrlResolved` + `pinnedFetch`) is deliberately NOT applied. It
- * would close a rebinding gap, but it also replaces `fetch` with a raw `node:http` client, and an
- * OAuth token endpoint is an operator-configured origin rather than request-body input. This is
- * written down so a future reviewer sees a decision rather than an omission.
+ * The legacy testing/DB seam below checks URL syntax and literal host classification.
+ * Jini consumers use createTovuOAuthHttpPorts instead: r01's guarded HTTP port validates and pins
+ * DNS at connection time, closing the rebinding gap without hiding transport policy in OAuth.
  */
 
 /** `http` is permitted ONLY for loopback, so an operator can develop against a local authorization
  *  server without the module offering a plaintext-token path to anywhere else. */
 function assertSafeUrl(raw: string, kind: "provider endpoint" | "provider-supplied link"): URL {
-  let parsed: URL;
+  // The legacy testing/DB seam permits loopback explicitly; production gets the default-closed factory below.
+  const guard = createTovuOAuthGuard({}, { allowLoopbackHttp: true });
   try {
-    parsed = new URL(raw.trim());
-  } catch {
-    throw new OAuthError("OAUTH_UNSAFE_ENDPOINT", `${kind} is not a valid absolute URL`, {
-      operatorAction: "Check the OAuth endpoints configured for this provider.",
-    });
+    return kind === "provider-supplied link"
+      ? assertJiniUserFacingUrl({ raw, guard })
+      : guard.assertSafeUrl({ raw, label: "provider endpoint" });
+  } catch (error) {
+    if (!(error instanceof JiniOAuthError)) throw error;
+    // The old endpoint wrapper adds its own label. Strip only the duplicate fixed subject prefix.
+    const message = error.message.replace("provider endpoint: provider endpoint", "provider endpoint");
+    throw new OAuthError(error.code, message, { operatorAction: error.operatorAction, cause: error.cause });
   }
-
-  const hostname = parsed.hostname.toLowerCase();
-  const loopback = isLoopbackApiHost(hostname);
-
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && loopback)) {
-    throw new OAuthError("OAUTH_UNSAFE_ENDPOINT", `${kind} must use https (http is permitted only for loopback)`, {
-      operatorAction: "Use an https:// URL for this provider.",
-    });
-  }
-  if (!loopback && isBlockedExternalApiHostname(hostname)) {
-    throw new OAuthError("OAUTH_UNSAFE_ENDPOINT", `${kind} resolves to an internal address, which is not allowed`, {
-      operatorAction: "Point this provider at a publicly reachable authorization server.",
-    });
-  }
-  return parsed;
 }
 
 /**
@@ -89,11 +78,108 @@ export function assertSafeProviderEndpoint(raw: string, label: string): URL {
  * @complexity O(n) in the URL length.
  */
 export function assertSafeUserFacingUrl(raw: string): URL {
-  const parsed = assertSafeUrl(raw, "provider-supplied link");
-  if (parsed.username !== "" || parsed.password !== "") {
-    throw new OAuthError("OAUTH_UNSAFE_ENDPOINT", "provider-supplied link embeds credentials in the URL", {
-      operatorAction: "This provider's device-authorization response is malformed — do not open the link.",
+  return assertSafeUrl(raw, "provider-supplied link");
+}
+
+/** Tovu endpoint policy for Jini OAuth. The guard and pinned transport are separate ports because
+ * a synchronous hostname check cannot prevent DNS rebinding at connection time.
+ * Local plaintext OAuth is an explicit development choice, never a library fallback.
+ * @complexity O(n) in URL length; no I/O.
+ */
+export function createTovuOAuthGuard(_required: Record<string, never>, optional: { allowLoopbackHttp?: boolean } = {}): import("@jini-ai/oauth").OAuthUrlGuard {
+  return createOAuthUrlGuard({
+    assertAllowed({ url, label }) {
+      const hostname = url.hostname.toLowerCase();
+      if (!isLoopbackApiHost({ hostname }) && isBlockedExternalApiHostname({ hostname })) {
+        throw new JiniOAuthError({ code: "OAUTH_UNSAFE_ENDPOINT",
+          message: `${label}: provider endpoint resolves to an internal address, which is not allowed`,
+          operatorAction: "Point this provider at a publicly reachable authorization server." });
+      }
+    },
+  }, { allowLoopbackHttp: optional.allowLoopbackHttp === true });
+}
+
+/** Adapts r01's canonical guarded HTTP port to OAuth's fetch ABI. Redirects fail before credentials
+ * cross origins; caller cancellation and the 15-second idle budget cover the complete body read.
+ * A clipped body is refused rather than parsed as a complete token or metadata response.
+ * The transport and response bounds rationale lives in Jini/packages/platform/src/http/guarded/.
+ * @complexity O(n) in the bounded response body; one guarded outbound request.
+ */
+export function createTovuOAuthHttpPorts(
+  { http }: { http: import("@jini-ai/core/primitives").HttpClientPort },
+  optional: { allowLoopbackHttp?: boolean } = {},
+): import("@jini-ai/oauth").OAuthHttpPorts {
+  return {
+    guard: createTovuOAuthGuard({}, optional),
+    async fetchFn({ url }, init = {}) {
+      // OAuth emits only GET/POST and string form/JSON bodies. Refuse unsupported requests so an
+      // accidental new caller cannot silently drop a method or credential-bearing body.
+      const method = init.method ?? "GET";
+      if (method !== "GET" && method !== "POST") throw new TypeError("unsupported OAuth request method");
+      if (init.body !== undefined && typeof init.body !== "string") throw new TypeError("OAuth request body must be a string");
+      if (url instanceof Request) throw new TypeError("OAuth URL must be an explicit URL");
+      const response = await http.send({ request: {
+        url: String(url), method, headers: Object.fromEntries(new Headers(init.headers).entries()),
+        idleTimeoutMs: 15_000, maxResponseBytes: 64 * 1024,
+        ...(init.body === undefined ? {} : { body: init.body }),
+        ...(init.signal == null ? {} : { signal: init.signal }),
+      } }, { redirect: "error" });
+      if (response.bodyTruncated) throw new JiniOAuthError({ code: "OAUTH_MALFORMED_RESPONSE",
+        message: "the OAuth response exceeded the outbound response limit",
+        operatorAction: "This provider's OAuth endpoint returned an oversized response." });
+      // Fetch forbids bodies on 204/205/304, even when the native port returns an empty string.
+      return new Response([204, 205, 304].includes(response.status) ? null : response.bodyText,
+        { status: response.status, headers: { ...response.headers } });
+    },
+  };
+}
+
+/** Tovu copy; the protocol and reserved-parameter protections live in Jini's OAuth package. */
+export const tovuOAuthMessages = {
+  ...defaultOAuthMessages,
+  registrationRejectedAction: "This server refused to register Tovu as a client — check its OAuth requirements, or supply a client id by hand.",
+};
+
+/** Bind discovered endpoints to the exact issuer while retaining the host's explicit loopback
+ * development exception. Safe URL syntax alone cannot prevent credential exfiltration to a
+ * different public origin. The scheme and private-host decisions still belong to the guard. */
+export function createTovuIssuerBoundDiscoveryPolicy({ guard }: { readonly guard: OAuthUrlGuard }): OAuthDiscoveryPolicy {
+  return {
+    assertMetadata({ issuer, document }) {
+      const reject = (message: string): never => {
+        throw new JiniOAuthError({ code: "OAUTH_UNSAFE_ENDPOINT", message,
+          operatorAction: "Check the authorization server issuer and discovery endpoints before connecting." });
+      };
+      if (document.issuer !== undefined && document.issuer !== issuer)
+        reject("OAuth metadata issuer does not equal the requested issuer");
+      const origin = guard.assertSafeUrl({ raw: issuer, label: "authorization server issuer" }).origin;
+      for (const key of ["authorization_endpoint", "token_endpoint", "registration_endpoint", "device_authorization_endpoint"]) {
+        const raw = document[key];
+        if (raw === undefined || raw === null) continue;
+        if (typeof raw !== "string") { reject(`OAuth metadata ${key} is not an absolute URL`); continue; }
+        const endpoint = guard.assertSafeUrl({ raw, label: `discovered ${key.replace(/_/g, " ")}` });
+        if (endpoint.origin !== origin || endpoint.username || endpoint.password)
+          reject(`OAuth metadata ${key} does not share the issuer's origin`);
+      }
+    },
+  };
+}
+
+/** Keep Tovu's Settings route wording while retaining Jini's typed terminal/retryable errors.
+ * Provider bodies are never copied into an operator action; only fixed library copy is adapted. */
+export async function withTovuOAuthCopy<T>({ call }: { readonly call: () => Promise<T> }): Promise<T> {
+  try { return await call(); }
+  catch (caught) {
+    // Guarded transport clipping is already a structured protocol error. Jini wraps fetch
+    // failures as unreachable, so retain the bounded-response verdict rather than its wrapper.
+    const error = caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
+      && caught.cause instanceof JiniOAuthError && caught.cause.code === "OAUTH_MALFORMED_RESPONSE"
+      ? caught.cause : caught;
+    if (!(error instanceof JiniOAuthError)) throw error;
+    const operatorAction = error.operatorAction.replace("the connection settings", "Settings → External MCP");
+    if (operatorAction === error.operatorAction) throw error;
+    throw new JiniOAuthError({ code: error.code, message: error.message, operatorAction }, {
+      cause: error.cause, providerErrorCode: error.providerErrorCode, retryAfterSeconds: error.retryAfterSeconds,
     });
   }
-  return parsed;
 }

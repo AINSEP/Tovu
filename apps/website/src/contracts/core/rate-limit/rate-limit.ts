@@ -1,21 +1,19 @@
-import type { ClockPort } from "@jini-ai/cms/core";
-
 /**
- * @file In-memory fixed-window rate limiter (SPEC-006 REQ-14 / api.spec §3).
+ * @file Tovu policy adapter for the async fixed-window rate limiter (SPEC-006 REQ-14 / api.spec §3).
  *
  * Purpose:
  * Provides the counting primitive behind the `LOGIN_STRICT` profile
  * (`AUTH_LOGIN`, 10 requests / 60s / client IP) and the client-IP resolution
  * rule that keys it. Structured so `WRITE_STANDARD`/`READ_STANDARD` (out of
  * scope this pass — see api.spec §3) can reuse the same primitive later with
- * a different `RateLimitProfile` and key function; only `LOGIN_STRICT` is
- * wired to a route today.
+ * a different `RateLimitProfile` and key function; the profiles below now cover
+ * login, magic-link, anonymous assistant and outbound-service routes.
  *
  * How it relates to the project:
  * - `server/inbound/admin-http/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
  *   before calling `identity.login()`, keyed by `resolveClientIp(req)`.
- * - Reuses the repo's injectable `ClockPort` (`{ nowIso(): ISODateTime }`,
- *   `core/ports.ts`) instead of `Date.now()` directly, matching the pattern
+ * - Reuses the repo's injectable `Clock` (`{ nowMs(): number }`,
+ *   `@jini-ai/core/primitives`) instead of `Date.now()` directly, matching the pattern
  *   `identity/auth-service.ts` and its tests already use — so tests can fake
  *   the window boundary without real sleeps.
  *
@@ -29,10 +27,10 @@ import type { ClockPort } from "@jini-ai/cms/core";
  * were each relocated for.
  *
  * Architectural role:
- * A generic, framework-adjacent policy helper (structural `ClientIpSource` in, plain data out) —
- * not a port (ADR-006): one rate-limiter implementation, no swappable backends in v1. REQ-14's
- * Article I "Library-First" compliance note flags this as intentionally hand-rolled (Red-Team
- * RT-006, deferred to Architect) rather than pulled from an npm package.
+ * Tovu retains profiles and proxy policy; generic counting and its rationale now live in
+ * `@jini-ai/http-kit/rate-limit`, over a required clock and async CounterStore port. ADR-006's
+ * original single in-memory implementation and RT-006 Library-First concern predate extraction;
+ * the default remains in-memory, while a dedicated store can now be injected.
  *
  * Disclosed simplification:
  * Single-process, in-memory only (no Redis/distributed store) — acceptable
@@ -54,15 +52,36 @@ import type { ClockPort } from "@jini-ai/cms/core";
  * cosmetic one.
  */
 
-/** A single rate-limit profile (api.spec §3): window, ceiling, and burst allowance. */
-export interface RateLimitProfile {
-  /** Rolling window length in seconds. */
-  windowSeconds: number;
-  /** Requests allowed per window before the burst allowance. */
-  max: number;
-  /** Additional requests tolerated on top of `max` within the same window. */
-  burst: number;
-}
+// Implementation: /Users/la/Programming/Jini/packages/http-kit/src/rate-limit.ts
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import {
+  createMemoryCounterStore,
+  createRateLimiter as createHttpRateLimiter,
+  resolveClientIp as resolveHttpClientIp,
+  type ClientIpSource,
+  type CounterStore,
+  type RateLimiter as HttpRateLimiter,
+  type RateLimitProfile,
+} from "@jini-ai/http-kit/rate-limit";
+
+/** Tovu profiles and proxy policy; fixed-window counting is owned by HTTP-kit. */
+export type { ClientIpSource, RateLimitProfile, RateLimitResult } from "@jini-ai/http-kit/rate-limit";
+
+/**
+ * A `RateLimitProfile` bound to one in-memory counter store. Call `check` once
+ * per incoming request using `await check({ key })`; it both evaluates and records the attempt (there is no
+ * separate "commit" step — every checked request counts against the window,
+ * matching AC-18's "11th attempt" framing).
+ *
+ * size is optional so check-only doubles remain sufficient: it exists purely to observe
+ * eviction shrinking storage (SPEC-046 REQ-8), never as a route capability.
+ * @complexity O(1) amortized time per `check()` call (an eviction sweep costs
+ * O(distinct keys) but runs at most once per `windowSeconds`, see
+ * `createRateLimiter`); space bounded to roughly one map entry per distinct
+ * key active within the trailing window (SPEC-046 REQ-8 — no longer "one
+ * entry per key ever seen").
+ */
+export type RateLimiter = Pick<HttpRateLimiter, "check"> & Partial<Pick<HttpRateLimiter, "size">>;
 
 /** api.spec §3: `LOGIN_STRICT` — brute-force guard on `AUTH_LOGIN`, keyed by client IP. */
 export const LOGIN_STRICT: RateLimitProfile = {
@@ -169,43 +188,6 @@ export const EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP: RateLimitProfile = {
   burst: 5,
 };
 
-/** Outcome of a single `checkRateLimit` call. */
-export type RateLimitResult =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number };
-
-interface WindowState {
-  /** Epoch ms when the current fixed window started. */
-  windowStartMs: number;
-  /** Requests counted in the current window so far (including this one, once allowed). */
-  count: number;
-}
-
-/**
- * A `RateLimitProfile` bound to one in-memory counter store. Call `check` once
- * per incoming request; it both evaluates and records the attempt (there is no
- * separate "commit" step — every checked request counts against the window,
- * matching AC-18's "11th attempt" framing).
- *
- * @complexity O(1) amortized time per `check()` call (an eviction sweep costs
- * O(distinct keys) but runs at most once per `windowSeconds`, see
- * `createRateLimiter`); space bounded to roughly one map entry per distinct
- * key active within the trailing window (SPEC-046 REQ-8 — no longer "one
- * entry per key ever seen").
- * @overallScore 100
- */
-export interface RateLimiter {
-  check(key: string): RateLimitResult;
-  /**
-   * Number of distinct keys currently tracked. Optional so existing hand-written test doubles
-   * (e.g. `comments/__tests__/ingress.test.ts`'s `alwaysAllowRateLimiter`) that implement only
-   * `check` keep satisfying this interface unmodified — this exists purely so tests of the real
-   * `createRateLimiter` can observe eviction actually shrinking the store (SPEC-046 REQ-8), not as
-   * a capability any route or caller needs.
-   */
-  size?(): number;
-}
-
 /**
  * Build a fixed-window counter for `profile`, driven by `clock` instead of
  * `Date.now()` so tests can move time forward deterministically instead of
@@ -222,101 +204,43 @@ export interface RateLimiter {
  * already treats a missing key and an expired key identically
  * (`!existing || nowMs - existing.windowStartMs >= windowMs`), so evicting a
  * stale entry before that check can never change its outcome — this is what
- * keeps every existing consumer (login, magic-link, forms) and their tests
- * unmodified.
+ * preserves the budget decisions of every existing consumer (login, magic-link, forms).
+ * Checks now await the injected async store and use `{ key }` objects.
  *
+ * Tovu's profiles/proxy policy stay here; the implementation and eviction rationale now live in
+ * Jini/packages/http-kit/src/rate-limit.ts. The optional store defaults to a fresh memory store.
+ * @returns An async limiter; storage failures reject checks, never authorize a request.
  * @complexity O(1) amortized per `check` call; see the eviction note above
  * for the worst-case sweep cost.
- * @overallScore 100
  */
 export function createRateLimiter(
-  required: { profile: RateLimitProfile; clock: ClockPort },
-  _optional: Record<string, never> = {}
-): RateLimiter {
-  const { profile, clock } = required;
-  const windows = new Map<string, WindowState>();
-  const windowMs = profile.windowSeconds * 1000;
-  const effectiveMax = profile.max + profile.burst;
-
-  /** Epoch ms of the last eviction sweep, or `null` before the first `check()` call. */
-  let lastSweepMs: number | null = null;
-
-  /** Deletes every window whose fixed period has fully elapsed as of `nowMs`. */
-  function evictExpiredWindows(nowMs: number): void {
-    for (const [key, state] of windows) {
-      if (nowMs - state.windowStartMs >= windowMs) windows.delete(key);
-    }
-  }
-
-  return {
-    check(key: string): RateLimitResult {
-      const nowMs = new Date(clock.nowIso()).getTime();
-
-      if (lastSweepMs === null) {
-        lastSweepMs = nowMs;
-      } else if (nowMs - lastSweepMs >= windowMs) {
-        evictExpiredWindows(nowMs);
-        lastSweepMs = nowMs;
-      }
-
-      const existing = windows.get(key);
-
-      if (!existing || nowMs - existing.windowStartMs >= windowMs) {
-        windows.set(key, { windowStartMs: nowMs, count: 1 });
-        return { allowed: true };
-      }
-
-      if (existing.count < effectiveMax) {
-        existing.count += 1;
-        return { allowed: true };
-      }
-
-      const windowEndsMs = existing.windowStartMs + windowMs;
-      const retryAfterSeconds = Math.max(1, Math.ceil((windowEndsMs - nowMs) / 1000));
-      return { allowed: false, retryAfterSeconds };
-    },
-    size(): number {
-      return windows.size;
-    },
-  };
+  { profile, clock }: { profile: RateLimitProfile; clock: ClockPort },
+  { store = createMemoryCounterStore({}) }: { store?: CounterStore } = {},
+): HttpRateLimiter {
+  return createHttpRateLimiter({ profile, clock, store });
 }
 
+// Keep this policy outside the server composition root: assistant, comments and forms once
+// imported its transport module for IP resolution, creating three module cycles. The structural
+// request shape keeps those domains independent of Express; trust-proxy policy remains host-owned.
 /**
- * The minimal request shape `resolveClientIp` needs — deliberately narrower
- * than Express's `Request` (which pulls in the full `net.Socket` type) so the
- * function stays trivially unit-testable with plain object literals instead
- * of a mocked Express request.
- */
-export interface ClientIpSource {
-  socket: { remoteAddress?: string };
-  headers: Record<string, string | string[] | undefined>;
-  /** Express's `req.ip`: the socket peer, or — only when `trust proxy` trusts that peer — the
-   *  address the trusted proxy recorded in X-Forwarded-For. */
-  ip?: string;
-}
-
-/**
- * Resolve the client IP for `LOGIN_STRICT` per api.spec §3's "Client-IP
- * resolution" rule: the immediate socket peer address is the source of
- * truth; a `X-Forwarded-For` header is only honored when that immediate peer
- * is a trusted proxy. With an explicit `trustedProxies` list, that list
- * decides. Otherwise Express's `req.ip` is used, which honors X-Forwarded-For
- * only as far as the app's `trust proxy` setting allows
- * (`inbound/shared/trust-proxy.ts`: Fly's one edge hop, a TOVU_TRUST_PROXY
- * override, or none) and is otherwise the socket peer.
- *
- * @complexity O(1).
- * @overallScore 100
+ * Keeps Tovu's request-facing port and Express trust-proxy fallback policy.
+ * The socket peer is the trust boundary: only an explicitly trusted immediate peer may supply
+ * the first forwarded hop. Otherwise use Express's req.ip, which honors X-Forwarded-For only
+ * according to inbound/shared/trust-proxy.ts (Fly's edge hop, TOVU_TRUST_PROXY, or none).
+ * The structural source avoids importing Express's full socket type into domain callers.
+ * @param req - Request's socket, headers and framework-resolved IP.
+ * @param trustedProxies - Explicit peers allowed to supply the first forwarded hop.
+ * @returns A trusted forwarded IP, otherwise Express's resolved IP or socket peer.
+ * @complexity O(p) time for p explicit proxy addresses; O(1) extra space.
  */
 export function resolveClientIp(req: ClientIpSource, trustedProxies: readonly string[] = []): string {
-  const socketPeer = req.socket?.remoteAddress ?? "unknown";
-
-  if (trustedProxies.length > 0 && trustedProxies.includes(socketPeer)) {
-    const forwardedHeader = req.headers["x-forwarded-for"];
-    const forwardedValue = Array.isArray(forwardedHeader) ? forwardedHeader[0] : forwardedHeader;
-    const firstHop = forwardedValue?.split(",")[0]?.trim();
-    if (firstHop) return firstHop;
-  }
-
-  return req.ip || socketPeer;
+  return resolveHttpClientIp({
+    source: req,
+    policy: {
+      unknownAddress: "unknown",
+      isTrustedProxy: ({ address }) => trustedProxies.includes(address),
+      fallbackAddress: ({ source, socketPeer }) => source.ip || socketPeer,
+    },
+  });
 }

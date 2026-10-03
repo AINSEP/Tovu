@@ -1,19 +1,10 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import {
-  authorize,
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-} from "@jini-ai/cms/identity";
+import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { authenticateApiKey } from "../api-key-service.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
@@ -29,24 +20,14 @@ import {
   SqlSessionRepo,
   SqlUserRepo,
 } from "../repo.js";
-import type {
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  PrincipalPolicyRepoPort,
-  PrincipalRepoPort,
-  PrincipalRoleRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-  SessionRepoPort,
-  UserRepoPort,
-} from "@jini-ai/cms/identity";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
 
 /**
  * @file Shared contract-test suite for the identity repo ports, run against both
  * `repo.memory.ts` and `repo.ts` (the one Kysely body, on SQLite and PGlite via `eachDialect`) — mirrors `src/members/__tests__/repo.contract.test.ts`'s
  * shape (that file's own header cites this exact convention).
  *
- * Nine of the ports (and their in-memory adapters) come from `@jini-ai/cms/identity`; the tenth,
+ * Nine of the ports (and their in-memory adapters) come from `@jini-ai/user-management`; the tenth,
  * `ApiKeyRepoPort` (SPEC-006 REQ-08), is declared and adapted in THIS repo — see
  * `identity/api-key-types.ts`. Both of its adapters are exercised by the same suite as the rest.
  */
@@ -209,17 +190,17 @@ function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => Polic
     const row = { id: "pp-constrained", workspaceId: WS, policyId: "pol-constrained", permission: "content.write", resourceType: "post", constraintJson: '{"field":"title"}' };
     await repo.save(row);
     assert.deepEqual(await repo.listByPolicyId({ workspaceId: WS, policyId: row.policyId }), [row]);
-    const principals = new InMemoryPrincipalRepo();
-    const principalPolicies = new InMemoryPrincipalPolicyRepo();
+    const principals = new InMemoryPrincipalRepo({});
+    const principalPolicies = new InMemoryPrincipalPolicyRepo({});
     await principals.save({ id: "constrained-user", workspaceId: WS, kind: "user", displayName: "Limited", status: "active", createdAt: "2026-01-01T00:00:00.000Z" });
     await principalPolicies.save({ id: "constraint-link", workspaceId: WS, principalId: "constrained-user", policyId: row.policyId });
-    const deps = { principals, principalPolicies, principalRoles: new InMemoryPrincipalRoleRepo(), rolePolicies: new InMemoryRolePolicyRepo(), policyPermissions: repo };
+    const deps = { principals, principalPolicies, principalRoles: new InMemoryPrincipalRoleRepo({}), rolePolicies: new InMemoryRolePolicyRepo({}), policyPermissions: repo };
     for (const entityType of ["post", "page"]) {
-      assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS, entityType } }),
+      assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS } }, { entityType }),
         { allowed: false, reason: "unconstrained_deny" });
     }
     await repo.save({ ...row, constraintJson: null });
-    assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS, entityType: "post" } }),
+    assert.deepEqual(await authorize({ deps, principalId: "constrained-user", permission: "content.write", context: { workspaceId: WS } }, { entityType: "post" }),
       { allowed: true, reason: "matched" });
   });
 
@@ -332,42 +313,42 @@ function runPrincipalPolicyRepoSuite(adapterName: string, makeRepo: () => Princi
   });
 }
 
-runPrincipalRepoSuite("InMemoryPrincipalRepo", () => new InMemoryPrincipalRepo());
+runPrincipalRepoSuite("InMemoryPrincipalRepo", () => new InMemoryPrincipalRepo({}));
 for (const each of eachDialect({ tables: ["principals"], make: (kernel) => new SqlPrincipalRepo(kernel) })) {
   runPrincipalRepoSuite(`SqlPrincipalRepo [${each.name}]`, each.make);
 }
 
-runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo());
+runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo({}));
 for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo(kernel) })) {
   runUserRepoSuite(`SqlUserRepo [${each.name}]`, each.make);
 }
 
-runSessionRepoSuite("InMemorySessionRepo", () => new InMemorySessionRepo());
+runSessionRepoSuite("InMemorySessionRepo", () => new InMemorySessionRepo({}));
 for (const each of eachDialect({ tables: ["sessions"], make: (kernel) => new SqlSessionRepo(kernel) })) {
   runSessionRepoSuite(`SqlSessionRepo [${each.name}]`, each.make);
 }
 
-runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo());
+runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo({}));
 for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo(kernel) })) {
   runRoleRepoSuite(`SqlRoleRepo [${each.name}]`, each.make);
 }
 
-runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo());
+runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo({}));
 for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo(kernel) })) {
   runPolicyRepoSuite(`SqlPolicyRepo [${each.name}]`, each.make);
 }
 
-runPolicyPermissionRepoSuite("InMemoryPolicyPermissionRepo", () => new InMemoryPolicyPermissionRepo());
+runPolicyPermissionRepoSuite("InMemoryPolicyPermissionRepo", () => new InMemoryPolicyPermissionRepo({}));
 for (const each of eachDialect({ tables: ["policy_permissions"], make: (kernel) => new SqlPolicyPermissionRepo(kernel) })) {
   runPolicyPermissionRepoSuite(`SqlPolicyPermissionRepo [${each.name}]`, each.make);
 }
 
-runRolePolicyRepoSuite("InMemoryRolePolicyRepo", () => new InMemoryRolePolicyRepo());
+runRolePolicyRepoSuite("InMemoryRolePolicyRepo", () => new InMemoryRolePolicyRepo({}));
 for (const each of eachDialect({ tables: ["role_policies"], make: (kernel) => new SqlRolePolicyRepo(kernel) })) {
   runRolePolicyRepoSuite(`SqlRolePolicyRepo [${each.name}]`, each.make);
 }
 
-runPrincipalRoleRepoSuite("InMemoryPrincipalRoleRepo", () => new InMemoryPrincipalRoleRepo());
+runPrincipalRoleRepoSuite("InMemoryPrincipalRoleRepo", () => new InMemoryPrincipalRoleRepo({}));
 for (const each of eachDialect({ tables: ["principal_roles"], make: (kernel) => new SqlPrincipalRoleRepo(kernel) })) {
   runPrincipalRoleRepoSuite(`SqlPrincipalRoleRepo [${each.name}]`, each.make);
 }
@@ -429,13 +410,13 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
 
   test(`[${adapterName}] expiry survives decoding and authentication refuses an expired otherwise-valid key`, async () => {
     const repo = makeRepo();
-    const repos = { principals: new InMemoryPrincipalRepo(), users: new InMemoryUserRepo(), sessions: new InMemorySessionRepo(),
-      roles: new InMemoryRoleRepo(), policies: new InMemoryPolicyRepo(), policyPermissions: new InMemoryPolicyPermissionRepo(),
-      rolePolicies: new InMemoryRolePolicyRepo(), principalRoles: new InMemoryPrincipalRoleRepo(), principalPolicies: new InMemoryPrincipalPolicyRepo() };
+    const repos = createTransactionalInMemoryIdentityRepos({ repos: { principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}),
+      roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+      rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}) } });
     await repos.principals.save({ id: row.principalId, workspaceId: WS, kind: "api_key", displayName: "Runner", status: "active", createdAt: row.createdAt });
     await repo.save(row);
-    const deps = { repos, apiKeys: repo, clock: { nowIso: () => "2026-01-05T00:00:00.000Z" }, idGen: { newId: () => "unused" },
-      hasher: { hash: async (value: string) => value, verify: async (a: string, b: string) => a === b },
+    const deps = { repos, tokens: new NodeSessionTokens({}), apiKeys: repo, clock: { nowIso: () => "2026-01-05T00:00:00.000Z", nowMs: () => Date.parse("2026-01-05T00:00:00.000Z") }, idGen: { newId: () => "unused" },
+      hasher: { hash: async ({ password }: { password: string }) => password, verify: async ({ hash, password }: { hash: string; password: string }) => hash === password },
       secretHasher: { hash: async () => row.keyHash, verify: async (hash: string, secret: string) => hash === row.keyHash && secret === "test-secret" } };
     const input = { workspaceId: WS, rawKey: `${row.prefix}.test-secret` };
     assert.equal(await authenticateApiKey({ deps, input }), null);
@@ -466,7 +447,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
   });
 }
 
-runPrincipalPolicyRepoSuite("InMemoryPrincipalPolicyRepo", () => new InMemoryPrincipalPolicyRepo());
+runPrincipalPolicyRepoSuite("InMemoryPrincipalPolicyRepo", () => new InMemoryPrincipalPolicyRepo({}));
 for (const each of eachDialect({ tables: ["principal_policies"], make: (kernel) => new SqlPrincipalPolicyRepo(kernel) })) {
   runPrincipalPolicyRepoSuite(`SqlPrincipalPolicyRepo [${each.name}]`, each.make);
 }

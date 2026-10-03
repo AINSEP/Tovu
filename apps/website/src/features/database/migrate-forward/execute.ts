@@ -1,4 +1,4 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /
@@ -20,11 +20,11 @@ import type { ClockPort } from "@jini-ai/cms/core";
  * Architectural role:
  * `features/database` domain logic, composing `core/operation-lock.ts`'s port shape. No clock is
  * supplied by this module's own caller contract, so a plain wall-clock default is used for the
- * lock's own timestamping, matching this codebase's `deps.clock ?? { nowIso: () => new
- * Date().toISOString() }` fallback convention (e.g. `server/app.ts`, `media/media-service.ts`).
+ * lock's own timestamping, using the shared millisecond clock port so the lock can format its
+ * timestamp through the kernel's ISO helper.
  */
 
-const defaultClock: ClockPort = { nowIso: () => new Date().toISOString() };
+const defaultClock: ClockPort = { nowMs: () => Date.now() };
 
 export interface OperationLockAcquireResult {
   ok: true;

@@ -1,5 +1,7 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireToolPermission, type AuthorizeFn, type DerivedRiskByToolId, type ToolRegistration, type WirableToolDefinition } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import type { DiscoveredTheme } from "./theme.js";
 import { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
@@ -7,7 +9,7 @@ import { ThemePathError } from "./theme-files.js";
 
 /** Same service dependencies as the admin page-publication route. */
 export interface Deps { workspaceId: string; authorize: AuthorizeFn; themes: DiscoveredTheme[]; themesDir: string; }
-export const catalog: WirableToolDefinition[] = [{
+export const catalog: AgentToolDefinition[] = [{
   name: "theme_set_page_published",
   description: "Publishes or unpublishes one standalone page in a static theme, such as about or pricing. Call to show or hide that theme page on the live site. Returns {page, published, publishedPages}. Reversible: set published to the opposite value to undo. Does not publish CMS posts, push content to a remote site, switch the active theme, or publish index/404/template shells. Missing themes, non-static tiers and ineligible pages are refused.",
   sideEffects: "mutates-durable-state",
@@ -29,17 +31,17 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
  * @complexity O(1) wiring; execution follows setThemePagePublished.
  */
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "theme-set-page-published", catalogModule: "features/theme/page-publish-tool.ts", catalog: indexCatalogById(catalog), derivedRisk,
+  return buildDomainRegistrations({ domain: "theme-set-page-published", catalogModule: "features/theme/page-publish-tool.ts", catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
     handlers: { theme_set_page_published: async ctx => {
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "theme.set", entityType: "presentation" });
-      const input = requireInputRecord(ctx.input);
-      if (typeof input.themeId !== "string" || input.themeId.trim() === "") throw new ToolInputError("themeId must be a non-empty string.");
-      if (typeof input.page !== "string" || input.page.trim() === "") throw new ToolInputError("page must be a non-empty string.");
-      if (typeof input.published !== "boolean") throw new ToolInputError("published must be a boolean.");
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "theme.set" }, { entityType: "presentation" });
+      const input = requireInputRecord({ input: ctx.input });
+      if (typeof input.themeId !== "string" || input.themeId.trim() === "") throw new ToolInputError({ message: "themeId must be a non-empty string." });
+      if (typeof input.page !== "string" || input.page.trim() === "") throw new ToolInputError({ message: "page must be a non-empty string." });
+      if (typeof input.published !== "boolean") throw new ToolInputError({ message: "published must be a boolean." });
       try {
         return setThemePagePublished(deps, { themeId: input.themeId, page: input.page, published: input.published });
       } catch (error) {
-        if (error instanceof ThemePagePublicationError || error instanceof ThemePathError) throw new ToolInputError(error.message);
+        if (error instanceof ThemePagePublicationError || error instanceof ThemePathError) throw new ToolInputError({ message: error.message });
         throw error;
       }
     } },

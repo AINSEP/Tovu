@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,7 +9,7 @@ import test from "node:test";
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
@@ -16,6 +18,11 @@ import { resolveSkillLayout } from "#src/features/skills/layout";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file The site-backup tools reach a real runtime: the real SQLite composition root hands them
@@ -29,11 +36,11 @@ type RegistryDeps = Parameters<typeof buildAssistantToolRegistrations>[0];
 
 /** Builds the real first-party registrations over `routeDeps`, with every permission granted. */
 function registrationsOver(routeDeps: Omit<RegistryDeps, "magicLinkPerEmailLimiter">): Map<string, ToolRegistration> {
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const allowAll: RegistryDeps["authorize"] = async () => ({ allowed: true, reason: "test" });
-  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps);
+  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, undefined, { contributions });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 
@@ -95,7 +102,7 @@ test("site_backup_push is on the MCP-UI allowlist, so the dialog's Back up and C
 test("a BYOK turn finds site_backup_plan in the top 3 for how an owner asks for a backup", async () => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of registrationsOver(deps).values()) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
 

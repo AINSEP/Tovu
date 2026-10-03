@@ -545,20 +545,20 @@ test("hooks run in priority order and a later hook sees an earlier hook's redact
 });
 
 test("computeBackoffMs stays within [half, full] of the exponential step and respects the cap", () => {
-  const lower = computeBackoffMs(1, { random: () => 0 });
-  const upper = computeBackoffMs(1, { random: () => 1 });
+  const lower = computeBackoffMs({ attempts: 1 }, { random: () => 0 });
+  const upper = computeBackoffMs({ attempts: 1 }, { random: () => 1 });
   assert.equal(lower, 150_000); // half of 5 minutes
   assert.equal(upper, 300_000); // full 5 minutes
   // Pin the intervening exponential steps as well as the first and capped steps.
   const fullSteps = [600_000, 1_200_000, 2_400_000, 4_800_000, 9_600_000, 19_200_000, 21_600_000];
   for (const [index, fullStep] of fullSteps.entries()) {
-    assert.equal(computeBackoffMs(index + 2, { random: () => 0 }), fullStep / 2);
-    assert.equal(computeBackoffMs(index + 2, { random: () => 1 }), fullStep);
+    assert.equal(computeBackoffMs({ attempts: index + 2 }, { random: () => 0 }), fullStep / 2);
+    assert.equal(computeBackoffMs({ attempts: index + 2 }, { random: () => 1 }), fullStep);
   }
 
   // At high attempt counts the step is capped at 6 hours regardless of the exponent.
-  const cappedLower = computeBackoffMs(20, { random: () => 0 });
-  const cappedUpper = computeBackoffMs(20, { random: () => 1 });
+  const cappedLower = computeBackoffMs({ attempts: 20 }, { random: () => 0 });
+  const cappedUpper = computeBackoffMs({ attempts: 20 }, { random: () => 1 });
   assert.equal(cappedLower, 10_800_000); // half of 6 hours
   assert.equal(cappedUpper, 21_600_000); // full 6 hours
 });

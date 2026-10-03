@@ -27,7 +27,7 @@ import test from "node:test";
 
 import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -97,12 +97,12 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
 }
 
 async function buildHarness(deps: CustomCredentialsToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 }

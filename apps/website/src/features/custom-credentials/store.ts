@@ -1,4 +1,5 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -321,7 +322,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const additionalHosts = validateAdditionalHosts(input.additionalHosts);
   const connection = validateConnection(input.connection);
   const id = deps.idGen.newId();
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
 
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id, connection });
   const record: CustomCredentialSetRecord = {
@@ -494,7 +495,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   }
 
   const scalarFields = resolveUpdatedScalarFields(existing, input);
-  const now: ISODateTime = deps.clock.nowIso();
+  const now: ISODateTime = clockNowIso({ clock: deps.clock });
   const { sealed, username } = await resolveSealedAndUsername(deps, input, existing);
 
   const record: CustomCredentialSetRecord = {

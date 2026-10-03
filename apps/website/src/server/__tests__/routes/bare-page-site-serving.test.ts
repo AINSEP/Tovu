@@ -89,9 +89,9 @@ function buildTestApp(theme: DiscoveredTheme | null): { app: express.Express; de
   const deps: RouteDeps = createRouteDeps();
   deps.themes = theme ? [theme] : [];
   if (theme === null) {
-    deps.presentationRepo = new InMemoryPresentationSettingsRepo([
+    deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
       { workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: new Date().toISOString() } as never,
-    ]);
+    ] });
   }
   const app = express();
   app.use(express.json());

@@ -6,7 +6,7 @@
  * ADR-PIPE-011 Contract Map). Never creates a new Members identity (REQ-10) — resolves via
  * `SubscriberDirectoryPort`, read-only.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
 import {
   NewsletterListNotFoundError,

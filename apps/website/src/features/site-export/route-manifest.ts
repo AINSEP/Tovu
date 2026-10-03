@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";

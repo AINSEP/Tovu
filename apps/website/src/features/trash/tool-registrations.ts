@@ -10,25 +10,13 @@
  * already required**, resolved per row. Restoring a post is undoing `content_post_delete`;
  * anything weaker than the gate on the delete would make the Trash a way around it.
  */
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalNumber,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/database/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
-import type { UserRepoPort } from "@jini-ai/cms/identity";
+import type { UserRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "./agent-tools.js";
 import {
@@ -146,11 +134,11 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
      * skip rows the caller IS allowed to see when their permissions change mid-scan.
      */
     trash_list_items: async (ctx) => {
-      const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
+      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
 
       const requested = readEntityTypes(input);
-      const limit = Math.min(optionalNumber(input, "limit") ?? DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
+      const limit = Math.min(optionalNumber({ input, key: "limit" }) ?? DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
       const now = routeDeps.clock.nowIso();
 
       const page = await routeDeps.trash.list({
@@ -158,7 +146,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
         now,
         entityTypes: requested,
         limit,
-        cursor: optionalString(input, "cursor") ?? null,
+        cursor: optionalString({ input: input, key: "cursor" }) ?? null,
       });
 
       const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
@@ -180,18 +168,16 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
      * recovering from a mistaken delete harder than making one.
      */
     trash_restore_item: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const entityType = requireString(input, "entityType");
-      const entityId = requireString(input, "entityId");
+      const input = requireInputRecord({ input: ctx.input });
+      const entityType = requireString({ input: input, key: "entityType" });
+      const entityId = requireString({ input: input, key: "entityId" });
 
       const permission = trashPermissionFor(entityType, routeDeps);
       if (!permission) {
-        throw new ToolInputError(
-          `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.`
-        );
+        throw new ToolInputError({ message: `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
+            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.` });
       }
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission, entityType, entityId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
 
       const outcome = await routeDeps.trash.restore({
         workspaceId: routeDeps.workspaceId,
@@ -214,7 +200,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
   // catalog would freeze the published entityType enum at whatever `TRASHABLE` held when this file
   // first loaded, before a later-registered phase-2 kind (`registry.ts`'s own "resolved at call
   // time" rule) could ever reach it.
-  const catalog = indexCatalogById(buildTrashAgentToolCatalog(trashToolEntityTypes(routeDeps.registry)));
+  const catalog = indexCatalogById({ catalog: buildTrashAgentToolCatalog(trashToolEntityTypes(routeDeps.registry)) });
 
   return buildDomainRegistrations({
     domain: "trash",
@@ -238,7 +224,7 @@ function readEntityTypes(input: Record<string, unknown>): TrashEntityType[] | un
   const raw = input.entityTypes;
   if (raw === undefined) return undefined;
   if (!Array.isArray(raw) || raw.some((value) => typeof value !== "string")) {
-    throw new ToolInputError("trash_list_items: 'entityTypes' must be an array of strings when it is given.");
+    throw new ToolInputError({ message: "trash_list_items: 'entityTypes' must be an array of strings when it is given." });
   }
   return raw as TrashEntityType[];
 }

@@ -1,4 +1,5 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../webhooks/index.js";
@@ -344,7 +345,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const validated = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const id = deps.idGen.newId();
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
 
   const existingForVendor = await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId: validated.spec.vendorId });
   const { vendorId, sealed, tokenTail } = await sealConnection(deps, { workspaceId: input.workspaceId, id, validated });
@@ -468,7 +469,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
 
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const now: ISODateTime = deps.clock.nowIso();
+  const now: ISODateTime = clockNowIso({ clock: deps.clock });
 
   const { vendorId, sealed, tokenTail, accountLabel, providerId } = await resolveUpdatedConnectionSecrets(deps, input, { record: existing, host: existingHost }, registry);
   const vendorChanged = vendorId !== existing.vendorId;

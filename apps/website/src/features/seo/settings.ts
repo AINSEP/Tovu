@@ -1,6 +1,7 @@
-import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonValue, UUID } from "@jini-ai/core/primitives";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import {
+  createSettingsPrincipalLookup,
   type SettingsRepoPort,
   getEffective,
   resolveDefinitionRaw,
@@ -57,7 +58,7 @@ const SEO_DEFINITIONS: readonly SeoDefinitionSpec[] = [
 
 export interface EnsureSeoSettingDefinitionsDeps {
   settingsRepo: SettingsRepoPort;
-  clock: ClockPort;
+  clock: ClockPort | { nowIso(): string };
   ids: IdGeneratorPort;
   principals: PrincipalRepoPort;
 }
@@ -79,20 +80,20 @@ const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "syst
 function bootWriteServiceDeps(deps: EnsureSeoSettingDefinitionsDeps) {
   return {
     repo: deps.settingsRepo,
-    clock: deps.clock,
+    clock: jiniClock(deps.clock),
     ids: deps.ids,
     authorize: alwaysAllowBoot,
-    principals: deps.principals,
+    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
   };
 }
 
 function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
   return {
     repo: deps.settingsRepo,
-    clock: deps.clock,
+    clock: jiniClock(deps.clock),
     ids: deps.ids,
     authorize: deps.authorize,
-    principals: deps.principals,
+    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
   };
 }
 
@@ -186,7 +187,7 @@ export async function getSeoSettings(
 }
 
 export interface SeoSettingsWriteDeps extends GetSeoSettingsDeps {
-  clock: ClockPort;
+  clock: ClockPort | { nowIso(): string };
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
   principals: PrincipalRepoPort;
@@ -401,4 +402,9 @@ export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSe
   }
 
   return getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });
+}
+
+/** Tovu's ISO-clock adapter; the shared clock contract/rationale lives in Jini core/primitives. */
+function jiniClock(clock: ClockPort | { nowIso(): string }): ClockPort {
+  return "nowMs" in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) };
 }

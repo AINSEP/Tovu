@@ -1,4 +1,4 @@
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file The `api_keys` record shape and its two ports (ADR-021 / SPEC-006 REQ-08, state.spec §2).

@@ -56,6 +56,26 @@ function manualInterval(t: TestContext) {
 }
 
 describeEachChatDialect("chat expiry sweep", stores, (make) => {
+  test("one host pass drains more than one 500-row package batch and retains never-expiring chats", async () => {
+    const { kernel, admin } = make();
+    await kernel.run(db => db.insertInto("ai_chats").values(Array.from({ length: 501 }, (_, i) => ({
+      id: `expired-${i}`, scope_id: "ws", owner_kind: "guest", owner_id: "hashed-session",
+      title: null, created_at: T0, updated_at: T0, expires_at: T0,
+    }))).execute());
+    await admin.create({ id: "retained" });
+    const batches: number[] = [];
+    const counted: ChatKernel = { ...kernel, run: async fn => {
+      const result = await kernel.run(fn);
+      if (result !== null && typeof result === "object" && "numDeletedRows" in result) batches.push(Number(result.numDeletedRows));
+      return result;
+    } };
+    assert.equal(await sweepExpiredChats(counted, T0), 501);
+    assert.deepEqual(batches, [500, 1], "each real package DELETE must remain bounded");
+    assert.deepEqual((await admin.list()).map(c => c.id), ["retained"]);
+    assert.deepEqual(await kernel.run(db => db.selectFrom("ai_chats").select("id").execute()), [{ id: "retained" }]);
+    assert.equal(await sweepExpiredChats(kernel, T0), 0);
+  });
+
   test("deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats", async () => {
     const { kernel, guest, admin } = make();
     await guest.create({ id: "expired", expiresAt: T0 - 1 });

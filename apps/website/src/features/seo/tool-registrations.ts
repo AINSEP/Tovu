@@ -21,24 +21,12 @@
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
  *    which self-enforces nothing and is checked only at the handler).
  */
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
@@ -53,7 +41,7 @@ import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap.js";
 import type { SeoExtFieldsPatch, SeoSettings } from "./types.js";
 import { setEntrySeoOverrides } from "./write-service.js";
 
-const CATALOG_BY_ID = indexCatalogById(getSeoAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getSeoAgentToolCatalog() });
 
 /**
  * The exact slice of the route-deps bag SEO's tool handlers read. Declared structurally (rather
@@ -138,14 +126,9 @@ export const seoDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
 export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     seo_get_entry_meta: async (ctx) => {
-      const entryId = requireString(requireInputRecord(ctx.input), "entryId");
+      const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
       await routeDeps.seoReady;
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "admin.seo.manage",
-        entityType: "seo-entry",
-        entityId: entryId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-entry", entityId: entryId });
 
       const meta = await getEntryMeta(
         { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
@@ -155,14 +138,9 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     },
 
     seo_analyze_entry: async (ctx) => {
-      const entryId = requireString(requireInputRecord(ctx.input), "entryId");
+      const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
       await routeDeps.seoReady;
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "admin.seo.manage",
-        entityType: "seo-entry",
-        entityId: entryId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-entry", entityId: entryId });
 
       const analysis = await analyzeEntry(
         { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
@@ -172,48 +150,43 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     },
 
     seo_set_entry_overrides: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const entryId = requireString(input, "entryId");
+      const input = requireInputRecord({ input: ctx.input });
+      const entryId = requireString({ input: input, key: "entryId" });
       await routeDeps.seoReady;
 
       // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
-      const { overrides } = await withSchemaOnRejection(
-        {
+      const { overrides } = await withSchemaOnRejection({
           toolId: "seo_set_entry_overrides",
           catalog: CATALOG_BY_ID,
-          isShapeRejection: (error) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
-        },
-        () =>
+          isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
+          fn: () =>
           setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache, clock: routeDeps.clock },
+            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) } },
             input: {
               workspaceId: routeDeps.workspaceId,
               entryId,
               patch: seoOverridesPatchFromInput(input),
               callerPrincipalId: ctx.principal.id,
             },
-          }),
-      );
+          }) });
       return { overrides };
     },
 
     seo_get_settings: async (ctx) => {
-      requireNoInput(ctx.input);
+      requireNoInput({ input: ctx.input });
       await routeDeps.seoReady;
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.seo.manage", entityType: "seo-settings" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-settings" });
 
       const settings = await getSeoSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
       return { settings };
     },
 
     seo_set_settings: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       await routeDeps.seoReady;
 
       // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
-      const settings = await withSchemaOnRejection(
-        { toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: (error) => error instanceof SeoSettingsValidationError },
-        () =>
+      const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
           setSeoSettings(
             {
               settingsRepo: routeDeps.settingsRepo,
@@ -223,15 +196,14 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
               principals: routeDeps.principalRepo,
             },
             { workspaceId: routeDeps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
-          ),
-      );
+          ) });
       return { settings };
     },
 
     seo_regenerate_sitemap: async (ctx) => {
-      requireNoInput(ctx.input);
+      requireNoInput({ input: ctx.input });
       await routeDeps.seoReady;
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.seo.manage", entityType: "seo-sitemap" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-sitemap" });
 
       await regenerateSitemapCache(
         { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
@@ -258,7 +230,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
  * importer of `seo/tool-registrations` (relative or `#src/*` subpath) is
  * `assistant/tool-registrations.ts` itself, every other importer of `src/seo` at large is `server/*`
  * (never reachable from `assistant`), and this file's own cross-domain imports (`../features/post`,
- * `../features/settings`, `../media`, `@jini-ai/cms/identity`) are all `import type` only — erased
+ * `../features/settings`, `../media`, `@jini-ai/user-management`) are all `import type` only — erased
  * at compile time, so none creates a runtime edge back toward `assistant`.
  */
 export function contributeSeoTools(): ToolContributor {

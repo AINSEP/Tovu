@@ -1,4 +1,4 @@
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 import { extractPlainTextFromHtml, isTrashed, type PostKind, type PostRecord, type PostRepoPort } from "../post/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { postPublicPath, urlFor } from "../../platform/routing/index.js";

@@ -1,3 +1,5 @@
+import { type Clock, nowIso } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Plugins' half of ADR-049 Decision 4 (SPEC-005/ADR-005-ARCH): maps `agent-tools.ts`'s two
  * catalog entries onto the two operations `routes/admin/plugins/` exposes, as `ToolRegistration`s.
@@ -59,21 +61,9 @@
  * `version`, `archiveDigest`, and skill NAMES, the same "no `handle`-shaped value ever serializes"
  * rule `features/agent-plugins/tool-registrations.ts`'s own header states for its tools.
  */
-import {
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type OutboxPort,
-} from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission, type OutboxPort } from "@jini-ai/cms/core";
+import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import {
   resolveConfirmationDecision,
@@ -139,7 +129,7 @@ import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from ".
 // above). See that file's header for the merge.
 import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
 
-const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
 
 /** One `plugins_list` response row for an installed Agent Plugin — see this file's header,
  *  "`plugins_list` also reports installed Agent Plugins", for why only these four fields (never
@@ -178,7 +168,7 @@ async function listAgentPluginsForResponse(workspaceId: string): Promise<readonl
 export interface PluginsToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
   changeSets: ChangeSetRepoPort;
   outbox: OutboxPort;
@@ -263,21 +253,19 @@ interface SetEnabledRequest {
 function readFamily(input: Record<string, unknown>): PluginFamily {
   const raw = input["family"];
   if (raw === "site-runtime" || raw === "agent-plugin") return raw;
-  throw new ToolInputError(
-    "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
+  throw new ToolInputError({ message: "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
       "content_read.plugin) or 'agent-plugin' (an Agent Plugin, as returned by search_agent_plugin_local). Tovu has two " +
       "unrelated plugin systems and this tool never guesses between them — if you are unsure, call the matching list/search " +
-      "tool first and use the family whose results contained this id.",
-  );
+      "tool first and use the family whose results contained this id." });
 }
 
 /** @complexity O(1). */
 function readSetEnabledRequest(rawInput: unknown): SetEnabledRequest {
-  const input = requireInputRecord(rawInput);
+  const input = requireInputRecord({ input: rawInput });
   const family = readFamily(input);
-  const pluginId = requireString(input, "pluginId");
+  const pluginId = requireString({ input: input, key: "pluginId" });
   if (typeof input["enabled"] !== "boolean") {
-    throw new ToolInputError("'enabled' (boolean) is required — true to turn the plugin on, false to turn it off");
+    throw new ToolInputError({ message: "'enabled' (boolean) is required — true to turn the plugin on, false to turn it off" });
   }
   return { family, pluginId, enabled: input["enabled"] };
 }
@@ -295,10 +283,11 @@ function readSetEnabledRequest(rawInput: unknown): SetEnabledRequest {
  */
 async function confirmEnable(
   surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
   request: SetEnabledRequest,
+  optional: ToolExecutionOptions = {},
 ): Promise<ConfirmationOutcome> {
-  const emitSurface = ctx.emitSurface;
+  const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error(
       "plugins_set_enabled: this execution context has no interactive confirmation channel (no emitSurface), so a plugin " +
@@ -357,10 +346,11 @@ function notConfirmedResult(outcome: ConfirmationOutcome, request: SetEnabledReq
  */
 async function confirmUninstall(
   surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
   preview: PluginUninstallPreview,
+  optional: ToolExecutionOptions = {},
 ): Promise<ConfirmationOutcome> {
-  const emitSurface = ctx.emitSurface;
+  const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error(
       "plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
@@ -414,7 +404,7 @@ async function uninstallRequestFor(
     input: {
       pluginId,
       workspaceId: routeDeps.workspaceId,
-      at: routeDeps.clock.nowIso(),
+      at: nowIso({ clock: routeDeps.clock }),
       actor: { principalId, pluginId: "assistant" },
     },
   };
@@ -565,7 +555,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // not installed here IS a caller-input problem with an actionable fix (search first, then use a
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
-    if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError(error.message);
+    if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
     // `activationsRefusalResult` below.
@@ -716,7 +706,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
   });
 
   const record = discovery.find((r) => r.id === pluginId);
-  if (!record) throw new ToolInputError(`plugin '${pluginId}' was not found in the current discovery snapshot`);
+  if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
   return {
     changed: true,
     cancelled: false,
@@ -730,8 +720,8 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
 export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     plugins_list: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.read" });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.read" });
 
       const discovery = await routeDeps.discoverPlugins();
       const plugins = await Promise.all(
@@ -756,19 +746,14 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * `admin.plugins.enable` grant must not be able to make a confirmation prompt appear in a human's
      * chat naming a plugin, let alone reach the write behind it.
      */
-    plugins_set_enabled: async (ctx) => {
+    plugins_set_enabled: async (ctx, optional = {}) => {
       const request = readSetEnabledRequest(ctx.input);
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "admin.plugins.enable",
-        entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin",
-        entityId: request.pluginId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
 
       if (request.enabled) {
         const refused = request.family === "agent-plugin" ? await unwritableAgentPluginActivationsResult(routeDeps, request) : undefined;
         if (refused !== undefined) return refused;
-        const outcome = await confirmEnable(surfaces, ctx, request);
+        const outcome = await confirmEnable(surfaces, ctx, request, optional);
         if (!outcome.confirmed) return notConfirmedResult(outcome, request);
       }
 
@@ -803,18 +788,18 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * (`uninstall-confirmation-ui.ts` in each family's own module), and both redeem through this one
      * `plugins_uninstall` id — see `PLUGINS_UNINSTALL_TOOL_ID` in each.
      */
-    plugins_uninstall: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+    plugins_uninstall: async (ctx, optional = {}) => {
+      const input = requireInputRecord({ input: ctx.input });
       const family = readFamily(input);
-      const pluginId = requireString(input, "pluginId");
+      const pluginId = requireString({ input: input, key: "pluginId" });
 
-      if (family === "agent-plugin") return runAgentPluginUninstall(routeDeps, surfaces, ctx, pluginId);
+      if (family === "agent-plugin") return runAgentPluginUninstall(routeDeps, surfaces, ctx, pluginId, optional);
 
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin", entityId: pluginId });
 
       const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, ctx.principal.id)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
-      const outcome = await confirmUninstall(surfaces, ctx, preview);
+      const outcome = await confirmUninstall(surfaces, ctx, preview, optional);
       if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
       return uninstallConfirmedPlugin(routeDeps, preview, ctx.principal.id);

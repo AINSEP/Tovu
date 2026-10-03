@@ -125,11 +125,14 @@ function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
  * @complexity O(1) per request — see each handler.
  */
 export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
-  const limiter = createRateLimiter({ profile: PUBLISH_TRUST_HANDSHAKE_PER_IP, clock: { nowIso: () => deps.clock.nowIso() } });
+  const limiter = createRateLimiter({
+    profile: PUBLISH_TRUST_HANDSHAKE_PER_IP,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
+  });
 
   /** True when this caller is within its per-IP ceiling; on `false` the 429 has already been sent. */
-  function withinRateLimit(req: Request, res: Response): boolean {
-    const result = limiter.check(resolveClientIp(req));
+  async function withinRateLimit(req: Request, res: Response): Promise<boolean> {
+    const result = await limiter.check({ key: resolveClientIp(req) });
     if (result.allowed) return true;
     res.setHeader("Retry-After", String(result.retryAfterSeconds));
     res.status(429).json({
@@ -171,7 +174,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
   }));
 
   app.post("/api/publish-trust/v1/challenge", answered(async (req, res) => {
-    if (!withinRateLimit(req, res)) return;
+    if (!(await withinRateLimit(req, res))) return;
 
     const targetInstallationId = await installationIdOrRefuse(res);
     if (targetInstallationId === null) return;
@@ -192,7 +195,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
   }));
 
   app.post("/api/publish-trust/v1/session", answered(async (req, res) => {
-    if (!withinRateLimit(req, res)) return;
+    if (!(await withinRateLimit(req, res))) return;
 
     const response = asChallengeResponse(req.body);
     if (!response) {

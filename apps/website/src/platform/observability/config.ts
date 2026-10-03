@@ -1,7 +1,17 @@
+// Endpoint policy: Jini/packages/diagnostics/src/observability/config.ts.
+import { resolveObservabilityConfig as resolveDiagnosticConfig, type ObservabilityConfig } from "@jini-ai/diagnostics/observability";
+
 /**
- * @file Operator-facing configuration for `platform/observability` — off by default.
+ * Resolves Tovu telemetry policy from an explicit environment snapshot. Standard OTLP endpoint
+ * names enable telemetry; absent endpoints disable it. Jini handles per-signal/base URL resolution.
+ * @param required Operator environment; composition owns the process.env read.
+ * @returns Disabled config, or enabled config with Tovu's default service/tracer identity.
+ * @complexity O(1) time and space aside from endpoint string normalization.
+ * @example resolveObservabilityConfig({ env: process.env });
  *
- * Mirrors the `fooFromEnv(env = process.env)` shape `features/deployments/publish-credentials/
+ * Operator-facing configuration for `platform/observability` — off by default.
+ *
+ * Originally mirrored the `fooFromEnv(env = process.env)` shape `features/deployments/publish-credentials/
  * execution-mode.ts`'s `executionModeFromEnv` already establishes: a safe default plus an
  * injectable `env` parameter so tests supply a fake env object instead of mutating the real
  * `process.env` (see that file's own test for the precedent this one follows).
@@ -14,49 +24,22 @@
  * OpenTelemetry's own config surface, and an operator following OpenTelemetry's own setup docs for
  * any other language already knows these names.
  *
- * This module deliberately does NOT resolve or expose the endpoint URL itself, only whether one is
- * configured. `otel.ts` constructs `new OTLPTraceExporter()` with no explicit `url`, letting the
- * OTLP SDK's own env resolution (`@opentelemetry/otlp-exporter-base`) pick the endpoint — that
- * resolution is spec-defined and non-trivial (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is used
- * VERBATIM; the general `OTEL_EXPORTER_OTLP_ENDPOINT` gets `/v1/traces` APPENDED, per the
- * OpenTelemetry spec's base-vs-per-signal distinction). Re-deriving that logic here to build a
- * `url` string and pass it through the constructor would both duplicate the SDK's own
- * spec-compliant behavior and get the base-endpoint case wrong (an operator who sets the
- * documented general var without a `/v1/traces` suffix — the common case — would silently 404
- * against every real collector).
+ * Originally this module deliberately did not resolve or expose the endpoint URL, only whether
+ * one was configured. The SDK's zero-argument OTLPTraceExporter constructor applied the
+ * spec-defined base-vs-per-signal distinction. The refactor keeps that distinction in Jini's
+ * explicit resolver: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is used verbatim, while the general
+ * OTEL_EXPORTER_OTLP_ENDPOINT gets /v1/traces appended. Treating the general endpoint as a
+ * complete traces URL silently 404s against collectors in the common operator configuration.
+ * The host now supplies that resolved endpoint to the SDK so the injected environment snapshot
+ * and the exporter cannot disagree. The status route still reports only enabled/serviceName;
+ * it must never disclose collector hostnames or credentials from this internal configuration.
  */
-
-/** Built when no OTLP endpoint env var is configured — the default for almost every self-hosted
- *  install. `index.ts`'s `createObservabilityPort` maps this straight to the no-op port without
- *  ever loading the OTel SDK. */
-export interface ObservabilityConfigDisabled {
-  enabled: false;
-}
-
-/** Built once an operator has set either OTLP endpoint env var (see file header for why the actual
- *  URL is resolved by the OTel SDK itself, not exposed here). */
-export interface ObservabilityConfigEnabled {
-  enabled: true;
-  serviceName: string;
-}
-
-export type ObservabilityConfig = ObservabilityConfigDisabled | ObservabilityConfigEnabled;
-
-/**
- * Resolves operator configuration from the environment. Either a non-empty
- * `OTEL_EXPORTER_OTLP_ENDPOINT` or a non-empty `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` decides
- * `enabled` — the two standard OTel env vars that mean "an operator configured an exporter" — which
- * is what keeps telemetry off by default for a self-hosted install whose operator never opted in.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-export function resolveObservabilityConfig(env: NodeJS.ProcessEnv = process.env): ObservabilityConfig {
-  const otlpConfigured = Boolean(env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()) || Boolean(env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?.trim());
-  if (!otlpConfigured) return { enabled: false };
-
-  return {
-    enabled: true,
+export function resolveObservabilityConfig({ env }: { env: NodeJS.ProcessEnv }): ObservabilityConfig {
+  return resolveDiagnosticConfig({
     serviceName: env.OTEL_SERVICE_NAME?.trim() || "tovu",
-  };
+    tracerName: "tovu.observability",
+  }, {
+    endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    tracesEndpoint: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+  });
 }

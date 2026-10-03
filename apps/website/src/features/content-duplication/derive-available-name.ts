@@ -32,7 +32,24 @@
  * `Landing 2` increments to `Landing 3` only if something named `Landing` exists. `Blog 2024` with no
  * `Blog` row becomes `Blog 2024 2`, because `2024` is read from the data as part of the name, never
  * guessed at from the number's own magnitude.
+ *
+ * Tovu supplies the suffix/collision policy, limit and wording to Jini/packages/core/src/naming.ts;
+ * the collision loop and generic trailing-number rationale live there.
+ *
+ * Suffix formatting and counter evidence:
+ *
+ * {@link deriveAvailableName}'s default `withSuffix`: a plain space then the number, matching the
+ *  owner's own examples (`"Landing sample — xai 2"`) — never a hyphen or a parenthesis.
+ *
+ * Matches a name ending in a space then one or more digits, capturing the part before it — e.g.
+ * `"Landing 2"` -> `["Landing 2", "Landing"]`. Requires at least one non-space character immediately
+ * before the space, so a bare `"2"` (nothing to strip) does not match.
  */
+import {
+  deriveAvailableName as findAvailableName,
+  deriveDuplicateName as findDuplicateName,
+  type NamingPolicy,
+} from "@jini-ai/core/naming";
 
 /**
  * Bound on the suffix search, so a pathological workspace (or a buggy `isTaken`) can never spin
@@ -41,6 +58,19 @@
  * legitimate copies.
  */
 export const MAX_SUFFIX_ATTEMPTS = 1000;
+
+/** Bind the host's positional callbacks to Jini's object-shaped naming policy. O(1), no I/O. */
+function namingPolicy(options: {
+  isTaken: (candidate: string) => Promise<boolean>;
+  withSuffix?: (base: string, suffix: number) => string;
+}): NamingPolicy {
+  return {
+    isTaken: ({ candidate }) => options.isTaken(candidate),
+    withSuffix: ({ base, suffix }) => options.withSuffix ? options.withSuffix(base, suffix) : `${base} ${suffix}`,
+    exhaustionMessage: ({ base, maxAttempts }) =>
+      `no free name could be derived from '${base}' after ${maxAttempts} attempts — give the copy an explicit name`,
+  };
+}
 
 /**
  * Bounded suffix search over candidate names: tries `base` itself, then `withSuffix(base, 2)`,
@@ -65,40 +95,16 @@ export const MAX_SUFFIX_ATTEMPTS = 1000;
  * @complexity O(k) `isTaken` calls, where k is the number of colliding candidates, bounded at
  * {@link MAX_SUFFIX_ATTEMPTS}.
  */
-export async function deriveAvailableName(
-  required: { base: string },
-  options: {
-    isTaken: (candidate: string) => Promise<boolean>;
-    withSuffix?: (base: string, suffix: number) => string;
-    onExhausted?: () => never;
-  }
-): Promise<string> {
-  const withSuffix = options.withSuffix ?? defaultWithSuffix;
-
-  for (let suffix = 1; suffix <= MAX_SUFFIX_ATTEMPTS; suffix += 1) {
-    const candidate = suffix === 1 ? required.base : withSuffix(required.base, suffix);
-    if (!(await options.isTaken(candidate))) return candidate;
-  }
-
-  if (options.onExhausted) options.onExhausted();
-  throw new Error(
-    `no free name could be derived from '${required.base}' after ${MAX_SUFFIX_ATTEMPTS} attempts — ` +
-      "give the copy an explicit name"
-  );
+export function deriveAvailableName(required: { base: string }, options: {
+  isTaken: (candidate: string) => Promise<boolean>;
+  withSuffix?: (base: string, suffix: number) => string;
+  onExhausted?: () => never;
+}): Promise<string> {
+  return findAvailableName({ ...required, ...namingPolicy(options) }, {
+    maxAttempts: MAX_SUFFIX_ATTEMPTS,
+    ...(options.onExhausted ? { onExhausted: () => options.onExhausted!() } : {}),
+  });
 }
-
-/** {@link deriveAvailableName}'s default `withSuffix`: a plain space then the number, matching the
- *  owner's own examples (`"Landing sample — xai 2"`) — never a hyphen or a parenthesis. */
-function defaultWithSuffix(base: string, suffix: number): string {
-  return `${base} ${suffix}`;
-}
-
-/**
- * Matches a name ending in a space then one or more digits, capturing the part before it — e.g.
- * `"Landing 2"` -> `["Landing 2", "Landing"]`. Requires at least one non-space character immediately
- * before the space, so a bare `"2"` (nothing to strip) does not match.
- */
-const TRAILING_NUMBER_PATTERN = /^(.*\S) \d+$/;
 
 /**
  * Derives `content_duplicate`'s default copy name for any resource, applying the trailing-number
@@ -117,13 +123,12 @@ const TRAILING_NUMBER_PATTERN = /^(.*\S) \d+$/;
  * @complexity One extra `isTaken` call (the trailing-number check, only when the source name matches
  * {@link TRAILING_NUMBER_PATTERN}) plus {@link deriveAvailableName}'s own O(k).
  */
-export async function deriveDuplicateName(
-  required: { sourceName: string },
-  options: { isTaken: (candidate: string) => Promise<boolean> }
-): Promise<string> {
-  const match = TRAILING_NUMBER_PATTERN.exec(required.sourceName);
-  const strippedBase = match?.[1];
-  const base = strippedBase !== undefined && (await options.isTaken(strippedBase)) ? strippedBase : required.sourceName;
-
-  return deriveAvailableName({ base }, { isTaken: options.isTaken });
+export function deriveDuplicateName(required: { sourceName: string }, options: {
+  isTaken: (candidate: string) => Promise<boolean>;
+}): Promise<string> {
+  return findDuplicateName({ ...required, ...namingPolicy(options) }, { maxAttempts: MAX_SUFFIX_ATTEMPTS });
 }
+/** Naming search lives in Jini/packages/core/src/naming.ts. Numeric suffixes avoid recursive,
+ * untranslatable "Copy of Copy of" titles. The post/page, form and media ports lack findByTitle,
+ * so callers deliberately use one list scan for isTaken at the current small workspace scale;
+ * revisit that lookup choice if those collections grow into thousands. */

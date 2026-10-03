@@ -1,3 +1,4 @@
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -6,21 +7,8 @@ import { join } from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps } from "../wiring.js";
 
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  authorize,
-  migrateDeprecatedPermissionGrants,
-  seedIdentity,
-  type IdentityRepos,
-} from "@jini-ai/cms/identity";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
+import { type IdentityRepos } from "@jini-ai/user-management";
 
 import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
 // Importing for its module-evaluation side effect (the `registerPermissionMigration`/
@@ -49,7 +37,7 @@ import "../site-token-permission.js";
 const SITE_TOKEN_MANAGE = "admin.security.tokens.manage";
 const INTEGRATIONS_MANAGE = "admin.integrations.manage";
 const WORKSPACE = "ws-site-token-privilege";
-const clock = { nowIso: () => "2026-09-09T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-09T00:00:00.000Z", nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 
 function counterIdGen(prefix: string) {
   let n = 0;
@@ -57,8 +45,8 @@ function counterIdGen(prefix: string) {
 }
 
 const fakeHasher = {
-  hash: async (password: string) => `hashed:${password}`,
-  verify: async (hash: string, password: string) => hash === `hashed:${password}`,
+  hash: async ({ password }: { password: string }) => `hashed:${password}`,
+  verify: async ({ hash, password }: { hash: string; password: string }) => hash === `hashed:${password}`,
 };
 
 interface Chain {
@@ -70,27 +58,24 @@ interface Chain {
 type Vintage = "fresh" | "pre-integrations-manage";
 
 async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   const idGen = counterIdGen("seed");
 
-  await seedIdentity({
-    deps: { repos, hasher: fakeHasher, clock, idGen },
-    input: { workspaceId: WORKSPACE, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
-  });
+  await seedIdentity({ deps: { repos, hasher: fakeHasher, clock, idGen }, input: { workspaceId: WORKSPACE, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" } });
 
   if (vintage === "pre-integrations-manage") await dropAdminIntegrationsManage(repos);
 
-  await migrateDeprecatedPermissionGrants({
+  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
@@ -119,18 +104,13 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
   }
 
   const can = (principalId: string, permission: string) =>
-    authorize({
-      deps: {
+    authorize({ deps: {
         principals: repos.principals,
         principalRoles: repos.principalRoles,
         rolePolicies: repos.rolePolicies,
         principalPolicies: repos.principalPolicies,
         policyPermissions: repos.policyPermissions,
-      },
-      principalId,
-      permission,
-      context: { workspaceId: WORKSPACE, entityType: "site-token" },
-    });
+      }, principalId, permission, context: { workspaceId: WORKSPACE } }, { entityType: "site-token" });
 
   return { repos, principals, can };
 }
@@ -227,7 +207,7 @@ test("a custom policy holding only the integrations anchor inherits token manage
   await repos.principalPolicies.save({ id: "custom-link", workspaceId: WORKSPACE, principalId: "custom-user", policyId: "custom-policy" });
   await repos.policyPermissions.save({ id: "custom-anchor", workspaceId: WORKSPACE, policyId: "custom-policy", permission: "admin.integrations.manage" });
   assert.equal((await can("custom-user", SITE_TOKEN_MANAGE)).allowed, false);
-  await migrateDeprecatedPermissionGrants({ policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
+  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
   assert.deepEqual(await can("custom-user", SITE_TOKEN_MANAGE), { allowed: true, reason: "matched" });
 });
 

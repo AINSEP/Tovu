@@ -1,3 +1,5 @@
+import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file The static-publish sub-feature's agent-tool catalog + wiring (ADR-049 Decision 4's
  * per-domain split, `static-publish/`'s half — see that directory's `types.ts` header for why it is
@@ -46,18 +48,8 @@
  * `features/source-control/commit-site.ts` apply for the identical shape of problem. No dependency on
  * this directory's sibling `agent-tools.ts`/`tool-registrations.ts`/`ports.ts`/`types.ts`.
  */
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
 import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 // TYPE-ONLY — fully erased at compile time, so this creates no runtime require() and cannot recreate
@@ -286,7 +278,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   },
 ];
 
-const CATALOG_BY_ID = indexCatalogById(staticPublishAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: staticPublishAgentToolCatalog });
 
 /**
  * This wiring layer's OWN risk classification, independent of the catalog's `sideEffects`
@@ -346,7 +338,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
 export interface StaticPublishToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly idGen: { newId(): string };
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
@@ -406,7 +398,7 @@ function planToolPublish(
 ): { readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish>; readonly detailRows: DetailRow[] } {
   requireOnlyDeclaredFields(raw, target.descriptor);
   const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
-  if (!read.ok) throw new ToolInputError(read.message);
+  if (!read.ok) throw new ToolInputError({ message: read.message });
   return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target) };
 }
 
@@ -423,7 +415,7 @@ function requireOnlyDeclaredFields(raw: Record<string, unknown>, descriptor: Dep
   const unknown = Object.keys(raw).find((key) => !PUBLISH_REQUEST_KEYS.has(key) && !declared.includes(key));
   if (unknown === undefined) return;
   const takes = declared.length > 0 ? `It takes: ${declared.join(", ")}.` : "It takes no config fields.";
-  throw new ToolInputError(`'${unknown}' is not a field of ${descriptor.id}. ${takes}`);
+  throw new ToolInputError({ message: `'${unknown}' is not a field of ${descriptor.id}. ${takes}` });
 }
 
 /** One labelled row on a publish confirmation/outcome card. */
@@ -523,9 +515,9 @@ function customProviderCredentialFormUri(exchangeId: string): UIResourceUri {
  *  @throws {ToolInputError} `raw.target` is missing, or no loaded plugin provides it.
  *  @complexity O(1) — one registry lookup. */
 function requireStaticPublishTarget(raw: Record<string, unknown>, registry: DeployTargetRegistry): LoadedDeployTarget {
-  const targetId = requireString(raw, "target");
+  const targetId = requireString({ input: raw, key: "target" });
   const target = registry.get(targetId);
-  if (target === undefined) throw new ToolInputError(unknownTargetMessage(registry, targetId));
+  if (target === undefined) throw new ToolInputError({ message: unknownTargetMessage(registry, targetId) });
   return target;
 }
 
@@ -751,7 +743,7 @@ function mapPublishOutcomeToToolResult(
  *  @complexity O(1) — one registry lookup. */
 function requireCredentialTarget(raw: Record<string, unknown>, registry: DeployTargetRegistry): { readonly descriptor: DeployTargetDescriptor; readonly credential: DeployTargetCredentialSpec } {
   const { descriptor } = requireStaticPublishTarget(raw, registry);
-  if (descriptor.credential === undefined) throw new ToolInputError(`${descriptor.id} takes no saved credential.`);
+  if (descriptor.credential === undefined) throw new ToolInputError({ message: `${descriptor.id} takes no saved credential.` });
   return { descriptor, credential: descriptor.credential };
 }
 
@@ -771,10 +763,10 @@ function readCredentialHints(raw: Record<string, unknown>, descriptor: DeployTar
     const field = fields.find((candidate) => candidate.name === key);
     if (field === undefined) {
       const takes = fields.length > 0 ? `It takes: ${fields.map((candidate) => candidate.name).join(", ")}.` : "It takes none.";
-      throw new ToolInputError(`'${key}' is not a credential field of ${descriptor.id}. ${takes}`);
+      throw new ToolInputError({ message: `'${key}' is not a credential field of ${descriptor.id}. ${takes}` });
     }
-    if (field.secret === true) throw new ToolInputError(`'${key}' is secret: the person types it into the form, never into the chat.`);
-    if (typeof value !== "string") throw new ToolInputError(`'${key}' must be a string.`);
+    if (field.secret === true) throw new ToolInputError({ message: `'${key}' is secret: the person types it into the form, never into the chat.` });
+    if (typeof value !== "string") throw new ToolInputError({ message: `'${key}' must be a string.` });
     if (value.trim() !== "") hints[key] = value;
   }
   return hints;
@@ -910,12 +902,12 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
-      const raw = requireInputRecord(ctx.input);
+      const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
       const loaded = requireStaticPublishTarget(raw, registry);
       const target = loaded.descriptor.id;
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
 
       const { plan } = planToolPublish(registry, raw, loaded);
       const validationError = plan.ok ? null : plan.message;
@@ -937,8 +929,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * decrypting.
      */
     deployment_get_static_publish_capabilities: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
 
       const loadDeployTargets = deployTargetsLoader(deps);
       const saved = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets } satisfies PublishCredentialReadDeps, {
@@ -954,18 +946,18 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
     /** Validates and publishes immediately with server-side credentials. The result still waits
      * for the provider and public reachability check; a headless execution needs no consent channel. */
-    deployment_execute_static_publish: async (ctx) => {
-      const raw = requireInputRecord(ctx.input);
+    deployment_execute_static_publish: async (ctx, optional = {}) => {
+      const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
       const loaded = requireStaticPublishTarget(raw, registry);
       const target = loaded.descriptor.id;
-      const projectName = requireString(raw, "projectName");
+      const projectName = requireString({ input: raw, key: "projectName" });
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.publish", entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.publish" }, { entityType: "site-publish" });
 
       const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
-        throw new ToolInputError(`deployment_execute_static_publish: ${plan.message}`);
+        throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
 
       // Never decrypts (same `isConfigured()` contract the preview/capabilities handlers use above).
@@ -987,11 +979,11 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const outcome = await runPublishAndAwait(
         { credentialSource, loadDeployTargets: deployTargetsLoader(deps), ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
         { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName },
-        deps.clock,
+        { nowIso: () => clockNowIso({ clock: deps.clock }) },
         historyStore,
       );
       const mapped = mapPublishOutcomeToToolResult(outcome, { id: ctx.executionId }, config, detailRows, projectName);
-      if (ctx.emitSurface) await ctx.emitSurface(mapped.outcome);
+      if (optional.emitSurface) await optional.emitSurface(mapped.outcome);
       return mapped.result;
     },
 
@@ -1005,16 +997,16 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * `publish-credentials/store.ts`; it never enters a prompt or a completion, and the result never
      * echoes any field.
      */
-    deployment_propose_custom_provider_credential: async (ctx) => {
-      const raw = requireInputRecord(ctx.input);
+    deployment_propose_custom_provider_credential: async (ctx, optional = {}) => {
+      const raw = requireInputRecord({ input: ctx.input });
       const { descriptor, credential } = requireCredentialTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
       const prefill = readCredentialHints(raw, descriptor);
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.credentials.write", entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.credentials.write" }, { entityType: "site-publish" });
 
       // Fail closed rather than degrade — identical posture to `deployment_execute_static_publish`'s
       // own guard above.
-      if (!ctx.emitSurface) {
+      if (!optional.emitSurface) {
         throw new Error(
           "deployment_propose_custom_provider_credential: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a credential form cannot be shown here. Nothing was saved."
@@ -1023,7 +1015,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface
+        optional.emitSurface
       );
       const ui = buildProposeCredentialForm(exchange, descriptor, credential, prefill);
 
@@ -1042,18 +1034,18 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * fields (never a saved credential). A host with no such steps is refused with the reason.
      */
     deployment_generate_bucket_hosting_setup: async (ctx) => {
-      const raw = requireInputRecord(ctx.input);
+      const raw = requireInputRecord({ input: ctx.input });
       const loaded = requireStaticPublishTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
       const { descriptor, module } = loaded;
-      if (module.hostingSetup === undefined) throw new ToolInputError(`${descriptor.id} has no hosting-setup steps: publishing to it serves the site.`);
+      if (module.hostingSetup === undefined) throw new ToolInputError({ message: `${descriptor.id} has no hosting-setup steps: publishing to it serves the site.` });
       const fields = readCredentialHints(raw, descriptor);
 
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
 
       try {
         return module.hostingSetup({ fields });
       } catch (err) {
-        throw new ToolInputError(err instanceof Error ? err.message : String(err));
+        throw new ToolInputError({ message: err instanceof Error ? err.message : String(err) });
       }
     },
   };

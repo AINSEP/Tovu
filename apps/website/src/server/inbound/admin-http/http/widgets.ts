@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
-import type { PrincipalRecord } from "@jini-ai/cms/identity";
+import type { PrincipalRecord } from "@jini-ai/user-management";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import {
   WidgetAreaConflictError,
@@ -18,7 +18,7 @@ import {
   WidgetVersionConflictError,
 } from "#src/features/widgets/errors";
 import { WidgetEmbedReorderCountMismatchError } from "#src/features/widgets/embed-service";
-import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetRegionBindingRow } from "#src/features/widgets/types";
+import type { WidgetAreaEntry, WidgetInstanceEntry } from "#src/features/widgets/types";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `widgets` HTTP surface
@@ -70,9 +70,7 @@ export function toAdminWidgetAreaResponse(area: WidgetAreaEntry): { area: Widget
   return { area };
 }
 
-export function toAdminWidgetRegionResponse(binding: WidgetRegionBindingRow & { placementCount: number }) {
-  return { region: binding };
-}
+// toAdminWidgetRegionResponse (apps/website/src/server/inbound/admin-http/http/widgets.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
  * REQ-34's where-used projection now lives in the widgets domain (`widgets/where-used.ts`) — it is

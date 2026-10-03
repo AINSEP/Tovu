@@ -1,4 +1,5 @@
-import type { ChangeSetItemRecord, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { ChangeSetItemRecord } from "@jini-ai/cms/core";
 
 /**
  * @file Inverse-applier registry (ADR-018 C-005/C-006).

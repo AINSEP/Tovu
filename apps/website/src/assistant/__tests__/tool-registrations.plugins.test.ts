@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -11,21 +13,27 @@ import {
   type SurfaceExchangeStore,
 } from "../../contracts/core/tool-surface-exchanges.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
-import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
+import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Plugins moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributePluginsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributePluginsTools() });
 
 /**
  * @file The Plugins (SPEC-005, ADR-005-ARCH) tool-wiring test file — the sibling of
@@ -72,7 +80,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
 
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: {
@@ -102,7 +110,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 
 function pluginsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("plugins_") || r.descriptor.id === "content_read.plugin")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -181,13 +189,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.plugin") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a plugins catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for set_enabled fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("plugins_set_enabled", { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("plugins_set_enabled", { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

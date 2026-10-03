@@ -34,7 +34,7 @@ export interface MediaUrlKeySource {
  */
 export function mediaUrlKey(asset: MediaUrlKeySource): string {
   const slug = asset.slug;
-  if (slug && isValidMediaSlugFormat(slug)) return slug;
+  if (slug && isValidMediaSlugFormat({ slug })) return slug;
   return asset.id;
 }
 

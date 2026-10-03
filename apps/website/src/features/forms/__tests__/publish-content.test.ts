@@ -4,7 +4,7 @@ import test from "node:test";
 import { makeSite, registerOnly, roundTrip, packAll, plan, applyReport, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { contributeFormPublish } from "../publish-content.js";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
-import type { FormDefinitionRecord } from "../types.js";
+import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 function form(overrides: Partial<FormDefinitionRecord> = {}): FormDefinitionRecord {
   return {

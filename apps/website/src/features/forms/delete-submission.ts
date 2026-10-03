@@ -1,4 +1,5 @@
-import type { ClockPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import type { FormSubmissionRepoPort, RemoveFormSubmissionFn } from "./ports.js";
 
@@ -37,7 +38,7 @@ export async function deleteFormSubmission(
     workspaceId: required.workspaceId,
     id: submission.id,
     display: { title: required.form.name, subtitle: submission.submittedAt },
-    at: options.clock.nowIso(),
+    at: clockNowIso({ clock: options.clock }),
     // Submissions are never edited, so there is no concurrent write to guard against.
     expectedVersion: null,
     actor: required.actor,

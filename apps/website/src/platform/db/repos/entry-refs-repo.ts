@@ -2,7 +2,7 @@ import type { Insertable, Selectable } from "kysely";
 
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
 import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "#src/contracts/core/entry-refs/types";
 

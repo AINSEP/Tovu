@@ -54,7 +54,7 @@ export class SqlContentTypeRepo implements ContentTypeRepoPort, ContentTypeListP
   }
 
   /** Callback repo calls join ONE transaction; nested calls join the outer one. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
     return this.kernel.transaction(fn);
   }
 }

@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { resolvePostMemberAccess } from "../members/index.js";
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";

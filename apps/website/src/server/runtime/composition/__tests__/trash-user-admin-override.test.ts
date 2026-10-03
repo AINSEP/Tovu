@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/cms/identity";
+import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { POST_ENTITY_TYPE, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
@@ -19,7 +19,7 @@ import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
  * permission evaluator.
  */
 
-const clock = { nowIso: () => "2026-09-24T00:00:00.000Z" };
+const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T00:00:00.000Z" };
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };

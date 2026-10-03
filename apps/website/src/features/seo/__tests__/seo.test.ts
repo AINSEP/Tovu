@@ -50,7 +50,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 function fakeOriginRegistry(origin?: VerifiedOrigin): OriginRegistryPort {
   return {
     async canonicalOrigin() {
-      if (!origin) throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      if (!origin) throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
       return origin;
     },
     async isAllowedRedirectTarget() {
@@ -73,9 +73,9 @@ async function makeDeps(posts: PostRecord[], origin?: VerifiedOrigin) {
     settingsRepo,
     settingsDeps,
     media: {
-      mediaRepo: new InMemoryMediaRepo([]),
-      assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-      transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+      mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+      assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+      transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     },
     originRegistry: fakeOriginRegistry(origin),
   };
@@ -345,7 +345,7 @@ test("getEntryMeta: an already-absolute canonical override is never double-prefi
 
 test("getEntryMeta: a media-resolved og:image (the '/m/...' contract) becomes absolute with a verified origin (2026-09-03 fix)", async () => {
   const now = "2026-09-03T00:00:00.000Z";
-  const mediaRepo = new InMemoryMediaRepo([
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
     {
       id: "asset-1",
       workspaceId: WORKSPACE,
@@ -362,13 +362,13 @@ test("getEntryMeta: a media-resolved og:image (the '/m/...' contract) becomes ab
       height: null,
       cssClass: null,
     } as never,
-  ]);
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo([
+  ] });
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [
     { id: "transform-1", workspaceId: WORKSPACE, name: "og", version: 1, params: { format: "jpeg" }, createdAt: now } as never,
-  ]);
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo([
+  ] });
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [
     { id: "rendition-1", workspaceId: WORKSPACE, assetId: "asset-1", transformName: "og", version: 1, storageKey: "k", createdAt: now },
-  ]);
+  ] });
   const deps = {
     ...(await makeDeps(
       [seedPost({ seoExtJson: JSON.stringify({ ogImage: "asset-1:og" }) })],

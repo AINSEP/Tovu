@@ -1,3 +1,5 @@
+import { OAuthError } from "@jini-ai/oauth";
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,7 +8,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import {
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -80,6 +82,7 @@ function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; ca
 function makeClock(startIso = "2026-08-25T12:00:00.000Z") {
   let nowMs = Date.parse(startIso);
   return {
+    nowMs: () => nowMs,
     nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms: number) => {
       nowMs += ms;
@@ -125,7 +128,8 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
     clock,
     pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: http.fetchFn,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
     lookupProvider: () => ({ ...PROVIDER, clientAuth: options.clientAuth ?? PROVIDER.clientAuth }),
   });
 
@@ -1025,7 +1029,8 @@ function serviceWithBrokenDependency(
     clock: base.clock,
     pending: createPendingAuthorizationStore({ clock: base.clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: base.http.fetchFn,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (base.http.fetchFn)(url, init) },
     lookupProvider: () => PROVIDER,
   });
 }
@@ -1144,4 +1149,20 @@ test("a clear-token failure that is NOT the secret store still propagates — th
     "connected",
     "a row must not be moved on a failure this module does not understand",
   );
+});
+
+// REGRESSION: fails if refreshAccessToken is replaced by requestOAuthToken without carrying the old refresh token.
+test("a nonrotating refresh token stays sealed for the next refresh", async () => {
+  const { clock, http, service } = await makeHarness({ script: [
+    { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+    { json: { access_token: "at-2", expires_in: 3600 } },
+    { json: { access_token: "at-3", expires_in: 3600 } },
+  ] });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+  assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), "at-2");
+  clock.advance(60 * 60 * 1000);
+  assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), "at-3");
+  const body = new URLSearchParams(String(http.requests[2].init?.body));
+  assert.equal(body.get("refresh_token"), "rt-1");
 });

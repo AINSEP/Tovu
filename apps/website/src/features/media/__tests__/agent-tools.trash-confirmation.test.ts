@@ -31,7 +31,7 @@ function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; med
     options.allow === false || (options.allowedPermissions && !options.allowedPermissions.includes(request.permission))
       ? { allowed: false, reason: "insufficient_permission" as const }
       : { allowed: true, reason: "matched" as const };
-  const mediaRepo = options.mediaRepo ?? new InMemoryMediaRepo();
+  const mediaRepo = options.mediaRepo ?? new InMemoryMediaRepo({});
   const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
     workspaceId: WORKSPACE_ID,
@@ -40,8 +40,8 @@ function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; med
     mediaRepo,
     removeMedia,
     removed,
-    assetBlobRepo: new InMemoryAssetBlobRepo(),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo(),
+    assetBlobRepo: new InMemoryAssetBlobRepo({}),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(),
     authorize,
   };

@@ -1,3 +1,4 @@
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2 (`publish_content_
@@ -127,7 +128,7 @@ export interface StageBundleInput {
 
 export interface StageBundleDeps {
   readonly repo: PublishContentBundleRepoPort;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly idGen: { newId(): string };
   /** Test-only override of {@link PUBLISH_CONTENT_BUNDLE_TTL_MS} — absent in real composition. */
   readonly ttlMs?: number;
@@ -147,7 +148,7 @@ export async function stageBundle(
   input: StageBundleInput,
   deps: StageBundleDeps
 ): Promise<{ bundleId: string; expiresAt: string }> {
-  const receivedAt = deps.clock.nowIso();
+  const receivedAt = nowIso({ clock: deps.clock });
   const entitiesJson = JSON.stringify(input.entities);
   const blobManifestJson = JSON.stringify(input.blobManifest);
   const expiresAt = computeBundleExpiry({ receivedAt, ttlMs: deps.ttlMs });

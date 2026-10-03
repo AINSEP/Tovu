@@ -1,9 +1,10 @@
+import { executeCommand } from "#src/contracts/core/commands/index";
 import { trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
-import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "./errors.js";
-import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "./types.js";
+import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms-forms";
+import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "@jini-ai/cms-forms";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "./write-service.js";
 
 /**
@@ -42,7 +43,7 @@ export const contributeFormPublish = (): PublishContentContributor =>
     validate: async ({ ports, workspaceId, entity, existing }) =>
       !existing && (await ports.repo.isSlugTaken({ workspaceId, slug: entity.id })) ? trashedAtDestination("form", entity.id) : null,
     write: async ({ ports, deps, workspaceId, id, state, existing, principalId }) => {
-      const writeDeps = { ...gatewayDeps(deps, "form"), repo: ports.repo };
+      const writeDeps = { ...gatewayDeps(deps, "form"), repo: ports.repo, executeCommand };
       const actor = { id: principalId, kind: "user" as const };
       const name = state.name as string;
       const fields = state.fields as FieldDescriptor[];

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -50,7 +50,7 @@ const TOOL_ID = "custom_credential_make_request";
  *  messages, exactly as that function constructs them. Here the hostname IS the address, so the
  *  caller-safe form still names it: it is the host the request named, not something DNS revealed. */
 function metadataRefusal(): EgressRefusedError {
-  return new EgressRefusedError("egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local", {
+  return new EgressRefusedError({ message: "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local" }, {
     callerSafeMessage: "egress to '169.254.169.254' rejected: resolved address is link-local",
   });
 }
@@ -69,7 +69,7 @@ async function buildDelegatedToolDeps(clientError: Error) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-10T00:00:00.000Z" };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-10T00:00:00.000Z" };
 
   const writeDeps: CustomCredentialWriteDeps = {
     repo,
@@ -99,12 +99,12 @@ async function buildDelegatedToolDeps(clientError: Error) {
     customCredentialsHttpClient: new RefusingHttpClient(clientError),
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
 
   return { toolExecutor, lifecycle };
 }
@@ -151,7 +151,7 @@ test("the refusal names the tool's own schema, not just a bare rejection", async
 
 test("an off-allowlist redirect target refuses the same way a bad scheme does — classified by TYPE, not by one message", async () => {
   const schemeRefusal = "scheme 'http:' is not in the allowed egress schemes";
-  const result = await executeMakeRequest(new EgressRefusedError(schemeRefusal, { callerSafeMessage: schemeRefusal }));
+  const result = await executeMakeRequest(new EgressRefusedError({ message: schemeRefusal }, { callerSafeMessage: schemeRefusal }));
 
   assert.ok(!result.ok);
   assert.equal(result.error.code, "BAD_REQUEST");
@@ -196,7 +196,7 @@ async function executeThroughGuardedClient() {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-16T00:00:00.000Z" };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-16T00:00:00.000Z" };
   await createCustomCredential(
     { repo, sealer, keyring, clock, idGen: { newId: () => "cred-1" } },
     { workspaceId: WORKSPACE_ID, label: "internal", category: "ops", baseUrl: "https://localhost", connection: { token: "internal-secret-token" } }
@@ -227,12 +227,12 @@ async function executeThroughGuardedClient() {
     customCredentialsAudit: audit,
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
   const result = await delegatedToolExecuteRoute.handle(

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +7,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
-import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
@@ -14,6 +16,11 @@ import { contributeChangeSetsTools } from "#src/features/change-sets/tool-regist
 import { getChangeSetsAgentToolCatalog } from "#src/features/change-sets/agent-tools";
 import type { PostRecord } from "#src/features/post/post";
 import type { RouteDeps } from "#src/server/routes/types";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file `change_sets_list` + `change_sets_revert` (F7b option A, S6, 2026-09-24) TDD certification.
@@ -29,9 +36,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `tool-registrations.theme-set-active.test.ts` already use.
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributePostTools());
-registerToolContributor(contributeChangeSetsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributePostTools() });
+contributions.contributors.register({ contribution: contributeChangeSetsTools() });
 
 const WORKSPACE_ID = "ws-change-sets-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -67,7 +74,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
 
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,
@@ -76,7 +83,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
     postSearch: new InMemoryPostSearchIndex(postRepo),
     revertRegistry: createPostRevertRegistry({
       postRepo,
-      clock: { nowIso: () => NOW },
+      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
       outbox,
       forgetRemoved: async () => {},
     }),
@@ -101,7 +108,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function registrationsFor(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -212,7 +219,7 @@ test("change_sets_revert: the published schema has no 'force' property", () => {
 });
 
 test("change_sets_revert: the contributor registers under its own domain key", () => {
-  const domains = listToolContributors().map((c) => c.domain);
+  const domains = contributions.contributors.list({}).map((c) => c.domain);
   assert.ok(domains.includes("change-sets"));
 });
 

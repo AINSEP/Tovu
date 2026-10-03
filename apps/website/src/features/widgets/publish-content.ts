@@ -115,7 +115,7 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     dependsOn: ["form"],
     ports: (deps) => deps.ports.widget,
     list: async (p, workspaceId) =>
-      Promise.all((await p.entries.listByWorkspace({ workspaceId, type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
+      Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
     find: async (p, workspaceId, id) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row && row.type === WIDGET_CONTENT_TYPE ? portableRow(p, workspaceId, toWidgetRow(row)) : null;
@@ -191,7 +191,7 @@ interface WidgetAreaRow {
 /** One row per region; a region on two area entries resolves last-wins, as the binding rebuild does. */
 async function listAreas(p: WidgetPublishPorts, workspaceId: string): Promise<WidgetAreaRow[]> {
   const byRegion = new Map<string, WidgetAreaRow>();
-  for (const entry of await p.entries.listByWorkspace({ workspaceId, type: WIDGET_AREA_CONTENT_TYPE })) {
+  for (const entry of await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_AREA_CONTENT_TYPE })) {
     const { regionKey, doc } = parseWidgetAreaPayload(entry.fieldsJson);
     byRegion.set(regionKey, { regionKey, placements: doc.placements, schemaVersion: doc.schemaVersion, areaEntryId: entry.id, version: entry.version });
   }

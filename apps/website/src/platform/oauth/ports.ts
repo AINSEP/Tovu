@@ -1,4 +1,4 @@
-import type { ISODateTime } from "@jini-ai/cms/core";
+import type { ISODateTime } from "@jini-ai/core/primitives";
 
 /**
  * @file The typed boundary for Tovu's GENERIC OAuth 2.0 client — provider-agnostic, and deliberately
@@ -114,9 +114,10 @@ export interface OAuthTokenSet {
 }
 
 /**
- * The outbound HTTP seam. `typeof fetch` rather than a bespoke interface, matching
- * `routes/admin/assistant/list-models.ts`: every call site in
- * this codebase that talks to a third party injects `fetchFn` and defaults to the global.
+ * The legacy native-fetch test seam, retained until durable-store consumers finish adopting Jini.
+ * Production OAuth now requires @jini-ai/oauth OAuthHttpPorts backed by the guarded transport;
+ * it no longer silently falls back to a global fetch. Native doubles preserve their recorded
+ * RequestInit values, including redirect refusal, while the test adapter binds the Jini ABI.
  */
 export type OAuthFetch = typeof fetch;
 
@@ -124,8 +125,9 @@ export type OAuthFetch = typeof fetch;
  *  weakening the production default (`node:crypto`'s `randomBytes`). */
 export type OAuthRandomBytes = (byteLength: number) => Uint8Array;
 
-/** The clock seam every dated value in this module goes through. Matches core's `ClockPort` shape
- *  but is restated so `src/platform/oauth/` depends on no repository beyond its own types. */
+/** Legacy ISO-clock compatibility for existing durable-store consumers and native test doubles.
+ *  This is not the kernel Clock: production uses @jini-ai/core/primitives Clock.nowMs() and
+ *  derives ISO timestamps with nowIso({ clock }). Kept until the separately owned DB lane migrates. */
 export interface OAuthClock {
   nowIso(): ISODateTime;
 }

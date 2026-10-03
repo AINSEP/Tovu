@@ -1,3 +1,4 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
  * onto real filesystem reads/writes inside one theme's own folder, as `ToolRegistration`s
@@ -31,20 +32,8 @@
 import { resolve } from "node:path";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
@@ -70,7 +59,9 @@ import {
   writeThemeFile,
   type ThemeOriginalSource,
 } from "./theme-files.js";
-import { loadTheme, type DiscoveredTheme } from "./theme.js";
+import { loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
+import { listMarketplaceThemes, downloadMarketplaceTheme, MarketplaceThemeError } from "./marketplace.js";
+import { readThemeLineageFile } from "./theme-lineage.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -86,7 +77,7 @@ import {
   validateFileIdentityChange,
 } from "./file-identity-lock.js";
 
-const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getThemesAgentToolCatalog() });
 
 /**
  * The exact slice of the route-deps bag Themes' tool handlers read. Declared structurally (rather
@@ -470,6 +461,12 @@ const THEME_TRASH_TOOL_ID = "theme_trash_file";
  * declaration.
  */
 export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> listMarketplaceThemes() + readThemeLineageFile(): local catalog/provenance reads, no writes.
+  ["marketplace_list_themes", "none"],
+  // -> downloadMarketplaceTheme(): validates, copies originals and working files, then rescans.
+  ["theme_install_from_marketplace", "mutates-durable-state"],
+  // -> rescanThemes(): replaces the live discovered-theme registry in place.
+  ["theme_rescan", "mutates-durable-state"],
   // -> routeDeps.themes.map(): reads already-discovered in-memory state, no I/O at all.
   ["theme_list", "none"],
   // -> listThemeFiles(): readdir under one theme folder, no writes.
@@ -519,7 +516,7 @@ function optionalThemeReadInteger(input: Record<string, unknown>, key: string, m
   if (value === undefined) return undefined;
   if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) {
     const range = maximum === Infinity ? `>= ${minimum}` : `from ${minimum} to ${maximum}`;
-    throw new ToolInputError(`theme_read_file: ${key} must be an integer ${range}.`);
+    throw new ToolInputError({ message: `theme_read_file: ${key} must be an integer ${range}.` });
   }
   return value;
 }
@@ -534,10 +531,10 @@ function optionalThemeReadInteger(input: Record<string, unknown>, key: string, m
 function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection {
   const hasWindow = input.startLine !== undefined || input.lineCount !== undefined;
   if (input.find !== undefined && hasWindow) {
-    throw new ToolInputError("theme_read_file: pass either find or startLine/lineCount, not both.");
+    throw new ToolInputError({ message: "theme_read_file: pass either find or startLine/lineCount, not both." });
   }
   if (input.find !== undefined && (typeof input.find !== "string" || input.find.length > 200)) {
-    throw new ToolInputError("theme_read_file: find must be a string of at most 200 characters.");
+    throw new ToolInputError({ message: "theme_read_file: find must be a string of at most 200 characters." });
   }
   const startLine = optionalThemeReadInteger(input, "startLine", 1, Infinity) ?? 1;
   const lineCount = optionalThemeReadInteger(input, "lineCount", 1, 2000) ?? 2000;
@@ -598,16 +595,90 @@ export function buildThemesRegistrations(
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    theme_list: async (ctx) => {
-      const input = requireInputRecord(ctx.input ?? {});
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_READ_PERMISSION,
-        entityType: "theme",
-      });
+    /**
+     * Browses bundled entries with installed ids/lineage, optionally filtered by query.
+     * @param ctx - Principal and optional query; dependencies supply the local theme root/registry.
+     * @returns { themes } with install identities; reads local metadata without changing files.
+     * @throws ToolInputError for malformed input; permission and filesystem failures propagate.
+     * @complexity O(i + m log m + b) time, O(i + m + b) space for installed/catalog counts and bytes read.
+     */
+    marketplace_list_themes: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input ?? {} });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "presentation" });
+      const query = optionalString({ input: input, key: "query" })?.toLowerCase();
+      const installedById = new Map(routeDeps.themes.map((theme) => [theme.manifest.id, theme]));
+      const installedByMarketplaceId = new Map<string, DiscoveredTheme>();
+      for (const theme of routeDeps.themes) {
+        const lineage = readThemeLineageFile({ themeDir: theme.dir });
+        if (lineage?.marketplaceId && !installedByMarketplaceId.has(lineage.marketplaceId)) {
+          installedByMarketplaceId.set(lineage.marketplaceId, theme);
+        }
+      }
+      const themes = listMarketplaceThemes({ themesRoot: routeDeps.themesDir }).map((entry) => {
+        const installedTheme = installedById.get(entry.id) ?? installedByMarketplaceId.get(entry.id);
+        return {
+          id: entry.id,
+          name: entry.name,
+          description: entry.description ?? "",
+          tier: entry.tier,
+          ...(entry.tags === undefined ? {} : { tags: entry.tags }),
+          installed: Boolean(installedTheme),
+          ...(installedTheme ? { installedAs: installedTheme.manifest.id } : {}),
+        };
+      }).filter((entry) => !query || [entry.name, entry.description, ...(entry.tags ?? [])]
+        .some((text) => text.toLowerCase().includes(query)));
+      return { themes };
+    },
 
-      const tier = optionalString(input, "tier");
-      const status = optionalString(input, "status");
+    /**
+     * Installs through the admin route's domain service and reads status from the refreshed registry.
+     * @param ctx - Principal and marketplaceId; dependencies supply the local theme root/registry.
+     * @returns Assigned themeId, collision suffix flag, tier and post-rescan validation status.
+     * @throws ToolInputError for malformed ids or refused packages; permission/I/O failures propagate.
+     * @complexity Delegates validation/copy plus discovery; O(b + t log t) time/space in bytes and theme count.
+     * @remarks Copies files and refreshes the registry; presentation settings are never written.
+     */
+    theme_install_from_marketplace: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const marketplaceId = requireString({ input: input, key: "marketplaceId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "presentation" });
+      try {
+        const result = downloadMarketplaceTheme({ themesRoot: routeDeps.themesDir, themes: routeDeps.themes, marketplaceId });
+        const theme = findThemeOrThrow(routeDeps, result.assignedId);
+        return {
+          themeId: result.assignedId, suffixed: result.suffixed, tier: result.tier,
+          status: { status: theme.status, errors: theme.errors },
+        };
+      } catch (error) {
+        if (error instanceof MarketplaceThemeError) throw new ToolInputError({ message: error.message });
+        throw error;
+      }
+    },
+
+    /**
+     * Refreshes the rendering registry in place after folders arrive or disappear.
+     * @param ctx - Principal and empty input; dependencies supply the local theme root/registry.
+     * @returns Added/removed ids and all invalid themes with their validation errors.
+     * @throws ToolInputError for malformed input; permission and discovery failures propagate.
+     * @complexity O(t log t + b) time/space in theme count and theme bytes read during discovery.
+     */
+    theme_rescan: async (ctx) => {
+      requireInputRecord({ input: ctx.input ?? {} });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "presentation" });
+      const changed = rescanThemes({ themes: routeDeps.themes, dir: routeDeps.themesDir });
+      return {
+        added: changed.added, removed: changed.removed,
+        invalid: routeDeps.themes.filter((theme) => theme.status === "invalid")
+          .map((theme) => ({ themeId: theme.manifest.id, errors: theme.errors })),
+      };
+    },
+
+    theme_list: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input ?? {} });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme" });
+
+      const tier = optionalString({ input: input, key: "tier" });
+      const status = optionalString({ input: input, key: "status" });
       const themes = routeDeps.themes
         .filter((t) => (tier ? t.manifest.tier === tier : true))
         .filter((t) => (status ? t.status === status : true))
@@ -616,24 +687,19 @@ export function buildThemesRegistrations(
     },
 
     theme_list_files: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
       const includeTrash = input.includeTrash === true;
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_READ_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_list_files", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_list_files", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
         const files = listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir });
         // Trashed files are hidden by default (2026-08-30 soft-delete requirement: a trashed file
         // must not surface as a file-list entry) — `includeTrash: true` is the deliberate escape
         // hatch an agent needs to discover what it can restore.
         return { themeId, files: includeTrash ? files : files.filter((path) => !isTrashedThemePath(path)) };
-      });
+      } });
     },
 
     /**
@@ -643,17 +709,12 @@ export function buildThemesRegistrations(
      * @complexity O(b) time and space in file size (bounded at MAX_THEME_FILE_BYTES).
      */
     theme_read_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_READ_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const selection = themeReadSelection(input);
         const theme = findThemeOrThrow(routeDeps, themeId);
         const file = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
@@ -662,24 +723,19 @@ export function buildThemesRegistrations(
         // Use the file's byte size, rather than decoded UTF-8 length (which differs for binary text).
         const totalBytes = statSync(resolveThemeFilePath(file)).size;
         return { themeId, path: relativePath, ...selectThemeReadContent(content, selection), totalBytes };
-      });
+      } });
     },
 
     theme_write_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      const content = requireString(input, "content");
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      const content = requireString({ input: input, key: "content" });
       // Only the boolean `true` opts in, the same way `theme_edit_file` reads `replaceAll`.
       const overwriteOversized = input.overwriteOversized === true;
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal (2026-08-18) —
@@ -704,24 +760,19 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
 
     theme_edit_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      const oldString = requireString(input, "oldString");
-      const newString = requireString(input, "newString");
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      const oldString = requireString({ input: input, key: "oldString" });
+      const newString = requireString({ input: input, key: "newString" });
       const replaceAll = input.replaceAll === true;
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_edit_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_edit_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         // Same two ADR-020/`preview/` refusals `theme_write_file` checks, and for the identical
@@ -746,7 +797,7 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
 
     /**
@@ -767,17 +818,12 @@ export function buildThemesRegistrations(
      * rename tool makes for a same-name rename.
      */
     theme_reset_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_reset_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_reset_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         // Same three refusals theme_write_file/theme_edit_file check — a reset is still a write, and
@@ -803,22 +849,17 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
 
     theme_rename_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      const name = requireString(input, "name");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      const name = requireString({ input: input, key: "name" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_rename_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_rename_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         // A trashed file is restored (theme_restore_trashed_file), never renamed in place — renaming
@@ -858,7 +899,7 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
 
     /**
@@ -871,17 +912,12 @@ export function buildThemesRegistrations(
      * content-edit block exists to prevent.
      */
     theme_copy_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const sourcePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const sourcePath = requireString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_copy_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_copy_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         // Same refusal every other write-shaped tool in this domain checks — duplicating INTO a
@@ -908,22 +944,17 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
 
     /** Reversibly moves a writable file into the theme's .trash folder after authorization. */
     theme_trash_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const relativePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const relativePath = requireString({ input: input, key: "path" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         if (isTrashedThemePath(relativePath)) {
@@ -968,22 +999,17 @@ export function buildThemesRegistrations(
           theme: toThemeToolView(reloaded),
         };
 
-      });
+      } });
     },
 
     theme_restore_trashed_file: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const themeId = requireString(input, "themeId");
-      const trashedPath = requireString(input, "trashedPath");
-      const explicitRestoreTo = optionalString(input, "restoreTo");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: THEME_WRITE_PERMISSION,
-        entityType: "theme",
-        entityId: themeId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const themeId = requireString({ input: input, key: "themeId" });
+      const trashedPath = requireString({ input: input, key: "trashedPath" });
+      const explicitRestoreTo = optionalString({ input: input, key: "restoreTo" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_restore_trashed_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "theme_restore_trashed_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         const derivedRestoreTo = originalPathFromTrashedPath(trashedPath);
@@ -1030,7 +1056,7 @@ export function buildThemesRegistrations(
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
         };
-      });
+      } });
     },
   };
 

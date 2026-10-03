@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file THE `redirects` write chokepoint (SPEC-009 REQ-01/04/05/06/07/08/13/
  * 14/22/26; ADR-PIPE-009 C-001..C-004).
@@ -19,7 +20,8 @@
  * functions directly and map thrown typed errors to HTTP codes per
  * errors.spec.md.
  */
-import { assertEntityLive, type ClockPort, type DomainEvent, type IdGeneratorPort, type OutboxPort } from "@jini-ai/cms/core";
+import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import { assertEntityLive, type DomainEvent, type OutboxPort } from "@jini-ai/cms/core";
 import { hasForbiddenRawUrlCharacter } from "../../features/origin/index.js";
 import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
 
@@ -385,7 +387,7 @@ async function enqueueMutatedEvent(
   const event: RedirectMutatedEvent = {
     id: deps.idGen.newId(),
     name: `redirect.${change}`,
-    occurredAt: deps.clock.nowIso(),
+    occurredAt: clockNowIso({ clock: deps.clock }),
     aggregateId: record.id,
     workspaceId: record.workspaceId,
     actorId: record.createdByPrincipal,
@@ -433,7 +435,7 @@ export async function createRedirect(required: CreateRedirectRequired): Promise<
   }
   await assertNoDuplicate(deps.repo, input.workspaceId, input.matchType, input.fromPattern);
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const id = deps.idGen.newId();
   const record: RedirectRecord = {
     id,
@@ -599,7 +601,7 @@ export async function updateRedirect(required: UpdateRedirectRequired): Promise<
     const outcome = await deps.restore({
       workspaceId: input.workspaceId,
       id: input.id,
-      at: deps.clock.nowIso(),
+      at: clockNowIso({ clock: deps.clock }),
       actor: { principalId: input.actorId, pluginId: input.pluginId ?? null },
     });
     if (outcome === "not-found") throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
@@ -621,7 +623,7 @@ export async function updateRedirect(required: UpdateRedirectRequired): Promise<
     ? existing.toTarget
     : await validateUpdateFields(deps, input.workspaceId, fields, existing.id);
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const version = existing.version + 1;
   const record: RedirectRecord = { ...existing, ...fields, toTarget: finalTarget, updatedAt: now, version };
   const revision: RedirectRevision = {
@@ -662,7 +664,7 @@ export async function tombstoneRedirect(
     return { record: existing };
   }
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const version = existing.version + 1;
   const record: RedirectRecord = { ...existing, status: "disabled", updatedAt: now, version };
   const revision: RedirectRevision = {

@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file Widget-instance CRUD through the existing entries chokepoint (SPEC-043 REQ-01..06, REQ-42/43).
  *
@@ -23,7 +24,8 @@
  * Architectural role:
  * `widgets` domain logic (implementation outline C-005).
  */
-import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
@@ -389,7 +391,7 @@ export async function trashWidgetInstance(
       workspaceId: input.workspaceId,
       id: current.id,
       display: { title: current.title, subtitle: current.slug },
-      at: deps.clock.nowIso(),
+      at: clockNowIso({ clock: deps.clock }),
       expectedVersion: current.version,
       actor: { principalId: input.actor.principalId, pluginId: input.actor.pluginId ?? null },
     });
@@ -442,7 +444,7 @@ export async function adoptLegacyTrashedWidgets(
   required: AdoptLegacyTrashedWidgetsRequired
 ): Promise<{ adopted: Array<{ id: UUID; title: string }> }> {
   const { deps, input } = required;
-  const widgets = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
+  const widgets = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId }, { type: WIDGET_CONTENT_TYPE });
   const adopted: Array<{ id: UUID; title: string }> = [];
 
   for (const widget of widgets) {
@@ -458,7 +460,7 @@ export async function adoptLegacyTrashedWidgets(
       workspaceId: input.workspaceId,
       id: widget.id,
       display: { title: widget.title, subtitle: widget.slug },
-      at: deps.clock.nowIso(),
+      at: clockNowIso({ clock: deps.clock }),
       expectedVersion: widget.version,
       actor: ADOPTION_ACTOR,
       priorMarker: ADOPTED_WIDGET_PRIOR_STATUS,

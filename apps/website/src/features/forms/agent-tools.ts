@@ -43,7 +43,8 @@
  * `forms` domain declaration. Imports only the constants its own domain already enforces, so the
  * published JSON Schemas cannot drift from the validators. Deliberately does NOT import
  * `./manifest` (ADR-PIPE-010 Enforcement: the manifest is read BY activation code, never BY domain
- * code) — the field-type list is taken from `./forms`, which is where it is actually enforced.
+ * code) — the field-type list is taken from `@jini-ai/cms-forms`, which now owns the validators
+ * and their rationale.
  */
 
 import {
@@ -57,8 +58,8 @@ import {
   MAX_LABEL_LENGTH,
   MAX_MAX_LENGTH,
   MIN_MAX_LENGTH,
-} from "./forms.js";
-import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "./write-service.js";
+} from "@jini-ai/cms-forms";
+import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms-forms";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -179,13 +180,14 @@ const NO_INPUT_SCHEMA = {
  *
  * The three definition tools are gated on `admin.forms.manage`, which is what each `executeCommand`
  * call in `write-service.ts` actually passes to `authorize()`. Forms declares no separate read
- * capability for definitions (`manifest.ts`'s `FORMS_CAPABILITIES` has three strings, and the human
+ * capability for definitions (the human
  * `list.ts`/`get-by-id.ts` routes already authorize reads against `admin.forms.manage`), so nothing
  * here invents an `admin.forms.read` that no policy would ever grant.
  *
  * The two submission tools are gated on the SEPARATE `admin.forms.submissions.read` permission —
  * exactly what `routes/admin/forms/{list,get}-submissions.ts` check, since submissions are visitor
  * data with their own permission tier, not form-configuration state.
+ * FORMS_CAPABILITIES (features/forms/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {

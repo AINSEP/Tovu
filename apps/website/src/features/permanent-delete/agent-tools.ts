@@ -1,4 +1,4 @@
-import type { AgentToolSideEffect } from "@jini-ai/cms/core";
+import type { AgentToolSideEffect } from "@jini-ai/core";
 
 /** Owner Q1, 2026-10-01: each permanent delete waits for a human confirmation card.
  * Keep these in a separate contributor: the media and identity catalogs are package-owned. */

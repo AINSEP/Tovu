@@ -3,24 +3,16 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection as the caller's to fix instead of redacting it into a message-stripped 500.
 import { type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
-import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
@@ -34,7 +26,7 @@ import {
   type CustomCredentialSetRepoPort,
   type CustomProviderConnectionInput,
 } from "../custom-credentials/index.js";
-import { buildAuthorizationHeader } from "../custom-credentials/credentialed-request.js";
+import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
@@ -169,7 +161,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   },
 ];
 
-const CATALOG_BY_ID = indexCatalogById(siteBackupAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: siteBackupAgentToolCatalog });
 
 /** This wiring layer's own risk classification, cross-checked against the catalog's `sideEffects`. */
 export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -238,7 +230,7 @@ interface ResolvedBackupCredential {
 
 /** A resolved credential's repository target: its API plus the `Authorization` header built from it. */
 function backupTarget(credential: ResolvedBackupCredential, owner: string, repo: string): CredentialedRepositoryTarget {
-  return { baseUrl: credential.baseUrl, authorization: buildAuthorizationHeader(credential.connection), owner, repo };
+  return { baseUrl: credential.baseUrl, authorization: buildAuthorizationHeader({ connection: credential.connection, schemes: [] }), owner, repo };
 }
 
 /** Every git-host provider an enabled plugin ships, or the refusal when there is none. */
@@ -456,7 +448,7 @@ function requireUnreservedFolder(folder: string, provider: SourceControlProvider
 /** @throws {CustomCredentialValidationError} Any malformed field — before any permission check,
  *  decrypt or network call. Owner and repo are the host's to judge, after the credential is resolved. */
 function parsePlanInput(rawInput: unknown): ParsedPlanInput {
-  const raw = requireInputRecord(rawInput);
+  const raw = requireInputRecord({ input: rawInput });
   const branch = optionalString(raw, "branch");
   const commitMessage = optionalString(raw, "commitMessage");
   return {
@@ -471,8 +463,8 @@ function parsePlanInput(rawInput: unknown): ParsedPlanInput {
 }
 
 async function requireBackupPermissions(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): Promise<void> {
-  await requireToolPermission(deps, { principalId: ctx.principal.id, permission: PUSH_PERMISSION, entityType: DOMAIN });
-  await requireToolPermission(deps, { principalId: ctx.principal.id, permission: CREDENTIAL_WRITE_PERMISSION, entityType: "custom-credentials" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: PUSH_PERMISSION }, { entityType: DOMAIN });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: CREDENTIAL_WRITE_PERMISSION }, { entityType: "custom-credentials" });
 }
 
 const UNAVAILABLE: Refusal = { ok: false, code: "UNAVAILABLE", message: "site backup is not available in this runtime: it has no site folder on disk" };
@@ -725,7 +717,7 @@ const PLAN_TAKE_MESSAGES = {
  * @complexity O(1) plan lookup; then see {@link pushPlannedBackup}.
  */
 async function handlePush(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<PushResult> {
-  const planId = requireString(requireInputRecord(ctx.input), "planId");
+  const planId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "planId" });
   await requireBackupPermissions(deps, ctx);
   if (ctx.signal.aborted) return { pushed: false, cancelled: false, reason: "abandoned" };
 
@@ -760,7 +752,7 @@ export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, surfaces:
     domain: DOMAIN,
     catalogModule: "features/site-backup/tool-registrations.ts",
     catalog: CATALOG_BY_ID,
-    handlers: withModelFacingErrors(handlers, SITE_BACKUP_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers, rules: SITE_BACKUP_MODEL_FACING_ERRORS }),
     derivedRisk: siteBackupDerivedRisk,
   });
 }

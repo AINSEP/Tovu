@@ -1,3 +1,4 @@
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
 import {
@@ -84,7 +85,7 @@ export async function findCandidateDestination(deps: {
 export interface ConnectDeps extends HandshakeClientDeps {
   readonly keyring: KeyringPort;
   readonly provisioning: PublishTrustProvisioningPort;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   /** THIS install's workspace — the Site Token the publishing key is derived from. */
   readonly workspaceId: string;
 }
@@ -150,7 +151,7 @@ export async function connectDestination(
     workspaceId: identity.workspaceId,
     entityTypes: [...input.entityTypes],
     capabilities: PUBLISHING_CAPABILITIES,
-    notAfter: grantNotAfterFrom(deps.clock.nowIso()),
+    notAfter: grantNotAfterFrom(nowIso({ clock: deps.clock })),
   };
 
   const written = await deps.provisioning.connect({ grant });

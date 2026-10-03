@@ -41,11 +41,7 @@ export {
 } from "@jini-ai/cms/workspace";
 
 /** The agent-tool catalog for this domain (see the package's `agent-tools.ts` for what is omitted). */
-export {
-  getWorkspaceAgentToolCatalog,
-  type WorkspaceAgentToolDefinition,
-  type WorkspaceAgentToolSideEffect,
-  type WorkspaceAgentToolActorClassRule,
-} from "@jini-ai/cms/workspace";
+export { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
+export type { AgentToolDefinition as WorkspaceAgentToolDefinition, AgentToolSideEffect as WorkspaceAgentToolSideEffect, AgentToolActorClassRule as WorkspaceAgentToolActorClassRule } from "@jini-ai/core";
 
 export { SqliteWorkspaceRepo } from "./repo.sqlite.js";

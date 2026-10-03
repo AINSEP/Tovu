@@ -17,32 +17,12 @@
  * What this module deliberately does NOT do: no tool-loop logic of its own (each provider's own
  * `run*ToolTurn` owns its request/response loop and its own `maxToolTurns` bound), no HTTP call (the
  * provider adapters make those directly), no credential storage (the caller resolves `apiKey` before
- * calling in). This is purely an adapter layer — map tool descriptors in, map tool calls/results and
- * turn events across the boundary, nothing else.
+ * calling in). The shared mapping and its rationale now live at
+ * `@jini-ai/agent-runtime/providers/tool-turn`; this adapter binds the provider ports and preserves
+ * the existing Tovu input contract. The extraction rationale is retained below for the host.
  */
 import type { ToolDescriptor } from "@jini-ai/core";
-import {
-  runAnthropicToolTurn,
-  runAzureToolTurn,
-  runGoogleToolTurn,
-  runOpenAiToolTurn,
-  type AnthropicMessageParam,
-  type AnthropicToolCall,
-  type AnthropicToolResultContentBlock,
-  type AzureContentPart,
-  type AnthropicToolDef,
-  type AzureFunctionToolDef,
-  type AzureMessageParam,
-  type AzureToolCall,
-  type GoogleContent,
-  type GoogleToolCall,
-  type GoogleToolDef,
-  type GoogleToolResultPart,
-  type OpenAiContentPart,
-  type OpenAiFunctionToolDef,
-  type OpenAiMessageParam,
-  type OpenAiToolCall,
-} from "@jini-ai/agent-runtime";
+import { providerTurnAdapters, runProviderToolTurn } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 /** The four protocols `apps/admin/src/lib/execution-settings.ts`'s `ByokConfig.protocol` supports —
  *  re-declared here (not imported from `@jini-ai/ui`) so this module has no dependency on a UI
@@ -138,90 +118,38 @@ export interface ByokProviderTurnResult {
   readonly toolTurns: number;
 }
 
-/** The one string both directions of the OpenAI/Azure `isError` workaround agree on: the fold marker
+/**
+ * Runs one tool-calling turn against whichever provider `input.protocol` names.
+ * The implementation and canonical rationale live in `@jini-ai/agent-runtime/providers/tool-turn`.
+ *
+ * Extraction rationale retained from the former local implementation: these descriptions explain
+ * the pre-extraction units, now replaced by the package's provider mappings and google-schema
+ * module. Keeping the host-specific incident
+ * history here prevents this migration from discarding why those mappings and bounds exist.
+ *
+ * The one string both directions of the OpenAI/Azure `isError` workaround agree on: the fold marker
  *  a host-reported tool failure gets prefixed with (since neither protocol's own wire has a real
  *  error flag — see `runOpenAiTurn`/`runAzureTurn`'s own comments), and the marker their `onEvent`
  *  handlers test for to recover a correct `isError` on the OUTGOING `ByokTurnEvent`. A shared
  *  constant rather than two independently-typed string literals, so the fold and the detection can
- *  never drift apart. */
-const TOOL_ERROR_PREFIX = "[tool error] ";
-
-/** Anthropic's base64 image source accepts exactly these four types; anything else would be rejected
- *  by the adapter's own guard, so it is passed through and left to that guard to report. */
-type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-
-/** Maps tool-result blocks onto Anthropic `tool_result` content (which carries images natively). */
-function toAnthropicToolContent(content: ByokToolResult["content"]): string | AnthropicToolResultContentBlock[] {
-  if (typeof content === "string") return content;
-  return content.map((block) =>
-    block.type === "text"
-      ? { type: "text", text: block.text }
-      : { type: "image", source: { type: "base64", media_type: block.mimeType as AnthropicImageMediaType, data: block.data } },
-  );
-}
-
-/** Maps tool-result blocks onto OpenAI/Azure content parts. The adapter moves the image parts into a
- *  follow-up user message itself (a `tool` message is text-only on that wire). */
-function toOpenAiToolContent(content: ByokToolResult["content"]): string | OpenAiContentPart[] {
-  if (typeof content === "string") return content;
-  return content.map((block) =>
-    block.type === "text" ? { type: "text", text: block.text } : { type: "image_url", image_url: { url: `data:${block.mimeType};base64,${block.data}` } },
-  );
-}
-
-/** Maps tool-result blocks onto Gemini parts; the adapter appends `inlineData` beside the `functionResponse`. */
-function toGoogleToolContent(content: ByokToolResult["content"]): string | GoogleToolResultPart[] {
-  if (typeof content === "string") return content;
-  return content.map((block) => (block.type === "text" ? { text: block.text } : { inlineData: { mimeType: block.mimeType, data: block.data } }));
-}
-
-/** Prefixes a failed result with {@link TOOL_ERROR_PREFIX} for the two protocols with no error flag. */
-function foldToolError(content: string | OpenAiContentPart[], isError: boolean | undefined): string | OpenAiContentPart[] {
-  if (!isError) return content;
-  return typeof content === "string" ? `${TOOL_ERROR_PREFIX}${content}` : [{ type: "text", text: TOOL_ERROR_PREFIX.trimEnd() }, ...content];
-}
-
-/** The image's type, from whichever provider part shape carries one; `null` for a non-image part. */
-function imagePartMimeType(part: Record<string, unknown>): string | null {
-  const source = part.source as { media_type?: unknown } | undefined;
-  if (part.type === "image" && typeof source?.media_type === "string") return source.media_type;
-  const imageUrl = part.image_url as { url?: unknown } | undefined;
-  if (part.type === "image_url" && typeof imageUrl?.url === "string") return /^data:([^;,]+)/.exec(imageUrl.url)?.[1] ?? "url";
-  const inlineData = part.inlineData as { mimeType?: unknown } | undefined;
-  if (typeof inlineData?.mimeType === "string") return inlineData.mimeType;
-  return null;
-}
-
-/**
+ *  never drift apart.
+ * Anthropic's base64 image source accepts exactly these four types; anything else would be rejected
+ *  by the adapter's own guard, so it is passed through and left to that guard to report.
+ * Maps tool-result blocks onto Anthropic `tool_result` content (which carries images natively).
+ * Maps tool-result blocks onto OpenAI/Azure content parts. The adapter moves the image parts into a
+ *  follow-up user message itself (a `tool` message is text-only on that wire).
+ * Maps tool-result blocks onto Gemini parts; the adapter appends `inlineData` beside the `functionResponse`.
+ * Prefixes a failed result with {@link TOOL_ERROR_PREFIX} for the two protocols with no error flag.
+ * The image's type, from whichever provider part shape carries one; `null` for a non-image part.
  * The text a `tool_result` event shows in the chat pane. Text parts are kept, each image becomes
  * `[image: <type>]` — never the base64 itself, which would put a megabyte of noise in the transcript.
  * A plain string result is returned unchanged.
  *
  * @complexity O(parts).
- */
-function describeToolResultContent(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return JSON.stringify(content);
-  return content
-    .map((part: Record<string, unknown>) => {
-      if (typeof part.text === "string") return part.text;
-      const mimeType = imagePartMimeType(part);
-      return mimeType === null ? JSON.stringify(part) : `[image: ${mimeType}]`;
-    })
-    .join("\n");
-}
-
-/** `ToolDescriptor.inputSchema` is `unknown` by contract (a schema dialect is a consumer concern —
+ * `ToolDescriptor.inputSchema` is `unknown` by contract (a schema dialect is a consumer concern —
  *  see that field's own doc in `@jini-ai/core`'s `tool-registry.ts`). Every provider here wants a
  *  plain JSON-Schema object; a tool that declared none gets the same empty-object schema
- *  `workspace_get`'s own catalog entry uses for "no arguments". */
-function inputSchemaOf(descriptor: ToolDescriptor): Record<string, unknown> {
-  return descriptor.inputSchema && typeof descriptor.inputSchema === "object"
-    ? (descriptor.inputSchema as Record<string, unknown>)
-    : { type: "object", additionalProperties: false, required: [], properties: {} };
-}
-
-/**
+ *  `workspace_get`'s own catalog entry uses for "no arguments".
  * The exhaustive set of field names Google's Generative Language API actually accepts on a
  * `functionDeclarations[].parameters` `Schema` object. NOT reconstructed from docs — the docs
  * pages for this (`ai.google.dev/api/generate-content`, `.../cachedContents#Schema`) proved
@@ -234,33 +162,6 @@ function inputSchemaOf(descriptor: ToolDescriptor): Record<string, unknown> {
  * (`additionalProperties`) the original bug report's error message happened to name — the same
  * "Available Fields" evidence also rules out `$schema`/`$ref`/`$defs`/`const`/`oneOf`/`allOf`,
  * which is exactly the next wave of failures the owner hit after the first, narrower fix.
- */
-const GOOGLE_SUPPORTED_SCHEMA_KEYS: ReadonlySet<string> = new Set([
-  "type",
-  "format",
-  "title",
-  "description",
-  "nullable",
-  "default",
-  "items",
-  "minItems",
-  "maxItems",
-  "enum",
-  "properties",
-  "propertyOrdering",
-  "required",
-  "minProperties",
-  "maxProperties",
-  "minimum",
-  "maximum",
-  "minLength",
-  "maxLength",
-  "pattern",
-  "example",
-  "anyOf",
-]);
-
-/**
  * How many `$ref` hops `sanitizeGoogleSchema` will inline before it stops recursing into a cyclic
  * definition and substitutes {@link terminalGoogleRefStub} instead. Gemini's `Schema` has no `$ref`
  * (see `GOOGLE_SUPPORTED_SCHEMA_KEYS`'s doc), so a genuinely recursive JSON Schema — this catalog
@@ -287,28 +188,14 @@ const GOOGLE_SUPPORTED_SCHEMA_KEYS: ReadonlySet<string> = new Set([
  * simply undescribed to it beyond this point), and `renderDocNode`'s own documented default-case
  * fallback for an unrecognized node type is the same kind of graceful degradation, not a new
  * failure mode this fix introduces.
- */
-const MAX_GOOGLE_REF_DEPTH = 4;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Infers the `Schema.type` a bare JSON-Schema `const` literal implies, for the one case
+ * Infers the `Schema.type` a bare JSON-Schema `const` literal implies, for the one case
  *  {@link sanitizeGoogleSchema} needs it: a `const` with no sibling `type` of its own (this
  *  catalog's actual usage — every `const` site is a bare `{ const: "someString" }` discriminator).
  *  Deliberately narrow, not a general JSON-Schema-to-OpenAPI type mapper: only the literal kinds a
  *  `const` value can actually be in JSON are handled, and anything this catalog has never used a
  *  `const` for (an object or array literal) falls back to `"string"` rather than guessing further —
  *  if a future `const` site needs one of those, it should carry its own explicit `type` instead of
- *  relying on inference for a shape this function was never evidenced against. */
-function inferGoogleTypeFromLiteral(value: unknown): string {
-  if (typeof value === "boolean") return "boolean";
-  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "number";
-  return "string";
-}
-
-/**
+ *  relying on inference for a shape this function was never evidenced against.
  * Collapses a JSON-Schema nullable-idiom `type` array (`["string","null"]`, or a bare
  * single-element array like `["integer"]`) into the single `type` string plus `nullable` flag
  * Gemini's `Schema` actually has room for — its `type` field is one enum value, not a repeating
@@ -324,26 +211,12 @@ function inferGoogleTypeFromLiteral(value: unknown): string {
  * scoped to that one field) so a live request degrades instead of failing outright; treat a case
  * that actually reaches this branch as a signal this function needs a human decision, not proof the
  * fallback is fine to rely on.
- */
-function collapseGoogleTypeArray(members: readonly unknown[]): { readonly type: string; readonly nullable: boolean } {
-  const names = members.filter((member): member is string => typeof member === "string");
-  const nullable = names.includes("null");
-  const nonNull = names.filter((name) => name !== "null");
-  return { type: nonNull[0] ?? "string", nullable };
-}
-
-/** Resolves a `"#/$defs/name"` pointer against the nearest enclosing `$defs` map collected while
+ * Resolves a `"#/$defs/name"` pointer against the nearest enclosing `$defs` map collected while
  *  walking down to it. Fails safe (a permissive `{ type: "object" }`, never a thrown error) for any
  *  pointer shape other than the local `#/$defs/name` form this catalog's two recursive schemas
  *  actually use — a live BYOK turn should degrade the one tool's schema, not crash the whole turn,
- *  if a future schema's `$ref` ever points somewhere this resolver doesn't understand. */
-function resolveGoogleRef(ref: string, defs: Readonly<Record<string, unknown>>): unknown {
-  const prefix = "#/$defs/";
-  if (!ref.startsWith(prefix)) return { type: "object" };
-  return defs[ref.slice(prefix.length)] ?? { type: "object" };
-}
-
-/** The non-recursive approximation substituted once {@link MAX_GOOGLE_REF_DEPTH} is exhausted — see
+ *  if a future schema's `$ref` ever points somewhere this resolver doesn't understand.
+ * The non-recursive approximation substituted once {@link MAX_GOOGLE_REF_DEPTH} is exhausted — see
  *  that constant's doc. Deliberately does NOT recurse into `resolved`'s own `properties`/`items`/
  *  `oneOf`/`anyOf` (that would just move the unbounded-size problem one level down); it only reads
  *  `resolved`'s own shallow `type`/`description` so the stub is still a valid, non-empty `Schema`
@@ -351,14 +224,7 @@ function resolveGoogleRef(ref: string, defs: Readonly<Record<string, unknown>>):
  *  by the same forum thread `GOOGLE_SUPPORTED_SCHEMA_KEYS` cites, which shows Gemini rejecting a
  *  schema with an unspecified `items` type with "must be specified when not using one_of"). A
  *  union def (e.g. `blockNode`, which only has `oneOf`, no `type` of its own) falls back to
- *  `"object"` since no single primitive type describes every branch. */
-function terminalGoogleRefStub(resolved: unknown): Record<string, unknown> {
-  const type = isRecord(resolved) && typeof resolved.type === "string" ? resolved.type : "object";
-  const originalDescription = isRecord(resolved) && typeof resolved.description === "string" ? `${resolved.description} ` : "";
-  return { type, description: `${originalDescription}(further nesting simplified for Gemini compatibility)` };
-}
-
-/**
+ *  `"object"` since no single primitive type describes every branch.
  * Repairs the two STRUCTURAL invariants Gemini enforces on every `Schema` node, applied to every
  * node this module emits regardless of which branch produced it.
  *
@@ -383,17 +249,6 @@ function terminalGoogleRefStub(resolved: unknown): Record<string, unknown> {
  *    missing case reads "must be specified when not using one_of". `anyOf` nodes are left alone:
  *    the branches carry the types, and a sibling `type` alongside `anyOf` is not a shape this
  *    catalog produces.
- */
-function enforceGoogleSchemaShape(node: Record<string, unknown>): Record<string, unknown> {
-  const usesAnyOf = Array.isArray(node.anyOf) && node.anyOf.length > 0;
-  if (!usesAnyOf && typeof node.type !== "string") node.type = "object";
-  if (node.type === "array" && !isRecord(node.items)) {
-    node.items = { type: "string", description: "Contents simplified for Gemini compatibility." };
-  }
-  return node;
-}
-
-/**
  * Recursively converts a JSON-Schema object (this catalog's `inputSchema` values are draft-07 by
  * convention) into the `Schema` shape Gemini's `functionDeclarations[].parameters` actually
  * accepts, before it is sent — see `GOOGLE_SUPPORTED_SCHEMA_KEYS`'s doc for the evidence behind
@@ -451,267 +306,101 @@ function enforceGoogleSchemaShape(node: Record<string, unknown>): Record<string,
  * {@link MAX_GOOGLE_REF_DEPTH} — each `$ref` hop can re-walk the definition it points to, up to the
  * depth cap, rather than O(n) for an acyclic schema (no `$ref` in this catalog costs more than one
  * hop in practice, since only the two recursive schemas named above use `$ref` at all).
- */
-/** True for the 3 keys {@link applyGoogleSchemaEntry} drops outright: `$defs`/`$ref` are consumed by
+ * True for the 3 keys {@link applyGoogleSchemaEntry} drops outright: `$defs`/`$ref` are consumed by
  *  {@link sanitizeGoogleSchema} before the entries loop runs, and `oneOf` is handled after it by
  *  {@link mergeGoogleOneOf}. Split out purely to keep the dispatcher's own condition count under the
- *  shop complexity ceiling. */
-function isGoogleIgnoredSchemaKey(key: string): boolean {
-  return key === "$defs" || key === "$ref" || key === "oneOf";
-}
-
-/** True for the JSON-Schema nullable idiom (`type: ["string","null"]`) — see
- *  {@link applyGoogleSchemaTypeArray}'s doc for why it gets special handling. */
-function isGoogleTypeArrayKey(key: string, value: unknown): boolean {
-  return key === "type" && Array.isArray(value);
-}
-
-/** True for a JSON-Schema `enum` that carries the nullable-idiom's literal `null` member alongside
+ *  shop complexity ceiling.
+ * True for the JSON-Schema nullable idiom (`type: ["string","null"]`) — see
+ *  {@link applyGoogleSchemaTypeArray}'s doc for why it gets special handling.
+ * True for a JSON-Schema `enum` that carries the nullable-idiom's literal `null` member alongside
  *  its real values (this catalog's real sites: `seo`'s `ogType`/`twitterCard`, each paired with a
  *  `type: ["string","null"]` on the same node) — see {@link applyGoogleSchemaEnum}'s doc for why
- *  that `null` cannot reach Gemini's wire format as an `enum` member. */
-function isGoogleNullableEnumKey(key: string, value: unknown): boolean {
-  return key === "enum" && Array.isArray(value) && value.includes(null);
-}
-
-/** Drops a nullable `enum`'s literal `null` member before it reaches Gemini, whose `enum` is
+ *  that `null` cannot reach Gemini's wire format as an `enum` member.
+ * Drops a nullable `enum`'s literal `null` member before it reaches Gemini, whose `enum` is
  *  `repeated string` only (see `sanitizeGoogleSchema`'s "Stringify a numeric `enum`" doc point for
  *  the sibling rule this mirrors — a JS `null` fails that same check with `typeof member ===
  *  "object"`, not `"string"`). Safe to drop rather than convert: the sibling `type: ["string",
  *  "null"]` on the same node already becomes `nullable: true` via
  *  {@link applyGoogleSchemaTypeArray} in the same entries loop, which is where Gemini expresses
  *  "this field may be absent/null" — losing the redundant `null` `enum` member loses no
- *  information Gemini's own shape has anywhere else to put it. */
-function applyGoogleSchemaEnum(result: Record<string, unknown>, value: readonly unknown[]): void {
-  result.enum = value.filter((member) => member !== null);
-}
-
-/** True for the one key ({@link applyGoogleSchemaEntry}'s `properties`) whose VALUE is a map keyed
- *  by arbitrary, tool-author-chosen property names rather than schema keywords. */
-function isGooglePropertiesKey(key: string, value: unknown): boolean {
-  return key === "properties" && isRecord(value);
-}
-
-/** True for the two keys ({@link applyGoogleSchemaEntry}'s `items`/`anyOf`) that hold a nested
+ *  information Gemini's own shape has anywhere else to put it.
+ * True for the one key ({@link applyGoogleSchemaEntry}'s `properties`) whose VALUE is a map keyed
+ *  by arbitrary, tool-author-chosen property names rather than schema keywords.
+ * True for the two keys ({@link applyGoogleSchemaEntry}'s `items`/`anyOf`) that hold a nested
  *  SCHEMA position, where {@link enforceGoogleSchemaShape}'s structural invariants must be
  *  enforced — `items` is the one that mattered in production: a truncated recursive def left an
- *  array with no `items` at all. */
-function isGoogleSchemaPositionKey(key: string): boolean {
-  return key === "items" || key === "anyOf";
-}
-
-/** Collapses a `type` array entry into Gemini's single-`type`-plus-`nullable` shape and writes it
+ *  array with no `items` at all.
+ * Collapses a `type` array entry into Gemini's single-`type`-plus-`nullable` shape and writes it
  *  onto `result`. Split out of {@link applyGoogleSchemaEntry} purely to keep that function's
- *  complexity under the shop ceiling. */
-function applyGoogleSchemaTypeArray(result: Record<string, unknown>, value: readonly unknown[]): GoogleSchemaEntryEffect {
-  const collapsed = collapseGoogleTypeArray(value);
-  result.type = collapsed.type;
-  return collapsed.nullable ? { inferredNullable: true } : {};
-}
-
-/** Sanitizes an `items`/`anyOf` schema position, which may be a single schema or (for `anyOf`) an
+ *  complexity under the shop ceiling.
+ * Sanitizes an `items`/`anyOf` schema position, which may be a single schema or (for `anyOf`) an
  *  array of them. Split out of {@link applyGoogleSchemaEntry} purely to keep that function's
- *  complexity under the shop ceiling. */
-function sanitizeGoogleSchemaPositionValue(value: unknown, defs: Readonly<Record<string, unknown>>, remainingRefDepth: number): unknown {
-  return Array.isArray(value)
-    ? value.map((member) => sanitizeGoogleSubschema(member, defs, remainingRefDepth))
-    : sanitizeGoogleSubschema(value, defs, remainingRefDepth);
-}
-
-/** What one entry can hand back to {@link buildGoogleSchemaResult}'s loop besides the write it
+ *  complexity under the shop ceiling.
+ * What one entry can hand back to {@link buildGoogleSchemaResult}'s loop besides the write it
  *  already made directly onto `result` — the loop-scoped `const`/nullable state a single entry
- *  cannot carry any other way. */
-interface GoogleSchemaEntryEffect {
-  readonly constValue?: unknown;
-  readonly hasConst?: boolean;
-  readonly inferredNullable?: boolean;
-}
-
-/**
+ *  cannot carry any other way.
  * Applies one `[key, value]` entry of a JSON-Schema object onto `result`, mirroring one iteration
  * of {@link sanitizeGoogleSchema}'s original inline loop body. Split out purely to keep that
  * function's complexity under the shop ceiling — this is a direct extraction, not a behavior
  * change; see {@link sanitizeGoogleSchema}'s own doc for the "Five kinds of change" this
  * implements.
- */
-function applyGoogleSchemaEntry(
-  result: Record<string, unknown>,
-  key: string,
-  value: unknown,
-  localDefs: Readonly<Record<string, unknown>>,
-  remainingRefDepth: number,
-): GoogleSchemaEntryEffect {
-  if (isGoogleIgnoredSchemaKey(key)) return {};
-  if (key === "const") {
-    result.enum = [value];
-    return { hasConst: true, constValue: value };
-  }
-  if (isGoogleTypeArrayKey(key, value)) return applyGoogleSchemaTypeArray(result, value as readonly unknown[]);
-  if (isGoogleNullableEnumKey(key, value)) {
-    applyGoogleSchemaEnum(result, value as readonly unknown[]);
-    return {};
-  }
-  if (!GOOGLE_SUPPORTED_SCHEMA_KEYS.has(key)) return {};
-  if (isGooglePropertiesKey(key, value)) {
-    // Each property name is preserved verbatim; only its own subschema value is recursively
-    // sanitized — see `isGooglePropertiesKey`'s doc for why this key skips the generic path below.
-    result.properties = Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([name, propSchema]) => [name, sanitizeGoogleSubschema(propSchema, localDefs, remainingRefDepth)]),
-    );
-    return {};
-  }
-  if (isGoogleSchemaPositionKey(key)) {
-    result[key] = sanitizeGoogleSchemaPositionValue(value, localDefs, remainingRefDepth);
-    return {};
-  }
-  result[key] = sanitizeGoogleSchema(value, localDefs, remainingRefDepth);
-  return {};
-}
-
-/** Merges `schema.oneOf` (if present) into `result.anyOf`, per {@link sanitizeGoogleSchema}'s
+ * Each property name is preserved verbatim; only its own subschema value is recursively
+ * sanitized — see `isGooglePropertiesKey`'s doc for why this key skips the generic path below.
+ * Merges `schema.oneOf` (if present) into `result.anyOf`, per {@link sanitizeGoogleSchema}'s
  *  "Convert, not drop" doc point. Returns `undefined` when `schema` has no `oneOf` at all, so the
  *  caller can tell "nothing to merge" apart from "merged to an empty array". Split out purely to
- *  keep {@link buildGoogleSchemaResult}'s complexity under the shop ceiling. */
-function mergeGoogleOneOf(
-  schema: Record<string, unknown>,
-  result: Record<string, unknown>,
-  defs: Readonly<Record<string, unknown>>,
-  remainingRefDepth: number,
-): unknown[] | undefined {
-  if (!Array.isArray(schema.oneOf)) return undefined;
-  const merged = [...(Array.isArray(result.anyOf) ? result.anyOf : []), ...schema.oneOf];
-  return merged.map((member) => sanitizeGoogleSubschema(member, defs, remainingRefDepth));
-}
-
-interface GoogleSchemaBuildResult {
-  readonly result: Record<string, unknown>;
-  readonly hasConst: boolean;
-  readonly constValue: unknown;
-  readonly inferredNullable: boolean;
-}
-
-/** The entries-loop-plus-`oneOf`-merge core of {@link sanitizeGoogleSchema}, for every schema that
+ *  keep {@link buildGoogleSchemaResult}'s complexity under the shop ceiling.
+ * The entries-loop-plus-`oneOf`-merge core of {@link sanitizeGoogleSchema}, for every schema that
  *  is neither an array nor a `$ref`. Split out purely to keep that function's complexity under the
- *  shop ceiling. */
-function buildGoogleSchemaResult(
-  schema: Record<string, unknown>,
-  localDefs: Readonly<Record<string, unknown>>,
-  remainingRefDepth: number,
-): GoogleSchemaBuildResult {
-  const result: Record<string, unknown> = {};
-  let constValue: unknown;
-  let hasConst = false;
-  let inferredNullable = false;
-  for (const [key, value] of Object.entries(schema)) {
-    const effect = applyGoogleSchemaEntry(result, key, value, localDefs, remainingRefDepth);
-    if (effect.hasConst) {
-      hasConst = true;
-      constValue = effect.constValue;
-    }
-    if (effect.inferredNullable) inferredNullable = true;
-  }
-  const mergedOneOf = mergeGoogleOneOf(schema, result, localDefs, remainingRefDepth);
-  if (mergedOneOf) result.anyOf = mergedOneOf;
-  return { result, hasConst, constValue, inferredNullable };
-}
-
-/** The `$ref` branch of {@link sanitizeGoogleSchema} — split out purely to keep that function's
- *  complexity under the shop ceiling. */
-function sanitizeGoogleSchemaRef(ref: string, localDefs: Readonly<Record<string, unknown>>, remainingRefDepth: number): unknown {
-  const resolved = resolveGoogleRef(ref, localDefs);
-  if (remainingRefDepth <= 0) return enforceGoogleSchemaShape(terminalGoogleRefStub(resolved));
-  return sanitizeGoogleSchema(resolved, localDefs, remainingRefDepth - 1);
-}
-
-/** True when every member of `schema.enum` is a JS `number` — the shape
+ *  shop ceiling.
+ * The `$ref` branch of {@link sanitizeGoogleSchema} — split out purely to keep that function's
+ *  complexity under the shop ceiling.
+ * True when every member of `schema.enum` is a JS `number` — the shape
  *  {@link applyGoogleNumericEnumStringification} stringifies for Gemini's wire format, and the
  *  shape {@link findNumericEnumPaths} (over the UNSANITIZED schema, with an added `type` check —
  *  see that function's own doc for why the two checks differ) finds so the matching tool-call
  *  argument can be coerced back to a number. Split out purely to keep both callers' complexity
- *  under the shop ceiling. */
-function hasGoogleNumericEnumValues(schema: Record<string, unknown>): boolean {
-  return Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.every((member) => typeof member === "number");
-}
-
-/** The numeric-`enum`-to-string conversion documented on {@link sanitizeGoogleSchema}'s "Stringify
+ *  under the shop ceiling.
+ * The numeric-`enum`-to-string conversion documented on {@link sanitizeGoogleSchema}'s "Stringify
  *  a numeric `enum`" point — split out purely to keep that function's complexity under the shop
- *  ceiling. Mutates `result` in place, mirroring the original inline assignment. */
-function applyGoogleNumericEnumStringification(schema: Record<string, unknown>, result: Record<string, unknown>): void {
-  if (!hasGoogleNumericEnumValues(schema)) return;
-  result.enum = (schema.enum as unknown[]).map((member) => String(member));
-  result.type = "string";
-}
-
-/** The `const`-without-a-sibling-`type` inference documented on {@link sanitizeGoogleSchema}'s doc
+ *  ceiling. Mutates `result` in place, mirroring the original inline assignment.
+ * The `const`-without-a-sibling-`type` inference documented on {@link sanitizeGoogleSchema}'s doc
  *  (see its "A plain JSON-Schema `const`..." comment) — split out purely to keep that function's
  *  complexity under the shop ceiling. Mutates `result` in place, mirroring the original inline
- *  assignment. */
-function applyGoogleConstTypeInference(result: Record<string, unknown>, hasConst: boolean, constValue: unknown): void {
-  if (!hasConst || result.type !== undefined) return;
-  result.type = inferGoogleTypeFromLiteral(constValue);
-}
-
-export function sanitizeGoogleSchema(
-  schema: unknown,
-  defs: Readonly<Record<string, unknown>> = {},
-  remainingRefDepth: number = MAX_GOOGLE_REF_DEPTH,
-): unknown {
-  if (Array.isArray(schema)) return schema.map((entry) => sanitizeGoogleSchema(entry, defs, remainingRefDepth));
-  if (!isRecord(schema)) return schema;
-
-  const localDefs = isRecord(schema.$defs) ? { ...defs, ...schema.$defs } : defs;
-  if (typeof schema.$ref === "string") return sanitizeGoogleSchemaRef(schema.$ref, localDefs, remainingRefDepth);
-
-  const { result, hasConst, constValue, inferredNullable } = buildGoogleSchemaResult(schema, localDefs, remainingRefDepth);
-  if (inferredNullable) result.nullable = true;
-  // A plain JSON-Schema `const: "entryRef"` (this catalog's real usage — e.g.
-  // `NAV_TARGET_SCHEMA`'s `kind: { const: "entryRef" }`) carries no separate `type` field of its
-  // own: JSON Schema doesn't need one, since a single literal value already implies its type. `enum`
-  // alone is NOT valid standalone on Gemini's `Schema`, though (confirmed empirically: sanitizing the
-  // REAL catalog and asserting every node has a `type` caught this exact gap before it could
-  // reproduce the live bug a third time) — so a bare `type`-less `const` needs one synthesized here.
-  // A schema that already declares its own `type` alongside `const` keeps that declared type as-is.
-  applyGoogleConstTypeInference(result, hasConst, constValue);
-  // Gemini's `enum` is `repeated string` ONLY (confirmed live: a numeric `enum` value fails with
-  // "Invalid value ... (TYPE_STRING)") — this catalog's one real site (`redirects`'s `statusCode`,
-  // `type: "integer"`, `enum: [301,302,307,308]`; a full catalog sweep found no other numeric
-  // `enum`) needs both its `enum` values stringified AND its `type` forced to `"string"` (Gemini
-  // also rejects `enum` paired with a non-string `type`). This is a deliberate WIRE-FORMAT-ONLY
-  // change, not silently accepted as the tool's real contract: `runGoogleTurn`'s `executeTool`
-  // wrapper coerces the matching tool-call argument back to a number via
-  // `findNumericEnumPaths`/`coerceNumericEnumStringsToNumbers` before the tool handler (which still
-  // requires `typeof value === "number"`, e.g. `@jini-ai/cms/core`'s `requireNumber`) ever sees it —
-  // without that reverse step, every Gemini-driven call to a tool using this shape would fail at the
-  // handler's own type check even though the Gemini API call itself succeeded.
-  applyGoogleNumericEnumStringification(schema, result);
-  // NOT `enforceGoogleSchemaShape(result)` here, deliberately. This function also recurses into
-  // values that are NOT schemas — `default` and `example` are both supported Gemini keys whose
-  // values are arbitrary user data — and blanket-enforcing here injected `type: "object"` into
-  // them, corrupting the very defaults it was meant to leave alone. Enforcement happens only at
-  // the positions where a SCHEMA is placed (see `sanitizeGoogleSubschema`).
-  return result;
-}
-
-/** {@link sanitizeGoogleSchema} plus {@link enforceGoogleSchemaShape}, for the positions that hold
- *  a nested SCHEMA rather than arbitrary data: `properties.*`, `items`, and `anyOf` members. */
-function sanitizeGoogleSubschema(value: unknown, defs: Readonly<Record<string, unknown>>, depth: number): unknown {
-  const sanitized = sanitizeGoogleSchema(value, defs, depth);
-  return isRecord(sanitized) ? enforceGoogleSchemaShape(sanitized) : sanitized;
-}
-
-/** Applies {@link sanitizeGoogleSchema} to a tool's already-resolved `inputSchema`, typed as the
+ *  assignment.
+ * A plain JSON-Schema `const: "entryRef"` (this catalog's real usage — e.g.
+ * `NAV_TARGET_SCHEMA`'s `kind: { const: "entryRef" }`) carries no separate `type` field of its
+ * own: JSON Schema doesn't need one, since a single literal value already implies its type. `enum`
+ * alone is NOT valid standalone on Gemini's `Schema`, though (confirmed empirically: sanitizing the
+ * REAL catalog and asserting every node has a `type` caught this exact gap before it could
+ * reproduce the live bug a third time) — so a bare `type`-less `const` needs one synthesized here.
+ * A schema that already declares its own `type` alongside `const` keeps that declared type as-is.
+ * Gemini's `enum` is `repeated string` ONLY (confirmed live: a numeric `enum` value fails with
+ * "Invalid value ... (TYPE_STRING)") — this catalog's one real site (`redirects`'s `statusCode`,
+ * `type: "integer"`, `enum: [301,302,307,308]`; a full catalog sweep found no other numeric
+ * `enum`) needs both its `enum` values stringified AND its `type` forced to `"string"` (Gemini
+ * also rejects `enum` paired with a non-string `type`). This is a deliberate WIRE-FORMAT-ONLY
+ * change, not silently accepted as the tool's real contract: `runGoogleTurn`'s `executeTool`
+ * wrapper coerces the matching tool-call argument back to a number via
+ * `findNumericEnumPaths`/`coerceNumericEnumStringsToNumbers` before the tool handler (which still
+ * requires `typeof value === "number"`, e.g. `@jini-ai/cms/core`'s `requireNumber`) ever sees it —
+ * without that reverse step, every Gemini-driven call to a tool using this shape would fail at the
+ * handler's own type check even though the Gemini API call itself succeeded.
+ * NOT `enforceGoogleSchemaShape(result)` here, deliberately. This function also recurses into
+ * values that are NOT schemas — `default` and `example` are both supported Gemini keys whose
+ * values are arbitrary user data — and blanket-enforcing here injected `type: "object"` into
+ * them, corrupting the very defaults it was meant to leave alone. Enforcement happens only at
+ * the positions where a SCHEMA is placed (see `sanitizeGoogleSubschema`).
+ * {@link sanitizeGoogleSchema} plus {@link enforceGoogleSchemaShape}, for the positions that hold
+ *  a nested SCHEMA rather than arbitrary data: `properties.*`, `items`, and `anyOf` members.
+ * Applies {@link sanitizeGoogleSchema} to a tool's already-resolved `inputSchema`, typed as the
  *  `Record<string, unknown>` every provider's `parameters`/`input_schema` field expects.
  *
  *  Exported for the full-catalog validator (`byok-google-catalog.test.ts`) and for no other reason.
  *  It has to be THIS function the validator calls, not `sanitizeGoogleSchema` alone: the two differ
  *  by exactly the `enforceGoogleSchemaShape` pass, and the array-without-`items` class that reached
  *  production reproduced only after that pass — a validator run one layer lower would have declared
- *  the catalog clean while Gemini rejected it. Validate the bytes that go on the wire. */
-export function googleParametersOf(descriptor: ToolDescriptor): Record<string, unknown> {
-  return enforceGoogleSchemaShape(sanitizeGoogleSchema(inputSchemaOf(descriptor)) as Record<string, unknown>);
-}
-
-/**
+ *  the catalog clean while Gemini rejected it. Validate the bytes that go on the wire.
  * Finds every property PATH (dot-separated through `properties`, e.g. `"statusCode"`) whose
  * ORIGINAL, pre-sanitized schema declares a numeric `type` (`"integer"`/`"number"`) together with
  * an `enum` of number literals — the one shape {@link sanitizeGoogleSchema} converts to a STRING
@@ -729,56 +418,20 @@ export function googleParametersOf(descriptor: ToolDescriptor): Record<string, u
  * both recurses via `$ref` AND carries a numeric `enum` inside the cycle does not exist in this
  * catalog; this function does not resolve `$ref` at all, so such a schema's numeric `enum` past a
  * `$ref` would not be found — flag this if one is ever added).
- */
-/** The extra `type` check {@link findNumericEnumPaths} needs on top of
+ * The extra `type` check {@link findNumericEnumPaths} needs on top of
  *  {@link hasGoogleNumericEnumValues}: a numeric `enum` only means "coerce the tool-call argument
  *  back to a number" when the ORIGINAL schema also declared a numeric `type` — see
  *  `hasGoogleNumericEnumValues`'s own doc for why `sanitizeGoogleSchema`'s stringification check
  *  does not need this same `type` guard. Split out purely to keep `findNumericEnumPaths`'s
- *  complexity under the shop ceiling. */
-function isGoogleNumericEnumSchema(schema: Record<string, unknown>): boolean {
-  return (schema.type === "integer" || schema.type === "number") && hasGoogleNumericEnumValues(schema);
-}
-
-export function findNumericEnumPaths(schema: unknown, prefix: readonly string[] = []): string[] {
-  if (!isRecord(schema)) return [];
-  const paths: string[] = [];
-  if (isGoogleNumericEnumSchema(schema)) paths.push(prefix.join("."));
-  if (isRecord(schema.properties)) {
-    for (const [name, propSchema] of Object.entries(schema.properties)) {
-      paths.push(...findNumericEnumPaths(propSchema, [...prefix, name]));
-    }
-  }
-  return paths;
-}
-
-/** Reads the value at a dot-separated path inside a nested record, or `undefined` if any segment
- *  along the way is missing or not itself a record. */
-function readAtGooglePath(input: Record<string, unknown>, segments: readonly string[]): unknown {
-  let current: unknown = input;
-  for (const segment of segments) {
-    if (!isRecord(current)) return undefined;
-    current = current[segment];
-  }
-  return current;
-}
-
-/** Returns a copy of `input` with the value at `segments` replaced by `value`, cloning only the
+ *  complexity under the shop ceiling.
+ * Reads the value at a dot-separated path inside a nested record, or `undefined` if any segment
+ *  along the way is missing or not itself a record.
+ * Returns a copy of `input` with the value at `segments` replaced by `value`, cloning only the
  *  objects actually on the path (siblings are left as the SAME reference, not deep-cloned) — the
  *  same "clone only what changes" discipline `sanitizeGoogleSchema` uses when rebuilding a schema.
  *  If a segment along the way isn't a record, `input` is returned unchanged rather than throwing —
  *  a tool-call argument that doesn't match its own declared schema shape is the tool handler's own
- *  validation to reject, not this coercion step's job to paper over. */
-function writeAtGooglePath(input: Record<string, unknown>, segments: readonly string[], value: unknown): Record<string, unknown> {
-  const [head, ...rest] = segments;
-  if (head === undefined) return input;
-  if (rest.length === 0) return { ...input, [head]: value };
-  const child = input[head];
-  if (!isRecord(child)) return input;
-  return { ...input, [head]: writeAtGooglePath(child, rest, value) };
-}
-
-/**
+ *  validation to reject, not this coercion step's job to paper over.
  * The other half of {@link sanitizeGoogleSchema}'s "Stringify a numeric `enum`" conversion — see
  * that function's doc point 5. Gemini, having been told `statusCode` is a string `enum`, sends the
  * tool call back with `statusCode: "301"` (a string) instead of `301` (a number); the tool's own
@@ -795,21 +448,6 @@ function writeAtGooglePath(input: Record<string, unknown>, segments: readonly st
  *
  * @complexity O(p·d) where p is `paths.length` (at most the tool's own numeric-enum field count —
  * 1 in this catalog today) and d is each path's depth (1 today); not O(schema size).
- */
-export function coerceNumericEnumStringsToNumbers(input: unknown, paths: readonly string[]): unknown {
-  if (paths.length === 0 || !isRecord(input)) return input;
-  let result: Record<string, unknown> = input;
-  for (const path of paths) {
-    const segments = path.split(".");
-    const current = readAtGooglePath(result, segments);
-    if (typeof current === "string" && current.trim().length > 0 && Number.isFinite(Number(current))) {
-      result = writeAtGooglePath(result, segments, Number(current));
-    }
-  }
-  return result;
-}
-
-/**
  * Every provider's turn-result field names its "why did generation stop" value differently
  * (`stopReason` for Anthropic, `finishReason` for the other three) — normalized to `stopReason`
  * here so `assistant-byok.ts` never branches on protocol to read it.
@@ -828,230 +466,52 @@ export function coerceNumericEnumStringsToNumbers(input: unknown, paths: readonl
  * event was observed at all (should not happen in practice — every adapter's own `createTurnEndGuard`
  * is documented to emit exactly one — but this function makes no assumption about a collaborator it
  * doesn't own).
- */
-function normalizeTurnResult(
-  result: { stopReason?: string | null; finishReason?: string | null; toolTurns: number },
-  capturedEndReason: string | null = null,
-): ByokProviderTurnResult {
-  return { stopReason: capturedEndReason ?? result.stopReason ?? result.finishReason ?? null, toolTurns: result.toolTurns };
-}
-
-async function runAnthropicTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  const tools: AnthropicToolDef[] = input.tools.map((d) => ({
-    name: d.id,
-    ...(d.description !== undefined ? { description: d.description } : {}),
-    input_schema: inputSchemaOf(d),
-  }));
-  const messages: AnthropicMessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }));
-  const executeTool = async (call: AnthropicToolCall) => {
-    const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    return { content: toAnthropicToolContent(result.content), ...(result.isError !== undefined ? { isError: result.isError } : {}) };
-  };
-  // Set by `onEvent` below off the adapter's own `{type:'end'}` — see `normalizeTurnResult`'s doc
-  // for why this, not `result.stopReason`, is the reason a caller should actually be told.
-  let capturedEndReason: string | null = null;
-  const result = await runAnthropicToolTurn({
-    apiKey: input.apiKey,
-    ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
-    model: input.model,
-    system: input.system,
-    messages,
-    tools,
-    // `AnthropicTurnOptions.maxTokens` is non-optional — every other protocol here defaults it
-    // server-side when omitted, Anthropic's own adapter does not, so this is the one place a
-    // fallback belongs rather than pushing an Anthropic-specific default onto every caller.
-    maxTokens: input.maxTokens ?? 8192,
-    ...(input.maxToolTurns !== undefined ? { maxToolTurns: input.maxToolTurns } : {}),
-    executeTool,
-    signal: input.signal,
-    onEvent: (event) => {
-      if (event.type === "fabricated_role_marker") return; // no ByokTurnEvent case — see module doc.
-      if (event.type === "end") capturedEndReason = event.reason;
-      if (event.type === "tool_result") {
-        input.onEvent({
-          type: "tool_result",
-          toolUseId: event.toolUseId,
-          content: describeToolResultContent(event.content),
-          isError: event.isError,
-        });
-        return;
-      }
-      input.onEvent(event as ByokTurnEvent);
-    },
-  });
-  return normalizeTurnResult(result, capturedEndReason);
-}
-
-async function runOpenAiTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  const tools: OpenAiFunctionToolDef[] = input.tools.map((d) => ({
-    type: "function",
-    function: { name: d.id, ...(d.description !== undefined ? { description: d.description } : {}), parameters: inputSchemaOf(d) },
-  }));
-  const messages: OpenAiMessageParam[] = [
-    { role: "system", content: input.system },
-    ...input.messages.map((m) => ({ role: m.role, content: m.content }) as OpenAiMessageParam),
-  ];
-  // `OpenAiToolResult` (unlike Anthropic/Google) carries no `isError` field at all — checked
-  // directly in the adapter source, not assumed: a host-reported failure has nowhere on the wire to
-  // go, so it is folded into `content` itself, or the model would see a denied/failed tool call as a
-  // silent, contentless success.
-  const executeTool = async (call: OpenAiToolCall) => {
-    const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    return { content: foldToolError(toOpenAiToolContent(result.content), result.isError) };
-  };
-  // See `runAnthropicTurn`'s identical local for why this exists.
-  let capturedEndReason: string | null = null;
-  const result = await runOpenAiToolTurn({
-    apiKey: input.apiKey,
-    ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
-    model: input.model,
-    messages,
-    tools,
-    ...(input.maxTokens !== undefined ? { maxTokens: input.maxTokens } : {}),
-    ...(input.maxToolTurns !== undefined ? { maxToolTurns: input.maxToolTurns } : {}),
-    executeTool,
-    signal: input.signal,
-    onEvent: (event) => {
-      if (event.type === "fabricated_role_marker") return;
-      if (event.type === "end") capturedEndReason = event.reason;
-      if (event.type === "tool_result") {
-        // NOT `isError: event.isError` — verified by reading `openai-chat.ts`'s own result guard:
-        // it sets `isError` from ITS OWN content-shape validation (oversized/malformed images),
-        // never from what `executeTool` returned, so the adapter's `isError` is `false` for any
-        // plain-string result regardless of whether it says "[tool error]". Deriving it from the
-        // fold marker instead is what makes this wire event (and therefore the chat pane's own
-        // error styling, via `translateRunAgentPayload`) actually correct for a failed tool call —
-        // without this, a denied/failed OpenAI-protocol tool call would render with no visual
-        // distinction from a successful one.
-        const content = describeToolResultContent(event.content);
-        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX.trimEnd()) });
-        return;
-      }
-      input.onEvent(event as ByokTurnEvent);
-    },
-  });
-  return normalizeTurnResult(result, capturedEndReason);
-}
-
-async function runAzureTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  if (!input.baseUrl) {
-    input.onEvent({ type: "error", message: "the azure protocol requires a base URL (each Azure OpenAI resource has its own endpoint)" });
-    input.onEvent({ type: "end", reason: "error" });
-    return { stopReason: "error", toolTurns: 0 };
-  }
-  const tools: AzureFunctionToolDef[] = input.tools.map((d) => ({
-    type: "function",
-    function: { name: d.id, ...(d.description !== undefined ? { description: d.description } : {}), parameters: inputSchemaOf(d) },
-  }));
-  const messages: AzureMessageParam[] = [
-    { role: "system", content: input.system },
-    ...input.messages.map((m) => ({ role: m.role, content: m.content }) as AzureMessageParam),
-  ];
-  // Same wire gap as OpenAI above (Azure's chat/completions shape is OpenAI-compatible) —
-  // `AzureToolResult` has no `isError` field, so a host failure is folded into `content`.
-  const executeTool = async (call: AzureToolCall) => {
-    const result = await input.executeTool({ id: call.id, name: call.name, input: call.input });
-    // `AzureContentPart` is structurally `OpenAiContentPart` (Azure's chat/completions body is
-    // byte-identical to OpenAI's), so the same mapping serves both.
-    return { content: foldToolError(toOpenAiToolContent(result.content), result.isError) as string | AzureContentPart[] };
-  };
-  // See `runAnthropicTurn`'s identical local for why this exists.
-  let capturedEndReason: string | null = null;
-  const result = await runAzureToolTurn({
-    apiKey: input.apiKey,
-    baseUrl: input.baseUrl,
-    model: input.model,
-    messages,
-    tools,
-    ...(input.maxTokens !== undefined ? { maxTokens: input.maxTokens } : {}),
-    ...(input.maxToolTurns !== undefined ? { maxToolTurns: input.maxToolTurns } : {}),
-    executeTool,
-    signal: input.signal,
-    onEvent: (event) => {
-      if (event.type === "fabricated_role_marker") return;
-      if (event.type === "end") capturedEndReason = event.reason;
-      if (event.type === "tool_result") {
-        // Same derivation as `runOpenAiTurn` above, same reason — see that function's comment.
-        const content = describeToolResultContent(event.content);
-        input.onEvent({ type: "tool_result", toolUseId: event.toolUseId, content, isError: content.startsWith(TOOL_ERROR_PREFIX.trimEnd()) });
-        return;
-      }
-      input.onEvent(event as ByokTurnEvent);
-    },
-  });
-  return normalizeTurnResult(result, capturedEndReason);
-}
-
-async function runGoogleTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  const tools: GoogleToolDef[] = [
-    // `parameters: googleParametersOf(d)`, NOT `inputSchemaOf(d)` — see that function's doc. Every
-    // other protocol's tool-mapping in this module keeps calling `inputSchemaOf(d)` directly and
-    // stays byte-identical; only Gemini's restricted OpenAPI-subset schema needs the strip.
-    { functionDeclarations: input.tools.map((d) => ({ name: d.id, ...(d.description !== undefined ? { description: d.description } : {}), parameters: googleParametersOf(d) })) },
-  ];
-  // Computed from the UNSANITIZED `inputSchemaOf(d)` (see `findNumericEnumPaths`'s doc for why it
-  // has to be the original, not `googleParametersOf(d)`'s output) — one lookup per tool, reused for
-  // every tool call in this turn, not recomputed per call.
-  const numericEnumPathsByToolName = new Map<string, readonly string[]>(input.tools.map((d) => [d.id, findNumericEnumPaths(inputSchemaOf(d))]));
-  const contents: GoogleContent[] = input.messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-  const executeTool = async (call: GoogleToolCall) => {
-    // Reverses `sanitizeGoogleSchema`'s numeric-enum-to-string conversion on the way back in — see
-    // `coerceNumericEnumStringsToNumbers`'s doc for why this is required, not optional, for any tool
-    // using that shape (`redirects_create`/`redirects_update`'s `statusCode` today).
-    const coercedInput = coerceNumericEnumStringsToNumbers(call.input, numericEnumPathsByToolName.get(call.name) ?? []);
-    const result = await input.executeTool({ id: call.id, name: call.name, input: coercedInput });
-    return { content: toGoogleToolContent(result.content), ...(result.isError !== undefined ? { isError: result.isError } : {}) };
-  };
-  // See `runAnthropicTurn`'s identical local for why this exists.
-  let capturedEndReason: string | null = null;
-  const result = await runGoogleToolTurn({
-    apiKey: input.apiKey,
-    ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
-    model: input.model,
-    system: input.system,
-    contents,
-    tools,
-    ...(input.maxTokens !== undefined ? { maxOutputTokens: input.maxTokens } : {}),
-    ...(input.maxToolTurns !== undefined ? { maxToolTurns: input.maxToolTurns } : {}),
-    executeTool,
-    signal: input.signal,
-    onEvent: (event) => {
-      if (event.type === "fabricated_role_marker") return;
-      if (event.type === "end") capturedEndReason = event.reason;
-      if (event.type === "tool_result") {
-        input.onEvent({
-          type: "tool_result",
-          toolUseId: event.toolUseId,
-          content: describeToolResultContent(event.content),
-          isError: event.isError,
-        });
-        return;
-      }
-      input.onEvent(event as ByokTurnEvent);
-    },
-  });
-  return normalizeTurnResult(result, capturedEndReason);
-}
-
-/**
- * Runs one tool-calling turn against whichever provider `input.protocol` names.
+ * Set by `onEvent` below off the adapter's own `{type:'end'}` — see `normalizeTurnResult`'s doc
+ * for why this, not `result.stopReason`, is the reason a caller should actually be told.
+ * `AnthropicTurnOptions.maxTokens` is non-optional — every other protocol here defaults it
+ * server-side when omitted, Anthropic's own adapter does not, so this is the one place a
+ * fallback belongs rather than pushing an Anthropic-specific default onto every caller.
+ * `OpenAiToolResult` (unlike Anthropic/Google) carries no `isError` field at all — checked
+ * directly in the adapter source, not assumed: a host-reported failure has nowhere on the wire to
+ * go, so it is folded into `content` itself, or the model would see a denied/failed tool call as a
+ * silent, contentless success.
+ * See `runAnthropicTurn`'s identical local for why this exists.
+ * NOT `isError: event.isError` — verified by reading `openai-chat.ts`'s own result guard:
+ * it sets `isError` from ITS OWN content-shape validation (oversized/malformed images),
+ * never from what `executeTool` returned, so the adapter's `isError` is `false` for any
+ * plain-string result regardless of whether it says "[tool error]". Deriving it from the
+ * fold marker instead is what makes this wire event (and therefore the chat pane's own
+ * error styling, via `translateRunAgentPayload`) actually correct for a failed tool call —
+ * without this, a denied/failed OpenAI-protocol tool call would render with no visual
+ * distinction from a successful one.
+ * Same wire gap as OpenAI above (Azure's chat/completions shape is OpenAI-compatible) —
+ * `AzureToolResult` has no `isError` field, so a host failure is folded into `content`.
+ * `AzureContentPart` is structurally `OpenAiContentPart` (Azure's chat/completions body is
+ * byte-identical to OpenAI's), so the same mapping serves both.
+ * See `runAnthropicTurn`'s identical local for why this exists.
+ * Same derivation as `runOpenAiTurn` above, same reason — see that function's comment.
+ * `parameters: googleParametersOf(d)`, NOT `inputSchemaOf(d)` — see that function's doc. Every
+ * other protocol's tool-mapping in this module keeps calling `inputSchemaOf(d)` directly and
+ * stays byte-identical; only Gemini's restricted OpenAPI-subset schema needs the strip.
+ * Computed from the UNSANITIZED `inputSchemaOf(d)` (see `findNumericEnumPaths`'s doc for why it
+ * has to be the original, not `googleParametersOf(d)`'s output) — one lookup per tool, reused for
+ * every tool call in this turn, not recomputed per call.
+ * Reverses `sanitizeGoogleSchema`'s numeric-enum-to-string conversion on the way back in — see
+ * `coerceNumericEnumStringsToNumbers`'s doc for why this is required, not optional, for any tool
+ * using that shape (`redirects_create`/`redirects_update`'s `statusCode` today).
+ * See `runAnthropicTurn`'s identical local for why this exists.
+ * Fabricated-role-marker events deliberately have no ByokTurnEvent case and are filtered by Jini;
+ * the client translator cannot consume that provider-internal diagnostic.
  *
- * @complexity Dominated by the provider adapter's own request/tool-loop cost; this function's own
- * per-event/per-tool mapping is O(1) per event and O(t) in tool count for the one-time schema map.
- * @overallScore 100
+ * @complexity Dominated by the provider adapter's own request/tool-loop cost; the package maps
+ * O(t) tool descriptors once and each emitted tool result in its number of content parts.
  */
 export async function runByokProviderTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  switch (input.protocol) {
-    case "anthropic":
-      return runAnthropicTurn(input);
-    case "openai":
-      return runOpenAiTurn(input);
-    case "azure":
-      return runAzureTurn(input);
-    case "google":
-      return runGoogleTurn(input);
-  }
+  const { baseUrl, maxTokens, maxToolTurns, signal, ...required } = input;
+  return runProviderToolTurn({ ...required, adapters: providerTurnAdapters }, {
+    ...(baseUrl !== undefined ? { baseUrl } : {}),
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
+    ...(maxToolTurns !== undefined ? { maxToolTurns } : {}),
+    ...(signal !== undefined ? { signal } : {}),
+  });
 }

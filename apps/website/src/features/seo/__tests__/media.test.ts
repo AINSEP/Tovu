@@ -59,9 +59,9 @@ function makeRendition(overrides: Partial<AssetRenditionRecord> = {}): AssetRend
 
 test("resolveSeoImageRef: an already-absolute URL passes through unchanged", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "https://cdn.example.com/x.jpg" });
@@ -70,9 +70,9 @@ test("resolveSeoImageRef: an already-absolute URL passes through unchanged", asy
 
 test("resolveSeoImageRef: a valid {assetId}:{transformName} ref composes the frozen /m/ URL", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset()] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -82,9 +82,9 @@ test("resolveSeoImageRef: a valid {assetId}:{transformName} ref composes the fro
 
 test("resolveSeoImageRef: a deleted/missing asset resolves undefined, never throws", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -93,9 +93,9 @@ test("resolveSeoImageRef: a deleted/missing asset resolves undefined, never thro
 
 test("resolveSeoImageRef: a trashed asset resolves undefined", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset({ status: "trashed" })]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset({ status: "trashed" })] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -104,9 +104,9 @@ test("resolveSeoImageRef: a trashed asset resolves undefined", async () => {
 
 test("resolveSeoImageRef: an unregistered transform name resolves undefined", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset()] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:unregistered" });
@@ -115,9 +115,9 @@ test("resolveSeoImageRef: an unregistered transform name resolves undefined", as
 
 test("resolveSeoImageRef: a registered transform with no generated rendition yet STILL composes the URL (AMENDED 2026-09-05 — EC-07's 'never generates' clause overturned; the public /m/ route always lazily generates the latest registered version, so this URL is guaranteed servable)", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset()] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -127,13 +127,13 @@ test("resolveSeoImageRef: a registered transform with no generated rendition yet
 
 test("resolveSeoImageRef: multiple registered versions of the same transform resolve to the HIGHEST version, regardless of registration order", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition({ id: "rendition-3", version: 3 })]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset()] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition({ id: "rendition-3", version: 3 })] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [
       makeTransformDef({ id: "transform-2", version: 2 }),
       makeTransformDef({ id: "transform-1", version: 1 }),
       makeTransformDef({ id: "transform-3", version: 3 }),
-    ]),
+    ] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -143,9 +143,9 @@ test("resolveSeoImageRef: multiple registered versions of the same transform res
 
 test("resolveSeoImageRef: a ref built from the asset's SLUG (not its id) resolves the same way a ref built from its id does", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo" })]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset({ slug: "a-photo" })] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "a-photo:og" });
@@ -155,9 +155,9 @@ test("resolveSeoImageRef: a ref built from the asset's SLUG (not its id) resolve
 
 test("resolveSeoImageRef: a ref built from the asset's id emits the asset's CURRENT SLUG in the URL, not the id (readable-slugs S4)", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo" })]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset({ slug: "a-photo" })] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
@@ -167,9 +167,9 @@ test("resolveSeoImageRef: a ref built from the asset's id emits the asset's CURR
 
 test("resolveSeoImageRef: a trashed asset resolves undefined even when looked up by its slug", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo", status: "trashed" })]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset({ slug: "a-photo", status: "trashed" })] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [makeRendition()] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [makeTransformDef()] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "a-photo:og" });
@@ -178,9 +178,9 @@ test("resolveSeoImageRef: a trashed asset resolves undefined even when looked up
 
 test("resolveSeoImageRef: a malformed ref (no colon) resolves undefined", async () => {
   const deps = {
-    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [makeAsset()] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "not-a-valid-ref" });

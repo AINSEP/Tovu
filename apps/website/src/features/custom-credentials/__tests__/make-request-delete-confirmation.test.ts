@@ -83,7 +83,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -105,7 +105,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
     repo,
     sealer,
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

@@ -24,33 +24,33 @@ import {
 function fakeClock(startIso: string) {
   let currentIso = startIso;
   return {
-    clock: { nowIso: () => currentIso },
+    clock: { nowMs: () => new Date(currentIso).getTime() },
     advanceMs(ms: number) {
       currentIso = new Date(new Date(currentIso).getTime() + ms).toISOString();
     },
   };
 }
 
-test("createRateLimiter: requests under the max all pass", () => {
+test("createRateLimiter: requests under the max all pass", async () => {
   assert.deepEqual(LOGIN_STRICT, { max: 10, windowSeconds: 60, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < 10; i++) {
-    const result = limiter.check("1.2.3.4");
+    const result = await limiter.check({ key: "1.2.3.4" });
     assert.equal(result.allowed, true, `request ${i + 1} should pass`);
   }
 });
 
-test("createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds", () => {
+test("createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < 10; i++) {
-    assert.equal(limiter.check("1.2.3.4").allowed, true);
+    assert.equal((await limiter.check({ key: "1.2.3.4" })).allowed, true);
   }
 
-  const eleventh = limiter.check("1.2.3.4");
+  const eleventh = await limiter.check({ key: "1.2.3.4" });
   assert.equal(eleventh.allowed, false);
   if (eleventh.allowed) throw new Error("unreachable");
   assert.ok(Number.isInteger(eleventh.retryAfterSeconds), "retryAfterSeconds must be an integer");
@@ -60,51 +60,51 @@ test("createRateLimiter: the (max+1)th request in the window is rejected with a 
     "retryAfterSeconds must not exceed the window length"
   );
   advanceMs(30_000);
-  assert.deepEqual(limiter.check("1.2.3.4"), { allowed: false, retryAfterSeconds: 30 });
+  assert.deepEqual((await limiter.check({ key: "1.2.3.4" })), { allowed: false, retryAfterSeconds: 30 });
   advanceMs(1);
-  assert.deepEqual(limiter.check("1.2.3.4"), { allowed: false, retryAfterSeconds: 30 }, "fractional seconds round up");
+  assert.deepEqual((await limiter.check({ key: "1.2.3.4" })), { allowed: false, retryAfterSeconds: 30 }, "fractional seconds round up");
 });
 
-test("createRateLimiter: different IPs have independent counters", () => {
+test("createRateLimiter: different IPs have independent counters", async () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
-    assert.equal(limiter.check("1.1.1.1").allowed, true);
+    assert.equal((await limiter.check({ key: "1.1.1.1" })).allowed, true);
   }
   // 1.1.1.1 is now exhausted...
-  assert.equal(limiter.check("1.1.1.1").allowed, false);
+  assert.equal((await limiter.check({ key: "1.1.1.1" })).allowed, false);
   // ...but a different key starts with a fresh window.
-  assert.equal(limiter.check("2.2.2.2").allowed, true);
+  assert.equal((await limiter.check({ key: "2.2.2.2" })).allowed, true);
 });
 
-test("createRateLimiter: the window resets once windowSeconds elapses", () => {
+test("createRateLimiter: the window resets once windowSeconds elapses", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
-    assert.equal(limiter.check("1.2.3.4").allowed, true);
+    assert.equal((await limiter.check({ key: "1.2.3.4" })).allowed, true);
   }
-  assert.equal(limiter.check("1.2.3.4").allowed, false);
+  assert.equal((await limiter.check({ key: "1.2.3.4" })).allowed, false);
 
   // Just under the window boundary: still blocked.
   advanceMs(60_000 - 1);
-  assert.equal(limiter.check("1.2.3.4").allowed, false);
+  assert.equal((await limiter.check({ key: "1.2.3.4" })).allowed, false);
 
   // At/after the window boundary: a fresh window starts.
   advanceMs(1);
-  assert.equal(limiter.check("1.2.3.4").allowed, true);
+  assert.equal((await limiter.check({ key: "1.2.3.4" })).allowed, true);
 });
 
-test("createRateLimiter: a profile's burst allowance extends the effective ceiling (forward-compat shape for WRITE_STANDARD/READ_STANDARD)", () => {
+test("createRateLimiter: a profile's burst allowance extends the effective ceiling (forward-compat shape for WRITE_STANDARD/READ_STANDARD)", async () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const profileWithBurst: RateLimitProfile = { windowSeconds: 60, max: 2, burst: 1 };
   const limiter = createRateLimiter({ profile: profileWithBurst, clock });
 
-  assert.equal(limiter.check("k").allowed, true);
-  assert.equal(limiter.check("k").allowed, true);
-  assert.equal(limiter.check("k").allowed, true, "3rd request consumes the burst allowance");
-  assert.equal(limiter.check("k").allowed, false, "4th request exceeds max+burst");
+  assert.equal((await limiter.check({ key: "k" })).allowed, true);
+  assert.equal((await limiter.check({ key: "k" })).allowed, true);
+  assert.equal((await limiter.check({ key: "k" })).allowed, true, "3rd request consumes the burst allowance");
+  assert.equal((await limiter.check({ key: "k" })).allowed, false, "4th request exceeds max+burst");
 });
 
 test("resolveClientIp: without Express req.ip or a trusted-proxy list, uses the socket peer address", () => {
@@ -163,56 +163,56 @@ test("resolveClientIp: a trusted peer with no forwarded-for header falls back to
  * covered above) does all the real work.
  */
 
-test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds", () => {
+test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds", async () => {
   assert.deepEqual(MAGIC_LINK_PER_EMAIL, { max: 5, windowSeconds: 3600, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock });
 
   for (let i = 0; i < 5; i++) {
-    assert.equal(limiter.check("jane@example.com").allowed, true, `request ${i + 1} should pass`);
+    assert.equal((await limiter.check({ key: "jane@example.com" })).allowed, true, `request ${i + 1} should pass`);
   }
 
-  const sixth = limiter.check("jane@example.com");
+  const sixth = await limiter.check({ key: "jane@example.com" });
   assert.equal(sixth.allowed, false);
   if (sixth.allowed) throw new Error("unreachable");
   assert.ok(Number.isInteger(sixth.retryAfterSeconds));
   assert.ok(sixth.retryAfterSeconds > 0);
 });
 
-test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
+test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock });
 
   for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
-    assert.equal(limiter.check("jane@example.com").allowed, true);
+    assert.equal((await limiter.check({ key: "jane@example.com" })).allowed, true);
   }
-  assert.equal(limiter.check("jane@example.com").allowed, false);
+  assert.equal((await limiter.check({ key: "jane@example.com" })).allowed, false);
 
   advanceMs(3_600_000 - 1);
-  assert.equal(limiter.check("jane@example.com").allowed, false);
+  assert.equal((await limiter.check({ key: "jane@example.com" })).allowed, false);
 
   advanceMs(1);
-  assert.equal(limiter.check("jane@example.com").allowed, true);
+  assert.equal((await limiter.check({ key: "jane@example.com" })).allowed, true);
 });
 
-test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied", () => {
+test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied", async () => {
   assert.deepEqual(MAGIC_LINK_PER_IP, { max: 20, windowSeconds: 3600, burst: 0 });
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock });
 
   for (let i = 0; i < 20; i++) {
-    assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
+    assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true, `request ${i + 1} should pass`);
   }
 
-  const twentyFirst = limiter.check("203.0.113.9");
+  const twentyFirst = await limiter.check({ key: "203.0.113.9" });
   assert.equal(twentyFirst.allowed, false);
   advanceMs(3_600_000 - 1);
-  assert.equal(limiter.check("203.0.113.9").allowed, false);
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, false);
   advanceMs(1);
-  assert.equal(limiter.check("203.0.113.9").allowed, true);
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true);
 });
 
-test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied", () => {
+test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied", async () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock });
 
@@ -220,10 +220,10 @@ test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one
   assert.equal(effectiveMax, 25, "sanity: max+burst should be 25 so the 26th attempt is the first denial");
 
   for (let i = 0; i < effectiveMax; i++) {
-    assert.equal(limiter.check("203.0.113.9").allowed, true, `attempt ${i + 1} should pass`);
+    assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true, `attempt ${i + 1} should pass`);
   }
 
-  const twentySixth = limiter.check("203.0.113.9");
+  const twentySixth = await limiter.check({ key: "203.0.113.9" });
   assert.equal(twentySixth.allowed, false);
 });
 
@@ -234,16 +234,16 @@ test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one
  * numbers (10 / 5 minutes / IP) rather than re-prove the algorithm.
  */
 
-test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds", () => {
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds", async () => {
   assert.deepEqual(SITE_ASSISTANT_PER_IP, { max: 10, windowSeconds: 300, burst: 0 });
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
 
   for (let i = 0; i < 10; i++) {
-    assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
+    assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true, `request ${i + 1} should pass`);
   }
 
-  const eleventh = limiter.check("203.0.113.9");
+  const eleventh = await limiter.check({ key: "203.0.113.9" });
   assert.equal(eleventh.allowed, false);
   if (eleventh.allowed) throw new Error("unreachable");
   assert.ok(Number.isInteger(eleventh.retryAfterSeconds));
@@ -251,31 +251,31 @@ test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the wind
   assert.ok(eleventh.retryAfterSeconds <= SITE_ASSISTANT_PER_IP.windowSeconds);
 });
 
-test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets correctly", () => {
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets correctly", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
 
   for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
-    assert.equal(limiter.check("203.0.113.9").allowed, true);
+    assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true);
   }
-  assert.equal(limiter.check("203.0.113.9").allowed, false);
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, false);
 
   advanceMs(300_000 - 1);
-  assert.equal(limiter.check("203.0.113.9").allowed, false);
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, false);
 
   advanceMs(1);
-  assert.equal(limiter.check("203.0.113.9").allowed, true);
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true);
 });
 
-test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent counters", () => {
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent counters", async () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
 
   for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
-    assert.equal(limiter.check("1.1.1.1").allowed, true);
+    assert.equal((await limiter.check({ key: "1.1.1.1" })).allowed, true);
   }
-  assert.equal(limiter.check("1.1.1.1").allowed, false);
-  assert.equal(limiter.check("2.2.2.2").allowed, true, "a different key starts with a fresh window");
+  assert.equal((await limiter.check({ key: "1.1.1.1" })).allowed, false);
+  assert.equal((await limiter.check({ key: "2.2.2.2" })).allowed, true, "a different key starts with a fresh window");
 });
 
 /**
@@ -284,47 +284,47 @@ test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent c
  * no-op) — so every assertion here is on `.size()`, the count of distinct keys currently tracked.
  */
 
-test("SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapses, shrinking the store", () => {
+test("SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapses, shrinking the store", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
   if (!limiter.size) throw new Error("expected the real createRateLimiter() to implement size()");
 
   // 50 distinct attacker-controlled IPs, all seen inside the same window.
   for (let i = 0; i < 50; i++) {
-    limiter.check(`203.0.113.${i}`);
+    await limiter.check({ key: `203.0.113.${i}` });
   }
-  assert.equal(limiter.size(), 50, "every distinct key seen so far is tracked");
+  assert.equal(await limiter.size({}), 50, "every distinct key seen so far is tracked");
 
   advanceMs(150_000);
-  for (let i = 0; i < 10; i++) assert.equal(limiter.check("active").allowed, true);
-  assert.equal(limiter.check("active").allowed, false);
-  assert.equal(limiter.size(), 51);
+  for (let i = 0; i < 10; i++) assert.equal((await limiter.check({ key: "active" })).allowed, true);
+  assert.equal((await limiter.check({ key: "active" })).allowed, false);
+  assert.equal(await limiter.size({}), 51);
 
   // Advance past the window boundary. Eviction is sweep-on-write (amortized, not a background
   // timer — see `createRateLimiter`'s doc), so nothing is swept until the next `check()` call.
   advanceMs(150_000);
-  assert.equal(limiter.size(), 51, "no sweep has run yet — no check() call has happened since the advance");
+  assert.equal(await limiter.size({}), 51, "no sweep has run yet — no check() call has happened since the advance");
 
-  limiter.check("203.0.113.new");
+  await limiter.check({ key: "203.0.113.new" });
 
   // The 50 stale entries are gone; the newer exhausted key and the sweep trigger survive.
-  assert.equal(limiter.size(), 2, "the sweep evicted only entries whose windows had fully expired");
-  assert.deepEqual(limiter.check("active"), { allowed: false, retryAfterSeconds: 150 });
+  assert.equal(await limiter.size({}), 2, "the sweep evicted only entries whose windows had fully expired");
+  assert.deepEqual((await limiter.check({ key: "active" })), { allowed: false, retryAfterSeconds: 150 });
 });
 
-test("SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired", () => {
+test("SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired", async () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
   const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
 
   for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
-    assert.equal(limiter.check("203.0.113.9").allowed, true);
+    assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true);
   }
-  assert.equal(limiter.check("203.0.113.9").allowed, false, "exhausted before the sweep boundary");
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, false, "exhausted before the sweep boundary");
 
   // Past the sweep interval: this call both triggers the sweep (evicting "203.0.113.9"'s now-stale
   // entry) AND is itself the request for that same key — the eviction must not double-count or
   // otherwise change what the caller experiences versus the pre-eviction behavior asserted in the
   // "window resets correctly" test above.
   advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000);
-  assert.equal(limiter.check("203.0.113.9").allowed, true, "a fresh window starts exactly as before eviction existed");
+  assert.equal((await limiter.check({ key: "203.0.113.9" })).allowed, true, "a fresh window starts exactly as before eviction existed");
 });

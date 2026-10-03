@@ -51,7 +51,7 @@ function deps(wired = true): PublishContentDeps {
     clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "unused" },
     outbox: new InMemoryOutbox(),
-    ports: wired ? { menu: { repo: new InMemoryMenuRepo(structuredClone(ROWS)), bindingRepo: new InMemoryNavLocationBindingRepo() } } : {},
+    ports: wired ? { menu: { repo: new InMemoryMenuRepo({}, { initialRows: structuredClone(ROWS) }), bindingRepo: new InMemoryNavLocationBindingRepo({}) } } : {},
   };
 }
 

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -31,8 +33,13 @@ import {
 } from "../../features/plugin-runtime/tool-registrations.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { registerToolContributor, resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file `plugins_set_enabled` as ONE tool across BOTH plugin families — the RED/GREEN proof for the
@@ -146,7 +153,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => undefined },
@@ -241,10 +248,10 @@ async function answerDialog(
 // ---------------------------------------------------------------------------
 
 test("plugins_set_enabled is present in the BUILT registration list, reached through the real contributor seam", () => {
-  resetToolContributorsForTests();
-  registerToolContributor(contributePluginsTools());
+  contributions.contributors.clear({});
+  contributions.contributors.register({ contribution: contributePluginsTools() });
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps as unknown as RouteDeps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps as unknown as RouteDeps, undefined, { contributions }).map((r) => r.descriptor.id);
   assert.ok(ids.includes(SET_ENABLED), `built catalog is missing '${SET_ENABLED}' — it would be silently uncallable`);
 });
 

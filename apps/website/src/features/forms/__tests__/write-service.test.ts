@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 import {
   FormFieldValidationError,
   FormSlugConflictError,
   FormDefinitionNotFoundError,
-} from "../errors.js";
+} from "@jini-ai/cms-forms";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
-import type { NotifyConfig } from "../types.js";
+import type { NotifyConfig } from "@jini-ai/cms-forms";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
@@ -28,12 +28,12 @@ const ACTOR = { id: "principal-1", kind: "user" as const };
 
 function makeDeps() {
   const repo = new InMemoryFormDefinitionRepo();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const changeSets = new InMemoryChangeSetRepo();
   const authorize = async () => ({ allowed: true, reason: "ok" });
-  return { repo, clock, idGen, changeSets, authorize };
+  return { repo, clock, idGen, changeSets, authorize, executeCommand };
 }
 
 test("createFormDefinition: creates an active definition with default notify config (AC-01)", async () => {

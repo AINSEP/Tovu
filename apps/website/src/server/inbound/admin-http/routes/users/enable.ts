@@ -1,9 +1,5 @@
-import {
-  enablePrincipal,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { enablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
@@ -42,7 +38,7 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
       });
 
       const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id });
-      if (!user) throw new IdentityNotFoundError(`user '${principal.id}' was not found`);
+      if (!user) throw new IdentityNotFoundError({ message: `user '${principal.id}' was not found` });
       const [roleLinks, policyLinks] = await Promise.all([
         deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
         deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),

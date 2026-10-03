@@ -26,6 +26,7 @@ async function fetchListModelsResponse(
     protocol,
     baseUrl: credential.baseUrl,
     apiKey: credential.apiKey,
+  }, {
     ...(apiVersion ? { apiVersion } : {}),
   });
   const missingKey = result.kind === "auth_failed" && !credential.apiKey.trim();

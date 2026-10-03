@@ -41,7 +41,7 @@ function registrationThatThrows(id: string, error: unknown): ToolRegistration {
 
 test("a listed class rejects with a ToolInputError carrying the coded message", async () => {
   const [wrapped] = withModelFacingRegistrationErrors(
-    [registrationThatThrows("entries_get", new EntryNotFoundError("entry 'e1' was not found"))],
+    [registrationThatThrows("entries_get", new EntryNotFoundError({ message: "entry 'e1' was not found" }))],
     ENTRIES_RULES
   );
   await assert.rejects(

@@ -1,4 +1,6 @@
-import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { type Clock as ClockPort } from "@jini-ai/core/primitives";
+import { assertEntityLive } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
@@ -101,7 +103,7 @@ export class InMemoryPagesHtmlDocumentStore {
     }
 
     const nextVersion = row.version + 1;
-    const updatedAt = this.deps.clock.nowIso();
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
 
     await this.deps.repo.transaction(async () => {
       // Pre-conversion snapshot — see the real store's `ensureHtmlFormat` for why this is skipped
@@ -172,7 +174,7 @@ export class InMemoryPagesHtmlDocumentStore {
     }
 
     const nextVersion = expectedVersion + 1;
-    const updatedAt = this.deps.clock.nowIso();
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
     const { applied } = await this.deps.repo.saveIfVersion({
       record: { ...row, bodyHtml: html, version: nextVersion, updatedAt },
       ifVersion: expectedVersion,

@@ -1,4 +1,5 @@
-import type { AuthorizeFn, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { resolveAgentPluginReadOnlyRemoteNames } from "../features/agent-plugins/federate-mcp.js";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";

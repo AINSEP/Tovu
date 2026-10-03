@@ -1,6 +1,3 @@
-import type { HttpClientPort } from "#src/platform/http/index";
-import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
-
 /**
  * @file The guarded "fetch a media file from a URL" half of `media_import_from_url` — everything
  * between an agent-supplied URL string and a validated `Uint8Array` that is safe to hand to `uploadMedia`.
@@ -37,7 +34,7 @@ import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from
  * (`.dependency-cruiser.mjs`'s guarded-module boundary); only the type-only barrel is reachable from
  * here, which is what makes "cannot obtain an unguarded client" structural rather than aspirational.
  *
- * What this module DOES own, on top of the transport guard:
+ * What the package implementation, bound by this adapter, DOES own on top of the transport guard:
  *
  * - **Scheme, before the network.** `https:` only, checked here so a caller gets a clear message
  *   naming the scheme rather than a generic egress rejection. The policy enforces the same thing
@@ -60,11 +57,16 @@ import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from
  * `sniffContentType` and the upload cap it must agree with) and on `platform/http`'s type-only
  * barrel. No dependency on `server/**`.
  */
-
-/** Every caller-shape or security-boundary rejection this module raises. Distinct from
- *  `@jini-ai/cms/media`'s own `MediaValidationError` (which validates an upload once the bytes are
- *  already in hand) — this class rejects a REQUEST, before or just after the fetch. */
-export class MediaImportValidationError extends Error {}
+// Binary validation and source provenance live in Jini packages/cms/src/media/import/fetch-image.ts.
+// URL import closes the gap between externally generated media URLs and upload/promotion tools:
+// previously a human had to fetch a generated CDN image and POST its bytes to the admin API.
+import {
+  fetchImage as fetchPackageImage,
+  validateImageBytes as validatePackageImageBytes,
+  type FetchedImage,
+} from "@jini-ai/cms/media/import";
+import type { HttpClientPort } from "#src/platform/http/index";
+import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
 
 /**
  * The still-image and video types this tool will import, decided by magic bytes rather than by any
@@ -86,15 +88,8 @@ export class MediaImportValidationError extends Error {}
  * `DEFAULT_ALLOWED_MIME_TYPES` itself states: it needs an ingest sanitizer that does not exist yet.
  */
 export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedContentType>([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "video/mp4",
-  "video/webm",
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "video/mp4", "video/webm",
 ]);
-
 /**
  * Largest payload this tool will import. Not an independent number: it IS `contracts/core/upload-limits.ts`'s
  * `TOVU_MAX_UPLOAD_BYTES` (this host's override of `@jini-ai/cms/media`'s 10 MiB
@@ -103,249 +98,56 @@ export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedCont
  * into a state where this module downloads several megabytes that `uploadMedia` then throws away.
  */
 export const MEDIA_IMPORT_MAX_BYTES = TOVU_MAX_UPLOAD_BYTES;
-
 /** Per-request timeout. `MEDIA_IMPORT_EGRESS_POLICY.connectTimeoutMs` is a CEILING on this value,
  *  never a replacement for it (`client.ts`'s `sendWithPolicy` takes the `Math.min` of the two) —
  *  same relationship `custom-credentials`' `CREDENTIALED_REQUEST_TIMEOUT_MS` has to its own policy. */
 export const MEDIA_IMPORT_TIMEOUT_MS = 20_000;
 
-/** File extension per accepted type, for {@link buildImportFilename}. Keyed by the SNIFFED type, so
- *  an extension can never contradict the bytes. */
-const EXTENSION_BY_CONTENT_TYPE: Readonly<Record<string, string>> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-  "image/avif": "avif",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
+const IMPORT_POLICY = {
+  maxBytes: MEDIA_IMPORT_MAX_BYTES,
+  allowedContentTypes: IMPORTABLE_CONTENT_TYPES,
+  sniffer: { sniff: ({ bytes }: { bytes: Uint8Array }) => sniffContentType({ bytes }) },
 };
 
-export interface FetchImageDeps {
-  /** Injected, never constructed here — see this file's header, "SSRF". */
-  readonly httpClient: HttpClientPort;
-}
-
-/** One successfully fetched, validated image. `contentType` is the SNIFFED type, never the served
- *  header, and is always a member of {@link IMPORTABLE_CONTENT_TYPES}. */
-export interface FetchedImage {
-  readonly bytes: Uint8Array;
-  readonly contentType: string;
-  /**
-   * The URL the bytes actually came from — the last hop after redirect resolution, parsed and
-   * normalized. The value to record/report, rather than the raw input.
-   *
-   * The requested URL only when nothing redirected, or when the client reports no final hop
-   * (2026-09-06, MI-02 — before that this was always the requested URL, so a CDN link that
-   * redirected recorded a URL that served nothing). Both `tool-registrations.ts`'s `sourceUrl` and
-   * {@link buildImportFilename}'s default name derive from it, which is why it follows the bytes.
-   */
-  readonly url: URL;
-}
+export interface FetchImageDeps { readonly httpClient: HttpClientPort; }
 
 /**
- * Parses and scheme-checks an agent-supplied URL.
- *
- * Rejects anything the WHATWG parser cannot read as an absolute URL (a bare path, a relative
- * reference, a data URI's payload), anything that is not `https:` (so `file:`, `data:`, `gopher:`
- * and plain `http:` are all out), and any URL carrying embedded credentials. The egress policy
- * independently enforces the scheme and the credentials rule at connect time — doing it here too is
- * for the error message a caller can act on, and is explicitly NOT the control being relied upon.
- *
- * @throws {MediaImportValidationError} on any of the above.
- * @complexity O(n) in `raw.length`, once.
+ * Imports binary media through Tovu's injected guarded HTTP client. The client checks DNS, pins
+ * peers, and rechecks redirects; the package validates complete bytes and records the final URL.
+ * @returns Validated bytes/type/source URL; package and guarded transport errors propagate.
+ * @complexity One bounded GET plus redirects, fixed-window content sniffing.
+ * @example await fetchImage({ deps: { httpClient }, url: "https://example.com/image.png" });
  */
-export function parseImportUrl(raw: string): URL {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new MediaImportValidationError(
-      `'url' must be an absolute URL including the scheme (for example 'https://example.com/image.png') — got '${raw}'.`
-    );
-  }
-  if (url.protocol !== "https:") {
-    throw new MediaImportValidationError(
-      `'url' must use https — got '${url.protocol.replace(":", "")}'. Only https URLs can be imported.`
-    );
-  }
-  if (url.username || url.password) {
-    throw new MediaImportValidationError("'url' must not embed credentials (user:password@host).");
-  }
-  return url;
+export function fetchImage(
+  { deps, url }: { deps: FetchImageDeps; url: string },
+  _optional: Record<string, never> = {},
+): Promise<FetchedImage> {
+  return fetchPackageImage({
+    ...IMPORT_POLICY,
+    url,
+    httpClient: {
+      send: ({ request }) => {
+        // Keep Tovu's independent transport backstop (60 MiB) above its accept limit (50 MiB).
+        // The package's request cap would collapse the two; byte validation still rejects every
+        // over-limit or clipped payload, with the existing feature-specific refusal wording.
+        const { maxResponseBytes: _packageResponseCap, ...hostRequest } = request;
+        return deps.httpClient.send({
+          ...hostRequest,
+          headers: { ...request.headers, Accept: "image/*, video/*" },
+        });
+      },
+    },
+    outboundGuard: { send: ({ httpClient, request }) => httpClient.send({ request }) },
+  }, { timeoutMs: MEDIA_IMPORT_TIMEOUT_MS });
 }
 
-/**
- * Builds the filename the imported asset is stored under — the last path segment of the source URL,
- * aggressively sanitized, with the extension taken from the SNIFFED type rather than from whatever
- * the URL happened to end in.
- *
- * Only alphanumerics, spaces and hyphens survive, collapsed and length-bounded, so a URL containing
- * path separators, `..`, control characters, or pathological punctuation can never produce a
- * surprising name. Same treatment (and same reasoning) as `media-generation`'s own
- * `buildGeneratedFilename`: this value reaches `uploadMedia`'s title derivation, never a filesystem
- * path — the blob's real on-disk location is content-addressed by sha256, not by this string.
- *
- * @complexity O(n) in the URL's last path segment, once.
+/** Applies the same Tovu byte/type policy to guarded local reads. No I/O occurs here.
+ * @returns Sniffed content type; throws the package validation error on rejected bytes.
+ * @complexity Fixed-window sniffing and constant-time byte-limit checks.
  */
-export function buildImportFilename(url: URL, contentType: string, override?: string): string {
-  const extension = EXTENSION_BY_CONTENT_TYPE[contentType] ?? "bin";
-  const rawName = override ?? decodeLastPathSegment(url);
-  const slug = rawName
-    .replace(/\.[a-zA-Z0-9]{1,5}$/, "")
-    .replace(/[^a-zA-Z0-9\s-]/g, " ")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 60)
-    .replace(/^-+|-+$/g, "");
-  return `${slug || "imported-image"}.${extension}`;
-}
-
-/** The URL's last path segment, percent-decoded when it decodes cleanly. A malformed escape is not
- *  an error worth failing an import over — the sanitizer in {@link buildImportFilename} handles
- *  whatever comes back either way. */
-function decodeLastPathSegment(url: URL): string {
-  const segment = url.pathname.split("/").filter(Boolean).pop() ?? "";
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
-/**
- * Turns a non-200 response into the rejection a caller should see, naming the status so an operator
- * can tell "the link expired" (403/404 — very common for signed vendor URLs) apart from "the host is
- * broken" (5xx). Split out of {@link fetchImage} to keep that function under the repo's complexity
- * ceiling.
- *
- * @complexity O(1).
- */
-function buildStatusError(url: URL, status: number): MediaImportValidationError {
-  const hint =
-    status === 403 || status === 404
-      ? " Signed or time-limited image URLs expire quickly — ask for a fresh URL rather than retrying this one."
-      : "";
-  return new MediaImportValidationError(`fetching '${url.href}' returned HTTP ${status}, not an image.${hint}`);
-}
-
-/**
- * Validates a fetched body and identifies it — the "the bytes are what the bytes say they are" half
- * of this module, extracted from {@link fetchImage} so it is testable against a byte array directly
- * and so neither function carries both the I/O and the whole rule set.
- *
- * Order matters and is deliberate: truncation is checked BEFORE sniffing, because a clipped image
- * still carries valid magic bytes in its first few bytes and would sniff as a perfectly good PNG.
- *
- * `bytesTruncated` is a verdict about THESE bytes and nothing else — `HttpResponse.bodyBytesTruncated`,
- * never the OR-of-both-shapes `bodyTruncated` (2026-09-06, MI-01). Passing the latter refused whole
- * images because a lossy UTF-8 decode this module never reads had crossed the policy cap.
- *
- * @param source - A fetched URL or a local root-relative path, used only to label refusals.
- * @param bytes - Complete binary payload to sniff.
- * @param bytesTruncated - Whether the transport clipped the payload; local reads refuse clipping themselves.
- * @returns The accepted content type, derived from the bytes.
- * @throws {MediaImportValidationError} bytes truncated, empty, over {@link MEDIA_IMPORT_MAX_BYTES},
- *   or not one of {@link IMPORTABLE_CONTENT_TYPES}.
- * @complexity O(1) beyond `sniffContentType`'s own fixed-window magic-byte scan.
- */
-export function validateImageBytes(source: URL | string, bytes: Uint8Array, bytesTruncated: boolean): string {
-  // Keep the existing URL contract and error text; a relative path labels a local-file import.
-  const isRemote = source instanceof URL;
-  const label = isRemote ? source.href : source;
-  if (bytesTruncated || bytes.byteLength > MEDIA_IMPORT_MAX_BYTES) {
-    throw new MediaImportValidationError(
-      isRemote
-        ? `the image at '${label}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved — a partially downloaded image would be a corrupt file, not a smaller one.`
-        : `file '${label}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved.`
-    );
-  }
-  if (bytes.byteLength === 0) {
-    throw new MediaImportValidationError(isRemote
-      ? `'${label}' returned an empty response body — there is nothing to import.`
-      : `file '${label}' is empty — there is nothing to import.`);
-  }
-  const contentType = sniffContentType(bytes);
-  if (!IMPORTABLE_CONTENT_TYPES.has(contentType)) {
-    throw new MediaImportValidationError(
-      `'${label}' is not an importable file: its actual bytes are '${contentType}'. ` +
-        `Only ${[...IMPORTABLE_CONTENT_TYPES].join(", ")} can be imported (${isRemote ? 'the served Content-Type header' : 'the file extension'} is deliberately ignored — the bytes decide).`
-    );
-  }
-  return contentType;
-}
-
-/**
- * Fetches one file through the SSRF-guarded client and returns its validated bytes.
- *
- * The response's own `Content-Type` header is read nowhere in this function, on purpose: it is
- * remote-controlled metadata about remote-controlled bytes, and trusting it is precisely the gap
- * `routes/admin/media/upload.ts` and `media_generate_asset` both already close by sniffing after the
- * fact. {@link validateImageBytes} decides the type from the payload itself.
- *
- * The returned `url` is the hop that SERVED the bytes, not the one that was asked for — see
- * {@link FetchedImage.url} and {@link resolveSourceUrl}. Validation errors still name the requested
- * URL, which is the one a caller can act on.
- *
- * @throws {MediaImportValidationError} for a bad URL, a non-200 status, or a body that fails
- *   {@link validateImageBytes}. A transport-level failure (DNS, timeout, or an `EgressPolicy`
- *   refusal — including every SSRF rejection) propagates from the client as its own error, uncaught
- *   here: those are not shape problems and must not be reported as though a different input would
- *   fix them.
- * @complexity One outbound HTTPS GET (plus up to `MEDIA_IMPORT_EGRESS_POLICY.maxRedirects` re-checked
- *   hops), then O(1) validation.
- */
-export async function fetchImage(deps: FetchImageDeps, input: { url: string }): Promise<FetchedImage> {
-  const url = parseImportUrl(input.url);
-
-  const response = await deps.httpClient.send({
-    method: "GET",
-    url: url.href,
-    headers: { Accept: "image/*, video/*" },
-    timeoutMs: MEDIA_IMPORT_TIMEOUT_MS,
-  });
-
-  if (response.status < 200 || response.status >= 300) {
-    throw buildStatusError(url, response.status);
-  }
-
-  const bytes = response.bodyBytes;
-  if (bytes === undefined) {
-    // Structurally unreachable in production — `transport.fetch.ts` always populates `bodyBytes`.
-    // Reachable only from a hand-written `HttpClientPort` double that predates that field, in which
-    // case failing loudly is correct: the alternative is re-deriving bytes from the LOSSY `bodyText`,
-    // which would store a UTF-8-mangled image and call it a success.
-    throw new MediaImportValidationError(
-      `the HTTP client returned no raw bytes for '${url.href}' — refusing to reconstruct image data from its lossy text decoding.`
-    );
-  }
-
-  // The BYTE half's own flag. The `??` fallback is for a client that reports only the coarse
-  // `bodyTruncated`: that names no shape, so it still has to count as "these bytes may be clipped".
-  // It cannot fire in production — `client.ts`'s `capResponse` always sets `bodyBytesTruncated`
-  // whenever it sets `bodyBytes`, and a response with no `bodyBytes` was already refused above.
-  const bytesTruncated = response.bodyBytesTruncated ?? response.bodyTruncated === true;
-
-  const contentType = validateImageBytes(url, bytes, bytesTruncated);
-  return { bytes, contentType, url: resolveSourceUrl(url, response.finalUrl) };
-}
-
-/**
- * The URL to record as an import's source: the final hop the client reports, when it reports one that
- * parses, and otherwise the URL that was requested.
- *
- * A client predating `HttpResponse.finalUrl` reports nothing, and a value that does not parse can
- * only come from a hand-written double — in both cases the requested URL is a true, if less precise,
- * answer. Neither blanking the field nor throwing is right: the bytes are good, and only their LABEL
- * was unavailable.
- *
- * @complexity O(n) in `reported.length`, once.
- */
-function resolveSourceUrl(requested: URL, reported: string | undefined): URL {
-  if (reported === undefined) return requested;
-  try {
-    return new URL(reported);
-  } catch {
-    return requested;
-  }
+export function validateImageBytes(
+  required: { source: URL | string; bytes: Uint8Array; bytesTruncated: boolean },
+  _optional: Record<string, never> = {},
+): string {
+  return validatePackageImageBytes({ ...IMPORT_POLICY, ...required });
 }

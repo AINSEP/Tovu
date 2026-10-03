@@ -3,11 +3,13 @@
  * generated-path exclusion, symlink exclusion, deny-list blocking, and hash stability.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { createHash } from "node:crypto";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import { contentHash } from "#src/features/publish-content/content-hash";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
@@ -41,21 +43,33 @@ test("packs one entity for a real theme tree, excluding generated paths, and lea
     assert.equal(entity.id, "static/basic");
     const files = (entity.state.files as { path: string }[]).map((f) => f.path);
     assert.deepEqual(files, ["render/pages/x.html", "theme.json"]);
+    assert.deepEqual(entity.requiredBlobs, [
+      createHash("sha256").update("<html></html>").digest("hex"),
+      createHash("sha256").update('{"id":"basic"}').digest("hex"),
+    ]);
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
 });
 
-test("hash is stable across two packs of the same unchanged tree", async () => {
+test("hash is stable for an unchanged tree and changes for edited bytes or a renamed file", async () => {
   const themesDir = makeThemesDir();
   try {
     const themeDir = path.join(themesDir, "static", "basic");
     mkdirSync(themeDir, { recursive: true });
     writeFileSync(path.join(themeDir, "theme.json"), '{"id":"basic"}');
 
+    mkdirSync(path.join(themeDir, "render/pages"), { recursive: true });
+    writeFileSync(path.join(themeDir, "render/pages/x.html"), "<h1>A</h1>");
     const first = await packThemeFilesEntities({ themesDir });
     const second = await packThemeFilesEntities({ themesDir });
     assert.equal(first.entities[0]!.contentHash, second.entities[0]!.contentHash);
+    writeFileSync(path.join(themeDir, "render/pages/x.html"), "<h1>B</h1>");
+    const edited = await packThemeFilesEntities({ themesDir });
+    assert.notEqual(edited.entities[0]!.contentHash, first.entities[0]!.contentHash);
+    renameSync(path.join(themeDir, "render/pages/x.html"), path.join(themeDir, "render/pages/y.html"));
+    const renamed = await packThemeFilesEntities({ themesDir });
+    assert.notEqual(renamed.entities[0]!.contentHash, edited.entities[0]!.contentHash);
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
@@ -127,6 +141,27 @@ test("a planted .env blocks the whole tree — no entity, reported in skipped", 
   }
 });
 
+test("a credential in theme CSS blocks packing and indexing the whole tree", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    const themeDir = path.join(themesDir, "static", "basic");
+    mkdirSync(themeDir, { recursive: true });
+    writeFileSync(path.join(themeDir, "theme.json"), '{"id":"basic"}');
+    writeFileSync(path.join(themeDir, "theme.css"), `body{} /* ${"sk-ant-" + "a".repeat(95)} */`);
+
+    const fileBlobIndex = createFileBlobIndex();
+    const { entities, skipped } = await packThemeFilesEntities({ themesDir, fileBlobIndex });
+    assert.deepEqual(entities, []);
+    assert.equal(fileBlobIndex.size, 0);
+    assert.deepEqual(skipped, [{
+      treeKey: "static/basic",
+      reason: 'Theme: static/basic was not published: "theme.css" looks like it holds a key (Anthropic API key (sk-ant-))',
+    }]);
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
 test("a .DS_Store (and other OS junk) is ignored during pack — never blocks the tree, never uploaded", async () => {
   const themesDir = makeThemesDir();
   try {
@@ -159,10 +194,21 @@ test("fills the file blob index as it packs, keyed by each file's real sha256", 
     writeFileSync(path.join(themeDir, "theme.json"), '{"id":"basic"}');
 
     const fileBlobIndex = createFileBlobIndex();
-    const { entities } = await packThemeFilesEntities({ themesDir, fileBlobIndex });
+    const handler = contributeThemeFilesPublish().build({
+      workspaceId: "ws1", clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      idGen: { newId: () => "id1" }, ports: { "theme-files": { themesDir, fileBlobIndex } },
+    });
+    const entities: PackedEntity[] = [];
+    for await (const entity of handler.pack()) entities.push(entity);
+    assert.equal(entities.length, 1);
+    assert.equal(entities[0].entityType, "theme-files");
+    assert.equal(entities[0].id, "static/basic");
+    assert.deepEqual(entities[0].requiredBlobs, [createHash("sha256").update('{"id":"basic"}').digest("hex")]);
     const sha256 = (entities[0]!.state.files as { path: string; sha256: string }[])[0]!.sha256;
     const indexed = fileBlobIndex.get(sha256);
     assert.ok(indexed);
+    assert.equal(fileBlobIndex.size, 1);
+    assert.equal(indexed.size, 14);
     assert.equal(indexed!.absPath, path.join(themeDir, "theme.json"));
   } finally {
     rmSync(themesDir, { recursive: true, force: true });

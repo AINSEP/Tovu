@@ -37,7 +37,7 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
  * A standalone map rather than a `keywords` field on each of the 21 domains' catalog entries. That
  * is an interim choice, made for a reason worth stating: the catalog-entry type is shared with
  * `@jini-ai/cms` (identity's catalog comes from there), so adding a field is a cross-package change,
- * and the FTS schema itself lives in `@jini-ai/sqlite` — both are symlinked packages consumed via
+ * and the FTS schema itself lives in `@jini-ai/sqlite-chat` — both are symlinked packages consumed via
  * `dist`, so both would need rebuilds to take effect. Everything here is Tovu-local and testable
  * today. If this proves out, the principled home is a `keywords` field on the catalog entry plus a
  * third FTS column, which is a strictly better design than appending to the indexed text.
@@ -52,6 +52,14 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
  * `unicode61` tokenizer, which does not stem, so "image" and "images" are different tokens.
  */
 export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
+  content_stats: "how many count number of posts pages articles statistics stats word count words long length percentage chart pie breakdown",
+  analytics_list_recent_hits: "analytics traffic visitors visits views page views hits who visited popular pages referrers where from recent",
+  system_get_mail_status: "email mail not arriving didn't get email sending configured smtp provider delivery magic link",
+  taxonomy_get_assigned_terms: "which tags categories does this post have assigned terms show tags of page",
+  media_list_providers: "image generation provider video generation which ai image provider configured set up api key openai replicate available list providers images videos",
+  media_propose_provider_credential: "add image generation key set up provider api key connect openai for images video videos credential configure save human form",
+  source_control_propose_credential: "connect github gitlab source control token save credential for commits backup repository credentials setup human form",
+
   identity_policy_list_permissions: "policy permissions permission rows grants resource constraints role access privileges what can role do inspect list read",
   sites_list: "local sites computer clients registry list folders serving active current queued pending restart switching disabled",
   publish_content_disconnect: "disconnect publishing live site connected destination stop computer forget grant undo connection",
@@ -67,12 +75,16 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   custom_credential_delete: "delete remove erase permanently saved custom provider credential credentials api key keys token tokens",
   deployment_delete_provider_credential: "delete remove erase permanently saved publish publishing host hosting deployment provider credential credentials token tokens",
   source_control_delete_credential: "delete remove erase permanently saved source control git repository credential credentials api key keys token tokens",
+  deployment_ops_status: "deploy deployment status is my app up running healthy fly fly.io machines github actions workflow run build ci passed failed",
+  deployment_ops_logs: "logs log output error why did deploy fail build failed crash fly github actions",
+  deployment_ops_wait: "wait until deployed finished done poll check again in a minute",
+  deployment_ops_list_targets: "list my fly apps which apps do I have deployments",
   domain_lookup_dns: "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
   domain_check_dns: "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
   domain_tls_status: "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
   // --- media -------------------------------------------------------------------------------
   media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
-  media_upload_asset: "image images photo upload uploads uploading add attach file files picture",
+  media_upload_asset: "image images photo upload uploads uploading add attach file files picture logo library uplaod",
   media_trash_asset: "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
   media_view_image:
     "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
@@ -80,7 +92,6 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
   media_promote_chat_attachment: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
-  media_import_local_file: "upload import add local file files computer disk downloads desktop folder folders video videos image images photo photos to media library my mac hero mp4 logo theme",
   // 2026-09-06 — the incident this tool exists for was a DISCOVERY failure as much as a capability
   // one: the assistant was holding a CloudFront URL for an image it had just generated and reported
   // there was "no import-by-URL tool". Whatever an operator (or a model) calls the act of pointing at
@@ -89,6 +100,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // online, elsewhere) — none of which the tool's own description happens to use in every form.
   // Singulars AND plurals spelled out: the FTS5 `unicode61` tokenizer does not stem (see this file's
   // header), so "url" and "urls" are unrelated tokens.
+  media_import_local_file: "upload import add local file files computer disk downloads desktop folder folders video videos image images photo photos to media library my mac hero mp4 logo theme",
   media_import_from_url: "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
 
   // --- webhooks (formerly integrations) -----------------------------------------------------
@@ -162,6 +174,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- newsletter ----------------------------------------------------------------------------
   newsletter_list_subscriptions: "signed up subscriber subscribers mailing list audience joined email list who",
   newsletter_cancel_campaign: "stop cancel kill abort email campaign newsletter send going out",
+  newsletter_send_test: "newsletter email campaign test preview send myself site owner only proof inbox",
+  newsletter_send_campaign: "newsletter send now launch issue subscribers mailing list email everyone blast deliver announcement",
+  newsletter_schedule_campaign: "newsletter schedule campaign scheduled date time tomorrow later future issue email send",
+  newsletter_resume_campaign: "newsletter resume paused continue sending restart delivery remaining campaign email mailing list",
   newsletter_pause_campaign: "pause hold stop email campaign newsletter sending",
   newsletter_create_campaign: "email campaign newsletter blast send announcement compose",
   newsletter_list_campaigns: "email campaigns newsletters sent scheduled drafts list",
@@ -246,6 +262,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
+  marketplace_list_themes: "theme themes marketplace browse new theme find a theme gallery templates designs available",
+  theme_install_from_marketplace: "install theme download theme add theme get new theme use a different design",
+  theme_rescan: "rescan themes refresh themes new theme folder not showing reload themes",
   // "fs_list_files"/"fs_read_file" added 2026-09-14 (SPEC-053): the owner dropped a folder and asked
   // "whats in this folder?", and the model said it had no filesystem tool — neither had an entry here.
   fs_list_files: "folder directory local computer machine desktop dropped path browse inside contents list files explore",
@@ -257,7 +276,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // are left in place rather than removed — they still describe a real, working composition, and
   // `tool-search-keywords.theme-copy.test.ts` pins them — but a model should now be routed to the
   // real, purpose-built tool first.
-  theme_reset_file: "theme file reset restore revert original undo pristine default discard changes modified changed",
+  theme_reset_file: "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",
   theme_rename_file: "theme file rename renaming move name change filename css template stylesheet",
   theme_copy_file: "theme file copy duplicate clone branch variant new name",
   theme_trash_file: "theme file delete remove trash soft delete",
@@ -300,7 +319,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",
   content_post_list: "post posts blog articles list all recent copy duplicate clone",
   content_post_create: "post blog article write new create draft copy duplicate clone",
-  content_post_update: "post blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish",
+  content_post_update: "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
   content_post_delete: "post blog article delete remove trash",
   content_post_get: "post page article lookup find fetch read single one by id details specific copy duplicate clone",
   // 2026-09-07 — added the same day as the tool itself (page-tool-gap dispatch). Phrased from the
@@ -350,11 +369,11 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   settings_get_raw: "setting raw value layer global workspace user default unresolved debug",
   settings_set_ui_preference: "preference language theme accent color notification sounds personal admin ui my settings",
   settings_list_ui_locales: "supported available languages locale codes admin interface UI menus labels Spanish Portuguese pt-BR Italian Polish German English switch change language translation options",
-  // settings_set, settings_clear, settings_reset, and settings_register_definitions are deliberately
-  // UNWIRED (never agent-callable — generic/bulk/schema-level settings access, see file header).
+  settings_set_value: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable",
+  settings_clear_value: "reset setting back to default clear override undo setting",
+  // settings_reset and settings_register_definitions remain deliberately
+  // UNWIRED (never agent-callable — bulk/schema-level settings access, see file header).
   // Entries added for consistency, same reasoning as backup_execute_restore above.
-  settings_set: "setting settings set change value update configure raw key",
-  settings_clear: "setting settings clear reset remove value revert back to default delete unset",
   settings_reset: "setting settings reset all defaults wipe clear everything bulk namespace",
   settings_register_definitions: "setting settings definition definitions register schema rename change type deprecate add new remove",
 
@@ -436,7 +455,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // from "capability"/"capabilities" already listed here — the adjective form was simply missing.
   site_describe_capabilities: "describe_site_capabilities capabilities capability capable what can this site do features abilities possible available tools admin screens content types",
   site_collect_page_evidence: "evidence audit check compliance verify rendered really does prove tracking consent",
-  fetch_published_page: "check live page visitor sees rendered output verify loads works test does it work",
+  fetch_live_url: "live site production deployed check live is it updated did it publish public website domain online real site compare local",
+  content_post_preview: "preview draft before publishing how will it look render template unpublished see page unsaved edits",
+  fetch_published_page: "check local page visitor sees rendered output verify loads works test does it work find text on page search page contains visible text markup",
 
   // --- ask the administrator a question -----------------------------------------------------------------
   assistant_ask_choice:
@@ -473,8 +494,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   trash_item: "delete remove get rid of menu menus submission submissions form entry entries spam navigation nav header footer delete menu remove menu delete menus remove menus",
   // The report's strings for these two also had "push"; dropped, because it outranked
   // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
-  publish_content_status: "changes live go live update live site not updating",
+  publish_content_status: "push changes live is my site set up to publish publishing setup readiness changes live go live update live site not updating",
   publish_content_connect: "changes live go live",
+  publish_content_plan_pull: "pull download bring back sync from live copy live content down to local get changes from live site",
+  publish_content_execute_pull: "apply pull overwrite local with live confirm sync",
 
   // --- custom-credentials (2026-09-01) ------------------------------------------------------------------
   // Added the same day as `custom_credential_list` itself, after `custom_credential_verify`/

@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file `widget_area` entry CRUD + whole-document placement mutation + the derived binding-table
  * reconcile step (SPEC-043 REQ-11..17; ADR-047 Debate Fold-In Amendment 1).
@@ -17,7 +18,8 @@
  * Architectural role:
  * `widgets` domain logic (implementation outline C-006).
  */
-import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
@@ -162,7 +164,7 @@ export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<
       workspaceId: input.workspaceId,
       regionKey: input.regionKey,
       areaEntryId: entry.id,
-      updatedAt: deps.clock.nowIso(),
+      updatedAt: clockNowIso({ clock: deps.clock }),
     });
 
     return { areaEntry: toWidgetAreaEntry(entry) };
@@ -266,7 +268,7 @@ export async function mutateWidgetAreaPlacements(
       workspaceId: input.workspaceId,
       regionKey: currentPayload.regionKey,
       areaEntryId: result.value.entry.id,
-      updatedAt: deps.clock.nowIso(),
+      updatedAt: clockNowIso({ clock: deps.clock }),
     });
 
     return { areaEntry: toWidgetAreaEntry(result.value.entry) };
@@ -302,8 +304,8 @@ export interface ReconcileWidgetRegionBindingsRequired {
 export async function reconcileWidgetRegionBindings(required: ReconcileWidgetRegionBindingsRequired): Promise<void> {
   const { deps, input } = required;
 
-  const areaEntries = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_AREA_CONTENT_TYPE });
-  const now = deps.clock.nowIso();
+  const areaEntries = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId }, { type: WIDGET_AREA_CONTENT_TYPE });
+  const now = clockNowIso({ clock: deps.clock });
 
   const byRegion = new Map<WidgetRegionKey, WidgetRegionBindingRow>();
   for (const entry of areaEntries) {

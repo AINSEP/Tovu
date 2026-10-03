@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -20,7 +20,7 @@ import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations
  * Root cause: `requirePostKind`/`requirePostStatus` (`tool-registrations.ts`) threw a bare
  * `Error` instead of `@jini-ai/core`'s `ToolInputError`. `@jini-ai/daemon`'s `ToolExecutor`
  * only tags a rejection `errorKind: 'validation'` (→ 400) when it is `instanceof ToolInputError`;
- * every other throw is `'internal'` and `@jini-ai/http-kit`'s `delegatedToolExecuteRoute`
+ * every other throw is `'internal'` and `@jini-ai/daemon/http`'s `delegatedToolExecuteRoute`
  * SEC-005-redacts that into a message-stripped `INTERNAL_ERROR`. `requireString` (from
  * `@jini-ai/cms/core`, used elsewhere in this same file) already threw `ToolInputError` — this
  * bug was two ad-hoc validators skipping that shared marker, not a transport defect. Mirrors
@@ -39,7 +39,7 @@ async function delegatedHarness() {
   const postRepo = new InMemoryPostRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),
@@ -60,7 +60,7 @@ async function delegatedHarness() {
     version: 1,
   } as never);
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }

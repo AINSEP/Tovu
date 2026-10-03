@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, shapePageBody, type PageBodyOptions, type ShapedPageBody } from "./page-body.js";
 import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
@@ -53,11 +54,7 @@ import type { SitePathCheck } from "#src/platform/routing/index";
  *   pathologically large route cannot be turned into a memory-exhaustion lever.
  */
 
-/** Body bytes returned when the caller does not ask for a different cap. */
-export const DEFAULT_MAX_BODY_BYTES = 200_000;
-
-/** Hard ceiling on `maxBytes`, whatever the caller asks for. */
-export const MAX_MAX_BODY_BYTES = 1_000_000;
+export { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "./page-body.js";
 
 /** Longest path string accepted before validation even begins. */
 export const MAX_PATH_LENGTH = 2_048;
@@ -86,7 +83,7 @@ export interface PublishedPageCookieShape {
   attributes: string[];
 }
 
-export interface PublishedPageResult {
+export interface PublishedPageMetadata {
   /** The canonical path actually requested, after normalization — not the raw caller string. */
   path: string;
   status: number;
@@ -100,8 +97,9 @@ export interface PublishedPageResult {
   bodyBytes: number;
   /** `true` when the cap stopped the read before the response ended. */
   truncated: boolean;
-  body: string;
 }
+
+export type PublishedPageResult = Omit<PublishedPageMetadata, "bodyBytes" | "truncated"> & ShapedPageBody;
 
 export interface FetchPublishedPageDeps {
   /**
@@ -125,7 +123,7 @@ export interface FetchPublishedPageDeps {
   createSiteApp(routeDeps: unknown): RequestListener;
 }
 
-export interface FetchPublishedPageOptions {
+export interface FetchPublishedPageOptions extends PageBodyOptions {
   /** Body bytes to keep, clamped to `[1, MAX_MAX_BODY_BYTES]`. */
   maxBytes?: number | undefined;
   /** Wall clock for the whole call. */
@@ -466,7 +464,10 @@ export async function fetchPublishedPage(
       if (key.toLowerCase() !== "set-cookie") headers[key.toLowerCase()] = value;
     });
 
-    const { body, bodyBytes, truncated } = await readBoundedBody(response, maxBytes);
+    const raw = await readBoundedBody(response, options.textOnly || options.find !== undefined ? MAX_MAX_BODY_BYTES : maxBytes);
+    // Preserve exact byte accounting/decoding for legacy reads, including split UTF-8.
+    const legacy = !options.textOnly && options.find === undefined;
+    const shaped = legacy ? raw : shapePageBody(raw.body, { ...options, maxBytes });
 
     return {
       path,
@@ -474,9 +475,9 @@ export async function fetchPublishedPage(
       ok: response.status >= 200 && response.status < 300,
       headers,
       cookies: toCookieShapes(response.headers),
-      bodyBytes,
-      truncated,
-      body,
+      ...shaped,
+      bodyBytes: legacy ? raw.bodyBytes : shaped.bodyBytes,
+      truncated: raw.truncated || shaped.truncated,
     };
   } finally {
     server.closeAllConnections?.();

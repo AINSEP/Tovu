@@ -71,13 +71,13 @@ export const MCP_UI_MIME_TYPE: UIResourceMimeType = "text/html;profile=mcp-app";
  *
  * Tovu does not use the template-registration flow (it returns the resource inline in the tool
  * result, the original mcp-ui shape, because Tovu's `ToolDescriptor` shim has no `_meta` field to
- * carry a template reference). The constant is exported anyway so the day Tovu registers UI
- * templates as MCP resources, the key is already the spec's rather than a fresh guess.
+ * carry a template reference). The unused constant was exported in anticipation of template registration. The standard
+ * key remains documented here so a future implementation does not guess it.
  */
-export const MCP_UI_RESOURCE_URI_META_KEY = "ui/resourceUri";
+// MCP_UI_RESOURCE_URI_META_KEY (apps/website/src/assistant/mcp-ui.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** `UI_METADATA_PREFIX` from `@mcp-ui/server` — namespace for mcp-ui's own resource `_meta` hints. */
-export const MCP_UI_METADATA_PREFIX = "mcpui.dev/ui-";
+// MCP_UI_METADATA_PREFIX (apps/website/src/assistant/mcp-ui.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** The text-bearing UI resource body (mcp-ui's `HTMLTextContent`). Tovu never emits the `blob` variant. */
 export interface UIResourceContent {
@@ -115,10 +115,10 @@ export type UIActionResult =
   | { messageId?: string; type: "notify"; payload: { message: string } };
 
 /** The host→iframe acknowledgement mcp-ui's client sends for any action carrying a `messageId`. */
-export const UI_MESSAGE_RECEIVED = "ui-message-received";
+// UI_MESSAGE_RECEIVED (apps/website/src/assistant/mcp-ui.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** The host→iframe result mcp-ui's client sends once its `onUIAction` callback settles. */
-export const UI_MESSAGE_RESPONSE = "ui-message-response";
+// UI_MESSAGE_RESPONSE (apps/website/src/assistant/mcp-ui.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
  * mcp-ui's `createUIResource({ uri, content: { type: 'rawHtml', htmlString }, encoding: 'text' })`,

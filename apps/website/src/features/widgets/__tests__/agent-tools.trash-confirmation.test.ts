@@ -28,7 +28,7 @@ function makeDeps(options: { allow?: boolean; entryRepo?: TrashAwareInMemoryEntr
   const authorize = options.allow === false ? (async () => ({ allowed: false, reason: "insufficient_permission" as const })) : PRE_AUTHORIZED;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo: trash.entryRepo,

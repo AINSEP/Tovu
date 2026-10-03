@@ -1,7 +1,7 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "#src/assistant/index";
-import type { UUID, ISODateTime } from "@jini-ai/cms/core";
+import type { UUID, ISODateTime } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../content-kernel.js";
 import type { AdminExecutionCredentialsTable } from "../content-database.generated.js";
 

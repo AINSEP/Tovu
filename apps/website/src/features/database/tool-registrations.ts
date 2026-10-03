@@ -1,3 +1,4 @@
+import type { Clock } from "@jini-ai/core/primitives";
 /**
  * @file Database's half of ADR-049 Decision 4 (SPEC-017/ADR-041): maps the wireable subset of
  * `agent-tools.ts`'s nine catalog entries onto the timeline/restore-point/introspection reads and
@@ -18,23 +19,9 @@
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
-import {
-  type AuthorizeFn,
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  optionalBoolean,
-  optionalNumber,
-  optionalString,
-  requireInputRecord,
-  requireNoInput,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { createDatabaseReadTools, type InputReaders } from "@jini-ai/db/tools";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
@@ -56,12 +43,10 @@ import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { executeMigrateForward } from "./migrate-forward/execute.js";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
 import {
-  createRestorePoint as createDatabaseRestorePoint,
-  listRestorePoints,
   type RestorePointListPort,
   type RestorePointSavePort,
 } from "./restore-points.js";
-import { getTimeline, type LedgerReadPort } from "./timeline.js";
+import type { LedgerReadPort } from "./timeline.js";
 
 /**
  * The exact slice of the route-deps bag Database's tool handlers read. Declared structurally
@@ -75,7 +60,7 @@ import { getTimeline, type LedgerReadPort } from "./timeline.js";
 export interface DatabaseToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
   databaseLedgerRepo: LedgerReadPort & LedgerAppendPort;
   restorePointsRepo: RestorePointListPort & RestorePointSavePort;
@@ -93,7 +78,7 @@ export interface DatabaseToolDeps {
  * read handler in this file already runs.
  */
 
-const CATALOG_BY_ID = indexCatalogById(getDatabaseAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getDatabaseAgentToolCatalog() });
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -151,51 +136,18 @@ export function buildDatabaseRegistrations(
       databaseLedgerRepo: routeDeps.databaseLedgerRepo,
     }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
 
+  const portable = createDatabaseReadTools({
+    readers: databaseInputReaders,
+    workspaceId: routeDeps.workspaceId, introspection: routeDeps.databaseIntrospection,
+    ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
+    dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
+    requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
+  });
   const handlers: Record<string, ToolHandler> = {
-    database_query_timeline: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
-      const input = isRecord(ctx.input) ? ctx.input : {};
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database-ledger" });
-
-      return getTimeline({
-        ledger: routeDeps.databaseLedgerRepo,
-        filter: {
-          kind: optionalString(input, "kind"),
-          outcome: optionalString(input, "outcome"),
-          fromDate: optionalString(input, "fromDate"),
-          toDate: optionalString(input, "toDate"),
-          cursor: optionalString(input, "cursor"),
-          limit: optionalNumber(input, "limit"),
-        },
-      });
-    },
-
-    database_list_restore_points: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "restore-point" });
-      return listRestorePoints({ repo: routeDeps.restorePointsRepo });
-    },
-
-    database_get_health: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
-      return routeDeps.databaseIntrospection.getHealth();
-    },
-
-    database_get_schema_state: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
-      return routeDeps.databaseIntrospection.getSchemaState();
-    },
-
-    database_list_pending_migrations: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
-      return routeDeps.databaseIntrospection.listPendingMigrations();
-    },
+    ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
 
     database_plan_migrate_forward: async (ctx) => {
-      requireNoInput(ctx.input);
+      requireNoInput({ input: ctx.input });
       // No explicit pre-check here: `gateway.ts`'s plan() calls authorize() unconditionally,
       // BEFORE hooks.computePlan() ever runs — verified directly against its body (see
       // `databaseDerivedRisk`'s comment for this tool). Adding a second check here would be the
@@ -218,53 +170,16 @@ export function buildDatabaseRegistrations(
       });
     },
 
-    backup_create_restore_point: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
-      const input = isRecord(ctx.input) ? ctx.input : {};
-      const costAck = optionalBoolean(input, "costAck");
 
-      // `createRestorePoint` (restore-points.ts) has no authorize() call of its own — the real HTTP
-      // route (`routes/admin/database/restore-points.ts`) authorizes inline before calling it, so
-      // this handler does the identical inline check.
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "backup.create", entityType: "restore-point" });
-
-      const capabilities = await routeDeps.dbOps.getCapabilities();
-      let captured: { artifactRef: string; watermarkAtCapture: number } | undefined;
-
-      const summary = await createDatabaseRestorePoint({
-        costClass: capabilities.restorePoint.costClass,
-        costAck: costAck ?? false,
-        capture: async () => {
-          captured = await routeDeps.dbOps.captureRestorePoint({ scopeId: routeDeps.workspaceId });
-          return captured;
-        },
-      });
-
-      await routeDeps.restorePointsRepo.save({
-        restorePointId: summary.id,
-        idempotencyKey: routeDeps.idGen.newId(),
-        // Always 'manual' — an agent call is never the system's own pre-migration/template-upgrade
-        // auto-snapshot, regardless of what a caller might ask for, so provenance in the ledger can
-        // never be mislabeled (see `features/database/agent-tools.ts`'s own schema comment).
-        trigger: "manual",
-        createdAt: routeDeps.clock.nowIso(),
-        createdBy: ctx.principal.id,
-        costClass: summary.costClass,
-        kind: summary.kind,
-        watermarkAtCapture: captured?.watermarkAtCapture ?? null,
-        artifactRef: captured?.artifactRef,
-      });
-
-      return { restorePoint: summary };
-    },
+    backup_create_restore_point: portable.find(tool => tool.descriptor.id === "backup_create_restore_point")!.handler,
 
     // Plans as the agent, asks the human, then confirms as the human and executes as the agent
     // inside the same operation lock and cost-class refusal the admin execute route uses.
     [MIGRATE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
       prepare: async (ctx) => {
-        refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord(ctx.input), []);
-        await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.migrate", entityType: "database" });
+        refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), []);
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "database.migrate" }, { entityType: "database" });
         const hooks = migrateHooks(ctx.principal.id);
         const plan = await gatewayPlan({
           deps: routeDeps.gatedMutations.gatewayDeps,
@@ -274,9 +189,7 @@ export function buildDatabaseRegistrations(
         });
         const costClass = (plan.details as { costClass: "cheap" | "expensive" | "unavailable" }).costClass;
         if (costClass === "unavailable") {
-          throw new ToolInputError(
-            "DATABASE_RESTORE_POINT_UNAVAILABLE: this site can't take a restore point, so the database update is refused. Nothing was changed.",
-          );
+          throw new ToolInputError({ message: "DATABASE_RESTORE_POINT_UNAVAILABLE: this site can't take a restore point, so the database update is refused. Nothing was changed." });
         }
         return { hooks, plan, costClass };
       },
@@ -323,8 +236,7 @@ export function buildDatabaseRegistrations(
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: databaseDerivedRisk,
-    unwiredToolIds: UNWIRED_DATABASE_TOOL_IDS,
-  });
+  }, { unwiredToolIds: UNWIRED_DATABASE_TOOL_IDS });
 }
 
 /**
@@ -361,3 +273,12 @@ export function buildDatabaseRegistrations(
 export function contributeDatabaseTools(): ToolContributor {
   return { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk };
 }
+
+/** Host kit is the validation authority; factories receive the same reader behavior through ports. */
+const databaseInputReaders: InputReaders = {
+  isRecord: (input): input is Record<string, unknown> => isRecord({ value: input }), inputRecord: input => requireInputRecord({ input }), noInput: input => requireNoInput({ input }),
+  string: (input, key) => requireString({ input, key }),
+  optionalString: (input, key) => optionalString({ input, key }),
+  optionalNumber: (input, key) => optionalNumber({ input, key }),
+  optionalBoolean: (input, key) => optionalBoolean({ input, key }),
+};

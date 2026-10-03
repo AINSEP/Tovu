@@ -652,7 +652,7 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       const { blob } = resolved;
 
       const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
-      const sniffed = sniffContentType(bytes);
+      const sniffed = sniffContentType({ bytes });
       if (!sniffed.startsWith("video/")) {
         // Not a video asset (or an unrecognized/corrupt one) — this route only ever serves video;
         // everything else's public URL is `registerMediaRenditionRoute`'s transform-backed one.

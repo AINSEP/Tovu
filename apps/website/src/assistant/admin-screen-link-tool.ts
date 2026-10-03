@@ -1,13 +1,4 @@
-import {
-  buildDomainRegistrations,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -175,7 +166,7 @@ const CATALOG_BY_ID = new Map(adminScreenLinkAgentToolCatalog.map((entry) => [en
 export function buildAdminScreenPath(input: { path: string; tab?: string }): string {
   const segment = input.path.trim().replace(/^\/+/, "");
   if (segment.length === 0) {
-    throw new ToolInputError("'path' must name a screen segment, not just a leading slash");
+    throw new ToolInputError({ message: "'path' must name a screen segment, not just a leading slash" });
   }
   const tab = input.tab?.trim();
   const query = tab ? `?tab=${encodeURIComponent(tab)}` : "";
@@ -224,9 +215,9 @@ function resolveConfiguredPublicOrigin(): string | undefined {
 export function buildAdminScreenLinkRegistrations(_routeDeps: unknown, _surfaces: unknown): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [ADMIN_SCREEN_LINK_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const path = requireString(input, "path");
-      const tab = optionalString(input, "tab");
+      const input = requireInputRecord({ input: ctx.input });
+      const path = requireString({ input: input, key: "path" });
+      const tab = optionalString({ input: input, key: "tab" });
       const relativePath = buildAdminScreenPath(tab === undefined ? { path } : { path, tab });
       const origin = resolveConfiguredPublicOrigin();
       return origin === undefined ? { path: relativePath } : { path: relativePath, url: `${origin}${relativePath}` };

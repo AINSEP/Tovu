@@ -3,7 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-import { PEM_PATTERN_NAME, SECRET_PATTERNS, type SecretPattern } from "../../contracts/core/secret-patterns.js";
+import { PEM_PATTERN_NAME, SECRET_PATTERNS, type SecretPattern } from "@jini-ai/diagnostics/redaction/secrets-only";
 export { SECRET_PATTERNS, type SecretPattern };
 
 /**
@@ -74,6 +74,22 @@ export { SECRET_PATTERNS, type SecretPattern };
  * Usage: npx tsx apps/website/src/features/webhooks/secret-scan-guard.ts
  * Exit codes: 0 = no un-allowlisted credential-shaped string found in any tracked file. 1 = at
  *             least one was found.
+ *
+ * The credential-shape vocabulary shared by `features/webhooks/secret-scan-guard.ts` (the
+ * repo-wide static check) and `contracts/core/secret-redaction.ts` (the runtime tool-failure
+ * redactor, 2026-09-16).
+ *
+ * Originally moved out of `secret-scan-guard.ts` rather than imported from it, because that file
+ * runs `import.meta.dirname` and `pathToFileURL(process.argv[1])` at module top level (its own
+ * `main()` guard) — importing a CLI check into the daemon/API runtime risks a boot crash wherever
+ * `process.argv[1]` is not the check script itself. `contracts/core` must also not depend on
+ * `features/`; the shared, dependency-free catalog now lives in Jini core `redact.ts`. The
+ * guard re-imports and re-exports them, so its own scan behavior (and `npm run check:secret-scan`)
+ * is unchanged.
+ *
+ * Character classes intentionally match each vendor's real alphabet — see `secret-scan-guard.ts`'s
+ * own file header for why every exact-length pattern is lookaround-anchored rather than a bare
+ * `{n}`, and why a fixed-length format like Google's needs the exact-length trap guarded against.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..");

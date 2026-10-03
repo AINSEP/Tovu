@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file `MembersWriteService` implementation (ADR-030 §3/§6).
  *
@@ -164,7 +165,7 @@ async function requestSignInLink(required: {
 }): Promise<{ delivered: true }> {
   const { deps, input } = required;
   const email = assertValidEmail(input.email);
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
 
   const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso });
   if (!member) {
@@ -238,7 +239,7 @@ async function completeSignIn(required: {
   input: { workspaceId: string; token: string; userAgent?: string; ip?: string };
 }): Promise<{ member: MemberRecord; session: MemberSessionRecord; rawSessionToken: string }> {
   const { deps, input } = required;
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const tokenHash = hashToken(input.token);
 
   const tokenRecord = await deps.magicLinks.findByTokenHash({
@@ -329,7 +330,7 @@ async function updateProfile(required: {
     ...existing,
     name,
     note,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: clockNowIso({ clock: deps.clock }),
     version: existing.version + 1,
   };
   await deps.members.save(member);
@@ -360,7 +361,7 @@ async function disableMember(required: {
     return { member: existing };
   }
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const member: MemberRecord = {
     ...existing,
     status: "disabled",
@@ -403,7 +404,7 @@ async function compSubscription(required: {
     throw new MemberValidationError(`tier '${input.tierId}' is archived and cannot accept new subscriptions`);
   }
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const activeSubscriptions = await deps.subscriptions.listActiveByMember({
     workspaceId: input.workspaceId,
     memberId: input.memberId,
@@ -460,7 +461,7 @@ async function setSubscriptionStatus(required: {
     throw new MemberValidationError(`'${input.status}' is not a valid subscription status`);
   }
 
-  const nowIso = deps.clock.nowIso();
+  const nowIso = clockNowIso({ clock: deps.clock });
   const subscription: MemberSubscriptionRecord = {
     ...existing,
     status: input.status,

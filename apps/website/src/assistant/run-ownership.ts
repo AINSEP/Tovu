@@ -95,7 +95,7 @@ function unknownRunBody(req: Request, runId: string): { error: { code: string; m
 /** `lifecycle.get` for a gate that must not throw into Express: a lookup failure counts as "exists", which denies. */
 async function runExists(lifecycle: Pick<RunLifecycle, "get">, runId: string): Promise<boolean> {
   try {
-    return (await lifecycle.get(runId)) !== undefined;
+    return (await lifecycle.get({ runId })) !== undefined;
   } catch {
     return true;
   }
@@ -170,7 +170,7 @@ export function createOwnedRunListHandler(deps: { lifecycle: RunLifecycle; regis
     }
 
     const contextRef = typeof req.query.contextRef === "string" ? req.query.contextRef : undefined;
-    const runs = await deps.lifecycle.list(contextRef);
+    const runs = await deps.lifecycle.list({}, { contextRef });
     res.json({ runs: runs.filter((run) => deps.registry.ownerOf(run.id) === callerId) });
   };
 }

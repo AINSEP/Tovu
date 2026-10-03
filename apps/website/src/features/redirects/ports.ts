@@ -21,7 +21,8 @@
  * in the same tx; bounded matching = the totality/bounded-cost trust primitive),
  * ADR-021 (permission strings enforced by the calling gateway, not the repo).
  */
-import type { DomainEvent, ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent } from "@jini-ai/cms/core";
 import type {
   ListRedirectsFilter,
   RedirectHitStats,

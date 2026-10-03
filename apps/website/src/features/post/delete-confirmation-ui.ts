@@ -26,7 +26,7 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
  *
  * ## 2026-08-04: the confirmation token is gone (ADR-055 Decision 2/3)
  *
- * This dialog used to carry a single-use secret (`assistant/pending-confirmations.ts`) that only the
+ * This dialog used to carry a single-use secret (in the former token store) that only the
  * rendered HTML held, because the delete used to be a SECOND tool call the model could otherwise
  * make itself, and the secret was what stood between "the model asks" and "the model completes it."
  *
@@ -43,10 +43,11 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
  * reaching the right in-flight call), not secrecy: leaking an exchange id lets a caller *name* a
  * pending call, not act on it, since only the browser can deliver to it.
  *
- * `pending-confirmations.ts`'s TTL/staleness property (a row edited between the dialog rendering and
+ * The former token store's TTL/staleness property (a row edited between the dialog rendering and
  * the click invalidates the confirmation) is NOT implied by this change and is not this module's
  * job — `tool-registrations.ts`'s handler re-checks the entity's version explicitly, right before
  * writing, now that there is no token binding to carry that check for it.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** What the dialog needs to describe the row truthfully. */

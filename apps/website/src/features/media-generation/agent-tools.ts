@@ -1,4 +1,4 @@
-import type { AgentToolSideEffect } from "@jini-ai/cms/core";
+import type { AgentToolSideEffect } from "@jini-ai/core";
 import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
@@ -64,7 +64,7 @@ export interface AgentToolDefinition {
  * catalogue's own signal, not a guess.
  */
 export const IMAGE_MODEL_IDS: readonly string[] = IMAGE_MODELS.filter(
-  (model) => findProvider(model.provider)?.integrated === true
+  (model) => findProvider({ id: model.provider })?.integrated === true
 ).map((model) => model.id);
 
 const GENERATE_SCHEMA = {

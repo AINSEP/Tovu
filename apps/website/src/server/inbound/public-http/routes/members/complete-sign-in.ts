@@ -29,8 +29,8 @@ function setMemberSessionCookie(res: Response, rawToken: string, expiresAtIso: s
 
 /** Enforces `MAGIC_LINK_COMPLETE_ATTEMPT` on this public route. Writes the 429 itself and returns
  *  whether the caller should proceed. @complexity O(1). */
-function checkCompleteSignInRateLimit(deps: MemberPublicRouteDeps, clientIp: string, res: Response): boolean {
-  const rateLimitResult = deps.magicLinkCompleteAttemptLimiter.check(clientIp);
+async function checkCompleteSignInRateLimit(deps: MemberPublicRouteDeps, clientIp: string, res: Response): Promise<boolean> {
+  const rateLimitResult = await deps.magicLinkCompleteAttemptLimiter.check({ key: clientIp });
   if (rateLimitResult.allowed) return true;
   res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
   res.status(429).json({
@@ -78,12 +78,12 @@ export function registerPublicMemberCompleteSignInRoute(app: Express, deps: Memb
       return;
     }
 
-    const clientIp = resolveClientIp(req);
-    if (!checkCompleteSignInRateLimit(deps, clientIp, res)) {
-      return;
-    }
-
     try {
+      const clientIp = resolveClientIp(req);
+      if (!(await checkCompleteSignInRateLimit(deps, clientIp, res))) {
+        return;
+      }
+
       const body = (req.body ?? {}) as Record<string, unknown>;
       const result = await completeSignIn({
         deps: toPublicMembersWriteServiceDeps(deps),

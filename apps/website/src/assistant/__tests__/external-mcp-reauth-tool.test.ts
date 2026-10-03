@@ -52,7 +52,7 @@ async function makeOAuthServerFixture(status: "needs_reauth" | "connected" = "ne
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-02T00:00:00.000Z" };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-02T00:00:00.000Z" };
 
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
@@ -92,7 +92,7 @@ async function makeOAuthServerFixture(status: "needs_reauth" | "connected" = "ne
  *  mocks) over the real `external_mcp_reauth_prompt` handler — same construction
  *  `mcp-ui-tool-calls-route.ask-choice.integration.test.ts` uses for its own tool. */
 function buildRealReauthToolExecutor(repo: InMemoryExternalMcpServerRepo, surfaceExchanges: SurfaceExchangeStore) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo }, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -114,16 +114,9 @@ test("an expired-token connection raises the re-auth surface, naming the server"
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID,
-    { id: SERVER_ID },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(emitted.length, 1, "the notice must be emitted before the call parks");
@@ -156,16 +149,9 @@ test("real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID,
-    { id: SERVER_ID },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1);
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
@@ -203,7 +189,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-02T00:00:00.000Z" };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-02T00:00:00.000Z" };
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
     {
@@ -223,7 +209,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
 
   const surfaceExchanges = createSurfaceExchangeStore();
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
-  const executed = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: "static-server" });
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: "static-server" } });
 
   assert.equal(executed.status, "failed");
   assert.match(executed.error ?? "", /does not use OAuth authorization/);
@@ -234,7 +220,7 @@ test("degrades to the existing terminal error when the connection does not exist
   const repo = new InMemoryExternalMcpServerRepo();
   const surfaceExchanges = createSurfaceExchangeStore();
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
-  const executed = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: "no-such-server" });
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: "no-such-server" } });
 
   assert.equal(executed.status, "failed");
   assert.match(executed.error ?? "", /is disconnected/);
@@ -248,12 +234,12 @@ test("idempotent under two concurrent failures for the SAME connection: only one
 
   const emittedA: SurfaceEmission[] = [];
   const emittedB: SurfaceEmission[] = [];
-  const callA = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-a" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+  const callA = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-a" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (e) => {
     emittedA.push(e);
-  });
-  const callB = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-b" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+  } });
+  const callB = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-b" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (e) => {
     emittedB.push(e);
-  });
+  } });
 
   // Let A open its exchange first (module-level `Set` check happens synchronously before any await
   // inside the handler, so ordering here is deterministic within one microtask flush).
@@ -290,12 +276,12 @@ test("a second admin's run for the same connection raises its own notice, not 'a
 
   const emittedA: SurfaceEmission[] = [];
   const emittedB: SurfaceEmission[] = [];
-  const callA = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-a" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+  const callA = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-a" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (e) => {
     emittedA.push(e);
-  });
-  const callB = toolExecutor.execute({ id: "principal-other-admin" }, { id: "run-b" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+  } });
+  const callB = toolExecutor.execute({ principal: { id: "principal-other-admin" }, run: { id: "run-b" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (e) => {
     emittedB.push(e);
-  });
+  } });
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(emittedA.length, 1);
@@ -316,9 +302,9 @@ test("cancelling the run closes the notice and clears the guard, so the next fai
 
   const controller = new AbortController();
   const emittedA: SurfaceEmission[] = [];
-  const callA = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-a" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, controller.signal, async (e) => {
+  const callA = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-a" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { signal: controller.signal, emitSurface: async (e) => {
     emittedA.push(e);
-  });
+  } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(surfaceExchanges.size(), 1);
   const staleExchangeId = exchangeIdFromEmission(emittedA[0]!);
@@ -330,9 +316,9 @@ test("cancelling the run closes the notice and clears the guard, so the next fai
   assert.deepEqual(late, { ok: false, reason: "unknown-or-closed" });
 
   const emittedB: SurfaceEmission[] = [];
-  const callB = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-b" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+  const callB = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-b" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (e) => {
     emittedB.push(e);
-  });
+  } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emittedB.length, 1, "the guard must be clear once the cancelled run's notice closed");
   surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
@@ -354,7 +340,7 @@ test("external_mcp_reauth_prompt called with no 'id' fails with errorKind 'valid
   const surfaceExchanges = createSurfaceExchangeStore();
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
-  const executed = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, {}, undefined, async () => {});
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: {} }, { emitSurface: async () => {} });
 
   assert.equal(executed.status, "failed");
   assert.equal(executed.errorKind, "validation", `expected 'validation', got ${JSON.stringify(executed)}`);

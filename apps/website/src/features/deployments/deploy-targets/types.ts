@@ -1,5 +1,5 @@
 import type { DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import type { DeployPublishInput, DeployTargetModule as DevopsDeployTargetModule, JsonObject } from "@jini-ai/devops/deploy";
+import type { DeployPublishInput, DeployPublishOptions, DeployTarget, DeployPublishResult, DeployTargetModule as DevopsDeployTargetModule, DeployHostKit as DevopsDeployHostKit, DeployTargetCreateContext as DevopsCreateContext, DeployCredentialCheckContext as DevopsCheckContext, DeployError, SigV4ClientOptions, UnknownRecord } from "@jini-ai/devops/deploy";
 
 /**
  * @file The host contract a deploy-target MODULE (shipped inside an Agent Plugin) is written against.
@@ -10,36 +10,69 @@ import type { DeployPublishInput, DeployTargetModule as DevopsDeployTargetModule
  * `DeployTarget`. Nothing in this file names a vendor.
  *
  * The injection contract itself (the kit, the credential, the create/check contexts, the response
- * header set) is `@jini-ai/devops/deploy`'s since 0.4.0 and is re-exported here unchanged. Only the
+ * header set) comes from `@jini-ai/devops/deploy` since 0.4.0. Only the
  * Tovu-specific module extras ({@link DeployTargetModule}'s `summarize`/`hostingSetup`) and the
- * plugin descriptor shapes are declared locally.
+ * plugin descriptor shapes are declared locally. The installed plugin ABI remains positional;
+ * the host kit adapts its helper calls to devops' object APIs so content-addressed installed
+ * packages need no rewrite when the library is rebuilt.
  */
 
 export type {
   DeployCredentialCheck,
-  DeployCredentialCheckContext,
   DeployFetchTimeouts,
-  DeployHostKit,
-  DeployTargetCreateContext,
   DeployTargetCredential,
   ResponseHeaderSet,
-  SigV4Client,
   SigV4ClientOptions,
 } from "@jini-ai/devops/deploy";
 
-/** devops' `DeployPublishInput`, which carries `responseHeaders` since 0.4.0. Kept as a name so
- *  existing call sites read unchanged. */
-export type HostDeployPublishInput = DeployPublishInput;
+/** Compatibility types for the standalone modules already installed on disk. */
+type LegacyReachabilityOptions = Omit<NonNullable<Parameters<DevopsDeployHostKit["checkDeploymentUrl"]>[1]>, "detectProtected"> & {
+  detectProtected?: (resp: Response, body: string) => boolean;
+};
+type LegacyWaitOptions = Omit<NonNullable<Parameters<DevopsDeployHostKit["waitForReachableDeploymentUrl"]>[1]>, "detectProtected"> & LegacyReachabilityOptions;
+export interface SigV4Client {
+  fetch(input: string, init?: RequestInit): Promise<Response>;
+  sign(input: string, init?: RequestInit): Promise<Request>;
+}
+export interface DeployHostKit {
+  fetch(url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response>;
+  readonly timeouts: DevopsDeployHostKit["timeouts"];
+  sleep(ms: number): Promise<void>;
+  checkDeploymentUrl(url: unknown, options?: LegacyReachabilityOptions): ReturnType<DevopsDeployHostKit["checkDeploymentUrl"]>;
+  waitForReachableDeploymentUrl(urls: unknown[], options?: LegacyWaitOptions): ReturnType<DevopsDeployHostKit["waitForReachableDeploymentUrl"]>;
+  normalizeDeploymentUrl(url: unknown): string;
+  safeDnsLabel(raw: unknown): string;
+  safeProjectLabel(raw: unknown, maxLength: number): string;
+  redirectGuardInit(init: RequestInit): RequestInit;
+  assertNotRedirected(resp: Response, providerLabel: string): void;
+  createSigV4Client(options: SigV4ClientOptions): SigV4Client;
+  readonly DeployError: new (message: string, status?: number, details?: DeployError["details"]) => DeployError;
+}
+export type DeployTargetCreateContext = Omit<DevopsCreateContext, "kit"> & { readonly kit: DeployHostKit };
+export type DeployCredentialCheckContext = Omit<DevopsCheckContext, "kit"> & { readonly kit: DeployHostKit };
+
+/** Installed modules receive publish options, including security headers, in their first object.
+ *  The static-publish boundary adapts devops' separate options object to this installed ABI. */
+export type HostDeployPublishInput = DeployPublishInput & DeployPublishOptions;
+
+/** The installed plugin ABI; the host adapts its publish method to the current devops port. */
+export interface HostDeployTarget extends Omit<DeployTarget, "publish"> {
+  publish(input: HostDeployPublishInput): Promise<DeployPublishResult>;
+}
 
 /**
  * A deploy-target module's default export: devops' {@link DevopsDeployTargetModule} plus two
  * Tovu-only extras. Only `create` is required; the rest have host defaults (no config errors, no
  * base path, no summary rows, no credential check, no hosting steps).
  */
-export interface DeployTargetModule extends DevopsDeployTargetModule {
+export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "create" | "validateConfig" | "basePath" | "verifyCredential"> {
+  create(context: DeployTargetCreateContext): HostDeployTarget;
+  validateConfig?(config: UnknownRecord): string | null;
+  basePath?(config: UnknownRecord): string | undefined;
+  verifyCredential?(context: DeployCredentialCheckContext): ReturnType<NonNullable<DevopsDeployTargetModule["verifyCredential"]>>;
   /** The confirmation/outcome card rows for `config`, when the host reads better than one row per
    *  config field (a repository as `owner/repo`, for example). */
-  summarize?(config: JsonObject): readonly { readonly label: string; readonly value: string }[];
+  summarize?(config: UnknownRecord): readonly { readonly label: string; readonly value: string }[];
   /** Steps the person applies in their own host console before the site is reachable (making a
    *  storage bucket public, for example). Pure: no request, no credential. `fields` are the non-secret
    *  credential fields the agent passed. Throws a plain `Error` with a person-facing message for a

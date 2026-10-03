@@ -3,60 +3,45 @@
  *
  * Purpose:
  * Test/dev double for the origin-setting store: one `VerifiedOrigin` per
- * workspace plus that workspace's redirect and egress allowlists. No SQLite
- * adapter exists yet (out of scope for this library-layer slice); this is the
- * only implementation of `OriginSettingRepoPort` for now.
+ * workspace plus that workspace's redirect and egress allowlists. SQL adapters remain host-owned; generic in-memory storage is delegated to Jini.
+ *
+ * Generic implementation and rationale: Jini packages/http-kit/src/verified-origin/repo.memory.ts.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import {
+  InMemoryOriginSettingRepo as JiniOriginSettingRepo,
+  type OriginSettingSeed,
+  type VerifiedOrigin,
+} from "@jini-ai/http-kit/verified-origin";
 import type { OriginSettingRepoPort } from "./ports.js";
-import { createVerifiedOrigin, type VerifiedOrigin } from "./types.js";
 
-/** One workspace's seed data for `InMemoryOriginSettingRepo`. */
-export interface OriginSettingSeed {
-  workspaceId: UUID;
-  origin: VerifiedOrigin;
-  /** Exact-match hosts allowed as cross-origin redirect targets. */
-  redirectAllowlist?: string[];
-  /** Exact-match hosts allowed as third-party egress destinations. */
-  egressAllowlist?: string[];
-}
+export type { OriginSettingSeed } from "@jini-ai/http-kit/verified-origin";
 
+// Workspace-seed/host-allowlist rationale: Jini/packages/http-kit/src/verified-origin/repo.memory.ts.
 /**
  * In-memory `OriginSettingRepoPort`. Seed it with one entry per workspace;
  * e.g. for local dev/tests, seed `{ scheme: "https", host: "localhost",
  * port: 3000, source: "dev-capability", verifiedAt: <now> }` as the
  * workspace's dev-capability origin.
+ *
+ * Translate Tovu scalar repository calls into Jini object arguments.
+ * Jini owns normalization, validation and defensive copies; SQL repositories keep their contract.
  */
 export class InMemoryOriginSettingRepo implements OriginSettingRepoPort {
-  private readonly origins: Map<UUID, VerifiedOrigin>;
-  private readonly redirectAllowlists: Map<UUID, string[]>;
-  private readonly egressAllowlists: Map<UUID, string[]>;
+  private readonly repo: JiniOriginSettingRepo;
 
   constructor(seeds: OriginSettingSeed[] = []) {
-    this.origins = new Map();
-    this.redirectAllowlists = new Map();
-    this.egressAllowlists = new Map();
-
-    for (const seed of seeds) {
-      this.origins.set(seed.workspaceId, createVerifiedOrigin(seed.origin));
-      this.redirectAllowlists.set(seed.workspaceId, normalizeHostList(seed.redirectAllowlist));
-      this.egressAllowlists.set(seed.workspaceId, normalizeHostList(seed.egressAllowlist));
-    }
+    this.repo = new JiniOriginSettingRepo({ seeds });
   }
 
-  async findByWorkspaceId(workspaceId: UUID): Promise<VerifiedOrigin | null> {
-    return this.origins.get(workspaceId) ?? null;
+  findByWorkspaceId(workspaceId: string): Promise<VerifiedOrigin | null> {
+    return this.repo.findByWorkspaceId({ workspaceId });
   }
 
-  async findRedirectAllowlist(workspaceId: UUID): Promise<string[]> {
-    return this.redirectAllowlists.get(workspaceId) ?? [];
+  findRedirectAllowlist(workspaceId: string): Promise<string[]> {
+    return this.repo.findRedirectAllowlist({ workspaceId });
   }
 
-  async findEgressAllowlist(workspaceId: UUID): Promise<string[]> {
-    return this.egressAllowlists.get(workspaceId) ?? [];
+  findEgressAllowlist(workspaceId: string): Promise<string[]> {
+    return this.repo.findEgressAllowlist({ workspaceId });
   }
-}
-
-function normalizeHostList(hosts: string[] | undefined): string[] {
-  return (hosts ?? []).map((host) => host.trim().toLowerCase());
 }

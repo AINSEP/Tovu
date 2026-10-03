@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import Database from "better-sqlite3";
-import { CHAT_HISTORY_DDL } from "@jini-ai/sqlite";
+import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
 import { createChatStoreFactory, createInMemoryChatStoreFactory } from "../store-factory.js";
 import type { AdminChatPrincipal } from "../tenant-scope.js";

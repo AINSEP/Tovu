@@ -260,16 +260,24 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
     // install that holds grants for several publishers answers each one from its own grant and
     // never from a neighbour's.
     //
-    // Neither read throws: the grant resolver reports a failure as an `invalid` resolution, and the
-    // revocation source reports an unreadable file as `ok: false`. Both arrive at `admitPublish` as
+    // The grant resolver reports a failure as an `invalid` resolution, and the revocation source
+    // reports an unreadable file as `ok: false`. Both arrive at `admitPublish` as
     // "no", so a broken store is a 401 here and never a 500 — a 500 would be an oracle for whether
     // a token parsed, and for the deny store it would also be a bypass if it were caught wrongly.
     //
     // The two reads happen before the decision, but they do not MAKE it: `admitPublish` refuses a
     // disconnected computer before it consults the grant at all, which is what keeps "disconnect
     // works even while the grant config is broken" true. Resolving the grant early is inert.
-    const revocations = await deps.revocations();
-    const resolution = await deps.grants();
+    let revocations: RevocationRead;
+    let resolution: PublishTrustResolution;
+    try {
+      revocations = await deps.revocations();
+      resolution = await deps.grants();
+    } catch {
+      // Preserve the same fail-closed refusal if a source rejects instead of returning its contract.
+      res.status(401).json(UNAUTHENTICATED_BODY);
+      return;
+    }
 
     const admission = admitPublish({
       resolution,

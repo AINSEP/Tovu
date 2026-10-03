@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 3 Forms tools, the union of what
  * `tool-registrations.contracts.test.ts` and `tool-registrations.authorization.test.ts` cover for
@@ -16,22 +18,28 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
-import { formsAgentToolCatalog, type AgentToolDefinition } from "../../features/forms/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../../features/forms/types.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeFormsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeFormsTools() });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -49,7 +57,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => { order.push("outbox.enqueue"); } },
@@ -105,7 +113,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function formsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("forms_") || r.descriptor.id === "content_read.form_definition")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -289,13 +297,13 @@ test("the real Forms catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.form_definition" || id === "content_read.collection_content_type") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Forms catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("forms_create_definition", { ...catalogEntry("forms_create_definition"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("forms_create_definition", { ...catalogEntry("forms_create_definition"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

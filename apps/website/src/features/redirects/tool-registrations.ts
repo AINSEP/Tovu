@@ -1,3 +1,4 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Redirects' half of ADR-049 Decision 4 (SPEC-009): maps `agent-tools.ts`'s 7 catalog entries
  * onto the list/get/hits/create/update/tombstone/import operations `server/routes/admin/
@@ -11,23 +12,8 @@
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  optionalBoolean,
-  optionalNumber,
-  optionalString,
-  requireInputRecord,
-  requireNumber,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
@@ -51,7 +37,7 @@ import type {
   RedirectStatusCode,
 } from "./types.js";
 
-const CATALOG_BY_ID = indexCatalogById(getRedirectsAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getRedirectsAgentToolCatalog() });
 
 /**
  * The exact slice of the route-deps bag Redirects' tool handlers read. Declared structurally
@@ -125,21 +111,21 @@ export function buildRedirectsRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     redirects_list: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
 
       const rules = await routeDeps.redirectRepo.list({
         workspaceId: routeDeps.workspaceId,
-        status: optionalString(input, "status") as RedirectStatus | undefined,
-        source: optionalString(input, "source") as RedirectSource | undefined,
-        matchType: optionalString(input, "matchType") as RedirectMatchType | undefined,
+        status: optionalString({ input: input, key: "status" }) as RedirectStatus | undefined,
+        source: optionalString({ input: input, key: "source" }) as RedirectSource | undefined,
+        matchType: optionalString({ input: input, key: "matchType" }) as RedirectMatchType | undefined,
       });
       return { rules: rules.map(toRedirectToolView) };
     },
 
     redirects_get: async (ctx) => {
-      const id = requireString(requireInputRecord(ctx.input), "id");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect", entityId: id });
+      const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -147,8 +133,8 @@ export function buildRedirectsRegistrations(
     },
 
     redirects_get_hits: async (ctx) => {
-      const id = requireString(requireInputRecord(ctx.input), "id");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect", entityId: id });
+      const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -158,19 +144,19 @@ export function buildRedirectsRegistrations(
     },
 
     redirects_create: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
 
       const { record } = await createRedirect({
         deps: routeDeps.redirectsWriteDeps,
         input: {
           workspaceId: routeDeps.workspaceId,
-          matchType: requireString(input, "matchType") as RedirectMatchType,
-          fromPattern: requireString(input, "fromPattern"),
-          toTarget: requireString(input, "toTarget"),
-          statusCode: requireNumber(input, "statusCode") as RedirectStatusCode,
-          override: optionalBoolean(input, "override"),
-          priority: optionalNumber(input, "priority"),
+          matchType: requireString({ input: input, key: "matchType" }) as RedirectMatchType,
+          fromPattern: requireString({ input: input, key: "fromPattern" }),
+          toTarget: requireString({ input: input, key: "toTarget" }),
+          statusCode: requireNumber({ input: input, key: "statusCode" }) as RedirectStatusCode,
+          override: optionalBoolean({ input: input, key: "override" }),
+          priority: optionalNumber({ input: input, key: "priority" }),
           actorId: ctx.principal.id,
         },
       });
@@ -178,22 +164,22 @@ export function buildRedirectsRegistrations(
     },
 
     redirects_update: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect", entityId: id });
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input: input, key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
 
       const { record } = await updateRedirect({
         deps: routeDeps.redirectsWriteDeps,
         input: {
           workspaceId: routeDeps.workspaceId,
           id,
-          matchType: optionalString(input, "matchType") as RedirectMatchType | undefined,
-          fromPattern: optionalString(input, "fromPattern"),
-          toTarget: optionalString(input, "toTarget"),
-          statusCode: optionalNumber(input, "statusCode") as RedirectStatusCode | undefined,
-          status: optionalString(input, "status") as RedirectStatus | undefined,
-          override: optionalBoolean(input, "override"),
-          priority: optionalNumber(input, "priority"),
+          matchType: optionalString({ input: input, key: "matchType" }) as RedirectMatchType | undefined,
+          fromPattern: optionalString({ input: input, key: "fromPattern" }),
+          toTarget: optionalString({ input: input, key: "toTarget" }),
+          statusCode: optionalNumber({ input: input, key: "statusCode" }) as RedirectStatusCode | undefined,
+          status: optionalString({ input: input, key: "status" }) as RedirectStatus | undefined,
+          override: optionalBoolean({ input: input, key: "override" }),
+          priority: optionalNumber({ input: input, key: "priority" }),
           actorId: ctx.principal.id,
         },
       });
@@ -202,8 +188,8 @@ export function buildRedirectsRegistrations(
 
     /** Reversibly tombstones the redirect after authorization; repeated tombstoning is a no-op. */
     redirects_tombstone: async (ctx) => {
-      const id = requireString(requireInputRecord(ctx.input), "id");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect", entityId: id });
+      const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -220,23 +206,25 @@ export function buildRedirectsRegistrations(
     // header for why the earlier "mass autonomous change" exclusion no longer holds. No confirmation
     // gate: same reversible, single-chokepoint risk envelope as `redirects_create`, just N rows.
     redirects_import: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
 
       if (!Array.isArray(input.rules) || input.rules.length < 1 || input.rules.length > MAX_IMPORT_BATCH_SIZE) {
-        throw new ToolInputError(`'rules' (array of 1-${MAX_IMPORT_BATCH_SIZE} items) is required`);
+        throw new ToolInputError({ message: `'rules' (array of 1-${MAX_IMPORT_BATCH_SIZE} items) is required` });
       }
 
-      const rules: CreateRedirectInput[] = input.rules.map((rule, index) => {
-        if (!isRecord(rule)) throw new ToolInputError(`rules[${index}] must be an object`);
+      const rules: CreateRedirectInput[] = input.rules.map((raw, index) => {
+        const candidate = { value: raw };
+        if (!isRecord(candidate)) throw new ToolInputError({ message: `rules[${index}] must be an object` });
+        const rule = candidate.value;
         return {
           workspaceId: routeDeps.workspaceId,
-          matchType: requireString(rule, "matchType") as RedirectMatchType,
-          fromPattern: requireString(rule, "fromPattern"),
-          toTarget: requireString(rule, "toTarget"),
-          statusCode: requireNumber(rule, "statusCode") as RedirectStatusCode,
-          override: optionalBoolean(rule, "override"),
-          priority: optionalNumber(rule, "priority"),
+          matchType: requireString({ input: rule, key: "matchType" }) as RedirectMatchType,
+          fromPattern: requireString({ input: rule, key: "fromPattern" }),
+          toTarget: requireString({ input: rule, key: "toTarget" }),
+          statusCode: requireNumber({ input: rule, key: "statusCode" }) as RedirectStatusCode,
+          override: optionalBoolean({ input: rule, key: "override" }),
+          priority: optionalNumber({ input: rule, key: "priority" }),
           actorId: ctx.principal.id,
         };
       });

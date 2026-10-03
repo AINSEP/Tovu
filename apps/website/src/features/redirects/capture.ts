@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file `RedirectSlugChangeCapture` — the `SlugChangeCapture` implementation
  * (SPEC-009 REQ-15/16/17; ADR-PIPE-009 Decision A).
@@ -32,7 +33,7 @@
  * Feature logic. No Express/route code, no direct SQL — writes go through the
  * injected `RedirectDbHandle`; reads go through the injected `RedirectRepoPort`.
  */
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import type { SlugChangeCapture, SlugChangeCaptureInput } from "../../platform/routing/index.js";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
@@ -87,7 +88,7 @@ export class RedirectSlugChangeCapture implements SlugChangeCapture {
       return;
     }
 
-    const now = this.deps.clock.nowIso();
+    const now = clockNowIso({ clock: this.deps.clock });
     const id = this.deps.idGen.newId();
 
     const record: RedirectRecord = {

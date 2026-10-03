@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 
-import { EgressRefusedError } from "../errors.js";
 import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports.js";
 import type { HttpTransportAdapter } from "../ports.js";
 
@@ -16,6 +15,7 @@ mock.module("node:dns/promises", { namedExports: {
     return [{ address: "93.184.216.34", family: 4 }];
   },
 } });
+const { EgressRefusedError } = await import("../index.js");
 const { classifyAddress, createHttpClient } = await import("../client.js");
 
 function makePolicy(overrides: Partial<EgressPolicy> = {}): EgressPolicy {
@@ -322,7 +322,7 @@ test("scheme and embedded-credential refusals carry the same text in both messag
 });
 
 test("an EgressRefusedError built without a callerSafeMessage says LESS, never more", () => {
-  const err = new EgressRefusedError("egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private");
+  const err = new EgressRefusedError({ message: "egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private" });
 
   assert.equal(err.callerSafeMessage, "egress to the requested host was refused by this site's outbound network policy");
   assert.ok(!err.callerSafeMessage.includes("10.0.4.7"));

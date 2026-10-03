@@ -11,15 +11,11 @@
  * raw request `Host`/`:authority` for a canonical/link/allowlist/redirect
  * decision (ADR-040 F2) — they call these ports instead.
  */
-import type { UUID } from "@jini-ai/cms/core";
-import type { VerifiedOrigin } from "./types.js";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { VerifiedOrigin, VerifiedOriginRequestContext } from "@jini-ai/http-kit/verified-origin";
 
 /** Context for resolving a workspace's canonical origin. */
-export interface OriginContext {
-  workspaceId: UUID;
-  siteId?: UUID;
-  locale?: string;
-}
+export interface OriginContext extends VerifiedOriginRequestContext {}
 
 /**
  * Context for a redirect-target check (ADR-040 F5: kept in parity with
@@ -44,7 +40,7 @@ export interface EgressTargetContext {
 export interface OriginRegistryPort {
   /**
    * Resolve the verified canonical origin for a workspace.
-   * @throws {import("./types.js").OriginNotVerifiedError} if no verified origin
+   * @throws {import("@jini-ai/http-kit/verified-origin").OriginNotVerifiedError} if no verified origin
    * is registered — this is a fail-closed precondition, never a guess.
    */
   canonicalOrigin(ctx: OriginContext): Promise<VerifiedOrigin>;

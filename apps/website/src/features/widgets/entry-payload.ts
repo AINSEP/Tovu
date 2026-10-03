@@ -5,7 +5,8 @@ import {
   toContentTypeOutbox,
   type ContentTypeRepoPort,
 } from "../content-types/index.js";
-import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { EntryRecord } from "../entries/index.js";
 import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper.js";
 import {

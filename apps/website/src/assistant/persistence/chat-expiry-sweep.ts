@@ -1,5 +1,9 @@
+import { createSqliteChatMaintenance } from "@jini-ai/chat/store/sqlite";
+import { createPgliteChatMaintenance } from "@jini-ai/chat/store/pglite";
+import { createPostgresChatMaintenance } from "@jini-ai/chat/store/postgres";
+import { ChatStoreError } from "@jini-ai/chat/store";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
-import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 
 /**
  * @file Retention for chat history: deletes every conversation whose `expires_at` has passed.
@@ -18,14 +22,28 @@ export const CHAT_EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
  *
  * @param store the chat kernel, or the open `chat.db` handle whose kernel to use.
  * @returns how many conversations were deleted.
- * @complexity one DELETE over the partial `expires_at` index.
+ * @complexity One bounded DELETE per 500 expired parents, plus the final partial/empty batch.
  */
 export async function sweepExpiredChats(store: ChatKernel | SqliteConnectionSource, now: number = Date.now()): Promise<number> {
   const kernel = chatKernel(store);
-  const result = await kernel.run((db) =>
-    db.deleteFrom("ai_chats").where("expires_at", "is not", null).where("expires_at", "<=", now).executeTakeFirst()
-  );
-  return Number(result.numDeletedRows);
+  const maintenance = kernel.transport === "better-sqlite3"
+    ? createSqliteChatMaintenance({ kernel })
+    : kernel.transport === "pglite" || kernel.transport === "pglite-socket"
+      ? createPgliteChatMaintenance({ kernel })
+      : createPostgresChatMaintenance({ kernel });
+  let total = 0;
+  let deleted: number;
+  try {
+    do {
+      deleted = await maintenance.sweepExpired({ now }, { limit: 500 });
+      total += deleted;
+    } while (deleted === 500);
+  } catch (error) {
+    // Preserve the host timer's existing onError collaborator and retry behavior.
+    if (error instanceof ChatStoreError && error.cause !== undefined) throw error.cause;
+    throw error;
+  }
+  return total;
 }
 
 /**

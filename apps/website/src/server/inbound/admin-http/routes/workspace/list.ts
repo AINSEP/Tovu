@@ -22,7 +22,7 @@ export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = (app, de
       )
         return;
 
-      const own = await deps.workspaceRepo.findById(deps.workspaceId);
+      const own = await deps.workspaceRepo.findById({ id: deps.workspaceId });
       // Defensive: the boot-wired workspaceId always resolves to a real row by construction (the
       // composition root seeds it before any request can be served) — not an expected runtime path.
       const workspaces = own ? [toAdminWorkspaceResponse(own)] : [];

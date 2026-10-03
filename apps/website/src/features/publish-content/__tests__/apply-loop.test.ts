@@ -944,7 +944,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
 
   const postRepo = new InMemoryPostRepo([]);
   const mediaRepo = new InMemoryVersionedMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
   const outbox = new InMemoryOutbox();
@@ -1083,7 +1083,7 @@ test("after applying, the run reports a published media item whose poster is not
   registerPublishContentContributor(contributeMediaPublish());
 
   const mediaRepo = new InMemoryVersionedMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
   const clock = makeClock();
@@ -1182,7 +1182,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
     authorize: async () => ({ allowed: false, reason: "factory authority denies all writes" }),
     ports: {
       post: { repo: postRepo, forgetRemoved: async () => {} },
-      media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
+      media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
     },
   };
   const applyPort = createPublishContentApplyPort({
@@ -1359,8 +1359,8 @@ function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepo
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
-  const menuRepo = options.menuRepo ?? new InMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const menuRepo = options.menuRepo ?? new InMemoryMenuRepo({});
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
   const wireMenuDeps = options.wireMenuDeps ?? true;
 
   const publishContentDeps: PublishContentDeps = {
@@ -1391,7 +1391,7 @@ function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepo
 
 test("R5: after apply, a live menu's entryRef is repointed to the address-clash overwrite's new id, and routing resolves it", async () => {
   const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
-  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "post-about" })]);
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [makeMenuRow({ id: "menu-header", entryId: "post-about" })] });
   const { postRepo, clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([holder], { menuRepo });
 
   const incoming = makePost({ id: "local-about", slug: "about", kind: "post", status: "published", title: "About Tovu" });
@@ -1424,7 +1424,7 @@ test("R5: after apply, a live menu's entryRef is repointed to the address-clash 
 
 test("R5: a menu written by the same bundle keeps its own incoming tree — it is skipped, not repointed", async () => {
   const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
-  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "post-about" })]);
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [makeMenuRow({ id: "menu-header", entryId: "post-about" })] });
   const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([holder], { menuRepo });
 
   const incomingPost = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
@@ -1468,7 +1468,7 @@ test("R5: a menu written by the same bundle keeps its own incoming tree — it i
 test("R5: a repoint pass never runs when the create half of a retire+create pair fails and is undone", async () => {
   const store = new Map<string, { version: number; hash: string; retired: boolean }>();
   store.set("holder-widget", { version: 1, hash: "holder-hash", retired: false });
-  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "holder-widget" })]);
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [makeMenuRow({ id: "menu-header", entryId: "holder-widget" })] });
   const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([], { menuRepo });
   registerPublishContentContributor(
     fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true }))

@@ -212,6 +212,18 @@ test("a mailer failure surfaces as a 500 internal error, past both rate-limit ch
   assert.equal(body.error, "internal error");
 });
 
+test("blank emails return validation errors without allocating empty limiter buckets", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+  for (const email of ["", " \t "]) {
+    const res = await postSignIn(baseUrl, deps.workspaceId, email);
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { error: `'${email}' is not a valid email address` });
+  }
+  assert.equal(await deps.magicLinkPerEmailLimiter.size!({}), 0);
+  assert.equal(await deps.magicLinkPerIpLimiter.size!({}), 0);
+});
+
 test("an email-less JSON body ({}) is treated as an empty, invalid email — not a crash", async (t) => {
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);

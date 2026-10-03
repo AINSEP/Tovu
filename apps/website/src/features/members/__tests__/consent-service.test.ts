@@ -3,7 +3,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMemberConsentRepo } from "../repo.sqlite.js";
 
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory.js";
 import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service.js";
 import { MemberNotFoundError } from "../types.js";

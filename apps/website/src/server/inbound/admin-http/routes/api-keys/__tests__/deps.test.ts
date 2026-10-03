@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/cms/identity";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { apiKeyServiceDepsFrom, sendApiKeyError, type ApiKeysRouteDeps } from "../deps.js";
 
@@ -26,13 +26,13 @@ test("API-key service composition preserves each identity repository and crypto/
 
 // F4.1/F4.4/F6.2: branch-specific exact envelopes, including an unknown error containing a secret.
 const cases = [
-  { name: "base permission denied", error: new IdentityForbiddenError("key management denied", "apikey.manage", "no_grant"), status: 403,
+  { name: "base permission denied", error: new IdentityForbiddenError({ message: "key management denied", permission: "apikey.manage", reason: "no_grant" }), status: 403,
     body: { error: "key management denied", code: "FORBIDDEN", details: { permission: "apikey.manage", reason: "no_grant" } } },
-  { name: "grant exceeds issuer", error: new GrantExceedsIssuerError("cannot delegate", ["content.delete", "role.manage"]), status: 403,
+  { name: "grant exceeds issuer", error: new GrantExceedsIssuerError({ message: "cannot delegate", offendingPermissions: ["content.delete", "role.manage"] }), status: 403,
     body: { error: "cannot delegate", code: "GRANT_EXCEEDS_ISSUER", details: { offendingPermissions: ["content.delete", "role.manage"] } } },
-  { name: "invalid input", error: new IdentityValidationError("expiry is invalid"), status: 400,
+  { name: "invalid input", error: new IdentityValidationError({ message: "expiry is invalid" }), status: 400,
     body: { error: "expiry is invalid", code: "VALIDATION_ERROR" } },
-  { name: "missing resource", error: new IdentityNotFoundError("key absent"), status: 404,
+  { name: "missing resource", error: new IdentityNotFoundError({ message: "key absent" }), status: 404,
     body: { error: "key absent", code: "RESOURCE_NOT_FOUND" } },
   { name: "unexpected failure", error: new Error("database /private/path with secret key"), status: 500,
     body: { error: "internal error" } },

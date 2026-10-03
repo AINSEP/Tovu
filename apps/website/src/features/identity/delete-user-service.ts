@@ -1,13 +1,6 @@
-import type { UUID } from "@jini-ai/cms/core";
-import {
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  OwnerRequiredError,
-  resolveEffectivePermissions,
-  type AuthorizeDeps,
-  type AuthServiceDeps,
-} from "@jini-ai/cms/identity";
+import type { UUID } from "@jini-ai/core/primitives";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
+import { resolveEffectivePermissions, authorizeDepsFrom, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { UserDeleteUnsupportedError } from "./user-purge-types.js";
 
 /**
@@ -95,18 +88,7 @@ export interface DeleteUserInput {
   seededOwnerPrincipalId: UUID;
 }
 
-/** Assembles the `AuthorizeDeps` bag `resolveEffectivePermissions` expects from the flat
- *  `IdentityRepos` bag `AuthServiceDeps.repos` carries — a private copy of `admin-crud-service.ts`'s
- *  `authorizeDepsFrom`, which is not exported (see file header). */
-function authorizeDepsFrom(repos: AuthServiceDeps["repos"]): AuthorizeDeps {
-  return {
-    principals: repos.principals,
-    principalRoles: repos.principalRoles,
-    rolePolicies: repos.rolePolicies,
-    principalPolicies: repos.principalPolicies,
-    policyPermissions: repos.policyPermissions,
-  };
-}
+// Repo-bag assembly and its sharing rationale now live in Jini user-management/server (grant-service.ts).
 
 /** Private copy of `admin-crud-service.ts`'s same-named helper — see this file's header for why. */
 async function principalHoldsOwnerWildcard(required: {
@@ -192,11 +174,7 @@ async function assertCallerMayManageUserTrash(required: {
 }): Promise<void> {
   const { deps, workspaceId, callerPrincipalId } = required;
   if (await callerMayManageUserTrash({ deps, workspaceId, callerPrincipalId })) return;
-  throw new IdentityForbiddenError(
-    `principal '${callerPrincipalId}' is not authorized to trash, restore or permanently delete users`,
-    "*",
-    "no_grant"
-  );
+  throw new IdentityForbiddenError({ message: `principal '${callerPrincipalId}' is not authorized to trash, restore or permanently delete users`, permission: "*", reason: "no_grant" });
 }
 
 /** Private copy of `admin-crud-service.ts`'s same-named helper — see this file's header for why.
@@ -255,12 +233,10 @@ export async function trashUser(required: {
       workspaceId: input.workspaceId,
       id: input.principalId,
     });
-    if (!target) throw new IdentityNotFoundError(`principal '${input.principalId}' was not found`);
+    if (!target) throw new IdentityNotFoundError({ message: `principal '${input.principalId}' was not found` });
 
     if (target.kind !== "user" && target.kind !== "api_key") {
-      throw new IdentityValidationError(
-        `DELETE_USER target must be a user or api_key principal, got kind='${target.kind}'`
-      );
+      throw new IdentityValidationError({ message: `DELETE_USER target must be a user or api_key principal, got kind='${target.kind}'` });
     }
 
     if (target.id === input.callerPrincipalId) {
@@ -268,7 +244,7 @@ export async function trashUser(required: {
     }
 
     if (target.id === input.seededOwnerPrincipalId) {
-      throw new OwnerRequiredError("the seeded owner principal can never be deleted");
+      throw new OwnerRequiredError({ message: "the seeded owner principal can never be deleted" });
     }
 
     if (target.status === "active") {
@@ -283,9 +259,7 @@ export async function trashUser(required: {
           workspaceId: input.workspaceId,
         });
         if (activeOwnerCount <= 1) {
-          throw new OwnerRequiredError(
-            "the workspace must keep at least one active owner-`*` principal (INV-08)"
-          );
+          throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
         }
       }
     }
@@ -301,7 +275,7 @@ export async function trashUser(required: {
         workspaceId: input.workspaceId,
         principalId: target.id,
       });
-      if (!user) throw new IdentityNotFoundError(`user '${target.id}' was not found`);
+      if (!user) throw new IdentityNotFoundError({ message: `user '${target.id}' was not found` });
       title = user.username;
       subtitle = user.email ?? null;
     } else {
@@ -318,13 +292,16 @@ export async function trashUser(required: {
       workspaceId: input.workspaceId,
       id: target.id,
       display: { title, subtitle },
-      at: identity.clock.nowIso(),
+      at: new Date(identity.clock.nowMs()).toISOString(),
       expectedVersion: null,
       actor: { principalId: input.callerPrincipalId },
     });
   };
 
-  const result = tail.then(run, run);
+  // Keep the local queue's historical ordering, and join the shared transaction so competing
+  // grant/status writers cannot race its owner-floor reads. The Trash runner joins this kernel.
+  const atomicRun = () => identity.repos.transactions.run({ workspaceId: input.workspaceId, execute: run });
+  const result = tail.then(atomicRun, atomicRun);
   // Swallow the rejection on `tail` itself (not on `result`, which the caller still awaits and
   // sees rejected) so one failed trash never poisons the chain for every trash queued after it —
   // the same "chain for ordering only, never for the value" shape a module-level serialization

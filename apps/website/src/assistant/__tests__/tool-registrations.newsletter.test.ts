@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers the 14 Newsletter tools: catalog completeness (including the 5 deliberately
  * withheld send/schedule/resume/import operations), published contracts, risk cross-check, the
@@ -15,7 +17,8 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../features/newsletter/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -30,17 +33,22 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeNewsletterTools } from "../../features/newsletter/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Newsletter moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
 // `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeNewsletterTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeNewsletterTools() });
 
 const WORKSPACE_ID = "ws-newsletter-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -114,7 +122,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const newsletterSendRepo = new InMemoryNewsletterSendRepo();
   const newsletterConfirmationTokenRepo = new InMemoryNewsletterConfirmationTokenRepo();
 
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = counterIdGen();
 
   const authorizeCalls: Array<Record<string, unknown>> = [];
@@ -202,7 +210,7 @@ function newsletterWiredId(toolId: string): string {
 
 function newsletterRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("newsletter_") || Object.values(NEWSLETTER_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -298,13 +306,13 @@ test("the real Newsletter catalog and tool-registrations' independent risk class
   const { deps } = fakeRouteDeps();
   for (const id of newsletterRegistrations(deps).keys()) {
     if (id.startsWith("content_read.")) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Newsletter catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("newsletter_create_campaign", { ...catalogEntry("newsletter_create_campaign"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("newsletter_create_campaign", { ...catalogEntry("newsletter_create_campaign"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

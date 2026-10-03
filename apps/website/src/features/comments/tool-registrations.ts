@@ -12,25 +12,14 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import {
-  type AuthorizeFn,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNumber,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 import type { SettingsRepoPort } from "../settings/index.js";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
@@ -45,7 +34,7 @@ import type {
 } from "./types.js";
 import type { CommentWriteService } from "./write-service.js";
 
-const CATALOG_BY_ID = indexCatalogById(commentsAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Comments' tool handlers read. Declared structurally
@@ -136,21 +125,16 @@ function buildCommentsModerationHandler(
   spec: { permission: string; action: ModerationAction; toStatus: CommentStatus },
 ): ToolHandler {
   return async (ctx) => {
-    const input = requireInputRecord(ctx.input);
-    const commentId = requireString(input, "commentId");
+    const input = requireInputRecord({ input: ctx.input });
+    const commentId = requireString({ input: input, key: "commentId" });
 
-    await requireToolPermission(routeDeps, {
-      principalId: ctx.principal.id,
-      permission: spec.permission,
-      entityType: "comment",
-      entityId: commentId,
-    });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: spec.permission }, { entityType: "comment", entityId: commentId });
 
     await routeDeps.commentsReady;
     const result = await routeDeps.commentWriteService.applyModeration({
       workspaceId: routeDeps.workspaceId,
       id: commentId,
-      expectedVersion: requireNumber(input, "expectedVersion"),
+      expectedVersion: requireNumber({ input, key: "expectedVersion" }),
       action: spec.action,
       toStatus: spec.toStatus,
       actorPrincipalId: ctx.principal.id,
@@ -183,7 +167,7 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
   if (typeof input.spamAutoRejectScore === "number") patch.spamAutoRejectScore = input.spamAutoRejectScore;
   if (typeof input.maxPerIpPerHour === "number") patch.maxPerIpPerHour = input.maxPerIpPerHour;
   if (Object.keys(patch).length === 0) {
-    throw new ToolInputError("at least one of enabled, requireModeration, maxDepth, closeAfterDays, spamAutoRejectScore, maxPerIpPerHour is required");
+    throw new ToolInputError({ message: "at least one of enabled, requireModeration, maxDepth, closeAfterDays, spamAutoRejectScore, maxPerIpPerHour is required" });
   }
   return patch;
 }
@@ -194,9 +178,9 @@ export function buildCommentsRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     comments_list_moderation_queue: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
 
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "comments.read", entityType: "comment" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment" });
 
       await routeDeps.commentsReady;
       const status: CommentStatus = typeof input.status === "string" ? (input.status as CommentStatus) : "pending";
@@ -210,7 +194,7 @@ export function buildCommentsRegistrations(
       // `getCommentsSettings` has no `authorize` in its deps at all (unlike `setCommentsSettings`,
       // which self-enforces via its own `set()` call below) — the GET route gates explicitly
       // before calling it, so this handler mirrors that same explicit call.
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "comments.configure", entityType: "comments-settings" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.configure" }, { entityType: "comments-settings" });
 
       await routeDeps.commentsSettingsReady;
       const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
@@ -218,7 +202,7 @@ export function buildCommentsRegistrations(
     },
 
     comments_update_settings: async (ctx) => {
-      const patch = requireCommentsSettingsPatch(requireInputRecord(ctx.input));
+      const patch = requireCommentsSettingsPatch(requireInputRecord({ input: ctx.input }));
 
       // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
       // (settings.ts) self-enforces internally — its `set()` call is invoked with
@@ -237,7 +221,7 @@ export function buildCommentsRegistrations(
         },
         { workspaceId: routeDeps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
       ).catch((error: unknown) => {
-        if (error instanceof CommentsSettingsValidationError) throw new ToolInputError(error.message);
+        if (error instanceof CommentsSettingsValidationError) throw new ToolInputError({ message: error.message });
         throw error;
       });
       return { settings };
@@ -248,28 +232,18 @@ export function buildCommentsRegistrations(
 
     /** Reversibly trashes a comment through the existing moderation and version checks. */
     comments_trash_comment: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const commentId = requireString(input, "commentId");
-      const expectedVersion = requireNumber(input, "expectedVersion");
+      const input = requireInputRecord({ input: ctx.input });
+      const commentId = requireString({ input: input, key: "commentId" });
+      const expectedVersion = requireNumber({ input, key: "expectedVersion" });
 
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "comments.delete",
-        entityType: "comment",
-        entityId: commentId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
 
       await routeDeps.commentsReady;
       const existing = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
       if (!existing) throw new Error(`comment '${commentId}' was not found`);
 
       // Re-check authorization immediately before the service write.
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "comments.delete",
-        entityType: "comment",
-        entityId: commentId,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
       const result = await routeDeps.commentWriteService.applyModeration({
         workspaceId: routeDeps.workspaceId,
         id: commentId,

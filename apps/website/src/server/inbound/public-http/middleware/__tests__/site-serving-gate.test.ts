@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 
 import type { SiteStatusPort } from "#src/features/database/boot/reconcile-interrupted-migration";
 import { startTestServer } from "../../../../__tests__/helpers/http-test-server.js";
@@ -16,10 +17,8 @@ import { applySiteServingGate } from "../site-serving-gate.js";
  * (an operator who must log in to reach Recovery), the workspace id the status is read for, and
  * what happens when the status store itself fails.
  *
- * The last one is a real defect (marked BUG below): the middleware is an `async` function with no
- * `try`/`catch`, and Express 4 does not handle a rejected middleware promise, so a store read that
- * throws leaves EVERY request on the site hanging until the client gives up, instead of a fast
- * error. Kept as a `todo` test so it reports without failing the shared suite.
+ * A rejected store read must reach the app's error handler, because Express 4 does not handle
+ * rejected middleware promises. Port test, not run in the Codex sandbox.
  */
 
 function statusPort(status: string, seen: string[] = []): SiteStatusPort {
@@ -32,10 +31,14 @@ function statusPort(status: string, seen: string[] = []): SiteStatusPort {
   };
 }
 
-async function boot(t: import("node:test").TestContext, port: SiteStatusPort): Promise<string> {
+async function boot(t: import("node:test").TestContext, port: SiteStatusPort, errors: unknown[] = []): Promise<string> {
   const app = express();
   applySiteServingGate(app, { siteStatusRepo: port, workspaceId: "ws-gate-1" });
   app.use((req, res) => res.status(200).json({ reached: req.path }));
+  app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    errors.push(error);
+    res.status(500).json({ error: "internal error" });
+  });
   return startTestServer(app, t);
 }
 
@@ -83,20 +86,20 @@ test("allow-listed paths never read the status store at all", async (t) => {
   assert.deepEqual(seen, []);
 });
 
-test(
-  "BUG: a status store that throws answers the request with an error status instead of hanging it",
-  { todo: "site-serving-gate.ts: async middleware has no try/catch; Express 4 drops the rejection and the request hangs" },
-  async (t) => {
-    const throwing: SiteStatusPort = {
-      get: async () => {
-        throw new Error("database is locked");
-      },
-      set: async () => undefined,
-    };
-    const baseUrl = await boot(t, throwing);
+test("a rejected status read completes with 500 through the app's error handler", async (t) => {
+  const failure = new Error("database is locked");
+  const errors: unknown[] = [];
+  const throwing: SiteStatusPort = {
+    get: async () => {
+      throw failure;
+    },
+    set: async () => undefined,
+  };
+  const baseUrl = await boot(t, throwing, errors);
 
-    const res = await fetch(`${baseUrl}/some-page`, { signal: AbortSignal.timeout(2000) });
+  const res = await fetch(`${baseUrl}/some-page`, { signal: AbortSignal.timeout(2000) });
 
-    assert.ok(res.status >= 500, `expected a 5xx, got ${res.status}`);
-  }
-);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+  assert.deepEqual(errors, [failure]);
+});

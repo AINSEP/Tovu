@@ -1,4 +1,5 @@
-import { buildDomainRegistrations, indexCatalogById, requireToolPermission, type AuthorizeFn, type DerivedRiskByToolId, type ToolRegistration, type WirableToolDefinition } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { readCommerceStatus } from "./status.js";
 import type { CommercePaymentRuntimePort } from "./contracts.js";
@@ -7,7 +8,7 @@ import type { CommercePaymentRuntimePort } from "./contracts.js";
 export interface Deps { workspaceId: string; authorize: AuthorizeFn; lipay?: CommercePaymentRuntimePort; }
 
 /** Catalog for the admin service exposed through this standalone contributor. */
-export const catalog: WirableToolDefinition[] = [{
+export const catalog: AgentToolDefinition[] = [{
   name: "commerce_get_status",
   description: "Checks store and commerce setup status and available payment providers. Call to ask whether checkout, subscriptions, webhooks or revenue reporting are supported yet. Returns {contractVersion, workspaceId, paymentRuntime, providers, configuration, capabilities}, with unavailable capabilities explicitly marked. Read-only: no payments or credentials are read or changed. Provider discovery alone does not mean checkout is configured.",
   sideEffects: "none",
@@ -29,9 +30,9 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
   return buildDomainRegistrations({
     domain: "commerce-get-status", catalogModule: "features/commerce/status-tool.ts",
-    catalog: indexCatalogById(catalog), derivedRisk,
+    catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: { commerce_get_status: async ctx => {
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "admin.integrations.manage", entityType: "integration" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "integration" });
       return readCommerceStatus({ workspaceId: deps.workspaceId, resolvePaymentRuntime: () => deps.lipay ?? null });
     } },
   });

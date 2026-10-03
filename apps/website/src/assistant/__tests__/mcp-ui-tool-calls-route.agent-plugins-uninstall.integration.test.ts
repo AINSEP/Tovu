@@ -98,7 +98,7 @@ function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   const deps: PluginsToolDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => new Date().toISOString() },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => new Date().toISOString() },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => undefined, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
@@ -113,7 +113,7 @@ function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
     siteAssistantSecretKeyring: keyring,
   };
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPluginsRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -144,16 +144,9 @@ for (const { decision, expectUninstalled } of DECISIONS) {
       const firstEmission = new Promise<SurfaceEmission>((resolve) => {
         resolveEmission = resolve;
       });
-      const pending = toolExecutor.execute(
-        { id: PRINCIPAL },
-        { id: "run-1" },
-        TOOL_ID,
-        { family: "agent-plugin", pluginId: PLUGIN_ID },
-        undefined,
-        async (emission: SurfaceEmission) => {
+      const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: PLUGIN_ID } }, { emitSurface: async (emission: SurfaceEmission) => {
           resolveEmission(emission);
-        },
-      );
+        } });
       // The handler reads the disk before it raises the dialog; `execute` never rejects for a handler
       // failure, so racing it against the emission cannot leak an unhandled rejection.
       const first = await Promise.race([firstEmission.then((emission) => ({ emission })), pending.then((settled) => ({ settled }))]);

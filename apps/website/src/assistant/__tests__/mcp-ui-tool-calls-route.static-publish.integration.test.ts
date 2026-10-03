@@ -79,7 +79,7 @@ function buildRealStaticPublishToolExecutor(
     loadDeployTargets: loadBundledDeployTargets,
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildStaticPublishRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -106,16 +106,9 @@ async function openRealDialog(
   toolExecutor: ReturnType<typeof buildRealStaticPublishToolExecutor>["toolExecutor"],
 ): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    "deployment_execute_static_publish",
-    { target: "vercel", projectName: "demo-site" },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: { target: "vercel", projectName: "demo-site" } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   // The handler loads the deploy registry (file reads) before it emits, so wait on the emission
   // itself rather than a fixed number of ticks; a call that settles first never parked at all.
   let settled = false;
@@ -190,7 +183,7 @@ test("deployment_get_static_publish_capabilities still runs fine through the ord
   const surfaceExchanges = createSurfaceExchangeStore();
   const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
-  const result = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, "deployment_get_static_publish_capabilities", {});
+  const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });
 
   assert.equal(result.status, "completed", `expected the read tool to complete normally: ${JSON.stringify(result)}`);
   const output = result.output as { providers: unknown[] };

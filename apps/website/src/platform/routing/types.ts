@@ -20,7 +20,7 @@
  * minimal shape three other sections depend on; full permalink-structure
  * design is explicitly deferred (ADR-039 "Open").
  */
-import type { JsonObject, UUID } from "@jini-ai/cms/core";
+import type { JsonObject, UUID } from "@jini-ai/core/primitives";
 
 // ---------------------------------------------------------------------------
 // RouteTarget vocabulary (ADR-039 §3)

@@ -173,15 +173,15 @@ function neverCalledGitAdapter(): SourceControlCommitAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Wiring shape — both tools
+// 1. Wiring shape — all tools
 // ---------------------------------------------------------------------------
 
-test("buildSourceControlRegistrations wires both tools, each with an input schema", () => {
+test("buildSourceControlRegistrations wires all tools, each with an input schema", () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges });
   const ids = registrations.map((r) => r.descriptor.id).sort();
-  assert.deepEqual(ids, ["source_control_execute_commit", "source_control_get_capabilities"]);
+  assert.deepEqual(ids, ["source_control_execute_commit", "source_control_get_capabilities", "source_control_propose_credential"]);
   for (const entry of registrations) {
     assert.ok(entry.descriptor.inputSchema, `${entry.descriptor.id} must publish an input schema`);
   }

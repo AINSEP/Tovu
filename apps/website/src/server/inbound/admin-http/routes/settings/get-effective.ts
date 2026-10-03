@@ -1,44 +1,17 @@
-import { getEffective } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { SettingsRouteDeps, SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared.js";
-
-/** One row of `SETTINGS_GET_EFFECTIVE`'s response. */
-type EffectiveSettingRow = { key: string; value: unknown; sourceLayer: string; defVersion: number };
+import type { SettingsRouteRegistrar } from "./deps.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService } from "./shared.js";
 
 /**
+ * Resolution and rationale now live in Jini packages/cms/src/http/settings/cms-adapter.ts:
  * Resolves every effective value for a namespace across the keys registered on either the
  * platform partition (`workspaceId=null`) or this workspace's own site-owned partition — see the
  * route doc above for why both partitions are enumerated.
  *
  * @complexity O(keys registered in the namespace).
- */
-async function resolveEffectiveValuesForNamespace(
-  deps: SettingsRouteDeps,
-  input: { namespace: string; workspaceId: string; principalId: string | undefined }
-): Promise<EffectiveSettingRow[]> {
-  const [platformDefs, siteDefs] = await Promise.all([
-    deps.settingsRepo.listActiveDefinitions({ workspaceId: null }),
-    deps.settingsRepo.listActiveDefinitions({ workspaceId: input.workspaceId }),
-  ]);
-  const keys = new Set(
-    [...platformDefs, ...siteDefs].filter((d) => d.namespace === input.namespace).map((d) => d.key)
-  );
-
-  const data: EffectiveSettingRow[] = [];
-  for (const key of keys) {
-    const resolved = await getEffective(
-      { repo: deps.settingsRepo },
-      { namespace: input.namespace, key, scopeContext: { workspaceId: input.workspaceId, principalId: input.principalId } }
-    );
-    if (resolved) {
-      data.push({ key, value: resolved.value, sourceLayer: resolved.sourceLayer, defVersion: resolved.defVersion });
-    }
-  }
-  return data;
-}
-
-/**
+ *
+ * @complexity O(keys registered in the namespace).
+ *
  * GET the effective value of every setting registered in a namespace
  * (SPEC-007 api.spec.md `SETTINGS_GET_EFFECTIVE`, tasks.md T039).
  *
@@ -135,7 +108,7 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (a
       }
       const principalId = readTarget.principalId;
 
-      const data = await resolveEffectiveValuesForNamespace(deps, { namespace, workspaceId, principalId });
+      const data = await createTovuSettingsService({ deps }).effective({ namespace, workspaceId, principalId });
 
       res.json({ data });
     } catch (err) {

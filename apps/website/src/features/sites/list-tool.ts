@@ -1,4 +1,5 @@
-import { buildDomainRegistrations, indexCatalogById, requireToolPermission, type AuthorizeFn, type DerivedRiskByToolId, type ToolRegistration, type WirableToolDefinition } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { includeServingSite, listSites, readPersistedActiveSite, isSiteSwitcherEnabled, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
 
@@ -6,7 +7,7 @@ import { includeServingSite, listSites, readPersistedActiveSite, isSiteSwitcherE
 export interface Deps { workspaceId: string; authorize: AuthorizeFn; siteBinding: SiteBinding; listSites?: () => readonly SiteListEntry[]; readPersistedActiveSite?: () => string | null; isSiteSwitcherEnabled?: () => boolean; }
 
 /** Catalog for the admin service exposed through this standalone contributor. */
-export const catalog: WirableToolDefinition[] = [{
+export const catalog: AgentToolDefinition[] = [{
   name: "sites_list",
   description: "Lists local client sites on this computer and the site currently serving. Call before sites_duplicate_site to find a source name, or to distinguish the running site from a queued switch for next restart. Returns {sites, currentSite, persistedSiteName, switchingEnabled}; includes the served directory even when unregistered. Read-only and available when site switching is disabled. Does not create, switch or duplicate sites.",
   sideEffects: "none",
@@ -28,9 +29,9 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
   return buildDomainRegistrations({
     domain: "sites-list", catalogModule: "features/sites/list-tool.ts",
-    catalog: indexCatalogById(catalog), derivedRisk,
+    catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: { sites_list: async ctx => {
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "system.read", entityType: "site-registry" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "site-registry" });
       const binding = deps.siteBinding;
       const sites = includeServingSite({ sites: (deps.listSites ?? listSites)(), binding });
       const serving = sites.find(site => site.dir === binding.dir);

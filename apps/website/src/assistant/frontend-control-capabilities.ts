@@ -16,7 +16,7 @@
  * true` parks its execution on a promise only `resumeConfirmation` can settle — and nothing calls
  * it. The park is unbounded, not merely slow: `descriptor.timeoutMs`'s timer is armed only AFTER
  * the confirmation await resolves, so a parked confirming call would hang forever rather than time
- * out. `src/assistant/pending-confirmations.ts`'s own module doc records the identical reasoning
+ * out. The former destructive-confirmation token store recorded the identical reasoning
  * for why a bare `requiresConfirmation` boolean is "not a weaker version of this mechanism; it is a
  * hang." Jini's own build-time guard for the equivalent CMS-tool case
  * (`ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT`, `@jini-ai/cms`'s `registration-kit.ts`)
@@ -92,6 +92,7 @@
  * (`useChatPaneAgentControl.hooks.ts`'s `resetConversationAction` -> `requireConfirmation`) throws
  * unless the model actually passes `confirm: true`. That check is already fully implemented
  * upstream and does not depend on this host's confirmation-transport gap at all.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import type { ToolRegistration } from "@jini-ai/core";

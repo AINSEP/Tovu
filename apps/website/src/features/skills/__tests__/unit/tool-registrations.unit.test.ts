@@ -116,10 +116,10 @@ test("an installed skill folder produces exactly one tool with id 'skill_<name>'
       "Use when handling production incidents, defining severity and escalation, writing runbooks, or facilitating blameless post-mortems and SLO-driven follow-up.",
     );
 
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
-    assert.deepEqual(registry.list().map((d) => d.id), ["skill_incident_response"]);
-    assert.equal(registry.list()[0]?.description, source.description);
+    assert.deepEqual(registry.list({}).map((d) => d.id), ["skill_incident_response"]);
+    assert.equal(registry.list({})[0]?.description, source.description);
   });
 });
 
@@ -289,12 +289,12 @@ test("registerInstalledSkillTools loads and registers one tool per skill directl
     await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
 
-    assert.equal(registry.has("skill_incident_response"), true);
-    assert.equal(registry.has("skill_code_review"), true);
-    assert.equal(registry.list().length, 2);
+    assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
+    assert.equal(registry.has({ toolId: "skill_code_review" }), true);
+    assert.equal(registry.list({}).length, 2);
   });
 });
 
@@ -323,9 +323,9 @@ for (const [name, scalar, expected] of [
     await withSkillsDir(async (skillsDir) => {
       await writeSkill(skillsDir, WORKSPACE_A, name, { "SKILL.md": `---\nname: ${name}\ndescription: ${scalar}\n  First line.\n  Second line.\n---\n# Body\n` });
       const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
-      const registry = createToolRegistry();
+      const registry = createToolRegistry({});
       for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
-      assert.deepEqual(registry.list().map(({ id, description }) => ({ id, description })), [{ id: `skill_${name}`, description: expected }]);
+      assert.deepEqual(registry.list({}).map(({ id, description }) => ({ id, description })), [{ id: `skill_${name}`, description: expected }]);
     });
   });
 }
@@ -342,18 +342,18 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
 
 test("refreshing installed skills adds, updates, removes and re-adds without a restart", async () => {
   await withSkillsDir(async (skillsDir) => {
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
     await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
-    assert.deepEqual(registry.list().map(d => d.id), ["skill_code_review"]);
+    assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
     await rm(path.join(skillsDir, "ws", WORKSPACE_A, "code-review"), { recursive: true });
     await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
-    assert.deepEqual(registry.list().map(d => d.id), []);
-    assert.equal(registry.has("skill_code_review"), false);
+    assert.deepEqual(registry.list({}).map(d => d.id), []);
+    assert.equal(registry.has({ toolId: "skill_code_review" }), false);
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD.replace("Code Review", "Updated Rules") });
     await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
-    assert.deepEqual(registry.list().map(d => d.id), ["skill_code_review"]);
+    assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
   });
 });
 

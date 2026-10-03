@@ -100,13 +100,13 @@ export class SqlTaxonomyRepo
     return row;
   }
 
-  async findById(id: string): Promise<{ id: string; hierarchical: boolean; allowList?: string[] } | null> {
+  async findById({ id }: { id: string }): Promise<{ id: string; hierarchical: boolean; allowList?: string[] } | null> {
     const row = await this.findLive(id);
     return row ? { id: row.id, hierarchical: row.hierarchical } : null;
   }
 
   /** `ImportableTaxonomyRepoPort` (`importTaxonomy`'s CAS read) — the full live row. */
-  async findByIdFull(id: string): Promise<Taxonomy | null> {
+  async findByIdFull({ id }: { id: string }): Promise<Taxonomy | null> {
     return this.findLive(id);
   }
 
@@ -167,7 +167,7 @@ export class SqlTaxonomyRepo
 
   /** `DeletableTaxonomyRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability behind
    *  `deleteTaxonomy`, workspace-scoped like every other method on this class. */
-  async delete(id: string): Promise<void> {
+  async delete({ id }: { id: string }): Promise<void> {
     await this.kernel.run((db) =>
       db.deleteFrom("taxonomies").where("workspace_id", "=", this.workspaceId).where("id", "=", id).execute()
     );
@@ -183,7 +183,7 @@ export class SqlTaxonomyRepo
    *
    * @complexity O(1) fixed overhead plus whatever `fn` itself costs.
    */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey(`taxonomy:${this.workspaceId}`);
       return fn();
@@ -238,13 +238,13 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
     return row;
   }
 
-  async findById(id: string): Promise<{ id: string; taxonomyId: string; name?: string } | null> {
+  async findById({ id }: { id: string }): Promise<{ id: string; taxonomyId: string; name?: string } | null> {
     const row = await this.findLive(id);
     return row ? { id: row.id, taxonomyId: row.taxonomyId, name: row.name } : null;
   }
 
   /** `ImportableTermRepoPort` (`importTerm`'s CAS read) — the full live row. */
-  async findByIdFull(id: string): Promise<Term | null> {
+  async findByIdFull({ id }: { id: string }): Promise<Term | null> {
     return this.findLive(id);
   }
 
@@ -335,7 +335,7 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
   }
 
   /** `DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability behind `deleteTerm`. */
-  async delete(id: string): Promise<void> {
+  async delete({ id }: { id: string }): Promise<void> {
     await this.kernel.run((db) =>
       db.deleteFrom("terms").where("workspace_id", "=", this.workspaceId).where("id", "=", id).execute()
     );

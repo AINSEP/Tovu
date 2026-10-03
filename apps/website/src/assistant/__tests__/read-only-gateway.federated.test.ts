@@ -15,14 +15,14 @@ test("read-only gateway executes operator-listed federation reads and refuses un
     connectionId: "higgsfield", label: "Higgsfield", allowedToolNames: ["models_explore", "generate"], writeAllowedToolNames: [],
     readOnlyRemoteNames: new Set(["models_explore"]), connectTimeoutMs: 1000, callTimeoutMs: 1000, maxResultBytes: 4096, maxTools: 8,
   }, deps: { workspaceId: "workspace", authorize: async () => ({ allowed: true, reason: "matched" }) } });
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of registrations) registry.register(registration);
   const executor = withReadOnlyToolConstraint(createToolExecutor({ registry }), { registry });
   const principal = constrainPrincipalToReadOnlyTools({ id: "owner" });
-  const allowed = await executor.execute(principal, { id: "run" }, "mcp__higgsfield__models_explore", {});
+  const allowed = await executor.execute({ principal: principal, run: { id: "run" }, toolId: "mcp__higgsfield__models_explore", input: {} });
   assert.equal(allowed.status, "completed");
   assert.deepEqual(session.calls, [{ name: "models_explore", arguments: {} }]);
-  const refused = await executor.execute(principal, { id: "run" }, "mcp__higgsfield__generate", {});
+  const refused = await executor.execute({ principal: principal, run: { id: "run" }, toolId: "mcp__higgsfield__generate", input: {} });
   assert.equal(refused.status, "denied");
   assert.equal(refused.error, readOnlyToolRefusalMessage("mcp__higgsfield__generate"));
   assert.deepEqual(session.calls, [{ name: "models_explore", arguments: {} }], "the refused tool must never reach the remote");

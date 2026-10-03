@@ -18,7 +18,7 @@ function makeRouteDeps(): WidgetsRouteDeps {
   return {
     authorize: (() => {}) as unknown as WidgetsRouteDeps["authorize"],
     workspaceId: "ws-1",
-    clock: { nowIso: () => "2026-08-20T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-08-20T00:00:00.000Z") },
     idGen: { newId: () => "id-1" },
     outbox: { publish: () => {} } as unknown as WidgetsRouteDeps["outbox"],
     entryRepo: { marker: "entryRepo" } as unknown as WidgetsRouteDeps["entryRepo"],

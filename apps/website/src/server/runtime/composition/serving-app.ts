@@ -2,7 +2,6 @@ import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
 import { startTrashSweeper, type TrashSweeper } from "#src/features/trash/index";
-import type { RouteDeps } from "../../routes/types.js";
 import { createApp } from "./app.js";
 
 /**
@@ -35,7 +34,7 @@ import { createApp } from "./app.js";
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
-  routeDeps: RouteDeps,
+  routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
 ): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper } {
   const app = createApp(routeDeps);

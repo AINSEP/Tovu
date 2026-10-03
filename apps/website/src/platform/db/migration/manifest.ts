@@ -60,7 +60,7 @@
  * - It is not a migration completeness signal. See `WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY` below —
  *   Trap #1 from the handoff, re-derived here as executable documentation.
  * - It does not change the timestamp representation. Timestamps stay `text` ISO-8601 this round —
- *   see `TIMESTAMP_REPRESENTATION` for why that is reversible only until a deadline, not indefinitely.
+ *   see the timestamp representation note for why that is reversible only until a deadline, not indefinitely.
  * - It does not touch FTS5/search. See `DERIVED_OBJECTS` — search is rebuilt, never copied.
  */
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
@@ -150,7 +150,7 @@ export type IdGrowthClass = "unbounded" | "bounded";
 
 /**
  * The safe-integer ceiling `PgBigInt53` columns are actually subject to, carried as data for the same
- * reason `TIMESTAMP_REPRESENTATION` below is: a fact someone must not have to remember from a handoff
+ * reason the timestamp representation note below is: a fact someone must not have to remember from a handoff
  * document alone.
  *
  * `bigint(..., { mode: "number" })` (what every `SQLiteInteger` column generates as — see this
@@ -271,32 +271,31 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
 // ---------------------------------------------------------------------------
 
 /**
- * The timestamp representation decision and its reversibility deadline, carried as data so it is
+ * The timestamp representation decision and its reversibility deadline, kept as documentation so it is
  * not only tribal knowledge in a handoff document. Timestamps stay `text` ISO-8601 this round —
- * this constant records the ONE condition that revisits that decision, so it is not forgotten by
+ * this note records the ONE condition that revisits that decision, so it is not forgotten by
  * the time it matters.
  *
  * Proven live in `migration-manifest-postgres.test.ts`: the identical naive-local string casts to a
  * DIFFERENT instant depending on the Postgres session's timezone, while a UTC-offset string does
  * not — the concrete mechanism behind "reversible only until noncanonical data accumulates."
+ *
+ * Representation: text (ISO-8601, UTC)
+ * unchanged this round
+ * reversible to timestamptz ONLY until noncanonical (non-UTC / naive-local) data lands in a column this
+ * manifest classifies utc-timestamp-text. A WordPress import introduces naive local timestamps immediately
+ * (WordPress stores post dates in the site's configured local time, not UTC) — this is not a distant
+ * deadline.
+ * Postgres has no way to distinguish a naive-local timestamp string from a UTC one once it is sitting in a
+ * text column. The ambiguity is invisible until the column is cast to timestamptz, at which point Postgres
+ * applies the CURRENT SESSION's timezone to any string with no explicit offset — silently reinterpreting
+ * the identical stored string differently depending on who runs the cast and when.
  */
-export const TIMESTAMP_REPRESENTATION = {
-  representation: "text (ISO-8601, UTC)",
-  status: "unchanged this round",
-  reversibleUntil:
-    "reversible to timestamptz ONLY until noncanonical (non-UTC / naive-local) data lands in a column this " +
-    "manifest classifies utc-timestamp-text. A WordPress import introduces naive local timestamps immediately " +
-    "(WordPress stores post dates in the site's configured local time, not UTC) — this is not a distant deadline.",
-  whyItMatters:
-    "Postgres has no way to distinguish a naive-local timestamp string from a UTC one once it is sitting in a " +
-    "text column. The ambiguity is invisible until the column is cast to timestamptz, at which point Postgres " +
-    "applies the CURRENT SESSION's timezone to any string with no explicit offset — silently reinterpreting the " +
-    "identical stored string differently depending on who runs the cast and when.",
-} as const;
+// TIMESTAMP_REPRESENTATION (apps/website/src/platform/db/migration/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
- * A SEPARATE hazard from `TIMESTAMP_REPRESENTATION` above, carried as its own invariant because the
- * two have different triggers and different fixes: that constant is about a naive-local string being
+ * A SEPARATE hazard from the timestamp representation decision above, carried as its own invariant because the
+ * two have different triggers and different fixes: that decision is about a naive-local string being
  * ambiguous once cast to `timestamptz`; this one is about two forms `verifyUtcTimestampText` BOTH
  * treat as fully valid — a trailing `Z` and an explicit `+HH:MM`/`-HH:MM` offset — sorting WRONG
  * against each other under plain string collation, even though neither is ambiguous on its own.
@@ -345,12 +344,15 @@ export function isTimestampColumnName(sqlColumnName: string): boolean {
 // 3. JSON vs text
 // ---------------------------------------------------------------------------
 
-export const JSON_TEXT_NOTE =
-  "SQLite stores JSON documents as TEXT; the generated Postgres schema stores every json-text column as native " +
-  "jsonb (MySQL: native JSON), still typed string (generate-postgres-schema.ts's JSON_TEXT_DECLARATION). SQLite " +
-  "does not enforce JSON validity, so a corrupted payload that SQLite kept is REJECTED by the jsonb insert — the " +
-  "copy fails loudly instead of carrying it across. jsonb also normalises the document (key order, whitespace, " +
-  "duplicate keys), so verify.ts's verifyJsonDocumentCopy compares JSON values, not bytes.";
+/** Historical migration rationale (the unused runtime declaration below was removed):
+ * SQLite stores JSON documents as TEXT; the generated Postgres schema stores every json-text column as
+ * native jsonb (MySQL: native JSON), still typed string (generate-postgres-schema.ts's
+ * JSON_TEXT_DECLARATION). SQLite does not enforce JSON validity, so a corrupted payload that SQLite kept is
+ * REJECTED by the jsonb insert — the copy fails loudly instead of carrying it across. jsonb also normalises
+ * the document (key order, whitespace, duplicate keys), so verify.ts's verifyJsonDocumentCopy compares JSON
+ * values, not bytes.
+ */
+// JSON_TEXT_NOTE (apps/website/src/platform/db/migration/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Matches this schema's JSON-payload naming convention: SQL name ends `_json`. */
 export function isJsonColumnName(sqlColumnName: string): boolean {
@@ -414,21 +416,21 @@ export const REVIEWED_JSON_COLUMNS: Readonly<Record<string, { readonly rationale
 // 5. Copy transforms — boolean is the one real case in the core schema today
 // ---------------------------------------------------------------------------
 
-export const BOOLEAN_COPY_TRANSFORM = {
-  sqliteRepresentation: "0 | 1 (SQLite has no native boolean type)",
-  postgresRepresentation: "native boolean",
-  transform: "sqlite 1 -> postgres true; sqlite 0 -> postgres false; any other stored value is a data-integrity bug",
-  note:
-    "This applies ONLY to columns Drizzle declares SQLiteBoolean (integer(..., {mode:\"boolean\"})) — today " +
-    "posts.overrides_theme_page, plugin_activations.enabled, external_mcp_servers.enabled, " +
-    "publish_credential_sets.is_default, source_control_credential_sets.is_default, " +
-    "vendor_credential_sets.is_default, publish_history.reachable. Several other " +
-    "integer columns are conceptually 0/1 flags too (tombstoned, hierarchical, is_builtin, is_frozen, " +
-    "visible_in_portal) but are declared plain `integer`, not `{mode:\"boolean\"}` — those get NO transform " +
-    "(correct passthrough as a numeric 0/1 on both dialects, whatever integer width each side uses) precisely " +
-    "because schema.sqlite.ts itself did not choose the boolean representation for them. This manifest follows the " +
-    "schema's own type choice; it does not redesign it.",
-} as const;
+/** Historical migration rationale (the unused runtime declaration below was removed):
+ * 0 | 1 (SQLite has no native boolean type)
+ * native boolean
+ * sqlite 1 -> postgres true; sqlite 0 -> postgres false; any other stored value is a data-integrity bug
+ * This applies ONLY to columns Drizzle declares SQLiteBoolean (integer(..., {mode:"boolean"})) — today
+ * posts.overrides_theme_page, plugin_activations.enabled, external_mcp_servers.enabled,
+ * publish_credential_sets.is_default, source_control_credential_sets.is_default,
+ * vendor_credential_sets.is_default, publish_history.reachable. Several other integer columns are
+ * conceptually 0/1 flags too (tombstoned, hierarchical, is_builtin, is_frozen, visible_in_portal) but are
+ * declared plain `integer`, not `{mode:"boolean"}` — those get NO transform (correct passthrough as a
+ * numeric 0/1 on both dialects, whatever integer width each side uses) precisely because schema.sqlite.ts
+ * itself did not choose the boolean representation for them. This manifest follows the schema's own type
+ * choice; it does not redesign it.
+ */
+// BOOLEAN_COPY_TRANSFORM (apps/website/src/platform/db/migration/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 // ---------------------------------------------------------------------------
 // Core-schema column classification

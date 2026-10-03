@@ -1,3 +1,7 @@
+import type { HttpClientPort } from "@jini-ai/core/primitives";
+import { createHttpClient, EgressRefusedError } from "@jini-ai/platform/http/guarded";
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -22,10 +26,16 @@ import type { KeyringPort } from "../../webhooks/index.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
-import { resetToolContributorsForTests, registerToolContributor } from "../../../assistant/tool-contribution-registry.js";
+
 import { contributeMediaGenerationTools } from "../tool-registrations.js";
-import { mediaGenerationAgentToolCatalog, type AgentToolDefinition } from "../agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
 import type { MediaGenerationRequest, MediaGenerationResult, ProviderCredentials } from "@jini-ai/integrations/media-providers";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /** A `KeyringPort` that always fails — simulates a missing/rotated `TOVU_INTEGRATIONS_ROOT_KEY`
  *  without touching real env state. Same local-duplicate idiom every other credential-store test in
@@ -51,8 +61,8 @@ class BrokenKeyring implements KeyringPort {
  * call, mirroring `tool-registrations.media.test.ts`'s identical structure for the sibling domain).
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributeMediaGenerationTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
 
 const WORKSPACE_ID = "ws-media-generation-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -77,7 +87,7 @@ function fakeGenerateMedia(
 
 async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo): Promise<void> {
   await registerTransform({
-    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowIso: () => NOW } },
+    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
 }
@@ -86,9 +96,10 @@ function fakeRouteDeps(
   options: {
     allow?: boolean;
     withCredential?: boolean;
+    httpClient?: HttpClientPort;
     /** Pass `null` to omit the field entirely, so the handler falls through to the REAL
      *  `defaultGenerateMedia` (the real dispatch engine) instead of this file's injected fake — only
-     *  safe for scenarios proven never to reach a network call (the stub-fallback tests below, where
+     *  safe with a deterministic guarded HTTP port, or scenarios proven never to reach a network call (the stub-fallback tests below, where
      *  the selected model's provider has no adapter registered at all). Omitted/`undefined` uses the
      *  fake, as before. */
     generateMedia?:
@@ -101,12 +112,12 @@ function fakeRouteDeps(
   } = {}
 ) {
   const allow = options.allow ?? true;
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const mediaProviderCredentialRepo = new InMemoryMediaProviderCredentialRepo();
   const keyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer(keyring);
@@ -116,7 +127,7 @@ function fakeRouteDeps(
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     assetBlobRepo,
@@ -126,6 +137,9 @@ function fakeRouteDeps(
     transformDefinitionRepo,
     mediaProviderCredentialRepo,
     siteAssistantSecretSealer,
+    mediaGenerationHttpClient: options.httpClient ?? {
+      send: async () => { throw new Error("fixture forbids external media HTTP"); },
+    },
     generateMedia: options.generateMedia === null ? undefined : (options.generateMedia ?? fakeGenerateMedia(generateCalls)),
     env: options.env ?? {},
     authorize: async (params: Record<string, unknown>) => {
@@ -145,7 +159,7 @@ function fakeRouteDeps(
  *  test's own seeding needs one. */
 async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDeps>, "mediaProviderCredentialRepo" | "siteAssistantSecretSealer" | "keyring">): Promise<void> {
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: { nowIso: () => NOW } },
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
     { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } }
   );
 }
@@ -161,7 +175,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaGenerationRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -193,7 +207,7 @@ test("requiresConfirmation is unset — no ceremony beyond the ordinary permissi
 });
 
 test("the real catalog and this wiring layer's own risk classification agree", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_generate_asset", catalogEntry("media_generate_asset")));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_generate_asset", catalogEntry("media_generate_asset"), contributions));
 });
 
 // ---------------------------------------------------------------------------
@@ -221,7 +235,7 @@ test("no OpenAI credential configured: rejects with a clear message naming Media
 test("a credential saved with baseUrl/model but no key yet is treated the same as no credential at all", async () => {
   const { deps, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, generateCalls } = fakeRouteDeps();
   await saveMediaProviderCredentials(
-    { repo: mediaProviderCredentialRepo, sealer: siteAssistantSecretSealer, keyring, clock: { nowIso: () => NOW } },
+    { repo: mediaProviderCredentialRepo, sealer: siteAssistantSecretSealer, keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
     { workspaceId: WORKSPACE_ID, providers: { openai: { baseUrl: "https://api.openai.com/v1" } } }
   );
 
@@ -502,3 +516,47 @@ test("the ToolPolicy layer is a pass-through 'allow' — enforcement is this fil
   const decision = registration.policy.authorize({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, tool: registration.descriptor, input: {} });
   assert.equal(decision, "allow");
 });
+
+
+// REGRESSION: fails if defaultGenerateMedia stops forwarding the host's guarded HTTP client.
+for (const scenario of ["private", "redirect", "public"] as const) {
+  test(`media generation enforces host egress policy for a provider-returned ${scenario} asset`, async () => {
+    const transported: string[] = [];
+    const assetUrl = scenario === "private" ? "http://127.0.0.1/private.png" : "https://assets.example/generated.png";
+    const httpClient = createHttpClient({
+      userAgent: "Tovu-media-egress-test",
+      dns: { resolve: async () => ["8.8.8.8"] },
+      clock: { nowMs: () => Date.parse(NOW), timeoutSignal: () => new AbortController().signal },
+      policy: {
+        allowedSchemes: ["http", "https"], denyPrivateAddresses: true, devHostAllowlist: [],
+        maxRedirects: 0, connectTimeoutMs: 600_000,
+        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024,
+      },
+      transport: { requestPinned: async ({ request }) => {
+        transported.push(request.url);
+        if (request.method === "POST") {
+          return { status: 200, headers: { "content-type": "application/json" },
+            bodyText: JSON.stringify({ data: [{ url: assetUrl }] }), finalUrl: request.url };
+        }
+        if (scenario === "redirect") {
+          return { status: 302, headers: { location: "http://127.0.0.1/private.png" }, bodyText: "", finalUrl: request.url };
+        }
+        return { status: 200, headers: { "content-type": "image/png" }, bodyText: "",
+          bodyBytes: FAKE_PNG_BYTES, bodyTruncated: false, bodyBytesTruncated: false, finalUrl: request.url };
+      } },
+    });
+    const fixture = fakeRouteDeps({ generateMedia: null, httpClient });
+    await seedOpenAiCredential(fixture);
+    await seedPublicTransform(fixture.transformDefinitionRepo);
+    const pending = wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a red bicycle", model: "gpt-image-2" }));
+    if (scenario === "public") {
+      const result = await pending;
+      assert.ok(result && typeof result === "object" && "media" in result);
+      assert.deepEqual(transported, ["https://api.openai.com/v1/images/generations", assetUrl]);
+    } else {
+      await assert.rejects(pending, EgressRefusedError);
+      assert.equal(transported.some(url => url.includes("127.0.0.1")), false, "a refused peer must never reach the transport");
+      assert.equal(transported.length, scenario === "private" ? 1 : 2);
+    }
+  });
+}

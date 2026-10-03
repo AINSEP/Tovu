@@ -1,7 +1,7 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "#src/assistant/index";
-import type { UUID, ISODateTime } from "@jini-ai/cms/core";
+import type { UUID, ISODateTime } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../content-kernel.js";
 import type { SiteAssistantCredentialsTable } from "../content-database.generated.js";
 

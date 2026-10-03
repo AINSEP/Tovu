@@ -132,7 +132,7 @@ const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
  * classification in `manifest.ts`. A bulk copier that walks that order would silently omit all three.
  */
 const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
-  ai_chats: "0023_ai_chat_history.sql — Jini's chat-history DDL copied verbatim into a Tovu migration so @jini-ai/sqlite does not run a second migrator against content.db. Read/written through @jini-ai/sqlite's own store, never through Drizzle; drift against the package constant is guarded separately by assistant/persistence/__tests__/ddl-parity.test.ts.",
+  ai_chats: "0023_ai_chat_history.sql — Jini's chat-history DDL copied verbatim into a Tovu migration so @jini-ai/sqlite-chat does not run a second migrator against content.db. Read/written through @jini-ai/sqlite-chat's own store, never through Drizzle; drift against the package constant is guarded separately by assistant/persistence/__tests__/ddl-parity.test.ts.",
   ai_chat_messages: "0023_ai_chat_history.sql — the message table of the same Jini-mirrored chat-history DDL as ai_chats, with the same owner and the same separate ddl-parity.test.ts guard.",
   assistant_agent_sessions: "0051_assistant_agent_sessions.sql — the (conversation, agent) -> agent-CLI session id map, read and written exclusively through raw prepared statements in assistant/persistence/agent-session-store.ts. Kept out of schema.sqlite.ts on purpose; see that migration's own header for why it is separate from the Jini-mirrored tables above.",
 };

@@ -1,14 +1,5 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type UUID,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -18,10 +9,11 @@ import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../features/origin/index.js";
-import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID, type AgentToolDefinition } from "./agent-tools.js";
-import type { SiteEvidenceBrowserFactory } from "./browser-port.js";
-import { collectPageEvidence, SITE_EVIDENCE_LIMITS } from "./collect-page-evidence.js";
-import { openPlaywrightSiteEvidenceBrowser } from "./playwright-browser.js";
+import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-tools.js";
+import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
+// Browser/privacy rationale: Jini/packages/diagnostics/src/web-evidence/browser-port.ts; serialized DOM rationale: page-structure-script.ts beside it.
+import { collectPageEvidence } from "./collect-page-evidence.js";
+import { openPlaywrightSiteEvidenceBrowser, type PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 /**
  * @file Wires `site_collect_page_evidence` into the assistant's tool catalog, through the same
@@ -44,6 +36,43 @@ import { openPlaywrightSiteEvidenceBrowser } from "./playwright-browser.js";
  * the existing `RouteDeps` with no composition-root change, while the optional field is the seam a
  * test substitutes a fake through. No browser is launched at registration time — only inside a
  * handler call.
+ *
+ * The browser seam for `site_collect_page_evidence`, plus the evidence shapes that cross it,
+ * now owned by Jini diagnostics.
+ *
+ * ---------------------------------------------------------------------------
+ * Why a port at all
+ * ---------------------------------------------------------------------------
+ * A headless browser is a heavyweight, optional, environment-dependent runtime dependency. Three
+ * things follow, and the port is what makes all three cheap:
+ *
+ * 1. **It may be absent.** Tovu is self-hosted; an operator's image may not carry Chromium at all.
+ *    `SiteEvidenceBrowserFactory` therefore returns a discriminated result rather than throwing, so
+ *    "this deployment cannot observe rendered behaviour" is a first-class, reportable state instead
+ *    of a stack trace. The skill's output contract requires it to say `cannot-determine` in exactly
+ *    this case, which it can only do if the tool tells it plainly.
+ * 2. **It must be testable without one.** Every bound, every same-origin refusal, every redaction
+ *    rule in `collect-page-evidence.ts` is exercised against a fake implementing this interface.
+ *    Nothing about those rules should require downloading a browser to assert.
+ * 3. **Playwright is not the contract.** Jini's `playwright-browser.ts` is one adapter. This Tovu host wiring supplies the optional
+ *    module loader, so swapping vendors does not change the collector or evidence contract.
+ *
+ * ---------------------------------------------------------------------------
+ * What this port is NOT allowed to carry
+ * ---------------------------------------------------------------------------
+ * The evidence types below are the whole contract, and they are deliberately incapable of carrying
+ * personal data out of a page:
+ *
+ * - A cookie's **value is not a field**. Names, domains, flags and the observation phase are; the
+ *   value is not modelled, so an adapter has nothing to put it in and a report has nothing to leak.
+ * - A request's **body is not a field**, and neither are its headers. Method, host, path, resource
+ *   type, phase.
+ * - A form control's **value is not a field**. Its selector, name, type, and whether it has an
+ *   accessible label are.
+ * - Page text is a bounded **excerpt**, capped by the collector, never the full document.
+ *
+ * This is the same "unrepresentability, not redaction" discipline `same-origin.ts` applies to the
+ * URL: a field that does not exist cannot be forgotten in a redaction pass.
  */
 
 const siteEvidenceDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -51,7 +80,46 @@ const siteEvidenceDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   [SITE_EVIDENCE_TOOL_ID, "none"],
 ]);
 
-const CATALOG_BY_ID = indexCatalogById(siteEvidenceAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: siteEvidenceAgentToolCatalog });
+
+/** Resolve the optional browser module from Tovu, including when Jini is linked from another repo. */
+const playwrightModuleLoader = {
+  // A literal host import checks the native module against the structural port without a cast;
+  // dynamic loading still lets Jini report a missing module or browser as unavailable evidence.
+  load: async (_required: { moduleName: string }): Promise<PlaywrightLike> => {
+    const { chromium } = await import("playwright");
+    return {
+      chromium: {
+        launch: async (options) => {
+          const { args, ...launchOptions } = options ?? {};
+          const browser = await chromium.launch({ ...launchOptions, ...(args === undefined ? {} : { args: [...args] }) });
+          return {
+            newContext: async (contextOptions) => {
+              const context = await browser.newContext(contextOptions);
+              return {
+                newPage: () => context.newPage(),
+                // Playwright returns a Disposable; the evidence port only awaits registration.
+                route: async (pattern, handler) => { await context.route(pattern, handler); },
+                cookies: () => context.cookies(),
+                close: () => context.close(),
+              };
+            },
+            close: () => browser.close(),
+          };
+        },
+      },
+    };
+  },
+};
+
+// `--no-sandbox` is required to launch Chromium as a non-root user inside a container without
+// granting SYS_ADMIN. Acceptable here and only here: this browser opens exactly one origin —
+// the operator's own site — never arbitrary attacker-chosen URLs, so the sandbox is not the
+// boundary doing the security work; Jini's web-evidence/same-origin.ts is.
+const TOVU_BROWSER_LAUNCH_OPTIONS = {
+  headless: true,
+  args: ["--no-sandbox", "--disable-dev-shm-usage"],
+};
 
 export interface SiteEvidenceToolDeps {
   workspaceId: string;
@@ -76,15 +144,15 @@ export interface SiteEvidenceToolDeps {
 export function readPathsArgument(input: Readonly<Record<string, unknown>>): readonly string[] {
   const raw = input.paths;
   if (!Array.isArray(raw)) {
-    throw new ToolInputError("'paths' is required and must be an array of site-relative path strings, e.g. ['/', '/legal/privacy']");
+    throw new ToolInputError({ message: "'paths' is required and must be an array of site-relative path strings, e.g. ['/', '/legal/privacy']" });
   }
   if (raw.length === 0) {
-    throw new ToolInputError("'paths' must contain at least one site-relative path");
+    throw new ToolInputError({ message: "'paths' must contain at least one site-relative path" });
   }
   const paths: string[] = [];
   for (const [index, value] of raw.entries()) {
     if (typeof value !== "string") {
-      throw new ToolInputError(`'paths[${index}]' must be a string, got ${typeof value}`);
+      throw new ToolInputError({ message: `'paths[${index}]' must be a string, got ${typeof value}` });
     }
     paths.push(value);
   }
@@ -103,11 +171,11 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
 } {
   const selector = input.consentAcceptSelector;
   if (selector !== undefined && typeof selector !== "string") {
-    throw new ToolInputError("'consentAcceptSelector' must be a CSS selector string when provided");
+    throw new ToolInputError({ message: "'consentAcceptSelector' must be a CSS selector string when provided" });
   }
   const collectAccessibility = input.collectAccessibility;
   if (collectAccessibility !== undefined && typeof collectAccessibility !== "boolean") {
-    throw new ToolInputError("'collectAccessibility' must be a boolean when provided");
+    throw new ToolInputError({ message: "'collectAccessibility' must be a boolean when provided" });
   }
   return {
     ...(typeof selector === "string" && selector.trim().length > 0 ? { consentAcceptSelector: selector.trim() } : {}),
@@ -118,12 +186,8 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
 export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [SITE_EVIDENCE_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "content.read",
-        entityType: "post",
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
       const paths = readPathsArgument(input);
       const optional = readOptionalEvidenceArguments(input);
@@ -131,11 +195,15 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps):
       try {
         return await collectPageEvidence(
           {
-            workspaceId: routeDeps.workspaceId as UUID,
+            workspaceId: routeDeps.workspaceId,
             originRegistry: routeDeps.originRegistry,
-            openBrowser: routeDeps.siteEvidenceBrowser ?? openPlaywrightSiteEvidenceBrowser,
+            openBrowser: routeDeps.siteEvidenceBrowser ?? (required => openPlaywrightSiteEvidenceBrowser(required, {
+              moduleLoader: playwrightModuleLoader,
+              launchOptions: TOVU_BROWSER_LAUNCH_OPTIONS,
+            })),
+            paths,
           },
-          { paths, ...optional },
+          optional,
         );
       } catch (error) {
         if (error instanceof OriginNotVerifiedError) {
@@ -160,7 +228,7 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps):
   return buildDomainRegistrations({
     domain: "site-evidence",
     catalogModule: "features/site-evidence/agent-tools.ts",
-    catalog: CATALOG_BY_ID as ReadonlyMap<string, AgentToolDefinition>,
+    catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: siteEvidenceDerivedRisk,
   });

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -24,9 +24,9 @@ function ctxWithInput(input: unknown): ToolExecutionContext {
 
 async function makeDeps(): Promise<CommentsToolDeps> {
   const settingsRepo = new InMemorySettingsRepo();
-  const principalRepo = new InMemoryPrincipalRepo([]);
+  const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [] });
   let id = 0;
-  const clock = { nowIso: () => "2026-07-16T00:00:00.000Z" };
+  const clock = { nowIso: () => "2026-07-16T00:00:00.000Z", nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") };
   const idGen = { newId: () => `settings-test-${++id}` };
   await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, clock, ids: idGen }, { workspaceId: "ws-settings", systemPrincipalId: "system" });
   return {

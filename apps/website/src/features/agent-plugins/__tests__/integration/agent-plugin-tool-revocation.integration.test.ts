@@ -110,9 +110,9 @@ function entries(manifest: string): readonly AgentPluginArchiveEntry[] {
 /** Boots the tool surface the way `agent-daemon-server.ts` does: register once, then keep the same
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(): Promise<ToolRegistry> {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_ID });
-  assert.equal(registry.has(TOOL_ID), true, "precondition: an enabled plugin must register its tool at boot");
+  assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
 

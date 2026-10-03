@@ -13,7 +13,7 @@ export const DOMAIN_DNS_EGRESS_POLICY: EgressPolicy = {
 const TYPE_CODES: Record<DnsRecordType, number> = { A: 1, AAAA: 28, CNAME: 5, MX: 15, TXT: 16, NS: 2 };
 const DNS_UNAVAILABLE = "domain_lookup_dns: the public DNS resolver could not answer. Try again later; no DNS conclusion was reached.";
 /** Refusals contain no raw resolver response or internal transport error detail. */
-function dnsUnavailable(): ToolInputError { return new ToolInputError(DNS_UNAVAILABLE); }
+function dnsUnavailable(): ToolInputError { return new ToolInputError({ message: DNS_UNAVAILABLE }); }
 /** Validates untrusted record shape and address class; bounded DNS strings are returned only as data. */
 function readAnswer(answer: unknown): { type: number; value: string; ttl: number } {
   if (typeof answer !== "object" || answer === null) throw dnsUnavailable();
@@ -23,7 +23,7 @@ function readAnswer(answer: unknown): { type: number; value: string; ttl: number
   if (row.type === 1 || row.type === 28) {
     if (isIP(row.data) !== (row.type === 1 ? 4 : 6)) throw dnsUnavailable();
     value = row.type === 28 ? new URL(`https://[${row.data}]/`).hostname.slice(1, -1) : row.data;
-    if (classifyAddress(value) !== "public") throw new ToolInputError("domain_lookup_dns: public DNS returned a non-public address. Internal addresses cannot be inspected with this tool.");
+    if (classifyAddress(value) !== "public") throw new ToolInputError({ message: "domain_lookup_dns: public DNS returned a non-public address. Internal addresses cannot be inspected with this tool." });
   }
   return { type: row.type, value, ttl: row.TTL };
 }
@@ -51,7 +51,7 @@ interface DiagnosticOptions {
 /** Creates a replaceable public-DNS resolver using only an injected guarded HTTP client. */
 export function createPublicDnsResolver(client: HttpClientPort, options: DiagnosticOptions = {}): PublicDnsResolver {
   return { query: async ({ domain, type }) => {
-    const hostname = readPublicDnsName(domain, "domain_lookup_dns");
+    const hostname = readPublicDnsName({ value: domain, errorPrefix: "domain_lookup_dns" });
     let outcome: DiagnosticOutcome = "unavailable";
     try {
       const response = await client.send({ method: "GET", url: `https://cloudflare-dns.com/dns-query?${new URLSearchParams({ name: hostname, type })}`, headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal: options.createDeadline?.() ?? AbortSignal.timeout(15000), maxResponseBytes: 65536 });
@@ -83,7 +83,7 @@ function isCertificateFailure(error: unknown): boolean {
 /** One HTTPS/443 HEAD validates trust/hostname/date through the existing TLS transport; never follows redirects. */
 export function createTlsProbe(client: HttpClientPort, options: DiagnosticOptions = {}): (input: { domain: string }) => Promise<TlsStatus> {
   return async ({ domain }) => {
-    const hostname = readPublicDomain(domain, "domain_tls_status");
+    const hostname = readPublicDomain({ value: domain, errorPrefix: "domain_tls_status" });
     let outcome: DiagnosticOutcome = "unavailable";
     try {
       const response = await client.send({ method: "HEAD", url: `https://${hostname}/`, headers: {}, timeoutMs: 15000, signal: options.createDeadline?.() ?? AbortSignal.timeout(15000), maxResponseBytes: 65536 });
@@ -92,7 +92,7 @@ export function createTlsProbe(client: HttpClientPort, options: DiagnosticOption
     } catch (error) {
       if (error instanceof EgressRefusedError) {
         outcome = "refused";
-        throw new ToolInputError(`domain_tls_status: ${error.callerSafeMessage}`);
+        throw new ToolInputError({ message: `domain_tls_status: ${error.callerSafeMessage}` });
       }
       outcome = isCertificateFailure(error) ? "invalid" : "unavailable";
       return { status: outcome, httpStatus: null };
@@ -106,7 +106,7 @@ function hostingHostname(value: string): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.port || url.username || url.password) return null;
-    return readPublicDomain(url.hostname, "domain_check_dns");
+    return readPublicDomain({ value: url.hostname, errorPrefix: "domain_check_dns" });
   } catch { return null; }
 }
 type SavedHostingDeps = Pick<RouteDeps, "workspaceId"> & {

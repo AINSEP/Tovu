@@ -1,5 +1,3 @@
-import type { UUID } from "@jini-ai/cms/core";
-
 /**
  * @file Port contracts for the `gated-mutations` package (SPEC-016, ADR-041 §5).
  *
@@ -9,14 +7,11 @@ import type { UUID } from "@jini-ai/cms/core";
  * capability surface (`db-ops.ts` adapters under `src/platform/db/*`).
  *
  * Interfaces and types only — no feature logic.
- */
-
-/**
- * The principal classes a gated mutation can be driven by. Deliberately narrower than
- * `identity.PrincipalKind` (which also has `"system"`) — kept local so `core/gated-mutations`
+ * Retained extraction rationale (the generic implementation lives in Jini):
+ * The principal classes a gated mutation can be driven by. Historically narrower than
+ * `identity.PrincipalKind` (which also has `"system"`) — kept in the canonical kernel so `core/gated-mutations`
  * never imports `identity` (same "kept generic to avoid inverting the dependency direction"
  * rule `core/commands/command.ts`'s own `AuthorizeFn` doc comment documents).
- *
  * `"publish_key"` is a publishing installation pushing content into this one over the
  * publish-trust handshake (`features/publish-trust/`). It is listed here so a gated ceremony can
  * RECORD what actually drove it: before this member existed, `routes/publish-content/import.ts`
@@ -24,27 +19,13 @@ import type { UUID } from "@jini-ai/cms/core";
  * into the audit trail as a human. Adding a member widens nothing — the only behavioral branch on
  * this type is `gateway.ts`'s `principalKind === "agent"` confirm refusal, which a new member does
  * not reach — and every authorization decision still runs through `AuthorizeFn`.
- */
-export type PrincipalKind = "user" | "agent" | "api_key" | "publish_key";
-
-/**
  * The shape of the SPEC-006 `authorize()` gate. Structurally identical to
- * `core/commands/command.ts`'s `AuthorizeFn` — redeclared locally (not imported) for the same
+ * `core/commands/command.ts`'s `AuthorizeFn` — now imported from the CMS host contract for the same
  * decoupling reason that file's own doc comment gives: composition roots bind a closure over
  * the real `identity.authorize()` and pass it in, so this package never depends on `identity`.
- */
-export type AuthorizeFn = (params: {
-  principalId: UUID;
-  permission: string;
-  workspaceId: UUID;
-  entityType?: string;
-  entityId?: UUID;
-}) => Promise<{ allowed: boolean; reason: string }>;
-
-/**
  * The instance-scope counterpart to `AuthorizeFn` — deliberately has no `workspaceId` param.
  * `db/schema.sqlite.ts`'s RBAC tables (`principals`/`roles`/`policies`/`policy_permissions`/...) are all
- * `workspace_id NOT NULL`, so `AuthorizeFn`'s underlying evaluator (`@jini-ai/cms/identity`'s
+ * `workspace_id NOT NULL`, so `AuthorizeFn`'s underlying evaluator (`@jini-ai/user-management`'s
  * `authorize()`) can only ever resolve a principal within one specific workspace: passing it any
  * `workspaceId` value for an instance-wide mutation (one that touches every workspace in
  * `content.db` at once, e.g. a whole-database migration) either matches no principal (nobody can
@@ -54,11 +35,35 @@ export type AuthorizeFn = (params: {
  * evaluator instead of overloading the workspace-scoped one with a value it was never designed to
  * accept — the same "separate global surface, not an overloaded scope column" shape
  * `setting_values_global`/`setting_values_workspace` already use in `db/schema.sqlite.ts`.
+
+ *
+ * Composite actor implementation and rationale now live in Jini/core/gated-mutations/actor-identity.ts.
+ * @file SPEC-016 C-006 / REQ-16–REQ-18 / INV-06 / INV-07 — composite actor-identity population.
+ *
+ * Purpose:
+ * Every gated-mutation-adjacent row that records "who did this" carries a composite
+ * `(actorWorkspaceId, actorId)` pair, plus an optional `(delegatedByWorkspaceId, delegatedById)`
+ * pair identifying the human/owning-user behind an agent or api_key action. Jini core/gated-mutations/actor-identity.ts is the
+ * single population helper for that shape (REQ-16/REQ-17) and its workspace-match guard (INV-06).
+ *
+ * How it relates to the project:
+ * A pure population helper — no I/O itself (C-006's Effect Boundary). Callers perform the actual
+ * row write with the object this returns. Read-time orphan tolerance (INV-07) is each dependent
+ * domain's own read-path/reconciliation-sweep concern, not this package's.
+ *
+ * Architectural role:
+ * Core primitive shared by every domain that records actor references on gated-mutation rows.
+ * WorkspaceMismatchError rejects any cross-workspace actor/delegator reference (INV-06),
+ * so appendActorReference fails before a caller persists it. O(1), pure: no I/O or DB-level FK
+ * metadata (AC-24/REQ-17); dependent domains retain orphan tolerance and reconciliation (INV-07).
  */
-export type InstanceAuthorizeFn = (params: {
-  principalId: UUID;
-  permission: string;
-}) => Promise<{ allowed: boolean; reason: string }>;
+
+// Jini owns generic approval contracts; the rest of this file is Tovu's DB/restore boundary.
+// Generic scope separation: Jini/packages/core/src/gated-mutations/ports.ts (SPEC-016, ADR-041).
+// publish_key must remain publish_key in the audit trail, rather than masquerade as a human user;
+// composition binds its real identity/authorization evaluator without expanding approval privileges.
+export type { PrincipalKind, InstanceAuthorizeFn } from "@jini-ai/core/gated-mutations";
+export type { AuthorizeFn } from "@jini-ai/cms/core";
 
 /**
  * A site's restore-point mechanism, evaluated per dialect (SQLite: always cheap file-snapshot;

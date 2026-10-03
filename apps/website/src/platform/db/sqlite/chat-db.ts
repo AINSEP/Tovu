@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-import { sqliteKernel } from "../kernel/drivers/sqlite.js";
+import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
 import { migrateChatDatabase } from "../migrations/index.js";
 
@@ -15,7 +15,7 @@ import { migrateChatDatabase } from "../migrations/index.js";
  *
  * Its schema is the AI chat history of the migration runner (`CHAT_MIGRATIONS`, ADR-066/067): the
  * same history a Postgres/PGlite site applies to its `ai_chat` schema, with its own ledger. The
- * tables are `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus two Tovu-owned tables, frozen in chat step
+ * tables are `@jini-ai/chat/store/sqlite`'s `CHAT_HISTORY_DDL` plus two Tovu-owned tables, frozen in chat step
  * `0001_sqlite_chat_tables` (`ADS-memory/reports/2026-09-05-db-split-scoping.md` §1/§3).
  *
  * The composition root (`server/runtime/composition/open-site-store.ts`) opens this once, alongside

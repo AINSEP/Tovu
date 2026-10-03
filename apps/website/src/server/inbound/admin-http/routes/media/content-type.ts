@@ -53,7 +53,7 @@ export async function resolveContentTypes(
     try {
       const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256 });
       if (!blob) continue;
-      const contentType = sniffContentType(await deps.blobStore.get({ storageKey: blob.storageKey }));
+      const contentType = sniffContentType({ bytes: await deps.blobStore.get({ storageKey: blob.storageKey }) });
       await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType });
       recorded.set(sha256, contentType);
     } catch {

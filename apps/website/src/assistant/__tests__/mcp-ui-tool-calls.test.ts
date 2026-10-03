@@ -135,6 +135,8 @@ const EXPECTED_ALLOWLIST = [
   "custom_credential_delete",
   "deployment_delete_provider_credential",
   "source_control_delete_credential",
+  "settings_set_value",
+  "settings_clear_value",
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
   "agent_plugin_set_access_token",
@@ -160,6 +162,7 @@ const EXPECTED_ALLOWLIST = [
   "database_transfer_run",
   "database_transfer_set_destination",
   "taxonomy_execute_merge_term",
+  "publish_content_execute_pull",
   "webhooks_delete_subscription",
 ];
 

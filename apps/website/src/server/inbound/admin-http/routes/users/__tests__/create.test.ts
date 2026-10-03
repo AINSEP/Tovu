@@ -15,7 +15,7 @@ import { registerAdminUserEnableRoute } from "../enable.js";
 import { registerAdminUserDisableRoute } from "../disable.js";
 import { registerAdminUserCreateRoute } from "../create.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createUser } from "@jini-ai/cms/identity";
+import { createUser } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users`;
@@ -132,8 +132,8 @@ test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   assert.deepEqual(body.user.policyIds, []);
   const stored = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE_ID, username: "newoperator" });
   assert.ok(stored);
-  assert.equal(await deps.passwordHasher.verify(stored.passwordHash, "op3r4tor-p4ss!"), true);
-  assert.equal(await deps.passwordHasher.verify(stored.passwordHash, "wrong-password"), false);
+  assert.equal(await deps.passwordHasher.verify({ hash: stored.passwordHash, password: "op3r4tor-p4ss!" }), true);
+  assert.equal(await deps.passwordHasher.verify({ hash: stored.passwordHash, password: "wrong-password" }), false);
   const principal = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: stored.principalId });
   assert.ok(principal);
   const expected = {

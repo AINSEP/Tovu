@@ -22,7 +22,7 @@ const PAGE_SIZE = 100;
 
 /** Caller-correctable lookup refusal; never reveals a credential's secret material. */
 function notFound(toolId: string): ToolInputError {
-  return new ToolInputError(`${toolId}: item was not found. List the resource and check its id.`);
+  return new ToolInputError({ message: `${toolId}: item was not found. List the resource and check its id.` });
 }
 
 /**
@@ -48,7 +48,7 @@ async function recordPlan<T>(spec: {
       const current = await spec.load();
       if (!current) throw notFound(spec.toolId);
       if (!isDeepStrictEqual(current, snapshot)) {
-        throw new ToolInputError(`${spec.toolId}: item changed while confirmation was open. Request a new confirmation; nothing was deleted.`);
+        throw new ToolInputError({ message: `${spec.toolId}: item changed while confirmation was open. Request a new confirmation; nothing was deleted.` });
       }
       return spec.remove();
     },
@@ -102,7 +102,7 @@ async function mayPurgeItem(deps: Deps, item: TrashItem, principalId: string): P
 async function trashPlan(deps: Deps, toolId: PermanentDeleteToolId, items: TrashItem[], principalId: string): Promise<PermanentDeletePlan> {
   const snapshots = new Map(items.map(item => [item.id, structuredClone(item)]));
   for (const item of items) {
-    if (!await mayPurgeItem(deps, item, principalId)) throw new ToolInputError(`${toolId}: permission denied for a selected Trash item. Nothing was deleted.`);
+    if (!await mayPurgeItem(deps, item, principalId)) throw new ToolInputError({ message: `${toolId}: permission denied for a selected Trash item. Nothing was deleted.` });
   }
   return {
     details: items.map(item => ({ label: item.entityType, value: `${item.displayTitle} (${item.id})` })),
@@ -124,17 +124,17 @@ async function prepareTrash(deps: Deps, toolId: PermanentDeleteToolId, id: strin
   if (toolId === "trash_empty") {
     const items: TrashItem[] = [];
     for await (const item of listedTrashItems(deps)) items.push(item);
-    if (items.length === 0) throw new ToolInputError("trash_empty: Trash is empty. Nothing to permanently delete.");
+    if (items.length === 0) throw new ToolInputError({ message: "trash_empty: Trash is empty. Nothing to permanently delete." });
     return trashPlan(deps, toolId, items, principalId);
   }
   if (id === null) throw notFound(toolId);
   if (toolId === "identity_user_delete") {
-    if (id === principalId || id === await deps.ownerPrincipalId) throw new ToolInputError("identity_user_delete: cannot permanently delete yourself or the seeded owner.");
+    if (id === principalId || id === await deps.ownerPrincipalId) throw new ToolInputError({ message: "identity_user_delete: cannot permanently delete yourself or the seeded owner." });
     const item = await findTrashItem(deps, item => item.entityId === id, ["user"]);
     if (!item) {
       const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
       if (!principal) throw notFound(toolId);
-      throw new ToolInputError("identity_user_delete: user is not in Trash. Move the user to Trash first, then request permanent deletion.");
+      throw new ToolInputError({ message: "identity_user_delete: user is not in Trash. Move the user to Trash first, then request permanent deletion." });
     }
     return trashPlan(deps, toolId, [item], principalId);
   }
@@ -163,7 +163,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           return recordPlan({
             toolId, id, load: async () => {
               const asset = await deps.mediaRepo.findById(key);
-              if (asset && asset.status !== "trashed") throw new ToolInputError("media_purge_asset: media must be trashed first. Use media_trash_asset, then request permanent deletion.");
+              if (asset && asset.status !== "trashed") throw new ToolInputError({ message: "media_purge_asset: media must be trashed first. Use media_trash_asset, then request permanent deletion." });
               return asset;
             }, label: asset => asset.title,
             warning: "The asset and renditions are permanently removed. Shared file bytes remain; unshared bytes follow the existing garbage-collection grace period.",
@@ -173,7 +173,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
                 await deps.forgetRemovedMedia(key);
                 return { removed: true, id };
               } catch (error) {
-                if (error instanceof MediaNotFoundError || error instanceof MediaStillReferencedError) throw new ToolInputError(error.message);
+                if (error instanceof MediaNotFoundError || error instanceof MediaStillReferencedError) throw new ToolInputError({ message: error.message });
                 throw error;
               }
             },

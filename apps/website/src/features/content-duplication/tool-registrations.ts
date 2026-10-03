@@ -1,3 +1,4 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Maps `agent-tools.ts`'s single `content_duplicate` catalog entry onto every resource
  * currently registered in `assistant/duplicate-resource-registry.ts`, as a `ToolRegistration`.
@@ -34,18 +35,8 @@
  * `build(...)` time — once per real composition, after boot registration has finished — is what makes
  * the registry's contents visible here at all.
  */
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import type {
@@ -55,9 +46,10 @@ import type {
 } from "#src/assistant/index";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 
-import { contentDuplicationAgentToolCatalog, type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "./agent-tools.js";
+import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";
+import { contentDuplicationAgentToolCatalog } from "./agent-tools.js";
 
-const CATALOG_BY_ID = indexCatalogById(contentDuplicationAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: contentDuplicationAgentToolCatalog });
 
 const contentDuplicationDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> whichever resource's own DuplicateResourceHandler.duplicate() the resource named — for
@@ -75,13 +67,14 @@ const OVERRIDE_KEYS = ["title", "slug", "status"] as const;
  *  (`{}`); a present-but-non-object value, an unknown key, or a present-but-non-string known key is
  *  each a caller shape error, not silently ignored or coerced to `undefined`. */
 function readOverrides(input: Record<string, unknown>): { title?: string; slug?: string; status?: string } {
-  const raw = input.overrides;
-  if (raw === undefined) return {};
-  if (!isRecord(raw)) throw new ToolInputError("'overrides' must be an object");
+  const candidate = { value: input.overrides };
+  if (candidate.value === undefined) return {};
+  if (!isRecord(candidate)) throw new ToolInputError({ message: "'overrides' must be an object" });
+  const raw = candidate.value;
 
   for (const key of Object.keys(raw)) {
     if (!(OVERRIDE_KEYS as readonly string[]).includes(key)) {
-      throw new ToolInputError(`unknown override '${key}'`);
+      throw new ToolInputError({ message: `unknown override '${key}'` });
     }
   }
 
@@ -90,7 +83,7 @@ function readOverrides(input: Record<string, unknown>): { title?: string; slug?:
     const value = raw[key];
     if (value === undefined) continue;
     if (typeof value !== "string") {
-      throw new ToolInputError(`'overrides.${key}' must be a string`);
+      throw new ToolInputError({ message: `'overrides.${key}' must be a string` });
     }
     result[key] = value;
   }
@@ -113,11 +106,9 @@ function readOverrides(input: Record<string, unknown>): { title?: string; slug?:
  */
 function unsupportedResourceError(resource: string, supportedResources: Iterable<string>): ToolInputError {
   const supported = [...supportedResources].sort();
-  return new ToolInputError(
-    `content_duplicate: cannot duplicate resource '${resource}'. Supported resources: ` +
+  return new ToolInputError({ message: `content_duplicate: cannot duplicate resource '${resource}'. Supported resources: ` +
       `${supported.length > 0 ? supported.join(", ") : "(none registered)"}. ` +
-      "No other resource can be duplicated by this tool — retrying with a different spelling will not help.",
-  );
+      "No other resource can be duplicated by this tool — retrying with a different spelling will not help." });
 }
 
 /**
@@ -150,9 +141,9 @@ export function buildContentDuplicationRegistrations(
 
   const handlers: Record<string, ToolHandler> = {
     content_duplicate: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const resource = requireString(input, "resource");
-      const id = requireString(input, "id");
+      const input = requireInputRecord({ input: ctx.input });
+      const resource = requireString({ input: input, key: "resource" });
+      const id = requireString({ input: input, key: "id" });
       const overrides = readOverrides(input);
 
       const handler = handlersByResource.get(resource);
@@ -160,12 +151,7 @@ export function buildContentDuplicationRegistrations(
 
       // The resource's OWN declared permission — see this file's own header for why this is
       // deliberately per-resource rather than one flat check for the whole tool.
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: handler.permission,
-        entityType: resource,
-        entityId: id,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: handler.permission }, { entityType: resource, entityId: id });
 
       return handler.duplicate({ principalId: ctx.principal.id, id, overrides });
     },

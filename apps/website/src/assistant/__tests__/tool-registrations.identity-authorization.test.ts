@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,35 +11,26 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import type { UIResource } from "#src/assistant/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 
-import {
-  identityAgentToolCatalog,
-  type IdentityRepos,
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  seedIdentity,
-  GrantExceedsIssuerError,
-  IdentityForbiddenError,
-} from "@jini-ai/cms/identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import { type IdentityRepos, GrantExceedsIssuerError, IdentityForbiddenError } from "@jini-ai/user-management";
+import { identityAgentToolCatalog, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
+import { Argon2PasswordHasher, loadArgon2Binding, createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeIdentityTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeIdentityTools() });
 
 /**
  * @file The ADR-021 half of the identity tool wiring — the sibling of
@@ -65,7 +58,7 @@ registerToolContributor(contributeIdentityTools());
 
 const WORKSPACE_ID = "workspace-tools";
 /** Real argon2id at test-only cost params — the hasher is exercised, not mocked (mirrors `identity/__tests__/grant-service.test.ts`). */
-const HASHER = new Argon2PasswordHasher({ memoryCost: 8, timeCost: 1, parallelism: 1 });
+const HASHER = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding }, { memoryCost: 8, timeCost: 1, parallelism: 1 });
 
 function counterIdGen() {
   let n = 0;
@@ -80,19 +73,19 @@ interface Harness {
 
 /** A seeded workspace (owner + the four built-in roles/policies) exposed as a `RouteDeps` stand-in. */
 async function buildHarness(): Promise<Harness> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   const idGen = counterIdGen();
-  const clock = { nowIso: () => "2026-07-29T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-29T00:00:00.000Z"), nowIso: () => "2026-07-29T00:00:00.000Z" };
 
   const { ownerPrincipalId } = await seedIdentity({
     deps: { repos, hasher: HASHER, clock, idGen },
@@ -104,6 +97,8 @@ async function buildHarness(): Promise<Harness> {
     clock,
     idGen,
     passwordHasher: HASHER,
+    transactions: repos.transactions,
+    tokens: new NodeSessionTokens({}),
     ownerPrincipalId: Promise.resolve(ownerPrincipalId),
     principalRepo: repos.principals,
     userRepo: repos.users,
@@ -181,7 +176,7 @@ const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.
 
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES })
+    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
       .filter(
         (registration) =>
           IDENTITY_TOOL_IDS.has(registration.descriptor.id) || Object.values(IDENTITY_COLLAPSED_ID).includes(registration.descriptor.id),

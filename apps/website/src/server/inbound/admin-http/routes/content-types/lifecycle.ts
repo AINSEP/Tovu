@@ -46,7 +46,7 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
       }
 
       const body = req.body ?? {};
-      const op = parseContentTypeLifecycleOp(body.op);
+      const op = parseContentTypeLifecycleOp({ op: body.op });
       if (!op) {
         res.status(400).json({ error: "'op' must be one of 'deprecate', 'reactivate', 'tombstone'", code: "VALIDATION_ERROR" });
         return;
@@ -57,22 +57,22 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
       }
 
       const handler = CONTENT_TYPE_LIFECYCLE_OPS[op];
-      const result = await handler(
-        {
+      const result = await handler({
+        deps: {
           repo: deps.contentTypeRepo,
           clock: deps.clock,
           authorize: deps.authorize,
           outbox: toContentTypeOutbox(deps),
           indexProvisioner: deps.contentTypeIndexProvisioner,
         },
-        {
+        input: {
           workspaceId: deps.workspaceId,
           actorId: principal.id,
           principalKind: principal.kind,
           key: String(req.params.key),
           expectedVersion: body.expectedVersion,
-        }
-      );
+        },
+      });
 
       if (!result.ok) {
         const { status, code } = statusFor(result.error);

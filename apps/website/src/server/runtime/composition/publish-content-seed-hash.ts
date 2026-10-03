@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 
 import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.sqlite";

@@ -1,3 +1,5 @@
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
  * `post.ts`'s `createPost`/`updatePost`/`deletePost`/`listAdminPosts`/`listAdminPages`/
@@ -44,26 +46,9 @@
  * truncation is never silent.
  */
 import { isDeepStrictEqual } from "node:util";
-import {
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalBoolean,
-  optionalNumber,
-  optionalString,
-  requireInputRecord,
-  requireObject,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type EventBusPort,
-  type JsonObject,
-  type OutboxPort,
-} from "@jini-ai/cms/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type JsonObject } from "@jini-ai/core/primitives";
+import { requireToolPermission, type EventBusPort, type OutboxPort } from "@jini-ai/cms/core";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
@@ -71,20 +56,14 @@ import {
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError } from "@jini-ai/core";
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
-import {
-  forbiddenRule,
-  withModelFacingErrors,
-  type ModelFacingErrorRule,
-} from "../../contracts/core/model-facing-tool-errors.js";
+import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
-import {
-  POST_LIST_FIELDS,
-  postAgentToolCatalog,
-  type AgentToolDefinition as PostAgentToolDefinition,
-} from "./agent-tools.js";
+import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
+import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
 import {
   createPost,
   deletePost,
@@ -114,10 +93,12 @@ import {
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";
 import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
+// Keep the standalone read tool on the existing registration seam, outside the content barrel.
+export { contributeContentStatsTools, type ContentStatsToolDeps } from "./content-stats-tool.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
-const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
 
 /**
  * Structural mirror of `features/pages/html-document-store.sqlite.ts`'s
@@ -144,15 +125,16 @@ export type DuplicatePagesHtmlStoreFactory = (scope: { workspaceId: string; post
 /**
  * The exact slice of the route-deps bag Posts/Pages' tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
- * into the composition root for the `RouteDeps` god type specifically — the `assistant/mcp-ui`/
- * `assistant/pending-confirmations` imports above are separate, already-disclosed back-edges left
+ * into the composition root for the `RouteDeps` god type specifically — the `assistant/mcp-ui` import above is a
+ * separate, already-disclosed back-edge left
  * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
  * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface PostToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
   changeSets: ChangeSetRepoPort;
   outbox: OutboxPort;
@@ -298,7 +280,7 @@ function requirePostKind(input: Record<string, unknown>): PostKind {
     // `instanceof ToolInputError`; anything else is `'internal'` and reaches the model as a
     // redacted 500. A wrong/missing `kind` is exactly the caller-input-was-the-problem case the
     // marker means, and `requireString` elsewhere in this same file already uses it correctly.
-    throw new ToolInputError("'kind' must be exactly 'post' or 'page'");
+    throw new ToolInputError({ message: "'kind' must be exactly 'post' or 'page'" });
   }
   return value;
 }
@@ -307,7 +289,7 @@ function requirePostStatus(input: Record<string, unknown>): PostStatus {
   const value = input.status;
   if (value !== "draft" && value !== "published") {
     // Same reasoning as `requirePostKind` above.
-    throw new ToolInputError("'status' must be exactly 'draft' or 'published'");
+    throw new ToolInputError({ message: "'status' must be exactly 'draft' or 'published'" });
   }
   return value;
 }
@@ -335,7 +317,7 @@ function clampPostListLimit(limit: number | undefined): number {
  * `post.ts`'s own `isJsonObject` check (inside `createPost`/`updatePost`) is the actual runtime
  * shape gate — this cast does not weaken that, it only aligns the caller-facing TS type. */
 function requireBodyJson(input: Record<string, unknown>, key: string): JsonObject {
-  return requireObject(input, key) as unknown as JsonObject;
+  return requireObject({ input: input, key: key }) as unknown as JsonObject;
 }
 
 /** Optional counterpart to {@link requireBodyJson} — S7's partial-patch shape for
@@ -354,7 +336,7 @@ function optionalBodyJson(input: Record<string, unknown>, key: string): JsonObje
  *  let an empty title or slug through where the full-record call rejected it. */
 function optionalNonEmptyString(input: Record<string, unknown>, key: string): string | undefined {
   if (input[key] === undefined) return undefined;
-  return requireString(input, key);
+  return requireString({ input: input, key: key });
 }
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
@@ -509,7 +491,7 @@ function optionalPostListFields(input: Record<string, unknown>): PostListField[]
   const fields = input.fields;
   if (fields === undefined) return undefined;
   if (!Array.isArray(fields) || !fields.every((field) => POST_LIST_FIELDS.includes(field))) {
-    throw new ToolInputError("content_post_list: fields must be an array of supported field names.");
+    throw new ToolInputError({ message: "content_post_list: fields must be an array of supported field names." });
   }
   return fields as PostListField[];
 }
@@ -595,8 +577,9 @@ async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: Post
 
 /**
  * Refuses to write if the row moved between read and removal. See the caller's own
- * inline history: this replaces `pending-confirmations.ts`'s old token-bound version check (ADR-055
+ * inline history: this replaces the former token-bound version check (ADR-055
  * Decision 3 removed the token, not the need for the check).
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function assertFreshVersion(current: PostRecord | null, existing: PostRecord, kind: PostKind): void {
   if (current && !isTrashed(current) && current.version !== existing.version) {
@@ -605,12 +588,10 @@ function assertFreshVersion(current: PostRecord | null, existing: PostRecord, ki
     // only "500" here cannot learn that nothing was deleted or that calling again fixes it. The code
     // goes in FRONT of the original wording, which is otherwise unchanged character for character —
     // `__tests__/agent-tools.delete-confirmation.test.ts` matches on `/stale-entity-version/`.
-    throw new ToolInputError(
-      `CONTENT_POST_STALE_CONFIRMATION: content_post_delete: the removal could not be completed ` +
+    throw new ToolInputError({ message: `CONTENT_POST_STALE_CONFIRMATION: content_post_delete: the removal could not be completed ` +
         `(stale-entity-version). The ${kind} changed between its read and removal. ` +
         `Nothing was deleted. Call content_post_delete again with { id, kind } to raise a fresh ` +
-        `dialog against the current version.`
-    );
+        `dialog against the current version.` });
   }
   // A missing or already-trashed `current` is not handled specially here: `deletePost` performs its
   // own fresh existence/trashed check and throws `PostNotFoundError`, the same outcome this handler
@@ -646,14 +627,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
      * the model a turn.
      */
     content_post_search: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
-      return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
-        const query = requireString(input, "query");
+      return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
+        const query = requireString({ input: input, key: "query" });
         const kind = input.kind !== undefined ? requirePostKind(input) : undefined;
         const status = optionalPostStatus(input);
-        const limit = optionalNumber(input, "limit");
+        const limit = optionalNumber({ input: input, key: "limit" });
 
         const { hits } = await searchAdminPosts({
           deps: { search: routeDeps.postSearch },
@@ -670,7 +651,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // here there is no `toPostToolView` projection to apply — and deliberately no `bodyJson` to
         // drop, because the search layer never loads one. See `search.ts`'s `PostSearchHit` doc.
         return { hits };
-      });
+      } });
     },
 
     /**
@@ -682,13 +663,13 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
      * b returned body text and f requested projection keys across returned rows.
      */
     content_post_list: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
       const kind = requirePostKind(input);
-      const limit = clampPostListLimit(optionalNumber(input, "limit"));
-      const includeBody = optionalBoolean(input, "includeBody") === true;
-      const query = optionalString(input, "query")?.toLowerCase();
+      const limit = clampPostListLimit(optionalNumber({ input: input, key: "limit" }));
+      const includeBody = optionalBoolean({ input: input, key: "includeBody" }) === true;
+      const query = optionalString({ input: input, key: "query" })?.toLowerCase();
       const status = optionalPostStatus(input);
       const fields = optionalPostListFields(input);
       const { posts: allPosts } =
@@ -712,9 +693,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     },
 
     content_post_get: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post", entityId: id });
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input: input, key: "id" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: id });
 
       const kind = requirePostKind(input);
       const { post } = await getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id } });
@@ -730,11 +711,11 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     },
 
     content_post_create: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "content_post_create", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({ toolId: "content_post_create", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
         const kind = requirePostKind(input);
-        const title = requireString(input, "title");
-        const slug = optionalString(input, "slug");
+        const title = requireString({ input: input, key: "title" });
+        const slug = optionalString({ input: input, key: "slug" });
         const bodyJson = input.bodyJson !== undefined ? requireBodyJson(input, "bodyJson") : undefined;
         const status = optionalPostStatus(input);
         const postId = routeDeps.idGen.newId();
@@ -779,7 +760,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   delegatedById: ctx.principal.id,
                 },
               }),
-            captureEntityVersion: (r) => r.post.version,
+            captureEntityVersion: ({ result }) => result.post.version,
             // A failed record must undo the create, including its revision and reserved slug.
             rollback: () => routeDeps.postRepo.hardDelete({ workspaceId: routeDeps.workspaceId, id: postId }),
           },
@@ -795,13 +776,13 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
-      });
+      } });
     },
 
     content_post_update: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
-        const id = requireString(input, "id");
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
+        const id = requireString({ input: input, key: "id" });
         const kind = requirePostKind(input);
         // S7 (fix-plan-tool-design-2026-09-24.md) — a PARTIAL patch: each of these four is now
         // independently optional. An omitted one is filled from the stored row inside
@@ -812,9 +793,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const bodyJson = optionalBodyJson(input, "bodyJson");
         const status = optionalPostStatus(input);
         if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined) {
-          throw new ToolInputError(
-            "content_post_update: send at least one of title, slug, bodyJson or status. Nothing was changed."
-          );
+          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson or status. Nothing was changed." });
         }
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
@@ -890,11 +869,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               // the field. Compares the MERGED value, not the raw (possibly-omitted) input — see the
               // merge comment just above for why that is what lets a title-only patch succeed.
               if (existing.bodyFormat === "html" && !isDeepStrictEqual(merged.bodyJson, existing.bodyJson)) {
-                throw new ToolInputError(
-                  `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
+                throw new ToolInputError({ message: `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
                     `To edit its title, slug or status, send bodyJson back exactly as content_read returned it. ` +
-                    `To change the body, use pages_write_html or pages_write_region.`
-                );
+                    `To change the body, use pages_write_html or pages_write_region.` });
               }
               priorPost = existing;
               return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
@@ -934,7 +911,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 },
               });
             },
-            captureEntityVersion: (r) => r.post.version,
+            captureEntityVersion: ({ result }) => result.post.version,
             rollback: async () => {
               if (!priorPost) return;
               await restorePostForward({
@@ -964,23 +941,18 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolView(result.post) };
-      });
+      } });
     },
 
     /** Moves content to Trash without a confirmation; permission and version checks still apply. */
     content_post_delete: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input: input, key: "id" });
       const kind = requirePostKind(input);
 
       // Gated exactly like content_post_get, and performed before opening anything so a caller with
       // no read access learns nothing and never causes a dialog to be raised.
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: "content.read",
-        entityType: "post",
-        entityId: id,
-      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: id });
 
       // Kind guard applied inside the loader rather than in `deletePost`, mirroring `pages/delete.ts`/
       // `pages/update.ts` — and carrying the same disclosed asymmetry the rest of this catalog has:
@@ -1026,7 +998,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 delegatedById: ctx.principal.id,
               },
             }),
-          captureEntityVersion: (r) => r.post.version,
+          captureEntityVersion: ({ result }) => result.post.version,
           rollback: async () => {
             if (!priorPost) return;
             await restorePostForward({
@@ -1069,7 +1041,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     // Composes with the three handlers' inner `withSchemaOnRejection` rather than competing with it:
     // a shape rejection is already a `ToolInputError` by the time it arrives, and
     // `reclassifyToolError` returns those untouched.
-    handlers: withModelFacingErrors(handlers, POST_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: POST_MODEL_FACING_ERRORS }),
     derivedRisk: postDerivedRisk,
   });
 }
@@ -1132,12 +1104,7 @@ async function duplicatePostOrPage(
   // runs). `content_duplicate`'s own handler ALSO checks this resource's declared permission
   // (content.write) before calling here at all — see `contributePostDuplicateHandlers` below — so
   // this is a second, narrower gate on top of that outer one, not a replacement for it.
-  await requireToolPermission(routeDeps, {
-    principalId: input.principalId,
-    permission: "content.read",
-    entityType: "post",
-    entityId: sourceId,
-  });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: input.principalId, permission: "content.read" }, { entityType: "post", entityId: sourceId });
 
   const { post: source } = await getAdminPostById({
     deps: { repo: routeDeps.postRepo },
@@ -1220,7 +1187,7 @@ async function duplicatePostOrPage(
             delegatedById: input.principalId,
           },
         }),
-      captureEntityVersion: (r) => r.post.version,
+      captureEntityVersion: ({ result }) => result.post.version,
     },
   });
 
@@ -1355,3 +1322,6 @@ export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContr
 export function contributePostTools(): ToolContributor {
   return { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk };
 }
+
+// Keep assistant contribution ports on the registration seam, outside the general post barrel.
+export { contributePostPreviewTools } from "./preview-tool.js";

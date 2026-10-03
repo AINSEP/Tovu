@@ -1,12 +1,7 @@
 import type { Response } from "express";
 
-import {
-  disablePrincipal,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  OwnerRequiredError,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
+import { disablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
@@ -24,7 +19,7 @@ async function assembleDisabledUserResponse(
   principal: Parameters<typeof toAdminUserResponse>[0]["principal"]
 ) {
   const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id });
-  if (!user) throw new IdentityNotFoundError(`user '${principal.id}' was not found`);
+  if (!user) throw new IdentityNotFoundError({ message: `user '${principal.id}' was not found` });
   const [roleLinks, policyLinks] = await Promise.all([
     deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
     deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),

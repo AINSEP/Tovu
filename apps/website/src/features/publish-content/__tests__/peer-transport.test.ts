@@ -50,6 +50,9 @@ class FakeHttpClient implements HttpClientPort {
   async send(request: HttpRequest): Promise<HttpResponse> {
     assert.equal(request.headers.authorization, `Bearer ${API_KEY}`, `${request.method} requests must authenticate`);
     this.calls.push(request);
+    // Every peer route retains the feature's intended total budget, independently
+    // of the network policy's shorter socket idle ceiling.
+    assert.equal(request.totalDeadlineMs, 60_000);
     const route = this.routes.find((candidate) => candidate.match.test(request.url));
     if (!route) throw new Error(`unexpected request: ${request.method} ${request.url}`);
     return {
@@ -64,7 +67,7 @@ class FakeHttpClient implements HttpClientPort {
  *  address — the REAL error class and the REAL two-message split, not a stand-in. */
 class RefusingHttpClient implements HttpClientPort {
   async send(): Promise<HttpResponse> {
-    throw new EgressRefusedError("egress to 'peer.internal' (10.1.2.3) rejected: resolved address is private", {
+    throw new EgressRefusedError({ message: "egress to 'peer.internal' (10.1.2.3) rejected: resolved address is private" }, {
       callerSafeMessage: "egress to 'peer.internal' rejected: resolved address is private",
     });
   }
@@ -135,7 +138,7 @@ test("the same diagnosis is produced for a push, not only a pull", async () => {
 
 test("describePeerEgressRefusal names the bracket-stripped IPv6 host exactly as an allowlist entry is written", () => {
   const described = describePeerEgressRefusal(
-    new EgressRefusedError("full", { callerSafeMessage: "refused" }),
+    new EgressRefusedError({ message: "full" }, { callerSafeMessage: "refused" }),
     "https://[fd00::1]:3000"
   );
   assert.match(described.message, /add 'fd00::1'/);

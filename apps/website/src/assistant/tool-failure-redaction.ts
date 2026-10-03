@@ -24,8 +24,8 @@
  * for why only the VALUE is ever blanked, never the surrounding text.
  *
  * Architectural role: `src/assistant` composition-layer adapter, same layer as
- * `tool-executor-audit.ts` and `tool-failure-recovery.ts`. Depends only on the pure
- * `contracts/core/secret-redaction.ts` engine and `@jini-ai/daemon`'s `ToolExecutor` shape.
+ * `tool-executor-audit.ts` and `tool-failure-recovery.ts`. Depends only on the Tovu policy
+ * adapter over `@jini-ai/diagnostics/redaction/secrets-only` and `@jini-ai/daemon`'s `ToolExecutor` shape.
  */
 import { randomBytes } from "node:crypto";
 
@@ -127,7 +127,7 @@ function delegatedInternalErrorReason(context: DelegatedInternalErrorContext): s
  * @complexity O(reason length) for the redaction pass.
  */
 export function describeDelegatedInternalError(context: DelegatedInternalErrorContext, deps: RedactedToolFailuresDeps = {}): string {
-  const { text, redactions } = redactSecretShapes(delegatedInternalErrorReason(context));
+  const { text, redactions } = redactSecretShapes({ text: delegatedInternalErrorReason(context) });
   const errorId = (deps.mintErrorId ?? mintToolErrorId)();
   safeOnFailure(deps.onFailure ?? logToolFailure, {
     errorId,
@@ -151,11 +151,11 @@ export function describeDelegatedInternalError(context: DelegatedInternalErrorCo
  * @complexity O(1).
  */
 export function delegatedToolErrorDisclosure(deps: RedactedToolFailuresDeps = {}): {
-  readonly isModelSafeToolFailure: (result: ToolExecutionResult) => boolean;
+  readonly isModelSafeToolFailure: (required: { result: ToolExecutionResult }) => boolean;
   readonly describeInternalError: (context: DelegatedInternalErrorContext) => string;
 } {
   return {
-    isModelSafeToolFailure: isRedactedToolFailure,
+    isModelSafeToolFailure: ({ result }) => isRedactedToolFailure(result),
     describeInternalError: (context) => describeDelegatedInternalError(context, deps),
   };
 }
@@ -220,12 +220,12 @@ interface FailureContext {
 function redactFailedResult(result: ToolExecutionResult, context: FailureContext, deps: RedactedToolFailuresDeps): ToolExecutionResult {
   if (result.errorKind === "validation") {
     if (result.error === undefined) return result;
-    return { ...result, error: redactSecretShapes(result.error).text };
+    return { ...result, error: redactSecretShapes({ text: result.error }).text };
   }
 
   const mintErrorId = deps.mintErrorId ?? mintToolErrorId;
   const onFailure = deps.onFailure ?? logToolFailure;
-  const { text, redactions } = redactSecretShapes(result.error ?? `tool "${context.toolId}" failed`);
+  const { text, redactions } = redactSecretShapes({ text: result.error ?? `tool "${context.toolId}" failed` });
   const errorId = mintErrorId();
 
   safeOnFailure(onFailure, {
@@ -257,18 +257,14 @@ function redactFailedResult(result: ToolExecutionResult, context: FailureContext
 export function withRedactedToolFailures(inner: ToolExecutor, deps: RedactedToolFailuresDeps = {}): ToolExecutor {
   return {
     execute: async (
-      principal: Principal,
-      run: RunRef,
-      toolId: string,
-      input: unknown,
-      signal?: AbortSignal,
-      emitSurface?: SurfaceEmitter,
+      { principal, run, toolId, input }: { principal: Principal; run: RunRef; toolId: string; input: unknown },
+      { signal, emitSurface }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter } = {},
     ): Promise<ToolExecutionResult> => {
-      const result = await inner.execute(principal, run, toolId, input, signal, emitSurface);
+      const result = await inner.execute({ principal, run, toolId, input }, { signal, emitSurface });
       if (result.status !== "failed") return result;
       return redactFailedResult(result, { toolId, runId: run.id, principalId: principal.id }, deps);
     },
-    resumeConfirmation: (executionId, decision) => inner.resumeConfirmation(executionId, decision),
+    resumeConfirmation: (args) => inner.resumeConfirmation(args),
     cancel: (executionId) => inner.cancel(executionId),
     getAuditRecord: (executionId) => inner.getAuditRecord(executionId),
   };

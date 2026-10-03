@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
-import type { AuthorizeFn, ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway.js";
 import { InMemoryTokenStore } from "./token.js";
 import type { TokenStorePort } from "./token.js";
@@ -8,7 +9,7 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this
- * codebase's real and hermetic-test composition roots (`server/deps.ts`/`server/app.ts`) — the gap
+ * codebase's real and hermetic-test composition roots (`server/runtime/composition/deps.ts`/`server/runtime/composition/app.ts`) — the gap
  * every prior session of the spec-016-020 workstream disclosed but left open (Session 5: "a
  * token-store-backed primitive composed into ZERO composition roots in this codebase as of this
  * session, confirmed by direct grep").
@@ -46,8 +47,8 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * which `production-readiness-gate.ts`'s `collectDurabilityFailures` unconditionally fails on,
  * making `TOVU_RUNTIME_MODE=production` refuse to boot at all, regardless of env vars (verified
  * empirically, not just by reading). `buildGatewayDeps` now accepts an optional `tokens` override;
- * `server/deps.ts` (the real SQLite composition root) passes `SqliteTokenStore`
- * (`platform/db/sqlite/gated-mutation-token-repo.sqlite.ts`), while `server/app.ts` (the hermetic
+ * `server/runtime/composition/deps.ts` (the real SQLite composition root) passes `SqliteTokenStore`
+ * (`platform/db/sqlite/gated-mutation-token-repo.sqlite.ts`), while `server/runtime/composition/app.ts` (the hermetic
  * in-memory test/dev composition, per `capability-inventory.ts`'s own file header) omits it and
  * keeps the default `InMemoryTokenStore` — unchanged, since that composition root is in-memory
  * everywhere by design and is never production-classified-relevant.
@@ -55,12 +56,11 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * Architectural role:
  * `core/gated-mutations`'s own composition helper — generic across every ceremony, holding no
  * domain-specific type or logic (this is why it is safe for `core/gated-mutations` to own it
- * directly rather than a server-side composition root). `server/deps.ts`/`server/app.ts` bind
+ * directly rather than a server-side composition root). `server/runtime/composition/deps.ts`/`server/runtime/composition/app.ts` bind
  * `buildGatewayDeps` to `identity.authorize()`; each domain's `gated-hooks.ts` binds
  * `resolveActorClassIdentity`/`planHashOf` into its own ceremony-specific hooks. Note for future
  * packaging: this file uses `node:crypto` (`createHash`), which is acceptable for Tovu's `core`
- * today but would need a `HashPort`-style seam if `core/gated-mutations` is ever extracted into a
- * runtime-agnostic package.
+ * host adapter; the runtime-agnostic approval ceremony now lives in `@jini-ai/core/gated-mutations`.
  */
 
 /** One process-lifetime `GatewayDeps` — constructed once per composition root (mirrors every
@@ -68,7 +68,7 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * `authorizeInstance` is optional and additive (`GatewayDeps.authorizeInstance`'s own doc comment)
  * — a caller that omits it gets exactly the pre-existing three-field signature's behavior.
  * `tokens` defaults to `InMemoryTokenStore` (this function's pre-existing behavior, still correct
- * for `server/app.ts`'s hermetic in-memory composition); pass a durable `TokenStorePort` — see this
+ * for `server/runtime/composition/app.ts`'s hermetic in-memory composition); pass a durable `TokenStorePort` — see this
  * file's own header — for a production composition root. */
 export function buildGatewayDeps(params: {
   clock: ClockPort;
@@ -76,7 +76,7 @@ export function buildGatewayDeps(params: {
   authorize: AuthorizeFn;
   authorizeInstance?: InstanceAuthorizeFn;
   tokens?: TokenStorePort;
-}): GatewayDeps {
+}, _optional: Record<string, never> = {}): GatewayDeps {
   return {
     clock: params.clock,
     idGen: params.idGen,
@@ -89,7 +89,7 @@ export function buildGatewayDeps(params: {
 /**
  * The minimal `InstanceAuthorizeFn` binding: grants every permission to exactly the seeded owner
  * principal, denies everyone else — the RBAC-table equivalent of `authorize()`'s own
- * `owner_wildcard` precedent (`@jini-ai/cms/identity/authorize.ts`), reused here rather than
+ * `owner_wildcard` precedent (`@jini-ai/user-management/server/authorize.ts`), reused here rather than
  * inventing new vocabulary. Disclosed simplification, same shape as `resolveActorClassIdentity`'s
  * disclosure below: `db/schema.sqlite.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
  * `workspace_id NOT NULL` — today's identity model has no dedicated instance-level policy/permission

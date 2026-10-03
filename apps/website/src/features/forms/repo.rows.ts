@@ -7,7 +7,7 @@ import type {
   FormDefinitionStatus,
   FormSubmissionRecord,
   NotifyConfig,
-} from "./types.js";
+} from "@jini-ai/cms-forms";
 
 /**
  * @file Row mapping for `form_definitions` / `form_submissions`, shared by every dialect: the columns

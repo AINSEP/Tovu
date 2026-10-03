@@ -1,4 +1,4 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { buildSiteAssistantCredentialAad } from "./site-credential-aad.js";
@@ -278,7 +278,7 @@ export async function setSiteAssistantCredential(
   assertValidSetSiteAssistantCredentialInput(input);
 
   const existing = await deps.repo.findByWorkspaceId(input.workspaceId);
-  const now = deps.clock.nowIso();
+  const now = readNowIso({ clock: deps.clock });
   const seal = await resolveSiteAssistantCredentialSeal(deps, input.workspaceId, input.apiKey, existing);
   const record = buildSiteAssistantCredentialRecord(input, existing, seal, now);
 
@@ -298,7 +298,7 @@ export async function deleteSiteAssistantCredential(
   deps: SiteAssistantCredentialReadDeps & { clock: ClockPort },
   input: { workspaceId: UUID }
 ): Promise<SiteAssistantCredentialView> {
-  await deps.repo.clearKey({ workspaceId: input.workspaceId, updatedAt: deps.clock.nowIso() });
+  await deps.repo.clearKey({ workspaceId: input.workspaceId, updatedAt: readNowIso({ clock: deps.clock }) });
   return getSiteAssistantCredential(deps, input);
 }
 

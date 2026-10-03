@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -13,8 +15,13 @@ import {
 } from "../index.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
-import { resetToolContributorsForTests, registerToolContributor } from "../../../assistant/tool-contribution-registry.js";
+
 import { contributeMediaTools } from "../tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * Row 11 (medium, 2026-09-24 web-medium batch): `media_upload_asset` (the assistant tool path)
@@ -28,8 +35,8 @@ import { contributeMediaTools } from "../tool-registrations.js";
  * survives under the wrong label.
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributeMediaTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMediaTools() });
 
 const WORKSPACE_ID = "ws-media-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -42,17 +49,17 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function fakeRouteDeps() {
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     assetBlobRepo,
@@ -65,7 +72,7 @@ function fakeRouteDeps() {
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
-  const found = new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r])).get(toolId);
+  const found = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r])).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }

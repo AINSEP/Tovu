@@ -1,4 +1,4 @@
-import { registerPermissionMigration } from "@jini-ai/cms/identity";
+import { registerPermissionMigration } from "@jini-ai/user-management/server";
 
 import { registerBuiltinRoleGrant } from "./builtin-role-grants.js";
 

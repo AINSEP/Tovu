@@ -14,14 +14,17 @@ import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
  *
  * @complexity O(1).
  */
-function parseMagicLinkRequest(
+async function parseMagicLinkRequest(
   deps: Pick<MembersRouteDeps, "magicLinkPerEmailLimiter">,
   res: Response,
   rawBody: unknown
-): { rawEmail: string; redirectPath: string | undefined } | null {
+): Promise<{ rawEmail: string; redirectPath: string | undefined } | null> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const rawEmail = String(body.email ?? "");
-  const rateLimitResult = deps.magicLinkPerEmailLimiter.check(rawEmail.trim().toLowerCase());
+  const emailKey = rawEmail.trim().toLowerCase();
+  // Empty emails are validation errors, never missing-key limiter buckets.
+  if (!emailKey) throw new MemberValidationError(`'${rawEmail}' is not a valid email address`);
+  const rateLimitResult = await deps.magicLinkPerEmailLimiter.check({ key: emailKey });
   if (!rateLimitResult.allowed) {
     res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
     res.status(429).json({
@@ -48,7 +51,7 @@ function parseMagicLinkRequest(
  * ADR-PIPE-013 §1 (FEAT-013 Phase 1): previously ran behind session auth only
  * — no per-action `authorize()` call, unlike `disable.ts`. Closes that live
  * authorization gap by requiring `member.manage`, copying `disable.ts`'s
- * exact call shape. INV-NEW-03 (Phase 2, T022 — not yet implemented here):
+ * exact call shape. INV-NEW-03 (Phase 2, T022, now enforced below):
  * the shared `MAGIC_LINK_PER_EMAIL` rate-limit check must land strictly
  * *after* this `authorize()` call, never before, so an unauthorized caller
  * cannot consume rate-limit budget for a target email as a side channel.
@@ -80,7 +83,7 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, ro
         return;
       }
 
-      const parsed = parseMagicLinkRequest(deps, res, req.body);
+      const parsed = await parseMagicLinkRequest(deps, res, req.body);
       if (!parsed) {
         return;
       }

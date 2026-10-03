@@ -27,9 +27,10 @@ import {
  * 2. **A message reaches at most one waiting receive, on an exchange opened by the same tool for the
  *    same principal.** That is the whole correctness contract.
  *
- * These are deliberately NOT the tests `pending-confirmations.test.ts` runs. An exchange id is a
+ * These deliberately exercise a different property from the former token-store tests. An exchange id is a
  * correlation handle, not a secret, so nothing here concerns hashing, constant-time comparison, or
  * probing resistance — asserting those would imply a security property this handle does not carry.
+ * pending-confirmations.test.ts (apps/website/src/assistant/__tests__/pending-confirmations.test.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Records what a handler sent, standing in for the daemon's run event stream. */

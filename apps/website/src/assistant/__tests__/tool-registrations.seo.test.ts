@@ -1,3 +1,6 @@
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers the 6 SEO tools: catalog completeness (every entry wired — nothing withheld in this
  * domain), published contracts, risk cross-check, the ADR-021 authorization half (mixed:
@@ -19,22 +22,28 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import type { PostRecord } from "../../features/post/post.js";
 import { InMemorySettingsRepo } from "../../features/settings/index.js";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../../features/media/index.js";
-import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../features/seo/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // SEO moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
@@ -42,8 +51,8 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`. Reset first so this file's own registration is the only one
 // this process's registry holds while these tests run.
-resetToolContributorsForTests();
-registerToolContributor(contributeSeoTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeSeoTools() });
 
 const WORKSPACE_ID = "ws-seo-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -72,20 +81,20 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   const postRepo = new InMemoryPostRepo(options.posts ?? [seedPost()]);
   const settingsRepo = new InMemorySettingsRepo();
 
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   let idCounter = 0;
   const idGen = { newId: () => `seo-tool-id-${++idCounter}` };
   const authorize = async (params: Record<string, unknown>) => {
     authorizeCalls.push(params);
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   };
-  const principalRepo = new InMemoryPrincipalRepo([]);
+  const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [] });
   const originRegistry = {
     canonicalOrigin: async () => ({ scheme: "https" as const, host: "example.test", verifiedAt: NOW, source: "workspace-setting" as const }),
   };
 
   await ensureSeoSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: principalRepo },
+    { settingsRepo, clock, ids: idGen, principals: createSettingsPrincipalLookup({ repo: principalRepo }) },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-seo" },
   );
 
@@ -95,9 +104,9 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     postRepo,
     settingsRepo,
     principalRepo,
-    mediaRepo: new InMemoryMediaRepo([]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     clock,
     idGen,
     authorize,
@@ -112,7 +121,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function seoRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -177,13 +186,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.seo_entry_meta") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a SEO catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for seo_set_settings fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("seo_set_settings", { ...catalogEntry("seo_set_settings"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("seo_set_settings", { ...catalogEntry("seo_set_settings"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

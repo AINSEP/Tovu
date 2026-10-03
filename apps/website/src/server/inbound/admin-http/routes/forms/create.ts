@@ -40,6 +40,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
 
       const { definition } = await createFormDefinition({
         deps: {
+          executeCommand: deps.executeCommand,
           repo: deps.formDefinitionRepo,
           clock: deps.clock,
           idGen: deps.idGen,

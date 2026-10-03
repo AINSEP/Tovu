@@ -9,7 +9,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { VerifiedOrigin } from "../../features/origin/index.js";

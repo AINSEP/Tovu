@@ -24,7 +24,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
@@ -119,11 +119,11 @@ async function buildHarness(options: HarnessOptions = {}) {
     },
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges: observedExchanges })) {
     registry.register(registration);
   }
-  const eventLog = createInMemoryEventLog();
+  const eventLog = createInMemoryEventLog({});
   const lifecycle = createRunLifecycle({ eventLog });
   const toolExecutor = createToolExecutor({ registry });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });

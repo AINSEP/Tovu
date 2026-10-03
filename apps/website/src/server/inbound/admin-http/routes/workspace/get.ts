@@ -28,7 +28,7 @@ export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = (app, dep
       )
         return;
 
-      const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
+      const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
       if (!workspace) {
         res.status(404).json({ error: "workspace was not found" });
         return;

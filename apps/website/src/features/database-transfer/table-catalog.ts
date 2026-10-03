@@ -18,48 +18,9 @@ import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-s
  *   BLOB -> bytea, anything else -> text. Only plain literal defaults are carried.
  */
 
-export interface TransferColumn {
-  readonly name: string;
-  readonly sqlType: string;
-  readonly notNull: boolean;
-  /** A Postgres default expression, already SQL. */
-  readonly default?: string;
-  /** Postgres identity kind; the copy writes the source's numbers, then moves the counter past them. */
-  readonly identity?: "ALWAYS" | "BY DEFAULT";
-}
-
-export interface TransferIndex {
-  readonly name: string;
-  readonly columns: readonly string[];
-  readonly unique: boolean;
-}
-
-export interface TransferForeignKey {
-  readonly name: string;
-  readonly columns: readonly string[];
-  readonly foreignTable: string;
-  /** `null` = the parent's primary key (a SQLite foreign key may leave its columns out). */
-  readonly foreignColumns: readonly string[] | null;
-  readonly onDelete: string;
-  readonly onUpdate: string;
-}
-
-export interface TransferCheck {
-  readonly name: string;
-  readonly sql: string;
-}
-
-export interface TransferTable {
-  readonly name: string;
-  readonly columns: readonly TransferColumn[];
-  readonly primaryKey: readonly string[];
-  /** A source-side predicate selecting the rows that are copied; absent = every row. */
-  readonly keep?: string;
-  readonly indexes: readonly TransferIndex[];
-  readonly foreignKeys: readonly TransferForeignKey[];
-  readonly checks: readonly TransferCheck[];
-}
-
+// Transfer types and affinity/exclusion rationale now live in @jini-ai/db/transfer.
+export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, TransferTable, SnapshotTablePlan } from "@jini-ai/db/transfer";
+import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
 
 function quoteLiteral(value: string): string {
@@ -166,115 +127,28 @@ function coreTableNames(): Set<string> {
   return names;
 }
 
-/** SQLite type affinity (https://sqlite.org/datatype3.html §3.1), mapped onto a Postgres type. */
-function postgresTypeFor(declaredType: string): string {
-  const type = declaredType.toUpperCase();
-  if (type.includes("INT")) return "bigint";
-  if (/CHAR|CLOB|TEXT/.test(type)) return "text";
-  if (type.includes("BLOB")) return "bytea";
-  if (/REAL|FLOA|DOUB/.test(type)) return "double precision";
-  return "text";
-}
-
-/** Only plain literals travel: a number, or a single-quoted string. Anything else (a function call) is dropped. */
-function literalDefault(defaultSql: string | null, sqlType: string): string | undefined {
-  if (defaultSql === null || sqlType === "bytea") return undefined;
-  const text = defaultSql.trim();
-  if (/^-?\d+(\.\d+)?$/.test(text) || /^'(?:[^']|'')*'$/.test(text)) return text;
-  return undefined;
-}
-
-function introspectedColumn(column: SourceColumn, rowId: boolean): TransferColumn {
-  const sqlType = postgresTypeFor(column.declaredType);
-  const fallback = literalDefault(column.defaultSql, sqlType);
-  return {
-    name: column.name,
-    sqlType,
-    notNull: column.notNull || column.primaryKeyPosition > 0,
-    ...(fallback === undefined ? {} : { default: fallback }),
-    ...(rowId ? { identity: "BY DEFAULT" as const } : {}),
-  };
-}
-
-/** A table no Tovu schema file describes, in the layout the snapshot declares. */
-function introspectedTable(name: string, layout: SourceTableLayout): TransferTable {
-  const primaryKey = layout.columns.filter((column) => column.primaryKeyPosition > 0).sort((a, b) => a.primaryKeyPosition - b.primaryKeyPosition).map((column) => column.name);
-  const rowIdColumn = primaryKey.length === 1 ? layout.columns.find((column) => column.name === primaryKey[0] && column.declaredType.toUpperCase() === "INTEGER") : undefined;
-  const indexes = layout.indexes
-    .filter((index) => index.origin !== "pk" && !index.partial && index.columns.every((column) => column !== null))
-    .map((index) => {
-      const columns = index.columns as string[];
-      return { name: index.origin === "u" ? `${name}_${columns.join("_")}_key` : index.name, columns, unique: index.unique };
-    });
-  return {
-    name,
-    columns: layout.columns.map((column) => introspectedColumn(column, column === rowIdColumn)),
-    primaryKey,
-    indexes,
-    foreignKeys: layout.foreignKeys.map((fk) => ({
-      name: `${name}_${fk.columns.join("_")}_fkey`,
-      columns: fk.columns,
-      foreignTable: fk.foreignTable,
-      foreignColumns: fk.foreignColumns.some((column) => column === null) ? null : (fk.foreignColumns as string[]),
-      onDelete: fk.onDelete.toLowerCase(),
-      onUpdate: fk.onUpdate.toLowerCase(),
-    })),
-    checks: [],
-  };
-}
-
-export const LEFT_OUT_REASON = {
-  bookkeeping: "the database's own bookkeeping is not copied",
-  derived: "search indexes are rebuilt from the content, not copied",
-  secret: "tables holding passwords, keys or sign-in tokens are not copied",
-} as const;
-
-export interface SnapshotTablePlan {
-  /** Core tables first (foreign-key-safe order), then the snapshot's other tables by name. */
-  readonly tables: readonly TransferTable[];
-  readonly leftOut: readonly { readonly table: string; readonly reason: string }[];
-}
-
-/**
- * The migration ledgers (`tovu_migrations`, `tovu_chat_migrations`, drizzle's own) stay behind: the
- * target is built to head by its own runner, and a copied SQLite ledger would tell it steps had run there.
- */
-const MIGRATION_LEDGERS: ReadonlySet<string> = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);
-
-function isBookkeeping(name: string): boolean {
-  return name.startsWith("sqlite_") || MIGRATION_LEDGERS.has(name) || name.startsWith("_plugin_");
-}
-
-/** The reason a non-core table stays behind, or `null` when it is copied. */
-function reasonToLeaveOut(name: string, layout: SourceTableLayout, derived: ReadonlySet<string>, virtualTables: readonly string[]): string | null {
-  if (isBookkeeping(name)) return LEFT_OUT_REASON.bookkeeping;
-  if (derived.has(name) || layout.virtual || virtualTables.some((vt) => name.startsWith(`${vt}_`))) return LEFT_OUT_REASON.derived;
-  if (layout.columns.some((column) => SECRET_COLUMN_PATTERN.test(column.name))) return LEFT_OUT_REASON.secret;
-  return null;
-}
-
-/**
- * Sorts every table in the snapshot into copied or left out (with the reason). Core tables come from
- * `schema.postgres.ts` even when the snapshot lacks them, so {@link countSourceRows} can name the gap.
- *
- * @complexity O(snapshot tables) PRAGMA reads.
- */
+export { LEFT_OUT_REASON } from "@jini-ai/db/transfer";
+/** Migration ledgers stay behind: the target's runner owns its applied history. */
+const MIGRATION_LEDGERS = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);
 export function planSnapshotTables(source: TransferSource): SnapshotTablePlan {
-  const core = coreTableNames();
-  const tables: TransferTable[] = collectTransferTables();
-  const leftOut: { table: string; reason: string }[] = [];
-  const derived = new Set(DERIVED_OBJECTS.map((object) => object.name));
-  const names = source.tableNames();
-  const layouts = new Map(names.map((name) => [name, source.layout(name)] as const));
-  const virtualTables = names.filter((name) => layouts.get(name)?.virtual === true);
-  for (const name of names) {
-    const excluded = EXCLUDED_CORE_TABLES[name];
-    if (excluded !== undefined) leftOut.push({ table: name, reason: TRANSFER_EXCLUSION_REASON_TEXT[excluded] });
-    const layout = layouts.get(name);
-    if (core.has(name) || layout === null || layout === undefined) continue;
-    const reason = reasonToLeaveOut(name, layout, derived, virtualTables);
-    if (reason === null) tables.push(introspectedTable(name, layout));
-    else leftOut.push({ table: name, reason });
-  }
-  return { tables, leftOut };
+  return planGenericSnapshot({ source, policy: {
+    coreTables: collectTransferTables(), coreNames: coreTableNames(),
+    excludedTables: Object.fromEntries(Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]])),
+    derivedNames: new Set(DERIVED_OBJECTS.map(object => object.name)), migrationLedgers: MIGRATION_LEDGERS,
+    bookkeepingPrefixes: ["sqlite_", "_plugin_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
+  } });
+}
+/** chat.db's raw-SQL schema is introspected separately; never use content's Drizzle catalog here. */
+export function planChatSnapshotTables(source: TransferSource): SnapshotTablePlan {
+  const plan = planGenericSnapshot({ source, policy: {
+    coreTables: [], coreNames: new Set(), excludedTables: {}, derivedNames: new Set(),
+    migrationLedgers: MIGRATION_LEDGERS, bookkeepingPrefixes: ["sqlite_", "_plugin_"],
+    // Chat transcript/session columns are data, not credential records; copy all three raw-SQL tables.
+    secretColumnPattern: /(?!)/,
+  } });
+  const order = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
+  return { ...plan, tables: [...plan.tables].sort((a, b) => {
+    const rank = (name: string) => order.includes(name) ? order.indexOf(name) : order.length;
+    return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+  }) };
 }

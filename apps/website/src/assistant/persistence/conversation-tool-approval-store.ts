@@ -5,7 +5,7 @@
  * `assistant/external-mcp-tool-approvals.ts` for the fingerprint and the "Always" half.
  */
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
-import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 
 import type { ConversationToolApprovalStore } from "../external-mcp-tool-approvals.js";
 

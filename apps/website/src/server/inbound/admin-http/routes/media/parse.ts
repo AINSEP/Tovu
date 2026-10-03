@@ -34,7 +34,7 @@ export function parseOptionalStringField(raw: unknown, field: string): string | 
   if (raw === undefined) return undefined;
   if (raw === null) return "";
   if (typeof raw !== "string") {
-    throw new MediaValidationError(`media.${field} must be a string or null, got ${describeType(raw)}`);
+    throw new MediaValidationError({ message: `media.${field} must be a string or null, got ${describeType(raw)}` });
   }
   return raw;
 }
@@ -54,10 +54,10 @@ export function parseOptionalStringField(raw: unknown, field: string): string | 
 export function parseOptionalTitleField(raw: unknown): string | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) {
-    throw new MediaValidationError("media.title cannot be cleared to null; title is required and cannot be empty");
+    throw new MediaValidationError({ message: "media.title cannot be cleared to null; title is required and cannot be empty" });
   }
   if (typeof raw !== "string") {
-    throw new MediaValidationError(`media.title must be a string, got ${describeType(raw)}`);
+    throw new MediaValidationError({ message: `media.title must be a string, got ${describeType(raw)}` });
   }
   return raw;
 }
@@ -75,10 +75,10 @@ export function parseOptionalTitleField(raw: unknown): string | undefined {
 export function parseOptionalSlugField(raw: unknown): string | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) {
-    throw new MediaValidationError("media.slug cannot be cleared to null; slug is required and cannot be empty");
+    throw new MediaValidationError({ message: "media.slug cannot be cleared to null; slug is required and cannot be empty" });
   }
   if (typeof raw !== "string") {
-    throw new MediaValidationError(`media.slug must be a string, got ${describeType(raw)}`);
+    throw new MediaValidationError({ message: `media.slug must be a string, got ${describeType(raw)}` });
   }
   return raw;
 }

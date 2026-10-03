@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,7 +11,8 @@ import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
-import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools.js";
+import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
+import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,
@@ -19,9 +22,14 @@ import {
 } from "../../features/taxonomy/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 /**
  * @file The Taxonomy (Categories & Tags) tool-wiring test file — mirrors
@@ -41,8 +49,8 @@ import { registerToolContributor } from "../tool-contribution-registry.js";
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeTaxonomyTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeTaxonomyTools() });
 
 const WORKSPACE_ID = "ws-taxonomy-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -55,7 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
   const taxonomyRepo = new InMemoryTaxonomyRepo();
   const termRepo = new InMemoryTermRepo();
   const entryTermRepo = new InMemoryEntryTermRepo();
-  const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo();
+  const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo({});
   const postRepo = new InMemoryPostRepo();
   const entryRepo = new InMemoryEntryRepo();
   const contentTypeRepo = new InMemoryContentTypeRepo();
@@ -66,7 +74,7 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
     authorizeCalls.push(params);
     return allow && !denied.has(params.permission as string) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   };
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = { newId: () => `id-${++counter}` };
 
   const deps = {
@@ -111,7 +119,7 @@ function catalogEntry(toolId: string): TaxonomyAgentToolDefinition {
 }
 
 function taxonomyRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -123,6 +131,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
 const WIRED_TAXONOMY_TOOL_IDS = [
   "content_read.taxonomy",
   "taxonomy_assign_terms",
+  "taxonomy_get_assigned_terms",
   "taxonomy_unassign_terms",
   "taxonomy_create_taxonomy",
   "taxonomy_create_term",
@@ -135,10 +144,10 @@ const WIRED_TAXONOMY_TOOL_IDS = [
 // 1. Catalog completeness — all 8 entries, the merge execute one behind a human confirm (2026-09-24)
 // ---------------------------------------------------------------------------
 
-test("all 8 taxonomy entries are registered", () => {
+test("all 9 taxonomy entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...taxonomyRegistrations(deps).keys()].sort(), WIRED_TAXONOMY_TOOL_IDS);
-  assert.equal(taxonomyAgentToolCatalog.length, 8);
+  assert.equal(taxonomyAgentToolCatalog.length, 9);
 });
 
 test("taxonomy_execute_merge_term is registered, classified mutates-durable-state, and refused without its human-confirmed handler", () => {
@@ -147,7 +156,7 @@ test("taxonomy_execute_merge_term is registered, classified mutates-durable-stat
   assert.equal(taxonomyDerivedRisk.get("taxonomy_execute_merge_term"), "mutates-durable-state");
   assert.equal(catalogEntry("taxonomy_execute_merge_term").sideEffects, "mutates-durable-state");
   // The handler-less check stands for "a plain handler": still refused at build time.
-  assert.throws(() => assertRiskMetadataIsWirable("taxonomy_execute_merge_term", catalogEntry("taxonomy_execute_merge_term")), {
+  assert.throws(() => assertRiskMetadataIsWirable("taxonomy_execute_merge_term", catalogEntry("taxonomy_execute_merge_term"), contributions), {
     message:
       "tool-registrations: 'taxonomy_execute_merge_term' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
       "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
@@ -204,7 +213,7 @@ test("requiresConfirmation is unset on every wired taxonomy tool", () => {
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for all 8 wired taxonomy tools", () => {
+test("the independent risk classification agrees with the catalog for all 9 wired taxonomy tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of taxonomyRegistrations(deps).keys()) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
@@ -215,13 +224,13 @@ test("the independent risk classification agrees with the catalog for all 8 wire
     if (id === "content_read.taxonomy") continue;
     // Its actor-class rule needs the handler too — checked in section 1 above.
     if (id === "taxonomy_execute_merge_term") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring taxonomy_create_taxonomy sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("taxonomy_create_taxonomy", { ...catalogEntry("taxonomy_create_taxonomy"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("taxonomy_create_taxonomy", { ...catalogEntry("taxonomy_create_taxonomy"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -401,8 +410,8 @@ test("taxonomy_assign_terms: an entry whose collection is tombstoned is refused"
   await contentTypeRepo.save({ ...collection!, status: "tombstone", tombstonedAt: NOW });
 
   await assert.rejects(() => wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "recipe", contentId: "entry-1", termIds: [quick] })), {
-    name: "TaxonomyNotApplicableError",
-    message: "taxonomy 'id-1' is not on the allow-list for content type 'recipe'",
+    name: "ToolInputError",
+    message: "content type 'recipe' does not support taxonomy assignments. Use post, page, or a live collection key.",
   });
   assert.deepEqual(await termCounts(entryTermRepo, [quick!]), [0]);
 });
@@ -529,7 +538,7 @@ async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string
  */
 async function startMerge(deps: RouteDeps, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });

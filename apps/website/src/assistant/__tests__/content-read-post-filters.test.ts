@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /** @file t02: mechanical list-schema union and id dispatch retain the new list inputs. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -5,13 +7,18 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { listToolContributors } from "../tool-contribution-registry.js";
+
 import type { AssistantToolRegistryDeps } from "../tool-registrations.js";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 function fixture() {
-  installFirstPartyToolContributors();
-  const contributor = listToolContributors().find((entry) => entry.domain === "post");
+  installFirstPartyToolContributors({ contributions });
+  const contributor = contributions.contributors.list({}).find((entry) => entry.domain === "post");
   assert.ok(contributor);
   const source = contributor.build(
     {

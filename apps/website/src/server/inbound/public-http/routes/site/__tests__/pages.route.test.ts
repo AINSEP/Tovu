@@ -73,7 +73,7 @@ test("GET /welcome: a missing presentation-settings row — not the empty post l
   // Treatment arm: remove ONLY the presentation-settings row — the brand-new/unseeded-workspace
   // condition — keeping the empty post list identical to the baseline.
   const treatment = await startServer({
-    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
     postRepo: new InMemoryPostRepo([]),
   });
   t.after(() => closeServer(treatment.server));
@@ -87,7 +87,7 @@ test("GET /welcome: a missing presentation-settings row — not the empty post l
 
 test("GET /: a brand-new workspace with no presentation-settings row renders the empty-state home page instead of 500ing", async (t) => {
   const { server, baseUrl } = await startServer({
-    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
     postRepo: new InMemoryPostRepo([]),
   });
   t.after(() => closeServer(server));
@@ -352,7 +352,7 @@ test("GET /: the root page's canonical is absolute with exactly one trailing sla
  *  origin registered yet, the disclosed degradation `toAbsoluteUrl` falls back to. */
 class NoOriginRegistry implements OriginRegistryPort {
   async canonicalOrigin(): Promise<never> {
-    throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+    throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
   }
   async isAllowedRedirectTarget(): Promise<boolean> {
     return false;

@@ -160,26 +160,31 @@ export async function freezeAudience(required: {
   await deps.audienceSnapshotRepo.save(finalSnapshot);
   if (sendRows.length > 0) await deps.sendRepo.saveBatch(sendRows);
 
-  const updatedCampaign: CampaignRecord = { ...campaign, audienceSnapshotId: snapshotId, updatedAt: now };
-  await deps.campaignRepo.saveCampaignRow(updatedCampaign);
+  // Contact lookup can overlap a human pause. Attach the snapshot to the current row without
+  // restoring an earlier status; paused batches remain pending until an approved resume.
+  const updatedCampaign = await deps.campaignRepo.transaction(async () => {
+    const current = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
+    if (!current) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
+    const updated: CampaignRecord = { ...current, audienceSnapshotId: snapshotId, updatedAt: now };
+    await deps.campaignRepo.saveCampaignRow(updated);
+    return updated;
+  });
 
-  // W-003: enqueue the outbox event(s) that drive the fan-out — chunked, bounded batch size.
-  const CHUNK = 20;
-  const sendIds = sendRows.map((r) => r.id);
-  for (let i = 0; i < sendIds.length; i += CHUNK) {
-    const chunk = sendIds.slice(i, i + CHUNK);
-    const job: SendBatchJob = { workspaceId: input.workspaceId, campaignId: input.campaignId, audienceSnapshotId: snapshotId, sendIds: chunk };
-    const event: DomainEvent<SendBatchJob> = {
-      id: deps.ids.newId(),
-      name: SEND_BATCH_CLAIMED_EVENT,
-      occurredAt: now,
-      workspaceId: input.workspaceId,
-      payload: job,
-    };
-    await deps.outbox.enqueue(event as unknown as DomainEvent);
-  }
+  const sendIds = sendRows.map((row) => row.id);
+  await enqueueSendBatches({ deps, campaign: updatedCampaign, audienceSnapshotId: snapshotId, sendIds });
 
   return { snapshot: finalSnapshot, sendIds };
+}
+
+/** Queues existing ledger ids in the same bounded outbox batches for initial launch and resume.
+ * @complexity O(n) ids and O(n/20) outbox writes; no addresses are embedded in events. */
+async function enqueueSendBatches(required: { deps: SendPipelineDeps; campaign: CampaignRecord; audienceSnapshotId: string; sendIds: readonly string[] }): Promise<void> {
+  const { deps, campaign, audienceSnapshotId, sendIds } = required;
+  for (let i = 0; i < sendIds.length; i += 20) {
+    const job: SendBatchJob = { workspaceId: campaign.workspaceId, campaignId: campaign.id, audienceSnapshotId, sendIds: sendIds.slice(i, i + 20) };
+    const event: DomainEvent<SendBatchJob> = { id: deps.ids.newId(), name: SEND_BATCH_CLAIMED_EVENT, occurredAt: deps.clock.nowIso(), workspaceId: campaign.workspaceId, payload: job };
+    await deps.outbox.enqueue(event as unknown as DomainEvent);
+  }
 }
 
 /** `claimBatch` — delegates to the EXISTING generic `processOutbox` primitive, unmodified (W-003). */
@@ -189,7 +194,7 @@ export function claimBatch(
 ): Promise<number> {
   const { deps } = required;
   const { batchSize = 20 } = optional;
-  return processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }, { batchSize });
+  return processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } }, { batchSize });
 }
 
 /**
@@ -314,11 +319,41 @@ export async function pauseCampaign(required: {
   return transitionAndSave(required.deps, required.input, "paused");
 }
 
+/**
+ * Commits paused -> sending, then requeues only pending rows of the frozen audience.
+ * @returns The resumed campaign; requeueFailed means the transition succeeded but fan-out needs attention.
+ * @throws NewsletterCampaignNotFoundError or NewsletterCampaignNotEditableError before any transition.
+ * @complexity O(n) ledger reads and O(n/20) outbox writes, O(1000) auxiliary space.
+ */
 export async function resumeCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord }> {
-  return transitionAndSave(required.deps, required.input, "sending");
+}): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
+  const result = await transitionAndSave(required.deps, required.input, "sending");
+  // A paused batch may already have been acknowledged. Requeue its remaining ledger rows;
+  // the existing per-row leases and idempotency keys make overlapping/redelivered jobs safe.
+  if (!result.campaign.audienceSnapshotId) return result;
+  try {
+    await requeuePendingSends({ deps: required.deps, campaign: result.campaign, audienceSnapshotId: result.campaign.audienceSnapshotId });
+  } catch {
+    // Do not expose repository/provider diagnostics or turn an already-committed resume into a refusal.
+    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+    return { ...result, requeueFailed: true };
+  }
+  return result;
+}
+
+/** Requeues the current snapshot's pending rows in bounded pages. @complexity O(n) time, O(1000) space. */
+async function requeuePendingSends(required: { deps: SendPipelineDeps; campaign: CampaignRecord; audienceSnapshotId: string }): Promise<void> {
+  const { deps, campaign, audienceSnapshotId } = required;
+  let afterId: string | undefined;
+  for (;;) {
+    const rows = await deps.sendRepo.listByCampaign({ workspaceId: campaign.workspaceId, campaignId: campaign.id, afterId, limit: 1000 });
+    const pendingIds = rows.filter((row) => row.status === "pending" && row.audienceSnapshotId === audienceSnapshotId).map((row) => row.id);
+    await enqueueSendBatches({ deps, campaign, audienceSnapshotId, sendIds: pendingIds });
+    if (rows.length < 1000) return;
+    afterId = rows[rows.length - 1].id;
+  }
 }
 
 async function transitionAndSave(
@@ -452,6 +487,10 @@ export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps;
 
   let leasedElsewhere = 0;
   for (const sendId of job.sendIds) {
+    // Re-read before each recipient: pause can arrive while the prior provider request is in flight.
+    // Resume requeues pending rows, so acknowledging this stopped batch does not strand them.
+    const current = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
+    if (!current || current.status !== "sending") return;
     const row = await claimSendRow({ deps, workspaceId: job.workspaceId, sendId });
     if (row === "leased-elsewhere") {
       leasedElsewhere += 1;

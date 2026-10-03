@@ -41,7 +41,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 function fakeOriginRegistry(): OriginRegistryPort {
   return {
     async canonicalOrigin() {
-      throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
     },
     async isAllowedRedirectTarget() {
       return false;
@@ -62,9 +62,9 @@ async function makeDeps(posts: PostRecord[]) {
     postRepo,
     settingsRepo,
     media: {
-      mediaRepo: new InMemoryMediaRepo([]),
-      assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-      transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+      mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+      assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+      transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     },
     originRegistry: fakeOriginRegistry(),
   };

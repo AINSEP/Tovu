@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ClockPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
 import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";

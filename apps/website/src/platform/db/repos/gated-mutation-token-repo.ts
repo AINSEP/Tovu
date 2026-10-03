@@ -101,6 +101,23 @@ export class SqlTokenStore implements TokenStorePort {
     });
   }
 
+  /**
+   * Atomically revokes only a minted token; a concurrent redemption remains terminal.
+   * @param required.token The credential to revoke.
+   * @returns Resolves after one conditional UPDATE, including when no minted row exists.
+   * @complexity One indexed UPDATE; O(1) application time and space.
+   */
+  async expire({ token }: { token: string }): Promise<void> {
+    await this.kernel.run((db) =>
+      db
+        .updateTable("gated_mutation_tokens")
+        .set({ status: "expired" })
+        .where("confirmation_token", "=", token)
+        .where("status", "=", "minted")
+        .execute()
+    );
+  }
+
   async count(): Promise<number> {
     const row = await this.kernel.run((db) =>
       db.selectFrom("gated_mutation_tokens").select((eb) => eb.fn.countAll<number | string>().as("value")).executeTakeFirst()

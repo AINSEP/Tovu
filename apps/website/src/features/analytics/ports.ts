@@ -19,14 +19,8 @@
  *   feature repo. There is deliberately NO `StatsQueryPort`: reads are ordinary core code, with
  *   only one query evaluator — exactly ADR-021 §2's reasoning for "no PolicyPort."
  */
-import type {
-  ClockPort,
-  DomainEvent,
-  IdGeneratorPort,
-  ISODateTime,
-  OutboxPort,
-  UUID,
-} from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import type {
   AnalyticsAggregateRow,
   AnalyticsDomainEventName,

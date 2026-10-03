@@ -19,7 +19,7 @@ import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstr
 const WORKSPACE_ID = "workspace-1";
 const OTHER_WORKSPACE_ID = "workspace-2";
 
-function fakeDeps(transformRepo: TransformDefinitionRepoPort = new InMemoryTransformDefinitionRepo()) {
+function fakeDeps(transformRepo: TransformDefinitionRepoPort = new InMemoryTransformDefinitionRepo({})) {
   let counter = 0;
   return {
     transformRepo,

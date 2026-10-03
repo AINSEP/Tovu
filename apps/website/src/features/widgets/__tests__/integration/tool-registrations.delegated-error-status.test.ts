@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
@@ -40,7 +40,7 @@ function makeRouteDeps(): WidgetsToolDeps {
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo: new InMemoryEntryRepo(),
@@ -74,7 +74,7 @@ async function seedPost(routeDeps: WidgetsToolDeps, overrides: Partial<PostRecor
 }
 
 async function buildHarness(routeDeps: WidgetsToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildWidgetsRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });

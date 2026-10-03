@@ -3,11 +3,11 @@ import test from "node:test";
 import type Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { FormSlugConflictError } from "../errors.js";
+import { FormSlugConflictError } from "@jini-ai/cms-forms";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../repo.sqlite.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../ports.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Shared contract-test suite for `FormDefinitionRepoPort`/`FormSubmissionRepoPort`

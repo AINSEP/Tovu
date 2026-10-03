@@ -7,6 +7,9 @@ import { join } from "node:path";
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
 import { listAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
+import { createLiveModelDiscovery } from "../live-model-cache.js";
+import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
+import type { SecretSealerPort } from "../../features/webhooks/index.js";
 
 // No test here may spawn a real CLI's model listing: every test runs against a prober that reports
 // "nothing live" unless it installs its own.
@@ -17,7 +20,7 @@ before(() => {
   const executable = join(fixtureDir, "claude");
   writeFileSync(executable, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   process.env.CLAUDE_BIN = executable;
-  setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+  setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
 });
 after(() => {
   setAgentModelProberForTesting(null);
@@ -106,7 +109,7 @@ test("listAssistantAgents' supportsTools exactly matches each def's own runtimeS
   for (const def of AGENT_DEFS) {
     const agent = agents.find((candidate) => candidate.id === def.id);
     assert.ok(agent, `expected an agent list entry for def '${def.id}'`);
-    const expected = runtimeSupportsExternalTools(def);
+    const expected = runtimeSupportsExternalTools({ def });
     assert.equal(
       agent.supportsTools,
       expected,
@@ -142,7 +145,7 @@ test("listAssistantAgents memoizes — two back-to-back calls reuse the same in-
 
 test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result", async () => {
   let models = [{ id: "before-rescan", label: "Before rescan" }];
-  setAgentModelProberForTesting(async (def) => def.id === "claude"
+  setAgentModelProberForTesting(async ({ def }) => def.id === "claude"
     ? { models, source: "live" }
     : { models: def.fallbackModels, source: "fallback" });
   try {
@@ -156,7 +159,7 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
     assert.deepEqual((await rescanned).find((agent) => agent.id === "claude")?.models, models);
     assert.deepEqual((await after).find((agent) => agent.id === "claude")?.models, models);
   } finally {
-    setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
   }
 });
 
@@ -169,7 +172,7 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
 test("rescanAssistantAgents surfaces the live model list the prober returns for an available def", async () => {
   const liveOnly = { id: "claude-live-only-test-id", label: "claude-live-only-test-id" };
   const probed: string[] = [];
-  setAgentModelProberForTesting(async (def) => {
+  setAgentModelProberForTesting(async ({ def }) => {
     probed.push(def.id);
     return def.id === "claude"
       ? { models: [...def.fallbackModels, liveOnly], source: "live" }
@@ -183,11 +186,11 @@ test("rescanAssistantAgents surfaces the live model list the prober returns for 
     assert.equal(claude.modelsSource, "live");
     assert.ok(claude.models?.some((model) => model.id === liveOnly.id), "expected the live-only id in claude.models");
     for (const def of AGENT_DEFS) {
-      const installed = Boolean(resolveAgentLaunch(def).launchPath);
+      const installed = Boolean(resolveAgentLaunch({ def }).launchPath);
       assert.equal(probed.includes(def.id), installed, `def '${def.id}' probed=${probed.includes(def.id)} but installed=${installed}`);
     }
   } finally {
-    setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
   }
 });
 
@@ -202,4 +205,123 @@ test("known runtime capabilities retain their memory and tool semantics", async 
     assert.equal(agent.carriesOwnMemory, carriesOwnMemory);
     assert.equal(agent.supportsTools, supportsTools);
   }
+});
+
+/** The credential port is deliberately a transparent fake: these cases prove discovery/cache
+ * policy, not encryption. The real saved-secret compatibility suite remains a separate gate.
+ */
+function liveDiscoveryFixture() {
+  const repo = new InMemoryAdminExecutionCredentialRepo();
+  const sealer: SecretSealerPort = {
+    seal: async () => { throw new Error("discovery must not write credentials"); },
+    open: async ({ sealed }) => sealed.ciphertext,
+  };
+  return {
+    repo,
+    sealer,
+    async save({ workspaceId = "workspace", principalId = "principal", apiKey = "key-a", protocol = "anthropic", baseUrl = "https://provider.example" } = {}) {
+      await repo.upsert({
+        workspaceId, principalId, protocol, baseUrl, providerId: "provider", model: null, maxTokens: null,
+        sealed: { keyId: "test", ciphertext: apiKey, nonce: "test", alg: "AES-256-GCM" },
+        masked: "test", aadVersion: 0, createdAt: "2026-10-02T00:00:00.000Z", updatedAt: "2026-10-02T00:00:00.000Z",
+      });
+    },
+  };
+}
+
+// REGRESSION: fails if credentialFingerprint is removed from the cacheKey tuple.
+test("live discovery reissues on credential rotation inside the same TTL", async () => {
+  const fixture = liveDiscoveryFixture();
+  const calledKeys: string[] = [];
+  const discovery = createLiveModelDiscovery({ ...fixture, clock: { nowMs: () => 0 }, discover: async ({ apiKey }) => {
+    calledKeys.push(apiKey);
+    return [{ id: apiKey, label: apiKey }];
+  } });
+  await fixture.save({ apiKey: "key-a" });
+  assert.deepEqual(await discovery.getLiveClaudeModels({ workspaceId: "workspace", principalId: "principal" }), [{ id: "key-a", label: "key-a" }]);
+  await fixture.save({ apiKey: "key-b" });
+  assert.deepEqual(await discovery.getLiveClaudeModels({ workspaceId: "workspace", principalId: "principal" }), [{ id: "key-b", label: "key-b" }]);
+  assert.deepEqual(calledKeys, ["key-a", "key-b"]);
+});
+
+// REGRESSION: fails if the discovery outcome wrapper discards a successful empty model list.
+test("live discovery contains rejection, keeps the failure TTL, then recovers at expiry", async () => {
+  const fixture = liveDiscoveryFixture();
+  await fixture.save();
+  let now = 0;
+  let calls = 0;
+  const discovery = createLiveModelDiscovery({ ...fixture, clock: { nowMs: () => now }, discover: async () => {
+    if (++calls === 1) throw new Error("offline");
+    return [];
+  } });
+  const key = { workspaceId: "workspace", principalId: "principal" };
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  now = 5 * 60_000 - 1;
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  assert.equal(calls, 1);
+  now++;
+  assert.deepEqual(await discovery.getLiveClaudeModels(key), []);
+  assert.equal(calls, 2);
+});
+
+// REGRESSION: fails if the !stored.apiKey.trim() guard is removed before cache/discovery.
+test("live discovery never calls the provider for absent, wrong-protocol or blank credentials", async () => {
+  const fixture = liveDiscoveryFixture();
+  let calls = 0;
+  const discovery = createLiveModelDiscovery({ ...fixture, clock: { nowMs: () => 0 }, discover: async () => { calls++; return []; } });
+  const key = { workspaceId: "workspace", principalId: "principal" };
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  await fixture.save({ protocol: "openai" });
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  await fixture.save({ apiKey: " " });
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  assert.equal(calls, 0);
+  await fixture.save();
+  assert.deepEqual(await discovery.getLiveClaudeModels(key), []);
+  await fixture.save({ protocol: "openai" });
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  assert.equal(calls, 1);
+});
+
+// REGRESSION: fails if the factory cache is hoisted into shared module state.
+test("live discovery instances own their state and delimiter-containing tenant IDs cannot collide", async () => {
+  const fixture = liveDiscoveryFixture();
+  await fixture.save({ workspaceId: "ws:1", principalId: "2", apiKey: "same-key" });
+  await fixture.save({ workspaceId: "ws", principalId: "1:2", apiKey: "same-key" });
+  let calls = 0;
+  const deps = { ...fixture, clock: { nowMs: () => 0 }, discover: async ({ apiKey }: { apiKey: string }) => { calls++; return [{ id: apiKey, label: apiKey }]; } };
+  const first = createLiveModelDiscovery(deps);
+  const second = createLiveModelDiscovery(deps);
+  const key = { workspaceId: "ws:1", principalId: "2" };
+  assert.deepEqual(await first.getLiveClaudeModels(key), [{ id: "same-key", label: "same-key" }]);
+  assert.deepEqual(await first.getLiveClaudeModels({ workspaceId: "ws", principalId: "1:2" }), [{ id: "same-key", label: "same-key" }]);
+  await second.getLiveClaudeModels(key);
+  assert.equal(calls, 3);
+});
+
+// PARITY: requests share the in-flight discovery even when it outlasts the TTL.
+test("live discovery coalesces concurrent calls while the provider is still responding", async () => {
+  const fixture = liveDiscoveryFixture();
+  await fixture.save();
+  let now = 0;
+  let calls = 0;
+  let complete!: (models: { id: string; label: string }[]) => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => { started = resolve; });
+  const discovery = createLiveModelDiscovery({ ...fixture, clock: { nowMs: () => now }, discover: () => {
+    calls++;
+    started();
+    return new Promise<{ id: string; label: string }[]>((resolve) => { complete = resolve; });
+  } });
+  const key = { workspaceId: "workspace", principalId: "principal" };
+  const first = discovery.getLiveClaudeModels(key);
+  await waiting;
+  now = 10 * 60_000;
+  const second = discovery.getLiveClaudeModels(key);
+  // Let the second credential resolution reach the cache before settling the provider response.
+  await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+  complete([{ id: "live", label: "Live" }]);
+  assert.deepEqual(await first, [{ id: "live", label: "Live" }]);
+  assert.deepEqual(await second, await first);
+  assert.equal(calls, 1);
 });

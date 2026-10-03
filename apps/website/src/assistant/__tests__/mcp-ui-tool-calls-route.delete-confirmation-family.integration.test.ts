@@ -105,7 +105,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const workspaceId = "ws-mcp-ui-comments-trash-integration";
   const commentRepo = new InMemoryCommentRepo();
   const settingsRepo = new InMemorySettingsRepo();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: { enqueue: async () => {} }, hooks: createCommentHookRegistry(), clock, idGen, ...commentTrashDoubles() });
@@ -142,7 +142,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
     version: 1,
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCommentsRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -170,7 +170,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
   const widgetTrash = memoryWidgetTrash();
   const deps = {
     workspaceId,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo: widgetTrash.entryRepo,
@@ -189,7 +189,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
     input: { workspaceId, actor: { principalId: PRINCIPAL }, widgetType: "text", title: "Announcement Bar", config: { body: "hi" } },
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildWidgetsRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -227,7 +227,7 @@ async function setupTheme(surfaceExchanges: SurfaceExchangeStore): ReturnType<Sc
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as ThemeToolDeps;
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildThemesRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -260,7 +260,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -277,7 +277,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
     input: { workspaceId, matchType: "exact", fromPattern: "/old-page", toTarget: "/new-page", statusCode: 301, actorId: PRINCIPAL },
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildRedirectsRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -300,7 +300,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const originRegistry = { isAllowedEgressTarget: async () => true };
   let idCounter = 0;
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = { newId: () => `sub-${++idCounter}` };
   const deps = {
     workspaceId,
@@ -329,7 +329,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
     },
   });
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -360,9 +360,9 @@ for (const scenario of SCENARIOS) {
     const { toolExecutor, trashParams, assertConfirmed } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
-    const pending = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, scenario.toolId, trashParams, undefined, async (emission: SurfaceEmission) => {
+    const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: scenario.toolId, input: trashParams }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    });
+    } });
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(emitted.length, 1, `the ${scenario.toolId} dialog must be emitted before the call parks`);
     const exchangeId = exchangeIdFromEmission(emitted[0]!);
@@ -396,9 +396,9 @@ for (const scenario of SCENARIOS) {
     const { toolExecutor, trashParams, assertCancelled } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
-    const pending = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, scenario.toolId, trashParams, undefined, async (emission: SurfaceEmission) => {
+    const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: scenario.toolId, input: trashParams }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    });
+    } });
     await new Promise((resolve) => setImmediate(resolve));
     const exchangeId = exchangeIdFromEmission(emitted[0]!);
 

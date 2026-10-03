@@ -146,12 +146,8 @@ export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps }
 export { registerMenuReverters, createMenuReverters, type MenuReverterDeps } from "./reverters.js";
 
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
-export {
-  menusAgentToolCatalog,
-  type NavigationAgentToolDefinition,
-  type NavigationAgentToolSideEffect,
-  type NavigationAgentToolActorClassRule,
-} from "@jini-ai/cms/navigation";
+export { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
+export type { AgentToolDefinition as NavigationAgentToolDefinition, AgentToolSideEffect as NavigationAgentToolSideEffect, AgentToolActorClassRule as NavigationAgentToolActorClassRule } from "@jini-ai/core";
 
 /**
  * The agent-tool wiring for this domain. Also re-exported (unchanged) by `tool-registrations.ts`

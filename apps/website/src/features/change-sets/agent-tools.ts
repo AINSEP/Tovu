@@ -1,4 +1,4 @@
-import type { WirableToolDefinition } from "@jini-ai/cms/core";
+import type { AgentToolDefinition } from "@jini-ai/core";
 
 /**
  * @file The Change Sets domain's agent-tool catalog (F7b option A, S6, 2026-09-24) —
@@ -82,7 +82,7 @@ const REVERT_SCHEMA = {
  *
  * @complexity O(1) — a fixed, statically-defined list.
  */
-export function getChangeSetsAgentToolCatalog(): WirableToolDefinition[] {
+export function getChangeSetsAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
       name: "change_sets_list",

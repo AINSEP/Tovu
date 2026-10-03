@@ -1,4 +1,4 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import { nowIso as readNowIso, type Clock as ClockPort } from "@jini-ai/core/primitives";
 
 /**
  * @file CIC U-001 (SPEC-019 `critical-internal-constraints.md`) — site-wide gated-operation
@@ -81,7 +81,7 @@ export async function acquireOperationLock(
   const handle: OperationLockHandle = {
     siteId: input.siteId,
     operationKind: input.operationKind,
-    acquiredAt: deps.clock.nowIso(),
+    acquiredAt: readNowIso({ clock: deps.clock }),
   };
   activeLocksBySiteId.set(input.siteId, handle);
   return { ok: true, value: handle };

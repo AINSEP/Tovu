@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, test } from "node:test";
 
-import type { ClockPort, JsonObject, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { createPost, updatePost, deletePost } from "../post.js";

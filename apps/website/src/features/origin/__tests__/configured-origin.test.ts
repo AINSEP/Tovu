@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { planOriginBoot, resolveConfiguredOrigin } from "../configured-origin.js";
-import type { VerifiedOrigin } from "../types.js";
+import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 
 /**
  * @file Unit suite for `resolveConfiguredOrigin` — the env-declared public-origin resolver

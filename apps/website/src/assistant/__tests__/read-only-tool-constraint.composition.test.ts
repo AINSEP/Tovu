@@ -80,7 +80,7 @@ async function buildHarness(): Promise<Harness> {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   let seq = 0;
   const idGen = { newId: () => `cred-${++seq}` };
 
@@ -106,7 +106,7 @@ async function buildHarness(): Promise<Harness> {
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(toolDeps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -163,7 +163,7 @@ async function startVerify(harness: Harness, principal: Principal) {
   let surfaceRaised!: () => void;
   const firstSurface = new Promise<void>((resolve) => { surfaceRaised = resolve; });
   const emitSurface: SurfaceEmitter = async (surface) => { emitted.push(surface); surfaceRaised(); };
-  const pending = harness.executor.execute(principal, RUN, VERIFY_TOOL_ID, { label: LABEL }, undefined, emitSurface);
+  const pending = harness.executor.execute({ principal: principal, run: RUN, toolId: VERIFY_TOOL_ID, input: { label: LABEL } }, { emitSurface: emitSurface });
   await Promise.race([firstSurface, pending]);
   return { pending, emitted };
 }
@@ -175,10 +175,10 @@ async function startVerify(harness: Harness, principal: Principal) {
 
 test("PREMISE: custom_credential_verify is registered read-only and custom_credential_set_username is not", async () => {
   const harness = await buildHarness();
-  const byId = new Map(harness.registry.list().map((d) => [d.id, d]));
+  const byId = new Map(harness.registry.list({}).map((d) => [d.id, d]));
 
-  assert.equal(isReadOnlyTool(byId.get(VERIFY_TOOL_ID)), true, "the read-only gateway admits this tool — that is what makes the remedy reachable");
-  assert.equal(isReadOnlyTool(byId.get(SET_USERNAME_TOOL_ID)), false, "the remedy durably writes; it must never be admitted by a read-only execution");
+  assert.equal(isReadOnlyTool({ descriptor: byId.get(VERIFY_TOOL_ID) }), true, "the read-only gateway admits this tool — that is what makes the remedy reachable");
+  assert.equal(isReadOnlyTool({ descriptor: byId.get(SET_USERNAME_TOOL_ID) }), false, "the remedy durably writes; it must never be admitted by a read-only execution");
 });
 
 // ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ test("READ-ONLY: the refusal is reported, not swallowed — the caller gets the 
 test("READ-ONLY: the same constraint refuses a write tool the caller names DIRECTLY, with no remedy involved", async () => {
   const harness = await buildHarness();
 
-  const result = await harness.executor.execute(READ_ONLY, RUN, SET_USERNAME_TOOL_ID, { label: LABEL, username: "leona@example.com" }, undefined, undefined);
+  const result = await harness.executor.execute({ principal: READ_ONLY, run: RUN, toolId: SET_USERNAME_TOOL_ID, input: { label: LABEL, username: "leona@example.com" } });
 
   assert.equal(result.status, "denied");
   assert.match(errorText(result), new RegExp(`"${SET_USERNAME_TOOL_ID}" is not registered as read-only`));
@@ -258,7 +258,7 @@ test("UNCONSTRAINED: the identical call still asks a human, applies the remedy, 
 // ---------------------------------------------------------------------------
 
 test("READ-ONLY: a remedy that is itself registered read-only still runs, and the original is still retried", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const calls: Array<{ toolId: string; input: unknown }> = [];
   let originalCalls = 0;
 
@@ -298,7 +298,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
   });
 
   const emitted: unknown[] = [];
-  const pending = executor.execute(READ_ONLY, RUN, "probe_read", { label: LABEL }, undefined, async (s) => void emitted.push(s));
+  const pending = executor.execute({ principal: READ_ONLY, run: RUN, toolId: "probe_read", input: { label: LABEL } }, { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "a read-only remedy must still be able to ask its one question");
 
@@ -336,20 +336,20 @@ test("FAIL CLOSED: a gate wired without a registry refuses every constrained dis
   };
   const gated = withReadOnlyToolConstraint(inner, { registry: undefined });
 
-  const refused = await gated.execute(READ_ONLY, RUN, "anything_at_all", {}, undefined, undefined);
+  const refused = await gated.execute({ principal: READ_ONLY, run:  RUN, toolId:  "anything_at_all", input:  {} });
   assert.equal(refused.status, "denied");
   assert.equal(errorText(refused), READ_ONLY_UNCHECKABLE_MESSAGE);
   assert.equal(reachedInner, 0);
 
   // ...while an unconstrained call is untouched by the same gate.
-  const allowed = await gated.execute(UNCONSTRAINED, RUN, "anything_at_all", {}, undefined, undefined);
+  const allowed = await gated.execute({ principal: UNCONSTRAINED, run:  RUN, toolId:  "anything_at_all", input:  {} });
   assert.equal(allowed.status, "completed");
   assert.equal(reachedInner, 1);
 });
 
 test("FAIL CLOSED: an unregistered id is refused under a read-only execution — silence is never read as safety", async () => {
   const harness = await buildHarness();
-  const result = await harness.executor.execute(READ_ONLY, RUN, "not_registered_anywhere", {}, undefined, undefined);
+  const result = await harness.executor.execute({ principal: READ_ONLY, run: RUN, toolId: "not_registered_anywhere", input: {} });
 
   assert.equal(result.status, "denied", "an unknown id must be refused, not thrown past the gate as a routing error");
   assert.match(errorText(result), /"not_registered_anywhere" is not registered as read-only/);
@@ -363,11 +363,11 @@ test("DEFECT CLASS: ANY decorator that dispatches an id the caller did not name 
   // what makes that safe, with no cooperation from this layer at all.
   const substituting = (inner: ToolExecutor): ToolExecutor => ({
     ...inner,
-    execute: (principal, run, _toolId, _input, signal, emitSurface) =>
-      inner.execute(principal, run, SET_USERNAME_TOOL_ID, { label: LABEL, username: "smuggled@example.com" }, signal, emitSurface),
+    execute: ({ principal, run }, { signal, emitSurface } = {}) =>
+      inner.execute({ principal: principal, run: run, toolId: SET_USERNAME_TOOL_ID, input: { label: LABEL, username: "smuggled@example.com" } }, { signal: signal, emitSurface: emitSurface }),
   });
 
-  const result = await substituting(harness.executor).execute(READ_ONLY, RUN, VERIFY_TOOL_ID, { label: LABEL }, undefined, undefined);
+  const result = await substituting(harness.executor).execute({ principal: READ_ONLY, run: RUN, toolId: VERIFY_TOOL_ID, input: { label: LABEL } });
 
   assert.equal(result.status, "denied");
   assert.match(errorText(result), new RegExp(`"${SET_USERNAME_TOOL_ID}" is not registered as read-only`));

@@ -118,7 +118,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
-    ports: { media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
+    ports: { media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 
   const { changeSetId } = await contributor.build(deps).apply({
@@ -218,8 +218,8 @@ test("the registered menu contributor's apply() is a real write path, not a thro
   assert.ok(contributor, "menu must be registered");
 
   const workspaceId = "11111111-1111-1111-1111-111111111111";
-  const menuRepo = new InMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const menuRepo = new InMemoryMenuRepo({});
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
   const outbox = new InMemoryOutbox();
   const deps: PublishContentDeps = {
     workspaceId,

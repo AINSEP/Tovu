@@ -1,12 +1,12 @@
 /**
  * @file The OpenTelemetry adapter for `ObservabilityPort` — the ONLY file under
- * `platform/observability/` that imports an `@opentelemetry/*` package. `ports.ts`'s file header
- * explains why that matters: the port itself must never mention OTel, so a future adapter for a
+ * `platform/observability/` that imports an `@opentelemetry/*` package. Jini's
+ * `diagnostics/src/observability/ports.ts` explains why that matters: the port itself must never mention OTel, so a future adapter for a
  * different instrumentation system can satisfy it without this file changing at all.
  *
  * Loaded lazily, not statically: `index.ts`'s `createObservabilityPort` only reaches this module
  * via `createRequire(import.meta.url)("./otel.js")`, gated behind
- * `resolveObservabilityConfig().enabled`. This is the ONE first-party `require()`
+ * `resolveObservabilityConfig({ env }).enabled`. This is the ONE first-party `require()`
  * `src/__tests__/no-first-party-require.boundary.test.ts` allows (t91 F4.1-A), because this file has
  * no first-party runtime import and nothing loads it through `import` — so tsx's CommonJS copy is
  * the only copy, and it stays that way. Applied here so the OTel SDK is never loaded into a process
@@ -28,87 +28,108 @@
  * silently take over `@opentelemetry/api`'s process-wide tracer registration from some other part
  * of the process that also touches it.
  */
+// Span lifecycle rationale: Jini packages/diagnostics/src/observability/otel.ts.
+// Small single-process VPS installs should pay no SDK footprint until an exporter is configured;
+// the synchronous composition roots cannot adopt an async import without changing their boot contract.
 import { SpanKind, SpanStatusCode, type Span, type Tracer } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import { BatchSpanProcessor, type SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import {
+  createOtelObservabilityPort as createDiagnosticOtelPort,
+  type ExporterFactory,
+  type ObservabilityConfigEnabled,
+  type ObservabilityPort,
+  type TraceSpanPort,
+  type TracerPort,
+  type TracerProviderFactory,
+} from "@jini-ai/diagnostics/observability";
 
-import type { ObservabilityConfigEnabled } from "./config.js";
-import type { ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOutcome } from "./ports.js";
-
-const TRACER_NAME = "tovu.observability";
-
-/** Test seam: injects span processors instead of the real OTLP batch pipeline. Every real caller
- *  (`index.ts`'s `createObservabilityPort`) leaves this unset, which builds the real
- *  `BatchSpanProcessor(new OTLPTraceExporter())` pipeline (see `buildTracer`'s own comment for why
- *  that constructor call takes no explicit `url`) — see `__tests__/unit/otel.unit.test.ts` for the
- *  `InMemorySpanExporter` + `SimpleSpanProcessor` substitution this option exists for. */
+/** Test seam: replace the OTLP batch pipeline with explicit SDK span processors. */
 export interface OtelAdapterOptions {
   spanProcessors?: SpanProcessor[];
 }
 
-function buildTracer(config: ObservabilityConfigEnabled, options: OtelAdapterOptions): Tracer {
-  // No explicit `url` — `config.ts`'s file header explains why: `OTLPTraceExporter`'s own
-  // zero-argument constructor resolves the endpoint from the SAME standard env vars
-  // `resolveObservabilityConfig` checked for presence, applying the OTel spec's base-vs-per-signal
-  // URL rules (`/v1/traces` appended to a general `OTEL_EXPORTER_OTLP_ENDPOINT`, but not to a
-  // signal-specific `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) correctly, which re-deriving here could not
-  // do without duplicating (and risking getting wrong) the SDK's own spec-compliant resolution.
-  const spanProcessors = options.spanProcessors ?? [new BatchSpanProcessor(new OTLPTraceExporter())];
-  const provider = new NodeTracerProvider({
-    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: config.serviceName }),
-    spanProcessors,
-  });
-  return provider.getTracer(TRACER_NAME);
+/** Translates object-shaped diagnostics span methods to SDK calls; no lifecycle policy here. */
+function adaptSpan({ span }: { span: Span }): TraceSpanPort {
+  return {
+    updateName: ({ name }) => { span.updateName(name); },
+    setAttribute: ({ name, value }) => { span.setAttribute(name, value); },
+    setStatus: () => { span.setStatus({ code: SpanStatusCode.ERROR }); },
+    end: () => { span.end(); },
+  };
+}
+
+/** Starts an SDK server span from Jini's structural input and returns its host adapter. */
+function adaptTracer({ tracer }: { tracer: Tracer }): TracerPort {
+  return {
+    startSpan: ({ name, attributes }) => adaptSpan({ span: tracer.startSpan(name, { kind: SpanKind.SERVER, attributes }) }),
+  };
 }
 
 /**
- * Finishes `span` against `outcome`. The route pattern is only known once Express has finished
- * routing (see `ports.ts`'s `RequestTrackingOutcome.routePattern` doc) — later than
- * `tracer.startSpan()` runs — so the span is opened with a provisional name and both the name and
- * `http.route` attribute are set here, at `end()` time, via `Span#updateName`, rather than
- * requiring the port to support a separate rename call.
- */
-function endSpan(span: Span, method: string, outcome: RequestTrackingOutcome): void {
-  span.updateName(`${method} ${outcome.routePattern}`);
-  span.setAttribute("http.route", outcome.routePattern);
-  span.setAttribute("http.status_code", outcome.statusCode);
-  if (outcome.statusCode >= 500) {
-    span.setStatus({ code: SpanStatusCode.ERROR });
-  }
-  span.end();
-}
-
-/**
- * Builds the real `ObservabilityPort`, backed by one process-lifetime `NodeTracerProvider`. Called
- * at most once per process — both composition roots (`server/runtime/composition/{app,deps}.ts`)
- * construct `RouteDeps.observability` once at boot, not per request, and `index.ts`'s
- * `createObservabilityPort` only reaches this function when `config.enabled` is true.
+ * Creates structural SDK factories; no provider, exporter or background timer starts until invoked.
+ * @param required Empty required object; all SDK overrides are optional.
+ * @param options Optional test processors, which prevent constructing a real exporter.
+ * @returns Factories which preserve service identity and do not register the provider globally.
+ * @complexity O(1) setup, excluding SDK processor construction.
+ * @example createOtelFactories({}, { spanProcessors: [processor] });
+ *
+ * These factories build the real port's one process-lifetime `NodeTracerProvider` when invoked.
+ * Both composition roots (`server/runtime/composition/{app,deps}.ts`) construct
+ * `RouteDeps.observability` once at boot, not per request, and `index.ts`'s
+ * `createObservabilityPort` only reaches these factories when `config.enabled` is true.
  *
  * @complexity O(1) setup cost (one provider, one span processor, one exporter); `trackRequest`
  * itself is O(1) per call (`tracer.startSpan` plus a handful of attribute writes) — the same cost
  * shape the no-op port has, since the OTel SDK's real cost (the batching queue and its periodic
  * HTTP export) lives in the span processor's own background timer, not in any individual
  * `trackRequest`/`end` call.
- * @overallScore 100
  */
-export function createOtelObservabilityPort(config: ObservabilityConfigEnabled, options: OtelAdapterOptions = {}): ObservabilityPort {
-  const tracer = buildTracer(config, options);
-
+export function createOtelFactories(_required: Record<string, never>, options: OtelAdapterOptions = {}): {
+  exporterFactory: ExporterFactory;
+  tracerProviderFactory: TracerProviderFactory;
+} {
   return {
-    trackRequest(input: RequestTrackingInput): RequestTracker {
-      const span = tracer.startSpan(input.method, {
-        kind: SpanKind.SERVER,
-        attributes: { "http.method": input.method, "http.target": input.path },
-      });
-
-      return {
-        end(outcome: RequestTrackingOutcome): void {
-          endSpan(span, input.method, outcome);
-        },
-      };
+    exporterFactory: {
+      create: ({ endpoint }) => {
+        if (options.spanProcessors !== undefined) return undefined;
+        return new OTLPTraceExporter({ url: endpoint });
+      },
+    },
+    tracerProviderFactory: {
+      create: ({ serviceName, exporter }) => {
+        let spanProcessors = options.spanProcessors;
+        if (spanProcessors === undefined) {
+          // The diagnostics port treats exporters as opaque. Narrow at the SDK boundary rather
+          // than casting an arbitrary port value into a live processor's exporter dependency.
+          if (!(exporter instanceof OTLPTraceExporter)) {
+            throw new TypeError("OpenTelemetry requires an OTLP trace exporter");
+          }
+          spanProcessors = [new BatchSpanProcessor(exporter)];
+        }
+        const provider = new NodeTracerProvider({
+          resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName }),
+          spanProcessors,
+        });
+        return { getTracer: ({ name }) => adaptTracer({ tracer: provider.getTracer(name) }) };
+      },
     },
   };
+}
+
+/**
+ * Binds Jini's tracing lifecycle to host SDK factories, with injectable processors for tests.
+ * @param required Enabled diagnostics configuration.
+ * @param options Optional SDK test processors; production uses a bounded OTLP batch processor.
+ * @returns A request tracker owned by one provider instance. SDK setup errors propagate.
+ * @complexity O(1) setup and O(1) per track/end, excluding SDK batching/export I/O.
+ * @example createOtelObservabilityPort({ config }, { spanProcessors: [processor] });
+ */
+export function createOtelObservabilityPort({ config }: { config: ObservabilityConfigEnabled }, options: OtelAdapterOptions = {}): ObservabilityPort {
+  // Construct once at boot: the batch processor's export queue/timer belongs to the provider,
+  // not to individual requests. getTracer uses the instance so other global registrations survive.
+  return createDiagnosticOtelPort({ config, ...createOtelFactories({}, options) });
 }

@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

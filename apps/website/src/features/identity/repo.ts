@@ -15,30 +15,9 @@ import type {
 } from "../../platform/db/content-database.generated.js";
 
 import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
-import type {
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  PrincipalPolicyRepoPort,
-  PrincipalRepoPort,
-  PrincipalRoleRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-  SessionRepoPort,
-  UserRepoPort,
-} from "@jini-ai/cms/identity";
-import type {
-  PolicyPermissionRecord,
-  PolicyRecord,
-  PrincipalKind,
-  PrincipalPolicyRecord,
-  PrincipalRecord,
-  PrincipalRoleRecord,
-  PrincipalStatus,
-  RolePolicyRecord,
-  RoleRecord,
-  SessionRecord,
-  UserRecord,
-} from "@jini-ai/cms/identity";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
+import type { PolicyPermissionRecord, PolicyRecord, PrincipalKind, PrincipalPolicyRecord, PrincipalRecord, PrincipalRoleRecord, PrincipalStatus, RolePolicyRecord, RoleRecord, SessionRecord, UserRecord } from "@jini-ai/user-management";
+import type { IdentityTransactionPort } from "@jini-ai/user-management";
 
 /**
  * @file THE adapters for the `identity` repo ports (ADR-021 / SPEC-006): one Kysely query body for
@@ -55,6 +34,26 @@ import type {
  *
  * `is_builtin` / `is_frozen` are integer columns on both dialects (0/1), not booleans.
  */
+
+/**
+ * Bind identity's atomic guard/write unit to the SAME kernel as its repositories. Nested calls
+ * join the active transaction. The workspace lock also covers ordinary saves below, so a grant
+ * or status writer cannot insert a phantom owner/reference while a guarded mutation is deciding.
+ * SQLite's BEGIN IMMEDIATE serializes writers; Postgres uses the kernel's advisory lock.
+ * Shared transaction rationale lives in Jini user-management/src/core/ports.ts.
+ * @complexity O(1) binding; each run adds one transaction and one workspace-lock acquisition.
+ */
+export function createIdentityTransactions(
+  { kernel }: { kernel: ContentKernel },
+  _optional: Record<string, never> = {},
+): IdentityTransactionPort {
+  return {
+    run: ({ workspaceId, execute }) => kernel.transaction(async () => {
+      await kernel.lockKey(`identity:${workspaceId}`);
+      return execute();
+    }),
+  };
+}
 
 function toPrincipalRecord(row: Selectable<PrincipalsTable>): PrincipalRecord {
   return {
@@ -101,9 +100,8 @@ export class SqlPrincipalRepo implements PrincipalRepoPort {
       disabled_at: record.disabledAt ?? null,
       created_at: record.createdAt,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("principals").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("principals").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 }
 
@@ -166,13 +164,12 @@ export class SqlUserRepo implements UserRepoPort {
       password_hash: record.passwordHash,
       last_login_at: record.lastLoginAt ?? null,
     };
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .insertInto("identity_users")
         .values(row)
         .onConflict((oc) => oc.column("principal_id").doUpdateSet(row))
-        .execute()
-    );
+        .execute()) });
   }
 }
 
@@ -234,20 +231,18 @@ export class SqlSessionRepo implements SessionRepoPort {
       ip: record.ip ?? null,
       user_agent: record.userAgent ?? null,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("sessions").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("sessions").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 
   async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .updateTable("sessions")
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .execute()
-    );
+        .execute()) });
   }
 
   async listByPrincipalId(required: {
@@ -313,19 +308,17 @@ export class SqlRoleRepo implements RoleRepoPort {
       name: record.name,
       is_builtin: record.isBuiltin ? 1 : 0,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 
   async delete(required: { workspaceId: string; id: string }): Promise<void> {
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .deleteFrom("roles")
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .execute()
-    );
+        .execute()) });
   }
 }
 
@@ -385,19 +378,17 @@ export class SqlPolicyRepo implements PolicyRepoPort {
       is_builtin: record.isBuiltin ? 1 : 0,
       is_frozen: record.isFrozen ? 1 : 0,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 
   async delete(required: { workspaceId: string; id: string }): Promise<void> {
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .deleteFrom("policies")
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .execute()
-    );
+        .execute()) });
   }
 }
 
@@ -439,29 +430,26 @@ export class SqlPolicyPermissionRepo implements PolicyPermissionRepoPort {
       resource_type: record.resourceType ?? null,
       constraint_json: record.constraintJson ?? null,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("policy_permissions").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("policy_permissions").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 
   async deleteByPolicyId(required: { workspaceId: string; policyId: string }): Promise<void> {
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .deleteFrom("policy_permissions")
         .where("workspace_id", "=", required.workspaceId)
         .where("policy_id", "=", required.policyId)
-        .execute()
-    );
+        .execute()) });
   }
 
   async delete(required: { workspaceId: string; id: string }): Promise<void> {
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .deleteFrom("policy_permissions")
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .execute()
-    );
+        .execute()) });
   }
 }
 
@@ -503,9 +491,8 @@ export class SqlRolePolicyRepo implements RolePolicyRepoPort {
       role_id: record.roleId,
       policy_id: record.policyId,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("role_policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("role_policies").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 }
 
@@ -550,9 +537,8 @@ export class SqlPrincipalRoleRepo implements PrincipalRoleRepoPort {
       principal_id: record.principalId,
       role_id: record.roleId,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("principal_roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("principal_roles").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 }
 
@@ -600,19 +586,18 @@ export class SqlPrincipalPolicyRepo implements PrincipalPolicyRepoPort {
       principal_id: record.principalId,
       policy_id: record.policyId,
     };
-    await this.kernel.run((db) =>
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
       db
         .insertInto("principal_policies")
         .values(row)
         .onConflict((oc) => oc.column("id").doUpdateSet(row))
-        .execute()
-    );
+        .execute()) });
   }
 }
 
 /**
  * SPEC-006 REQ-08 — the tenth identity table, added after the original nine (see this file's
- * header). Its port lives in this repo (`api-key-types.ts`) rather than in `@jini-ai/cms/identity`,
+ * header). Its port lives in this repo (`api-key-types.ts`) rather than in `@jini-ai/user-management`,
  * which scopes API keys out; everything else about this adapter — save-is-upsert, composite
  * `(workspaceId, id)` lookups, `null`-for-absent — matches the nine above exactly.
  */
@@ -688,8 +673,7 @@ export class SqlApiKeyRepo implements ApiKeyRepoPort {
       expires_at: record.expiresAt ?? null,
       revoked_at: record.revokedAt ?? null,
     };
-    await this.kernel.run((db) =>
-      db.insertInto("api_keys").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()
-    );
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
+      db.insertInto("api_keys").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
   }
 }

@@ -1,8 +1,7 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { WebhookSubscriptionRepoPort } from "./ports.js";
-import type { WebhookSubscriptionRecord, WebhookTopic } from "./types.js";
-
-/**
+/** Host callback and actor-attribution adapter; Jini owns subscription validation and lifecycle.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
  * @file Webhook subscription CRUD (ADR-036 §2/§6) — the write-service behind the admin/AI
  * gateway handlers.
  *
@@ -23,280 +22,106 @@ import type { WebhookSubscriptionRecord, WebhookTopic } from "./types.js";
  *   `repo.save`, matching that `WebhookSubscriptionRepoPort` has no `delete` method at all.
  *
  * Architectural role:
- * Feature-level business rules. Repositories stay behind `WebhookSubscriptionRepoPort`; Express
+ * Jini owns the feature-level business rules. Repositories stay behind `WebhookSubscriptionRepoPort`; Express
  * routes and admin/AI tool surfaces call these functions, never the repo directly.
- */
-
-export class WebhookSubscriptionNotFoundError extends Error {}
-export class WebhookSubscriptionValidationError extends Error {}
-
-export interface WebhookSubscriptionDeps {
-  clock: ClockPort;
-  repo: WebhookSubscriptionRepoPort;
-  idGenerator: IdGeneratorPort;
-  /**
-   * Egress allowlist check for a candidate `target_url` (beyond the flat `https://` scheme
-   * requirement enforced here). Injected rather than importing `src/origin` directly — see the
-   * file header. Production wiring: `core/origin`'s `isAllowedEgressTarget` (ADR-040).
-   */
-  isAllowedTarget: (url: string) => Promise<boolean>;
-}
-
-export interface CreateSubscriptionInput {
-  workspaceId: UUID;
-  ownerPrincipalId: UUID;
-  label: string;
-  targetUrl: string;
-  topics: readonly WebhookTopic[];
-  createdByPrincipalId: UUID;
-  createdByPluginId?: string | null;
-}
-
-export interface CreateSubscriptionRequired {
-  deps: WebhookSubscriptionDeps;
-  input: CreateSubscriptionInput;
-}
-
-export interface WebhookSubscriptionOptional {}
-
-/**
+ *
+ * Egress allowlist check for a candidate `target_url` (beyond the flat `https://` scheme
+ * requirement enforced here). Injected rather than importing `src/origin` directly — see the
+ * file header. Production wiring: `core/origin`'s `isAllowedEgressTarget` (ADR-040).
+ *
  * Create a new webhook subscription. Starts `active` with `secretVersion: 1` and no rotation in
  * progress (`previousSecretVersion: null`) — the signing secret itself is derived at delivery
  * time (ADR-036 §5), never generated or stored here.
  *
  * @complexity O(topics) for de-duplication; one repo write.
  * @overallScore 100
- */
-export async function createSubscription(
-  required: CreateSubscriptionRequired,
-  _optional: WebhookSubscriptionOptional = {}
-): Promise<{ subscription: WebhookSubscriptionRecord }> {
-  const { deps, input } = required;
-
-  const label = input.label.trim();
-  if (!label) throw new WebhookSubscriptionValidationError("label is required");
-
-  const targetUrl = await validateTargetUrl({
-    targetUrl: input.targetUrl,
-    isAllowedTarget: deps.isAllowedTarget,
-  });
-
-  const topics = normalizeTopics(input.topics);
-  if (topics.length === 0) {
-    throw new WebhookSubscriptionValidationError("at least one topic is required");
-  }
-
-  const now = deps.clock.nowIso();
-  const subscription: WebhookSubscriptionRecord = {
-    id: deps.idGenerator.newId(),
-    workspaceId: input.workspaceId,
-    ownerPrincipalId: input.ownerPrincipalId,
-    label,
-    targetUrl,
-    topics,
-    secretVersion: 1,
-    previousSecretVersion: null,
-    status: "active",
-    createdByPrincipalId: input.createdByPrincipalId,
-    createdByPluginId: input.createdByPluginId ?? null,
-    createdAt: now,
-    updatedAt: now,
-    disabledAt: null,
-  };
-
-  await deps.repo.insert(subscription);
-  return { subscription };
-}
-
-export interface UpdateSubscriptionInput {
-  workspaceId: UUID;
-  id: UUID;
-  label: string;
-  targetUrl: string;
-  topics: readonly WebhookTopic[];
-}
-
-export interface UpdateSubscriptionRequired {
-  deps: WebhookSubscriptionDeps;
-  input: UpdateSubscriptionInput;
-}
-
-/**
+ *
  * Update a subscription's label/target/topics. Does not touch `status` or secret versioning —
  * those are `pauseSubscription`'s and (deferred) rotation's job respectively.
  *
  * @complexity O(topics); one repo read + one repo write.
  * @overallScore 100
- */
-export async function updateSubscription(
-  required: UpdateSubscriptionRequired,
-  _optional: WebhookSubscriptionOptional = {}
-): Promise<{ subscription: WebhookSubscriptionRecord }> {
-  const { deps, input } = required;
-
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
-    throw new WebhookSubscriptionNotFoundError(`webhook subscription '${input.id}' was not found`);
-  }
-
-  const label = input.label.trim();
-  if (!label) throw new WebhookSubscriptionValidationError("label is required");
-
-  const targetUrl = await validateTargetUrl({
-    targetUrl: input.targetUrl,
-    isAllowedTarget: deps.isAllowedTarget,
-  });
-
-  const topics = normalizeTopics(input.topics);
-  if (topics.length === 0) {
-    throw new WebhookSubscriptionValidationError("at least one topic is required");
-  }
-
-  const subscription: WebhookSubscriptionRecord = {
-    ...existing,
-    label,
-    targetUrl,
-    topics,
-    updatedAt: deps.clock.nowIso(),
-  };
-
-  await deps.repo.save(subscription);
-  return { subscription };
-}
-
-export interface PauseSubscriptionInput {
-  workspaceId: UUID;
-  id: UUID;
-}
-
-export interface PauseSubscriptionRequired {
-  deps: WebhookSubscriptionDeps;
-  input: PauseSubscriptionInput;
-}
-
-export interface PauseSubscriptionOptional {
-  /** `true` (default) pauses; `false` resumes back to `active`. One function, both directions —
-   * matches the CRUD list this library owes (no separate `resumeSubscription` was asked for). */
-  paused?: boolean;
-}
-
-/**
+ *
+ * `true` (default) pauses; `false` resumes back to `active`. One function, both directions —
+ * matches the CRUD list this library owes (no separate `resumeSubscription` was asked for).
+ *
  * Pause or resume an active/paused subscription. A `disabled` (soft-deleted) subscription is a
  * terminal state — it cannot be paused or resumed back to life; delete-then-recreate instead.
  *
  * @complexity O(1); one repo read + one repo write.
  * @overallScore 100
- */
-export async function pauseSubscription(
-  required: PauseSubscriptionRequired,
-  optional: PauseSubscriptionOptional = {}
-): Promise<{ subscription: WebhookSubscriptionRecord }> {
-  const { deps, input } = required;
-  const { paused = true } = optional;
-
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
-    throw new WebhookSubscriptionNotFoundError(`webhook subscription '${input.id}' was not found`);
-  }
-  if (existing.status === "disabled") {
-    throw new WebhookSubscriptionValidationError(
-      `webhook subscription '${input.id}' is disabled and cannot be paused or resumed`
-    );
-  }
-
-  const subscription: WebhookSubscriptionRecord = {
-    ...existing,
-    status: paused ? "paused" : "active",
-    updatedAt: deps.clock.nowIso(),
-  };
-
-  await deps.repo.save(subscription);
-  return { subscription };
-}
-
-export interface DeleteSubscriptionInput {
-  workspaceId: UUID;
-  id: UUID;
-}
-
-export interface DeleteSubscriptionRequired {
-  deps: WebhookSubscriptionDeps;
-  input: DeleteSubscriptionInput;
-}
-
-/**
+ *
  * Soft-delete: sets `status: "disabled"` + stamps `disabledAt`. Never row-deletes (audit
  * durability, ADR-036 §2) — `WebhookSubscriptionRepoPort` has no `delete` method for exactly
  * this reason.
  *
  * @complexity O(1); one repo read + one repo write.
  * @overallScore 100
- */
-export async function deleteSubscription(
-  required: DeleteSubscriptionRequired,
-  _optional: WebhookSubscriptionOptional = {}
-): Promise<{ subscription: WebhookSubscriptionRecord }> {
-  const { deps, input } = required;
-
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
-    throw new WebhookSubscriptionNotFoundError(`webhook subscription '${input.id}' was not found`);
-  }
-
-  const now = deps.clock.nowIso();
-  const subscription: WebhookSubscriptionRecord = {
-    ...existing,
-    status: "disabled",
-    disabledAt: now,
-    updatedAt: now,
-  };
-
-  await deps.repo.save(subscription);
-  return { subscription };
-}
-
-/**
+ *
  * Enforce `https://` (ADR-036 §4 SSRF/egress posture starts here) and defer to the injected
  * allowlist check. Returns the trimmed URL so callers store a normalized value.
+ *
+ * Trim, drop blanks, and de-duplicate topics while preserving first-seen order.
  */
-async function validateTargetUrl(params: {
-  targetUrl: string;
+import {
+  createSubscription as createWebhookSubscription,
+  updateSubscription as updateWebhookSubscription,
+  pauseSubscription as pauseWebhookSubscription,
+  deleteSubscription as deleteWebhookSubscription,
+  type WebhookSubscriptionDeps as JiniSubscriptionDeps,
+  type CreateSubscriptionInput as JiniCreateInput,
+  type UpdateSubscriptionInput,
+  type PauseSubscriptionInput,
+  type PauseSubscriptionOptional,
+  type DeleteSubscriptionInput,
+  type WebhookSubscriptionOptional,
+} from "@jini-ai/integrations/webhooks";
+
+export { WebhookSubscriptionNotFoundError, WebhookSubscriptionValidationError } from "@jini-ai/integrations/webhooks";
+export type { UpdateSubscriptionInput, PauseSubscriptionInput, PauseSubscriptionOptional, DeleteSubscriptionInput, WebhookSubscriptionOptional } from "@jini-ai/integrations/webhooks";
+
+export interface WebhookSubscriptionDeps extends Omit<JiniSubscriptionDeps, "isAllowedTarget" | "clock"> {
+  clock: { nowIso(): string };
   isAllowedTarget: (url: string) => Promise<boolean>;
-}): Promise<string> {
-  const trimmed = params.targetUrl.trim();
+}
+export interface CreateSubscriptionInput extends JiniCreateInput { createdByPluginId?: string | null; }
+export interface CreateSubscriptionRequired { deps: WebhookSubscriptionDeps; input: CreateSubscriptionInput; }
+export interface UpdateSubscriptionRequired { deps: WebhookSubscriptionDeps; input: UpdateSubscriptionInput; }
+export interface PauseSubscriptionRequired { deps: WebhookSubscriptionDeps; input: PauseSubscriptionInput; }
+export interface DeleteSubscriptionRequired { deps: WebhookSubscriptionDeps; input: DeleteSubscriptionInput; }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    throw new WebhookSubscriptionValidationError(`target_url '${params.targetUrl}' is not a valid URL`);
-  }
-
-  if (parsed.protocol !== "https:") {
-    throw new WebhookSubscriptionValidationError("target_url must use https://");
-  }
-
-  const allowed = await params.isAllowedTarget(trimmed);
-  if (!allowed) {
-    throw new WebhookSubscriptionValidationError(
-      `target_url '${trimmed}' is not an allowed egress target`
-    );
-  }
-
-  return trimmed;
+/** Existing origin ports accept a URL string; adapt to Jini's required callback object. */
+function adaptSubscriptionDeps(deps: WebhookSubscriptionDeps): JiniSubscriptionDeps {
+  return {
+    ...deps,
+    // Existing routes and excluded durable adapters keep their ISO clock contract.
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
+    isAllowedTarget: ({ url }) => deps.isAllowedTarget(url),
+  };
 }
 
-/** Trim, drop blanks, and de-duplicate topics while preserving first-seen order. */
-function normalizeTopics(topics: readonly WebhookTopic[]): WebhookTopic[] {
-  const seen = new Set<string>();
-  const normalized: WebhookTopic[] = [];
-
-  for (const topic of topics) {
-    const trimmed = topic.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    normalized.push(trimmed);
-  }
-
-  return normalized;
+/** Keep existing actor attribution while moving it into Jini's optional object.
+ * @complexity O(topics), with one guarded target check and one repo write.
+ */
+export function createSubscription({ deps, input }: CreateSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+  const { createdByPluginId, ...requiredInput } = input;
+  return createWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input: requiredInput }, {
+    ...(createdByPluginId !== undefined ? { createdByPluginId } : {}), ...optional,
+  });
 }
+
+/** Translate the target-policy callback; validation completes before the replacement is saved. */
+export function updateSubscription({ deps, input }: UpdateSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+  return updateWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
+}
+
+/** Translate the host callback without changing the paused/disabled lifecycle. */
+export function pauseSubscription({ deps, input }: PauseSubscriptionRequired, optional: PauseSubscriptionOptional = {}) {
+  return pauseWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
+}
+
+/** Translate the host callback while retaining soft-delete audit history. */
+export function deleteSubscription({ deps, input }: DeleteSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+  return deleteWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
+}
+// Lifecycle/egress rationale: Jini/packages/integrations/src/webhooks/subscriptions.ts (ADR-036).

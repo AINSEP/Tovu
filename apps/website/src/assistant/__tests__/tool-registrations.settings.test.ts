@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -13,15 +15,19 @@ import {
 } from "../../features/settings/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeSettingsTools } from "../../features/settings/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 /**
  * @file The Settings (SPEC-007) tool-wiring test file — mirrors
  * `tool-registrations.database-recovery.test.ts`/`tool-registrations.plugins.test.ts`'s own shape.
- * Catalog completeness (3 wired reads + 1 curated write vs. 4 declared-but-excluded generic
- * writes, and WHY), published contract parity, the risk cross-check, the ADR-021 §2 authorization
+ * Catalog completeness (3 reads + 3 writes vs. 2 excluded bulk/schema writes, and WHY), published contract parity, the risk cross-check, the ADR-021 §2 authorization
  * half (including the cross-principal `settings.user.read` gate), and a multi-tool workflow test.
  *
  * §6 covers `settings_set_ui_preference`, whose whole safety argument is that its blast radius is
@@ -38,8 +44,8 @@ import { registerToolContributor } from "../tool-contribution-registry.js";
 // unless something explicitly installs it first, mirroring what the real composition roots now do
 // via `installFirstPartyToolContributors()` — same fix `tool-registrations.post.test.ts`/
 // `tool-registrations.entries.test.ts` already apply.
-resetToolContributorsForTests();
-registerToolContributor(contributeSettingsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeSettingsTools() });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -98,7 +104,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     // `settings_set_ui_preference` awaits THIS one, not `settingsReady` — its definitions come
     // from `ensureSettingsUiTabDefinitions()`, not the legacy presentation migration.
     settingsUiTabsReady: Promise.resolve(),
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => "id-unused" },
     principalRepo: { findById: async () => null },
     authorize: async (params: Record<string, unknown>) => {
@@ -115,7 +121,7 @@ function executionContext(input: Record<string, unknown> | undefined, principalI
 }
 
 function settingsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -134,27 +140,31 @@ function catalogEntry(toolId: string): SettingsAgentToolDefinition {
 // 1. Catalog completeness — wired reads vs. declared-but-excluded writes, and excluded tools stay excluded
 // ---------------------------------------------------------------------------
 
-test("exactly the 4 wireable settings entries are registered — 3 reads and the curated preference write", () => {
+test("the settings catalog registers reads and bounded writes, excluding bulk/schema changes", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...settingsRegistrations(deps).keys()].sort(),
-    ["content_read.setting_definition", "settings_get_effective", "settings_get_raw", "settings_set_ui_preference"],
+    ["content_read.setting_definition", "settings_clear_value", "settings_get_effective", "settings_get_raw", "settings_set_ui_preference", "settings_set_value"],
   );
-  assert.equal(getSettingsAgentToolCatalog().length, 8, "sanity: the full settings catalog is 8 entries (4 wired + 4 excluded generic writes)");
+  assert.equal(getSettingsAgentToolCatalog().length, 8, "sanity: the full settings catalog is 8 entries (6 wired + 2 excluded bulk/schema writes)");
 });
 
-for (const excludedId of ["settings_set", "settings_clear", "settings_reset", "settings_register_definitions"]) {
+for (const excludedId of ["settings_reset", "settings_register_definitions"]) {
   test(`${excludedId} is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification`, () => {
     const { deps } = fakeRouteDeps();
     assert.equal(settingsRegistrations(deps).has(excludedId), false);
-    assert.throws(() => assertRiskMetadataIsWirable(excludedId, catalogEntry(excludedId)), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+    assert.throws(() => assertRiskMetadataIsWirable(excludedId, catalogEntry(excludedId), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
   });
 }
 
-test("no GENERIC settings write is reachable anywhere in the whole assistant tool set", () => {
+test("bulk and schema writes stay unreachable; old generic names are replaced", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
-  for (const excludedId of ["settings_set", "settings_clear", "settings_reset", "settings_register_definitions"]) {
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  assert.equal(ids.includes("settings_set_value"), true);
+  assert.equal(ids.includes("settings_clear_value"), true);
+  assert.equal(ids.includes("settings_set"), false);
+  assert.equal(ids.includes("settings_clear"), false);
+  for (const excludedId of ["settings_reset", "settings_register_definitions"]) {
     assert.equal(ids.includes(excludedId), false);
   }
 });
@@ -197,7 +207,7 @@ test("the independent risk classification agrees with the catalog for all 3 wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.setting_definition") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
@@ -218,12 +228,16 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   settings_get_effective: { namespace: "core.presentation" },
   settings_get_raw: { namespace: "core.presentation", key: "site_title" },
   settings_set_ui_preference: { setting: "core.language.locale", value: "es" },
+  settings_set_value: { namespace: "core.presentation", key: "site_title", value: "Changed Site" },
+  settings_clear_value: { namespace: "core.presentation", key: "site_title" },
 };
 
 const PERMISSION_OF: Record<string, string> = {
   "content_read.setting_definition": "settings.read.definitions",
   settings_get_effective: "settings.read",
   settings_get_raw: "settings.read.raw",
+  settings_set_value: "settings.workspace.write",
+  settings_clear_value: "settings.workspace.write",
   // Derived by `write-service.deriveRequiredPermission`, NOT passed by the handler — a user-scoped
   // write that names no target principal is a self-write. That this row matches the catalog
   // entry's declared permission is the assertion that the declaration is honest.
@@ -256,7 +270,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
       () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof Error, `expected an Error, got ${String(error)}`);
-        assert.match((error as Error).message, /is not authorized for/);
+        assert.match((error as Error).message, toolId === "settings_set_value" || toolId === "settings_clear_value" ? /permission .* is required/ : /is not authorized for/);
         assert.ok((error as Error).message.includes(PERMISSION_OF[toolId]));
         return true;
       },
@@ -354,7 +368,7 @@ for (const toolId of ["settings_get_effective", "settings_get_raw"]) {
       workspaceId: WORKSPACE_ID,
       settingsRepo,
       settingsReady: Promise.resolve(),
-      clock: { nowIso: () => NOW },
+      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
       idGen: { newId: () => "id-unused" },
       principalRepo: { findById: async () => null },
       // First call (the base read permission) is allowed; the second (cross-principal) is denied.
@@ -409,7 +423,7 @@ test("settings_set_ui_preference: a key outside the allowlist is refused by the 
   assert.equal(authorizeCalls.length, 0, "an unlisted key is refused before any authorize() call — it cannot be used to probe grants");
 });
 
-test("settings_set_ui_preference: core.site.title is not agent-writable, so no agent tool writes the site title (SPEC-050 REQ-08)", async () => {
+test("settings_set_ui_preference: core.site.title stays outside the curated tool; generic writes use the host validator (SPEC-050 REQ-08)", async () => {
   const { deps, authorizeCalls, settingsRepo } = fakeRouteDeps();
   authorizeCalls.length = 0;
   // `workspaceId` is load-bearing: without it the ledger returns only platform-wide revisions.

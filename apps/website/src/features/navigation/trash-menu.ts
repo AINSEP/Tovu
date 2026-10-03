@@ -46,7 +46,7 @@ export interface TrashMenuDeps {
  */
 export async function trashMenu(required: TrashMenuInput, deps: TrashMenuDeps): Promise<{ id: string; version: number | null }> {
   const existing = await deps.menuRepo.findById({ workspaceId: required.workspaceId, id: required.menuId });
-  if (!existing) throw new MenuNotFoundError(`menu '${required.menuId}' was not found`);
+  if (!existing) throw new MenuNotFoundError({ message: `menu '${required.menuId}' was not found` });
 
   const removed = await deps.remove({
     workspaceId: required.workspaceId,
@@ -57,6 +57,6 @@ export async function trashMenu(required: TrashMenuInput, deps: TrashMenuDeps): 
     actor: required.actor,
   });
   if (removed.ok) return { id: existing.id, version: removed.version };
-  if (removed.reason === "not-found") throw new MenuNotFoundError(`menu '${required.menuId}' was not found`);
-  throw new MenuConflictError(`menu '${required.menuId}' changed while it was being deleted — reload and try again`);
+  if (removed.reason === "not-found") throw new MenuNotFoundError({ message: `menu '${required.menuId}' was not found` });
+  throw new MenuConflictError({ message: `menu '${required.menuId}' changed while it was being deleted — reload and try again` });
 }

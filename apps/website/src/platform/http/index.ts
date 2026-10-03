@@ -1,18 +1,12 @@
-/**
- * @file Public surface (barrel) for the `http` Tier-2 core library (ADR-038).
- *
- * ADR-009 §1: a module's public contract is its `index.ts`; boundary lint forbids deep
- * imports. This is INTERFACES AND TYPES ONLY, plus the single thrown class `EgressRefusedError`.
- * Deliberately does NOT export `HttpTransportAdapter` (ADR-038 amendment 3 — module-private to
- * this lib + the composition root) or `CreateHttpClient` (composition-root-only) — a consumer
- * imports `HttpClientPort` + `EgressPolicy` and nothing that could construct an unguarded client.
- *
- * `EgressRefusedError` is a runtime VALUE and is the deliberate exception to "types only"
- * (2026-09-07, SEC-05). It grants no construction capability — it is an `Error` subclass — and it
- * exists so a consumer can tell a policy REFUSAL apart from a transport failure with `instanceof`
- * rather than by matching a message string. See `errors.ts`'s own header for why message matching
- * is not an acceptable substitute at a tool boundary.
- */
-export type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
-export type { EgressPolicy, HttpClientPort } from "./ports.js";
-export { EgressRefusedError } from "./errors.js";
+/** Tovu's consumer-facing HTTP port; construction stays at the composition boundary. */
+// ADR-009 / ADR-038: keep transport adapters and client constructors out of this barrel so a
+// consumer receives a guarded port without the capability to construct an unguarded client.
+// The error class is a deliberate runtime exception: instanceof distinguishes policy refusal
+// from transport failure without fragile message matching, and grants no construction capability.
+export type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
+export type { PinnedPeer, EgressPolicy } from "@jini-ai/platform/http/guarded";
+// Binary/truncation rationale: Jini/packages/core/src/primitives/http.ts; SNI: platform/src/http/guarded/types.ts.
+// Refusal/redaction rationale: Jini/packages/platform/src/http/guarded/errors.ts.
+// ADR-038 / SEC-05: agent boundaries must surface a recognizable, caller-safe egress refusal.
+export { EgressRefusedError } from "@jini-ai/platform/http/guarded";
+export type { HttpClientPort } from "./ports.js";

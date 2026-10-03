@@ -1,12 +1,15 @@
+import { createHash } from "node:crypto";
 import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
-import type { AgentModelSummary } from "@jini-ai/http-kit";
+import { ModelCatalogCache, unionModels as unionModelCatalog } from "@jini-ai/agent-runtime/model-catalog/cache";
+import type { Clock } from "@jini-ai/core/primitives";
+import type { AgentModelSummary } from "@jini-ai/daemon/http";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 
 /**
  * @file Live model discovery for the Local CLI picker's `claude` entry — the enrichment step
- * `server/modules/assistant.ts`'s `respondWithEnrichedAgentList` calls. Design:
+ * `server/runtime/composition/modules/assistant.ts`'s `respondWithEnrichedAgentList` calls. Design:
  * `ADS-memory/reports/local-cli-live-model-discovery-design-2026-08-05.md` §3.1/§3.5.
  *
  * Two independent concerns, deliberately not folded into one function:
@@ -32,47 +35,77 @@ import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } fro
  *  action, not one that needs sub-minute staleness (design doc §3.1's own reasoning). */
 const LIVE_MODEL_CACHE_TTL_MS = 5 * 60_000;
 
-interface CacheEntry {
-  expiresAt: number;
-  /** The in-flight (or settled) call itself, cached — not just its eventual value — so concurrent
-   *  requests that land inside the same TTL window before the first call resolves share one
-   *  `listProviderModels` call instead of each issuing their own. */
-  value: Promise<readonly ProviderModelOption[] | null>;
+interface LiveModelHostDependencies {
+  readonly repo: AdminExecutionCredentialRepoPort;
+  readonly sealer: SecretSealerPort;
+}
+interface DiscoveryOutcome {
+  readonly models: readonly ProviderModelOption[];
+}
+export interface LiveModelDiscovery {
+  getLiveClaudeModels(key: { workspaceId: string; principalId: string }): Promise<readonly ProviderModelOption[] | null>;
 }
 
-/** Module-scope, process-lifetime cache, nested by workspace then principal — not a single
- *  delimiter-joined string key. Tovu is intentionally multi-workspace, not a hypothetical edge
- *  case, so a `${workspaceId}:${principalId}` string key would collide two DIFFERENT tenants'
- *  entries if either id ever contained the `:` delimiter, handing one admin another admin's live
- *  model list. Nesting removes that possibility structurally instead of relying on an unenforced
- *  id-charset assumption. */
-const cache = new Map<string, Map<string, CacheEntry>>();
+/** Creates one host-owned discovery/cache instance; generic cache and its rationale now live in
+ * `@jini-ai/agent-runtime/model-catalog/cache`. The in-flight call itself is shared so concurrent
+ * requests in a TTL window issue one provider call, rather than caching only its eventual value.
+ * Successes and failures keep the same five-minute TTL; credentials are resolved before each read.
+ * Tovu is multi-workspace: delimiter-joined `${workspaceId}:${principalId}` keys would alias tenants
+ * if either ID contained `:`. The package encodes the full tuple structurally, including credential
+ * and endpoint scope. SHA-256 fingerprints invalidate rotation without retaining a raw key in cache
+ * keys. A result wrapper preserves the distinction between a successful empty catalog and failure.
+ */
+export function createLiveModelDiscovery(
+  { repo, sealer, clock, discover }: LiveModelHostDependencies & {
+    clock: Clock;
+    discover: (required: { apiKey: string; baseUrl: string }) => Promise<readonly ProviderModelOption[] | null>;
+  },
+  { ttlMs = LIVE_MODEL_CACHE_TTL_MS }: { ttlMs?: number } = {},
+): LiveModelDiscovery {
+  const cache = new ModelCatalogCache<DiscoveryOutcome>({
+    clock,
+    // Each get supplies a discovery closure AFTER resolving that principal's credential. This
+    // required default is fail-closed if a future caller forgets that closure; it never does I/O.
+    discover: async () => null,
+    merge: ({ live }) => live,
+  }, { ttlMs });
+  return {
+    async getLiveClaudeModels(key) {
+      const stored = await resolveExecutionCredential({ repo, sealer }, key);
+      if (!stored || stored.protocol !== "anthropic" || !stored.apiKey.trim()) return null;
+      const baseUrl = stored.baseUrl ?? "https://api.anthropic.com";
+      const credentialFingerprint = createHash("sha256").update(stored.apiKey).digest("hex");
+      const outcomes = await cache.get({
+        cacheKey: [key.workspaceId, key.principalId, stored.protocol, stored.providerId ?? "", baseUrl, credentialFingerprint],
+        fallback: [],
+      }, {
+        discover: async () => {
+          const models = await discover({ apiKey: stored.apiKey, baseUrl });
+          return models === null ? null : [{ models }];
+        },
+      });
+      return outcomes[0]?.models ?? null;
+    },
+  };
+}
 
-/** Test-only reset — the module-scope `cache` above would otherwise leak state across test files
- *  that both exercise {@link getLiveClaudeModels} for the same `(workspaceId, principalId)` pair. */
+/** Compatibility at the existing host boundary, until composition injects createLiveModelDiscovery.
+ * Each repo/sealer/clock tuple owns an instance; unrelated applications cannot share a process-wide
+ * model slot. Weak ownership avoids retaining disposed hosts. The cache engine is entirely Jini's.
+ */
+let hostDiscoveries = new WeakMap<AdminExecutionCredentialRepoPort, WeakMap<SecretSealerPort, WeakMap<() => number, LiveModelDiscovery>>>();
+
+/** Test-only reset: dependency-owned instances would otherwise survive tests using the same ports
+ * and workspace/principal. Composition-owned factory instances do not depend on this registry. */
 export function resetLiveModelCacheForTesting(): void {
-  cache.clear();
-}
-
-function getCacheEntry(workspaceId: string, principalId: string): CacheEntry | undefined {
-  return cache.get(workspaceId)?.get(principalId);
-}
-
-function setCacheEntry(workspaceId: string, principalId: string, entry: CacheEntry): void {
-  let byPrincipal = cache.get(workspaceId);
-  if (!byPrincipal) {
-    byPrincipal = new Map();
-    cache.set(workspaceId, byPrincipal);
-  }
-  byPrincipal.set(principalId, entry);
+  hostDiscoveries = new WeakMap();
 }
 
 /**
  * The one network call this module makes, isolated so {@link getLiveClaudeModels} above it stays
- * readable. `listProviderModels` never throws (every failure mode — auth, network, timeout,
- * malformed response — is caught internally and returned as `{ok: false, ...}`), so this never
- * rejects either; a rejection here would poison the cache slot above for the rest of the TTL
- * window, which is exactly the failure this delegation avoids by construction.
+ * readable. `listProviderModels` returns expected auth, network, timeout and malformed-response failures
+ * as `{ok: false, ...}`. The package cache also catches unexpected discovery rejections and records
+ * a null result for the same TTL, so a rejected promise never poisons the slot.
  *
  * Logs on `!result.ok` — deliberately the ONLY log line in this module. A live call only reaches
  * this function once {@link getLiveClaudeModels} has already resolved a real `anthropic`
@@ -84,9 +117,8 @@ function setCacheEntry(workspaceId: string, principalId: string, entry: CacheEnt
  *
  * @complexity O(1) local work; one outbound HTTPS call bounded by `listProviderModels`'s own
  *   12s timeout.
- * @overallScore 100
  */
-async function fetchLiveClaudeModels(apiKey: string, baseUrl: string): Promise<readonly ProviderModelOption[] | null> {
+export async function fetchLiveClaudeModels({ apiKey, baseUrl }: { apiKey: string; baseUrl: string }): Promise<readonly ProviderModelOption[] | null> {
   const result = await listProviderModels({ protocol: "anthropic", baseUrl, apiKey });
   if (!result.ok) {
     console.warn(
@@ -111,24 +143,31 @@ async function fetchLiveClaudeModels(apiKey: string, baseUrl: string): Promise<r
  * Max-subscription admin with no stored key depends on: zero added latency, by construction, not
  * by a cache that merely answers fast.
  *
- * @param now - Injectable clock for TTL tests; defaults to `Date.now`.
+ * @param key.now - Injectable host clock for legacy TTL tests; defaults to `Date.now`.
+ * New composition uses createLiveModelDiscovery with an explicit core Clock port.
  * @complexity O(1) plus, at most, one cached network call.
- * @overallScore 100
  */
 export async function getLiveClaudeModels(
-  deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort },
-  key: { workspaceId: string; principalId: string },
-  now: () => number = Date.now,
+  deps: LiveModelHostDependencies,
+  key: { workspaceId: string; principalId: string; now?: () => number },
 ): Promise<readonly ProviderModelOption[] | null> {
-  const stored = await resolveExecutionCredential(deps, key);
-  if (!stored || stored.protocol !== "anthropic") return null;
-
-  const cached = getCacheEntry(key.workspaceId, key.principalId);
-  if (cached && cached.expiresAt > now()) return cached.value;
-
-  const value = fetchLiveClaudeModels(stored.apiKey, stored.baseUrl ?? "https://api.anthropic.com");
-  setCacheEntry(key.workspaceId, key.principalId, { expiresAt: now() + LIVE_MODEL_CACHE_TTL_MS, value });
-  return value;
+  const now = key.now ?? Date.now;
+  let bySealer = hostDiscoveries.get(deps.repo);
+  if (!bySealer) {
+    bySealer = new WeakMap();
+    hostDiscoveries.set(deps.repo, bySealer);
+  }
+  let byClock = bySealer.get(deps.sealer);
+  if (!byClock) {
+    byClock = new WeakMap();
+    bySealer.set(deps.sealer, byClock);
+  }
+  let discovery = byClock.get(now);
+  if (!discovery) {
+    discovery = createLiveModelDiscovery({ ...deps, clock: { nowMs: now }, discover: fetchLiveClaudeModels });
+    byClock.set(now, discovery);
+  }
+  return discovery.getLiveClaudeModels({ workspaceId: key.workspaceId, principalId: key.principalId });
 }
 
 /**
@@ -140,18 +179,12 @@ export async function getLiveClaudeModels(
  *
  * @complexity O(f + l) where f/l are the fallback/live list lengths — one `Set` built from
  *   `fallback`, one pass over `live`.
- * @overallScore 100
  */
 export function unionModels(
   fallback: readonly AgentModelSummary[],
   live: readonly ProviderModelOption[],
 ): AgentModelSummary[] {
-  const seen = new Set(fallback.map((model) => model.id));
-  const merged = [...fallback];
-  for (const model of live) {
-    if (seen.has(model.id)) continue;
-    seen.add(model.id);
-    merged.push({ id: model.id, label: model.label });
-  }
-  return merged;
+  // Preserve Tovu's client-safe projection: fallback metadata survives, while discovered entries
+  // expose only the model ID and label. Deduplication/order belong to the package merger.
+  return unionModelCatalog({ fallback, live: live.map(({ id, label }) => ({ id, label })) });
 }

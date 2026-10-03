@@ -19,9 +19,9 @@ import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, sniffContentType } fr
  * @complexity O(1) — the sniffer reads a fixed-size prefix.
  */
 export function assertAllowedSniffedContentType(bytes: Uint8Array): string {
-  const sniffed = sniffContentType(bytes);
+  const sniffed = sniffContentType({ bytes });
   if (!DEFAULT_ALLOWED_MIME_TYPES.has(sniffed)) {
-    throw new MediaValidationError(`the file's content (${sniffed}) is not an allowed media type`);
+    throw new MediaValidationError({ message: `the file's content (${sniffed}) is not an allowed media type` });
   }
   return sniffed;
 }

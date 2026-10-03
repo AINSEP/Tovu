@@ -1,4 +1,4 @@
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Domain record types for the Commerce first vertical slice (2026-08-12 swarm-consensus

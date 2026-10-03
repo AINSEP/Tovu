@@ -45,7 +45,7 @@
  * `assistant-ag-ui.ts` can reach the same daemon process without duplicating it. Pure extraction —
  * every function this file still calls has the exact body it had inline here before the split.
  */
-import type { AgentSummary } from "@jini-ai/http-kit";
+import type { AgentSummary } from "@jini-ai/daemon/http";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import {
@@ -483,12 +483,12 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
       // widen.
       //
+      // createToolCatalogComposerCapabilitySource (apps/admin/src/features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
       // Degrades the same way every other proxied route already does, with no extra code needed
       // here: `forwardToAgentDaemon` answers 503 immediately (known-failed boot, no daemon `fetch`
       // attempted) or 502 (genuinely unreachable) rather than hanging or throwing — a non-2xx JSON
-      // error the browser-side `ComposerCapabilitySource` this backs
-      // (`apps/admin/src/features/plugins/tool-catalog-composer-source.ts`) catches and treats as
-      // "nothing to add", falling back to the bundled composer catalog rather than breaking it.
+      // error the former browser-side catalog source treated as "nothing to add", falling back
+      // to the bundled composer catalog rather than breaking it.
       app.use("/api/tools", requireAdminSession(routeDeps));
       app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res).catch(next));
       app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res).catch(next));

@@ -13,7 +13,7 @@ import type { WorkspaceRouteDeps } from "../deps.js";
 function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Express {
   const deps: WorkspaceRouteDeps = {
     workspaceId: "ws-1",
-    workspaceRepo: new InMemoryWorkspaceRepo(),
+    workspaceRepo: new InMemoryWorkspaceRepo({}),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { now: () => new Date("2026-01-01T00:00:00Z"), nowIso: () => "2026-01-01T00:00:00.000Z" } as any,
     idGen: { generate: () => "id-1", newId: () => "id-1" } as any,
@@ -33,7 +33,7 @@ function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Expr
 }
 
 test("create: returns 201 with id on success", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo();
+  const workspaceRepo = new InMemoryWorkspaceRepo({});
   const bus = new InMemoryEventBus();
   const outbox = new InMemoryOutbox();
   const events: DomainEvent[] = [];
@@ -67,7 +67,7 @@ test("create: returns 201 with id on success", async (t) => {
 });
 
 test("create: returns 403 when principal is not authorized", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo();
+  const workspaceRepo = new InMemoryWorkspaceRepo({});
   const app = buildApp({ workspaceRepo, authorize: async () => ({ allowed: false, reason: "no_grant" }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
@@ -95,7 +95,7 @@ test("create: returns 400 when name/slug fail validation", async (t) => {
 });
 
 test("create: returns 409 when slug already exists", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo([{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }]);
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }] });
   const app = buildApp({ workspaceRepo });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
@@ -133,7 +133,7 @@ test("create: returns 500 on unexpected error", async (t) => {
 });
 
 test("create: a failed event delivery returns 201 and retains the event for retry", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo();
+  const workspaceRepo = new InMemoryWorkspaceRepo({});
   const bus = new InMemoryEventBus();
   const outbox = new InMemoryOutbox();
   let attempts = 0;

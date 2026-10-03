@@ -46,7 +46,7 @@ import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
  * ## Not a secret
  *
  * An exchange id is a **correlation handle**. It says which in-flight call a message belongs to and
- * confers nothing — contrast `pending-confirmations.ts`, which mints a genuine secret because the
+ * confers nothing — contrast the former token store, which minted a genuine secret because the
  * delete it guards is a second tool call the model could otherwise make itself (ADR-055 Decision 3).
  * Ids here are stored in the clear and compared with `===`. Copying that module's hashing and
  * constant-time comparison would imply a security property this handle does not carry.
@@ -57,6 +57,7 @@ import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
  * ## Architectural role
  *
  * `assistant` layer, domain-agnostic — it names no post, page, or content concept.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /**

@@ -11,7 +11,7 @@ import { toPresentationRecord, toPresentationRow } from "./repo.rows.js";
 export class SqlPresentationSettingsRepo implements PresentationSettingsRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
 
-  async findByWorkspaceId(workspaceId: string): Promise<PresentationSettingsRecord | null> {
+  async findByWorkspaceId({ workspaceId }: { workspaceId: string }): Promise<PresentationSettingsRecord | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("presentation_settings")

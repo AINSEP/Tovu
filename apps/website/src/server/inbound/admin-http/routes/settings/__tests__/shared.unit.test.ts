@@ -51,11 +51,11 @@ test("resolveUserLayerReadTarget: reading your own layer (or none) never asks au
     calls += 1;
     return { allowed: false as const, reason: "should not be asked" };
   };
-  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize } as never, { requestedPrincipalId: undefined, callerPrincipalId: "me" }), {
+  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize }, { requestedPrincipalId: undefined, callerPrincipalId: "me" }), {
     allowed: true,
     principalId: undefined,
   });
-  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize } as never, { requestedPrincipalId: "me", callerPrincipalId: "me" }), {
+  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize }, { requestedPrincipalId: "me", callerPrincipalId: "me" }), {
     allowed: true,
     principalId: "me",
   });
@@ -66,14 +66,14 @@ test("resolveUserLayerReadTarget: another principal's layer requires settings.us
   const seen: Array<Record<string, unknown>> = [];
   const authorizeWith = (allowed: boolean) => async (params: Record<string, unknown>) => {
     seen.push(params);
-    return allowed ? { allowed: true as const } : { allowed: false as const, reason: "no_grant" };
+    return allowed ? { allowed: true as const, reason: "matched" } : { allowed: false as const, reason: "no_grant" };
   };
   assert.deepEqual(
-    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(false) } as never, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
+    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(false) }, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
     { allowed: false, reason: "no_grant" }
   );
   assert.deepEqual(
-    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(true) } as never, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
+    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(true) }, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
     { allowed: true, principalId: "them" }
   );
   assert.equal(CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, "settings.user.read");

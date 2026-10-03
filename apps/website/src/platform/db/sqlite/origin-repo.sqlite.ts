@@ -6,7 +6,7 @@ import {
   SqlOriginSettingRepo,
 } from "../repos/origin-repo.js";
 import type { ContentDb } from "./content-db.js";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { VerifiedOrigin } from "#src/features/origin/index";
 
 export type { ConfiguredOriginWriteResult } from "../repos/origin-repo.js";

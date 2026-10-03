@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Domain types for one-shot static-site publishing through a deploy target an Agent Plugin

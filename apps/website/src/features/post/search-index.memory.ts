@@ -14,7 +14,7 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
  *
  * The interesting decision here is what "in-memory" means. It does NOT mean a second ranking
  * implementation. A hand-rolled scorer next to the real FTS5 one would be two answers to the same
- * question — the exact drift `@jini-ai/sqlite`'s own module doc records having replaced (its
+ * question — the exact drift `@jini-ai/sqlite-chat`'s own module doc records having replaced (its
  * in-memory term-count scorer produced score ties that BM25 separates correctly), and it would make
  * every ranking test in this domain prove something about only one of the two adapters. So this
  * adapter is backed by a REAL SQLite database that merely lives in memory: `openContentDb(":memory:")`

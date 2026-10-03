@@ -46,7 +46,7 @@ function buildRealMediaToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
     workspaceId: WORKSPACE_ID,
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildMediaRegistrationsForTovu(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -68,25 +68,18 @@ test("real round trip: a browser confirmation click for media_trash_asset is acc
   const surfaceExchanges = createSurfaceExchangeStore();
   const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
 
-  const uploaded = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-0" }, "media_upload_asset", {
+  const uploaded = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-0" }, toolId: "media_upload_asset", input: {
     filename: "logo.png",
     contentType: "image/png",
     dataBase64: ONE_PIXEL_PNG_BASE64,
-  });
+  } });
   assert.equal(uploaded.status, "completed", `seed upload must succeed: ${JSON.stringify(uploaded)}`);
   const mediaId = (uploaded.output as { media: { id: string } }).media.id;
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    "media_trash_asset",
-    { mediaId },
-    undefined,
-    async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "media_trash_asset", input: { mediaId } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
@@ -124,17 +117,17 @@ test("SECURITY: a Cancel click for media_trash_asset also reaches the allowlist 
   const surfaceExchanges = createSurfaceExchangeStore();
   const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
 
-  const uploaded = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-0" }, "media_upload_asset", {
+  const uploaded = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-0" }, toolId: "media_upload_asset", input: {
     filename: "keep-me.png",
     contentType: "image/png",
     dataBase64: ONE_PIXEL_PNG_BASE64,
-  });
+  } });
   const mediaId = (uploaded.output as { media: { id: string } }).media.id;
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, "media_trash_asset", { mediaId }, undefined, async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "media_trash_asset", input: { mediaId } }, { emitSurface: async (emission: SurfaceEmission) => {
     emitted.push(emission);
-  });
+  } });
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
 

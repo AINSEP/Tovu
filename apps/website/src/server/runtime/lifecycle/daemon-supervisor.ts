@@ -1,57 +1,30 @@
 /**
- * @file Owns the agent daemon's OS process lifecycle for the whole boot: the one real
- * `child_process.spawn` (moved here from `index.ts`'s old `spawnAgentDaemon`, same env vars,
- * process-group detachment, and stdio-piping behavior — see `spawnRealDaemonProcessFor`'s own
- * comments for why each of those exists) plus automatic respawn on an unexpected exit.
+ * Tovu daemon wiring over @jini-ai/sidecar/supervisor and its /node process adapter.
+ * Tovu owns environment,
+ * workspace identity, readiness, log wording and process signal handlers; Jini owns retries,
+ * single-flight replacement, terminal shutdown and production process-tree cleanup.
  *
- * Split out of `index.ts` rather than made recursive in place, for two independent reasons:
- * 1. `index.ts` can never be imported by a test (`void main()` runs at module load — see that
- *    file's own header), so any logic that needs direct unit coverage has to live somewhere else.
- *    This is the same reason `boot-lifecycle.ts`/`bootstrap.ts` were already split out of it.
- * 2. The old `spawnAgentDaemon` registered `process.on(SIGINT/SIGTERM/SIGHUP/"exit", reap)`
- *    INSIDE itself. That was fine called once; it would leak a fresh set of process-level signal
- *    handlers on every single automatic respawn if the same function were simply made recursive.
- *    Here, the real `process.on(...)` wiring happens exactly once, in the module-singleton
- *    wrapper at the bottom of this file — {@link createDaemonSupervisor}'s factory itself never
- *    touches `process.on`, which is also what makes it safe to unit test directly.
+ * Keep this assembly separate from the entrypoint, whose module-load boot prevents direct
+ * unit imports. Register signals once in the singleton wrapper: installing them per respawn
+ * would accumulate process listeners. Terminal shutdown must refuse manual recovery, while
+ * a tripped crash cap must permit it. On-demand recovery also covers missing-script spawn
+ * failures and old trips; the host's 30s cooldown prevents request traffic from becoming a
+ * respawn storm. The package publishes each child synchronously to keep recovery single-flight.
  *
- * Retry/backoff/crash-loop DECISIONS live in `daemon-respawn-policy.ts`, kept deliberately pure
- * (no timers, no child_process) so those rules are provable without orchestrating real delays or a
- * real daemon process. This file's job is narrower: wire that policy's decisions to an actual spawn
- * loop, and know how to describe an exit in the same human-readable, specific-reason style
- * `index.ts`'s original code already established (`agent daemon could not bind ... address already
- * in use` instead of a bare "exited with code 1").
- *
- * Two more properties this file owns, added after the first pass shipped:
- *
- * - **`terminating` vs. the crash-loop cap having tripped are different states, and `restart()`
- *   treats them differently on purpose.** A tripped cap means "this supervisor gave up retrying but
- *   the process is still alive" — `restart()` MUST work, that is the whole point of a manual seam.
- *   `terminating` means "this OS process itself is on its way down" (Docker sends SIGTERM to stop
- *   a container; `SIGINT`/`SIGHUP` are the interactive/dev equivalents) — `restart()` MUST refuse,
- *   or a request racing the container's own shutdown could resurrect a daemon the container is
- *   actively trying to kill, leaking exactly the orphan class `killCurrentChild`'s own comment
- *   describes for `tsx watch`. `terminating` is set once, by `shutdown()`, and never cleared —
- *   there is no scenario where a supervisor whose process is terminating should ever run again.
- * - **`ensureStarted()` is the on-demand/lazy-start layer**: automatic respawn only heals a daemon
- *   that died while this supervisor was watching it. It does nothing for a daemon that never
- *   started at all (a `child.on("error")` spawn failure — deliberately NOT retried, see
- *   `attemptSpawn`'s own comment) or one whose crash-loop cap tripped long before anyone showed up.
- *   `server/modules/assistant.ts`'s daemon-proxy call site is expected to call this when it
- *   discovers the daemon is unreachable, rather than only ever surfacing a 503 that nothing will
- *   ever clear on its own. Single-flight falls out of the existing state for free: `attemptSpawn`
- *   sets `currentChild` synchronously, with no `await` between the "is anything already running"
- *   check and that assignment, so two calls arriving in the same or adjacent event-loop turns
- *   cannot both decide to spawn — Node's run-to-completion guarantee is what makes this true, not
- *   an extra lock. What single-flight alone does NOT prevent is a request-volume-driven respawn
- *   storm against a daemon that is durably broken (missing script, bad permissions): every
- *   subsequent request would otherwise see "no child, nothing scheduled" and re-trigger. A cooldown
- *   floor (`onDemandCooldownMs`, default matching the backoff ladder's own 30s ceiling) bounds that
- *   to the same worst-case frequency the internal backoff already accepts as safe — traffic-driven
- *   and time-driven retries end up governed by the same ceiling instead of two different ones.
+ * Identity proof before killing: daemon argv carries --workspace so a future reconciler
+ * can verify an instance from its live command line, without reading an environment dump
+ * that might expose secrets. Registry ownership and production tree cleanup belong to the
+ * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
-import { spawn, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import {
+  createNodeDaemonProcessAdapter,
+  createNodeSupervisorScheduler,
+  createSupervisorRegistry,
+} from "@jini-ai/sidecar/supervisor/node";
+import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
+import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
@@ -76,13 +49,13 @@ export interface SpawnedDaemonProcess {
 }
 
 export interface DaemonSupervisorDeps {
-  /** Produces one fresh daemon OS process per call. Production default:
-   *  {@link spawnRealDaemonProcessFor}; tests inject a double so `createDaemonSupervisor` never
-   *  touches `child_process` directly. */
+  /** Caller-owned Node child factory. The production singleton uses Jini's Node adapter instead. */
   spawnDaemonProcess: () => SpawnedDaemonProcess;
   /** Defaults to a fresh {@link createRespawnPolicy} instance with production settings — pass an
    *  override in tests to shrink the backoff/cap thresholds so retries happen in milliseconds. */
   policy?: RespawnPolicy;
+  /** Timer port for the package retry loop; defaults to the Node scheduler. */
+  scheduler?: SupervisorScheduler;
   /** Only used to compose human-readable failure messages. Defaults to
    *  `JINI_AGENT_DAEMON_PORT ?? "4319"`, matching what the daemon itself resolves
    *  (`agent-daemon-server.ts`). */
@@ -94,10 +67,10 @@ export interface DaemonSupervisorDeps {
    *  running or scheduled (see this file's own header). Defaults to 30s, matching the backoff
    *  ladder's own cap — traffic-driven and time-driven retries then share one worst-case ceiling. */
   onDemandCooldownMs?: number;
-  /** Injectable OS platform — real `process.platform` in production, injected in tests to exercise
-   *  the win32 branch of `killCurrentChild` on any host. */
+  /** Platform for the injected Node-child termination seam. */
+  // The platform seam makes the Windows tree-kill branch assertable on any test host.
   platform?: NodeJS.Platform;
-  /** win32-only tree-kill used by `killCurrentChild` instead of the POSIX process-group signal
+  /** win32-only tree-kill for the injected Node-child seam instead of the POSIX process-group signal
    *  (`process.kill(-pid, "SIGTERM")`), which Windows has no equivalent for. Defaults to
    *  {@link taskkillTree} (`taskkill /pid <pid> /T /F`); never called on POSIX. */
   killTree?: (pid: number) => void;
@@ -149,16 +122,12 @@ export interface DaemonSupervisor {
 }
 
 /**
- * Default win32 tree-kill for `killCurrentChild`: `taskkill /pid <pid> /T /F`.
- *
- * Windows has no process groups — `spawnRealDaemonProcessFor`'s `detached: true` binds no group
- * there the way it does on POSIX, so the POSIX `process.kill(-pid, "SIGTERM")` signal below has
- * nothing to target. On a real Windows host that call throws (caught) and falls through to
- * `currentChild.kill("SIGTERM")`, which only reaches the immediate `npx`/`tsx` hop and orphans the
- * daemon underneath it — the exact leak this replaces. `/T` walks the whole tree instead.
+ * Default Windows tree-kill for the caller-owned Node-child seam; production tree-stop is Jini's.
+ * Windows has no POSIX process groups. Killing only the npx/tsx launcher would orphan the
+ * daemon beneath it, so taskkill /T walks its descendants instead.
  *
  * @param pid the child's own pid (never negated — there is no process-group id to negate on win32).
- * @complexity O(1); delegates to the OS via a synchronous child process.
+ * @complexity One OS command; the OS walks the process tree.
  */
 function taskkillTree(pid: number): void {
   execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
@@ -173,8 +142,7 @@ function computeExitReasonCode(code: number | null, signal: NodeJS.Signals | nul
   return `agent daemon exited unexpectedly (code ${code}, signal ${signal ?? "none"})`;
 }
 
-/** Composes the final latched reason once the respawn policy has given up — see
- *  `daemon-respawn-policy.ts`'s header for why these two `kind`s exist and get different wording. */
+/** Tovu's final readiness wording distinguishes repeated bind failures from general crash loops. */
 function buildGiveUpReasonCode(decision: Extract<RespawnDecision, { action: "give-up" }>, lastReasonCode: string, daemonPort: string): string {
   if (decision.kind === "port-conflict") {
     return (
@@ -187,194 +155,111 @@ function buildGiveUpReasonCode(decision: Extract<RespawnDecision, { action: "giv
 }
 
 /**
- * Create a fresh {@link DaemonSupervisor}. Pure wiring — no `process.on` registration and no real
- * spawning happens until `start()`/`restart()` is called, which is what makes this safe to
- * construct directly inside a unit test.
- *
- * @complexity Each returned method is O(1) aside from the injected `spawnDaemonProcess`/`policy`
- *   calls it delegates to; state is a handful of closed-over variables, not a growing structure.
+ * Translate a host Node child (including existing injected doubles) into Jini's process port.
+ * @complexity O(1) wrapping; subscriptions and signals delegate directly to the child.
  */
-export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSupervisor {
-  const policy = deps.policy ?? createRespawnPolicy();
-  const daemonPort = deps.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
-  const clock = deps.now ?? Date.now;
-  const onDemandCooldownMs = deps.onDemandCooldownMs ?? 30_000;
-  const platform = deps.platform ?? process.platform;
-  const killTree = deps.killTree ?? taskkillTree;
-  const quietRoutineLifecycle = deps.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet();
-  const log = deps.log ?? ((line: string) => console.log(line));
-  let spawnAttempts = 0;
-
-  let currentChild: SpawnedDaemonProcess | undefined;
-  let childHasExited = false;
-  let pendingRetryTimer: NodeJS.Timeout | undefined;
-  // Distinct from `childHasExited`: this means "an exit right now must NOT be treated as a
-  // failure that feeds the respawn policy" — true both during a real process shutdown and, briefly,
-  // while `restart()` is replacing a still-live child on purpose.
-  let shuttingDown = false;
-  // Set once, by `shutdown()`, and never cleared — see this file's own header for why this is a
-  // different state than the crash-loop cap tripping, and why `restart()`/`ensureStarted()` must
-  // refuse once it is true rather than merely being suppressed like `shuttingDown` above.
-  let terminating = false;
-  let lastOnDemandAttemptAt: number | undefined;
-
-  function cancelPendingRetry(): void {
-    if (pendingRetryTimer === undefined) return;
-    clearTimeout(pendingRetryTimer);
-    pendingRetryTimer = undefined;
-  }
-
-  function handleUnexpectedExit(code: number | null, signal: NodeJS.Signals | null): void {
-    const reasonCode = computeExitReasonCode(code, signal, daemonPort);
-    console.error(`[daemon-supervisor] ${reasonCode}`);
-    recordAssistantDaemonFailure(reasonCode);
-
-    const decision = policy.recordFailure({ isPortConflict: code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE });
-    if (decision.action === "retry") {
-      pendingRetryTimer = setTimeout(() => {
-        pendingRetryTimer = undefined;
-        attemptSpawn();
-      }, decision.delayMs);
-      return;
-    }
-
-    const giveUpReasonCode = buildGiveUpReasonCode(decision, reasonCode, daemonPort);
-    console.error(`[daemon-supervisor] ${giveUpReasonCode}`);
-    recordAssistantDaemonFailure(giveUpReasonCode);
-  }
-
-  function attemptSpawn(): void {
-    // Mirrors `clearAssistantDaemonFailure`'s own doc: every attempt starts from a clean
-    // readiness slate, so a later successful attempt is never stuck behind a stale 503 an earlier,
-    // unrelated attempt latched.
-    clearAssistantDaemonFailure();
-    childHasExited = false;
-    const child = deps.spawnDaemonProcess();
-    currentChild = child;
-    // Spawn/exit breadcrumbs (2026-09-06 chat-death investigation). A daemon respawn kills every
-    // run in flight, and a run killed that way looks — in `chat.db` and in the pane — exactly like
-    // a chat that "just stopped answering". Nothing timestamped the daemon's lifecycle anywhere, so
-    // after the fact there was no way to correlate a dead chat against a restart. `shuttingDown`
-    // exits are deliberately still logged (below): a save under `apps/website/src` restarts the
-    // whole API, which is precisely the correlation an operator needs to be able to make.
-    spawnAttempts += 1;
-    if (!quietRoutineLifecycle || spawnAttempts > 1) {
-      log(`[daemon-supervisor] ${new Date().toISOString()} spawned agent daemon pid=${child.pid ?? "unknown"}`);
-    }
-
-    child.on("error", (error) => {
-      // Verified directly (not assumed): for a spawn-level failure like ENOENT, Node fires ONLY
-      // `"error"` — `"exit"` never follows, and `pid` is `undefined` for the whole lifetime of this
-      // child. Without this line, `currentChild` would stay set with `childHasExited` stuck at
-      // `false` forever: `restart()`/`ensureStarted()` would then wait indefinitely for an exit
-      // event this child can never emit, instead of recognizing "nothing is actually running" and
-      // spawning a replacement. Marking it here converges the state to exactly what it already is.
-      childHasExited = true;
-      const message = error instanceof Error ? error.message : String(error);
-      const reasonCode = `failed to start the agent daemon — the assistant will be unavailable: ${message}`;
-      console.error(`[daemon-supervisor] ${reasonCode}`);
-      recordAssistantDaemonFailure(reasonCode);
-      // Still deliberately NOT fed into the respawn policy: a spawn-level error (e.g. the daemon
-      // script itself is missing) is not transient. Retrying the same broken command on a backoff
-      // would just repeat the identical failure until the crash-loop cap trips anyway — the manual
-      // restart seam and `ensureStarted()` are still the correct recovery paths once whatever is
-      // actually broken is fixed (or once a request needs the daemon badly enough to try again).
-    });
-    child.on("exit", (code, signal) => {
-      childHasExited = true;
-      if (!quietRoutineLifecycle || !shuttingDown) {
-        log(
-          `[daemon-supervisor] ${new Date().toISOString()} agent daemon pid=${child.pid ?? "unknown"} exited (code=${String(code)}, signal=${String(signal)}, deliberate=${shuttingDown}) — any run in flight died with it`,
-        );
-      }
-      if (shuttingDown) return;
-      handleUnexpectedExit(code, signal);
-    });
-  }
-
-  /** Process-group kill on POSIX, `killTree` on win32 (see {@link taskkillTree}), falling back to
-   *  the direct child either way — identical shape to `index.ts`'s original `reap()`, just reading
-   *  `currentChild`/`childHasExited` instead of closed-over `child`/`pid` locals. */
-  function killCurrentChild(): void {
-    if (currentChild === undefined || childHasExited) return;
-    const pid = currentChild.pid;
-    if (pid === undefined) return;
-    try {
-      if (platform === "win32") {
-        killTree(pid);
-      } else {
-        process.kill(-pid, "SIGTERM");
-      }
-    } catch {
-      try {
-        currentChild.kill("SIGTERM");
-      } catch {
-        /* already gone */
-      }
-    }
-  }
-
-  /** Shared by `restart()` and `ensureStarted()`: replace whatever is currently running with a
-   *  fresh attempt, waiting out a still-live child's actual exit first (see `restart()`'s own doc
-   *  for why spawning alongside it would just collide on the port). */
-  function forceFreshSpawn(): void {
-    if (currentChild !== undefined && !childHasExited) {
-      const staleChild = currentChild;
-      shuttingDown = true;
-      staleChild.on("exit", () => {
-        shuttingDown = false;
-        attemptSpawn();
-      });
-      killCurrentChild();
-      return;
-    }
-
-    shuttingDown = false;
-    attemptSpawn();
-  }
-
+function adaptDaemonProcess({ child }: { child: SpawnedDaemonProcess }): SidecarDaemonProcess {
   return {
-    start() {
-      attemptSpawn();
+    get pid() { return child.pid; },
+    on(input) {
+      if (input.event === "exit") child.on("exit", (code, signal) => input.listener({ code, signal }));
+      else child.on("error", (error) => input.listener({ error }));
     },
-    restart() {
-      if (terminating) return { ok: false, reason: "shutting down" };
-      cancelPendingRetry();
-      policy.reset();
-      forceFreshSpawn();
-      return { ok: true };
+    kill(_required, { signal } = {}) { return child.kill(signal); },
+  };
+}
+
+/** Bind the package's spawn-failure wording to Tovu's existing readiness message. */
+function formatFailureReason(reason: string): string {
+  const prefix = "failed to start daemon: ";
+  if (reason.startsWith(prefix)) {
+    return `failed to start the agent daemon — the assistant will be unavailable: ${reason.slice(prefix.length)}`;
+  }
+  return reason;
+}
+
+type DaemonProcessPorts = Pick<DaemonSupervisorRequired, "spawnDaemonProcess" | "terminateProcess">;
+type DaemonHostOptions = Omit<DaemonSupervisorDeps, "spawnDaemonProcess">;
+
+/**
+ * Supply Tovu's readiness and wording ports to Jini's supervisor without reproducing its state.
+ * @param ports Explicit spawn and termination effects, owned by the host assembly.
+ * @param options Tovu clock, retry profile, cooldown, scheduler and log settings.
+ * @returns Lifecycle methods with Tovu's existing action-result wording.
+ * @throws RangeError for invalid retry/cooldown budgets.
+ * @complexity O(1) assembly/event formatting, excluding the injected policy and process ports.
+ */
+function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOptions = {}): DaemonSupervisor {
+  const clock = options.now ?? Date.now;
+  const daemonPort = options.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
+  const log = options.log ?? ((line: string) => console.log(line));
+  const supervisor = createSidecarSupervisor({
+    ...ports,
+    policy: options.policy ?? createRespawnPolicy({ now: clock }),
+    now: clock,
+    scheduler: options.scheduler ?? createNodeSupervisorScheduler({}),
+    classifyExit: ({ code, signal }) => ({
+      isPortConflict: code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE,
+      reason: computeExitReasonCode(code, signal, daemonPort),
+    }),
+    failureReporter: {
+      clear: clearAssistantDaemonFailure,
+      record: ({ reason }) => recordAssistantDaemonFailure(formatFailureReason(reason)),
     },
+    logger: {
+      emit(event) {
+        if (event.type === "failure") {
+          console.error(`[daemon-supervisor] ${formatFailureReason(event.reason)}`);
+          return;
+        }
+        const at = new Date(event.at).toISOString();
+        if (event.type === "spawn") {
+          log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
+          return;
+        }
+        log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
+      },
+    },
+  }, {
+    onDemandCooldownMs: options.onDemandCooldownMs ?? 30_000,
+    quietRoutineLifecycle: options.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet(),
+    formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode(decision, lastReason, daemonPort),
+  });
+  return {
+    ...supervisor,
     ensureStarted() {
-      if (terminating) return { ok: false, reason: "shutting down" };
-
-      // A daemon is already running, or an attempt is already in flight — single-flight by
-      // construction (see this file's own header): nothing more to do.
-      if (currentChild !== undefined && !childHasExited) return { ok: true };
-
-      // A retry is already scheduled on its own backoff — let it run rather than accelerating it;
-      // the request that called this will simply need to retry once it fires (see header).
-      if (pendingRetryTimer !== undefined) return { ok: true };
-
-      // Nothing running, nothing scheduled: either a spawn-level `error` (never retried
-      // automatically — see `attemptSpawn`) or the crash-loop/port-conflict cap already tripped.
-      // Cooldown-gate re-arming so sustained request volume against a durably broken daemon can't
-      // spawn more often than the backoff ladder's own ceiling would ever allow on its own.
-      const now = clock();
-      if (lastOnDemandAttemptAt !== undefined && now - lastOnDemandAttemptAt < onDemandCooldownMs) {
+      const result = supervisor.ensureStarted();
+      if (result.reason === "cooling down before trying again") {
         return { ok: false, reason: "an on-demand restart was already attempted recently — cooling down before trying again" };
       }
-      lastOnDemandAttemptAt = now;
-      policy.reset();
-      forceFreshSpawn();
-      return { ok: true };
-    },
-    shutdown() {
-      terminating = true;
-      shuttingDown = true;
-      cancelPendingRetry();
-      killCurrentChild();
+      return result;
     },
   };
+}
+
+/**
+ * Keep the existing injected Node-child seam for host callers and lifecycle tests.
+ * Production uses Jini's complete Node process-tree adapter below; this seam keeps the caller's
+ * platform/tree-kill port and translates subscriptions rather than owning any retry state.
+ * @param deps Host child factory and optional policy/platform/log settings.
+ * @returns A package supervisor bound to the existing host ports.
+ * @complexity O(1) assembly, excluding injected ports and retry-window pruning.
+ */
+export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSupervisor {
+  const platform = deps.platform ?? process.platform;
+  const killTree = deps.killTree ?? taskkillTree;
+  return bindDaemonSupervisor({
+    spawnDaemonProcess: () => adaptDaemonProcess({ child: deps.spawnDaemonProcess() }),
+    terminateProcess({ child }) {
+      if (child.pid === undefined) return;
+      try {
+        if (platform === "win32") killTree(child.pid);
+        else process.kill(-child.pid, "SIGTERM");
+      } catch {
+        try { child.kill({}, { signal: "SIGTERM" }); } catch { /* already gone */ }
+      }
+    },
+  }, deps);
 }
 
 /**
@@ -400,22 +285,7 @@ export function resolveDaemonScriptPath(): string {
   );
 }
 
-/**
- * The real, production `spawnDaemonProcess` implementation — everything below is carried over
- * unchanged in behavior from `index.ts`'s original `spawnAgentDaemon` (only the call shape changed,
- * to fit {@link DaemonSupervisorDeps}); see that history for the full rationale on each choice:
- *
- * - `TOVU_WORKSPACE`/`TOVU_PARENT_PID` (D10 fix + this file's own watchdog contract): every spawn —
- *   including every automatic respawn — must bind the SAME workspace and report the SAME parent
- *   pid, so this is rebuilt from `process.env` fresh on every call rather than cached once.
- * - `detached: true`: puts the daemon in its own process group so `killCurrentChild` above can
- *   reap the whole group, not just the immediate `npx`/`tsx` hop in dev.
- * - `stdio: ["ignore", "pipe", "pipe"]` plus manual piping, not `"inherit"`: keeps this process's
- *   own stdout/stderr fds from ever being shared with an orphaned daemon (see git history on
- *   `index.ts` for the concrete Playwright-teardown hang this was fixed to prevent).
- * - `windowsHide: true` (new): without it, Windows pops a console window for this detached child
- *   (plan item W6). Inert on POSIX, where there is no console window to hide.
- */
+/** Host-owned site/workspace identity supplied consistently across daemon respawns. */
 export interface DaemonSpawnEnvInput {
   workspaceId: string;
   /** This process's own already-resolved site root (`deps.ts`'s `siteDir()` for `index.ts`, or the
@@ -461,7 +331,7 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
 }
 
 /**
- * Builds the daemon child's own argv — split out of {@link spawnRealDaemonProcessFor} so the
+ * Builds the daemon child's own argv — split out of {@link createRealDaemonProcessPorts} so the
  * discriminating `--workspace <id>` token (see this file's own header, "identity proof before
  * killing") is directly assertable without spawning a real process.
  *
@@ -502,21 +372,44 @@ export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: st
   return boundaryIndex === commandLine.length || /\s/.test(commandLine[boundaryIndex]);
 }
 
-function spawnRealDaemonProcessFor(input: DaemonSpawnEnvInput): SpawnedDaemonProcess {
+/**
+ * Bind current Tovu launch settings to the package Node adapter. Each spawn gets a fresh env
+ * snapshot, while its registry stays scoped to the resolved site for the whole supervisor boot.
+ * The daemon must write this record only after listening (r15 entrypoint wiring).
+ * Jini's writer fsyncs the file and directory and preserves destination mode; a directory-sync
+ * rejection can occur after replacement is visible. Publication errors belong to that child
+ * boot path, rather than triggering a second write here before the daemon has bound its port.
+ * @param input Workspace, resolved site, proxy port and optional PGlite socket.
+ * @returns Process ports; construction never starts a process or writes a registry record.
+ * @complexity O(e) environment copying per spawn for e variables; package tree-stop is O(p) processes.
+ */
+function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcessPorts {
   const daemonPath = resolveDaemonScriptPath();
-  const isCompiled = daemonPath.endsWith(".js");
-  const env: NodeJS.ProcessEnv = { ...process.env, ...buildDaemonSpawnEnvOverrides(input) };
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
-
-  const child = isCompiled
-    ? spawn(process.execPath, args, { stdio: ["ignore", "pipe", "pipe"], env, detached: true, windowsHide: true })
-    : spawn("npx", ["tsx", ...args], { stdio: ["ignore", "pipe", "pipe"], env, detached: true, windowsHide: true });
-
-  // Relays the daemon's own output through this process instead of inheriting its fds — preserves
-  // the existing `[agent-daemon] ...` log visibility during dev/test without sharing the pipe itself.
-  child.stdout?.pipe(process.stdout);
-  child.stderr?.pipe(process.stderr);
-  return child;
+  const registryPath = path.join(process.env.TOVU_SITE_DIR ?? input.siteDir, "ops", "assistant-daemon.json");
+  const registry = createSupervisorRegistry({ registryPath });
+  function createProcessAdapter() {
+    const isCompiled = daemonPath.endsWith(".js");
+    return createNodeDaemonProcessAdapter({
+      command: isCompiled ? process.execPath : "npx",
+      args: isCompiled ? args : ["tsx", ...args],
+      cwd: process.cwd(),
+      // Every respawn binds the same workspace and parent pid (D10/watchdog contract),
+      // while refreshing process.env so repaired launch configuration can take effect.
+      env: {
+        ...process.env,
+        ...buildDaemonSpawnEnvOverrides(input),
+        TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath,
+      },
+      registry,
+    }, { stdout: process.stdout, stderr: process.stderr, platform: process.platform });
+  }
+  // Termination uses the same registry identity; launch env is refreshed only when spawning.
+  const cleanupAdapter = createProcessAdapter();
+  return {
+    spawnDaemonProcess: () => createProcessAdapter().spawnDaemonProcess(),
+    terminateProcess: ({ child }) => cleanupAdapter.terminateProcess({ child }),
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -579,7 +472,7 @@ export interface StartAssistantDaemonOptions {
    */
   registerProcessSignalHandlers?: boolean;
   /**
-   * Test seam only. Overrides the real {@link spawnRealDaemonProcessFor} the module-singleton
+   * Test seam only. Overrides the real {@link createRealDaemonProcessPorts} the module-singleton
    * wrapper otherwise builds internally, so a test can assert whether a spawn attempt happened at
    * all without ever touching `child_process` or spawning a real OS process (this repo's test
    * scripts do not pass `--experimental-test-module-mocks`, so `node:test`'s `mock.module()` is not
@@ -614,12 +507,22 @@ export function startAssistantDaemon(
   // so the same value this process's own proxy is using is what gets threaded into the child's env
   // and into `daemonPort` (used only for this supervisor's human-readable failure text).
   const daemonPortOverride = getAgentDaemonPortForSpawnEnv();
-  const spawnDaemonProcess = options.spawnDaemonProcess ?? spawnRealDaemonProcessFor;
-  const supervisor = createDaemonSupervisor({
-    spawnDaemonProcess: () =>
-      spawnDaemonProcess({ workspaceId: input.workspaceId, siteDir: input.siteDir, daemonPortOverride, pgSocketPath: input.pgSocketPath }),
-    daemonPort: daemonPortOverride,
-  });
+  const spawnEnv: DaemonSpawnEnvInput = {
+    workspaceId: input.workspaceId,
+    siteDir: input.siteDir,
+    daemonPortOverride,
+    pgSocketPath: input.pgSocketPath,
+  };
+  let supervisor: DaemonSupervisor;
+  if (options.spawnDaemonProcess !== undefined) {
+    const spawnDaemonProcess = options.spawnDaemonProcess;
+    supervisor = createDaemonSupervisor({
+      spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
+      daemonPort: daemonPortOverride,
+    });
+  } else {
+    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv), { daemonPort: daemonPortOverride });
+  }
   singleton = supervisor;
   supervisor.start();
 

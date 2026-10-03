@@ -1,20 +1,3 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import {
-  executeCommand,
-  type AuthorizeFn,
-  type CommandActor,
-  type ChangeSetRepoPort,
-} from "../../contracts/core/commands/index.js";
-import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
-import { validateFieldDescriptors } from "./forms.js";
-import type { FormDefinitionRepoPort } from "./ports.js";
-import type {
-  FieldDescriptor,
-  FormDefinitionRecord,
-  FormDefinitionStatus,
-  NotifyConfig,
-} from "./types.js";
-
 /**
  * @file `write-service.ts` — the admin-CRUD write chokepoint (SPEC-010 REQ-01..04, ADR-PIPE-010).
  *
@@ -27,310 +10,118 @@ import type {
  * "never deleted" wording) — the repo port itself has no delete method for this file to call.
  *
  * Slug-uniqueness relies on the DB unique index (`db/schema.sqlite.ts`), not an app-level check
- * (behavior.spec.md §6.1) — `repo.memory.ts`/`repo.sqlite.ts` both map a conflicting insert to
+ * (behavior.spec.md §6.1) — `repo.memory.ts`/`repo.ts` both map a conflicting insert to
  * `FormSlugConflictError`, which this file lets propagate unchanged out of `mutation.execute()`.
  */
+// Validation/audited-write rationale: Jini/packages/cms/forms/src/write-service.ts (SPEC-010, ADR-PIPE-010).
+import {
+  createFormDefinition as createPackageFormDefinition,
+  updateFormDefinition as updatePackageFormDefinition,
+  setFormDefinitionStatus as setPackageFormDefinitionStatus,
+  FormFieldValidationError,
+  type FormWriteServiceDeps as PackageWriteDeps,
+  type CreateFormDefinitionRequired as PackageCreateRequired,
+  type UpdateFormDefinitionRequired as PackageUpdateRequired,
+  type SetFormDefinitionStatusRequired as PackageStatusRequired,
+  type NotifyConfig,
+  type FormDefinitionRecord,
+} from "@jini-ai/cms-forms";
+import type { OutboxPort } from "@jini-ai/cms/core";
 
-export interface FormWriteServiceDeps {
-  repo: FormDefinitionRepoPort;
-  clock: ClockPort;
-  idGen: IdGeneratorPort;
-  changeSets: ChangeSetRepoPort;
-  outbox?: import("@jini-ai/cms/core").OutboxPort;
-  authorize: AuthorizeFn;
+/** Tovu's command-gateway adapter. Policy stays here; validation and audited writes live in Jini. */
+export interface FormWriteServiceDeps extends Omit<PackageWriteDeps, "permission" | "reservedSlugs"> {
+  outbox?: OutboxPort;
 }
 
-// See `agent-tools.ts` — exported so the published tool schemas cannot drift from these bounds.
-export const MAX_NOTIFY_RECIPIENTS = 10;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const MIN_NAME_LENGTH = 1;
-export const MAX_NAME_LENGTH = 200;
-
-/** Route sentinel the admin Forms editor reserves for its create-mode URL (`panels.tsx`'s forms
- *  route; `FormEditor.tsx`'s `formId === "new"` guard). Once the admin GET route resolves a form
- *  by slug before falling back to id (ui-fixes-backlog.md #8, `get-by-id.ts`), a form actually
- *  slugged "new" would be permanently unreachable at its own URL — it would always render the
- *  blank create form instead of loading the saved one. Rejected here, the one place a slug is
- *  ever chosen (creation only; slug is immutable after — see `updateFormDefinition` below, which
- *  never re-validates a slug against this set since it always re-passes back `existing.slug`),
- *  rather than guarded in the admin UI alone — `agent-tools.ts`'s `createForm` tool writes through
- *  this same function and has no UI layer to catch it first. */
+/** The admin editor uses this slug for its create screen. */
+// The editor's formId === "new" guard would render a blank create form at a saved form's own URL.
+// Reserve it at the shared write boundary so agent-tool creation cannot bypass a UI-only check.
+// Slugs are immutable after creation; updates retain the existing slug rather than choose a new one.
 const RESERVED_SLUGS = new Set(["new"]);
-
-function defaultNotify(): NotifyConfig {
-  return { enabled: false, recipients: [] };
-}
-
-function validateNotify(notify: NotifyConfig | undefined): NotifyConfig {
-  const resolved = notify ?? defaultNotify();
-  if (!Array.isArray(resolved.recipients)) {
-    throw new FormFieldValidationError("notify.recipients must be an array", [
-      { field: "notify.recipients", reason: "must be an array" },
-    ]);
-  }
-  if (typeof resolved.enabled !== "boolean") {
-    throw new FormFieldValidationError("notify.enabled must be a boolean", [
-      { field: "notify.enabled", reason: "must be a boolean" },
-    ]);
-  }
-  if (resolved.recipients.length > MAX_NOTIFY_RECIPIENTS) {
-    throw new FormFieldValidationError(
-      `notify.recipients may not exceed ${MAX_NOTIFY_RECIPIENTS} addresses`,
-      [{ field: "notify.recipients", reason: `at most ${MAX_NOTIFY_RECIPIENTS} recipients are allowed` }]
-    );
-  }
-  for (const recipient of resolved.recipients) {
-    if (!EMAIL_PATTERN.test(recipient)) {
-      throw new FormFieldValidationError(`'${recipient}' is not a valid email address`, [
-        { field: "notify.recipients", reason: `'${recipient}' is not a valid email address` },
-      ]);
-    }
-  }
-  return resolved;
-}
-
-function validateNameAndSlug(name: string, slug: string): void {
-  if (name.length < MIN_NAME_LENGTH || name.length > MAX_NAME_LENGTH) {
-    throw new FormFieldValidationError(`name must be ${MIN_NAME_LENGTH}-${MAX_NAME_LENGTH} characters`, [
-      { field: "name", reason: `must be ${MIN_NAME_LENGTH}-${MAX_NAME_LENGTH} characters` },
-    ]);
-  }
-  if (!SLUG_PATTERN.test(slug)) {
-    throw new FormFieldValidationError("slug must match ^[a-z0-9][a-z0-9-]{0,63}$", [
-      { field: "slug", reason: "must match ^[a-z0-9][a-z0-9-]{0,63}$" },
-    ]);
-  }
-  if (RESERVED_SLUGS.has(slug)) {
-    throw new FormFieldValidationError(`slug '${slug}' is reserved`, [
-      { field: "slug", reason: `'${slug}' is reserved for the admin editor's own URL` },
-    ]);
-  }
-}
-
-function assertValidFields(fields: FieldDescriptor[]): void {
-  const validation = validateFieldDescriptors(fields);
-  if (!validation.valid) {
-    throw new FormFieldValidationError("one or more field descriptors are invalid", validation.fieldErrors);
-  }
-}
 
 export interface CreateFormDefinitionRequired {
   deps: FormWriteServiceDeps;
-  input: {
-    workspaceId: UUID;
-    actor: CommandActor;
-    name: string;
-    slug: string;
-    fields: FieldDescriptor[];
-    notify?: NotifyConfig;
-    idempotencyKey?: string;
-  };
+  input: PackageCreateRequired["input"] & { notify?: NotifyConfig; idempotencyKey?: string };
 }
-
-/** REQ-01/AC-01/AC-02 — validate -> executeCommand(authorize admin.forms.manage) -> insert. */
-export async function createFormDefinition(
-  required: CreateFormDefinitionRequired
-): Promise<{ definition: FormDefinitionRecord }> {
-  const { deps, input } = required;
-  validateNameAndSlug(input.name, input.slug);
-  assertValidFields(input.fields);
-  const notify = validateNotify(input.notify);
-
-  const definitionId = deps.idGen.newId();
-
-  const { result } = await executeCommand({
-    deps: {
-      clock: deps.clock,
-      idGen: deps.idGen,
-      changeSets: deps.changeSets,
-      outbox: deps.outbox,
-      authorize: deps.authorize,
-    },
-    command: {
-      workspaceId: input.workspaceId,
-      actor: input.actor,
-      summary: `Create form definition '${input.slug}'`,
-      idempotencyKey: input.idempotencyKey,
-      permission: "admin.forms.manage",
-    },
-    mutation: {
-      entityType: "form_definition",
-      entityId: definitionId,
-      operation: "create",
-      captureInverse: async () => null,
-      execute: async () => {
-        const now = deps.clock.nowIso();
-        const definition: FormDefinitionRecord = {
-          id: definitionId,
-          workspaceId: input.workspaceId,
-          name: input.name,
-          slug: input.slug,
-          fields: input.fields,
-          notify,
-          status: "active",
-          createdAt: now,
-          updatedAt: now,
-          // Optimistic-concurrency counter the Trash's compare-and-set flips (`types.ts`'s doc on
-          // `FormDefinitionRecord.version`). Every new definition starts at 1, same as `PostRecord`.
-          version: 1,
-        };
-        await deps.repo.create(definition);
-        return { definition };
-      },
-    },
-  });
-
-  return result;
-}
-
 export interface UpdateFormDefinitionRequired {
   deps: FormWriteServiceDeps;
-  input: {
-    workspaceId: UUID;
-    actor: CommandActor;
-    formId: UUID;
-    /**
-     * `slug` is deliberately typed loosely (`Record<string, unknown>`-compatible) so a caller
-     * that (in violation of the API contract) still sends `slug` is silently ignored rather than
-     * accepted — behavior.spec.md §1.1 requires this to never change the stored slug, and picks
-     * "ignored" over "rejected" (either is constitution-compliant; this file documents the choice).
-     */
-    patch: {
-      name?: string;
-      fields?: FieldDescriptor[];
-      notify?: NotifyConfig;
-      slug?: string;
-    };
-    idempotencyKey?: string;
-  };
+  input: PackageUpdateRequired["input"] & { idempotencyKey?: string };
 }
-
-/** REQ-04, behavior.spec.md §1.1/§1.2 — slug is immutable; field-id removal is rejected. */
-export async function updateFormDefinition(
-  required: UpdateFormDefinitionRequired
-): Promise<{ definition: FormDefinitionRecord }> {
-  const { deps, input } = required;
-
-  const { result } = await executeCommand({
-    deps: {
-      clock: deps.clock,
-      idGen: deps.idGen,
-      changeSets: deps.changeSets,
-      outbox: deps.outbox,
-      authorize: deps.authorize,
-    },
-    command: {
-      workspaceId: input.workspaceId,
-      actor: input.actor,
-      summary: `Update form definition '${input.formId}'`,
-      idempotencyKey: input.idempotencyKey,
-      permission: "admin.forms.manage",
-    },
-    mutation: {
-      entityType: "form_definition",
-      entityId: input.formId,
-      operation: "update",
-      captureInverse: async () => null,
-      execute: async () => {
-        const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.formId });
-        if (!existing) {
-          throw new FormDefinitionNotFoundError(`form definition '${input.formId}' was not found`);
-        }
-
-        const name = input.patch.name !== undefined ? input.patch.name : existing.name;
-        if (input.patch.name !== undefined) {
-          validateNameAndSlug(name, existing.slug);
-        }
-
-        let fields = existing.fields;
-        if (input.patch.fields !== undefined) {
-          assertValidFields(input.patch.fields);
-          const existingIds = new Set(existing.fields.map((f) => f.id));
-          const newIds = new Set(input.patch.fields.map((f) => f.id));
-          const missing = [...existingIds].filter((id) => !newIds.has(id));
-          if (missing.length > 0) {
-            throw new FormFieldValidationError(
-              `patch omits existing field id(s): ${missing.join(", ")} (behavior.spec.md §1.2)`,
-              missing.map((id) => ({ field: id, reason: "existing field ids cannot be removed" }))
-            );
-          }
-          fields = input.patch.fields;
-        }
-
-        const notify = input.patch.notify !== undefined ? validateNotify(input.patch.notify) : existing.notify;
-
-        // behavior.spec.md §1.1 — `slug` is never accepted from a patch; it is always ignored.
-        const definition: FormDefinitionRecord = {
-          ...existing,
-          name,
-          fields,
-          notify,
-          slug: existing.slug,
-          updatedAt: deps.clock.nowIso(),
-        };
-        await deps.repo.update(definition);
-        return { definition };
-      },
-    },
-  });
-
-  return result;
-}
-
 export interface SetFormDefinitionStatusRequired {
   deps: FormWriteServiceDeps;
-  input: {
-    workspaceId: UUID;
-    actor: CommandActor;
-    formId: UUID;
-    status: FormDefinitionStatus;
-    idempotencyKey?: string;
+  input: PackageStatusRequired["input"] & { idempotencyKey?: string };
+}
+
+/** Binds the Forms permission and reserved route slug to the supplied host command executor. */
+function packageDeps(deps: FormWriteServiceDeps): PackageWriteDeps {
+  return {
+    executeCommand: deps.executeCommand,
+    repo: deps.repo,
+    clock: deps.clock,
+    idGen: deps.idGen,
+    changeSets: deps.changeSets,
+    authorize: deps.authorize,
+    permission: "admin.forms.manage",
+    reservedSlugs: RESERVED_SLUGS,
   };
 }
 
-/** REQ-04/INV-08 — flips `active` ⇄ `disabled`; never deletes the row (deletion is a separate
- *  Trash action, not this function). */
-export async function setFormDefinitionStatus(
-  required: SetFormDefinitionStatusRequired
+/**
+ * Creates an audited definition, translating Tovu's input and outbox into package options.
+ * Preserves the editor-specific reserved-slug explanation; all other errors propagate unchanged.
+ * @returns The created definition. @complexity O(f + r) package validation, one command.
+ * @example await createFormDefinition({ deps, input: { workspaceId, actor, name, slug, fields } });
+ */
+export async function createFormDefinition(
+  { deps, input }: CreateFormDefinitionRequired,
+  _optional: Record<string, never> = {},
 ): Promise<{ definition: FormDefinitionRecord }> {
-  const { deps, input } = required;
+  const { notify, idempotencyKey, ...requiredInput } = input;
+  try {
+    return await createPackageFormDefinition(
+      { deps: packageDeps(deps), input: requiredInput },
+      { notify, idempotencyKey, outbox: deps.outbox },
+    );
+  } catch (error) {
+    if (error instanceof FormFieldValidationError && RESERVED_SLUGS.has(input.slug)) {
+      throw new FormFieldValidationError({
+        message: error.message,
+        fieldErrors: error.fieldErrors.map((detail) =>
+          detail.field === "slug" && detail.reason === `'${input.slug}' is reserved by the host`
+            ? { ...detail, reason: `'${input.slug}' is reserved for the admin editor's own URL` }
+            : detail,
+        ),
+      });
+    }
+    throw error;
+  }
+}
 
-  const { result } = await executeCommand({
-    deps: {
-      clock: deps.clock,
-      idGen: deps.idGen,
-      changeSets: deps.changeSets,
-      outbox: deps.outbox,
-      authorize: deps.authorize,
-    },
-    command: {
-      workspaceId: input.workspaceId,
-      actor: input.actor,
-      summary: `Set form definition '${input.formId}' status to '${input.status}'`,
-      idempotencyKey: input.idempotencyKey,
-      permission: "admin.forms.manage",
-    },
-    mutation: {
-      entityType: "form_definition",
-      entityId: input.formId,
-      operation: "update",
-      captureInverse: async () => null,
-      execute: async () => {
-        const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.formId });
-        if (!existing) {
-          throw new FormDefinitionNotFoundError(`form definition '${input.formId}' was not found`);
-        }
-        const definition: FormDefinitionRecord = {
-          ...existing,
-          status: input.status,
-          updatedAt: deps.clock.nowIso(),
-        };
-        await deps.repo.update(definition);
-        return { definition };
-      },
-    },
-  });
+/** Updates through the injected command gateway; package rules preserve slugs and existing field ids.
+ * @returns The updated definition; package validation and command errors propagate.
+ * @complexity O(f + r) package validation, one command.
+ */
+export function updateFormDefinition(
+  { deps, input }: UpdateFormDefinitionRequired,
+  _optional: Record<string, never> = {},
+): Promise<{ definition: FormDefinitionRecord }> {
+  const { idempotencyKey, ...requiredInput } = input;
+  return updatePackageFormDefinition(
+    { deps: packageDeps(deps), input: requiredInput },
+    { idempotencyKey, outbox: deps.outbox },
+  );
+}
 
-  return result;
+/** Changes active/disabled status through the audited command gateway; never deletes a definition.
+ * @returns The updated definition; command/not-found errors propagate. @complexity O(1), one command.
+ */
+export function setFormDefinitionStatus(
+  { deps, input }: SetFormDefinitionStatusRequired,
+  _optional: Record<string, never> = {},
+): Promise<{ definition: FormDefinitionRecord }> {
+  const { idempotencyKey, ...requiredInput } = input;
+  return setPackageFormDefinitionStatus(
+    { deps: packageDeps(deps), input: requiredInput },
+    { idempotencyKey, outbox: deps.outbox },
+  );
 }

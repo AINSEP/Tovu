@@ -46,22 +46,30 @@ function isAlwaysAllowed(path: string): boolean {
   return ALWAYS_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
+/** Mounts the recovery gate; status-store failures go to Express's error handler via `next`.
+ * @complexity O(1) per request, with at most one status-store read.
+ */
 export function applySiteServingGate(app: Express, deps: { siteStatusRepo: SiteStatusPort; workspaceId: string }): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
-    if (isAlwaysAllowed(req.path)) {
-      next();
-      return;
-    }
+    try {
+      if (isAlwaysAllowed(req.path)) {
+        next();
+        return;
+      }
 
-    const status = await deps.siteStatusRepo.get(deps.workspaceId);
-    if (status !== "BLOCKED_PENDING_RECOVERY") {
-      next();
-      return;
-    }
+      const status = await deps.siteStatusRepo.get(deps.workspaceId);
+      if (status !== "BLOCKED_PENDING_RECOVERY") {
+        next();
+        return;
+      }
 
-    res.status(503).json({
-      error: "this site is blocked pending recovery from an interrupted migration — see /api/admin/v1/recovery/status",
-      code: "SITE_BLOCKED_PENDING_RECOVERY",
-    });
+      res.status(503).json({
+        error: "this site is blocked pending recovery from an interrupted migration — see /api/admin/v1/recovery/status",
+        code: "SITE_BLOCKED_PENDING_RECOVERY",
+      });
+    } catch (error) {
+      // Express 4 does not observe rejected promises from async middleware.
+      next(error);
+    }
   });
 }

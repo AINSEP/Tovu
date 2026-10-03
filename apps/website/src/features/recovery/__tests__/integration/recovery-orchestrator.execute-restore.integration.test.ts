@@ -31,7 +31,7 @@ function fakeGateway(executeResult: unknown = { restoreRunId: "run-1", state: "Q
 }
 
 test("U-001-ORD1: executeRestore acquires the shared operation lock BEFORE calling the gateway's own execute()", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway();
   const siteId = "site-execute-1";
 
@@ -53,7 +53,7 @@ test("U-001-ORD1: executeRestore acquires the shared operation lock BEFORE calli
 });
 
 test("REQ-13/AC-22: executeRestore rejects with RESTORE_OPERATION_IN_FLIGHT and never reaches the gateway when a migration is already holding the site's lock", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway();
   const siteId = "site-execute-2";
 
@@ -72,7 +72,7 @@ test("REQ-13/AC-22: executeRestore rejects with RESTORE_OPERATION_IN_FLIGHT and 
 });
 
 test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the Database Timeline on the response", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway({ restoreRunId: "run-2", state: "RESTORED" });
   const siteId = "site-execute-3";
 
@@ -90,7 +90,7 @@ test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the
 });
 
 test("REQ-18/EC-07: executeRestore's own success path never itself clears PENDING_MIGRATION state", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway({ restoreRunId: "run-3", state: "RESTORED" });
   const siteId = "site-execute-4";
   let pendingMigrationClearCalls = 0;
@@ -109,7 +109,7 @@ test("REQ-18/EC-07: executeRestore's own success path never itself clears PENDIN
 });
 
 test("EC-04: an agent redeeming a token whose confirmer does not match its own delegatedBy is rejected with FORBIDDEN", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway();
   const siteId = "site-execute-5";
 
@@ -136,7 +136,7 @@ test("EC-04: an agent redeeming a token whose confirmer does not match its own d
 });
 
 test("EC-04: an agent can redeem a token owned by its delegator", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const gateway = fakeGateway();
   const result = await executeRestore({
     deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock },
@@ -147,7 +147,7 @@ test("EC-04: an agent can redeem a token owned by its delegator", async () => {
 });
 
 test("U-001-ORD1: a pending restore holds the shared lock until gateway execution settles", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const siteId = "site-execute-pending";
   let enterGateway!: () => void;
   const entered = new Promise<void>((resolve) => { enterGateway = resolve; });
@@ -179,7 +179,7 @@ test("U-001-ORD1: a pending restore holds the shared lock until gateway executio
 });
 
 test("U-001: a throwing gateway releases the shared operation lock", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const siteId = "site-execute-throw";
   const failure = new Error("restore gateway failed");
   const gateway = { execute: async () => { throw failure; } };

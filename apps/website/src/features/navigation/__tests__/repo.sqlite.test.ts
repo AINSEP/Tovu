@@ -134,7 +134,7 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
   });
 }
 
-runMenuRepoContractSuite("InMemoryMenuRepo", () => new InMemoryMenuRepo());
+runMenuRepoContractSuite("InMemoryMenuRepo", () => new InMemoryMenuRepo({}));
 const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqlMenuRepo(kernel) }) });
 for (const each of menuDialects) {
   runMenuRepoContractSuite(`SqlMenuRepo ${each.name}`, () => each.make().repo);
@@ -271,7 +271,7 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
   });
 }
 
-runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo());
+runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo({}));
 const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqlNavLocationBindingRepo(kernel) });
 for (const each of bindingDialects) {
   runBindingRepoContractSuite(`SqlNavLocationBindingRepo ${each.name}`, each.make);

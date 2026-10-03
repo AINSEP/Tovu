@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file `executeMetaTool`'s dispatch — the layer that stands between free-form model output and
  * `ToolExecutor`.
@@ -26,7 +28,7 @@ import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps 
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
@@ -35,14 +37,19 @@ import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 // `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
 // which installs first-party contributors itself) — so this file must, or the `comments`/
 // `newsletter` tools would be silently absent from the catalog it searches. See
 // `tool-contribution-registry.ts`'s header. (`post`, this file's own "search 'post'" test's subject,
 // is unaffected either way — it stayed on the static `DOMAIN_SLICES` seam; see
 // `features/post/tool-registrations.ts`'s trailing comment for why.)
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 const PRINCIPAL = { id: "principal-meta-tool" };
 const RUN = { id: "run-meta-tool" };
@@ -54,7 +61,7 @@ const RUN = { id: "run-meta-tool" };
 function fakeRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: "ws-meta-tool",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-08-05T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {
@@ -79,7 +86,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 // pass is fail-open regardless (`installed-extension-tools.ts`), so omitting this would still pass
 // every test here, just with a swallowed `console.warn` and a real (empty) disk read on every call.
 function surface() {
-  return createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
+  return createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
 }
 
 function call(name: string, input: unknown) {
@@ -270,7 +277,7 @@ test("execute_delegated_tool refuses a non-object, non-array, non-string input (
 // notes / the coverage report for that one.
 test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
   const deniedDeps = { ...fakeRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
-  const s = createByokToolSurface(deniedDeps, { installExtensions: false });
+  const s = createByokToolSurface(deniedDeps, { ...( { installExtensions: false }), contributions });
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }));
   assert.equal(result.isError, true);
   assert.match(result.content, /not authorized/);
@@ -359,7 +366,7 @@ test("READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal i
  */
 test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace", limit: 5 }));
   const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
@@ -380,7 +387,7 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
 
 test("a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
   await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
@@ -411,7 +418,7 @@ test("without a toolAttemptAudit option, search_tools/describe_tool behave exact
  */
 test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }));
   assert.equal(result.isError, true, "sanity: still the same recoverable-error behavior, unchanged by adding audit");
@@ -428,7 +435,7 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
 
 test("ordinary successful and throwing delegated handlers record their complete audit trail", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
   s.registry.register(fakeAllowedRegistration("probe_audit_success", async () => ({ saved: true })));
   s.registry.register(fakeAllowedRegistration("probe_audit_failure", async () => { throw new Error("probe failure"); }));
   const success = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }));
@@ -711,7 +718,7 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
 
 test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-recovery-audit" }, installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-recovery-audit" }, installExtensions: false }), contributions });
   let originalCallCount = 0;
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_audited", async () => {
@@ -769,7 +776,7 @@ const FEDERATION_WORKSPACE = "ws-federation-surface";
  *  not a hand-built `ResolvedFederatedConnection`. */
 async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring, allowedToolNames = "echo"): Promise<void> {
   await saveExternalMcpServer(
-    { repo, sealer, keyring, clock: { nowIso: () => "2026-09-24T00:00:00.000Z" } },
+    { repo, sealer, keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T00:00:00.000Z" } },
     {
       workspaceId: FEDERATION_WORKSPACE,
       serverId: "echo-server",
@@ -805,9 +812,9 @@ test("BYOK federation: awaitFederation boots the real stored roster and resolves
   const sealer = new AesGcmSecretSealer(keyring);
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
-  });
+  }), contributions });
 
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
 });
@@ -818,9 +825,9 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
   const sealer = new AesGcmSecretSealer(keyring);
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
-  });
+  }), contributions });
   await s.awaitFederation(1000);
 
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "echo" }));
@@ -846,7 +853,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
     ],
     onCall: () => remoteResult,
   });
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { federationConnect: async () => session });
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( { federationConnect: async () => session }), contributions });
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }));
   assert.notEqual(result.isError, true);
@@ -869,7 +876,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
 // `assistant-byok.ts` appends FEDERATION_STILL_CONNECTING_NOTE to the system prompt on `false` —
 // a no-federation surface must not tell the model that tools are on their way.
 test("BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
+  const s = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
 
   assert.equal(s.federation, undefined);
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
@@ -896,9 +903,9 @@ test("BYOK federation: execute_delegated_tool for a still-registering federated 
     releaseConnect = resolve;
   });
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => connectGate,
-  });
+  }), contributions });
 
   assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
   assert.equal(s.federation?.started, false);
@@ -929,9 +936,9 @@ test("BYOK federation: execute_delegated_tool for a server that was never in the
     releaseConnect = resolve;
   });
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => connectGate,
-  });
+  }), contributions });
 
   assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
 
@@ -951,11 +958,11 @@ test("BYOK federation: execute_delegated_tool for a connection that failed to co
   const sealer = new AesGcmSecretSealer(keyring);
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => {
       throw new Error("connect ECONNREFUSED");
     },
-  });
+  }), contributions });
 
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
   assert.equal(s.federation?.started, true);

@@ -5,8 +5,8 @@ import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 /**
  * @file Tests this module's OWN contract — seeding a `ToolCatalogQuery` from a `ToolRegistry`-shaped
- * input and delegating to `@jini-ai/sqlite`'s `searchToolCatalog`/`getToolCatalogEntry`. Ranking
- * internals (BM25 scoring, tie-breaking, FTS5 tokenization) are `@jini-ai/sqlite`'s own tested
+ * input and delegating to `@jini-ai/sqlite-chat`'s `searchToolCatalog`/`getToolCatalogEntry`. Ranking
+ * internals (BM25 scoring, tie-breaking, FTS5 tokenization) are `@jini-ai/sqlite-chat`'s own tested
  * contract (`packages/sqlite/src/db/tool-catalog/__tests__/tool-catalog.test.ts`) and are not
  * re-asserted here — this file only checks that the wiring between the two is correct.
  */

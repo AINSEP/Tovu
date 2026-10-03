@@ -1,4 +1,6 @@
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 import {
   MenuConflictError,
@@ -80,7 +82,7 @@ function buildEvent(
   return {
     id: deps.idGen.newId(),
     name,
-    occurredAt: deps.clock.nowIso(),
+    occurredAt: clockNowIso({ clock: deps.clock }),
     aggregateId,
     workspaceId,
     payload,
@@ -157,28 +159,24 @@ export async function importMenuEntity(required: {
   const existing = await deps.repo.findById({ workspaceId, id: record.id });
 
   if (input.expectedVersion === undefined && existing) {
-    throw new MenuConflictError(
-      `menu '${record.id}' already exists at this destination (version ${existing.version}) but was published as new`
-    );
+    throw new MenuConflictError({ message: `menu '${record.id}' already exists at this destination (version ${existing.version}) but was published as new` });
   }
   if (input.expectedVersion !== undefined && !existing) {
-    throw new MenuNotFoundError(`menu '${record.id}' was not found at this destination`);
+    throw new MenuNotFoundError({ message: `menu '${record.id}' was not found at this destination` });
   }
   if (existing && input.expectedVersion !== undefined && existing.version !== input.expectedVersion) {
-    throw new MenuConflictError(
-      `menu '${record.id}' was modified concurrently (expected version ${input.expectedVersion}, found ${existing.version})`
-    );
+    throw new MenuConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${input.expectedVersion}, found ${existing.version})` });
   }
 
   if (record.slug !== existing?.slug) {
     const slugHolder = await deps.repo.findBySlug({ workspaceId, slug: record.slug });
     if (slugHolder && slugHolder.id !== record.id) {
-      throw new MenuConflictError(`slug '${record.slug}' already exists at this destination`);
+      throw new MenuConflictError({ message: `slug '${record.slug}' already exists at this destination` });
     }
   }
 
-  const items = validateAndCloneTree(record.doc.items);
-  const now = deps.clock.nowIso();
+  const items = validateAndCloneTree({ items: record.doc.items });
+  const now = clockNowIso({ clock: deps.clock });
   const menu: NavMenuEntry = {
     ...record,
     workspaceId,

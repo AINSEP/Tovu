@@ -1,4 +1,6 @@
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import type { NavigationEventName, NavMenuChangedPayload, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 /**
@@ -54,7 +56,7 @@ function buildEvent(
   return {
     id: deps.idGen.newId(),
     name,
-    occurredAt: deps.clock.nowIso(),
+    occurredAt: clockNowIso({ clock: deps.clock }),
     aggregateId: menu.id,
     workspaceId,
     payload,

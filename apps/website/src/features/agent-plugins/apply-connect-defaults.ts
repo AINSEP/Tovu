@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -69,7 +70,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
     // Plugin first: if this throws, nothing is written and the next sign-in tries again. The row
     // write is the step that makes a retry a no-op, so it goes last.
     await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR });
-    const nowIso = deps.clock.nowIso();
+    const nowIso = clockNowIso({ clock: deps.clock });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
     await deps.repo.upsert({

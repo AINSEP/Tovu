@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { PostValidationError, type PostKind, type PostStatus } from "./post.js";
 
 /**
@@ -18,7 +18,7 @@ import { PostValidationError, type PostKind, type PostStatus } from "./post.js";
  * both about keeping the adapters honest:
  *  1. FTS5's MATCH argument is a QUERY LANGUAGE, not a string literal — `"`, `*`, `NOT`, `NEAR`, and
  *     `column:` all mean something. Tokenizing to alphanumeric runs here (the identical rule
- *     `@jini-ai/sqlite`'s `searchToolCatalog` applies, and for the identical reason) means no
+ *     `@jini-ai/sqlite-chat`'s `searchToolCatalog` applies, and for the identical reason) means no
  *     adapter can be handed a string that reaches FTS5 as anything but plain terms. Doing it at the
  *     domain boundary rather than inside one adapter means the second adapter cannot forget.
  *  2. `limit` has a hard cap, and a cap enforced in the port's contract cannot be bypassed by a
@@ -107,7 +107,7 @@ const MAX_BODY_DEPTH = 64;
 /**
  * Splits a user query into the plain terms an FTS5 `MATCH` expression may safely be built from.
  *
- * Alphanumeric runs only — the identical rule (and identical rationale) as `@jini-ai/sqlite`'s
+ * Alphanumeric runs only — the identical rule (and identical rationale) as `@jini-ai/sqlite-chat`'s
  * `searchToolCatalog`: a term produced by this function cannot contain an FTS5 query-syntax
  * operator, so no caller-supplied string is ever interpreted as anything but literal terms. This is
  * the injection boundary for every adapter, which is why it lives here and not in one of them.

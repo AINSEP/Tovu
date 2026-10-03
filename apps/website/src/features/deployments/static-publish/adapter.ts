@@ -1,11 +1,11 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
 
-import { DeployError, type DeployFile, type DeployPublishResult, type DeployTarget, type JsonObject } from "@jini-ai/devops/deploy";
+import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -84,7 +84,7 @@ export function planStaticPublish(registry: DeployTargetRegistry, config: Static
   if (target === undefined) return { ok: false, message: unknownTargetMessage(registry, config.target) };
   const missing = missingRequiredFieldMessage(target, config);
   if (missing !== null) return { ok: false, message: missing };
-  const moduleConfig = config as unknown as JsonObject;
+  const moduleConfig = config as unknown as UnknownRecord;
   const configError = target.module.validateConfig?.(moduleConfig);
   if (configError) return { ok: false, message: configError };
   const basePath = target.module.basePath?.(moduleConfig);
@@ -412,12 +412,12 @@ function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: Dep
  */
 async function publishAndMapOutcome(
   jiniTarget: DeployTarget,
-  publishInput: HostDeployPublishInput,
+  publishInput: DeployPublishInput,
   input: StaticPublishInput,
   basePath: string | undefined
 ): Promise<StaticPublishOutcome> {
   try {
-    const result = await jiniTarget.publish(publishInput);
+    const result = await jiniTarget.publish(publishInput, { responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS });
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
     }
@@ -473,7 +473,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     return targetResult.outcome;
   }
 
-  const publishInput: HostDeployPublishInput = { files, projectName: input.projectName, responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS };
+  const publishInput: DeployPublishInput = { files, projectName: input.projectName };
   return publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
 }
 
@@ -509,7 +509,13 @@ function constructTargetForPublish(
   try {
     if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };
     const kit = deps.hostKit ?? createDeployHostKit();
-    return { ok: true, target: pluginTarget.module.create({ credential, config: config as unknown as JsonObject, kit }) };
+    const installedTarget = pluginTarget.module.create({ credential, config: config as unknown as UnknownRecord, kit });
+    // Installed content-addressed modules keep their ABI: security headers still reach the first object.
+    return { ok: true, target: {
+      id: installedTarget.id,
+      publish: (required, optional) => installedTarget.publish({ ...required, ...optional }),
+      checkReachability: (required) => installedTarget.checkReachability(required),
+    } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}: ${message}` } };

@@ -1,3 +1,4 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,7 +7,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/cms/identity";
+import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";
@@ -45,13 +46,15 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
-  const clock = { nowIso: () => AT };
+  const clock = { nowIso: () => AT, nowMs: () => Date.parse(AT) };
   const wiring = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen: counterIdGenNew() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
   const identity: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}),
     repos: {
+      transactions: wiring.transactions,
       principals: wiring.principalRepo,
       users: wiring.userRepo,
       sessions: wiring.sessionRepo,
@@ -276,7 +279,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: { nowIso: () => purgeAfter } })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: { nowIso: () => purgeAfter, nowMs: () => Date.parse(purgeAfter) } })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo(f.db.$client),
     adapters,
@@ -394,7 +397,7 @@ test("hide: a status change committed between the read and the write reports ver
     db: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)),
     purge: new SqliteUserPurge(f.db),
     idGen: counterIdGen(),
-    clock: { nowIso: () => AT },
+    clock: { nowIso: () => AT, nowMs: () => Date.parse(AT) },
   });
 
   const outcome = await adapter.hide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null });
@@ -413,7 +416,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
     ),
     purge: new SqliteUserPurge(f.db),
     idGen: counterIdGen(),
-    clock: { nowIso: () => AT },
+    clock: { nowIso: () => AT, nowMs: () => Date.parse(AT) },
   });
 
   const outcome = await adapter.unhide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null, priorMarker: "disabled" });

@@ -61,7 +61,7 @@ test("resolves ownerPrincipalId fresh on every call, matching identity.ownerPrin
 });
 
 test("buildGatewayDeps passes clock/idGen/authorize through unchanged and attaches a fresh, empty token store", async () => {
-  const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z") };
   const idGen = { newId: () => "id-1" };
   const authorize = async () => ({ allowed: true, reason: "ok" });
 
@@ -75,7 +75,7 @@ test("buildGatewayDeps passes clock/idGen/authorize through unchanged and attach
 });
 
 test("buildGatewayDeps passes authorizeInstance through when supplied", () => {
-  const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z") };
   const idGen = { newId: () => "id-1" };
   const authorize = async () => ({ allowed: true, reason: "ok" });
   const authorizeInstance = async () => ({ allowed: true, reason: "owner_wildcard" });
@@ -86,7 +86,7 @@ test("buildGatewayDeps passes authorizeInstance through when supplied", () => {
 });
 
 test("buildGatewayDeps builds an independent token store per call", async () => {
-  const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z") };
   const idGen = { newId: () => "id-1" };
   const authorize = async () => ({ allowed: true, reason: "ok" });
 

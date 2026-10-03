@@ -16,21 +16,7 @@
  * helper rather than the kit's generic `requireToolPermission` precisely so both paths reach the
  * identical gate function.
  */
-import {
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  requireInputRecord,
-  requireNumber,
-  requireObject,
-  requireString,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireNumber, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -72,7 +58,7 @@ import type {
 } from "./types.js";
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service.js";
 
-const CATALOG_BY_ID = indexCatalogById(widgetsAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: widgetsAgentToolCatalog });
 
 /** Re-exported for this file's existing callers/tests, now sourced from the shared composer
  * (`./deps.ts`) instead of being declared locally — see that file's header for why one composer
@@ -162,32 +148,28 @@ function isWidgetsShapeRejection(error: unknown): boolean {
 function toModelFacingWidgetsError(err: unknown): unknown {
   if (err instanceof ToolInputError) return err;
   if (err instanceof WidgetForbiddenError) {
-    return new ToolInputError(`WIDGETS_FORBIDDEN: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_FORBIDDEN: ${err.message}` });
   }
   if (err instanceof WidgetInstanceNotFoundError) {
-    return new ToolInputError(`WIDGETS_INSTANCE_NOT_FOUND: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_INSTANCE_NOT_FOUND: ${err.message}` });
   }
   if (err instanceof WidgetAreaNotFoundError) {
-    return new ToolInputError(`WIDGETS_AREA_NOT_FOUND: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_AREA_NOT_FOUND: ${err.message}` });
   }
   if (err instanceof WidgetEmbedHostNotFoundError) {
-    return new ToolInputError(`WIDGETS_EMBED_HOST_NOT_FOUND: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_EMBED_HOST_NOT_FOUND: ${err.message}` });
   }
   if (err instanceof WidgetEmbedHostUnsupportedError) {
-    return new ToolInputError(`WIDGETS_EMBED_HOST_UNSUPPORTED: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_EMBED_HOST_UNSUPPORTED: ${err.message}` });
   }
   if (err instanceof WidgetEmbedPlacementNotFoundError) {
-    return new ToolInputError(`WIDGETS_EMBED_PLACEMENT_NOT_FOUND: ${err.message}`);
+    return new ToolInputError({ message: `WIDGETS_EMBED_PLACEMENT_NOT_FOUND: ${err.message}` });
   }
   if (err instanceof WidgetVersionConflictError) {
-    return new ToolInputError(
-      `WIDGETS_VERSION_CONFLICT: ${err.message}. Nothing was written. Re-read the host or instance to get its current version (${err.currentVersion}) and resend with that as baseVersion.`
-    );
+    return new ToolInputError({ message: `WIDGETS_VERSION_CONFLICT: ${err.message}. Nothing was written. Re-read the host or instance to get its current version (${err.currentVersion}) and resend with that as baseVersion.` });
   }
   if (err instanceof WidgetAreaConflictError) {
-    return new ToolInputError(
-      `WIDGETS_AREA_CONFLICT: ${err.message}. Nothing was written. Call content_read.widget_region to get the current baseVersion (${err.currentVersion}) and resend.`
-    );
+    return new ToolInputError({ message: `WIDGETS_AREA_CONFLICT: ${err.message}. Nothing was written. Call content_read.widget_region to get the current baseVersion (${err.currentVersion}) and resend.` });
   }
   return err;
 }
@@ -255,7 +237,8 @@ export function buildWidgetsRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     widgets_list_instances: async (ctx) => {
-      const input = isRecord(ctx.input) ? ctx.input : {};
+      const candidate = { value: ctx.input };
+      const input = isRecord(candidate) ? candidate.value : {};
       const { instances } = await listWidgetInstances({
         deps: { entryRepo: routeDeps.entryRepo, authorize: routeDeps.authorize },
         input: {
@@ -269,7 +252,7 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_get_instance: async (ctx) => {
-      const widgetInstanceId = requireString(requireInputRecord(ctx.input), "widgetInstanceId");
+      const widgetInstanceId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "widgetInstanceId" });
       const { instance } = await getWidgetInstance({
         deps: { entryRepo: routeDeps.entryRepo, authorize: routeDeps.authorize },
         input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
@@ -292,7 +275,7 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_get_region: async (ctx) => {
-      const regionKey = requireString(requireInputRecord(ctx.input), "regionKey");
+      const regionKey = requireString({ input: requireInputRecord({ input: ctx.input }), key: "regionKey" });
       await requireWidgetPermission({ authorize: routeDeps.authorize, actor: { principalId: ctx.principal.id }, workspaceId: routeDeps.workspaceId, permission: "widgets.read" });
 
       const binding = await routeDeps.widgetBindingRepo.findByRegion({ workspaceId: routeDeps.workspaceId, regionKey });
@@ -307,38 +290,38 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_create_instance: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "widgets_create_instance", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({ toolId: "widgets_create_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
         const { instance } = await createWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },
-            widgetType: requireString(input, "widgetType") as WidgetTypeKey,
-            title: requireString(input, "title"),
-            config: requireObject(input, "config"),
+            widgetType: requireString({ input: input, key: "widgetType" }) as WidgetTypeKey,
+            title: requireString({ input: input, key: "title" }),
+            config: requireObject({ input: input, key: "config" }),
             slug: typeof input.slug === "string" ? input.slug : undefined,
           },
         });
         return { instance: toWidgetInstanceToolView(instance) };
-      });
+      } });
     },
 
     widgets_update_instance: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "widgets_update_instance", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({ toolId: "widgets_update_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
         const { instance } = await updateWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },
-            widgetInstanceId: requireString(input, "widgetInstanceId"),
-            baseVersion: requireNumber(input, "baseVersion"),
-            config: requireObject(input, "config"),
+            widgetInstanceId: requireString({ input: input, key: "widgetInstanceId" }),
+            baseVersion: requireNumber({ input: input, key: "baseVersion" }),
+            config: requireObject({ input: input, key: "config" }),
           },
         });
         return { instance: toWidgetInstanceToolView(instance) };
-      });
+      } });
     },
 
     /**
@@ -359,7 +342,7 @@ export function buildWidgetsRegistrations(
      * shows Title/Slug (both raw columns) rather than widget type/status (both payload fields).
      */
     widgets_trash_instance: async (ctx) => {
-      const widgetInstanceId = requireString(requireInputRecord(ctx.input), "widgetInstanceId");
+      const widgetInstanceId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "widgetInstanceId" });
 
       await requireWidgetPermission({
         authorize: routeDeps.authorize,
@@ -387,7 +370,7 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_bind_region: async (ctx) => {
-      const regionKey = requireString(requireInputRecord(ctx.input), "regionKey");
+      const regionKey = requireString({ input: requireInputRecord({ input: ctx.input }), key: "regionKey" });
       // `bindWidgetArea` itself carries NO authorize() call (it is designed to double as a boot/theme-
       // activation seeding step, see its own doc comment) — the human `region-bind.ts` route gates
       // inline before calling it, and this handler does the identical inline `widgets.place` check.
@@ -400,18 +383,20 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_set_region_placements: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const regionKey = requireString(input, "regionKey");
-      const baseVersion = requireNumber(input, "baseVersion");
-      if (!Array.isArray(input.placements)) throw new ToolInputError("'placements' (array) is required");
+      const input = requireInputRecord({ input: ctx.input });
+      const regionKey = requireString({ input: input, key: "regionKey" });
+      const baseVersion = requireNumber({ input: input, key: "baseVersion" });
+      if (!Array.isArray(input.placements)) throw new ToolInputError({ message: "'placements' (array) is required" });
 
       const seenIds = new Set<string>();
-      const placements: WidgetPlacementNode[] = input.placements.map((raw: unknown) => {
-        if (!isRecord(raw)) throw new ToolInputError("each placement must be an object");
-        const widgetEntryId = requireString(raw, "widgetEntryId");
-        if (typeof raw.enabled !== "boolean") throw new ToolInputError("each placement's 'enabled' must be a boolean");
+      const placements: WidgetPlacementNode[] = input.placements.map((value: unknown) => {
+        const candidate = { value };
+        if (!isRecord(candidate)) throw new ToolInputError({ message: "each placement must be an object" });
+        const raw = candidate.value;
+        const widgetEntryId = requireString({ input: raw, key: "widgetEntryId" });
+        if (typeof raw.enabled !== "boolean") throw new ToolInputError({ message: "each placement's 'enabled' must be a boolean" });
         const placementId = typeof raw.placementId === "string" && raw.placementId.length > 0 ? raw.placementId : routeDeps.idGen.newId();
-        if (seenIds.has(placementId)) throw new ToolInputError(`duplicate placementId '${placementId}'`);
+        if (seenIds.has(placementId)) throw new ToolInputError({ message: `duplicate placementId '${placementId}'` });
         seenIds.add(placementId);
         return { placementId, widgetEntryId, enabled: raw.enabled };
       });
@@ -427,39 +412,39 @@ export function buildWidgetsRegistrations(
     },
 
     widgets_insert_embed: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "widgets_insert_embed", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({ toolId: "widgets_insert_embed", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
         const { entry, placementId } = await insertWidgetEmbed({
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            hostEntryId: requireString(input, "hostEntryId"),
-            baseVersion: requireNumber(input, "baseVersion"),
-            widgetEntryId: requireString(input, "widgetEntryId"),
+            hostEntryId: requireString({ input: input, key: "hostEntryId" }),
+            baseVersion: requireNumber({ input: input, key: "baseVersion" }),
+            widgetEntryId: requireString({ input: input, key: "widgetEntryId" }),
           },
         });
         return { entryId: entry.id, entryVersion: entry.version, placementId };
-      });
+      } });
     },
 
     widgets_remove_embed: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       const { entry } = await removeWidgetEmbed({
         deps: buildWidgetsDeps(routeDeps),
         input: {
           workspaceId: routeDeps.workspaceId,
           actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-          hostEntryId: requireString(input, "hostEntryId"),
-          baseVersion: requireNumber(input, "baseVersion"),
-          placementId: requireString(input, "placementId"),
+          hostEntryId: requireString({ input: input, key: "hostEntryId" }),
+          baseVersion: requireNumber({ input: input, key: "baseVersion" }),
+          placementId: requireString({ input: input, key: "placementId" }),
         },
       });
       return { entryId: entry.id, entryVersion: entry.version };
     },
 
     widgets_reorder_embeds: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       // The `orderedWidgetEntryIds` shape check used to run BEFORE this `withSchemaOnRejection` call
       // even started — a bare `Error` thrown there still reaches `ToolExecutor` as `errorKind:
       // 'internal'` regardless of where it is thrown (that classification reads `instanceof
@@ -467,22 +452,22 @@ export function buildWidgetsRegistrations(
       // decoration a rejection caught INSIDE the wrap gets from `isWidgetsShapeRejection`. Moved
       // inside so this validator is unremarkable among this handler's other shape checks rather than
       // the one exception that bypasses the wrap every sibling rejection goes through.
-      return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
         if (!Array.isArray(input.orderedWidgetEntryIds) || !input.orderedWidgetEntryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) {
-          throw new ToolInputError("'orderedWidgetEntryIds' (non-empty string array) is required");
+          throw new ToolInputError({ message: "'orderedWidgetEntryIds' (non-empty string array) is required" });
         }
         const { entry } = await reorderWidgetEmbeds({
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            hostEntryId: requireString(input, "hostEntryId"),
-            baseVersion: requireNumber(input, "baseVersion"),
+            hostEntryId: requireString({ input: input, key: "hostEntryId" }),
+            baseVersion: requireNumber({ input: input, key: "baseVersion" }),
             orderedWidgetEntryIds: input.orderedWidgetEntryIds as string[],
           },
         });
         return { entryId: entry.id, entryVersion: entry.version };
-      });
+      } });
     },
   };
 

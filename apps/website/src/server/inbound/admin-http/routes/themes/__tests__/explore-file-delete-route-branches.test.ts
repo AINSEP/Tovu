@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -211,21 +212,32 @@ test("delete of a .js file inside a built theme's sourceDir is STILL refused -- 
   assert.equal(fs.existsSync(target), true);
 });
 
+// Port test, not run in the Codex sandbox.
 test("delete that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch", async (t) => {
   const themesDir = makeThemesRoot();
-  const dir = path.join(themesDir, "static", "plain", "pages");
-  fs.chmodSync(dir, 0o555);
-  t.after(() => fs.chmodSync(dir, 0o755));
-
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const target = fs.realpathSync(path.join(themesDir, "static", "plain", "pages", "about.html"));
+  const originalBytes = fs.readFileSync(target);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
-
-  const res = await del(baseUrl, "plain", "pages/about.html");
-  const body = (await res.json()) as { error?: string; code?: string };
-  if (process.getuid && process.getuid() === 0) {
-    t.skip("running as root: chmod 555 does not deny root a write, so EACCES cannot be forced here");
-    return;
+  const original = fs.rmSync;
+  let failureReached = false;
+  const injected = t.mock.method(fs, "rmSync", (...args: Parameters<typeof fs.rmSync>) => {
+    if (String(args[0]) === target) {
+      failureReached = true;
+      throw Object.assign(new Error("injected I/O failure"), { code: "EIO" });
+    }
+    return original(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const res = await del(baseUrl, "plain", "pages/about.html");
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+    assert.equal(failureReached, true);
+    assert.deepEqual(fs.readFileSync(target), originalBytes);
+  } finally {
+    injected.mock.restore();
+    syncBuiltinESMExports();
   }
-  assert.equal(res.status, 500, `expected a permission-denied delete to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.error, "internal error");
 });

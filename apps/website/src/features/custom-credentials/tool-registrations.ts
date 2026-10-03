@@ -1,27 +1,15 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import type { Clock } from "@jini-ai/core/primitives";
+import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
-  callerSafeErrorMessage,
   describeErrorForLog,
   forbiddenRule,
-  withModelFacingErrors,
-  type CallerSafeErrorRule,
-  type ModelFacingErrorRule,
 } from "../../contracts/core/model-facing-tool-errors.js";
+import { callerSafeErrorMessage, withModelFacingErrors, type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
@@ -42,7 +30,6 @@ import { customCredentialsAgentToolCatalog } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
   makeCredentialedRequest,
-  buildAuthorizationHeader,
   resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestAuditPort,
@@ -166,7 +153,7 @@ import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWrite
  * `label` (`rejectUnexpectedSetTokenFields`), so there is no schema-level OR handler-level path for a
  * token to ride in on the model-issued call itself; the only place a token can ever enter is the
  * rendered form. Unlike `assistant_ask_choice`/`deployment_execute_static_publish`, this handler has NO
- * fallback second-call path when `ctx.emitSurface` is absent: it fails closed instead (mirroring the
+ * fallback second-call path when optional `emitSurface` is absent: it fails closed instead (mirroring the
  * DELETE gate's own posture), because that fallback shape is exactly a fresh MODEL-ISSUED tool call
  * carrying the human's answer as its input — the one shape this whole design exists to make impossible
  * for a secret.
@@ -235,7 +222,7 @@ import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWrite
 export interface CustomCredentialsToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   /** `updateCustomCredential`'s OTHER write dependency (`CustomCredentialWriteDeps.keyring`), needed
@@ -272,7 +259,7 @@ export interface CustomCredentialsToolDeps {
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
 
-const CATALOG_BY_ID = indexCatalogById(customCredentialsAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: customCredentialsAgentToolCatalog });
 
 /** This domain's name, doing double duty as both `buildDomainRegistrations`'s own `domain` field and
  *  `requireToolPermission`'s `entityType` — the same string
@@ -342,14 +329,15 @@ function isCredentialedRequestShapeRejection(error: unknown): boolean {
  * @complexity O(1) beyond `makeCredentialedRequest` itself.
  */
 async function makeModelFacingCredentialedRequest(requestDeps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
-  return withSchemaOnRejection({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection }, async () => {
+  return withSchemaOnRejection({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID,
+    isShapeRejection: ({ error }) => isCredentialedRequestShapeRejection(error), fn: async () => {
     try {
       return await makeCredentialedRequest(requestDeps, input);
     } catch (err) {
-      if (err instanceof EgressRefusedError) throw new EgressRefusedError(err.callerSafeMessage, { callerSafeMessage: err.callerSafeMessage });
+      if (err instanceof EgressRefusedError) throw new EgressRefusedError({ message: err.callerSafeMessage }, { callerSafeMessage: err.callerSafeMessage });
       throw err;
     }
-  });
+  } });
 }
 
 /**
@@ -543,7 +531,7 @@ async function performGitHubFilesWrite(
 
 /** Where a write goes: the credential's API plus the `Authorization` header built from its connection. */
 function writeTarget(resolved: { baseUrl: string; connection: CustomProviderConnectionInput }, validated: ValidatedWriteFilesInput) {
-  return { baseUrl: resolved.baseUrl, authorization: buildAuthorizationHeader(resolved.connection), owner: validated.owner, repo: validated.repo };
+  return { baseUrl: resolved.baseUrl, authorization: buildAuthorizationHeader({ connection: resolved.connection, schemes: [] }), owner: validated.owner, repo: validated.repo };
 }
 
 /** The longest content excerpt `custom_credential_write_files`'s confirmation dialog shows per file.
@@ -752,7 +740,7 @@ const FORM_SAVE_FAILURE_MESSAGE = "Saving failed because of an internal server e
 function reportFormSaveFailure(routeDeps: CustomCredentialsToolDeps, input: { toolId: string; exchangeId: string; credentialId?: string; err: unknown }): string {
   const credential = input.credentialId !== undefined ? ` credentialId=${input.credentialId}` : "";
   failureLog(routeDeps)(`[custom-credentials] ${input.toolId}: save failed exchange=${input.exchangeId}${credential} error=${describeErrorForLog(input.err)}`);
-  return callerSafeErrorMessage(input.err, { rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE });
+  return callerSafeErrorMessage({ err: input.err, rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE });
 }
 
 /** The server-side failure log: the test override when one is supplied, otherwise `console.warn`. */
@@ -1131,16 +1119,16 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // permission check and the empty-input contract every NO_INPUT_SCHEMA tool in this codebase uses
     // (e.g. `deployment_get_static_publish_capabilities`'s own handler).
     custom_credential_list: async (ctx): Promise<{ credentials: CustomCredentialSummary[] }> => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: READ_PERMISSION, entityType: DOMAIN });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: READ_PERMISSION }, { entityType: DOMAIN });
       const credentials = await listCustomCredentials({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId });
       return { credentials };
     },
 
     custom_credential_verify: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const label = requireString(input, "label");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: READ_PERMISSION, entityType: DOMAIN });
+      const input = requireInputRecord({ input: ctx.input });
+      const label = requireString({ input, key: "label" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: READ_PERMISSION }, { entityType: DOMAIN });
       return verifyCustomCredential(requestDeps, { workspaceId: routeDeps.workspaceId, label });
     },
 
@@ -1154,11 +1142,11 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // — deliberately NOT wrapped in the DELETE-style confirmation dialog: this field is not a secret,
     // and there is structurally no way for this call to carry one.
     custom_credential_set_username: async (ctx): Promise<CustomCredentialSummary> => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       rejectUnexpectedSetUsernameFields(input);
-      const label = requireString(input, "label");
+      const label = requireString({ input, key: "label" });
       const username = requireUsernameOrClearSentinel(input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       // Non-decrypting label->id resolution — same lookup `resolveRequestTarget` above uses for the
       // identical reason: a bad label should never cost a decrypt, and this update never needs one
@@ -1187,11 +1175,11 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // opened, same ordering `custom_credential_make_request`'s DELETE gate below uses: a malformed or
     // unresolvable call must never raise a dialog for a human to see. WRITE-gated, same permission
     // `custom_credential_set_username`/`custom_credential_make_request` use.
-    custom_credential_set_token: async (ctx): Promise<SetTokenResult> => {
-      const input = requireInputRecord(ctx.input);
+    custom_credential_set_token: async (ctx, { emitSurface } = {}): Promise<SetTokenResult> => {
+      const input = requireInputRecord({ input: ctx.input });
       rejectUnexpectedSetTokenFields(input);
-      const label = requireString(input, "label");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+      const label = requireString({ input, key: "label" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       // Non-decrypting label->id resolution — same lookup `custom_credential_set_username` above uses,
       // and for the identical reason: a bad label should never cost a decrypt. Only `existing.id` is
@@ -1207,18 +1195,18 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // deliberately no fallback second-call shape for this one even in principle: that shape is a
       // fresh MODEL-ISSUED tool call carrying the human's answer as its own input, which is exactly the
       // path this tool exists to make impossible for a secret. See this file's header.
-      if (!ctx.emitSurface) {
+      if (!emitSurface) {
         // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
         // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError(
+        throw new ToolInputError({ message:
           "custom_credential_set_token: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a token cannot be collected here. Nothing was changed."
-        );
+         });
       }
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
       if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SET_TOKEN_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SET_TOKEN_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
       const ui = buildSetTokenFormResource({ label, exchangeId: exchange.id });
 
       const closeOnAbort = () => exchange.close();
@@ -1239,29 +1227,29 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // exist yet, so the only pre-form checks are the permission gate and the `emitSurface` fail-closed
     // guard below. All three prefill fields are optional and non-secret by schema
     // (`CREATE_CREDENTIAL_SCHEMA`, `agent-tools.ts`) — a call with none of them is a normal, valid call.
-    custom_credential_create: async (ctx): Promise<CreateCredentialResult> => {
+    custom_credential_create: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
       // `requireInputRecord` refuses `undefined` outright, but this tool's schema has no required
       // field at all (same `required: []` shape `custom_credential_list`'s own `NO_INPUT_SCHEMA`
       // documents) — a model-issued call with no arguments at all is a normal, valid call here, not a
       // malformed one, so it is treated the same as an explicit `{}` rather than rejected.
-      const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
+      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
       const prefill = readCreateCredentialPrefill(input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       // Fail closed rather than degrade — same posture `custom_credential_set_token` documents above,
       // and for the identical reason: the only place a token can ever enter is the rendered form.
-      if (!ctx.emitSurface) {
+      if (!emitSurface) {
         // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
         // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError(
+        throw new ToolInputError({ message:
           "custom_credential_create: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a credential cannot be created here. Nothing was changed."
-        );
+         });
       }
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
       if (ctx.signal.aborted) return { created: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: CREATE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: CREATE_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
       const ui = buildCreateFormResource({ exchangeId: exchange.id, prefill });
 
       const closeOnAbort = () => exchange.close();
@@ -1281,12 +1269,12 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // mechanism and why. All shape/security-boundary validation (`method`/`url`/`headers`/`body`,
     // label existence, host allowlist) happens inside `resolveRequestTarget`/`makeCredentialedRequest`
     // themselves — this handler's only job is deciding WHETHER to gate, never re-validating.
-    custom_credential_make_request: async (ctx): Promise<CredentialedRequestOutcome> => {
-      const input = requireInputRecord(ctx.input);
-      const label = requireString(input, "label");
-      const method = requireString(input, "method");
-      const url = requireString(input, "url");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+    custom_credential_make_request: async (ctx, { emitSurface } = {}): Promise<CredentialedRequestOutcome> => {
+      const input = requireInputRecord({ input: ctx.input });
+      const label = requireString({ input, key: "label" });
+      const method = requireString({ input, key: "method" });
+      const url = requireString({ input, key: "url" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       if (method !== "DELETE") {
         return makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body });
@@ -1301,18 +1289,18 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
       // an execution context that cannot hold this call open cannot run a gated DELETE at all.
-      if (!ctx.emitSurface) {
+      if (!emitSurface) {
         // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
         // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError(
+        throw new ToolInputError({ message:
           "custom_credential_make_request: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a DELETE cannot be gated here. Nothing was sent."
-        );
+         });
       }
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
       const ui = buildDeleteRequestConfirmationResource({
         label: target.label,
         host: target.url.host,
@@ -1342,13 +1330,13 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // opened, same ordering the DELETE gate above uses: a malformed call or a nonexistent branch is
     // refused with no dialog and no confirmation spent.
     custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
-      const input = requireInputRecord(ctx.input);
-      const label = requireString(input, "label");
-      const shapeRejection = { toolId: WRITE_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isWriteFilesShapeRejection };
-      const request = await withSchemaOnRejection(shapeRejection, async () =>
+      const input = requireInputRecord({ input: ctx.input });
+      const label = requireString({ input, key: "label" });
+      const shapeRejection = { toolId: WRITE_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }: { error: unknown }) => isWriteFilesShapeRejection(error) };
+      const request = await withSchemaOnRejection({ ...shapeRejection, fn: async () =>
         validateWriteFilesInput({ branch: input.branch, commitMessage: input.commitMessage, files: input.files })
-      );
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+      });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       // The host first, from the credential's plaintext base URL (no decrypt): its owner/repo rules
       // decide whether this call is well formed at all.
@@ -1364,7 +1352,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       });
       if (!built.ok) throw new Error(`custom_credential_write_files: ${built.message}`);
       const provider = built.provider;
-      const target = await withSchemaOnRejection(shapeRejection, async () => validateRepositoryTarget({ owner: input.owner, repo: input.repo }, provider.validateTarget));
+      const target = await withSchemaOnRejection({ ...shapeRejection, fn: async () => validateRepositoryTarget({ owner: input.owner, repo: input.repo }, provider.validateTarget) });
       const validated: ValidatedWriteFilesInput = { ...request, ...target };
 
       // A DECRYPTING resolve: the plan phase's read-only host calls need the token regardless of
@@ -1391,7 +1379,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     domain: DOMAIN,
     catalogModule: "features/custom-credentials/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers: withModelFacingErrors(handlers, CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }),
     derivedRisk: customCredentialsDerivedRisk,
   });
 }

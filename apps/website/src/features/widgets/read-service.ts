@@ -22,7 +22,7 @@
  * Architectural role:
  * `widgets` domain logic, read side.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { EntryListPort, EntryRepoPort } from "../entries/index.js";
 import { requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper.js";
 import { WidgetInstanceNotFoundError } from "./errors.js";
@@ -106,7 +106,7 @@ export async function listWidgetInstances(
     permission: "widgets.read",
   });
 
-  const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
+  const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId }, { type: WIDGET_CONTENT_TYPE });
   const instances: WidgetInstanceEntry[] = [];
   let skippedCount = 0;
   const skippedIds: string[] = [];

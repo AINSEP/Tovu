@@ -1,4 +1,4 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
@@ -330,7 +330,7 @@ export async function setExecutionCredential(
   assertValidSetExecutionCredentialInput(input);
 
   const existing = await deps.repo.findByWorkspaceAndPrincipal(input);
-  const now = deps.clock.nowIso();
+  const now = readNowIso({ clock: deps.clock });
   const seal = await resolveExecutionCredentialSeal(deps, { workspaceId: input.workspaceId, principalId: input.principalId }, input.apiKey, existing);
   const record = buildExecutionCredentialRecord(input, existing, seal, now);
 
@@ -349,7 +349,7 @@ export async function deleteExecutionCredential(
   deps: ExecutionCredentialReadDeps & { clock: ClockPort },
   input: { workspaceId: UUID; principalId: UUID }
 ): Promise<AdminExecutionCredentialView> {
-  await deps.repo.clearKey({ workspaceId: input.workspaceId, principalId: input.principalId, updatedAt: deps.clock.nowIso() });
+  await deps.repo.clearKey({ workspaceId: input.workspaceId, principalId: input.principalId, updatedAt: readNowIso({ clock: deps.clock }) });
   return getExecutionCredential(deps, input);
 }
 

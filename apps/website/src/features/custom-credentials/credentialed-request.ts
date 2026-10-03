@@ -1,16 +1,9 @@
-import type { UUID } from "@jini-ai/cms/core";
-
-import { issueToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import type { SecretSealerPort } from "../webhooks/index.js";
-import { detectSelfDescribingAuthScheme, loadCredentialSchemeRegistry, type CredentialSchemeRule } from "./auth-schemes.js";
-import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
-import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
-// `EgressRefusedError` is a runtime import (used for `instanceof` in `makeCredentialedRequest`'s
-// catch block, below), the ONE value this module takes from `platform/http` — the barrel is
-// otherwise types-only by design; see `tool-registrations.ts`'s identical import for why.
-import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-
-/**
+import type { Clock } from "@jini-ai/core/primitives";
+// Request validation and secret scrubbing live in Jini packages/integrations/src/credentialed-http/credentialed-request.ts.
+/** Tovu's credential-store, audit and diagnostic policy adapter over Jini's guarded requests.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
  * @file Closes the "the agent can SAVE a custom credential but can never USE one" gap:
  * `custom_credential_sets` (the Access Tokens page's "Add custom provider" rows — an operator-typed
  * label, API base URL, and token, e.g. "name.com", "example-host") had a write path
@@ -239,14 +232,12 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
  *
  * Architectural role: `features/custom-credentials` domain logic (agent-tool layer). See
  * `agent-tools.ts`/`tool-registrations.ts` in this directory for the tool surface built on top.
- */
-
-/** Every rejection this module raises for a caller-shape or security-boundary problem — separate
+ *
+ * Every rejection this module raises for a caller-shape or security-boundary problem — separate
  *  from `store.ts`'s own `CustomCredentialValidationError` (which validates a credential's stored
- *  fields at save time): this class validates a REQUEST against an already-saved credential. */
-export class CredentialedRequestValidationError extends Error {}
-
-/** A DNS failure, connect timeout, or other transport-level error while sending the request —
+ *  fields at save time): this class validates a REQUEST against an already-saved credential.
+ *
+ * A DNS failure, connect timeout, or other transport-level error while sending the request —
  *  distinct from a request the provider itself answered (any real HTTP status, including an error
  *  one, resolves normally instead of throwing; see {@link makeCredentialedRequest}'s own doc).
  *
@@ -259,23 +250,20 @@ export class CredentialedRequestValidationError extends Error {}
  *  instead of collapsing into the same redacted `INTERNAL_ERROR` a genuine DNS/timeout failure gets.
  *  See that predicate's own doc for the live incident this closes. The audit row `status: 0` this
  *  module records is unchanged either way — a refusal stays distinguishable through the error TYPE
- *  a caller catches, not through a new audit field. */
-export class CredentialedRequestTransportError extends Error {}
-
-/** Bounds one credentialed call — same order of magnitude as every other "an agent is waiting on
+ *  a caller catches, not through a new audit field.
+ *
+ * Bounds one credentialed call — same order of magnitude as every other "an agent is waiting on
  *  this synchronously" bounded probe in this codebase (`static-publish/verify.ts`'s
  *  `VERIFY_TIMEOUT_MS`, `vendor-credentials/store.ts`'s `ACCOUNT_LABEL_PROBE_TIMEOUT_MS`). The
  *  composition root's own `EgressPolicy.connectTimeoutMs` is a CEILING on this value, never a
- *  replacement for it — see `platform/http/client.ts`'s `sendWithPolicy`. */
-const CREDENTIALED_REQUEST_TIMEOUT_MS = 10_000;
-
-/** Hard cap on a caller-supplied request body — same order of magnitude as the response-side cap
+ *  replacement for it — see `platform/http/client.ts`'s `sendWithPolicy`.
+ *
+ * Hard cap on a caller-supplied request body — same order of magnitude as the response-side cap
  *  every composition root's `EgressPolicy.maxResponseBytes` uses, applied symmetrically to the
  *  direction this module itself controls (a caller cannot make the SERVER read an unbounded
- *  response, but it CAN try to make it SEND one; this stops that). */
-const MAX_REQUEST_BODY_BYTES = 1_000_000;
-
-/** Header names the caller may never set directly — the server injects the real credential's
+ *  response, but it CAN try to make it SEND one; this stops that).
+ *
+ * Header names the caller may never set directly — the server injects the real credential's
  *  `Authorization` itself, and none of the other three have any legitimate reason to be
  *  caller-supplied on a request already pinned to one of the credential's own saved hosts.
  *  `User-Agent` is deliberately NOT in this set (2026-09-03 decision): unlike these four, it carries
@@ -285,22 +273,19 @@ const MAX_REQUEST_BODY_BYTES = 1_000_000;
  *  stated goal is parity with what a human operating this credential could already do (this file's
  *  header, `makeCredentialedRequest`'s own bullet). A caller that supplies its own `User-Agent` here
  *  reaches `deps.httpClient.send()` unmodified, and `platform/http/client.ts`'s default (see its own
- *  `DEFAULT_USER_AGENT` doc) never overrides an already-present one. */
-const FORBIDDEN_REQUEST_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "cookie", "host", "proxy-authorization"]);
-
-/** Response header names that must never reach the model, regardless of value — the credential's
+ *  `DEFAULT_USER_AGENT` doc) never overrides an already-present one.
+ *
+ * Response header names that must never reach the model, regardless of value — the credential's
  *  own injected `Authorization`/`Proxy-Authorization` if a reflecting endpoint echoes the request
  *  back, and any `Set-Cookie`/`Cookie` the provider sends. Response-side counterpart to
  *  {@link FORBIDDEN_REQUEST_HEADER_NAMES}; see this file's header, "The token never reaches the
- *  model". */
-const FORBIDDEN_RESPONSE_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "proxy-authorization", "set-cookie", "cookie"]);
-
-/** Fixed marker substituted for a matched secret inside a response body — keeps the rest of the
+ *  model".
+ *
+ * Fixed marker substituted for a matched secret inside a response body — keeps the rest of the
  *  body legible while making unambiguous that something was removed, rather than silently
- *  splicing bytes out. */
-const REDACTED_MARKER = "[REDACTED]";
-
-/** Below this length, a raw token is short/common enough that scrubbing every occurrence of it out
+ *  splicing bytes out.
+ *
+ * Below this length, a raw token is short/common enough that scrubbing every occurrence of it out
  *  of a response body risks matching ordinary legitimate content by coincidence (a 2-character
  *  token can match inside an unrelated word or number) rather than an actual reflection of the
  *  credential — see `"ab"` mangling `"abacus"` into `"[REDACTED]acus"` in
@@ -310,18 +295,15 @@ const REDACTED_MARKER = "[REDACTED]";
  *  actually expects to see, while still catching the pathological case. Response HEADER redaction
  *  has no equivalent floor: dropping a whole header that contains the secret has no
  *  partial-mangling failure mode, regardless of how short the secret is — only body substring
- *  scrubbing needs this gate. */
-const MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH = 8;
-
-/** Returned as `bodyText` in place of the real response body whenever the credential's raw token is
+ *  scrubbing needs this gate.
+ *
+ * Returned as `bodyText` in place of the real response body whenever the credential's raw token is
  *  shorter than {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} — failing safe by withholding legitimate
  *  content instead of either leaking the token or silently mangling unrelated body content around
  *  it. A caller seeing this marker can act on it (the credential itself still works; only this
  *  tool's ability to show its response body safely is limited); a caller seeing a body with, say,
- *  every "1" replaced could not tell redaction had even happened. */
-const BODY_WITHHELD_SHORT_TOKEN_MARKER = "[body withheld: credential too short to redact safely]";
-
-/**
+ *  every "1" replaced could not tell redaction had even happened.
+ *
  * Strips every response header this module must never hand back to the model: the always-forbidden
  * names in {@link FORBIDDEN_RESPONSE_HEADER_NAMES}, plus any header whose value CONTAINS one of
  * `secrets` as a substring — SUBSTRING match, not exact equality, so a header that merely embeds a
@@ -332,35 +314,18 @@ const BODY_WITHHELD_SHORT_TOKEN_MARKER = "[body withheld: credential too short t
  * token never reaches the model".
  *
  * @complexity O(n * m): n response headers, each checked against m (small, fixed) secrets.
- */
-function redactResponseHeaders(headers: Readonly<Record<string, string>>, secrets: readonly string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (FORBIDDEN_RESPONSE_HEADER_NAMES.has(key.trim().toLowerCase())) continue;
-    if (secrets.some((secret) => secret !== "" && value.includes(secret))) continue;
-    result[key] = value;
-  }
-  return result;
-}
-
-/**
+ *
  * Replaces every occurrence of a secret in `text` with {@link REDACTED_MARKER} — applied to the
  * response body so a reflecting/echo endpoint cannot hand the injected credential back through the
  * model inside body content, while every other byte of the body reaches it unchanged.
  *
  * @complexity O(n * m): n secrets, each a linear scan/replace over `text`.
- */
-function redactSecretSubstrings(text: string, secrets: readonly string[]): string {
-  return secrets.reduce((acc, secret) => (secret === "" ? acc : acc.split(secret).join(REDACTED_MARKER)), text);
-}
-
-/** Below this length, a partial-secret TAIL is as ambiguous as a full short token is for
+ *
+ * Below this length, a partial-secret TAIL is as ambiguous as a full short token is for
  *  {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} — a 1-3 character tail match is coincidence, not
  *  evidence of a cut-off secret. Deliberately the same floor value, for the same reason; kept as its
- *  own constant because it gates a different thing (a SUFFIX of `body`, not `token`'s own length). */
-const MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH = 4;
-
-/**
+ *  own constant because it gates a different thing (a SUFFIX of `body`, not `token`'s own length).
+ *
  * Catches the one leak {@link redactSecretSubstrings} cannot: a response body the egress size cap
  * cut off mid-secret. `redactSecretSubstrings` only matches a secret's FULL text, so a body truncated
  * partway through one leaves a dangling prefix fragment — e.g. a token's first 12 characters — sitting
@@ -378,21 +343,7 @@ const MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH = 4;
  *
  * @complexity O(n * m): n secrets, each checked against `body`'s tail for every prefix length down to
  *   the floor (m, a secret's own length — small and fixed).
- */
-function redactTruncatedTail(body: string, secrets: readonly string[]): string {
-  let longestMatch = 0;
-  for (const secret of secrets) {
-    for (let len = Math.min(secret.length, body.length); len >= MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH; len--) {
-      if (body.endsWith(secret.slice(0, len))) {
-        longestMatch = Math.max(longestMatch, len);
-        break;
-      }
-    }
-  }
-  return longestMatch === 0 ? body : body.slice(0, body.length - longestMatch) + REDACTED_MARKER;
-}
-
-/**
+ *
  * Decides what {@link makeCredentialedRequest} returns as `bodyText`: the real response body with
  * {@link redactSecretSubstrings} applied when `token` is long enough that matching it is unambiguous,
  * or {@link BODY_WITHHELD_SHORT_TOKEN_MARKER} when it is not — see
@@ -407,38 +358,11 @@ function redactTruncatedTail(body: string, secrets: readonly string[]): string {
  *
  * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it, plus
  *   {@link redactTruncatedTail}'s own cost when `bodyTruncated`.
- */
-function resolveRedactedResponseBody(bodyText: string, token: string, secrets: readonly string[], bodyTruncated: boolean): string {
-  if (token.length < MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH) return BODY_WITHHELD_SHORT_TOKEN_MARKER;
-  const redacted = redactSecretSubstrings(bodyText, secrets);
-  return bodyTruncated ? redactTruncatedTail(redacted, secrets) : redacted;
-}
-
-/** Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
+ *
+ * Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
  *  union exactly, so a value that passes this check always type-checks as one `httpClient.send()`
- *  itself accepts. */
-const SUPPORTED_METHODS: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-type SupportedMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-function requireLabel(raw: unknown): string {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new CredentialedRequestValidationError("label must be a non-empty string");
-  }
-  return raw;
-}
-
-/**
- * @throws {CredentialedRequestValidationError} `raw` is not one of GET/POST/PUT/PATCH/DELETE.
- * @complexity O(1).
- */
-function validateMethod(raw: unknown): SupportedMethod {
-  if (typeof raw !== "string" || !SUPPORTED_METHODS.has(raw)) {
-    throw new CredentialedRequestValidationError("method must be one of GET, POST, PUT, PATCH, DELETE");
-  }
-  return raw as SupportedMethod;
-}
-
-/**
+ *  itself accepts.
+ *
  * Validates a caller-supplied absolute `url` and checks its origin against `allowedOrigins` — see
  * this file's header, "Per-credential host binding", for why this function IS the security boundary
  * that stops a request from ever reaching a host the credential's own saved state does not name.
@@ -446,68 +370,17 @@ function validateMethod(raw: unknown): SupportedMethod {
  * @throws {CredentialedRequestValidationError} `url` is empty, not a valid absolute URL, does not use
  *   http/https, embeds credentials (`user:pass@`), or resolves to an origin not in `allowedOrigins`.
  * @complexity O(n) in `allowedOrigins.length` (one `.includes()` check).
- */
-function resolveAllowedRequestUrl(candidate: unknown, allowedOrigins: readonly string[]): URL {
-  if (typeof candidate !== "string" || candidate.trim() === "") {
-    throw new CredentialedRequestValidationError("url must be a non-empty string");
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    throw new CredentialedRequestValidationError("url must be a valid absolute URL");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new CredentialedRequestValidationError("url must use http or https");
-  }
-  if (parsed.username || parsed.password) {
-    throw new CredentialedRequestValidationError("url must not embed credentials (user:pass@) — the server injects the real Authorization header itself");
-  }
-  if (!allowedOrigins.includes(parsed.origin)) {
-    throw new CredentialedRequestValidationError(
-      `url '${candidate}' resolves to origin '${parsed.origin}', which is not one of this credential's saved hosts (${allowedOrigins.join(", ")}) — add it to this credential in the Access Tokens form first`
-    );
-  }
-  return parsed;
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** One header entry's own validation — split out of {@link validateExtraHeaders} so that function's
- *  loop body stays a single call. */
-function validateHeaderEntry(key: string, value: unknown): string {
-  if (typeof value !== "string") {
-    throw new CredentialedRequestValidationError(`header '${key}' must be a string value`);
-  }
-  if (FORBIDDEN_REQUEST_HEADER_NAMES.has(key.trim().toLowerCase())) {
-    throw new CredentialedRequestValidationError(`header '${key}' may not be set by the caller — the server injects the real credential's own Authorization header itself`);
-  }
-  return value;
-}
-
-/**
+ *
+ * One header entry's own validation — split out of {@link validateExtraHeaders} so that function's
+ *  loop body stays a single call.
+ *
  * Validates the optional caller-supplied extra headers. `undefined` (the field was omitted) is not
  * an error — it degrades to no extra headers.
  *
  * @throws {CredentialedRequestValidationError} `raw` is not a plain object of string values, or
  *   names a forbidden header (see {@link FORBIDDEN_REQUEST_HEADER_NAMES}).
  * @complexity O(n) in the number of supplied header entries.
- */
-function validateExtraHeaders(raw: unknown): Record<string, string> {
-  if (raw === undefined) return {};
-  if (!isPlainRecord(raw)) {
-    throw new CredentialedRequestValidationError("headers must be an object of string values");
-  }
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    result[key] = validateHeaderEntry(key, value);
-  }
-  return result;
-}
-
-/**
+ *
  * Validates the optional caller-supplied request body. `undefined` degrades to "no body" for every
  * method, including DELETE — some real APIs accept a DELETE body, and this tool does not second-guess
  * that.
@@ -515,30 +388,13 @@ function validateExtraHeaders(raw: unknown): Record<string, string> {
  * @throws {CredentialedRequestValidationError} `raw` is not a string, or exceeds
  *   {@link MAX_REQUEST_BODY_BYTES}.
  * @complexity O(1) — one `Buffer.byteLength` computation.
- */
-function validateOptionalBody(raw: unknown): string | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "string") {
-    throw new CredentialedRequestValidationError("body must be a string when provided");
-  }
-  const byteLength = Buffer.byteLength(raw, "utf8");
-  if (byteLength > MAX_REQUEST_BODY_BYTES) {
-    throw new CredentialedRequestValidationError(`body is ${byteLength} bytes, which exceeds the ${MAX_REQUEST_BODY_BYTES}-byte limit for this tool`);
-  }
-  return raw;
-}
-
-/** The three shapes {@link buildAuthorizationHeader} can send for one connection — see
+ *
+ * The three shapes {@link buildAuthorizationHeader} can send for one connection — see
  *  {@link resolveAuthorizationScheme}'s own doc for the precedence order this discriminates.
  *  `"self-describing"`'s `scheme` is a plain `string`, not a closed literal union: it is whatever
  *  scheme word the matching plugin-declared rule names, and that rule set is meant to grow without
- *  this file changing — see `./auth-schemes.ts`'s header. */
-type ResolvedAuthorizationScheme =
-  | { readonly kind: "self-describing"; readonly scheme: string; readonly value: string }
-  | { readonly kind: "basic"; readonly username: string; readonly token: string }
-  | { readonly kind: "bearer"; readonly token: string };
-
-/**
+ *  this file changing — see `./auth-schemes.ts`'s header.
+ *
  * Resolves which of the three shapes {@link buildAuthorizationHeader} sends for one connection, in
  * the exact precedence this module applies: (1) a self-describing scheme when
  * {@link detectSelfDescribingAuthScheme} (with the plugin-declared `schemes` — see this file's header,
@@ -552,19 +408,8 @@ type ResolvedAuthorizationScheme =
  * {@link buildAuthorizationHeader} really does.
  *
  * @complexity O(1) beyond {@link detectSelfDescribingAuthScheme}'s own cost.
- */
-function resolveAuthorizationScheme(connection: CustomProviderConnectionInput, schemes: readonly CredentialSchemeRule[]): ResolvedAuthorizationScheme {
-  const selfDescribing = detectSelfDescribingAuthScheme(connection.token, schemes);
-  if (selfDescribing) {
-    return { kind: "self-describing", scheme: selfDescribing.scheme, value: selfDescribing.value };
-  }
-  if (connection.username) {
-    return { kind: "basic", username: connection.username, token: connection.token };
-  }
-  return { kind: "bearer", token: connection.token };
-}
-
-/** Builds the outbound `Authorization` header value for one connection, per
+ *
+ * Builds the outbound `Authorization` header value for one connection, per
  *  {@link resolveAuthorizationScheme}'s precedence: a self-describing scheme when the token embeds
  *  one, HTTP Basic when a `username` is saved, Bearer otherwise. Never logged, and never returned
  *  from this module — used only as an outbound request header value.
@@ -579,15 +424,8 @@ function resolveAuthorizationScheme(connection: CustomProviderConnectionInput, s
  *  git-host callers, whose tokens never embed a scheme word) gets Basic/Bearer only.
  *
  * @complexity O(r) scheme rules beyond {@link resolveAuthorizationScheme}'s own cost.
- */
-export function buildAuthorizationHeader(connection: CustomProviderConnectionInput, schemes: readonly CredentialSchemeRule[] = []): string {
-  const resolved = resolveAuthorizationScheme(connection, schemes);
-  if (resolved.kind === "self-describing") return `${resolved.scheme} ${resolved.value}`;
-  if (resolved.kind === "basic") return `Basic ${buildBasicAuthPayload(resolved.username, resolved.token)}`;
-  return `Bearer ${resolved.token}`;
-}
-
-/** The bare base64 payload {@link buildAuthorizationHeader} wraps in `Basic <payload>` for a
+ *
+ * The bare base64 payload {@link buildAuthorizationHeader} wraps in `Basic <payload>` for a
  *  username-bearing connection — split out (2026-09-03) so a caller that must redact the PAYLOAD
  *  itself, separately from the full `Basic <payload>` header string (see
  *  {@link makeCredentialedRequest}'s `responseSecrets`), derives it from this exact same encoding
@@ -598,53 +436,45 @@ export function buildAuthorizationHeader(connection: CustomProviderConnectionInp
  *  a substring match against.
  *
  * @complexity O(1).
- */
-function buildBasicAuthPayload(username: string, token: string): string {
-  return Buffer.from(`${username}:${token}`, "utf8").toString("base64");
-}
-
-/** The already-registered tool that can supply the one missing piece of state
+ *
+ * The already-registered tool that can supply the one missing piece of state
  *  {@link buildAuthFailureDiagnostic}'s hint ever names — a saved username. Kept here as this
  *  module's own literal (`agent-tools.ts` has no exported id constant, only inline string literals
  *  for each tool's own `name`) and cross-checked against it by
- *  `__tests__/auth-failure-diagnostic.unit.test.ts`. */
-const SET_USERNAME_TOOL_ID = "custom_credential_set_username";
-
-/** A 401/403 outcome's structured explanation — see this file's header, "Authentication-failure
+ *  `__tests__/auth-failure-diagnostic.unit.test.ts`.
+ *
+ * A 401/403 outcome's structured explanation — see this file's header, "Authentication-failure
  *  diagnostics", for the honesty contract every field here is held to, and for why this interface
- *  `extends` the general {@link ToolFailureDiagnostic} contract rather than merely resembling it. */
-export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
-  /** Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
-   *  own value, only which of the three shapes it took: a saved token's own self-describing scheme
-   *  word (see this file's header, "Self-describing token schemes"), `"Basic"`, or
-   *  `"Bearer"`. Typed as a plain `string`, not a closed literal union, because the self-describing
-   *  case is driven by plugin-declared scheme rules (`./auth-schemes.ts`) — see
-   *  {@link ResolvedAuthorizationScheme}'s own doc. This module's own "what failed" fact (facet 1 of
-   *  the general contract — see that file's header for why facts are not modeled there). */
-  readonly schemeSent: string;
-  /** Whether this credential has a saved `username` at all — never the username's own value. This
-   *  module's other "what failed" fact. */
-  readonly usernameStored: boolean;
-  /** Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
-   *  for: a 401 with `schemeSent === "Bearer"` (no saved username, and no self-describing scheme
-   *  matched). Absent for every other 401/403 shape — a credential that already has a stored
-   *  username, or whose token embeds its own scheme, hit a DIFFERENT wall this module has no way to
-   *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy, or a bad
-   *  credential sent with the correct scheme), and repeating "add a username" there would be a false
-   *  lead, not merely an unhelpful one. Also absent on a 403 REGARDLESS of scheme/username
-   *  (2026-09-03): 403 Forbidden covers causes that have nothing to do with auth scheme (scopes,
-   *  policy, a missing standard header), and offering the scheme hypothesis there was confirmed
-   *  live-wrong for GitHub — see this file's header, "401 vs 403". Deliberately hedged wording
-   *  ("may"/"might") when present — this is a hypothesis for a human or agent to try, never an
-   *  assertion of the actual cause. */
-  readonly hint?: string;
-  /** Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
-   *  that can save the missing username `hint` describes. A pointer only — this module never calls
-   *  it; see the general contract's own doc, "The one-cycle guard". */
-  readonly remedyToolId?: string;
-}
-
-/**
+ *  `extends` the general {@link ToolFailureDiagnostic} contract rather than merely resembling it.
+ *
+ * Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
+ *  own value, only which of the three shapes it took: a saved token's own self-describing scheme
+ *  word (see this file's header, "Self-describing token schemes"), `"Basic"`, or
+ *  `"Bearer"`. Typed as a plain `string`, not a closed literal union, because the self-describing
+ *  case is driven by plugin-declared scheme rules (`./auth-schemes.ts`) — see
+ *  {@link ResolvedAuthorizationScheme}'s own doc. This module's own "what failed" fact (facet 1 of
+ *  the general contract — see that file's header for why facts are not modeled there).
+ *
+ * Whether this credential has a saved `username` at all — never the username's own value. This
+ *  module's other "what failed" fact.
+ *
+ * Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
+ *  for: a 401 with `schemeSent === "Bearer"` (no saved username, and no self-describing scheme
+ *  matched). Absent for every other 401/403 shape — a credential that already has a stored
+ *  username, or whose token embeds its own scheme, hit a DIFFERENT wall this module has no way to
+ *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy, or a bad
+ *  credential sent with the correct scheme), and repeating "add a username" there would be a false
+ *  lead, not merely an unhelpful one. Also absent on a 403 REGARDLESS of scheme/username
+ *  (2026-09-03): 403 Forbidden covers causes that have nothing to do with auth scheme (scopes,
+ *  policy, a missing standard header), and offering the scheme hypothesis there was confirmed
+ *  live-wrong for GitHub — see this file's header, "401 vs 403". Deliberately hedged wording
+ *  ("may"/"might") when present — this is a hypothesis for a human or agent to try, never an
+ *  assertion of the actual cause.
+ *
+ * Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
+ *  that can save the missing username `hint` describes. A pointer only — this module never calls
+ *  it; see the general contract's own doc, "The one-cycle guard".
+ *
  * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome by calling
  * {@link resolveAuthorizationScheme} on the SAME `connection` object {@link buildAuthorizationHeader}
  * used to build the request that got rejected — so `schemeSent` is always the scheme that was
@@ -656,107 +486,46 @@ export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
  * 403 never gets one, regardless of scheme.
  *
  * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
- */
-function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, status: 401 | 403, schemes: readonly CredentialSchemeRule[]): AuthFailureDiagnostic {
-  const usernameStored = connection.username !== undefined;
-  const resolved = resolveAuthorizationScheme(connection, schemes);
-  const schemeSent = resolved.kind === "self-describing" ? resolved.scheme : resolved.kind === "basic" ? "Basic" : "Bearer";
-  if (resolved.kind !== "bearer" || status !== 401) {
-    // Either a different, un-guessable failure (a username IS already saved, or the token embeds its
-    // own scheme and was sent correctly), or a 403 — Forbidden covers causes unrelated to auth scheme
-    // (scopes, provider policy, a missing standard header), so offering the scheme hypothesis here
-    // would be a false lead, not a hedge.
-    return { schemeSent, usernameStored };
-  }
-  return issueToolFailureDiagnostic({
-    schemeSent,
-    usernameStored,
-    hint:
-      "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
-      "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
-      "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.",
-    remedyToolId: SET_USERNAME_TOOL_ID,
-  });
-}
-
-/** One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
- *  these fields and no others. */
-export interface CredentialedRequestAuditEntry {
-  readonly label: string;
-  readonly host: string;
-  readonly method: string;
-  /** `0` means the request never got a response at all (DNS failure, timeout, or an `EgressPolicy`
-   *  refusal) — distinct from any real HTTP status a provider could return. */
-  readonly status: number;
-  /** Byte length of the request body sent, `0` when none — a SIZE only, never the body itself. */
-  readonly bodyBytes: number;
-  readonly at: string;
-  /** Present only when the guarded client refused the target: `EgressRefusedError.message` in full,
-   *  including the resolved address the model is never shown. Hostname, address, and classification
-   *  only — no URL path or query, no header, no token. */
-  readonly egressRefusal?: string;
-}
-
-/** Records exactly {@link CredentialedRequestAuditEntry}'s six fields — never the token, the
- *  Authorization header, or the request/response body. */
-export interface CredentialedRequestAuditPort {
-  record(entry: CredentialedRequestAuditEntry): void;
-}
-
-/**
+ *
+ * One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
+ *  these fields and no others.
+ *
+ * `0` means the request never got a response at all (DNS failure, timeout, or an `EgressPolicy`
+ *  refusal) — distinct from any real HTTP status a provider could return.
+ *
+ * Byte length of the request body sent, `0` when none — a SIZE only, never the body itself.
+ *
+ * Present only when the guarded client refused the target: `EgressRefusedError.message` in full,
+ *  including the resolved address the model is never shown. Hostname, address, and classification
+ *  only — no URL path or query, no header, no token.
+ *
+ * Records exactly {@link CredentialedRequestAuditEntry}'s six fields — never the token, the
+ *  Authorization header, or the request/response body.
+ *
  * Default production audit sink: one structured line per call via an injected logger (defaults to
  * `console.log`), so every install gets a real, grep-able audit trail with zero additional wiring. A
  * durable/queryable store (a DB table, an admin UI) is a disclosed future improvement, not built in
  * this slice — see this file's header.
  *
  * @complexity O(1) per `record` call.
- */
-export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
-  constructor(private readonly log: (line: string) => void = (line) => console.log(line)) {}
-
-  record(entry: CredentialedRequestAuditEntry): void {
-    const refusal = entry.egressRefusal !== undefined ? ` egressRefusal=${JSON.stringify(entry.egressRefusal)}` : "";
-    this.log(
-      `[custom-credentials] request label=${entry.label} host=${entry.host} method=${entry.method} status=${entry.status} bodyBytes=${entry.bodyBytes} at=${entry.at}${refusal}`
-    );
-  }
-}
-
-/** Test double: keeps every recorded entry in memory, in order — lets a test assert on exactly what
- *  was audited without parsing log lines. */
-export class InMemoryCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
-  readonly entries: CredentialedRequestAuditEntry[] = [];
-
-  record(entry: CredentialedRequestAuditEntry): void {
-    this.entries.push(entry);
-  }
-}
-
-export interface CredentialedRequestDeps {
-  readonly repo: CustomCredentialSetRepoPort;
-  readonly sealer: SecretSealerPort;
-  /** The guarded outbound-HTTP seam (ADR-038) both functions in this module call through — built
-   *  ONLY by a composition root; see this file's header, "This module never constructs an
-   *  `HttpClientPort` itself." */
-  readonly httpClient: HttpClientPort;
-  readonly clock: { nowIso(): string };
-  /** Defaults to {@link ConsoleCredentialedRequestAuditLog}. */
-  readonly audit?: CredentialedRequestAuditPort;
-  /** The self-describing token scheme rules for this workspace (see this file's header,
-   *  "Self-describing token schemes"). Defaults to the workspace's installed, bundled-digest-trusted
-   *  plugins (`loadCredentialSchemeRegistry`); the hermetic root and tests pass the bundled plugin's
-   *  source rules instead. */
-  readonly loadAuthSchemes?: (ctx: { readonly workspaceId: UUID }) => Promise<readonly CredentialSchemeRule[]>;
-}
-
-/** The scheme rules one call applies, loaded once at the entry point and passed down.
- *  @complexity One registry read (see `./auth-schemes.ts`). */
-async function loadAuthSchemes(deps: Pick<CredentialedRequestDeps, "loadAuthSchemes">, workspaceId: UUID): Promise<readonly CredentialSchemeRule[]> {
-  if (deps.loadAuthSchemes) return deps.loadAuthSchemes({ workspaceId });
-  return (await loadCredentialSchemeRegistry({ workspaceId })).rules;
-}
-
-/**
+ *
+ * Test double: keeps every recorded entry in memory, in order — lets a test assert on exactly what
+ *  was audited without parsing log lines.
+ *
+ * The guarded outbound-HTTP seam (ADR-038) both functions in this module call through — built
+ *  ONLY by a composition root; see this file's header, "This module never constructs an
+ *  `HttpClientPort` itself."
+ *
+ * Defaults to {@link ConsoleCredentialedRequestAuditLog}.
+ *
+ * The self-describing token scheme rules for this workspace (see this file's header,
+ *  "Self-describing token schemes"). Defaults to the workspace's installed, bundled-digest-trusted
+ *  plugins (`loadCredentialSchemeRegistry`); the hermetic root and tests pass the bundled plugin's
+ *  source rules instead.
+ *
+ * The scheme rules one call applies, loaded once at the entry point and passed down.
+ *  @complexity One registry read (see `./auth-schemes.ts`).
+ *
  * The non-decrypting half of credential resolution: finds the credential by label and computes its
  * allowed-origin set (`baseUrl` + `additionalHosts`, both plaintext), WITHOUT ever touching the
  * sealer. Used by {@link makeCredentialedRequest} itself for its own validation, and by
@@ -766,20 +535,8 @@ async function loadAuthSchemes(deps: Pick<CredentialedRequestDeps, "loadAuthSche
  * @throws {CustomCredentialNotFoundError} No row with this label exists in this workspace.
  * @throws {CredentialedRequestValidationError} `url` fails {@link resolveAllowedRequestUrl}.
  * @complexity O(n) in the workspace's own (small) credential-set count.
- */
-export async function resolveRequestTarget(
-  deps: Pick<CredentialedRequestDeps, "repo">,
-  input: { workspaceId: UUID; label: string; url: unknown }
-): Promise<{ label: string; url: URL }> {
-  const summary = await describeCredentialByLabel({ repo: deps.repo }, { workspaceId: input.workspaceId, label: input.label });
-  if (!summary) {
-    throw new CustomCredentialNotFoundError(`no custom credential labeled '${input.label}' in this workspace`);
-  }
-  const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor(summary));
-  return { label: input.label, url };
-}
-
-/** Shared "find the credential or fail loudly" step both entry points use — never returns `null`,
+ *
+ * Shared "find the credential or fail loudly" step both entry points use — never returns `null`,
  *  matching `store.ts`'s own `CustomCredentialNotFoundError` contract for a missing row (reused here
  *  keyed by label instead of id, the same conceptual "no such credential" outcome). DECRYPTS —
  *  callers that only need the allowed-origin set should use {@link resolveRequestTarget} instead.
@@ -788,58 +545,26 @@ export async function resolveRequestTarget(
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row exists but could not be decrypted —
  *   left to propagate uncaught, matching `resolveCustomCredentialByLabel`'s own documented contract.
  * @complexity O(n) in the workspace's own (small) credential-set count, plus one decrypt.
- */
-async function resolveCredentialOrThrow(
-  deps: Pick<CredentialedRequestDeps, "repo" | "sealer">,
-  input: { workspaceId: UUID; label: string }
-): Promise<{ baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput }> {
-  const resolved = await resolveCustomCredentialByLabel({ repo: deps.repo, sealer: deps.sealer }, input);
-  if (!resolved) {
-    throw new CustomCredentialNotFoundError(`no custom credential labeled '${input.label}' in this workspace`);
-  }
-  return resolved;
-}
-
-/** {@link classifyCustomCredentialStatus}/{@link CustomCredentialVerificationResult}'s shared
+ *
+ * {@link classifyCustomCredentialStatus}/{@link CustomCredentialVerificationResult}'s shared
  *  tri-state — never a plain boolean, same "unreachable must stay distinguishable from invalid"
  *  discipline `features/deployments/static-publish/verify.ts`'s own
- *  `PublishCredentialVerificationResult.status` doc establishes. */
-export type CustomCredentialCheckStatus = "valid" | "invalid" | "unreachable";
-
-/** Same three-way classification `features/deployments/static-publish/verify.ts`'s own
+ *  `PublishCredentialVerificationResult.status` doc establishes.
+ *
+ * Same three-way classification `features/deployments/static-publish/verify.ts`'s own
  *  `classifyProviderResponse` establishes for this codebase (see this file's header for why it is
  *  reused as logic, not imported): 2xx accepted, 401/403 affirmatively rejected, everything else —
  *  including a 3xx this module's policy deliberately never follows — folds into "unreachable".
  *
  * @complexity O(1).
- */
-function classifyCustomCredentialStatus(status: number): CustomCredentialCheckStatus {
-  if (status >= 200 && status < 300) return "valid";
-  if (status === 401 || status === 403) return "invalid";
-  return "unreachable";
-}
-
-/** Builds {@link verifyCustomCredential}'s human-facing message for one classified outcome — kept
- *  separate from the classifier itself so wording changes never touch the classification logic. */
-function buildVerificationMessage(label: string, status: number, outcome: CustomCredentialCheckStatus): string {
-  if (outcome === "valid") return `'${label}' accepted this credential.`;
-  if (outcome === "invalid") {
-    return `'${label}' rejected this credential (HTTP ${status}) — it is invalid, expired, or missing required permissions.`;
-  }
-  return `Could not get a clear accept or reject from '${label}' (HTTP ${status}) — this does not necessarily mean the credential is bad.`;
-}
-
-export interface CustomCredentialVerificationResult {
-  readonly status: CustomCredentialCheckStatus;
-  readonly message: string;
-  readonly checkedAt: string;
-  /** Present ONLY when `status === "invalid"` (an affirmative 401/403 rejection) — see this file's
-   *  header, "Authentication-failure diagnostics". Absent for `"valid"`/`"unreachable"`: neither is an
-   *  auth-scheme rejection, so there is nothing to diagnose. */
-  readonly authDiagnostic?: AuthFailureDiagnostic;
-}
-
-/**
+ *
+ * Builds {@link verifyCustomCredential}'s human-facing message for one classified outcome — kept
+ *  separate from the classifier itself so wording changes never touch the classification logic.
+ *
+ * Present ONLY when `status === "invalid"` (an affirmative 401/403 rejection) — see this file's
+ *  header, "Authentication-failure diagnostics". Absent for `"valid"`/`"unreachable"`: neither is an
+ *  auth-scheme rejection, so there is nothing to diagnose.
+ *
  * Checks one saved custom credential against its own real provider, live: resolves the credential
  * (decrypts), makes one bounded GET to its own saved base URL's root with the real Authorization
  * header, and classifies the result. Never throws on a network failure — that classifies as
@@ -854,71 +579,20 @@ export interface CustomCredentialVerificationResult {
  * @throws {CredentialedRequestValidationError} `input.label` is not a non-empty string.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row exists but could not be decrypted.
  * @complexity O(1) beyond the credential resolution's own O(n) (see {@link resolveCredentialOrThrow}).
- */
-export async function verifyCustomCredential(deps: CredentialedRequestDeps, input: { workspaceId: UUID; label: unknown }): Promise<CustomCredentialVerificationResult> {
-  const label = requireLabel(input.label);
-  const checkedAt = deps.clock.nowIso();
-  const { baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
-  const url = new URL(`${new URL(baseUrl).origin}/`);
-  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
-  const schemes = await loadAuthSchemes(deps, input.workspaceId);
-
-  let status: number;
-  try {
-    const response = await deps.httpClient.send({
-      method: "GET",
-      url: url.toString(),
-      headers: { Authorization: buildAuthorizationHeader(connection, schemes) },
-      timeoutMs: CREDENTIALED_REQUEST_TIMEOUT_MS,
-    });
-    status = response.status;
-  } catch {
-    audit.record({ label, host: url.hostname, method: "GET", status: 0, bodyBytes: 0, at: checkedAt });
-    return { status: "unreachable", message: `Could not reach '${label}' to verify this credential — this does not necessarily mean the credential is bad.`, checkedAt };
-  }
-
-  audit.record({ label, host: url.hostname, method: "GET", status, bodyBytes: 0, at: checkedAt });
-  const outcome = classifyCustomCredentialStatus(status);
-  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection, status as 401 | 403, schemes) : undefined;
-  return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt, ...(authDiagnostic ? { authDiagnostic } : {}) };
-}
-
-/** A real send — the provider answered (any HTTP status), or this tool's own transport layer
+ *
+ * A real send — the provider answered (any HTTP status), or this tool's own transport layer
  *  threw (see {@link CredentialedRequestTransportError}). `executed: true` is a fixed discriminant
  *  against {@link CredentialedRequestDeclinedResult}, so a caller of the WIRING layer (which may
- *  return either shape for a gated DELETE) can branch on one field regardless of method. */
-export interface CredentialedRequestExecutedResult {
-  readonly executed: true;
-  readonly status: number;
-  readonly headers: Record<string, string>;
-  readonly bodyText: string;
-  /** Present ONLY when `status` is 401 or 403 — see this file's header, "Authentication-failure
-   *  diagnostics". Additive alongside `bodyText`, which still carries the provider's own response
-   *  body unsuppressed and unchanged; this field never replaces or reinterprets it. */
-  readonly authDiagnostic?: AuthFailureDiagnostic;
-}
-
-/** A gated call (DELETE) that did NOT run — the human declined, or never answered in time, or the
+ *  return either shape for a gated DELETE) can branch on one field regardless of method.
+ *
+ * Present ONLY when `status` is 401 or 403 — see this file's header, "Authentication-failure
+ *  diagnostics". Additive alongside `bodyText`, which still carries the provider's own response
+ *  body unsuppressed and unchanged; this field never replaces or reinterprets it.
+ *
+ * A gated call (DELETE) that did NOT run — the human declined, or never answered in time, or the
  *  run ended first. Never produced by {@link makeCredentialedRequest} itself (which has no gating
- *  logic at all) — only by `tool-registrations.ts`'s handler, before it ever calls this module. */
-export interface CredentialedRequestDeclinedResult {
-  readonly executed: false;
-  readonly cancelled: boolean;
-  readonly reason?: "expired" | "abandoned";
-}
-
-export type CredentialedRequestOutcome = CredentialedRequestExecutedResult | CredentialedRequestDeclinedResult;
-
-export interface MakeCredentialedRequestInput {
-  readonly workspaceId: UUID;
-  readonly label: unknown;
-  readonly method: unknown;
-  readonly url: unknown;
-  readonly headers?: unknown;
-  readonly body?: unknown;
-}
-
-/**
+ *  logic at all) — only by `tool-registrations.ts`'s handler, before it ever calls this module.
+ *
  * Makes an authenticated request through a saved custom credential: resolves the credential
  * (decrypts), validates the target `url` against the credential's own allowed-origin set (see
  * {@link resolveAllowedRequestUrl}), and sends it with the real Authorization header injected — a
@@ -944,8 +618,7 @@ export interface MakeCredentialedRequestInput {
  *   own doc for why the distinction is load-bearing at this function's caller.
  * @complexity O(1) beyond the credential resolution's own O(n) (see {@link resolveCredentialOrThrow})
  *   and the header validation's own O(n) in header count.
- */
-/**
+ *
  * Everything a reflecting/echo endpoint could hand back that must never reach the model — the exact
  * Authorization value this call sent, the credential's own raw token, and — for a Basic-auth
  * connection (one with a saved `username`, AND no self-describing scheme that took priority over it
@@ -988,69 +661,198 @@ export interface MakeCredentialedRequestInput {
  * reads as "nothing extra needed" even when only one of the two actually has nothing extra to add.
  *
  * @complexity O(1).
- */
-function buildResponseSecrets(connection: CustomProviderConnectionInput, authorizationHeader: string, schemes: readonly CredentialSchemeRule[]): readonly string[] {
-  const resolvedScheme = resolveAuthorizationScheme(connection, schemes);
-  if (resolvedScheme.kind === "self-describing") return [authorizationHeader, connection.token, resolvedScheme.value];
-  if (resolvedScheme.kind === "basic") return [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)];
-  return [authorizationHeader, connection.token];
-}
-
-/**
+ *
  * The audit-only detail a failed send adds: an egress refusal's FULL message, resolved address
  * included — the one place that address is kept once the model-facing copy drops it. Any other
  * failure adds nothing; its raw transport text is not audit material.
  *
  * @complexity O(1).
  */
-function egressRefusalAuditDetail(err: unknown): Pick<CredentialedRequestAuditEntry, "egressRefusal"> {
-  return err instanceof EgressRefusedError ? { egressRefusal: err.message } : {};
+import {
+  ConsoleCredentialedRequestAuditLog as JiniConsoleAuditLog,
+  InMemoryCredentialedRequestAuditLog as JiniMemoryAuditLog,
+  CredentialNotFoundError,
+  CredentialedRequestValidationError,
+  makeCredentialedRequest as requestWithCredential,
+  resolveRequestTarget as resolveCredentialTarget,
+  verifyCustomCredential as verifyCredential,
+  type AuthFailureDiagnostic,
+  type CredentialedRequestAuditEntry,
+  type CredentialedRequestDeps as JiniRequestDeps,
+  type CredentialedRequestOptions,
+  type CredentialedRequestExecutedResult,
+  type CustomCredentialVerificationResult,
+  type MakeCredentialedRequestInput as JiniRequestInput,
+  type CredentialSchemeRule,
+} from "@jini-ai/integrations/credentialed-http";
+import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+// EgressRefusedError is a runtime import so REQUEST_POLICY preserves refusal identity; the barrel
+// otherwise supplies types, and feature code must receive its guarded client from composition.
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
+import type { SecretSealerPort } from "../webhooks/index.js";
+import { loadCredentialSchemeRegistry } from "./auth-schemes.js";
+import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
+import type { CustomCredentialSetRepoPort } from "./types.js";
+
+export {
+  CredentialedRequestValidationError,
+  CredentialedRequestTransportError,
+} from "@jini-ai/integrations/credentialed-http";
+export type {
+  AuthFailureDiagnostic,
+  CredentialedRequestAuditEntry,
+  CredentialedRequestDeclinedResult,
+  CredentialedRequestExecutedResult,
+  CredentialedRequestOutcome,
+  CustomCredentialCheckStatus,
+  CustomCredentialVerificationResult,
+} from "@jini-ai/integrations/credentialed-http";
+
+/** Existing host audit port; entries contain metadata and safe refusal diagnostics only. */
+export interface CredentialedRequestAuditPort {
+  record(entry: CredentialedRequestAuditEntry): void;
 }
 
-export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
-  const label = requireLabel(input.label);
-  const method = validateMethod(input.method);
-  const extraHeaders = validateExtraHeaders(input.headers);
-  const body = validateOptionalBody(input.body);
-  const at = deps.clock.nowIso();
+/** Supply Tovu's log prefix while adapting the host logger to Jini's object arguments. */
+export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
+  private readonly audit: JiniConsoleAuditLog;
 
-  const { additionalHosts, baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
-  const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
-  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
-  const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
-  const schemes = await loadAuthSchemes(deps, input.workspaceId);
-  const authorizationHeader = buildAuthorizationHeader(connection, schemes);
-  const responseSecrets = buildResponseSecrets(connection, authorizationHeader, schemes);
-
-  let response;
-  try {
-    response = await deps.httpClient.send({
-      method,
-      url: url.toString(),
-      headers: { ...extraHeaders, Authorization: authorizationHeader },
-      timeoutMs: CREDENTIALED_REQUEST_TIMEOUT_MS,
-      ...(body !== undefined ? { body } : {}),
-    });
-  } catch (err) {
-    audit.record({ label, host: url.hostname, method, status: 0, bodyBytes, at, ...egressRefusalAuditDetail(err) });
-    // `EgressRefusedError` rethrown UNCHANGED, never wrapped into `CredentialedRequestTransportError`
-    // below — see that class's own doc for why this `instanceof` identity is what lets
-    // `tool-registrations.ts`'s `isCredentialedRequestShapeRejection` recognize an egress refusal as
-    // the caller's to fix (a different URL/host) rather than an unclassified internal failure. The
-    // audit row above is unaffected either way: `status: 0` already meant "never got a response" for
-    // any of these causes, and stays that way.
-    if (err instanceof EgressRefusedError) throw err;
-    throw new CredentialedRequestTransportError(`request to '${label}' failed: ${err instanceof Error ? err.message : String(err)}`);
+  constructor(log: (line: string) => void = (line) => console.log(line)) {
+    this.audit = new JiniConsoleAuditLog({ prefix: "[custom-credentials]", log: ({ line }) => log(line) });
   }
 
-  audit.record({ label, host: url.hostname, method, status: response.status, bodyBytes, at });
-  const authDiagnostic =
-    response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection, response.status, schemes) : undefined;
+  record(entry: CredentialedRequestAuditEntry): void {
+    this.audit.record({ entry });
+  }
+}
+
+/** Keep the existing composition/test audit port while Jini owns entry storage. */
+export class InMemoryCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
+  private readonly audit = new JiniMemoryAuditLog();
+
+  get entries(): CredentialedRequestAuditEntry[] { return this.audit.entries; }
+
+  record(entry: CredentialedRequestAuditEntry): void {
+    this.audit.record({ entry });
+  }
+}
+
+export interface CredentialedRequestDeps {
+  readonly repo: CustomCredentialSetRepoPort;
+  readonly sealer: SecretSealerPort;
+  readonly httpClient: HttpClientPort;
+  readonly clock: Clock;
+  readonly audit?: CredentialedRequestAuditPort;
+  readonly loadAuthSchemes?: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
+}
+
+export interface MakeCredentialedRequestInput extends JiniRequestInput {
+  readonly headers?: unknown;
+  readonly body?: unknown;
+}
+
+/** The describe path never decrypts; resolve uses the existing host AAD/store boundary. */
+function adaptCredentialResolver(deps: Pick<CredentialedRequestDeps, "repo" | "sealer">) {
   return {
-    executed: true,
-    status: response.status,
-    headers: redactResponseHeaders(response.headers, responseSecrets),
-    bodyText: resolveRedactedResponseBody(response.bodyText, connection.token, responseSecrets, response.bodyTruncated === true),
-    ...(authDiagnostic ? { authDiagnostic } : {}),
+    describe: (input: { workspaceId: string; label: string }) => describeCredentialByLabel({ repo: deps.repo }, input),
+    resolve: (input: { workspaceId: string; label: string }) => resolveCustomCredentialByLabel({ repo: deps.repo, sealer: deps.sealer }, input),
   };
+}
+
+/** Translate body/audit arguments without changing the guarded transport or plugin trust gates. */
+function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
+  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
+  return {
+    resolver: adaptCredentialResolver(deps),
+    // The host port keeps its request-only ABI; Jini's body already lives inside request.
+    // Redirect policy comes from host composition. Refuse unsupported per-call overrides
+    // rather than silently dropping an explicit error/manual directive at this security seam.
+    httpClient: { send: ({ request }, optional = {}) => {
+      if (optional.redirect !== undefined) throw new Error("credentialed HTTP adapter does not support per-request redirect controls");
+      return deps.httpClient.send(request);
+    } },
+    clock: deps.clock,
+    audit: { record: ({ entry }) => audit.record(entry) },
+    // Keep installed-plugin digest trust checks in the host; generic scheme precedence needs no
+    // provider catalog. One loaded rule set is shared by header building and failure diagnostics.
+    schemeRegistry: {
+      load: async (input) => deps.loadAuthSchemes
+        ? deps.loadAuthSchemes(input)
+        : (await loadCredentialSchemeRegistry(input)).rules,
+    },
+  };
+}
+
+/** Preserve the registered remedy pointer and in-process issuance identity for the recovery loop. */
+// The remedy id is a pointer, never a callback: issuance stays in Tovu so the recovery loop's
+// one-cycle guard recognizes diagnostics it created rather than trusting provider response text.
+function mapDiagnostic({ diagnostic }: { diagnostic: AuthFailureDiagnostic }): AuthFailureDiagnostic {
+  return diagnostic.hint === undefined ? diagnostic : issueToolFailureDiagnostic({
+    ...diagnostic,
+    remedyToolId: "custom_credential_set_username",
+  });
+}
+
+// An egress refusal is a caller-fixable target rejection, not a DNS/timeout crash. Preserve its
+// instanceof identity so the tool layer can publish the safe reason instead of INTERNAL_ERROR.
+const REQUEST_POLICY: CredentialedRequestOptions = {
+  errorPolicy: {
+    isEgressRefusal: ({ error }) => error instanceof EgressRefusedError,
+    describeEgressRefusal: ({ error }) => error instanceof EgressRefusedError ? error.message : "",
+  },
+  diagnosticMapper: mapDiagnostic,
+};
+
+/** Keep host not-found identity and the Access Tokens remedy wording at the adapter boundary. */
+function rethrowHostError(error: unknown): never {
+  if (error instanceof CredentialNotFoundError) throw new CustomCredentialNotFoundError(error.message);
+  if (error instanceof CredentialedRequestValidationError && error.message.includes("which is not one of this credential's saved hosts (")) {
+    throw new CredentialedRequestValidationError({ message: `${error.message} — add it to this credential in the Access Tokens form first` });
+  }
+  throw error;
+}
+
+/** Validate a DELETE target before confirmation without opening the saved secret.
+ * @throws Host not-found or package validation errors; no I/O beyond the workspace repo read.
+ * @complexity O(workspace credentials) in the existing host store.
+ */
+// DELETE confirmation validates and renders its target without decryption: a human's "no" must not
+// cost a secret read. The persisted base URL/additional hosts alone define what can be requested.
+export async function resolveRequestTarget(
+  deps: Pick<CredentialedRequestDeps, "repo">,
+  input: { workspaceId: string; label: string; url: unknown }
+): Promise<{ label: string; url: URL }> {
+  try {
+    return await resolveCredentialTarget({ resolver: {
+      describe: (required) => describeCredentialByLabel({ repo: deps.repo }, required),
+    }, input });
+  } catch (error) { return rethrowHostError(error); }
+}
+
+/** Probe through the guarded port, retaining Tovu's diagnostic policy and host error identity.
+ * @complexity O(workspace credentials) plus one bounded HTTP request.
+ */
+export async function verifyCustomCredential(
+  deps: CredentialedRequestDeps,
+  input: { workspaceId: string; label: unknown }
+): Promise<CustomCredentialVerificationResult> {
+  try { return await verifyCredential({ deps: adaptRequestDeps(deps), input }, REQUEST_POLICY); }
+  catch (error) { return rethrowHostError(error); }
+}
+
+/** Execute an authorized request; Jini owns validation, header injection and response redaction.
+ * @throws Validation/transport errors or the unchanged guarded egress refusal.
+ * @complexity O(workspace credentials + bounded request/response bytes).
+ */
+// Tovu gates DELETE in tool-registrations.ts with MCP-UI confirmation; GET/POST/PUT/PATCH retain
+// parity with site operations without a plan/confirm/execute ceremony. This adapter executes only
+// after its caller's policy allows it and deliberately has no independent confirmation state.
+export async function makeCredentialedRequest(
+  deps: CredentialedRequestDeps,
+  input: MakeCredentialedRequestInput
+): Promise<CredentialedRequestExecutedResult> {
+  const { headers, body, ...requiredInput } = input;
+  try {
+    return await requestWithCredential({ deps: adaptRequestDeps(deps), input: requiredInput }, { ...REQUEST_POLICY, headers, body });
+  } catch (error) { return rethrowHostError(error); }
 }

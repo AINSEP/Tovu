@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { DEV_PROXY_TLS } from "./fixtures/admin-dev-proxy-tls.js";
 import test from "node:test";
 
 import express from "express";
@@ -12,12 +14,11 @@ import { stripHopByHopHeaders } from "../admin-dev-proxy.js";
  * @file Proves the dev-proxy branch of `registerAdminStatic` (`admin-dev-proxy.ts`) actually
  * forwards bytes and the HMR `upgrade` event, rather than just type-checking.
  *
- * Every test here stands up a REAL fake "Vite" server (`node:http`) and a REAL Express app with
+ * Proxy tests stand up a REAL fake "Vite" server and a REAL Express app with
  * `registerAdminStatic` mounted, both bound to ephemeral ports, and drives them with real sockets —
  * no mocking of `node:http`/`node:https` itself. `TOVU_ADMIN_DEV_PROXY_URL` is pointed at
- * `http://127.0.0.1:<fake vite port>` throughout: the proxy's request/response plumbing is scheme-
- * agnostic (it picks `http`/`https` off the target URL), so plain HTTP keeps these tests free of TLS
- * setup while exercising the exact same code path TLS mode uses.
+ * a loopback HTTP or HTTPS upstream. HTTPS fixtures use a self-signed development certificate
+ * to exercise both content and HMR transport through the proxy's TLS branch.
  */
 
 /** Starts a bare Express app with `registerAdminStatic` mounted, listening on an ephemeral port. */
@@ -37,8 +38,19 @@ function startAdminApp(t: import("node:test").TestContext, distDir: string): Pro
 
 test("registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vite origin, unmodified path and body", async (t) => {
   const receivedPaths: string[] = [];
+  const received: Array<{ method: string | undefined; cookie: string | undefined; host: string | undefined; body: string }> = [];
   const fakeVite = createHttpServer((req, res) => {
     receivedPaths.push(req.url ?? "");
+    if (req.method === "POST") {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      req.on("end", () => {
+        received.push({ method: req.method, cookie: req.headers.cookie, host: req.headers.host, body: Buffer.concat(chunks).toString("utf8") });
+        res.writeHead(404, { "content-type": "text/plain", "x-fake-vite": "1" });
+        res.end("upstream missing asset");
+      });
+      return;
+    }
     res.writeHead(200, { "content-type": "text/javascript", "x-fake-vite": "1" });
     res.end("console.log('served by fake vite')");
   });
@@ -59,6 +71,14 @@ test("registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vi
   assert.equal(res.headers.get("x-fake-vite"), "1");
   assert.equal(await res.text(), "console.log('served by fake vite')");
   assert.deepEqual(receivedPaths, ["/admin/src/main.tsx?t=123"]);
+  const posted = await fetch(`${baseUrl}/admin/missing?probe=body`, {
+    method: "POST", headers: { "content-type": "text/plain", cookie: "vite-session=probe" }, body: "distinct request payload",
+  });
+  assert.equal(posted.status, 404);
+  assert.equal(posted.headers.get("x-fake-vite"), "1");
+  assert.equal(await posted.text(), "upstream missing asset");
+  assert.deepEqual(receivedPaths, ["/admin/src/main.tsx?t=123", "/admin/missing?probe=body"]);
+  assert.deepEqual(received, [{ method: "POST", cookie: "vite-session=probe", host: `127.0.0.1:${fakeViteAddress.port}`, body: "distinct request payload" }]);
 });
 
 test("stripHopByHopHeaders: drops connection/transfer-encoding/upgrade but keeps every other header untouched", () => {
@@ -146,15 +166,23 @@ test("registerAdminStatic: falls back to the 'admin shell not built' pointer pag
   assert.match(await res.text(), /Admin shell not built/);
 });
 
-test("registerAdminDevProxyUpgrade: forwards the HMR WebSocket upgrade end to end through a real server pair", async (t) => {
+for (const protocol of ["http", "https"] as const) {
+test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real ${protocol} upstream`, { timeout: 8_000 }, async (t) => {
   const { registerAdminDevProxyUpgrade } = await import("../admin-dev-proxy.js");
+  const tunnelSockets = new Set<import("node:stream").Duplex>();
+  t.after(() => { for (const socket of tunnelSockets) socket.destroy(); });
 
   // Stands in for Vite's own ws server: performs a real RFC 6455 handshake so this test proves the
   // proxy carries a genuine upgrade (matching `Sec-WebSocket-Accept`), not just that some bytes moved.
-  const fakeVite = createHttpServer((_req, res) => {
-    res.writeHead(404).end();
-  });
+  const rejectPlainRequest = (_req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) => { res.writeHead(404).end(); };
+  const fakeVite = protocol === "https" ? createHttpsServer(DEV_PROXY_TLS, rejectPlainRequest) : createHttpServer(rejectPlainRequest);
+  const clientFrame = Buffer.from([0x81, 0x82, 1, 2, 3, 4, 0x68 ^ 1, 0x69 ^ 2]); // masked "hi"
+  const serverFrame = Buffer.concat([Buffer.from([0x81, 9]), Buffer.from("hmr-reply")]);
+  let upstreamClosed!: () => void;
+  const upstreamTermination = new Promise<void>((resolve) => { upstreamClosed = resolve; });
   fakeVite.on("upgrade", (req, socket) => {
+    tunnelSockets.add(socket);
+    socket.on("close", upstreamClosed);
     const key = req.headers["sec-websocket-key"];
     if (typeof key !== "string") {
       socket.destroy();
@@ -172,6 +200,13 @@ test("registerAdminDevProxyUpgrade: forwards the HMR WebSocket upgrade end to en
     // `allowHalfOpen: true`, so a graceful disconnect only ever delivers `end`, never `close` — the
     // exact gap `admin-dev-proxy.ts`'s own `destroyOnTermination` exists to close on the proxy side.
     socket.on("end", () => socket.destroy());
+    let buffered = Buffer.alloc(0);
+    socket.on("data", (bytes) => {
+      buffered = Buffer.concat([buffered, bytes]);
+      if (buffered.length < clientFrame.length) return;
+      if (!buffered.equals(clientFrame)) { socket.destroy(); return; }
+      socket.write(serverFrame);
+    });
   });
   fakeVite.listen(0);
   t.after(() => new Promise<void>((resolve) => fakeVite.close(() => resolve())));
@@ -179,7 +214,7 @@ test("registerAdminDevProxyUpgrade: forwards the HMR WebSocket upgrade end to en
   const fakeViteAddress = fakeVite.address();
   if (fakeViteAddress === null || typeof fakeViteAddress === "string") throw new Error("test setup: expected a bound TCP address");
 
-  process.env.TOVU_ADMIN_DEV_PROXY_URL = `http://127.0.0.1:${fakeViteAddress.port}`;
+  process.env.TOVU_ADMIN_DEV_PROXY_URL = `${protocol}://127.0.0.1:${fakeViteAddress.port}`;
   t.after(() => {
     delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
   });
@@ -211,15 +246,26 @@ test("registerAdminDevProxyUpgrade: forwards the HMR WebSocket upgrade end to en
         "Sec-WebSocket-Key": clientKey,
       },
     });
-    req.on("upgrade", (res, socket) => {
-      // `.destroy()`, not `.end()`: the fake Vite server above never closes its own side (a real WS
-      // server does not either — the connection stays open for the app's lifetime), so a graceful
-      // half-close here would never reach a full `close` on either socket, and `t.after`'s
-      // `server.close()` calls below would hang waiting for a connection that never fully ends. An
-      // abrupt destroy is also the more realistic test of the proxy's own cross-destroy cleanup
-      // (`admin-dev-proxy.ts`'s `proxyAdminUpgrade`), which exists for exactly this kind of teardown.
-      socket.destroy();
-      resolve({ statusCode: res.statusCode, headers: res.headers });
+    req.on("upgrade", (res, socket, head) => {
+      tunnelSockets.add(socket);
+      let buffered = head;
+      socket.on("data", (bytes) => {
+        buffered = Buffer.concat([buffered, bytes]);
+        if (buffered.length < serverFrame.length) return;
+        try {
+          assert.deepEqual(buffered, serverFrame, "upstream HMR payload must cross the pipe unchanged");
+          // Destroy rather than half-close: the upstream keeps a WebSocket open for its lifetime,
+          // so end() can leave server.close() waiting forever. This also exercises the proxy's
+          // cross-destroy cleanup, whose upstream close is awaited below.
+          socket.destroy();
+          resolve({ statusCode: res.statusCode, headers: res.headers });
+        } catch (error) {
+          socket.destroy();
+          reject(error);
+        }
+      });
+      socket.on("error", reject);
+      socket.write(clientFrame);
     });
     req.on("response", (res) => reject(new Error(`expected an upgrade, got a plain ${res.statusCode} response`)));
     req.on("error", reject);
@@ -228,7 +274,9 @@ test("registerAdminDevProxyUpgrade: forwards the HMR WebSocket upgrade end to en
 
   assert.equal(upgrade.statusCode, 101);
   assert.equal(upgrade.headers["sec-websocket-accept"], expectedAccept);
+  await upstreamTermination;
 });
+}
 
 test("registerAdminDevProxyUpgrade: no-ops (no 'upgrade' listener added) when TOVU_ADMIN_DEV_PROXY_URL is unset", async () => {
   delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
@@ -268,4 +316,23 @@ test("registerAdminDevProxyUpgrade: ignores an upgrade request outside /admin, l
   capturedListener?.({ url: "/something-else" }, fakeSocket, Buffer.alloc(0));
 
   assert.equal(destroyed, false);
+});
+
+test("registerAdminStatic proxies HTTPS content through a self-signed development certificate", async (t) => {
+  const upstream = createHttpsServer(DEV_PROXY_TLS, (req, res) => {
+    res.writeHead(req.url === "/admin/tls-probe" ? 200 : 404, { "content-type": "text/plain" });
+    res.end("TLS upstream content");
+  });
+  t.after(() => { upstream.closeAllConnections(); return new Promise<void>((resolve) => upstream.close(() => resolve())); });
+  upstream.listen(0);
+  await new Promise<void>((resolve) => upstream.on("listening", resolve));
+  const address = upstream.address();
+  assert.ok(address && typeof address !== "string");
+  const previous = process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  process.env.TOVU_ADMIN_DEV_PROXY_URL = `https://127.0.0.1:${address.port}`;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_ADMIN_DEV_PROXY_URL; else process.env.TOVU_ADMIN_DEV_PROXY_URL = previous; });
+  const baseUrl = await startAdminApp(t, "/nonexistent-dist-dir");
+  const res = await fetch(`${baseUrl}/admin/tls-probe`);
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), "TLS upstream content");
 });

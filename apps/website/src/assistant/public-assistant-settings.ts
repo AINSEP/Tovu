@@ -1,5 +1,5 @@
-import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonValue, UUID } from "@jini-ai/core/primitives";
+import type { SettingsPrincipalLookupPort } from "@jini-ai/cms/settings";
 import { type SettingsRepoPort, type SettingValueSchema, type AuthorizeFn } from "../features/settings/index.js";
 
 /**
@@ -7,6 +7,7 @@ import { type SettingsRepoPort, type SettingValueSchema, type AuthorizeFn } from
  * Ledger. Mirrors `src/seo/settings.ts` and `src/comments/settings.ts` exactly — same idempotent
  * boot-time definition registration, same `getEffective` read, same validate-then-`set()` write —
  * applied to one boolean instead of SEO's 8 fields or Comments' 6.
+ * The clock contract and its rationale live in Jini core/primitives; the supplied clock is forwarded directly.
  *
  * SCOPE. This file owns the SETTING and nothing else. The public site's own consumption of it (not
  * shipping the bundle, not mounting the endpoint) is a separate piece of work under
@@ -67,7 +68,7 @@ type RegisterDefinitions = (required: {
     clock: ClockPort;
     ids: IdGeneratorPort;
     authorize: AuthorizeFn;
-    principals: PrincipalRepoPort;
+    principals: SettingsPrincipalLookupPort;
   };
   input: {
     // NOT `readonly` — the real `registerDefinitions`'s own `DefinitionInput[]` is mutable, and a
@@ -94,7 +95,7 @@ type SetSettingValue = (required: {
     clock: ClockPort;
     ids: IdGeneratorPort;
     authorize: AuthorizeFn;
-    principals: PrincipalRepoPort;
+    principals: SettingsPrincipalLookupPort;
   };
   input: {
     namespace: string;
@@ -150,7 +151,7 @@ export interface EnsurePublicAssistantSettingDefinitionsDeps {
   settingsRepo: SettingsRepoPort;
   clock: ClockPort;
   ids: IdGeneratorPort;
-  principals: PrincipalRepoPort;
+  principals: SettingsPrincipalLookupPort;
   /** The real `features/settings`'s own `resolveDefinitionRaw` — injected rather than statically
    *  imported; see this file's header. Wired to the real implementation at the composition root. */
   resolveDefinitionRaw: ResolveDefinitionRaw;
@@ -275,7 +276,7 @@ export interface PublicAssistantSettingsWriteDeps extends GetPublicAssistantSett
   clock: ClockPort;
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
-  principals: PrincipalRepoPort;
+  principals: SettingsPrincipalLookupPort;
   /** The real `features/settings`'s own `set` — injected rather than statically imported; see this
    *  file's header. Wired to the real implementation at the composition root. */
   set: SetSettingValue;
@@ -344,3 +345,4 @@ export async function setPublicAssistantSettings(
     { workspaceId: input.workspaceId }
   );
 }
+

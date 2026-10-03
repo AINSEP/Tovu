@@ -21,7 +21,7 @@ import {
  */
 
 function fakeClock(nowIso: string) {
-  return { nowIso: () => nowIso };
+  return { nowMs: () => Date.parse(nowIso) };
 }
 
 function fakeIdGen(id: string) {

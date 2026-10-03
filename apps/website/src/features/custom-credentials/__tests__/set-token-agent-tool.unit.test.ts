@@ -125,9 +125,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     run: { id: "run-1" },
     input: options.input ?? { label: "name.com" },
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
 }
 
 /** Pulls the exchange id out of an emitted mcp-ui surface's HTML — mirrors
@@ -230,12 +229,12 @@ test("a token submitted through the delivery route never enters the durable tool
   const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges })) registry.register(registration);
   const audit = createInMemoryToolAttemptAuditSink();
   const executor = withToolAttemptAudit(createToolExecutor({ registry }), audit, { workspaceId: WORKSPACE_ID, now: () => NOW });
   const emitted: unknown[] = [];
-  const pending = executor.execute({ id: PRINCIPAL_ID }, { id: "run-1" }, TOOL_ID, { label: "name.com" }, undefined, async (surface) => void emitted.push(surface));
+  const pending = executor.execute({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, toolId: TOOL_ID, input: { label: "name.com" } }, { emitSurface: async (surface) => void emitted.push(surface) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1);
   const exchangeId = exchangeIdFromSurface(emitted[0]);

@@ -9,7 +9,7 @@ import { registerConfiguredOriginOn, seedDevCapabilityOriginOn, SqlOriginSetting
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { InMemoryOriginSettingRepo } from "../repo.memory.js";
-import { createVerifiedOrigin } from "../types.js";
+import { createVerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import type { OriginSettingRepoPort } from "../ports.js";
 
 /**

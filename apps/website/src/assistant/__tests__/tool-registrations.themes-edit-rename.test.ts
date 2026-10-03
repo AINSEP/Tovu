@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,16 +12,21 @@ import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import {
   contributeThemesTools,
   performThemeFileRename,
   type ThemeToolDeps,
 } from "../../features/theme/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
 
-resetToolContributorsForTests();
-registerToolContributor(contributeThemesTools());
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
+
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeThemesTools() });
 
 /**
  * @file `theme_edit_file` and `theme_rename_file` — the two new agent tools closing the
@@ -78,7 +85,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === toolId);
+  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }

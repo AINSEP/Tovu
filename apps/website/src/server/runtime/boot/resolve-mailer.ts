@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import {
@@ -236,6 +236,9 @@ export interface ResolvedMailer {
    *  a pure test seam so a test can await settlement instead of guessing at a tick count.
    *  Production callers never need to await this. */
   ready: Promise<void>;
+  /** Refreshes unresolved configuration and awaits the current driver without sending.
+   * Used by the members tool for addresses whose sign-in service may skip send(). */
+  settle: () => Promise<void>;
 }
 
 /**
@@ -293,5 +296,5 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     send: async (message, opts) => (await settled()).send(message, opts),
     sendBatch: async (messages, opts) => (await settled()).sendBatch(messages, opts),
   };
-  return { mailer, ready };
+  return { mailer, ready, settle: async () => { await settled(); } };
 }

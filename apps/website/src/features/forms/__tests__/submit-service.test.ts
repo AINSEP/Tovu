@@ -3,11 +3,11 @@ import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "../errors.js";
+import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "@jini-ai/cms-forms";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
-import type { FormDefinitionRecord } from "../types.js";
+import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Integration-style tests for `submitForm` (C-008, REQ-05..09/16, AC-08/09/10/13/14/15/24,
@@ -30,6 +30,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
       { id: "email", label: "Email", type: "email", required: true },
     ],
     notify: { enabled: false, recipients: [] },
+    version: 1,
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
@@ -42,7 +43,7 @@ function makeDeps() {
   const submissionRepo = new InMemoryFormSubmissionRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const rateLimiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
@@ -136,7 +137,7 @@ test("submitForm: AC-13/INV-04 — a honeypot-tripped submission returns accepte
   const page = await deps.submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
   assert.equal(page.items.length, 0);
 
-  const claimed = await deps.outbox.claimPending(20, NOW);
+  const claimed = await deps.outbox.claimPending({ batchSize: 20, nowIso: NOW });
   assert.equal(claimed.length, 0);
 });
 
@@ -183,9 +184,9 @@ test("submitForm: INV-07 — enqueues exactly one form.submission.received event
   await deps.definitionRepo.create(makeDefinition());
 
   const received: string[] = [];
-  await deps.bus.subscribe("form.submission.received", async (event) => {
+  await deps.bus.subscribe({ eventName: "form.submission.received", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
 
   await submitForm({
     deps,
@@ -207,11 +208,11 @@ test("submitForm: AC-24/INV-05 — the response resolves before a slow/throwing 
   const hang = new Promise<void>((resolve) => {
     releaseSubscriber = resolve;
   });
-  await deps.bus.subscribe("form.submission.received", async () => {
+  await deps.bus.subscribe({ eventName: "form.submission.received", handler: async () => {
     await hang;
     subscriberSettled = true;
     throw new Error("simulated slow/throwing MailerPort.send()");
-  });
+  } });
 
   const result = await submitForm({
     deps,

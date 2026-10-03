@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
-import type { PendingAttachmentSummary } from "@jini-ai/http-kit";
+import type { PendingAttachmentSummary } from "@jini-ai/daemon/http";
 
 import {
   buildListPendingChatAttachmentsTool,
@@ -36,7 +36,7 @@ function executionContext(runId = "run-1", principalId = "principal-under-test")
 
 function fakeStore(pending: PendingAttachmentSummary[]): PendingChatAttachmentLookup & { calledWith?: string } {
   const store: PendingChatAttachmentLookup & { calledWith?: string } = {
-    async listPendingForOwner(ownerId) {
+    async listPendingForOwner({ ownerId }) {
       store.calledWith = ownerId;
       return pending;
     },
@@ -103,10 +103,10 @@ describe("buildListPendingChatAttachmentsTool", () => {
   });
 });
 
-// It only filters an in-memory map (`listPendingForOwner` in `@jini-ai/http-kit`'s attachments.ts),
+// It only filters an in-memory map (`listPendingForOwner` in `@jini-ai/daemon/http`'s attachments.ts),
 // so the read-only gateway may run it. Before this flag, `execute_readonly_delegated_tool` refused it
 // (chat 94b1063a, 2026-09-07).
 test("is registered read-only, so the read-only delegated-tool gateway accepts it", () => {
   const registration = buildListPendingChatAttachmentsTool({ getStore: () => fakeStore([]) });
-  assert.equal(isReadOnlyTool(registration.descriptor), true);
+  assert.equal(isReadOnlyTool({ descriptor: registration.descriptor }), true);
 });

@@ -27,7 +27,7 @@ import test from "node:test";
 
 import { createToolRegistry, ToolInputError } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -47,7 +47,7 @@ function makeRouteDeps(options: { allow?: boolean } = {}) {
   const postRepo = new InMemoryPostRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),
@@ -61,7 +61,7 @@ function makeRouteDeps(options: { allow?: boolean } = {}) {
 }
 
 async function buildHarness(deps: PostToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
     registry.register(registration);
   }

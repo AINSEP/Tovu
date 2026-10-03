@@ -90,7 +90,7 @@ test("presentation patch: a body with no activeThemeId falls back to '' via `req
 
 test("presentation patch: no presentation_settings row for the workspace surfaces PresentationSettingsNotFoundError as a 404, even for a validly-shaped theme id", async (t) => {
   const base = createRouteDeps();
-  const app = buildApp({ presentationRepo: new InMemoryPresentationSettingsRepo([]), themes: base.themes });
+  const app = buildApp({ presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }), themes: base.themes });
   const { status, json } = await patch(t, app, { activeThemeId: "tovu-theme" });
   assert.equal(status, 404);
   assert.deepEqual(json, {

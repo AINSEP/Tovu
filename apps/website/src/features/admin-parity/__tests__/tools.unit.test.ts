@@ -1,3 +1,4 @@
+import { nowIso } from "@jini-ai/core/primitives";
 /**
  * n07: admin-equivalent tool contracts, permission refusals, risk metadata and durable outcomes.
  * Uses isolated filesystem fixtures and in-memory ports; no live services or listening ports.
@@ -13,7 +14,7 @@ import { InMemoryPublishContentPeerRepo, saveConnectedDestination } from "../../
 import { discoverAllBuiltInThemes, isStandaloneThemePage } from "../../theme/index.js";
 
 const ws = "n07-workspace";
-const clock = { nowIso: () => "2026-10-01T00:00:00Z" };
+const clock = { nowMs: () => Date.parse("2026-10-01T00:00:00Z") };
 const idGen = { newId: () => "connected-peer" };
 const modules = {
   identity_policy_list_permissions: () => import("../../identity/permission-list-tool.js"),
@@ -53,7 +54,7 @@ function auth(allow = true) {
 for (const id of Object.keys(modules) as Id[]) {
   test(`${id}: risk/readOnly matches the actual service effects`, async () => {
     const r = await registration(id, auth().deps);
-    assert.equal(isReadOnlyTool(r.descriptor), !["publish_content_disconnect", "theme_set_page_published"].includes(id));
+    assert.equal(isReadOnlyTool({ descriptor: r.descriptor }), !["publish_content_disconnect", "theme_set_page_published"].includes(id));
     assert.equal(r.descriptor.id, id);
     assert.equal(r.descriptor.requiresConfirmation ?? false, false);
   });
@@ -107,7 +108,7 @@ test("sites list: reports served site even when unregistered and switching is di
 
 test("sites list: registered active site and pending choice stay distinct", async () => {
   const binding = { dir: "/registered", name: "served", dirOverridden: false, switcherCompatible: true };
-  const site = { name: "served", dir: "/registered", displayName: "Served", createdAt: clock.nowIso(), active: true };
+  const site = { name: "served", dir: "/registered", displayName: "Served", createdAt: nowIso({ clock }), active: true };
   const r = await registration("sites_list", { ...auth().deps, siteBinding: binding, listSites: () => [site], isSiteSwitcherEnabled: () => true, readPersistedActiveSite: () => "queued" });
   assert.deepEqual(await call(r), { switchingEnabled: true, sites: [{ ...site, registration: "registered" }], currentSite: { ...binding, listed: true }, persistedSiteName: "queued" });
 });

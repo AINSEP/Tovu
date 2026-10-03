@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash } from "#src/features/publish-content/content-hash";
@@ -440,11 +441,11 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
               workspaceId: deps.workspaceId,
               id: target.entityId,
               expectedVersion: holder!.version,
-              today: todayStamp(deps.clock.nowIso()),
+              today: todayStamp(clockNowIso({ clock: deps.clock })),
               actorId: input.principalId,
             },
           }),
-        captureEntityVersion: (result) => result.post.version,
+        captureEntityVersion: ({ result }) => result.post.version,
         rollback: undoRetire,
       },
     });
@@ -456,7 +457,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
 
 /**
  * `yyyymmdd` from an ISO clock reading — {@link retirePostForReplacement}'s own `today` input shape
- * (`post.ts`'s own doc: "supplied by the caller rather than derived from `deps.clock.nowIso()`'s ISO
+ * (`post.ts`'s own doc: "supplied by the caller rather than derived from `clockNowIso({ clock: deps.clock })`'s ISO
  * format"). The one place that derivation happens, so `retire()` above stays a pure caller of it.
  */
 function todayStamp(nowIso: string): string {

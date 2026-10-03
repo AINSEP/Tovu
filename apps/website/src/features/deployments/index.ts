@@ -116,3 +116,6 @@ export {
 // recognizes it), so a direct reach from its two dedicated test consumers is the same
 // "contract test needs the real registration builder" shape every other domain's tool-registrations
 // seam already gets.
+
+export { loadDeployOpsRegistry } from "./deploy-ops/registry.js";
+export type { DeployOpsRegistry } from "./deploy-ops/types.js";

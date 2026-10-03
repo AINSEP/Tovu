@@ -1,14 +1,15 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { ForbiddenError as CommandForbiddenError, assertToolIsWirable } from "@jini-ai/cms/core";
-import {
-  getDatabaseAgentToolCatalog,
-  type AgentToolDefinition as DatabaseAgentToolDefinition,
-} from "../../features/database/agent-tools.js";
+import { assertToolIsWirable } from "@jini-ai/core";
+import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
+import { type AgentToolDefinition as DatabaseAgentToolDefinition } from "@jini-ai/core";
+import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import {
   InMemoryDatabaseIntrospectionAdapter,
   InMemoryDatabaseLedgerRepo,
@@ -17,10 +18,8 @@ import {
   InMemoryRestorePointsRepo,
   InMemorySiteStatusRepo,
 } from "../../features/database/repo.memory.js";
-import {
-  recoveryAgentToolCatalog,
-  type AgentToolDefinition as RecoveryAgentToolDefinition,
-} from "../../features/recovery/agent-tools.js";
+import { type AgentToolDefinition as RecoveryAgentToolDefinition } from "@jini-ai/core";
+import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,
@@ -32,10 +31,15 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
@@ -46,9 +50,9 @@ import { registerToolContributor } from "../tool-contribution-registry.js";
 // SCC — `getDriftStatus`'s value import — was cut by relocating `drift.ts` into `db/`; see
 // `features/database/tool-registrations.ts`'s own header) — so it now needs the identical explicit
 // install call Recovery does, rather than arriving via `DOMAIN_SLICES`.
-resetToolContributorsForTests();
-registerToolContributor(contributeRecoveryTools());
-registerToolContributor(contributeDatabaseTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeRecoveryTools() });
+contributions.contributors.register({ contribution: contributeDatabaseTools() });
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test
@@ -97,7 +101,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   };
 
   let counter = 0;
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = { newId: () => `id-${++counter}` };
 
   const realRestorePointsRepo = new InMemoryRestorePointsRepo();
@@ -190,7 +194,7 @@ const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set([...getDatabaseAgentToolC
 const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set([...recoveryAgentToolCatalog.map((tool) => tool.name), ...RECOVERY_READ_CARD_IDS]);
 
 function allRegistrations(deps: RouteDeps): ToolRegistration[] {
-  return buildAssistantToolRegistrations(deps);
+  return buildAssistantToolRegistrations(deps, undefined, { contributions });
 }
 
 function databaseRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
@@ -310,7 +314,7 @@ test("database_execute_migrate_forward is registered and classified mutates-dura
   assert.equal(databaseRegistrations(deps).has("database_execute_migrate_forward"), true);
   // The handler-less check stands for "a plain handler": still refused at build time.
   assert.throws(
-    () => assertRiskMetadataIsWirable("database_execute_migrate_forward", databaseCatalogEntry("database_execute_migrate_forward")),
+    () => assertRiskMetadataIsWirable("database_execute_migrate_forward", databaseCatalogEntry("database_execute_migrate_forward"), contributions),
     { message: HUMAN_CONFIRMER_REFUSAL("database_execute_migrate_forward") },
   );
 });
@@ -319,7 +323,7 @@ test("backup_execute_restore is registered and classified mutates-durable-state,
   const { deps } = fakeRouteDeps();
   assert.equal(recoveryRegistrations(deps).has("backup_execute_restore"), true);
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_execute_restore", recoveryCatalogEntry("backup_execute_restore")),
+    () => assertRiskMetadataIsWirable("backup_execute_restore", recoveryCatalogEntry("backup_execute_restore"), contributions),
     { message: HUMAN_CONFIRMER_REFUSAL("backup_execute_restore") },
   );
 });
@@ -415,13 +419,13 @@ test("the independent risk classification agrees with the catalog for every wire
     if (id.startsWith("content_read.")) continue;
     // Their actor-class rule needs the handler too — checked in section 1 above.
     if (EXECUTE_TOOL_INPUTS[id]) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id), contributions));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_create_restore_point", { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("backup_create_restore_point", { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -693,7 +697,7 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
  */
 async function startExecute(deps: RouteDeps, toolId: string, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
@@ -801,7 +805,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps();
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore();
-    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     for (const key of ["confirm", "confirmationToken"]) {
@@ -837,7 +841,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps({ allow: false });
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore();
-    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     await assert.rejects(

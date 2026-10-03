@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { inflateSync } from "node:zlib";
 
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 
 import { DEMO_IMAGE_TOOL_ID, buildDemoImageRegistrations, demoImageAgentToolCatalog, demoImageDerivedRisk } from "../demo-image-tool.js";
 

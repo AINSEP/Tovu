@@ -129,7 +129,7 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       }
       const allowed = await deps.authorize({ principalId: principal.id, permission: TAXONOMY_PERMISSION, workspaceId: deps.workspaceId });
       if (!allowed.allowed) {
-        throw new ForbiddenError(`principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, TAXONOMY_PERMISSION, allowed.reason);
+        throw new ForbiddenError({ message: `principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, permission: TAXONOMY_PERMISSION, reason: allowed.reason });
       }
       await authorizeContentEdit(deps, principal.id, contentType);
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });

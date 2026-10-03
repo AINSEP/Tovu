@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import {
   ForbiddenError,
   PlanStaleError,
@@ -112,7 +113,7 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
       const { restartRequired } = await input.dbOps.restoreFromArtifact({ artifactRef: target.artifactRef });
 
       const restoreRunId = input.idGen.newId();
-      const now = input.clock.nowIso();
+      const now = clockNowIso({ clock: input.clock });
       await input.databaseLedgerRepo.append({
         id: input.idGen.newId(),
         kind: "restore.executed",

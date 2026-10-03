@@ -30,8 +30,8 @@ const WORKSPACE = "ws-1";
 const SITE_A = "https://site-a.example";
 const SITE_B = "https://site-b.example";
 
-function fixedClock(iso: string): { nowIso(): string } {
-  return { nowIso: () => iso };
+function fixedClock(iso: string) {
+  return { nowMs: () => Date.parse(iso) };
 }
 
 function sequentialIdGen(): { newId(): string } {

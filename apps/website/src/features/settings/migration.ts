@@ -1,5 +1,6 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import { createSettingsPrincipalLookup } from "./index.js";
 import {
   ALLOWED_THEME_IDS,
   type PresentationSettingsRecord,
@@ -55,7 +56,8 @@ const THEME_AVAILABLE_KEY = "available";
 export interface MigrateLegacyPresentationSettingsDeps {
   presentationRepo: PresentationSettingsRepoPort;
   settingsRepo: SettingsRepoPort;
-  clock: ClockPort;
+  /** Preserve the boot caller's ISO clock; the CMS boundary binds core Clock.nowMs(). */
+  clock: { nowIso(): string };
   ids: IdGeneratorPort;
   /** REQ-13's target-principal check dependency — required by `SettingsWriteServiceDeps` but never
    * actually consulted here (this migration only ever writes `scope: "global"`, and
@@ -94,10 +96,10 @@ const alwaysAllow: AuthorizeFn = async () => ({ allowed: true, reason: "system_m
 function writeServiceDeps(deps: MigrateLegacyPresentationSettingsDeps) {
   return {
     repo: deps.settingsRepo,
-    clock: deps.clock,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     ids: deps.ids,
     authorize: alwaysAllow,
-    principals: deps.principals,
+    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
   };
 }
 

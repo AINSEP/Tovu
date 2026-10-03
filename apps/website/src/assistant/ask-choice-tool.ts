@@ -1,27 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { ASK_CHOICE_INPUT_SCHEMA, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
-import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
-
-import { buildUIToolResult } from "./mcp-ui.js";
-import {
-  SURFACE_DISMISSED_PARAM,
-  SURFACE_EXCHANGE_ID_PARAM,
-  SURFACE_TYPED_ANSWER_PARAM,
-  askOnce,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-  type SurfaceMessage,
-} from "../contracts/core/tool-surface-exchanges.js";
+import { buildUIToolResult, type UIResource } from "./mcp-ui.js";
+import { type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file A production tool that lets the assistant ask the administrator a real question — a single
@@ -50,15 +34,19 @@ import {
  *
  * ## What it reuses from `demo-choices-tool.ts`
  *
- * The held-open exchange mechanism (ADR-055 Decision 1: one call, not two) is identical — `askOnce`,
+ * The held-open exchange mechanism (ADR-055 Decision 1: one call, not two) is preserved — send,
+ * then receive (the same order as `askOnce`),
  * the emit-then-park order, the no-emit-seam fallback, and the abort-closes-the-exchange behavior.
- * None of that plumbing is domain-specific, so it is reused verbatim rather than reimplemented; only
+ * The generic handler and ticket implementation now live in `@jini-ai/mcp/tools/ask-choice`;
+ * this adapter supplies Tovu policy and presentation, and retains the incident rationale below.
+ * None of that plumbing is domain-specific, so it comes from the package through the host exchange
+ * bridge; only
  * the FIELD CONTENT is model-supplied here instead of hardcoded.
  *
  * ## It writes nothing, deliberately
  *
- * Same posture as `demo-choices-tool.ts`: every branch is pure, there is no state a double submit
- * could corrupt, and no confirmation token, because there is nothing to confirm — this tool COLLECTS
+ * Same posture as `demo-choices-tool.ts`: there are no domain writes a double submit could corrupt,
+ * and no confirmation token, because there is nothing to confirm — this tool COLLECTS
  * a decision, it does not act on one. The action the administrator decided about is a separate,
  * ordinary tool call the model makes afterward, informed by what this tool returned.
  *
@@ -76,7 +64,7 @@ import {
  *
  * So the fallback path mints its own single-use, principal-bound, TTL-limited ticket
  * (`ASK_CHOICE_ANSWER_TICKET_PARAM`) the moment it renders a form with no exchange to open — the
- * exact shape `pending-confirmations.ts` uses for the identical problem ("a second tool call the
+ * shape the former destructive-confirmation token store used for the identical problem ("a second tool call the
  * model could otherwise make itself"), narrowed to what this tool needs (no entity/version to bind
  * to). The ticket rides home in the form's `baseParams`, which `@jini-ai/ui`'s `buildFormSurface`
  * renders into the surface's HTML and merges into whatever the form posts back — never into this
@@ -85,6 +73,7 @@ import {
  * call" is now only accepted when it carries a ticket that matches an outstanding, unconsumed one
  * minted for the same principal; anything else — no ticket, an unknown one, an expired one, a
  * replayed one — is refused with a `ToolInputError`, not reported as `submitted: true`.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
@@ -118,53 +107,6 @@ const ASK_CHOICE_FORGED_ANSWER_MESSAGE =
   "administrator's answer can only arrive by them submitting a real rendered form; never set " +
   "'choice' or 'selections' yourself. If a decision is still needed, call assistant_ask_choice " +
   "again with the question and wait for the real response.";
-
-/**
- * A single-use, principal-bound ticket store guarding the fallback (no-`emitSurface`) path's
- * second call — see this file's own header ("The fallback answer IS something to confirm").
- *
- * In-process and created fresh per {@link buildAskChoiceRegistrations} call, exactly like
- * `pending-confirmations.ts`'s store: `buildAskChoiceRegistrations` runs once per daemon boot, so
- * one instance spans every call the daemon serves, and a ticket that does not survive a daemon
- * restart is one the administrator will simply be shown a fresh form for — the fail-closed
- * direction. Not shared with the real `SurfaceExchangeStore`: that store's `open()` requires a
- * live `SurfaceEmitter` to send through, which is exactly what this branch does not have.
- *
- * @complexity O(1) amortized per operation; expired entries are swept lazily on mint.
- */
-function createAskChoiceAnswerTicketStore(): {
-  mint(principalId: string, parsed: ParsedAskChoiceInput): string;
-  redeem(spec: { ticket: string | undefined; principalId: string; params: Record<string, unknown> }): boolean;
-} {
-  const pending = new Map<string, { principalId: string; expiresAtMs: number; parsed: ParsedAskChoiceInput }>();
-
-  function sweep(nowMs: number): void {
-    for (const [key, entry] of pending) {
-      if (entry.expiresAtMs <= nowMs) pending.delete(key);
-    }
-  }
-
-  return {
-    mint(principalId, parsed) {
-      const nowMs = Date.now();
-      sweep(nowMs);
-      const ticket = randomUUID();
-      pending.set(ticket, { principalId, expiresAtMs: nowMs + ASK_CHOICE_TICKET_TTL_MS, parsed });
-      return ticket;
-    },
-    redeem({ ticket, principalId, params }) {
-      if (ticket === undefined) return false;
-      const nowMs = Date.now();
-      const entry = pending.get(ticket);
-      if (!entry) return false;
-      // Single-use — removed before any binding check, so a replayed or probed ticket cannot be
-      // told apart from one that never existed (mirrors `pending-confirmations.ts#redeem`).
-      pending.delete(ticket);
-      if (entry.expiresAtMs <= nowMs) return false;
-      return entry.principalId === principalId && matchesAskChoiceOptions(entry.parsed, params);
-    },
-  };
-}
 
 /** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts`'s identical field. */
 interface AgentToolDefinition {
@@ -203,6 +145,7 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: {
+      ...ASK_CHOICE_INPUT_SCHEMA,
       type: "object",
       additionalProperties: false,
       required: ["title"],
@@ -251,135 +194,8 @@ export const askChoiceDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 
 const CATALOG_BY_ID = new Map(askChoiceAgentToolCatalog.map((entry) => [entry.name, entry]));
 
-/** Raised when the model's call is missing content a different call would fix — the shape
- *  rejection {@link withSchemaOnRejection} decorates with this tool's own published schema, the
- *  same convention `forms/tool-registrations.ts`'s `FormFieldValidationError` uses. */
-class AskChoiceInputError extends Error {}
-
-function isAskChoiceShapeRejection(error: unknown): boolean {
-  return error instanceof AskChoiceInputError;
-}
-
-interface SelectSpec {
-  readonly label: string;
-  readonly hint?: string;
-  readonly options: ReadonlyArray<{ value: string; label: string }>;
-}
-
-/** Narrows one option-array entry to `{ value, label }`, or throws. Split out of
- *  {@link readSelectSpec} purely to keep it under the shop complexity ceiling — and to make this
- *  one option's narrowing directly invocable by a test, independent of the array it came from. */
-function readSelectOption(entry: unknown, fieldName: "singleSelect" | "multiSelect"): { value: string; label: string } {
-  const option = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
-  const value = typeof option["value"] === "string" ? option["value"] : undefined;
-  const optionLabel = typeof option["label"] === "string" ? option["label"] : undefined;
-  if (!value || !optionLabel) {
-    throw new AskChoiceInputError(`assistant_ask_choice: every '${fieldName}' option requires a string 'value' and 'label'.`);
-  }
-  return { value, label: optionLabel };
-}
-
-/** Narrows the raw `singleSelect`/`multiSelect` value to a plain object, or `undefined` when the
- *  model omitted the field entirely. Split out of {@link readSelectSpec} purely to keep it under
- *  the shop complexity ceiling; behavior (including the exact rejection message) is unchanged. */
-function readSelectSpecShape(raw: unknown, fieldName: "singleSelect" | "multiSelect"): Record<string, unknown> | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "object" || raw === null) {
-    throw new AskChoiceInputError(`assistant_ask_choice: '${fieldName}' must be an object.`);
-  }
-  return raw as Record<string, unknown>;
-}
-
-/** Narrows `label` + `options` out of an already-shape-checked select spec, requiring a non-empty
- *  label and at least one option. Split out of {@link readSelectSpec} purely to keep it under the
- *  shop complexity ceiling; behavior (including the exact rejection message) is unchanged. */
-function readSelectLabelAndOptions(
-  spec: Record<string, unknown>,
-  fieldName: "singleSelect" | "multiSelect",
-): { label: string; rawOptions: unknown[] } {
-  const label = typeof spec["label"] === "string" ? spec["label"] : undefined;
-  const rawOptions = Array.isArray(spec["options"]) ? (spec["options"] as unknown[]) : undefined;
-  if (!label || !rawOptions || rawOptions.length === 0) {
-    throw new AskChoiceInputError(`assistant_ask_choice: '${fieldName}' requires a non-empty 'label' and at least one option.`);
-  }
-  return { label, rawOptions };
-}
-
-/** Reads one of the two optional select groups out of the raw input, or returns undefined if the
- *  model omitted it entirely. Split out purely to keep `parseAskChoiceInput` under the shop
- *  complexity ceiling; behavior is unchanged. */
-function readSelectSpec(raw: unknown, fieldName: "singleSelect" | "multiSelect"): SelectSpec | undefined {
-  const spec = readSelectSpecShape(raw, fieldName);
-  if (spec === undefined) return undefined;
-  const { label, rawOptions } = readSelectLabelAndOptions(spec, fieldName);
-  const options = rawOptions.map((entry) => readSelectOption(entry, fieldName));
-  const hint = typeof spec["hint"] === "string" ? spec["hint"] : undefined;
-  return { label, ...(hint === undefined ? {} : { hint }), options };
-}
-
-interface ParsedAskChoiceInput {
-  readonly title: string;
-  readonly description?: string;
-  readonly submitLabel?: string;
-  readonly singleSelect?: SelectSpec;
-  readonly multiSelect?: SelectSpec;
-}
-
-/** A fallback ticket binds the answer to the options in the form that minted it. */
-function matchesAskChoiceOptions(parsed: ParsedAskChoiceInput, params: Record<string, unknown>): boolean {
-  const choice = params["choice"];
-  if (parsed.singleSelect) {
-    if (!parsed.singleSelect.options.some((option) => option.value === choice)) return false;
-  } else if (choice !== undefined) return false;
-
-  const selections = params["selections"];
-  if (selections === undefined) return true;
-  if (!parsed.multiSelect || !Array.isArray(selections)) return false;
-  const offered = new Set(parsed.multiSelect.options.map((option) => option.value));
-  return selections.every((value) => typeof value === "string" && offered.has(value));
-}
-
-/** Reads and requires the model's `title` — the one field with no fallback, since a malformed
- *  value means the call cannot proceed at all. Split out of {@link parseAskChoiceInput} purely to
- *  keep it under the shop complexity ceiling; behavior (including the exact rejection message) is
- *  unchanged. */
-function readAskChoiceTitle(input: Record<string, unknown>): string {
-  const title = typeof input["title"] === "string" ? input["title"] : undefined;
-  if (!title) throw new AskChoiceInputError("assistant_ask_choice: 'title' is required.");
-  return title;
-}
-
-/** Reads both select groups and requires at least one — the pair-level defaulting decision. Split
- *  out of {@link parseAskChoiceInput} purely to keep it under the shop complexity ceiling;
- *  behavior (including the exact rejection message) is unchanged. */
-function readAskChoiceSelects(input: Record<string, unknown>): { singleSelect?: SelectSpec; multiSelect?: SelectSpec } {
-  const singleSelect = readSelectSpec(input["singleSelect"], "singleSelect");
-  const multiSelect = readSelectSpec(input["multiSelect"], "multiSelect");
-  if (!singleSelect && !multiSelect) {
-    throw new AskChoiceInputError("assistant_ask_choice: at least one of 'singleSelect' or 'multiSelect' is required.");
-  }
-  return { ...(singleSelect === undefined ? {} : { singleSelect }), ...(multiSelect === undefined ? {} : { multiSelect }) };
-}
-
-/** Reads the two plain optional string fields. Split out of {@link parseAskChoiceInput} purely to
- *  keep it under the shop complexity ceiling; behavior is unchanged. */
-function readAskChoiceOptionalStrings(input: Record<string, unknown>): { description?: string; submitLabel?: string } {
-  const description = typeof input["description"] === "string" ? input["description"] : undefined;
-  const submitLabel = typeof input["submitLabel"] === "string" ? input["submitLabel"] : undefined;
-  return { ...(description === undefined ? {} : { description }), ...(submitLabel === undefined ? {} : { submitLabel }) };
-}
-
-/** Validates the model's call shape before any surface is built — a domain boundary parser in the
- *  same style `content-types` uses, so a rejection here never reaches a `try` around a live call. */
-function parseAskChoiceInput(input: Record<string, unknown>): ParsedAskChoiceInput {
-  const title = readAskChoiceTitle(input);
-  const optionalStrings = readAskChoiceOptionalStrings(input);
-  const selects = readAskChoiceSelects(input);
-  return { title, ...optionalStrings, ...selects };
-}
-
 /** Builds the field list `buildFormSurface` renders, from the model's parsed input. */
-function buildAskChoiceFields(parsed: ParsedAskChoiceInput): SurfaceField[] {
+function buildAskChoiceFields(parsed: AskChoiceQuestion): SurfaceField[] {
   const fields: SurfaceField[] = [];
   if (parsed.singleSelect) {
     fields.push({
@@ -403,7 +219,104 @@ function buildAskChoiceFields(parsed: ParsedAskChoiceInput): SurfaceField[] {
   return fields;
 }
 
+/** Builds the form with Tovu's resource identity, labels, radio/checklist layout and app metadata.
+ * Cancel posts back rather than just closing the dialog: a silent close would strand the agent's
+ * blocked call until the TTL expires. The package supplies either exchange correlation or the
+ * single-use answer ticket in baseParams; these are mutually exclusive.
+ */
+function buildAskChoiceFormSurface(
+  { toolName, principalId, question: parsed, baseParams }: Omit<AskChoiceForm, "cancelParams">,
+  { cancelParams }: Pick<AskChoiceForm, "cancelParams"> = {},
+): ReturnType<typeof buildFormSurface> {
+  const uri: UIResourceUri = `ui://tovu/ask-choice/${principalId}/${Date.now()}`;
+  return buildFormSurface({
+    uri,
+    title: parsed.title,
+    ...(parsed.description === undefined ? {} : { description: parsed.description }),
+    submitLabel: parsed.submitLabel ?? "Submit",
+    toolName,
+    baseParams,
+    fields: buildAskChoiceFields(parsed),
+    cancel: cancelParams ? { label: "Cancel", toolName, params: cancelParams } : { label: "Cancel" },
+    app: { appName: "tovu-ask-choice", appVersion: "1" },
+    preferredFrameSize: ["100%", "420px"],
+  });
+}
+
+/** Narrows the renderer's unknown package boundary without casting a required presentation port. */
+function isAskChoiceUiResource(ui: unknown): ui is UIResource {
+  if (typeof ui !== "object" || ui === null || !("type" in ui) || ui.type !== "resource" || !("resource" in ui)) return false;
+  const resource = ui.resource;
+  return typeof resource === "object" && resource !== null
+    && "uri" in resource && typeof resource.uri === "string" && resource.uri.startsWith("ui://")
+    && "mimeType" in resource && (resource.mimeType === "text/html" || resource.mimeType === "text/html;profile=mcp-app" || resource.mimeType === "text/html+skybridge")
+    && "text" in resource && typeof resource.text === "string";
+}
+
+const askChoiceMessages: AskChoiceMessages = {
+  forgedAnswer: ASK_CHOICE_FORGED_ANSWER_MESSAGE,
+  pending: "A question has been shown to the administrator. NOTHING HAS BEEN ANSWERED YET. Their " +
+    "answer arrives only if they submit that form, which sends it itself. You cannot fill " +
+    "it in yourself: tell them the form is open and wait.",
+  noAnswer: "The administrator did not provide an answer. Do not assume any answer.",
+  submitted: "Tell the administrator what you understood from their answer, in plain language, before proceeding.",
+  typed: "The administrator answered in their own words instead of picking one of the options. Treat 'freeText' as " +
+    "what they said, not as a selection: none of the options you offered was chosen. Say what you understood " +
+    "before acting on it, and ask again if it is ambiguous.",
+  expired: "The administrator did not respond before the form expired. Do not assume any answer.",
+  abandoned: "The form was dismissed because the run ended. Do not assume any answer.",
+  cancelled: "The administrator cancelled the form without answering. Do not assume any answer.",
+};
+
 /**
+ * Builds this tool's registration, binding Tovu's policy/presentation to the package handler.
+ * The generic parser, answer validation and ticket lifecycle live at `@jini-ai/mcp/tools/ask-choice`.
+ *
+ * The retained extraction rationale below describes the pre-extraction units and their historical
+ * names. Their replacements are the package's parseQuestion/readSelect/matchesOptions,
+ * describeAnswer/waitForAnswer and pending factory. Surfaces must use the same store
+ * mounted by registerMcpUiToolCallsRoute or a submitted form reaches nothing.
+ *
+ * A single-use, principal-bound ticket store guarding the fallback (no-`emitSurface`) path's
+ * second call — see this file's own header ("The fallback answer IS something to confirm").
+ *
+ * In-process and created fresh per {@link buildAskChoiceRegistrations} call, exactly like
+ * the former destructive-confirmation token store: `buildAskChoiceRegistrations` runs once per daemon boot, so
+ * one instance spans every call the daemon serves, and a ticket that does not survive a daemon
+ * restart is one the administrator will simply be shown a fresh form for — the fail-closed
+ * direction. Not shared with the real `SurfaceExchangeStore`: that store's `open()` requires a
+ * live `SurfaceEmitter` to send through, which is exactly what this branch does not have.
+ *
+ * @complexity O(1) amortized per operation; expired entries are swept lazily on mint.
+ * Single-use — removed before any binding check, so a replayed or probed ticket cannot be
+ * told apart from one that never existed (matching the former token store's redemption behavior).
+ * Raised when the model's call is missing content a different call would fix — the shape
+ *  rejection {@link withSchemaOnRejection} decorates with this tool's own published schema, the
+ *  same convention `forms/tool-registrations.ts`'s `FormFieldValidationError` uses.
+ * Narrows one option-array entry to `{ value, label }`, or throws. Split out of
+ *  {@link readSelectSpec} purely to keep it under the shop complexity ceiling — and to make this
+ *  one option's narrowing directly invocable by a test, independent of the array it came from.
+ * Narrows the raw `singleSelect`/`multiSelect` value to a plain object, or `undefined` when the
+ *  model omitted the field entirely. Split out of {@link readSelectSpec} purely to keep it under
+ *  the shop complexity ceiling; behavior (including the exact rejection message) is unchanged.
+ * Narrows `label` + `options` out of an already-shape-checked select spec, requiring a non-empty
+ *  label and at least one option. Split out of {@link readSelectSpec} purely to keep it under the
+ *  shop complexity ceiling; behavior (including the exact rejection message) is unchanged.
+ * Reads one of the two optional select groups out of the raw input, or returns undefined if the
+ *  model omitted it entirely. Split out purely to keep `parseAskChoiceInput` under the shop
+ *  complexity ceiling; behavior is unchanged.
+ * A fallback ticket binds the answer to the options in the form that minted it.
+ * Reads and requires the model's `title` — the one field with no fallback, since a malformed
+ *  value means the call cannot proceed at all. Split out of {@link parseAskChoiceInput} purely to
+ *  keep it under the shop complexity ceiling; behavior (including the exact rejection message) is
+ *  unchanged.
+ * Reads both select groups and requires at least one — the pair-level defaulting decision. Split
+ *  out of {@link parseAskChoiceInput} purely to keep it under the shop complexity ceiling;
+ *  behavior (including the exact rejection message) is unchanged.
+ * Reads the two plain optional string fields. Split out of {@link parseAskChoiceInput} purely to
+ *  keep it under the shop complexity ceiling; behavior is unchanged.
+ * Validates the model's call shape before any surface is built — a domain boundary parser in the
+ *  same style `content-types` uses, so a rejection here never reaches a `try` around a live call.
  * True when `input` is the administrator's form submission arriving as a fresh call (the no-emit-
  * seam fallback), rather than the model's original request.
  *
@@ -413,33 +326,8 @@ function buildAskChoiceFields(parsed: ParsedAskChoiceInput): SurfaceField[] {
  * Mirrors `demo-choices-tool.ts`'s own note on why `plan` (not `extras`) is its discriminator: an
  * empty checklist is a real answer, not a missing one, so presence — not truthiness — is what counts
  * for `selections`.
- */
-function isFallbackAskChoiceAnswer(input: Record<string, unknown>): boolean {
-  if (typeof input["title"] === "string") return false;
-  return typeof input["choice"] === "string" || Array.isArray(input["selections"]);
-}
-
-/** Shapes the administrator's selections into the tool's return value. Shared by both the parked
- *  path and the legacy second-call fallback so the agent sees an identical result either way. */
-function describeAskChoiceAnswer(params: Record<string, unknown>): Record<string, unknown> {
-  const choice = typeof params["choice"] === "string" ? params["choice"] : undefined;
-  const selections = Array.isArray(params["selections"]) ? (params["selections"] as string[]) : undefined;
-  if (choice === undefined && selections === undefined) {
-    return {
-      submitted: false,
-      reason: "no-answer",
-      note: "The administrator did not provide an answer. Do not assume any answer.",
-    };
-  }
-  return {
-    submitted: true,
-    ...(choice === undefined ? {} : { choice }),
-    ...(selections === undefined ? {} : { selections }),
-    note: "Tell the administrator what you understood from their answer, in plain language, before proceeding.",
-  };
-}
-
-/**
+ * Shapes the administrator's selections into the tool's return value. Shared by both the parked
+ *  path and the legacy second-call fallback so the agent sees an identical result either way.
  * Shapes a TYPED answer — free text the administrator wrote into the chat composer instead of
  * clicking the rendered form — into the tool's return value, or `undefined` when the delivery
  * carried no usable one.
@@ -465,109 +353,23 @@ function describeAskChoiceAnswer(params: Record<string, unknown>): Record<string
  * @param params - The delivered exchange params, straight off `SurfaceExchangeStore.deliver`.
  * @returns The tool result for a typed answer, or `undefined` when there is no usable typed answer.
  * @complexity O(1).
- */
-function describeTypedAskChoiceAnswer(params: Record<string, unknown>): Record<string, unknown> | undefined {
-  const raw = params[SURFACE_TYPED_ANSWER_PARAM];
-  if (typeof raw !== "string") return undefined;
-  const freeText = raw.trim();
-  if (freeText.length === 0) return undefined;
-  return {
-    submitted: true,
-    freeText,
-    note:
-      "The administrator answered in their own words instead of picking one of the options. Treat 'freeText' as " +
-      "what they said, not as a selection: none of the options you offered was chosen. Say what you understood " +
-      "before acting on it, and ask again if it is ambiguous.",
-  };
-}
-
-/** The two {@link SurfaceMessage} statuses that mean "the administrator never answered" — mirrors
- *  `demo-choices-tool.ts#describeUnansweredForm`. */
-function describeUnansweredAskChoice(status: Exclude<SurfaceMessage["status"], "received">): Record<string, unknown> {
-  return {
-    submitted: false,
-    reason: status,
-    note:
-      status === "expired"
-        ? "The administrator did not respond before the form expired. Do not assume any answer."
-        : "The form was dismissed because the run ended. Do not assume any answer.",
-  };
-}
-
-/** Builds the ask-choice MCP-UI form resource. Split out purely to keep the handler under the
+ * The two {@link SurfaceMessage} statuses that mean "the administrator never answered" — mirrors
+ *  `demo-choices-tool.ts#describeUnansweredForm`.
+ * Builds the ask-choice MCP-UI form resource. Split out purely to keep the handler under the
  *  complexity ceiling; mirrors `demo-choices-tool.ts#buildDemoChoicesFormSurface`'s structure.
  *
  *  @param input.answerTicket - Present only when there is no `exchange` (the no-emit-seam
  *  fallback) — the single-use ticket minted for this render, embedded in `baseParams` the same way
  *  `exchange.id` is, so the form's own submission carries it back automatically. The two are
- *  mutually exclusive: a call either opens a real exchange or mints a ticket, never both. */
-function buildAskChoiceFormSurface(input: {
-  principalId: string;
-  exchange: SurfaceExchange | undefined;
-  answerTicket: string | undefined;
-  parsed: ParsedAskChoiceInput;
-}): ReturnType<typeof buildFormSurface> {
-  const { principalId, exchange, answerTicket, parsed } = input;
-  const baseParams = exchange
-    ? { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id }
-    : answerTicket !== undefined
-      ? { [ASK_CHOICE_ANSWER_TICKET_PARAM]: answerTicket }
-      : undefined;
-  return buildFormSurface({
-    uri: `ui://tovu/ask-choice/${principalId}/${Date.now()}` as UIResourceUri,
-    title: parsed.title,
-    ...(parsed.description === undefined ? {} : { description: parsed.description }),
-    submitLabel: parsed.submitLabel ?? "Submit",
-    toolName: ASK_CHOICE_TOOL_ID,
-    ...(baseParams ? { baseParams } : {}),
-    fields: buildAskChoiceFields(parsed),
-    // Cancel posts back rather than just closing the dialog, exactly like `demo-choices-tool.ts` —
-    // a silent close would strand the agent's blocked call until the TTL expires.
-    cancel: exchange
-      ? {
-          label: "Cancel",
-          toolName: ASK_CHOICE_TOOL_ID,
-          params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
-        }
-      : { label: "Cancel" },
-    app: { appName: "tovu-ask-choice", appVersion: "1" },
-    preferredFrameSize: ["100%", "420px"],
-  });
-}
-
-/**
+ *  mutually exclusive: a call either opens a real exchange or mints a ticket, never both.
+ * Cancel posts back rather than just closing the dialog, exactly like `demo-choices-tool.ts` —
+ * a silent close would strand the agent's blocked call until the TTL expires.
  * Waits for the administrator's answer to a parked ask-choice form and maps it onto the tool's
  * result. Mirrors `demo-choices-tool.ts#awaitDemoChoicesSubmission`; behavior (the abort-triggered
  * close, and the exact "not received" -> "dismissed" -> submitted check order) is the same.
- */
-async function awaitAskChoiceSubmission(input: {
-  exchange: SurfaceExchange;
-  ui: ReturnType<typeof buildFormSurface>;
-  signal: AbortSignal;
-}): Promise<Record<string, unknown>> {
-  const { exchange, ui, signal } = input;
-  const closeOnAbort = () => exchange.close();
-  signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-    if (answer.status !== "received") return describeUnansweredAskChoice(answer.status);
-    if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-      return {
-        submitted: false,
-        reason: "cancelled",
-        note: "The administrator cancelled the form without answering. Do not assume any answer.",
-      };
-    }
-    // Checked before the form-answer branch, not after: a typed answer carries no `choice`/
-    // `selections` at all, so falling through would report no answer with the administrator's
-    // actual words silently dropped.
-    return describeTypedAskChoiceAnswer(answer.params) ?? describeAskChoiceAnswer(answer.params);
-  } finally {
-    signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
-/**
+ * Checked before the form-answer branch, not after: a typed answer carries no `choice`/
+ * `selections` at all, so falling through would report no answer with the administrator's
+ * actual words silently dropped.
  * Builds this tool's registration.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
@@ -575,73 +377,82 @@ async function awaitAskChoiceSubmission(input: {
  * @param surfaces - Supplies the exchange store. Must be the same instance
  * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
  * @returns A single registration.
+ * One store per registration build, matching `buildAskChoiceRegistrations`'s own boot-once
+ * lifetime (see `createAskChoiceAnswerTicketStore`'s doc). Guards ONLY the no-emit-seam
+ * fallback below — the held-open path never reaches `isFallbackAskChoiceAnswer` at all.
+ * ---- Fallback second call: no `emitSurface` was available on the original call, so the form
+ * went out the old way and the administrator's answer arrived as a fresh call. See
+ * `isFallbackAskChoiceAnswer`'s own doc for why `title` is the discriminator.
+ *
+ * Matching that shape is necessary but NOT sufficient: it is exactly the shape the model
+ * itself could fabricate by calling this tool a second time with an invented `choice`. What
+ * makes this branch safe is the ticket check below — fail closed on anything that does not
+ * redeem a real, outstanding, unconsumed ticket for THIS principal. ----
+ * The exchange is opened BEFORE the surface is built, because the surface has to carry
+ * its id. `open` takes the emitter, so this is unreachable without one.
+ * No exchange means the fallback below is about to hand this call's answer to whatever
+ * arrives as a second call — mint the ticket that second call must carry.
+ * ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface
+ * the old way; the administrator's submission arrives as a second call and lands in the
+ * branch at the top of this handler. ----
+ * ---- The real path: send it, then wait for the answer. ----
+ * @complexity O(1) wiring; rendering/validation scales with the offered options and schema size.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function buildAskChoiceRegistrations(
   _routeDeps: unknown,
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
-  // One store per registration build, matching `buildAskChoiceRegistrations`'s own boot-once
-  // lifetime (see `createAskChoiceAnswerTicketStore`'s doc). Guards ONLY the no-emit-seam
-  // fallback below — the held-open path never reaches `isFallbackAskChoiceAnswer` at all.
-  const answerTickets = createAskChoiceAnswerTicketStore();
-
-  const handlers: Record<string, ToolHandler> = {
-    [ASK_CHOICE_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
-      const input = (ctx.input ?? {}) as Record<string, unknown>;
-
-      // ---- Fallback second call: no `emitSurface` was available on the original call, so the form
-      // went out the old way and the administrator's answer arrived as a fresh call. See
-      // `isFallbackAskChoiceAnswer`'s own doc for why `title` is the discriminator.
-      //
-      // Matching that shape is necessary but NOT sufficient: it is exactly the shape the model
-      // itself could fabricate by calling this tool a second time with an invented `choice`. What
-      // makes this branch safe is the ticket check below — fail closed on anything that does not
-      // redeem a real, outstanding, unconsumed ticket for THIS principal. ----
-      if (isFallbackAskChoiceAnswer(input)) {
-        const ticket = typeof input[ASK_CHOICE_ANSWER_TICKET_PARAM] === "string" ? input[ASK_CHOICE_ANSWER_TICKET_PARAM] : undefined;
-        if (!answerTickets.redeem({ ticket, principalId: ctx.principal.id, params: input })) {
-          throw new ToolInputError(ASK_CHOICE_FORGED_ANSWER_MESSAGE);
-        }
-        return describeAskChoiceAnswer(input);
-      }
-
-      return withSchemaOnRejection(
-        { toolId: ASK_CHOICE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isAskChoiceShapeRejection },
-        async () => {
-          const parsed = parseAskChoiceInput(input);
-
-          // The exchange is opened BEFORE the surface is built, because the surface has to carry
-          // its id. `open` takes the emitter, so this is unreachable without one.
-          const exchange = ctx.emitSurface
-            ? surfaces.surfaceExchanges.open({ toolId: ASK_CHOICE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface)
-            : undefined;
-
-          // No exchange means the fallback below is about to hand this call's answer to whatever
-          // arrives as a second call — mint the ticket that second call must carry.
-          const answerTicket = exchange ? undefined : answerTickets.mint(ctx.principal.id, parsed);
-
-          const ui = buildAskChoiceFormSurface({ principalId: ctx.principal.id, exchange, answerTicket, parsed });
-
-          // ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface
-          // the old way; the administrator's submission arrives as a second call and lands in the
-          // branch at the top of this handler. ----
-          if (!exchange) {
-            return buildUIToolResult({
-              modelText:
-                "A question has been shown to the administrator. NOTHING HAS BEEN ANSWERED YET. Their " +
-                "answer arrives only if they submit that form, which sends it itself. You cannot fill " +
-                "it in yourself: tell them the form is open and wait.",
-              ui,
-            });
-          }
-
-          // ---- The real path: send it, then wait for the answer. ----
-          return awaitAskChoiceSubmission({ exchange, ui, signal: ctx.signal });
-        },
-      );
+  // Boot-owned and shared across calls, never across registration builds or daemon restarts.
+  const pendingQuestions = createAskChoiceAnswerTicketStore({
+    now: () => Date.now(),
+    newTicketId: () => randomUUID(),
+    ttlMs: ASK_CHOICE_TICKET_TTL_MS,
+  });
+  const surfaceExchanges: AskChoiceExchangeStore = {
+    open: ({ toolId, principalId, emit }) => {
+      const exchange = surfaces.surfaceExchanges.open({ toolId, principalId }, (emission) => emit({
+        emission: { channel: "mcp-ui", payload: { resource: emission.payload["resource"] } },
+      }));
+      return {
+        id: exchange.id,
+        send: ({ emission }) => exchange.send(emission),
+        receive: () => exchange.receive(),
+        close: () => exchange.close(),
+      };
     },
   };
-
+  const presentation: AskChoicePresentation = {
+    render: buildAskChoiceFormSurface,
+    buildResult: ({ modelText, ui }) => {
+      if (!isAskChoiceUiResource(ui)) throw new Error("ask-choice renderer returned an invalid UI resource");
+      return { ...buildUIToolResult({ modelText, ui }) };
+    },
+  };
+  const tool = createAskChoiceTool({
+    toolId: ASK_CHOICE_TOOL_ID,
+    description: askChoiceAgentToolCatalog[0]!.description,
+    permission: "admin.assistant.use",
+    pendingQuestions,
+    surfaceExchanges,
+    presentation,
+    messages: askChoiceMessages,
+    policy: {
+      // Core ToolExecutor checks the registration's permission before invoking this handler.
+      // Its context intentionally has no authorization escape hatch; retain that single gate.
+      authorize: () => undefined,
+      inputError: ({ message }) => new ToolInputError({ message }),
+      shapeError: ({ message, toolId }) => decorateWithSchema({ message, toolId, catalog: CATALOG_BY_ID }),
+    },
+  });
+  const handlers: Record<string, ToolHandler> = {
+    [ASK_CHOICE_TOOL_ID]: (ctx, { emitSurface } = {}) => tool.handler({ ctx: {
+      principalId: ctx.principal.id,
+      input: ctx.input,
+      signal: ctx.signal,
+      ...(emitSurface ? { emitSurface: ({ emission }) => emitSurface(emission) } : {}),
+    } }),
+  };
   return buildDomainRegistrations({
     domain: "ask-choice",
     catalogModule: "assistant/ask-choice-tool.ts",

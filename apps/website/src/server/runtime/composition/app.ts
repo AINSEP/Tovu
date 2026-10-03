@@ -1,3 +1,8 @@
+import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import type { ByokToolSurfaceDeps } from "#src/assistant/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
+import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
@@ -51,6 +56,7 @@ import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credential
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  SINGLE_HOP_HTTPS_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
   createPublishContentPeerEgressPolicy,
   parsePublishContentDevHosts,
@@ -350,12 +356,13 @@ function createLazyProxy<T extends object>(factory: () => T): T {
 }
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
-export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps {
-  const workspaceRepo = new InMemoryWorkspaceRepo([seededWorkspace]);
+export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
   const postRepo = new InMemoryPostRepo(seededPosts);
-  const presentationRepo = new InMemoryPresentationSettingsRepo([seededPresentation]);
+  const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });
   const settingsRepo = new InMemorySettingsRepo();
-  const clock = { nowIso: () => new Date().toISOString() };
+  // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
+  const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
   const pluginRuntime = composePluginRuntime({
@@ -369,6 +376,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       : { failureThreshold: options.pluginFailureThreshold }),
   });
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
+  // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
+  const settingsPrincipals = {
+    ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
+    findById: (required: Parameters<typeof identity.principalRepo.findById>[0]) => identity.principalRepo.findById(required),
+    list: (required: Parameters<typeof identity.principalRepo.list>[0]) => identity.principalRepo.list(required),
+    save: (record: Parameters<typeof identity.principalRepo.save>[0]) => identity.principalRepo.save(record),
+  };
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
   // migrated value being present.
@@ -377,7 +391,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsRepo,
     clock,
     ids: idGen,
-    principals: identity.principalRepo,
+    principals: settingsPrincipals,
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   }).then(() => undefined);
 
@@ -388,7 +402,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // SQLite composition root throws; chaining keeps both composition roots' boot sequence identical.
   const seoReady = settingsReady.then(() =>
     ensureSeoSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -399,7 +413,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // chains after `settingsReady` — see that binding's comment immediately above.
   const commentsSettingsReady = seoReady.then(() =>
     ensureCommentsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -414,7 +428,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         settingsRepo,
         clock,
         ids: idGen,
-        principals: identity.principalRepo,
+        principals: settingsPrincipals,
         resolveDefinitionRaw,
         registerDefinitions,
         scopeBit: SCOPE_BIT,
@@ -431,7 +445,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // header for the namespace-fence reasoning.
   const executionSettingsReady = assistantSettingsReady.then(() =>
     ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo, ensureSettingDefinitions },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -441,7 +455,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // single-SQLite-connection-transaction reason every registration above documents.
   const settingsUiTabsReady = executionSettingsReady.then(() =>
     ensureSettingsUiTabDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -451,7 +465,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // single-SQLite-connection-transaction reason every registration above documents.
   const analyticsSettingsReady = settingsUiTabsReady.then(() =>
     ensureAnalyticsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -461,7 +475,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // no pre-existing workspace (EC-03) and the pin is a no-op. Chained after `analyticsSettingsReady`
   // for the single-SQLite-connection-transaction reason every registration above documents.
   const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
@@ -759,7 +773,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const menuRepo = new TrashAwareInMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the Admin-UI backend-gap deps object below) so the `recent-entries` widget's "Collection list"
@@ -840,7 +854,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
   // reads off `RouteDeps.changeSets`.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
-  const assetBlobRepo = new InMemoryAssetBlobRepo([]);
+  const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: [] });
   // Shared by the render path and publish's media apply, which records what render reads.
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const blobStore = new InMemoryBlobStore();
@@ -898,7 +912,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           entryRefsRepo,
           widgetBindingRepo,
           settingsRepo,
-          principalRepo: identity.principalRepo,
+          principalRepo: settingsPrincipals,
           presentationRepo,
           themes: siteThemes,
         }),
@@ -920,7 +934,18 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
   const inMemoryChatHistory = createInMemoryChatHistory();
-  const routeDeps: NewsletterRouteDeps = {
+  // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
+  const guardedOutboundHttpClient = createGuardedMediaHttpClient({
+      ...createNodeGuardedHttpPorts({}),
+      userAgent: "Tovu/0.1.0",
+      // Preserve Jini's generation budget (10 minutes, 96 MiB); asset requests may choose less.
+      // Redirects are refused; provider-returned URLs get no private-network exception.
+      policy: { allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
+        maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
+        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
+    });
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: seededWorkspace.id,
     trash,
     // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.
@@ -999,6 +1024,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
      * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
      */
     externalMcpOAuth: createExternalMcpOAuthService({
+      httpPorts: externalMcpOAuthHttpPorts,
       workspaceId: seededWorkspace.id,
       repo: externalMcpServerRepo,
       sealer: siteAssistantSecretSealer,
@@ -1048,12 +1074,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // is documented "hermetic, no filesystem" (file header above), and a stray
     // `OTEL_EXPORTER_OTLP_ENDPOINT` left in a developer's shell must never make a test try to reach
     // a real collector. See `routes/types.ts`'s `ObservabilityDeps` doc for the full rule-of-two.
-    observability: createNoopObservabilityPort(),
+    observability: createNoopObservabilityPort({}),
     clock,
     idGen,
     analyticsSink: new LocalBufferSink(),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
+    principalRepo: settingsPrincipals,
     redirectRepo,
     redirectHitSink,
     originRegistry,
@@ -1087,7 +1114,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // disclosed precedent the last several admin-section libraries followed).
     mediaRepo,
     assetBlobRepo,
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
     mediaContentTypeStore,
     blobStore,
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry
@@ -1095,7 +1122,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // deterministic `InMemoryImageTransformer` test double here so hermetic tests never depend on
     // `sharp` being installed — see `src/media/image-transformer.sharp.ts`'s file header for the
     // disclosed blocker on the real adapter, which `server/deps.ts` wires instead.
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     imageTransformer: new InMemoryImageTransformer(),
     // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
     // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `server/deps.ts`'s
@@ -1124,6 +1151,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo,
     formSubmissionRepo,
     removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
+    executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // matching `server/deps.ts`'s real composition's identical construction.
@@ -1309,11 +1337,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) and could no longer share
     // the mailer's zero-redirect `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
     customCredentialsHttpClient: createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY),
+    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
     // 2026-09-06 — `features/media-import`'s `media_import_from_url`. Same reasoning as the line
     // above (a real guarded client, not a fake, so this hermetic composition root's own tests
     // exercise the real SSRF guard), built from `MEDIA_IMPORT_EGRESS_POLICY` instead — see
     // `routes/types.ts`'s `mediaImportHttpClient` doc for why the two policies cannot be shared.
     mediaImportHttpClient: createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY),
+    mediaGenerationHttpClient: guardedOutboundHttpClient,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is
@@ -1410,13 +1440,16 @@ const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
  * @param routeDeps the composed deps whose `bus` receives the handlers.
  * @complexity O(1): a fixed set of subscriptions.
  */
-function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
+function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   if (busesWithSiteEventHandlers.has(routeDeps.bus)) return;
   busesWithSiteEventHandlers.add(routeDeps.bus);
 
-  void routeDeps.bus.subscribe("workspace.created", async (event) => {
-    // Demonstration side effect. Replace with indexers/webhooks/etc.
-    console.log("event handled:", event.name, event.payload);
+  void routeDeps.bus.subscribe({
+    eventName: "workspace.created",
+    handler: async (event) => {
+      // Demonstration side effect. Replace with indexers/webhooks/etc.
+      console.log("event handled:", event.name, event.payload);
+    },
   });
 
   // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
@@ -1425,16 +1458,16 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
   // is itself idempotent). Delivered by the serving process's background outbox drainer
   // (`serving-app.ts`) or by a route's own inline `processOutbox` call.
   const seoEventSubscriptions = createSeoEventSubscriptions();
-  void routeDeps.bus.subscribe("entry.published", (event) => seoEventSubscriptions.onEntryPublished(event as never));
-  void routeDeps.bus.subscribe("entry.updated", (event) => seoEventSubscriptions.onEntryUpdated(event as never));
-  void routeDeps.bus.subscribe("entry.unpublished", (event) => seoEventSubscriptions.onEntryUnpublished(event as never));
+  void routeDeps.bus.subscribe({ eventName: "entry.published", handler: seoEventSubscriptions.onEntryPublished });
+  void routeDeps.bus.subscribe({ eventName: "entry.updated", handler: seoEventSubscriptions.onEntryUpdated });
+  void routeDeps.bus.subscribe({ eventName: "entry.unpublished", handler: seoEventSubscriptions.onEntryUnpublished });
 
-  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
+  const newsletterAdminDeps = routeDeps;
   // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
   // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
-  // `processOutbox` for this campaign). Mirrors the demonstration `bus.subscribe("workspace.created",
-  // ...)` above. In practice this handler is never reached in either composition root today:
+  // `processOutbox` for this campaign). Mirrors the demonstration subscription to `workspace.created`
+  // above. In practice this handler is never reached in either composition root today:
   // `authorizeSend`'s Launch Gate check always rejects before `freezeAudience` ever enqueues a batch,
   // because precondition (a) `isSendingEnabled` always resolves `false` (`routes/newsletter/deps.ts`'s
   // `toSendPipelineDeps`) and (b) both composition roots bind `membersConsentCapability: null`
@@ -1442,8 +1475,11 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
   // (d) is no longer the blocker — hosted-API (plugin) and SMTP adapters resolve (`boot/resolve-mailer.ts`),
   // corrected 2026-09-16. Wired now anyway so the pipeline is genuinely complete end to end the
   // moment (a) and (b) are met, not silently half-wired.
-  void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {
-    await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
+  void routeDeps.bus.subscribe<SendBatchJob>({
+    eventName: SEND_BATCH_CLAIMED_EVENT,
+    handler: async (event) => {
+      await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
+    },
   });
 
   /**
@@ -1472,7 +1508,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
   );
 }
 
-export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
+export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps()) {
   // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
   // runs more than once per process: every test that calls it directly, and every
   // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this

@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 
 import type { EntityReverter, RevertRegistry } from "../../contracts/core/commands/index.js";
 

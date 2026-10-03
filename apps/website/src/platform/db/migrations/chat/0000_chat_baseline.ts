@@ -7,12 +7,13 @@ import type { MigrationStep } from "../step.js";
  * @file Chat step `0000_chat_baseline` (R1 plan R1f, ADR-067): the AI chat tables
  * (`chat-kernel.ts`'s `ChatDatabase`) on Postgres/PGlite, in their own schema `ai_chat` — never
  * `public`, where the content tables live, and never `chat` (that name is kept for human-to-human
- * chat). `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus `sqlite/chat-db.ts`'s two Tovu tables in
+ * chat). `@jini-ai/sqlite-chat`'s `CHAT_HISTORY_DDL` plus `sqlite/chat-db.ts`'s two Tovu tables in
  * Postgres spelling; the time columns are `BIGINT` because epoch milliseconds overflow `INTEGER`
- * (read back as numbers through `kernel/drivers/pg-types.ts`).
+ * (read back as numbers through `@jini-ai/db/core`).
  *
  * SQLite: nothing. `chat.db` is its own file; its tables are chat step `0001_sqlite_chat_tables`.
  * Names are written out, not built from `AI_CHAT_SCHEMA`: the pinned checksum hashes this file.
+ * pg-types.ts (platform/db/kernel/drivers/pg-types.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 export const CHAT_BASELINE_ID = "0000_chat_baseline";

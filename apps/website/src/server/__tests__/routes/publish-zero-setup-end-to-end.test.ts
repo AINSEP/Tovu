@@ -176,7 +176,7 @@ async function scenario(sourceWorkspaceId = "workspace-local") {
   };
 
   const peerRepo = memoryPeerRepo();
-  const clock = { nowIso: () => new Date().toISOString() };
+  const clock = { nowMs: () => Date.now() };
   const idGen = { newId: () => randomUUID() };
 
   return {
@@ -232,7 +232,7 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
     { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_ROOT_KEY), httpClient: s.httpClient },
     { workspaceId: s.sourceDeps.workspaceId, id: site.id }
   );
-  const workspace = await s.sourceDeps.workspaceRepo.findById(s.sourceDeps.workspaceId);
+  const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
   const bundle = await buildExportBundle({
     workspaceId: s.sourceDeps.workspaceId,
     principalId: "test-operator",
@@ -326,7 +326,7 @@ test("a fresh install connects and then publishes, with no key displayed or copi
       updatedAt: now,
     });
 
-    const workspace = await s.sourceDeps.workspaceRepo.findById(s.sourceDeps.workspaceId);
+    const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
     const bundle = await buildExportBundle({
       workspaceId: s.sourceDeps.workspaceId,
       principalId: "test-operator",

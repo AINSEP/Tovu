@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file The ONE place `custom_credential_sets`' AES-GCM additional authenticated data (AAD) string

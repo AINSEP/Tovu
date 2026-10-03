@@ -6,7 +6,7 @@ import { type PostSearchDialect, type PostSearchRow, type SearchProjectionTables
 
 /**
  * @file The durable FTS5 + BM25 adapter behind `PostSearchPort` — Tovu's posts equivalent of
- * `@jini-ai/sqlite`'s `tool_catalog` helpers, and deliberately NOT a reuse of them.
+ * `@jini-ai/sqlite-chat`'s `tool_catalog` helpers, and deliberately NOT a reuse of them.
  *
  * Why not reuse. `ensureToolCatalogTables`/`reseedToolCatalog`/`searchToolCatalog` are a genuinely
  * good fit for what they index and a genuinely bad one for this. Their table is keyed by tool id

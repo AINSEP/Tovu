@@ -114,7 +114,7 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     seedDb.$client.close();
 
     const deps = await createSiteRouteDepsForWorkspace("ws-shared-handle", dbPath);
-    const found = await deps.workspaceRepo.findById("ws-shared-handle");
+    const found = await deps.workspaceRepo.findById({ id: "ws-shared-handle" });
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");
     await settle(deps);

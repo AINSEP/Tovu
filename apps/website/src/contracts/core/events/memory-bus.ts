@@ -37,7 +37,7 @@ export class InMemoryEventBus implements EventBusPort {
   }
 
   /** Publish events in order. */
-  async publishBatch<TPayload>(events: Array<DomainEvent<TPayload>>): Promise<void> {
+  async publishBatch<TPayload>({ events }: { events: Array<DomainEvent<TPayload>> }): Promise<void> {
     for (const event of events) {
       await this.publish(event);
     }
@@ -45,8 +45,7 @@ export class InMemoryEventBus implements EventBusPort {
 
   /** Register a handler and return an async unsubscriber. */
   async subscribe<TPayload>(
-    eventName: string,
-    handler: (event: DomainEvent<TPayload>) => Promise<void>
+    { eventName, handler }: { eventName: string; handler: (event: DomainEvent<TPayload>) => Promise<void> }
   ): Promise<() => Promise<void>> {
     const list = this.handlers.get(eventName) ?? [];
     list.push(handler as (event: DomainEvent) => Promise<void>);
@@ -62,7 +61,7 @@ export class InMemoryEventBus implements EventBusPort {
   }
 
   /** Register a handler for every event; returns an async unsubscriber (C-009). */
-  async subscribeAll(handler: (event: DomainEvent) => Promise<void>): Promise<() => Promise<void>> {
+  async subscribeAll({ handler }: { handler: (event: DomainEvent) => Promise<void> }): Promise<() => Promise<void>> {
     this.allHandlers.push(handler);
 
     return async () => {
@@ -113,7 +112,7 @@ export class InMemoryOutbox implements OutboxPort {
    *
    * @complexity O(stored rows) per claim.
    */
-  async claimPending(batchSize: number, nowIso: string): Promise<OutboxRecord[]> {
+  async claimPending({ batchSize, nowIso }: { batchSize: number; nowIso: string }): Promise<OutboxRecord[]> {
     const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
     const due = this.records.filter((row) => isClaimable(row, nowIso)).slice(0, batchSize);
 
@@ -127,7 +126,7 @@ export class InMemoryOutbox implements OutboxPort {
   }
 
   /** Mark a claimed row as delivered. */
-  async markDelivered(id: string): Promise<void> {
+  async markDelivered({ id }: { id: string }): Promise<void> {
     const row = this.records.find((r) => r.id === id);
     if (row) row.status = "delivered";
   }
@@ -138,10 +137,12 @@ export class InMemoryOutbox implements OutboxPort {
    * not here — see `outbox-worker.ts`'s header doc). This method no longer reads `attempts` at all.
    */
   async markFailed(
-    id: string,
-    error: string,
-    nextAttemptAt: string,
-    nextStatus: Extract<OutboxRecord["status"], "pending" | "failed">
+    { id, error, nextAttemptAt, nextStatus }: {
+      id: string;
+      error: string;
+      nextAttemptAt: string;
+      nextStatus: Extract<OutboxRecord["status"], "pending" | "failed">;
+    }
   ): Promise<void> {
     const row = this.records.find((r) => r.id === id);
     if (!row) return;

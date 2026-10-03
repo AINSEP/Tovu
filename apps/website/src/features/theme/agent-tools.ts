@@ -325,6 +325,48 @@ const RESTORE_TRASHED_FILE_SCHEMA = {
 export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
+      name: "marketplace_list_themes",
+      description:
+        "Browses the local marketplace of bundled themes available to install. Call to find a new design; use content_read.theme to inspect installed themes. Optionally filter by name, description or tags (case-insensitive). Returns { themes: [{ id, name, description, tier, tags?, installed, installedAs? }] }; no matches returns an empty array. Requires theme.set. This is a local catalog, with no network download.",
+      sideEffects: "none",
+      authorization: { permission: THEME_READ_PERMISSION },
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: [],
+        properties: {
+          query: { type: "string", description: "Case-insensitive substring in name, description or tags." },
+        },
+      },
+    },
+    {
+      name: "theme_install_from_marketplace",
+      description:
+        "Installs (copies) a marketplace theme into this site; it does not switch the live site to it — use theme_set_active for that, after the owner agrees. Browse marketplace_list_themes first to get marketplaceId. Returns { themeId, suffixed, tier, status: { status, errors } } after rescanning. Installing twice creates a suffixed copy (suffixed: true), never overwrites the existing one. Requires theme.set; unknown ids, malformed ids and invalid packages are refused. Copies bundled local files without network access.",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: THEME_READ_PERMISSION },
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["marketplaceId"],
+        properties: {
+          marketplaceId: {
+            type: "string",
+            minLength: 1,
+            description: "Marketplace id returned by marketplace_list_themes.",
+          },
+        },
+      },
+    },
+    {
+      name: "theme_rescan",
+      description:
+        "Rescans theme folders and refreshes the site's theme registry. Call after a NEW theme folder was created or removed after boot, or when a theme is not showing. Returns { added, removed, invalid: [{ themeId, errors }] }. Invalid themes remain discoverable with their errors. Requires theme.set. Does not install a marketplace theme or change the active selection.",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: THEME_READ_PERMISSION },
+      inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    },
+    {
       name: "theme_list",
       description:
         "Lists every discovered theme with its id, name, tier, validation status, and validation errors. Read-only. Start here: a theme's id is the handle every other tool in this domain takes, and the errors array is how you find out what is currently wrong with a theme.",
@@ -354,7 +396,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_write_file",
       description:
-        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents.",
+        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents. If you created a NEW theme folder, call theme_rescan so the site picks it up.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: WRITE_FILE_SCHEMA,

@@ -76,7 +76,7 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) =
         input: {
           pluginId,
           workspaceId: deps.workspaceId,
-          at: deps.clock.nowIso(),
+          at: new Date(deps.clock.nowMs()).toISOString(),
           actor: { principalId: principal.id },
         },
       });

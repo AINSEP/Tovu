@@ -34,7 +34,7 @@ import {
  * `tool-registrations.ts`'s own header for the full design (and why this supersedes the earlier
  * one-tool-per-skill pilot); this file proves:
  *
- * 1. `registry.list()` carries one collision-free id per installed plugin, each with a non-empty
+ * 1. `registry.list({})` carries one collision-free id per installed plugin, each with a non-empty
  *    description naming every one of that plugin's skills.
  * 2. the optional `skill` argument selects a specific skill's guidance; omitted or unrecognized
  *    falls back to the plugin's default (eponymous, or a documented fallback) skill, gracefully —
@@ -177,13 +177,13 @@ test("each installed plugin produces exactly one stable, collision-free tool id 
     assert.equal(source.id, "agent_plugin_ui_ux_design");
     assert.equal(source.skills.length, 3);
 
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     for (const registration of buildAgentPluginToolRegistrations(sources, gate())) registry.register(registration);
 
-    const ids = registry.list().map((d) => d.id);
+    const ids = registry.list({}).map((d) => d.id);
     assert.deepEqual(ids, ["agent_plugin_ui_ux_design"]);
 
-    const [descriptor] = registry.list();
+    const [descriptor] = registry.list({});
     assert.ok(descriptor);
     assert.ok(descriptor.description && descriptor.description.length > 0);
     // The combined description must carry every skill's own vocabulary — the load-bearing BM25
@@ -199,11 +199,11 @@ test("registerInstalledAgentPluginTools loads and registers one tool per plugin 
   await withAgentPluginsDir(async () => {
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-direct");
 
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
 
-    assert.equal(registry.has("agent_plugin_coffee_roastery"), true);
-    assert.equal(registry.list().length, 1);
+    assert.equal(registry.has({ toolId: "agent_plugin_coffee_roastery" }), true);
+    assert.equal(registry.list({}).length, 1);
   });
 });
 
@@ -451,7 +451,7 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
   test(`the executor denies cached guidance after ${revocation}`, async () => {
     await withAgentPluginsDir(async () => {
       await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, `archive-policy-${revocation}`);
-      const registry = createToolRegistry();
+      const registry = createToolRegistry({});
       await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
       const executor = createToolExecutor({ registry });
       const invoke = () => executor.execute({ id: "principal-1" }, { id: "run-1" }, "agent_plugin_coffee_roastery", {});
@@ -474,7 +474,7 @@ test("the registered connect handler resolves a real installed plugin and recogn
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
-    const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z") };
     const plugin = await defaultResolveInstalledAgentPlugin(WORKSPACE_A, "supabase");
     assert.ok(plugin);
     await provisionAgentPluginMcpServers({ repo, keyring, sealer, clock }, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });

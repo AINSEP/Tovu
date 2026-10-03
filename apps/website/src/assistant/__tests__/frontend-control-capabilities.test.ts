@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { isReadOnlyTool } from "@jini-ai/core";
-import { createFrontendControl } from "@jini-ai/http-kit";
+import { createFrontendControl } from "@jini-ai/daemon/http";
 
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "../frontend-control-capabilities.js";
 
@@ -164,7 +164,7 @@ test("only page.find_elements, admin.capture_screenshot and chat.get_state are r
     resolveBindToken: () => undefined,
   });
   const readOnlyIds = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations)
-    .filter((registration) => isReadOnlyTool(registration.descriptor))
+    .filter((registration) => isReadOnlyTool({ descriptor: registration.descriptor }))
     .map((registration) => registration.descriptor.id)
     .sort();
   assert.deepEqual(readOnlyIds, ["admin.capture_screenshot", "chat.get_state", "page.find_elements"]);

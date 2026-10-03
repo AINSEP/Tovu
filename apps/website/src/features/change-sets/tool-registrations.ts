@@ -1,19 +1,8 @@
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalNumber,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type AuthorizeFn,
-  type ChangeSetRecord,
-  type DerivedRiskByToolId,
-  type OutboxPort,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission, type AuthorizeFn, type ChangeSetRecord, type OutboxPort } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -73,12 +62,12 @@ export interface ChangeSetToolDeps {
   /** The SAME registry `change-sets/revert.ts`'s HTTP route reverts through — one shared instance,
    *  so an agent revert and a human revert can never disagree on what a change set's inverse is. */
   revertRegistry: RevertRegistry;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
   outbox: OutboxPort;
 }
 
-const CATALOG_BY_ID = indexCatalogById(getChangeSetsAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById({ catalog: getChangeSetsAgentToolCatalog() });
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -118,14 +107,10 @@ function toChangeSetToolView(changeSet: ChangeSetRecord) {
 export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     change_sets_list: async (ctx) => {
-      const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: CHANGE_SET_READ_PERMISSION,
-        entityType: "change_set",
-      });
+      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_READ_PERMISSION }, { entityType: "change_set" });
 
-      const requested = optionalNumber(input, "limit") ?? CHANGE_SETS_DEFAULT_LIST_LIMIT;
+      const requested = optionalNumber({ input: input, key: "limit" }) ?? CHANGE_SETS_DEFAULT_LIST_LIMIT;
       const limit = Math.min(Math.max(requested, 1), CHANGE_SETS_MAX_LIST_LIMIT);
 
       const all = await routeDeps.changeSets.listByWorkspace({ workspaceId: routeDeps.workspaceId });
@@ -138,14 +123,9 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
     },
 
     change_sets_revert: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const changeSetId = requireString(input, "changeSetId");
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: CHANGE_SET_REVERT_PERMISSION,
-        entityType: "change_set",
-        entityId: changeSetId,
-      });
+      const input = requireInputRecord({ input: ctx.input });
+      const changeSetId = requireString({ input: input, key: "changeSetId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_REVERT_PERMISSION }, { entityType: "change_set", entityId: changeSetId });
 
       try {
         const reverted = await revertChangeSet({
@@ -181,7 +161,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
           err instanceof ChangeSetInvalidStatusError ||
           err instanceof RevertNotPossibleError
         ) {
-          throw new ToolInputError(err.message);
+          throw new ToolInputError({ message: err.message });
         }
         throw err;
       }

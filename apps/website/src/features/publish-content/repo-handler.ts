@@ -1,5 +1,5 @@
 import { executeCommand } from "@jini-ai/cms/core";
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
@@ -302,7 +302,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
             return prior ? ({ ...prior } as unknown as JsonObject) : null;
           },
           execute: () => write(prior),
-          captureEntityVersion: (written) => written.version ?? null,
+          captureEntityVersion: ({ result: written }) => written.version ?? null,
           rollback: async () => {
             for (const sideEffect of rollbacks.reverse()) await sideEffect();
             await (prior ? undo.restore(ctx(prior), prior) : undo.remove(ctx(null)));

@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-} from "@jini-ai/cms/identity";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo } from "@jini-ai/user-management/server";
 
 import {
   applyBuiltinRoleGrants,
@@ -79,10 +74,10 @@ async function seedRoleWithPolicy(
 
 function newFixture(): Fixture {
   return {
-    roles: new InMemoryRoleRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
+    roles: new InMemoryRoleRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
   };
 }
 

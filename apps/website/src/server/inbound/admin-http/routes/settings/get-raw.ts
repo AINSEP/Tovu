@@ -1,13 +1,6 @@
-import type { JsonValue } from "@jini-ai/cms/core";
-import { resolveDefinition, type SettingValueRecord } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared.js";
-
-/** `state==="set"` yields the stored value; a `cleared` row (or an absent layer) reads as `null`. */
-function layerValueOf(record: SettingValueRecord | null): JsonValue | null {
-  return record && record.state === "set" ? record.valueJson : null;
-}
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService } from "./shared.js";
 
 /** This route's two required query params, or `null` if either is missing.
  *  @complexity O(1). */
@@ -21,6 +14,9 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
 }
 
 /**
+ * Layer resolution and rationale: Jini packages/cms/src/http/settings/cms-adapter.ts.
+ * `state === "set"` yields stored data; cleared or absent layers read as null.
+ *
  * GET the per-layer raw values of one setting key (SPEC-007 api.spec.md
  * `SETTINGS_GET_RAW`, spec.md line ~20).
  *
@@ -97,30 +93,15 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, de
       }
       const principalId = readTarget.principalId;
 
-      const definition = await resolveDefinition({ repo: deps.settingsRepo }, { namespace, key, workspaceId });
-      if (!definition) {
+      const value = await createTovuSettingsService({ deps }).raw({ namespace, key, workspaceId, principalId });
+      if (!value) {
         res.status(404).json({
           error: `definition '${namespace}.${key}' was not found`,
           code: "DEFINITION_NOT_FOUND",
         });
         return;
       }
-
-      const [globalValue, workspaceValue, userValue] = await Promise.all([
-        deps.settingsRepo.getGlobalValue(definition.settingId),
-        deps.settingsRepo.getWorkspaceValue({ workspaceId, settingId: definition.settingId }),
-        principalId
-          ? deps.settingsRepo.getUserValue({ workspaceId, principalId, settingId: definition.settingId })
-          : Promise.resolve(null),
-      ]);
-
-      res.json({
-        key: `${namespace}.${key}`,
-        global: layerValueOf(globalValue),
-        workspace: layerValueOf(workspaceValue),
-        user: layerValueOf(userValue),
-        default: definition.defaultValue,
-      });
+      res.json(value);
     } catch (err) {
       void err;
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

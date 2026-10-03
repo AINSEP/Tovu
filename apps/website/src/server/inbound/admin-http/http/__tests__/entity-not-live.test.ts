@@ -11,7 +11,7 @@ import { entityNotLiveResponse } from "../entity-not-live.js";
  */
 
 test("entityNotLiveResponse: an EntityNotLiveError maps to 409 with its code and message", () => {
-  const err = new EntityNotLiveError("redirect", "r1", "trashed");
+  const err = new EntityNotLiveError({ entityType: "redirect", entityId: "r1", state: "trashed" });
 
   assert.deepEqual(entityNotLiveResponse(err), {
     status: 409,

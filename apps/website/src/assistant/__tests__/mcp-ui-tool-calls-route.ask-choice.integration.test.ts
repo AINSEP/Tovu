@@ -38,7 +38,7 @@ const PRINCIPAL = "principal-admin-1";
 /** Builds the real tool surface: one registry, one production-shaped executor (no `delegate`, no
  *  mocks) over the real `assistant_ask_choice` handler. */
 function buildRealAskChoiceToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildAskChoiceRegistrations(undefined, { surfaceExchanges })) {
     registry.register(registration);
   }
@@ -62,11 +62,7 @@ async function openRealDialog(
   toolExecutor: ReturnType<typeof buildRealAskChoiceToolExecutor>,
 ): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute(
-    { id: PRINCIPAL },
-    { id: "run-1" },
-    ASK_CHOICE_TOOL_ID,
-    {
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: ASK_CHOICE_TOOL_ID, input: {
       title: "Deploy the hotfix now?",
       singleSelect: {
         label: "What should I do?",
@@ -75,12 +71,9 @@ async function openRealDialog(
           { value: "wait", label: "Wait for review" },
         ],
       },
-    },
-    undefined,
-    async (emission: SurfaceEmission) => {
+    } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
-    },
-  );
+    } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
   return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };

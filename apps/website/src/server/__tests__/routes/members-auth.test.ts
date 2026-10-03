@@ -366,7 +366,6 @@ test("mismatched :workspaceId 404s before authorize() runs (list route), matchin
   assert.equal(res.status, 404);
 });
 
-
 test("owner disable persists the disabled member and revokes an existing session", async (t) => {
   const { app, deps } = buildTestApp();
   const member = await seedMember(deps);
@@ -391,4 +390,27 @@ test("owner disable persists the disabled member and revokes an existing session
   const revoked = await deps.memberSessionRepo.findByTokenHash({ workspaceId: deps.workspaceId, tokenHash: session.tokenHash });
   assert.ok(revoked?.revokedAt, "the previously live session must be revoked");
   assert.deepEqual(await res.json(), { member: persisted });
+});
+
+test("blank admin magic-link emails remain validation errors after authorization without consuming budget", async (t) => {
+  const { app, deps, membersDeps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members/request-magic-link`;
+  for (const email of ["", "   "]) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { cookie: ownerCookie, "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: `'${email}' is not a valid email address` });
+  }
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const denied = await fetch(url, {
+    method: "POST",
+    headers: { cookie: bareCookie, "content-type": "application/json" },
+    body: JSON.stringify({ email: "   " }),
+  });
+  assert.equal(denied.status, 403, "authorization must still run before email validation or limiting");
+  assert.equal(await membersDeps.magicLinkPerEmailLimiter.size!({}), 0);
 });

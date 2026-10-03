@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { CHAT_HISTORY_DDL } from "@jini-ai/sqlite";
+import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
 import {
   GUEST_CHAT_TTL_MS,
@@ -53,7 +53,7 @@ describe("createTenantScopedChatStore", () => {
     const row = db.prepare("SELECT scope_id, owner_kind, owner_id FROM ai_chats WHERE id = ?").get("c1") as
       | { scope_id: string; owner_kind: string; owner_id: string }
       | undefined;
-    assert.ok(row, "the store must have written the row through the real @jini-ai/sqlite adapter");
+    assert.ok(row, "the store must have written the row through the real @jini-ai/chat/store/sqlite adapter");
     assert.equal(row.scope_id, "ws-1");
     assert.equal(row.owner_kind, "user");
     assert.equal(row.owner_id, "admin-42");

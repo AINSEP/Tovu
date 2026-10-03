@@ -773,7 +773,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
   const deps: MenuRouteDeps = {
     ...createRouteDeps(),
     menuRepo: throwingMenuRepo,
-    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
   registerAdminMenuUpdateTreeRoute(app, deps);
@@ -839,7 +839,7 @@ test("update-tree: the catch-all 500 branch logs the unmapped error server-side 
   const deps: MenuRouteDeps = {
     ...createRouteDeps(),
     menuRepo: throwingMenuRepo,
-    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
   registerAdminMenuUpdateTreeRoute(app, deps);

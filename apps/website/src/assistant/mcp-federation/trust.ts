@@ -94,7 +94,7 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  * R7. UNTRUSTED-DATA BOUNDARY ON EVERY RESULT, byte-capped. Mirrors Supabase's own envelope, with
  *     a per-result `randomUUID()` delimiter so remote output cannot forge the closing tag and
  *     escape its own boundary. Image content blocks are the one exception to "everything goes
- *     through this boundary": {@link extractFederatedImageBlocks} pulls them out first and hands
+ *     through this boundary": the shared Jini media extractor pulls them out first and hands
  *     them to the daemon's typed media channel instead, because the boundary exists to defend
  *     against textual prompt injection and stringifying binary image bytes into it only bloats and
  *     then truncates them into a corrupt image. See that function's doc for the full argument and
@@ -111,6 +111,7 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *
  * Architectural role:
  * Pure functions. No I/O, no protocol, no registry. Every rule above is a unit test.
+ * extractFederatedImageBlocks (assistant/mcp-federation/trust.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** R1's namespace. Double underscore, and native ids never contain one — every wired native id
@@ -464,42 +465,11 @@ export function writeShapedSchemaInputNames(schema: unknown): string[] {
  * This decision never grants admission, permissions or descriptor readOnly.
  * @complexity O(n) in the serialized input size.
  */
-export function federatedCallConfirmationForAction(
-  remoteName: string,
-  annotations: RemoteToolDescriptorAnnotations,
-  args: Readonly<Record<string, unknown>>,
-): FederatedCallConfirmation {
-  const name = remoteName.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
-  if (/(?:send|deliver|invite|reply|forward).*(?:email|mail|newsletter|message|sms|invitation)|(?:email|mail|newsletter|message|sms).*(?:send|deliver|reply|forward)|(?:post|publish).*(?:message|newsletter)/.test(name)) return "confirm";
-  if (/(?:set|update|edit|change).*(?:system_prompt|system_instruction)/.test(name)) return "confirm";
-  const actionName = name.replace(/^(?:assistant|agent)_/, "");
-  if (/^(?:get|list|read|search|describe)_/.test(actionName) && annotations?.destructiveHint !== true) return "none";
-  if (/(?:assistant|agent).*(?:instruction|privacy|permission|access|policy)/.test(name)) return "confirm";
-  if (/(?:execute_sql|apply_migration|run_query|query_database)/.test(name)) {
-    return sqlCallDeletesData(args, annotations) ? "confirm-destructive" : "none";
-  }
-  if (/(?:^|_)(?:trash|archive|tombstone|unpublish)(?:_|$)/.test(name)) return "none";
-  if (/(?:^|_)(?:delete|purge|drop|destroy|truncate)(?:_|$)/.test(name)) return "confirm-destructive";
-  return annotations?.destructiveHint === true ? "confirm-destructive" : "none";
-}
+// federatedCallConfirmationForAction (apps/website/src/assistant/mcp-federation/trust.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Scan SQL values, including nested batches. Dynamic EXECUTE remains gated because its effect is opaque.
  * @complexity O(n) in total input characters; O(n) for the collected text. */
-function sqlCallDeletesData(args: Readonly<Record<string, unknown>>, annotations: RemoteToolDescriptorAnnotations): boolean {
-  const pending: unknown[] = [args];
-  const statements: string[] = [];
-  while (pending.length > 0) {
-    const value = pending.pop();
-    if (typeof value === "string") statements.push(value);
-    else if (Array.isArray(value)) pending.push(...value);
-    else if (value !== null && typeof value === "object") pending.push(...Object.values(value));
-  }
-  if (statements.length === 0) return annotations?.destructiveHint === true;
-  return statements.some(statement => {
-    const code = statement.replace(/'(?:(?:'')|[^'])*'|\/\*[\s\S]*?\*\/|--[^\r\n]*/g, " ");
-    return /\b(?:drop|truncate|delete)\b/i.test(code) || /\bexecute\b/i.test(code);
-  });
-}
+// sqlCallDeletesData (apps/website/src/assistant/mcp-federation/trust.ts) was deleted 2026-10-03: its only caller was a removed unused export; see development/DELETED-CODE.md.
 
 /**
  * R2, reapplied to an ALREADY-ADMITTED tool against the operator's CURRENT allowlist — the
@@ -834,51 +804,13 @@ export interface FederatedImageBlock {
  * @complexity O(n) in the content length, plus O(m) in each image block's base64 length.
  * @overallScore 100
  */
-export function extractFederatedImageBlocks(params: { content: unknown; maxResultBytes: number }): {
-  readonly images: readonly FederatedImageBlock[];
-  readonly remainder: unknown;
-} {
-  const { content, maxResultBytes } = params;
-  if (!Array.isArray(content)) return { images: [], remainder: content };
-
-  const images: FederatedImageBlock[] = [];
-  const kept: unknown[] = [];
-  const oversizedMimeTypes: string[] = [];
-
-  for (const entry of content) {
-    const image = asFederatedImageBlock(entry);
-    if (!image) {
-      kept.push(entry);
-      continue;
-    }
-    if (image.data.length > maxResultBytes) {
-      oversizedMimeTypes.push(image.mimeType);
-      continue;
-    }
-    images.push(image);
-  }
-
-  if (oversizedMimeTypes.length > 0) {
-    kept.push({
-      type: "text",
-      text: `NOTE: ${oversizedMimeTypes.length} image block(s) exceeded the ${maxResultBytes}-byte limit and were omitted rather than truncated (${oversizedMimeTypes.join(", ")}).`,
-    });
-  }
-
-  return { images, remainder: kept };
-}
+// extractFederatedImageBlocks (apps/website/src/assistant/mcp-federation/trust.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Narrows one loosely-typed content-array entry to a well-formed {@link FederatedImageBlock}, or
  *  `null` for anything else (wrong `type`, or a `type: 'image'` block missing/mistyping
  *  `mimeType`/`data`) — the same fail-quiet posture `tool-result-media.ts`'s own `asImageBlock`
  *  takes on a handler's untrusted return value. */
-function asFederatedImageBlock(value: unknown): FederatedImageBlock | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const record = value as Record<string, unknown>;
-  if (record["type"] !== "image") return null;
-  if (typeof record["mimeType"] !== "string" || typeof record["data"] !== "string") return null;
-  return { type: "image", mimeType: record["mimeType"], data: record["data"] };
-}
+// asFederatedImageBlock (apps/website/src/assistant/mcp-federation/trust.ts) was deleted 2026-10-03: its only caller was a removed unused export; see development/DELETED-CODE.md.
 
 /** `JSON.stringify` that cannot throw the whole tool call away on a circular or unserializable
  * remote payload — a remote choosing to send one must not be able to turn it into an exception

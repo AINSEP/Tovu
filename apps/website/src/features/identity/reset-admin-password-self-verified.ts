@@ -1,5 +1,6 @@
-import { resetUserPassword, IdentityNotFoundError, type AuthServiceDeps } from "@jini-ai/cms/identity";
-import type { UUID } from "@jini-ai/cms/core";
+import { resetUserPassword, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { IdentityNotFoundError } from "@jini-ai/user-management";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 
@@ -102,7 +103,7 @@ export async function resetAdminPasswordSelfVerified(
 
   const target = await auth.repos.users.findByUsername({ workspaceId: input.workspaceId, username: input.username });
   if (!target) {
-    throw new IdentityNotFoundError(`user '${input.username}' was not found in workspace '${input.workspaceId}'`);
+    throw new IdentityNotFoundError({ message: `user '${input.username}' was not found in workspace '${input.workspaceId}'` });
   }
 
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: input.restorePointScopeId });
@@ -124,7 +125,7 @@ export async function resetAdminPasswordSelfVerified(
   // THE self-verification step this module exists for (see file header) — never trust the write
   // succeeded just because resetUserPassword() did not throw.
   const fresh = await auth.repos.users.findByPrincipalId({ workspaceId: input.workspaceId, principalId: target.principalId });
-  const verified = fresh !== null && (await auth.hasher.verify(fresh.passwordHash, input.password));
+  const verified = fresh !== null && (await auth.hasher.verify({ hash: fresh.passwordHash, password: input.password }));
 
   if (!verified) {
     log(`SELF-VERIFICATION FAILED for username='${input.username}' — restoring content.db from the restore point captured before this write.`);

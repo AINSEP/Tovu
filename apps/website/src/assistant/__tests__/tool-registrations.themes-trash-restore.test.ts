@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,12 +13,17 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExch
 import type { UIResource } from "../index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
 
-resetToolContributorsForTests();
-registerToolContributor(contributeThemesTools());
+import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
+
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeThemesTools() });
 
 /**
  * @file `theme_trash_file` / `theme_restore_trashed_file` — the owner-approved soft-delete pair
@@ -74,7 +81,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === toolId);
+  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -89,7 +96,7 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  * confirm round trip lands on the same exchange.
  */
 async function trashFile(deps: RouteDeps, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): Promise<unknown> {
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "theme_trash_file");
+  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "theme_trash_file");
   assert.ok(trashTool, "expected 'theme_trash_file' to be wired");
   return trashTool.handler(executionContext(input));
 }

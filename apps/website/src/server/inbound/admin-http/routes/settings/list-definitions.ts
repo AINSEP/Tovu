@@ -1,5 +1,6 @@
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
+import { createTovuSettingsService } from "./shared.js";
 
 /**
  * GET active setting definitions, grouped by namespace (SPEC-007 api.spec.md
@@ -46,12 +47,8 @@ export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar =
         return;
       }
 
-      const [platformDefs, siteDefs] = await Promise.all([
-        deps.settingsRepo.listActiveDefinitions({ workspaceId: null }),
-        deps.settingsRepo.listActiveDefinitions({ workspaceId: deps.workspaceId }),
-      ]);
-
-      const data = [...platformDefs, ...siteDefs]
+      const definitions = await createTovuSettingsService({ deps }).listDefinitions({ workspaceId: deps.workspaceId });
+      const data = definitions
         .map((def) => ({
           namespace: def.namespace,
           key: def.key,

@@ -59,14 +59,14 @@ test("resolveMediaPublicUrls: with no mediaContentTypeStore/transformDefinitionR
 
 test("resolveMediaPublicUrls: an empty assets array resolves to an empty map, deps present or not", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, []);
   assert.equal(result.size, 0);
 });
 
 test("resolveMediaPublicUrls: a trashed asset resolves to null without consulting content type or transforms", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const trashed = fakeAsset({ status: "trashed" });
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "image/png" });
@@ -78,7 +78,7 @@ test("resolveMediaPublicUrls: a trashed asset resolves to null without consultin
 
 test("resolveMediaPublicUrls: a batch that is ENTIRELY trashed short-circuits to all-null without ever calling getLatestTransformDefinition", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const trashedA = fakeAsset({ status: "trashed" });
   const trashedB = fakeAsset({ status: "trashed" });
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
@@ -97,7 +97,7 @@ test("resolveMediaPublicUrls: a batch that is ENTIRELY trashed short-circuits to
 
 test("resolveMediaPublicUrls: an active asset with no 'public' transform registered yet resolves to null (boot has not run ensureCoreMediaTransform)", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const asset = fakeAsset();
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
   assert.equal(result.get(asset.id), null);
@@ -105,7 +105,7 @@ test("resolveMediaPublicUrls: an active asset with no 'public' transform registe
 
 test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /original URL rather than a registered image transform", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
@@ -116,7 +116,7 @@ test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /
 
 test("resolveMediaPublicUrls: a non-video asset with a registered 'public' transform resolves the real /m/ image URL, ext mapped from the transform's format", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset();
 
@@ -126,7 +126,7 @@ test("resolveMediaPublicUrls: a non-video asset with a registered 'public' trans
 
 test("resolveMediaPublicUrls: the latest public revision supplies both URL version and format", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const deps = transformRegistryDeps(transformDefinitionRepo);
   await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" } });
   await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "png" }, owner: "core" } });
@@ -137,7 +137,7 @@ test("resolveMediaPublicUrls: the latest public revision supplies both URL versi
 
 test("resolveMediaPublicUrls: a non-video asset whose sha256 has no recorded content type at all falls through to the ordinary image path unchanged", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await registerCoreTransform(transformDefinitionRepo, { format: "png" });
   const asset = fakeAsset();
   // Deliberately never call mediaContentTypeStore.set() for this asset's sha256.
@@ -148,7 +148,7 @@ test("resolveMediaPublicUrls: a non-video asset whose sha256 has no recorded con
 
 test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets each resolve independently in one call", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await registerCoreTransform(transformDefinitionRepo, { format: "jpeg" });
 
   const trashed = fakeAsset({ status: "trashed" });
@@ -168,7 +168,7 @@ test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets e
 
 test("resolveMediaPublicUrls: an asset with a valid slug resolves a URL keyed by the SLUG, not the id (readable-slugs S4)", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset({ slug: "cover-photo" });
 
@@ -178,7 +178,7 @@ test("resolveMediaPublicUrls: an asset with a valid slug resolves a URL keyed by
 
 test("resolveMediaPublicUrls: a video asset with a valid slug resolves the /original URL keyed by the SLUG, not the id (readable-slugs S4)", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const asset = fakeAsset({ slug: "team-intro" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
@@ -188,7 +188,7 @@ test("resolveMediaPublicUrls: a video asset with a valid slug resolves the /orig
 
 test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a transform registered for a DIFFERENT workspace never resolves this one's asset", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   await registerTransform({
     deps: { clock: { nowIso: () => NOW }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo },
@@ -219,7 +219,7 @@ class FakeSingleFormatTransformRepo implements Pick<TransformDefinitionRepoPort,
 }
 
 test("registerTransform rejects a format outside jpeg/png/webp/gif — confirms the ext-fallback branch below is unreachable through the real registration path", async () => {
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   await assert.rejects(
     registerCoreTransform(transformDefinitionRepo, { format: "avif" as TransformParams["format"] }),
     /must be one of jpeg, png, webp, gif/

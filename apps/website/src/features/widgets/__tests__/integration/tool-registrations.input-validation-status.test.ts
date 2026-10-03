@@ -36,7 +36,7 @@ function makeDeps(): WidgetsToolDeps {
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo: new InMemoryEntryRepo(),

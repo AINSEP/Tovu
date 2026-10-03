@@ -1,4 +1,4 @@
-import type { ComponentCatalogEntry, ComponentCatalogQuery, ComponentCatalogSearchHit } from "@jini-ai/http-kit";
+import type { ComponentCatalogEntry, ComponentCatalogQuery, ComponentCatalogSearchHit } from "@jini-ai/daemon/http";
 import { ALL_MANIFESTS, type InteractiveComponentManifest } from "@jini-ai/ui/interactive-ui/manifests";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -64,7 +64,7 @@ function toEntry(manifest: InteractiveComponentManifest): ComponentCatalogEntry 
  */
 export function buildComponentCatalogQuery(): ComponentCatalogQuery {
   return {
-    search(query, limit = 10) {
+    search({ query }, { limit = 10 } = {}) {
       const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
       return ALL_MANIFESTS.map((manifest) => ({ manifest, score: scoreManifest(manifest, terms) }))
         .filter(({ score }) => score > 0)
@@ -72,7 +72,7 @@ export function buildComponentCatalogQuery(): ComponentCatalogQuery {
         .slice(0, limit)
         .map(({ manifest, score }) => toSearchHit(manifest, score));
     },
-    describe(id) {
+    describe({ id }) {
       const manifest = ALL_MANIFESTS.find((candidate) => candidate.id === id);
       return manifest ? toEntry(manifest) : null;
     },

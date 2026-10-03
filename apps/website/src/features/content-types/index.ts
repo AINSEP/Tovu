@@ -20,15 +20,8 @@
  * migration. Retiring these shims depends on whether that file's own owner redirects it to
  * `./index.ts`, which already exports everything it needs.
  */
-export type {
-  ContentTypeFieldKind,
-  ContentTypeFieldDef,
-  ContentTypeStatus,
-  ContentTypeRecord,
-  ActorPrincipalKind,
-  ActorIdentityInput,
-  Result,
-} from "@jini-ai/cms/content-types";
+export type { ContentTypeFieldKind, ContentTypeFieldDef, ContentTypeStatus, ContentTypeRecord, ActorPrincipalKind, ActorIdentityInput } from "@jini-ai/cms/content-types";
+export type { Result } from "@jini-ai/core/primitives";
 export { CONTENT_TYPE_FIELD_KINDS, isContentTypeFieldKind } from "@jini-ai/cms/content-types";
 
 export type { ContentTypeListPort } from "@jini-ai/cms/content-types";
@@ -122,12 +115,8 @@ export {
 } from "@jini-ai/cms/content-types";
 
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
-export {
-  contentTypesAgentToolCatalog,
-  type ContentTypesAgentToolDefinition,
-  type ContentTypesAgentToolSideEffect,
-  type ContentTypesAgentToolActorClassRule,
-} from "@jini-ai/cms/content-types";
+export { contentTypesAgentToolCatalog } from "@jini-ai/cms/content-types";
+export type { AgentToolDefinition as ContentTypesAgentToolDefinition, AgentToolSideEffect as ContentTypesAgentToolSideEffect, AgentToolActorClassRule as ContentTypesAgentToolActorClassRule } from "@jini-ai/core";
 
 /**
  * The agent-tool wiring for this domain. Also re-exported (unchanged) by `tool-registrations.ts`

@@ -1,18 +1,7 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  optionalBoolean,
-  optionalString,
-  requireInputRecord,
-  requireNoInput,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalString, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -71,7 +60,7 @@ import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRun
 export interface DeploymentsToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly clock: { nowIso(): string };
+  readonly clock: Clock;
   readonly exportOutputRootDir: string;
   readonly deploymentsReadRepo: DeploymentsReadRepoPort;
   /**
@@ -88,7 +77,7 @@ export interface DeploymentsToolDeps {
   readonly exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportRunReportLike>;
 }
 
-const CATALOG_BY_ID = indexCatalogById(deploymentsAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: deploymentsAgentToolCatalog });
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -112,9 +101,10 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
 export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     deployment_trigger_export: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
-      const input = isRecord(ctx.input) ? ctx.input : {};
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.export", entityType: "site-export" });
+      const candidate = { value: ctx.input };
+      if (ctx.input !== undefined && !isRecord(candidate)) throw new ToolInputError({ message: "input must be an object" });
+      const input = isRecord(candidate) ? candidate.value : {};
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.export" }, { entityType: "site-export" });
 
       // No `await` between this check and `startExportRun` below — matches `export-site.ts`'s own
       // "no await between check and set" atomicity comment exactly, so a tool call and a concurrent
@@ -124,8 +114,8 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
         throw new Error("an export is already running — call deployment_get_export_status to see its progress, this will not resolve on retry");
       }
 
-      const clean = optionalBoolean(input, "clean") ?? false;
-      const basePath = optionalString(input, "basePath");
+      const clean = optionalBoolean({ input: input, key: "clean" }) ?? false;
+      const basePath = optionalString({ input: input, key: "basePath" });
       // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
       // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
       // wholesale would let that narrow `DeploymentsToolDeps` value reach `exportSiteBound` under a
@@ -135,18 +125,18 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       // `DeploymentsToolDeps`'s own doc above and this file's regression test.
       const engine: ExportEngine<DeploymentsToolDeps> = ({ outputDir, clean: runClean, basePath: runBasePath }) =>
         routeDeps.exportSiteBound({ outputDir, ...(runClean !== undefined ? { clean: runClean } : {}), ...(runBasePath !== undefined ? { basePath: runBasePath } : {}) });
-      return startExportRun(routeDeps, engine, { clean, basePath });
+      return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath });
     },
 
     deployment_get_export_status: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.read", entityType: "site-export" });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "site-export" });
       return getExportRunSnapshot();
     },
 
     deployment_list: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "deployment-target" });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "deployment-target" });
 
       const workspaceId = routeDeps.workspaceId;
       const [environments, targets, releases, runs] = await Promise.all([
@@ -159,18 +149,18 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
     },
 
     deployment_get_dockerfile: async (ctx) => {
-      requireNoInput(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.read", entityType: "dockerfile-source" });
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "dockerfile-source" });
       return readDockerfileSource();
     },
 
     deployment_set_dockerfile: async (ctx) => {
       // Both fields validated before the permission check, same order `deployment_trigger_export`
       // above already uses — a shape rejection should never need an authorize() round trip first.
-      const input = requireInputRecord(ctx.input);
-      const contents = requireString(input, "contents");
-      const ifMatch = requireString(input, "ifMatch");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.write", entityType: "dockerfile-source" });
+      const input = requireInputRecord({ input: ctx.input });
+      const contents = requireString({ input: input, key: "contents" });
+      const ifMatch = requireString({ input: input, key: "ifMatch" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.write" }, { entityType: "dockerfile-source" });
 
       const result = writeDockerfileSourceWithIfMatch(contents, ifMatch);
       if (!result.ok) {
@@ -188,11 +178,9 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
         // fresh etag echoed below) fixes it," which is what the marker means, not a trick to defeat
         // the redaction. A bare `Error` here would reach the model as a message-stripped 500,
         // discarding the one thing it needs — the current contents/etag to reconcile against.
-        throw new ToolInputError(
-          `deployment_set_dockerfile: refused — the Dockerfile changed on the server since your 'ifMatch' ('${ifMatch}') was read; its current etag is now '${result.current.etag}'. ` +
+        throw new ToolInputError({ message: `deployment_set_dockerfile: refused — the Dockerfile changed on the server since your 'ifMatch' ('${ifMatch}') was read; its current etag is now '${result.current.etag}'. ` +
             `The file's CURRENT contents (as of right now, echoed here so you don't have to call deployment_get_dockerfile again just to see them) are:\n\n${result.current.exists ? result.current.contents : "(the file does not exist)"}\n\n` +
-            `Reconcile your intended change against these current contents, then retry deployment_set_dockerfile with contents built on top of them and ifMatch set to '${result.current.etag}'. If you want to confirm nothing has changed a second time before retrying, call deployment_get_dockerfile again first. This will not resolve on retry with the same ifMatch.`
-        );
+            `Reconcile your intended change against these current contents, then retry deployment_set_dockerfile with contents built on top of them and ifMatch set to '${result.current.etag}'. If you want to confirm nothing has changed a second time before retrying, call deployment_get_dockerfile again first. This will not resolve on retry with the same ifMatch.` });
       }
       return result.snapshot;
     },

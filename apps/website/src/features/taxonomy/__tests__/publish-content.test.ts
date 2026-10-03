@@ -16,7 +16,7 @@ function ports(): TaxonomyPublishPorts & { taxonomies: SqliteTaxonomyRepo; terms
     entryTerms: new InMemoryEntryTermRepo(),
     revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId: WORKSPACE_ID }),
     stampWatermark: () => {},
-    contentLookup: new InMemoryContentLookup(),
+    contentLookup: new InMemoryContentLookup({}),
   };
 }
 

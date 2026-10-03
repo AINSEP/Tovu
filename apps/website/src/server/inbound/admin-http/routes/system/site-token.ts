@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import type { Express, Request, Response } from "express";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import {
   defaultRootKeyFilePath,

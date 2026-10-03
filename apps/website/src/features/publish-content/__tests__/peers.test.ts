@@ -48,7 +48,7 @@ function writeDeps(overrides: { ids?: string[]; now?: string } = {}): PublishCon
     repo: new InMemoryPublishContentPeerRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => overrides.now ?? "2026-09-18T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse(overrides.now ?? "2026-09-18T00:00:00.000Z") },
     idGen: { newId: () => ids[cursor++] ?? `peer-${cursor}` },
   };
 }

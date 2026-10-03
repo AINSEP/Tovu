@@ -1,8 +1,7 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, requireToolPermission,
-  type AuthorizeFn, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
@@ -64,33 +63,30 @@ export const permanentDeleteDerivedRisk: DerivedRiskByToolId = new Map([
 export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {};
   for (const spec of PERMANENT_DELETE_SPECS) {
-    handlers[spec.name] = async ctx => {
-      const input = requireInputRecord(ctx.input);
+    handlers[spec.name] = async (ctx, optional = {}) => {
+      const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, spec.key === null ? [] : [spec.key]);
-      const id = spec.key === null ? null : requireString(input, spec.key).trim();
-      if (id === "") throw new ToolInputError(`${spec.name}: '${spec.key}' must be a non-empty id.`);
-      const authorize = () => requireToolPermission(deps, {
-        principalId: ctx.principal.id, permission: spec.permission, entityType: spec.entityType,
-        ...(id === null ? {} : { entityId: id }),
-      });
+      const id = spec.key === null ? null : requireString({ input: input, key: spec.key }).trim();
+      if (id === "") throw new ToolInputError({ message: `${spec.name}: '${spec.key}' must be a non-empty id.` });
+      const authorize = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: spec.permission }, { entityType: spec.entityType, ...(id === null ? {} : { entityId: id }) });
       await authorize();
       const plan = await deps.prepare(spec.name, id, ctx.principal.id);
       // Already-aborted calls cannot ask the human or perform an irreversible effect.
       if (ctx.signal.aborted) return { removed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
       const toolId = spec.name;
-      const outcome = await requireHumanConfirm(ctx, surfaces, {
+      const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
         toolId, errorCode: "PERMANENT_DELETE", title: `Permanently delete ${spec.subject}?`,
         description: "Review the exact saved items below. This action cannot be undone.",
         details: plan.details, warning: plan.warning ?? "Permanent deletion has no undo or restore.",
         danger: true, confirmLabel: "Permanently delete",
-      });
+      } }, optional);
       if (!outcome.confirmed) return { removed: false, ...notConfirmedResult(outcome) };
       await authorize();
       if (ctx.signal.aborted) return { removed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
       return plan.execute();
     };
   }
-  return buildDomainRegistrations({ domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById(permanentDeleteAgentToolCatalog), handlers, derivedRisk: permanentDeleteDerivedRisk });
+  return buildDomainRegistrations({ domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
 }
 
 /** Compose with host adapters without importing server/assistant implementations into the feature. */

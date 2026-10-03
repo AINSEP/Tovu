@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminRoleUpdateRoute } from "../update-role.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createRole } from "@jini-ai/cms/identity";
+import { createRole } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/roles/:roleId`;

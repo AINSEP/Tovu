@@ -88,9 +88,9 @@ test("onStarted forwards the exact search hook settings through to Claude launch
       { type: "command", command: "/home/daemon-test/.claude/hooks/no-system-search", timeout: 5 },
     ] }] },
   });
-  const def = getAgentDef("claude");
+  const def = getAgentDef({ id: "claude" });
   assert.ok(def);
-  const args = def.buildArgs(input.prompt, [], [], input);
+  const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: input });
   const settingsIndex = args.indexOf("--settings");
   assert.ok(settingsIndex >= 0);
   assert.equal(args[settingsIndex + 1], input.settings);

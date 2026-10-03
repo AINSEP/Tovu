@@ -1,6 +1,111 @@
+// Jini implementation: packages/diagnostics/src/web-evidence/collect-page-evidence.ts
+import {
+  collectPageEvidence as collectDiagnosticEvidence,
+  type CollectPageEvidenceOptions,
+  type ObservationPolicy,
+  type PageObservation,
+  type SiteEvidenceBrowserFactory,
+  type SiteEvidenceResult,
+} from "@jini-ai/diagnostics/web-evidence";
+import type { UUID } from "@jini-ai/core/primitives";
+
+import type { OriginRegistryPort } from "../origin/index.js";
+import { redactSecretShapes } from "../../contracts/core/secret-redaction.js";
+
+/** Required Tovu origin and browser ports, plus the requested site-relative paths. */
+export interface CollectPageEvidenceDeps {
+  readonly workspaceId: UUID;
+  readonly originRegistry: OriginRegistryPort;
+  readonly openBrowser: SiteEvidenceBrowserFactory;
+  readonly paths: readonly string[];
+}
+
+/** Redacts one evidence string with Tovu's secret-only policy; never logs the raw value. */
+function redactText(text: string): string {
+  return redactSecretShapes({ text }).text;
+}
+
+/** Keeps absence distinct from an observed empty string in accessibility metadata. */
+function redactNullableText(text: string | null): string | null {
+  if (text === null) return null;
+  return redactText(text);
+}
+
 /**
- * @file `collectPageEvidence()` — the bounded orchestration behind the `site_collect_page_evidence`
- * agent tool. Resolves the workspace's own verified origin, normalizes each requested path, drives
+ * Applies Tovu's evidence disclosure policy to browser-owned strings. Cookie/request/form values
+ * remain unrepresentable in Jini's evidence contract. Credential-bearing response headers are
+ * hidden in full, even when their value is too short to look like a token in ordinary prose.
+ * @param required Browser observation to copy; input arrays and objects are never mutated.
+ * @returns Evidence with secret values hidden, preserving numerical/boolean facts and absence.
+ * @complexity O(n) time/space in captured text and nodes, bounded by Jini's capture limits.
+ */
+function redactObservation({ observation }: { observation: PageObservation }): PageObservation {
+  const accessibility = observation.accessibility;
+  return {
+    document: {
+      ...observation.document,
+      finalUrl: redactText(observation.document.finalUrl),
+      title: redactText(observation.document.title),
+      lang: redactNullableText(observation.document.lang),
+      textExcerpt: redactText(observation.document.textExcerpt),
+      headers: observation.document.headers.map(({ name, value }) => ({
+        name: redactText(name),
+        value: /^(?:(?:proxy-)?authorization|(?:set-)?cookie|x-api-key|api-key|x-goog-api-key|x-auth-token)$/i.test(name)
+          ? "[REDACTED:auth_header]" : redactText(value),
+      })),
+    },
+    cookies: observation.cookies.map(cookie => ({
+      ...cookie,
+      name: redactText(cookie.name), domain: redactText(cookie.domain), path: redactText(cookie.path),
+      sameSite: redactText(cookie.sameSite), expiresAt: redactNullableText(cookie.expiresAt),
+    })),
+    requests: observation.requests.map(request => ({
+      ...request,
+      method: redactText(request.method), host: redactText(request.host), pathname: redactText(request.pathname),
+      resourceType: redactText(request.resourceType),
+      ...(request.blockedReason === undefined ? {} : { blockedReason: redactText(request.blockedReason) }),
+    })),
+    ...(accessibility === undefined ? {} : { accessibility: {
+      landmarks: accessibility.landmarks.map(node => ({
+        ...node, role: redactText(node.role), selector: redactText(node.selector), accessibleName: redactNullableText(node.accessibleName),
+      })),
+      headings: accessibility.headings.map(node => ({ ...node, selector: redactText(node.selector), text: redactText(node.text) })),
+      images: accessibility.images.map(node => ({
+        ...node, selector: redactText(node.selector), src: redactText(node.src), alt: redactNullableText(node.alt),
+      })),
+      formControls: accessibility.formControls.map(node => ({
+        ...node, selector: redactText(node.selector), tag: redactText(node.tag), type: redactNullableText(node.type),
+        name: redactNullableText(node.name), accessibleName: redactNullableText(node.accessibleName), labelSource: redactText(node.labelSource),
+      })),
+      contrastSamples: accessibility.contrastSamples.map(node => ({
+        ...node, selector: redactText(node.selector), foreground: redactText(node.foreground), background: redactText(node.background),
+      })),
+      truncated: accessibility.truncated.map(redactText),
+    } }),
+    notes: observation.notes.map(redactText),
+  };
+}
+
+/** The collector invokes this policy before returning observations and browser failure messages. */
+const TOVU_OBSERVATION_POLICY: ObservationPolicy = {
+  redactObservation,
+  redactMessage: ({ message }) => redactText(message),
+};
+
+/**
+ * Adapts Tovu's verified-origin registry and disclosure policy to Jini's bounded collector.
+ * @param required Requested paths and host ports; the origin is never derived from tool input.
+ * @param options Clock, consent selector and accessibility capture controls.
+ * @returns Observed evidence with per-page skip reasons; no persistence or compliance verdict.
+ * @throws The host origin error when no verified canonical origin exists. Deliberately propagated
+ * rather than converted into a per-page skip: with no origin there is no same-origin boundary,
+ * and guessing one from a request host is precisely what ADR-040 F2 forbids. The tool handler
+ * turns it into an actionable message. Browser resources are closed by Jini.
+ * @complexity At most five page loads, each 15s, with a 60s whole-call deadline and bounded output.
+ * @example collectPageEvidence({ workspaceId, originRegistry, openBrowser, paths: ["/"] });
+ *
+ * `collectPageEvidence()` — the bounded orchestration behind the `site_collect_page_evidence`
+ * agent tool, now implemented in Jini diagnostics. Resolves the workspace's own verified origin, normalizes each requested path, drives
  * the browser port once per page, and returns observed evidence.
  *
  * ---------------------------------------------------------------------------
@@ -40,332 +145,15 @@
  * field's contents in the first place.
  *
  * Architectural role:
- * Pure orchestration over two injected dependencies (an origin resolver and a browser factory).
+ * Jini orchestration over injected origin/browser ports and Tovu's disclosure policy.
  * No global state, no module-level singletons — `tool-registrations.ts` supplies both.
  */
-import type { OriginRegistryPort } from "../../features/origin/index.js";
-import type { UUID } from "@jini-ai/cms/core";
-
-import type {
-  ObservationPhase,
-  PageObservation,
-  SiteEvidenceBrowserFactory,
-  SiteEvidenceBrowserPort,
-} from "./browser-port.js";
-import { isSameOriginUrl, normalizeSitePath, resolveSameOriginUrl, verifiedOriginToBaseUrl } from "./same-origin.js";
-
-/**
- * Every bound this tool operates under, in one place so the values reported to the caller and the
- * values actually enforced cannot drift apart (they are the same constant).
- *
- * The numbers are deliberately small. This is an interactive tool an agent calls mid-conversation,
- * not a crawler: five pages is enough to screen a home page, a form page, and the policy pages,
- * and a caller who needs more can call again with the next five and say so in its report.
- */
-export const SITE_EVIDENCE_LIMITS = {
-  /** Hard cap on pages per call. Excess requested paths are returned as `skipped`. */
-  maxPagesPerCall: 5,
-  /** Per-page navigation + settle budget. */
-  maxPageLoadMs: 15_000,
-  /** Whole-call deadline. Once passed, remaining pages are `skipped` with `deadline`. */
-  maxTotalMs: 60_000,
-  /** Cap on the visible-text excerpt returned per page. */
-  maxTextExcerptChars: 2_000,
-  maxCookies: 100,
-  maxRequests: 200,
-  /** Cap per accessibility category (landmarks, headings, images, form controls). */
-  maxAccessibilityNodesPerCategory: 200,
-  maxContrastSamples: 40,
-} as const;
-
-/** Stated in every result. Not decoration: it is the tool half of the no-verdict contract, and it
- *  travels with the data into whatever context the model is reasoning in. */
-export const SITE_EVIDENCE_DISCLAIMER =
-  "Observed evidence only. This tool reports what was rendered, requested, and set when these pages " +
-  "were loaded. It does not evaluate, score, or determine compliance with GDPR, CCPA/CPRA, WCAG, or " +
-  "any other law or standard, and the absence of an observation is not evidence that something is " +
-  "absent — it may mean it was not inspected.";
-
-export type SkippedPageReason =
-  | "invalid-path"
-  | "page-cap"
-  | "deadline"
-  | "browser-unavailable"
-  | "off-origin-redirect"
-  | "navigation-failed";
-
-export interface SkippedPage {
-  readonly path: string;
-  readonly reason: SkippedPageReason;
-  readonly message: string;
+export function collectPageEvidence(required: CollectPageEvidenceDeps, options: CollectPageEvidenceOptions = {}): Promise<SiteEvidenceResult> {
+  return collectDiagnosticEvidence({
+    workspaceId: required.workspaceId,
+    paths: required.paths,
+    openBrowser: required.openBrowser,
+    originRegistry: { canonicalOrigin: ({ workspaceId }) => required.originRegistry.canonicalOrigin({ workspaceId }) },
+    observationPolicy: TOVU_OBSERVATION_POLICY,
+  }, options);
 }
-
-export interface PageEvidence {
-  /** The site-relative path as normalized — the citation key a report should quote. */
-  readonly path: string;
-  readonly url: string;
-  readonly observation: PageObservation;
-}
-
-export type BrowserAvailabilityReport =
-  | { readonly status: "available" }
-  | { readonly status: "unavailable"; readonly reason: string };
-
-export interface SiteEvidenceResult {
-  readonly schemaVersion: "1";
-  readonly collectedAt: string;
-  /** The workspace's own verified origin — every URL below is on it, by construction. */
-  readonly origin: string;
-  readonly browser: BrowserAvailabilityReport;
-  /** Whether a consent interaction was performed, and therefore whether `phase: "after"` evidence
-   *  means anything on this run. */
-  readonly consentTransition: ConsentTransitionReport;
-  readonly limits: typeof SITE_EVIDENCE_LIMITS;
-  readonly pages: readonly PageEvidence[];
-  readonly skipped: readonly SkippedPage[];
-  readonly disclaimer: string;
-}
-
-export type ConsentTransitionReport =
-  | { readonly attempted: false; readonly reason: string }
-  | { readonly attempted: true; readonly selector: string };
-
-export interface CollectPageEvidenceDeps {
-  readonly workspaceId: UUID;
-  readonly originRegistry: OriginRegistryPort;
-  readonly openBrowser: SiteEvidenceBrowserFactory;
-  /** Injected so the whole-call deadline is testable without real time passing. Defaults to
-   *  `Date.now`. */
-  readonly now?: () => number;
-}
-
-export interface CollectPageEvidenceInput {
-  readonly paths: readonly string[];
-  /** CSS selector for the site's own consent-accept control. Without it no interaction happens and
-   *  no `after`-phase evidence is produced — an omission the result states explicitly rather than
-   *  leaving the caller to infer from an empty phase. */
-  readonly consentAcceptSelector?: string;
-  /** Defaults to true. Turning it off is a token-cost choice for a caller that only wants
-   *  cookie/request evidence, not a way to make a page load cheaper. */
-  readonly collectAccessibility?: boolean;
-}
-
-/**
- * Collects observed evidence for up to {@link SITE_EVIDENCE_LIMITS.maxPagesPerCall} pages of this
- * workspace's own published site.
- *
- * @param deps - Origin resolver, browser factory, and an optional clock.
- * @param input - The requested site-relative paths and optional consent selector.
- * @returns Observed evidence plus an explicit account of everything that was not observed and why.
- * @throws {import("#src/features/origin/types").OriginNotVerifiedError} If the workspace has no verified
- * canonical origin. Deliberately propagated rather than converted into a per-page skip: with no
- * origin there is no same-origin boundary to enforce, and guessing one from a request host is
- * precisely what ADR-040 F2 forbids. The tool handler turns it into an actionable message.
- * @complexity O(p) page loads bounded by `maxPagesPerCall`, each bounded by `maxPageLoadMs`, the
- * whole call bounded by `maxTotalMs`. Space is bounded by the per-category caps above.
- */
-export async function collectPageEvidence(
-  deps: CollectPageEvidenceDeps,
-  input: CollectPageEvidenceInput,
-): Promise<SiteEvidenceResult> {
-  const now = deps.now ?? Date.now;
-  const startedAt = now();
-
-  const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-  const originBaseUrl = verifiedOriginToBaseUrl(origin);
-
-  const { accepted, skipped } = partitionRequestedPaths(input.paths);
-
-  const availability = await deps.openBrowser();
-  if (!availability.available) {
-    return {
-      schemaVersion: "1",
-      collectedAt: new Date(startedAt).toISOString(),
-      origin: originBaseUrl,
-      browser: { status: "unavailable", reason: availability.reason },
-      consentTransition: consentTransitionReport(input.consentAcceptSelector),
-      limits: SITE_EVIDENCE_LIMITS,
-      pages: [],
-      skipped: [
-        ...skipped,
-        ...accepted.map((path) => skip(path, "browser-unavailable", availability.reason)),
-      ],
-      disclaimer: SITE_EVIDENCE_DISCLAIMER,
-    };
-  }
-
-  const pages: PageEvidence[] = [];
-  const runtimeSkipped: SkippedPage[] = [];
-
-  try {
-    for (const path of accepted) {
-      if (now() - startedAt >= SITE_EVIDENCE_LIMITS.maxTotalMs) {
-        runtimeSkipped.push(
-          skip(path, "deadline", `the ${SITE_EVIDENCE_LIMITS.maxTotalMs}ms whole-call budget was exhausted before this page was loaded`),
-        );
-        continue;
-      }
-
-      // A THROWING `observe()` (a port implementation that does not honor the `{ ok: false, reason }`
-      // contract for every failure — e.g. the page navigating away between the load and the read
-      // that follows it) must not end the whole run any more than an ordinary `ok: false` does. One
-      // bad page is recorded as skipped; every OTHER requested page still gets its own attempt.
-      try {
-        const outcome = await observeOnePage(availability.browser, originBaseUrl, path, input);
-        if (outcome.kind === "skipped") {
-          runtimeSkipped.push(outcome.skipped);
-        } else {
-          pages.push(outcome.page);
-        }
-      } catch (error) {
-        runtimeSkipped.push(skip(path, "navigation-failed", messageOf(error)));
-      }
-    }
-  } finally {
-    await availability.browser.close();
-  }
-
-  return {
-    schemaVersion: "1",
-    collectedAt: new Date(startedAt).toISOString(),
-    origin: originBaseUrl,
-    browser: { status: "available" },
-    consentTransition: consentTransitionReport(input.consentAcceptSelector),
-    limits: SITE_EVIDENCE_LIMITS,
-    pages,
-    skipped: [...skipped, ...runtimeSkipped],
-    disclaimer: SITE_EVIDENCE_DISCLAIMER,
-  };
-}
-
-type ObserveOnePageOutcome =
-  | { readonly kind: "skipped"; readonly skipped: SkippedPage }
-  | { readonly kind: "observed"; readonly page: PageEvidence };
-
-/**
- * Resolves, loads, and validates exactly one requested page. Split out of
- * {@link collectPageEvidence} purely to keep that function's own cognitive complexity below the
- * repo's gate — the request shape, the failure handling, and the second same-origin check
- * (`same-origin.ts`'s header, layer 2) are unchanged.
- *
- * @complexity O(1) plus one browser page load.
- */
-async function observeOnePage(
-  browser: SiteEvidenceBrowserPort,
-  originBaseUrl: string,
-  path: string,
-  input: CollectPageEvidenceInput,
-): Promise<ObserveOnePageOutcome> {
-  const url = resolveSameOriginUrl(originBaseUrl, path);
-  const result = await browser.observe({
-    url,
-    originBaseUrl,
-    ...(input.consentAcceptSelector !== undefined ? { consentAcceptSelector: input.consentAcceptSelector } : {}),
-    collectAccessibility: input.collectAccessibility ?? true,
-    timeoutMs: SITE_EVIDENCE_LIMITS.maxPageLoadMs,
-    maxTextExcerptChars: SITE_EVIDENCE_LIMITS.maxTextExcerptChars,
-    maxCookies: SITE_EVIDENCE_LIMITS.maxCookies,
-    maxRequests: SITE_EVIDENCE_LIMITS.maxRequests,
-    maxAccessibilityNodesPerCategory: SITE_EVIDENCE_LIMITS.maxAccessibilityNodesPerCategory,
-    maxContrastSamples: SITE_EVIDENCE_LIMITS.maxContrastSamples,
-  });
-
-  if (!result.ok) {
-    return { kind: "skipped", skipped: skip(path, "navigation-failed", result.reason) };
-  }
-
-  // Second same-origin layer (`same-origin.ts`'s header, layer 2): the path could not name
-  // another origin, but the SERVER can redirect to one. A page that left the origin is reported
-  // as evidence of the redirect and its content is discarded — this tool does not inspect
-  // anybody else's site, including one this site chose to point at.
-  const finalUrl = result.observation.document.finalUrl;
-  if (!isSameOriginUrl(originBaseUrl, finalUrl)) {
-    return {
-      kind: "skipped",
-      skipped: skip(
-        path,
-        "off-origin-redirect",
-        `redirected off this site's origin to '${redactToOrigin(finalUrl)}' — not inspected; this tool only observes ${originBaseUrl}`,
-      ),
-    };
-  }
-
-  return { kind: "observed", page: { path, url, observation: result.observation } };
-}
-
-/**
- * Splits the requested paths into the ones this call will attempt and the ones it will not,
- * applying the syntactic guard first and the page cap second.
- *
- * Order matters and is not arbitrary: validating before capping means five valid paths followed by
- * an absolute URL still reports the absolute URL as `invalid-path` rather than hiding it behind
- * `page-cap`, so a caller that is doing something the tool refuses always learns that it was
- * refused rather than that it was merely truncated.
- *
- * @complexity O(n) in the requested-path count.
- */
-function partitionRequestedPaths(paths: readonly string[]): {
-  readonly accepted: readonly string[];
-  readonly skipped: readonly SkippedPage[];
-} {
-  const accepted: string[] = [];
-  const skipped: SkippedPage[] = [];
-
-  for (const raw of paths) {
-    const normalized = normalizeSitePath(raw);
-    if (!normalized.ok) {
-      skipped.push(skip(raw, "invalid-path", `${normalized.message} (${normalized.reason})`));
-      continue;
-    }
-    if (accepted.length >= SITE_EVIDENCE_LIMITS.maxPagesPerCall) {
-      skipped.push(
-        skip(
-          normalized.path,
-          "page-cap",
-          `this call already accepted the maximum of ${SITE_EVIDENCE_LIMITS.maxPagesPerCall} pages — request the remaining paths in a follow-up call`,
-        ),
-      );
-      continue;
-    }
-    accepted.push(normalized.path);
-  }
-
-  return { accepted, skipped };
-}
-
-function consentTransitionReport(selector: string | undefined): ConsentTransitionReport {
-  if (selector === undefined) {
-    return {
-      attempted: false,
-      reason:
-        "no consentAcceptSelector was supplied, so no consent interaction was performed. Every cookie and " +
-        "request below was observed in the pre-consent phase; nothing here shows what changes after a visitor accepts.",
-    };
-  }
-  return { attempted: true, selector };
-}
-
-/** Reduces an off-origin URL to its origin before it appears in a skip reason. The redirect target
- *  is the evidence; its path and query are somebody else's data and may carry identifiers this tool
- *  has no business echoing back into a model's context. */
-function redactToOrigin(url: string): string {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return "(unparseable URL)";
-  }
-}
-
-function skip(path: string, reason: SkippedPageReason, message: string): SkippedPage {
-  return { path, reason, message };
-}
-
-/** Same tiny helper as `playwright-browser.ts`'s own — duplicated rather than imported, matching
- *  this feature's existing convention for a helper this small. */
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/** Re-exported so a caller building a report has the phase vocabulary without importing the port
- *  module directly. */
-export type { ObservationPhase };

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,12 +10,18 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
-import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools.js";
+import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
+import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributePostTools } from "../../features/post/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Post moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, the last of this rollout's 25 domains — see
@@ -21,8 +29,8 @@ import { registerToolContributor } from "../tool-contribution-registry.js";
 // `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
 // first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`
 // — same fix `tool-registrations.entries.test.ts`/`tool-registrations.themes.test.ts` already apply.
-resetToolContributorsForTests();
-registerToolContributor(contributePostTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributePostTools() });
 
 /**
  * @file The Posts + Pages tool-wiring test file — mirrors `tool-registrations.entries.test.ts`'s/
@@ -55,7 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,
@@ -90,7 +98,7 @@ function postRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
   // old ids (still true for create/delete/search/update, never collapsed) or the new merged one.
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("content_post_") || r.descriptor.id === "content_read.content_post")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -270,25 +278,25 @@ test("the independent risk classification agrees with the catalog for all 6 wire
   // built from `DOMAIN_SLICES`/`listToolContributors()` and never learns content_read's ids.
   for (const id of postRegistrations(deps).keys()) {
     if (id === "content_read.content_post") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring content_post_create sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_create", { ...catalogEntry("content_post_create"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("content_post_create", { ...catalogEntry("content_post_create"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("content_post_delete is classified as genuinely destructive, distinctly from an edit", () => {
   assert.equal(catalogEntry("content_post_delete").sideEffects, "deletes-durable-state");
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("content_post_delete", catalogEntry("content_post_delete")));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("content_post_delete", catalogEntry("content_post_delete"), contributions));
 });
 
 test("content_post_delete cannot soften itself to a mere mutation — the independent check refuses it", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "mutates-durable-state" }),
+    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "mutates-durable-state" }, contributions),
     /declares sideEffects 'mutates-durable-state' but this layer derives 'deletes-durable-state'/,
     "folding a delete into the same bucket as an edit is exactly what the separate union member exists to catch",
   );
@@ -296,7 +304,7 @@ test("content_post_delete cannot soften itself to a mere mutation — the indepe
 
 test("content_post_delete cannot downgrade itself to 'none' either", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'deletes-durable-state'/,
   );
 });

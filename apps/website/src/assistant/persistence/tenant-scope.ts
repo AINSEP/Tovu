@@ -4,7 +4,7 @@ import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
 import { RUN_INTERRUPTED_DETAIL, RUN_INTERRUPTED_LABEL } from "#src/contracts/core/assistant-run-events";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
-import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { createChatHistoryStore } from "./chat-history-store.js";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 
@@ -123,15 +123,15 @@ export function createTenantScopedChatStore(
      * lock, so nothing can settle the row in between. The store and the ledger share the chat
      * kernel, so the store's own transaction joins the ledger's on every dialect.
      */
-    async appendMessage(conversationId, message) {
-      if (message.role !== "assistant" || !message.runId) return store.appendMessage(conversationId, message);
+    async appendMessage({ conversationId, message }) {
+      if (message.role !== "assistant" || !message.runId) return store.appendMessage({ conversationId, message });
       const normalized = isInterruptedBrowserSave(message) ? { ...message, runStatus: "canceled" as const } : message;
       const outcome = await ledger.unlessSettled(
         { conversationId, messageId: message.id, runId: message.runId },
-        () => store.appendMessage(conversationId, normalized)
+        () => store.appendMessage({ conversationId, message: normalized })
       );
       if (outcome.written) return outcome.value;
-      const saved = await store.messages(conversationId);
+      const saved = await store.messages({ conversationId });
       return saved.find((m) => m.id === message.id) ?? null;
     },
   };

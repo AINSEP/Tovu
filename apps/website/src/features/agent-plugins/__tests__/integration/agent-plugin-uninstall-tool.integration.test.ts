@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
@@ -88,7 +88,6 @@ function fakeCtx(input: Record<string, unknown>, options: { emitSurface?: Surfac
     run: { id: "run-1" },
     input: { family: "agent-plugin", ...input },
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
 }
 
@@ -157,7 +156,7 @@ async function answerDialog(
   decision: "confirm" | "cancel",
 ): Promise<{ result: unknown; surface: unknown }> {
   const recorder = surfaceRecorder();
-  const pending = registration.handler(fakeCtx({ pluginId }, { emitSurface: recorder.emitSurface }));
+  const pending = registration.handler(fakeCtx({ pluginId }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
   const surface = await waitForDialog(recorder.first, pending);
   const delivery = surfaceExchanges.deliver({
     exchangeId: exchangeIdFromSurface(surface),
@@ -213,7 +212,7 @@ test("a denied principal is rejected before any dialog is raised, and nothing is
     const { deps } = fakeDeps({ allow: false });
     const recorder = surfaceRecorder();
 
-    await assert.rejects(() => findRegistration(deps).handler(fakeCtx({ pluginId: "my-plugin" }, { emitSurface: recorder.emitSurface })));
+    await assert.rejects(() => findRegistration(deps).handler(fakeCtx({ pluginId: "my-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface }));
 
     assert.equal(recorder.emitted.length, 0, "a denied principal must never have a dialog raised for them");
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
@@ -225,7 +224,7 @@ test("an unknown pluginId is reclassified as ToolInputError before any dialog, n
     const { deps } = fakeDeps();
     const recorder = surfaceRecorder();
     await assert.rejects(
-      () => findRegistration(deps).handler(fakeCtx({ pluginId: "does-not-exist" }, { emitSurface: recorder.emitSurface })),
+      () => findRegistration(deps).handler(fakeCtx({ pluginId: "does-not-exist" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface }),
       (error: unknown) => error instanceof Error && error.constructor.name === "ToolInputError" && /not installed/.test(error.message),
     );
     assert.equal(recorder.emitted.length, 0, "a refusal must not ask the human to confirm something that cannot happen");
@@ -241,7 +240,7 @@ test("a bundled plugin is refused as ToolInputError before any dialog, naming pl
     const recorder = surfaceRecorder();
 
     await assert.rejects(
-      () => findRegistration(deps).handler(fakeCtx({ pluginId: "site-compliance" }, { emitSurface: recorder.emitSurface })),
+      () => findRegistration(deps).handler(fakeCtx({ pluginId: "site-compliance" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface }),
       (error: unknown) =>
         error instanceof Error &&
         error.constructor.name === "ToolInputError" &&
@@ -278,7 +277,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     const warnings: string[] = [];
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
 
-    const registry = createToolRegistry();
+    const registry = createToolRegistry({});
     registry.register(buildPluginsUninstallRegistration(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() }));
     const toolExecutor = createToolExecutor({ registry });
     const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
@@ -313,7 +312,7 @@ test("t91 §7.1: activations.json corrupted while the dialog is open: confirm re
     const warnings: string[] = [];
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
 
-    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
     const surface = await waitForDialog(recorder.first, pending);
     await writeFile(activationsPath, "[]");
     const delivery = surfaceExchanges.deliver({
@@ -442,7 +441,7 @@ test("an archive installed for the same id while the dialog is open: confirm rem
     const surfaceExchanges = createSurfaceExchangeStore();
     const recorder = surfaceRecorder();
 
-    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
     const surface = await waitForDialog(recorder.first, pending);
     const second = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-b");
     const delivery = surfaceExchanges.deliver({
@@ -476,7 +475,7 @@ test("a run that ends while the dialog is open closes it, reports 'abandoned', a
     const controller = new AbortController();
     const recorder = surfaceRecorder();
 
-    const pending = findRegistration(deps).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface, signal: controller.signal }));
+    const pending = findRegistration(deps).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface, signal: controller.signal }), { emitSurface: recorder.emitSurface, signal: controller.signal });
     await waitForDialog(recorder.first, pending);
     controller.abort();
     const out = (await pending) as UninstallToolOutput;

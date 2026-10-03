@@ -6,7 +6,7 @@ import test from "node:test";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { renderDocNode, renderWidgetIr, type MediaAssetRenderMeta } from "../render.js";
 

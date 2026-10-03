@@ -11,6 +11,99 @@
  * writeup. This file is the honest redo. Scored by `tool-search-doc2query-canary.eval.ts`.
  */
 export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
+  publish_content_status: [
+    "Is my site set up to publish?",
+    "Before pushing changes live, is publishing connected?",
+    "Can this computer publish changes to the live site?",
+    "Where does this local site publish to?",
+  ],
+  publish_content_plan_pull: [
+    "Pull the live site's content down to my computer.",
+    "Sync my local site with what's live.",
+    "Download live content to review changes here.",
+    "Bring back changes from the live site before applying them locally.",
+  ],
+  publish_content_execute_pull: [
+    "Apply the planned pull after I confirm.",
+    "Overwrite local content with the live site's changes.",
+    "Confirm sync and apply the downloaded live content here.",
+    "Apply pull changes to my local site.",
+  ],
+  content_stats: [
+    "How many posts and pages are on my site?",
+    "Give me a pie chart breakdown of posts versus pages.",
+    "What is the word count of my articles?",
+    "Which articles are longest and what is their average length?",
+    "Count drafts, published content, collection entries and media.",
+  ],
+  analytics_list_recent_hits: [
+    "Show me recent traffic to my site.",
+    "Which pages are getting visits in the recent buffer?",
+    "Summarize recent page views by path and referrer.",
+    "Where did recent visits come from, including Google search, and what devices were used?",
+    "Who visited my site recently? Show anonymous hits, not identities.",
+  ],
+  system_get_mail_status: [
+    "Why is my email not arriving?",
+    "I didn't get the sign-in email; is sending configured?",
+    "Check which mail provider or SMTP driver is active.",
+    "Can this site deliver real email or does it print to the console?",
+    "Why didn't my magic link arrive?",
+  ],
+  taxonomy_get_assigned_terms: [
+    "Which tags does this post have?",
+    "Show assigned categories for this page.",
+    "Read assigned taxonomy terms for this collection entry.",
+    "What categories are on this post?",
+    "Show the names of the terms already attached to this content.",
+  ],
+  fetch_live_url: [
+    "Has the live website updated after my publish?",
+    "Fetch the production site's public page to verify the deployment.",
+    "Compare what visitors get on the live domain with the local render.",
+    "Is my real online site showing the newly published content?",
+    "Check the deployed public website after publishing.",
+  ],
+  content_post_preview: [
+    "Preview this unpublished draft before publishing it.",
+    "Render unsaved edits through the page's theme template.",
+    "How will this draft page look once published?",
+    "Try another template on this post without saving changes.",
+    "Show a draft post preview with its pending body.",
+  ],
+  fetch_published_page: [
+    "Find a string on the local rendered page.",
+    "Does this page contain the text I asked for?",
+    "Get visible text without markup from this local route.",
+    "Search the published page for mentions of this phrase.",
+    "Check what a visitor receives from the local site's rendered page.",
+  ],
+  media_list_providers: [
+    "Which image and video generation providers have a saved connection?",
+    "Can you list the AI media vendors this site knows about?",
+    "Is an OpenAI image provider credential configured?",
+    "Which image providers still need their API key?",
+  ],
+  media_propose_provider_credential: [
+    "Help me connect an image generation provider with a new key.",
+    "Open the secure form to save my OpenAI media API key.",
+    "I need to set up a video generation provider credential.",
+    "Can I add my image provider connection directly in chat?",
+  ],
+  source_control_propose_credential: [
+    "Connect my GitHub account so I can commit this site.",
+    "Show me a secure form to save a GitLab source control token.",
+    "Add a repository backup credential without pasting its secret into chat.",
+    "I need a new named source control connection for site commits.",
+  ],
+
+  // Keep publish and backup intents distinct from observation tools when the catalog grows.
+  deployment_get_static_publish_capabilities: [
+    "Which static publishing hosts are available?", "Can this site publish to Netlify?", "Where can I publish a static site?", "Which hosting credentials are connected?",
+  ],
+  site_backup_plan: [
+    "Can you back up my site to a private GitHub repository?", "Save a backup of my site in GitHub.", "Plan a site backup without changing remote files.", "Archive my content and database into a repository.",
+  ],
   // n07 admin parity (2026-10-01): task-derived vocabulary additions.
   identity_policy_list_permissions: [
     "What access does this policy grant?",
@@ -80,6 +173,18 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   source_control_delete_credential: [
     "Delete a saved source control credential.", "Remove my saved git token.",
     "Erase this repository credential.", "Permanently remove my source control API key.",
+  ],
+  deployment_ops_status: [
+    "Is my Fly app healthy?", "Is my Fly app up?", "Did the GitHub Actions workflow build pass?", "Show deployment status for my running app.",
+  ],
+  deployment_ops_logs: [
+    "Why did the GitHub Actions deploy fail?", "Show the error logs from my Fly app.", "What failed steps explain the build error?", "Read deployment logs for this crash.",
+  ],
+  deployment_ops_wait: [
+    "Wait until the deploy finishes and tell me.", "Poll until my deployment is healthy.", "Check again in a minute until it is done.", "Wait for the deployment to finish.",
+  ],
+  deployment_ops_list_targets: [
+    "List my Fly apps.", "Which apps do I have on Fly?", "Show available deployment targets.", "What Fly apps can you inspect?",
   ],
   domain_lookup_dns: [
     "What DNS records does my domain have?",
@@ -292,10 +397,11 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   ],
   content_post_update: [
     "Can you change the title of this page?",
-    "I need to edit the whole content of this post.",
+    "I need to fix a typo in the latest blog post title.",
     "How do I publish this post by updating its status?",
     "Can you rewrite this page's body and slug at the same time?",
     "How do I take a live post back to draft?",
+    "Can you unpublish this page for now and put it back in draft?",
   ],
   content_post_delete: [
     "Can you delete this blog post?",
@@ -704,6 +810,34 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "How do I pull the plug on a draft campaign permanently?",
     "Can you take this campaign out of the send pipeline entirely?",
   ],
+  newsletter_send_test: [
+    "Send a test newsletter to myself.",
+    "Test this email campaign before sending it.",
+    "Email a newsletter preview to the site owner.",
+    "Send me a proof of this newsletter issue.",
+    "Can I check the newsletter in my own inbox first?",
+  ],
+  newsletter_send_campaign: [
+    "Send this newsletter now.",
+    "Launch this newsletter to subscribers.",
+    "Send the newsletter to everyone.",
+    "Email this newsletter to my mailing list.",
+    "Send the newsletter issue after I confirm.",
+  ],
+  newsletter_schedule_campaign: [
+    "Schedule this newsletter for tomorrow.",
+    "Set a send date for this email campaign.",
+    "Schedule the newsletter issue for later.",
+    "Save a scheduled date for this subscriber newsletter send.",
+    "Can I record when this newsletter should go out?",
+  ],
+  newsletter_resume_campaign: [
+    "Resume this paused newsletter.",
+    "Continue sending the newsletter.",
+    "Restart paused newsletter delivery.",
+    "Resume the email campaign's remaining recipients.",
+    "Unpause this newsletter send after I approve it.",
+  ],
   newsletter_pause_campaign: [
     "Can you stop this newsletter that's currently sending?",
     "How do I halt an in-progress campaign send?",
@@ -872,6 +1006,20 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "What namespace do our settings live under?",
     "List all the active setting definitions we can configure.",
   ],
+  // Added for t07, after the original blind catalog: owner settings writes and single-layer undo.
+  settings_set_value: [
+    "Change the site's timezone to Pacific.",
+    "Turn off comments on new posts.",
+    "Set the date format to day-month-year.",
+    "Change a site setting.",
+    "Update a configuration option.",
+  ],
+  settings_clear_value: [
+    "Put that setting back to its default.",
+    "Clear a setting override.",
+    "Undo that setting.",
+    "Reset one setting to default.",
+  ],
   settings_get_effective: [
     "What's the actual value being used for this setting right now?",
     "Can you resolve the final setting value after all the overrides?",
@@ -944,6 +1092,41 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "How much overlap is there between these two categories if I merge them?",
     "Can this tool actually perform the merge, or just show me what would happen?",
     "What content would lose its duplicate tag assignment if I merge these terms?",
+  ],
+  marketplace_list_themes: [
+    "Browse the theme marketplace.",
+    "Find a new theme for my site.",
+    "Show available theme templates and designs.",
+    "What themes are in the marketplace gallery?",
+    "Search marketplace themes by name or tags.",
+  ],
+  theme_install_from_marketplace: [
+    "Install a new theme from the marketplace.",
+    "Download this theme into my site.",
+    "Add a marketplace theme without activating it.",
+    "Get a new theme for my site.",
+    "I want to use a different design; install a theme first.",
+  ],
+  theme_rescan: [
+    "Rescan themes after I added a folder.",
+    "Refresh themes; my new theme folder is not showing.",
+    "Reload themes from disk.",
+    "Pick up my new theme folder without restarting.",
+    "Scan for added, removed or invalid themes.",
+  ],
+  theme_reset_file: [
+    "Undo my changes to the header template.",
+    "Restore a theme file to its original version.",
+    "Discard my stylesheet edits and reset it.",
+    "Bring back the original footer template in my theme.",
+    "Can you revert this theme file from its stored pristine copy?",
+  ],
+  theme_set_active: [
+    "Switch my site to the Nordic theme.",
+    "Activate an installed theme on my live site.",
+    "Change which theme my site uses.",
+    "Set the active theme to my existing design.",
+    "Turn off the theme on my site.",
   ],
   theme_list: [
     "What themes do we have installed?",

@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -18,9 +20,15 @@ import {
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
-import { registerToolContributor, resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
+
 import { contributeMediaImportTools } from "../tool-registrations.js";
-import { mediaImportAgentToolCatalog, type AgentToolDefinition } from "../agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { mediaImportAgentToolCatalog } from "../agent-tools.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file `media_import_from_url` end to end through the REAL registry, the REAL `uploadMedia`, and the
@@ -36,8 +44,8 @@ import { mediaImportAgentToolCatalog, type AgentToolDefinition } from "../agent-
  * UTF-8, so a byte path that ever went through the lossy `bodyText` would fail it loudly.
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributeMediaImportTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMediaImportTools() });
 
 const WORKSPACE_ID = "ws-media-import-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -115,19 +123,19 @@ function imageResponse(bytes: Uint8Array, overrides: Partial<HttpResponse> = {})
 
 function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | Error)[] } = {}) {
   const allow = options.allow ?? true;
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new RecordingBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const mediaImportHttpClient = new FakeHttpClient(options.responses ?? [imageResponse(REAL_PNG)]);
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: {
       newId: () => {
         counter += 1;
@@ -152,7 +160,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
 
 async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo): Promise<void> {
   await registerTransform({
-    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowIso: () => NOW } },
+    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
 }
@@ -168,7 +176,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaImportRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("media_import")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_import")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -199,7 +207,7 @@ test("media_import_from_url publishes its catalog entry's inputSchema and descri
 });
 
 test("the catalog's declared side effect and this wiring layer's own risk classification agree", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_import_from_url", catalogEntry("media_import_from_url")));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_import_from_url", catalogEntry("media_import_from_url"), contributions));
   assert.equal(catalogEntry("media_import_from_url").sideEffects, "mutates-durable-state");
 });
 
@@ -319,7 +327,7 @@ test("a truncated response is rejected and NOTHING is written — the 'rows exis
 
 test("a transport-level SSRF refusal propagates and nothing is written", async () => {
   const safe = "egress to the requested host was refused by policy";
-  const refusal = new EgressRefusedError("egress to metadata.example.com (169.254.169.254) rejected: resolved address is link-local", { callerSafeMessage: safe });
+  const refusal = new EgressRefusedError({ message: "egress to metadata.example.com (169.254.169.254) rejected: resolved address is link-local" }, { callerSafeMessage: safe });
   const { deps, mediaRepo, blobStore } = fakeRouteDeps({ responses: [refusal] });
 
   await assert.rejects(

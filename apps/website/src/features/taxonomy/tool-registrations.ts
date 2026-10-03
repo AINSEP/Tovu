@@ -1,3 +1,5 @@
+import { type Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044): maps `agent-tools.ts`'s 8 catalog
  * entries onto `write-service.ts`'s ordinary mutations, `list.ts`'s read, and `merge-term.ts`'s
@@ -22,21 +24,8 @@
  * `database_plan_migrate_forward` precedent, including reusing this domain's own
  * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
  */
-import {
-  type AuthorizeFn,
-  type OutboxPort,
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn, type OutboxPort, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
@@ -45,18 +34,21 @@ import {
   confirm as gatewayConfirm,
   execute as gatewayExecute,
   plan as gatewayPlan,
-  type GatedMutationHooks,
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
+import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
+import { toSlug } from "../../platform/html/slug.js";
 import type { PostRepoPort } from "../post/index.js";
-import { authorizeContentEdit, createContentTargetPorts, type CollectionOwnerLookupPort } from "./collection-term-policy.js";
+import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy, type CollectionOwnerLookupPort } from "./collection-term-policy.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
   listTaxonomiesWithTerms,
+  isContentTypeOnAllowList,
   confirmMergeTerm,
   executeMergeTerm,
   planMergeTerm,
@@ -75,9 +67,10 @@ import {
   type TermRepoPort,
   type UnassignableEntryTermRepoPort,
   type WriteServiceDeps,
+  type TransactionalRepoPort,
 } from "./index.js";
 
-const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: taxonomyAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Taxonomy's tool handlers read. Declared structurally
@@ -91,11 +84,13 @@ const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
 export interface TaxonomyToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
+  clock: Clock;
   idGen: { newId(): string };
-  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & TransactionalRepoPort;
   termRepo: TermRepoPort & TermListPort;
-  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & UnassignableEntryTermRepoPort;
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & UnassignableEntryTermRepoPort & {
+    listForContent(input: { contentType: string; contentId: string }): Promise<ReadonlyArray<{ termId: string }>>;
+  };
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /** Passed wholesale to `repo.memory.ts`'s `toTaxonomyOutbox` adapter, which reads this field plus
    * `clock`/`idGen` off the same bag rather than taking a pre-built outbox — see that function's own
@@ -121,6 +116,9 @@ export interface TaxonomyToolDeps {
 export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> listTaxonomiesWithTerms (list.ts): taxonomies.list() + terms.listByTaxonomy() reads only.
   ["taxonomy_list", "none"],
+  // -> entryTermRepo.listForContent + taxonomyRepo.list + termRepo.listByTaxonomy,
+  //    with contentTypeRepo.findByKey for collection validation; reads only.
+  ["taxonomy_get_assigned_terms", "none"],
   // -> createTaxonomy (write-service.ts): taxonomies.insert + revisions.insert in effect.
   ["taxonomy_create_taxonomy", "mutates-durable-state"],
   // -> createTerm (write-service.ts): terms.insert + revisions.insert.
@@ -143,6 +141,16 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
 ]);
 
 const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
+
+/** Shared read/assignment validation: posts, pages and live collections can carry terms.
+ * @throws {ToolInputError} For widget, unknown or tombstoned collection types.
+ * @complexity O(1), at most one indexed content-type read.
+ */
+async function requireTaggableContentType(deps: TaxonomyToolDeps, contentType: string): Promise<void> {
+  if (isContentTypeOnAllowList({ contentType })) return;
+  if (await createLiveCollectionTermPolicy(deps).taxonomiesFor({ contentType }) !== null) return;
+  throw new ToolInputError({ message: `content type '${contentType}' does not support taxonomy assignments. Use post, page, or a live collection key.` });
+}
 
 /** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
  * identical shape, mirroring each admin route's own inline construction. */
@@ -176,71 +184,102 @@ export function buildTaxonomyRegistrations(
       termRepo: routeDeps.termRepo,
       entryTermRepo: routeDeps.entryTermRepo,
       taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
-    }) as unknown as GatedMutationHooks<unknown, { mergedCount: number }>;
-  const termName = async (id: string) => (await routeDeps.termRepo.findById(id))?.name ?? `${id} (not found)`;
+    });
+  const termName = async (id: string) => (await routeDeps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
 
   const handlers: Record<string, ToolHandler> = {
     taxonomy_list: async (ctx) => {
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.taxonomy.manage", entityType: "taxonomy" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
       return listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
     },
 
+    ...withModelFacingErrors({ handlers: {
+      taxonomy_get_assigned_terms: async (ctx) => {
+        const input = requireInputRecord({ input: ctx.input });
+        const contentType = requireString({ input: input, key: "contentType" });
+        const contentId = requireString({ input: input, key: "contentId" });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
+        await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
+        await requireTaggableContentType(routeDeps, contentType);
+        const assignments = await routeDeps.entryTermRepo.listForContent({ contentType, contentId });
+        if (!assignments.length) return { contentType, contentId, terms: [] };
+        const assigned = new Set(assignments.map(row => row.termId));
+        // Bulk lists resolve names without one query per assignment. O(all terms + a log a)
+        // time, O(all terms) space, a = assigned terms; no assignment or revision writes.
+        const { items } = await listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
+        const terms = items.flatMap(({ taxonomy, terms }) => terms.filter(term => assigned.has(term.id)).map(term => ({
+          termId: term.id, name: term.name, slug: toSlug(term.name), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
+        })));
+        terms.sort((a, b) => a.taxonomyName.localeCompare(b.taxonomyName) || a.name.localeCompare(b.name) || a.termId.localeCompare(b.termId));
+        return { contentType, contentId, terms };
+      },
+    }, rules: [forbiddenRule("TAXONOMY")] }),
+
     taxonomy_create_taxonomy: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       const taxonomy = await createTaxonomy({
         deps: taxonomyDeps(routeDeps),
         principalId: ctx.principal.id,
-        name: requireString(input, "name"),
+        name: requireString({ input: input, key: "name" }),
         hierarchical: input.hierarchical === true,
       });
       return { taxonomy };
     },
 
     taxonomy_create_term: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       const term = await createTerm({
         deps: taxonomyDeps(routeDeps),
         principalId: ctx.principal.id,
-        taxonomyId: requireString(input, "taxonomyId"),
-        name: requireString(input, "name"),
-        parentId: optionalString(input, "parentId") ?? null,
-      });
+        taxonomyId: requireString({ input: input, key: "taxonomyId" }),
+        name: requireString({ input: input, key: "name" }),
+      }, { parentId: optionalString({ input: input, key: "parentId" }) ?? null });
       return { term };
     },
 
     taxonomy_rename_term: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
+      const input = requireInputRecord({ input: ctx.input });
       const term = await renameTerm({
-        deps: taxonomyDeps(routeDeps),
+        deps: { ...taxonomyDeps(routeDeps), transaction: (required) => routeDeps.taxonomyRepo.transaction(required) },
         principalId: ctx.principal.id,
-        termId: requireString(input, "termId"),
-        newName: requireString(input, "newName"),
+        termId: requireString({ input: input, key: "termId" }),
+        newName: requireString({ input: input, key: "newName" }),
       });
       return { term };
     },
 
     taxonomy_assign_terms: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const contentType = requireString(input, "contentType");
-      const contentId = requireString(input, "contentId");
+      const input = requireInputRecord({ input: ctx.input });
+      const contentType = requireString({ input: input, key: "contentType" });
+      const contentId = requireString({ input: input, key: "contentId" });
       if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
-        throw new ToolInputError("'termIds' (string array) is required");
+        throw new ToolInputError({ message: "'termIds' (string array) is required" });
       }
       const termIds = input.termIds as string[];
 
       // The content's own edit permission first, as the admin route does; assignTerms then checks
       // admin.taxonomy.manage itself.
       await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
-      await assignTerms({ deps: taxonomyDeps(routeDeps), principalId: ctx.principal.id, contentType, contentId, termIds });
+      const deps = taxonomyDeps(routeDeps);
+      await assignTerms({
+        deps: { ...deps, authorize: async params => {
+          const result = await deps.authorize(params);
+          // The service owns the taxonomy permission check. Validate the shared content-type
+          // contract only after that grant, including empty assignment requests, before writes.
+          if (result.allowed) await requireTaggableContentType(routeDeps, contentType);
+          return result;
+        } },
+        principalId: ctx.principal.id, contentType, contentId, termIds,
+      });
       return { contentType, contentId, assignedTermIds: termIds };
     },
 
     taxonomy_unassign_terms: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const contentType = requireString(input, "contentType");
-      const contentId = requireString(input, "contentId");
+      const input = requireInputRecord({ input: ctx.input });
+      const contentType = requireString({ input: input, key: "contentType" });
+      const contentId = requireString({ input: input, key: "contentId" });
       if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
-        throw new ToolInputError("'termIds' (string array) is required");
+        throw new ToolInputError({ message: "'termIds' (string array) is required" });
       }
       const termIds = input.termIds as string[];
 
@@ -260,9 +299,9 @@ export function buildTaxonomyRegistrations(
     },
 
     taxonomy_plan_merge_term: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const fromTermId = requireString(input, "fromTermId");
-      const intoTermId = requireString(input, "intoTermId");
+      const input = requireInputRecord({ input: ctx.input });
+      const fromTermId = requireString({ input: input, key: "fromTermId" });
+      const intoTermId = requireString({ input: input, key: "intoTermId" });
 
       const hooks = buildMergeTermHooks({
         workspaceId: routeDeps.workspaceId,
@@ -289,7 +328,7 @@ export function buildTaxonomyRegistrations(
             deps: routeDeps.gatedMutations.gatewayDeps,
             principalId: ctx.principal.id,
             principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-            hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
+            hooks,
           }),
       });
     },
@@ -299,10 +338,10 @@ export function buildTaxonomyRegistrations(
     [MERGE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "merged",
       prepare: async (ctx) => {
-        const input = requireInputRecord(ctx.input);
+        const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
-        const fromTermId = requireString(input, "fromTermId");
-        const intoTermId = requireString(input, "intoTermId");
+        const fromTermId = requireString({ input: input, key: "fromTermId" });
+        const intoTermId = requireString({ input: input, key: "intoTermId" });
         const hooks = mergeHooks(ctx, fromTermId, intoTermId);
         const plan = await planMergeTerm({
           principalId: ctx.principal.id,
@@ -341,7 +380,7 @@ export function buildTaxonomyRegistrations(
               deps: routeDeps.gatedMutations.gatewayDeps,
               principalId: confirmer.id,
               principalKind: confirmer.kind,
-              hooks: hooks as GatedMutationHooks<unknown, unknown>,
+              hooks,
               planId: params.planId,
               planHash: params.planHash,
             });

@@ -1,3 +1,7 @@
+import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
+import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
+import { loadDeployOpsRegistry } from "#src/features/deployments/index";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
@@ -63,7 +67,7 @@ import { homedir } from "node:os";
 
 import express from "express";
 
-import { createToolRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 // From `@jini-ai/agent-runtime`, which owns the seam — not `@jini-ai/daemon`, which only accepts
@@ -71,17 +75,9 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from 
 // shim it made that wrong claim typecheck cleanly.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { getAgentDef, resolveAgentLaunch } from "@jini-ai/agent-runtime";
-import {
-  createDiskAttachmentStore,
-  createFrontendControl,
-  registerAgentRoutes,
-  registerAttachmentRoutes,
-  registerComponentCatalogRoutes,
-  registerDelegatedToolRoutes,
-  registerRunRoutes,
-  registerToolCatalogRoutes,
-} from "@jini-ai/http-kit";
-import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/http-kit";
+import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import type { AdapterContext } from "@jini-ai/http-kit";
+import type { AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
@@ -178,6 +174,33 @@ const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
 
+// A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
+const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
+const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
+let registryPublication: Promise<void> = Promise.resolve();
+let daemonExiting = false;
+
+/** Wait for an in-flight publication before removing our pointer: fsync may reject AFTER rename,
+ * so even a failed publication can already be visible. Ownership guarding prevents an old daemon
+ * from erasing a replacement daemon's record during a fast restart. The durability and race
+ * rationale lives in @jini-ai/sidecar's daemon-registry and json-file implementations. */
+async function exitDaemon(exitCode: number): Promise<void> {
+  if (daemonExiting) return;
+  daemonExiting = true;
+  await registryPublication.catch(() => undefined);
+  try {
+    await daemonRegistry?.removeIfCurrent({ pid: process.pid });
+  } catch (error) {
+    console.error("[agent-daemon] failed to remove its discovery record", error);
+  }
+  process.exit(exitCode);
+}
+
+// Keep the conventional signal exit codes while giving the owned discovery record cleanup.
+process.once("SIGTERM", () => { void exitDaemon(143); });
+process.once("SIGINT", () => { void exitDaemon(130); });
+
+
 /**
  * Self-termination watchdog, 2026-08-05 (`ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`).
  *
@@ -250,7 +273,7 @@ function startParentWatchdog(): void {
       console.error(
         `[agent-daemon] parent process ${parentPid} is gone and reap() never reached this process — self-terminating`,
       );
-      process.exit(1);
+      void exitDaemon(1);
     }
   }, POLL_INTERVAL_MS);
 }
@@ -366,9 +389,9 @@ const routeDeps = await createAgentDaemonRouteDeps({ env: process.env });
 // event, is this lane's chosen mechanism.
 startPluginActivationPolling(routeDeps);
 
-const eventLog = createInMemoryEventLog();
+const eventLog = createInMemoryEventLog({});
 const lifecycle = createRunLifecycle({ eventLog });
-lifecycle.rehydrate().catch((error: unknown) => {
+lifecycle.rehydrate({}).catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
 
@@ -397,15 +420,19 @@ const surfaceExchanges = createSurfaceExchangeStore();
 
 // Must run before `buildAssistantToolRegistrations` below: that function reads whatever the
 // registry currently holds, and the registry starts empty every process boot (it is ordinary
-// module-level state in `assistant/tool-contribution-registry.ts`, not populated as a side effect
+// composition-owned core instances (host contracts in `assistant/tool-contribution-registry.ts`), not populated as a side effect
 // of any import). See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
 // `assistant-byok.ts`, and nowhere else.
-installFirstPartyToolContributors();
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+};
+installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }) });
 
-const registry = createToolRegistry();
-// Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
+const registry = createToolRegistry({});
 let refreshSkillsCatalog = () => {};
 
+// Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
 // to the already-built `media_upload_asset` registration — see `promote-chat-attachment.ts`'s own
 // header for why reusing that handler, rather than re-implementing its gate, is the whole design.
 const assistantRegistrations = buildAssistantToolRegistrations(
@@ -414,6 +441,7 @@ const assistantRegistrations = buildAssistantToolRegistrations(
   // also lists the agent-plugin, skill and federated tools `start()` registers after this line.
   { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(registry) },
   { surfaceExchanges },
+  { contributions },
 );
 for (const registration of assistantRegistrations) {
   registry.register(registration);
@@ -499,7 +527,7 @@ const frontendControl = createFrontendControl({
    * `onStarted` below already reports and fails the run for that, so throwing here as well would
    * turn one diagnosable error into two.
    */
-  resolveBindToken: (request) => {
+  resolveBindToken: ({ request }) => {
     try {
       const parsed = JSON.parse(request.contextRef) as { frontendBindToken?: unknown };
       return typeof parsed.frontendBindToken === "string" && parsed.frontendBindToken.length > 0
@@ -509,6 +537,7 @@ const frontendControl = createFrontendControl({
       return undefined;
     }
   },
+}, {
   // Pass-through `allow`, matching ADR-021 §2 and every other Tovu registration (see
   // `tool-registration-kit.ts`). It is not a missing check: these verbs carry no Tovu permission
   // of their own, and the authorization that matters already happened twice before a call gets
@@ -617,6 +646,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
 
 const agentExecutor = createAgentExecutor({
   lifecycle,
+}, {
   // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
   // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
   // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
@@ -731,7 +761,7 @@ async function resolveAttachmentRunFields(
     // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
     // trust.
     const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
-    const claimed = await attachmentStore.claim(refs, run.id);
+    const claimed = await attachmentStore.claim({ attachments: refs, runId: run.id });
     if (claimed.batchDirectory === undefined) return {};
     return {
       // Deliberately NOT `.filter((attachment) => attachment.kind === "image")` — that used to be
@@ -815,7 +845,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
   if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
-  void runLifecycle.waitForTerminal(run.id).finally(() => {
+  void runLifecycle.waitForTerminal({ runId: run.id }).finally(() => {
     principalByRunId.delete(run.id);
     runCredentials.revoke(run.id);
     runActiveContexts.forget(run.id);
@@ -830,7 +860,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // could theoretically have claimed. Best-effort: a cleanup failure must not resurface as a run
     // failure this late in the run's life, and the store's own `retentionMs`/`pruneExpired` is the
     // backstop if this never runs at all (process crash, etc.).
-    void attachmentStore?.cleanupRun(run.id).catch((error: unknown) => {
+    void attachmentStore?.cleanupRun({ runId: run.id }).catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
     });
   });
@@ -846,7 +876,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   if (conversationId !== undefined) {
     const resolvedConversationId = conversationId;
     const resolvedAgentId = request.agentId ?? DEFAULT_AGENT_ID;
-    void runLifecycle.stream(run.id, (event) => {
+    void runLifecycle.stream({ runId: run.id, onEvent: (event) => {
       // Terminal-outcome log line (2026-09-06 chat-death investigation). This subscription already
       // exists, already sees every `end` event, and already has `run.id` in scope — so this is the
       // cheapest possible place to write down HOW a run ended. Until now nothing did: the daemon
@@ -864,7 +894,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       }
       const sessionRef = extractSessionRefFromEndEvent(event);
       if (sessionRef !== undefined) {
-        void routeDeps.agentSessions.setSessionId(resolvedConversationId, resolvedAgentId, sessionRef).catch((error: unknown) => {
+        void routeDeps.agentSessions.setSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId, sessionId: sessionRef }).catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error);
         });
         return;
@@ -875,11 +905,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
       // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
       if (shouldClearSessionOnFailedResume(event, attemptedResumeSessionId)) {
-        void routeDeps.agentSessions.clearSessionId(resolvedConversationId, resolvedAgentId).catch((error: unknown) => {
+        void routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId }).catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
         });
       }
-    });
+    } });
   }
 
   // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
@@ -964,7 +994,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // one and persists it before the CLI is spawned, which is what this comment used to say was
         // deliberately NOT happening.
         const storedSessionId =
-          conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
+          conversationId !== undefined ? await routeDeps.agentSessions.getSessionId({ conversationId, agentId }) : null;
         // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
         // sent right after Stop resumes the session instead of being refused (2026-09-27).
         if (conversationId !== undefined) {
@@ -1037,7 +1067,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
           // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
           // losing resumability for one conversation is the pre-fix behavior, where failing the
           // run outright would cost the user a turn over a bookkeeping write.
-          await routeDeps.agentSessions.setSessionId(conversationId, agentId, hostMintedSessionId).catch((error: unknown) => {
+          await routeDeps.agentSessions.setSessionId({ conversationId, agentId, sessionId: hostMintedSessionId }).catch((error: unknown) => {
             console.error(`[agent-daemon] run ${run.id}: failed to persist minted agent session id at dispatch`, error);
           });
         }
@@ -1061,6 +1091,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         agentId: sessionBinding.agentId,
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
+      }, {
         permissionMode: resolvePermissionMode(),
         // Finding 2 (SEC-assistant-env-isolation-2026-09-07): the actual, enforced tool-grant
         // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
@@ -1104,7 +1135,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
  * route and into the execution itself, where `withReadOnlyToolConstraint` enforces it on every
  * dispatch rather than only on the id the caller named — the route's own check answers for that one
  * id, and a decorator can dispatch another. See `read-only-tool-constraint.ts`. */
-const resolvePrincipal = (request: DelegatedToolExecuteRequest): Principal => {
+const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteRequest }): Principal => {
   const principal = principalByRunId.get(request.runId);
   if (!principal) throw new Error(`no principal is tracked for run "${request.runId}"`);
   return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
@@ -1120,9 +1151,9 @@ const app = express();
 // bridge's routes and stands for that run's principal, never one the caller asserts
 // (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
 app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));
-// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // Read skills before discovery or execution, including changes made by another process.
 app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
+// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
 // (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
 // `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
@@ -1135,7 +1166,10 @@ app.use(express.json({ limit: "6mb" }));
 // closed. Run credentials must match body.runId before any delegated handler or tool can execute;
 // proxy credentials retain their existing authority.
 app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));
-const adapter: AdapterContext = { resolvedPortRef: { current: port } };
+const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: process.env,
+  // These are the environment names the previously imported http-kit origin guard read.
+  // Preserve that deployed contract when supplying the now-explicit origin configuration.
+  allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
 // above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
@@ -1146,12 +1180,12 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port } };
 app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
 
-registerRunRoutes(app, { lifecycle, onStarted }, adapter);
+registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-registerAgentRoutes(app, { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter);
+registerAgentRoutes({ app, deps: { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter });
 // `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
 // served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
 registerRunActiveContextRoute(app, runActiveContexts);
@@ -1174,7 +1208,7 @@ const delegatedToolRouteDeps = {
   toolRegistry: registry,
   ...delegatedToolErrorDisclosure(),
 };
-registerDelegatedToolRoutes(app, delegatedToolRouteDeps, adapter);
+registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
@@ -1200,7 +1234,7 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 // subprocess that holds no token), these two are reached by the browser through Tovu's own
 // session-authenticated proxy, which attaches the bearer like every other forwarded route. See
 // `src/server/modules/assistant.ts`.
-frontendControl.httpExtension(app, { adapter });
+frontendControl.httpExtension({ app, context: { adapter } });
 
 /**
  * OUTBOUND MCP federation — the reverse direction from `mcp-injection.ts`. Tovu connects OUT to a
@@ -1220,7 +1254,7 @@ frontendControl.httpExtension(app, { adapter });
  * opposite of `daemon-auth.ts`'s fail-closed posture.
  *
  * Ordering is load-bearing, which is why the last two registrars moved inside this async start:
- * `buildToolCatalogQuery` snapshots `registry.list()` into a one-shot FTS index, so a federated tool
+ * `buildToolCatalogQuery` snapshots `registry.list({})` into a one-shot FTS index, so a federated tool
  * registered after it would be executable but invisible to `search_tools`/`describe_tool` — exactly
  * the half-wired state `tool-catalog-query.ts`'s own header records finding on 2026-07-30. Route
  * order is otherwise unchanged: the catalog routes were already registered last.
@@ -1254,6 +1288,7 @@ frontendControl.httpExtension(app, { adapter });
  * wired through this local.
  */
 const externalMcpOAuth = createExternalMcpOAuthService({
+  httpPorts: createTovuOAuthHttpPorts({ http: routeDeps.mediaGenerationHttpClient }),
   workspaceId: routeDeps.workspaceId,
   repo: routeDeps.externalMcpServerRepo,
   sealer: routeDeps.siteAssistantSecretSealer,
@@ -1334,7 +1369,7 @@ async function start(): Promise<void> {
         // Propagates a reload that actually admitted something new into every OTHER piece of
         // process state a boot-time admission also updates: the discovery-side fix (see
         // `tool-catalog-live-query.ts`) — the `search_tools`/`describe_tool` snapshot, rebuilt from
-        // `registry.list()` and rebound into the SAME object identity `registerToolCatalogRoutes`
+        // `registry.list({})` and rebound into the SAME object identity `registerToolCatalogRoutes`
         // was handed below (`liveToolCatalog`, built a few lines down). A no-op reload (nothing new
         // in the roster) never calls this — see `external-mcp-federation-runtime.ts`'s own doc.
         onAdmitted: (result) => {
@@ -1439,7 +1474,6 @@ async function start(): Promise<void> {
       principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
     }),
   );
-  registerToolCatalogRoutes(app, { catalog: liveToolCatalog.query }, adapter);
   refreshSkillsCatalog = () => liveToolCatalog.rebind(
     withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
       workspaceId: routeDeps.workspaceId,
@@ -1447,6 +1481,7 @@ async function start(): Promise<void> {
       principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
     }),
   );
+  registerToolCatalogRoutes({ app, deps: { catalog: liveToolCatalog.query }, adapter });
 
   registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
   // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its
@@ -1463,7 +1498,7 @@ async function start(): Promise<void> {
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
   // the start rather than adding it later. See `component-catalog-query.ts`.
-  registerComponentCatalogRoutes(app, { catalog: buildComponentCatalogQuery() }, adapter);
+  registerComponentCatalogRoutes({ app, deps: { catalog: buildComponentCatalogQuery() }, adapter });
 
   // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
   // process on construction — see its own doc), so it cannot be a module-scope `const` the way
@@ -1487,6 +1522,7 @@ async function start(): Promise<void> {
   // previous behavior is deleting this one option.
   attachmentStore = await createDiskAttachmentStore({
     uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
+  }, {
     retainAcrossRestarts: true,
     maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
   });
@@ -1496,15 +1532,13 @@ async function start(): Promise<void> {
   // non-JSON `content-type` is what actually protects the upload route — see
   // `src/server/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  registerAttachmentRoutes(
-    app,
-    {
+  registerAttachmentRoutes({ app, deps: {
       store: attachmentStore,
       // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
       // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
       // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
       // (`list-pending-chat-attachments.ts`) scopes its listing by.
-      resolveOwnerId: (req) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+      resolveOwnerId: ({ req }) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
       // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
       // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
       // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
@@ -1512,12 +1546,26 @@ async function start(): Promise<void> {
       // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
       // the bytes are ever sent, not just after).
       maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
-    },
-    adapter,
-  );
+    }, adapter });
 
   const server = app.listen(port, "127.0.0.1", () => {
-    if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${daemonUrl}`);
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      console.error("[agent-daemon] listening socket has no TCP address");
+      void exitDaemon(1);
+      return;
+    }
+    const listeningUrl = `http://127.0.0.1:${address.port}`;
+    if (daemonExiting) return;
+    registryPublication = daemonRegistry?.write({ record: {
+      url: listeningUrl, host: "127.0.0.1", port: address.port,
+      pid: process.pid, startedAt: new Date().toISOString(),
+    } }) ?? Promise.resolve();
+    void registryPublication.catch((error: unknown) => {
+      console.error("[agent-daemon] failed to publish its discovery record", error);
+      void exitDaemon(1);
+    });
+    if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${listeningUrl}`);
   });
 
   /**
@@ -1537,11 +1585,11 @@ async function start(): Promise<void> {
   server.on("error", (error) => {
     if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
       console.error(`[agent-daemon] could not bind 127.0.0.1:${port} — address already in use`);
-      process.exit(AGENT_DAEMON_EXIT_CODE.PORT_IN_USE);
+      void exitDaemon(AGENT_DAEMON_EXIT_CODE.PORT_IN_USE);
       return;
     }
     console.error(`[agent-daemon] failed to bind 127.0.0.1:${port}`, error);
-    process.exit(1);
+    void exitDaemon(1);
   });
 }
 

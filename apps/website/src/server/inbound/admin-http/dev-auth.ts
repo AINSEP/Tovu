@@ -2,15 +2,18 @@ import type { Express, NextFunction, Request, Response } from "express";
 
 import {
   AuthInvalidCredentialsError,
+  type IdentityRepos,
+  type PrincipalRecord,
+} from "@jini-ai/user-management";
+import {
   createSessionForPrincipal,
   getEffectivePermissions,
   login,
   logout,
+  NodeSessionTokens,
   validateSession,
   type AuthServiceDeps,
-  type IdentityRepos,
-  type PrincipalRecord,
-} from "@jini-ai/cms/identity";
+} from "@jini-ai/user-management/server";
 import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
 import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
@@ -73,6 +76,12 @@ import { canPublishToLive } from "#src/features/publish-content/live-site-policy
  */
 const SESSION_COOKIE = "tovu_session";
 
+// The extracted minter keeps the 32-byte hex bearer and SHA-256 digest in
+// user-management/server/session-tokens.ts; binding it preserves existing session rows.
+const sessionTokens = new NodeSessionTokens({});
+// Tovu's absolute 30-day lifetime is product policy, passed explicitly to both minting paths.
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 /**
  * `Bearer <raw-key>` or `ApiKey <raw-key>`, case-insensitive on the scheme. The captured group is
  * a live credential: it is passed straight to `authenticateApiKey` and is never logged, echoed in
@@ -131,6 +140,7 @@ type SessionAuthDeps = IdentityDeps & ClockDeps;
 /** Assemble the `IdentityRepos` bag `identity/*` functions expect from `RouteDeps`'s flat fields. */
 function identityReposFrom(deps: IdentityDeps): IdentityRepos {
   return {
+    transactions: deps.transactions,
     principals: deps.principalRepo,
     users: deps.userRepo,
     sessions: deps.sessionRepo,
@@ -143,13 +153,21 @@ function identityReposFrom(deps: IdentityDeps): IdentityRepos {
   };
 }
 
-/** Assemble the `ApiKeyServiceDeps` bag `authenticateApiKey` expects from `RouteDeps`'s flat fields. */
-function apiKeyServiceDepsFrom(deps: SessionAuthDeps): ApiKeyServiceDeps {
+/** Bind the host's ISO clock and the required bearer strategy to Jini's auth ports. */
+function authServiceDepsFrom(deps: SessionAuthDeps): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
     hasher: deps.passwordHasher,
-    clock: deps.clock,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
+    tokens: sessionTokens,
+  };
+}
+
+/** Assemble the `ApiKeyServiceDeps` bag `authenticateApiKey` expects from `RouteDeps`'s flat fields. */
+function apiKeyServiceDepsFrom(deps: SessionAuthDeps): ApiKeyServiceDeps {
+  return {
+    ...authServiceDepsFrom(deps),
     apiKeys: deps.apiKeyRepo,
     secretHasher: deps.apiKeySecretHasher,
   };
@@ -210,7 +228,7 @@ export async function currentCredential(
   if (rawToken) {
     await deps.identityReady;
     const resolved = await validateSession({
-      deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+      deps: authServiceDepsFrom(deps),
       input: { workspaceId: deps.workspaceId, rawToken },
     });
     if (resolved?.principal) return { principal: resolved.principal, kind: "session" };
@@ -323,6 +341,7 @@ export function rejectUnlessSessionCredential(
  * request is on a route `grant.ts`'s `PUBLISH_TRUST_ROUTES` names — so by the time this sees the
  * marker, every check this middleware would perform has a stricter counterpart that already ran.
  * `res.locals` is server-side and per-request: no client can set the marker.
+ * Credential-store failures go to Express's error handler through `next(error)`.
  */
 export function requireAdminSession(deps: SessionAuthDeps) {
   return async function requireAdminSessionMiddleware(
@@ -330,20 +349,25 @@ export function requireAdminSession(deps: SessionAuthDeps) {
     res: Response,
     next: NextFunction
   ): Promise<void> {
-    if (res.locals.authCredentialKind === "publish_key") {
-      parseAuthenticatedJsonBody(req, res, next);
-      return;
-    }
+    try {
+      if (res.locals.authCredentialKind === "publish_key") {
+        parseAuthenticatedJsonBody(req, res, next);
+        return;
+      }
 
-    const credential = await currentCredential(deps, req);
-    if (!credential) {
-      res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
-      return;
+      const credential = await currentCredential(deps, req);
+      if (!credential) {
+        res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
+        return;
+      }
+      res.locals.principal = credential.principal;
+      res.locals.authCredentialKind = credential.kind;
+      // The app-level parser leaves gated paths unparsed, so an anonymous body is never read.
+      parseAuthenticatedJsonBody(req, res, next);
+    } catch (error) {
+      // Forward failed credential resolution; Express 4 drops rejected middleware promises.
+      next(error);
     }
-    res.locals.principal = credential.principal;
-    res.locals.authCredentialKind = credential.kind;
-    // The app-level parser leaves gated paths unparsed, so an anonymous body is never read.
-    parseAuthenticatedJsonBody(req, res, next);
   };
 }
 
@@ -374,7 +398,7 @@ function isLoopbackPeer(req: Request): boolean {
 /**
  * Mint a session row for an already-identified principal and return its raw token.
  *
- * Thin wrapper over `@jini-ai/cms/identity`'s `createSessionForPrincipal` (2026-09-06) — the
+ * Thin wrapper over `@jini-ai/user-management/server`'s `createSessionForPrincipal` (2026-09-06) — the
  * library's own password-free session minter, factored out of `login()` so this route no longer
  * has to hand-roll session construction. This used to duplicate `auth-service.ts`'s private
  * `hashToken`/token-generation inline (with its own base64url encoding, diverging from the
@@ -388,9 +412,9 @@ function isLoopbackPeer(req: Request): boolean {
  */
 async function mintSessionForPrincipal(deps: RouteDeps, principalId: string): Promise<{ rawToken: string; expiresAt: string }> {
   const { session, rawToken } = await createSessionForPrincipal({
-    deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+    deps: authServiceDepsFrom(deps),
     input: { workspaceId: deps.workspaceId, principalId },
-  });
+  }, { sessionTtlMs: SESSION_TTL_MS });
   return { rawToken, expiresAt: session.expiresAt };
 }
 
@@ -400,39 +424,41 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
   // gets an isolated counter store rather than sharing process-wide state.
-  const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: deps.clock });
+  const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
-    await deps.identityReady;
-
-    // Client-IP resolution (api.spec §3): no trusted-proxy list is configured
-    // anywhere in this repo, so `resolveClientIp` always falls back to the
-    // socket peer address — an untrusted X-Forwarded-For is never honored.
-    const clientIp = resolveClientIp(req);
-    const rateLimitResult = loginRateLimiter.check(clientIp);
-    if (!rateLimitResult.allowed) {
-      res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-      res.status(429).json({
-        error: "too many login attempts",
-        code: "RATE_LIMIT_EXCEEDED",
-        details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-      });
-      return;
-    }
-
-    const username = String(req.body?.username ?? "");
-    const password = String(req.body?.password ?? "");
-
     try {
+      await deps.identityReady;
+
+      // Client-IP resolution (api.spec §3): no explicit trusted-proxy list is supplied here.
+      // resolveClientIp falls back to Express's req.ip under the host's trust-proxy policy,
+      // or the socket peer; an untrusted X-Forwarded-For is never honored.
+      const clientIp = resolveClientIp(req);
+      const rateLimitResult = await loginRateLimiter.check({ key: clientIp });
+      if (!rateLimitResult.allowed) {
+        res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+        res.status(429).json({
+          error: "too many login attempts",
+          code: "RATE_LIMIT_EXCEEDED",
+          details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+        });
+        return;
+      }
+
+      const username = String(req.body?.username ?? "");
+      const password = String(req.body?.password ?? "");
+
       const { principal, session, rawToken } = await login({
-        deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+        deps: authServiceDepsFrom(deps),
         input: {
           workspaceId: deps.workspaceId,
           username,
           password,
-          ip: req.ip,
-          userAgent: req.get("user-agent") ?? undefined,
         },
+      }, {
+        ip: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+        sessionTtlMs: SESSION_TTL_MS,
       });
 
       setSessionCookie(res, rawToken, session.expiresAt);
@@ -451,7 +477,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
     const rawToken = readSessionToken(req);
     if (rawToken) {
       await logout({
-        deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+        deps: authServiceDepsFrom(deps),
         input: { workspaceId: deps.workspaceId, rawToken },
       });
     }
@@ -508,7 +534,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
     // future change to the library's private token hashing would leave every desktop launch
     // silently unauthenticated with nothing pointing at the cause.
     const confirmed = await validateSession({
-      deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+      deps: authServiceDepsFrom(deps),
       input: { workspaceId: deps.workspaceId, rawToken },
     });
     if (!confirmed?.principal) {
@@ -545,12 +571,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
     // exact function the route layer and the Trash restore/purge override both gate on, so this
     // affordance-hiding flag can never drift from the real boundary — see that function's own doc
     // comment ("NOT A SECURITY BOUNDARY", `lib/permissions.ts`'s header on the admin side).
-    const authServiceDeps: AuthServiceDeps = {
-      repos: identityReposFrom(deps),
-      hasher: deps.passwordHasher,
-      clock: deps.clock,
-      idGen: deps.idGen,
-    };
+    const authServiceDeps = authServiceDepsFrom(deps);
     const canManageUserTrash = await callerMayManageUserTrash({
       deps: authServiceDeps,
       workspaceId: deps.workspaceId,
@@ -582,7 +603,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
   const usesDefaultPasswordFor = async (passwordHash: string): Promise<boolean> => {
     const cached = defaultPasswordByHash.get(passwordHash);
     if (cached !== undefined) return cached;
-    const result = await deps.passwordHasher.verify(passwordHash, DEFAULT_OWNER_PASSWORD);
+    const result = await deps.passwordHasher.verify({ hash: passwordHash, password: DEFAULT_OWNER_PASSWORD });
     if (defaultPasswordByHash.size >= 256) defaultPasswordByHash.clear();
     defaultPasswordByHash.set(passwordHash, result);
     return result;

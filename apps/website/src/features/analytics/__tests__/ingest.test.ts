@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClockPort, IdGeneratorPort, JsonObject, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonObject, UUID } from "@jini-ai/core/primitives";
 import { AnalyticsPiiRejectedError, type AnalyticsConfigPort } from "../ports.js";
 import {
   ingestHit,

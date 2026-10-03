@@ -1,16 +1,6 @@
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
-import {
-  GrantExceedsIssuerError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  resolveEffectivePermissions,
-  assertCallerHasAnyPermission,
-  type AuthServiceDeps,
-  type AuthorizeDeps,
-  type IdentityRepos,
-  type PolicyPermissionRecord,
-  type PrincipalRecord,
-} from "@jini-ai/cms/identity";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
+import { GrantExceedsIssuerError, IdentityNotFoundError, IdentityValidationError, type PolicyPermissionRecord, type PrincipalRecord } from "@jini-ai/user-management";
+import { resolveEffectivePermissions, assertCallerHasAnyPermission, type AuthServiceDeps, authorizeDepsFrom } from "@jini-ai/user-management/server";
 
 import { decoyKeyHash, mintApiKey, parseApiKey } from "./api-key-secret.js";
 import type { ApiKeyRecord, ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
@@ -21,7 +11,7 @@ import type { ApiKeyRecord, ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api
  * into a principal (SPEC-006 REQ-08).
  *
  * Purpose:
- * `@jini-ai/cms/identity`'s own `INFO.md` scopes API keys OUT of that library ("Out of scope,
+ * `@jini-ai/user-management`'s own `INFO.md` scopes API keys OUT of that library ("Out of scope,
  * deferred: API keys (`api_keys`, `ISSUE_API_KEY`)"), so this host implements them, against that
  * library's exported ports and errors rather than a parallel vocabulary. Every error thrown here
  * is one the users/roles/policies routes already map to a status code, so the api-keys routes'
@@ -40,7 +30,7 @@ import type { ApiKeyRecord, ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api
  *    policy therefore cannot grow an already-issued key.
  * 2. **A key never out-ranks its issuer** (INV-07). Every permission the snapshot would confer
  *    must be held UNCONSTRAINED by the caller, or issuance is refused with no rows written.
- *    `@jini-ai/cms/identity` implements this clamp for `ASSIGN_ROLE`/`ATTACH_POLICY` but does not
+ *    `@jini-ai/user-management` implements this clamp for `ASSIGN_ROLE`/`ATTACH_POLICY` but does not
  *    export it (`grant-service.ts` is not on the package's `exports` map), so `assertGrantClamp`
  *    below is a deliberate re-implementation over the exported `resolveEffectivePermissions`,
  *    matching that function's semantics exactly — including that the owner wildcard `*` counts as
@@ -60,25 +50,13 @@ export interface ApiKeyServiceDeps extends AuthServiceDeps {
   secretHasher: ApiKeySecretHasherPort;
 }
 
-/** Assemble `AuthorizeDeps` from the flat repo bag (mirrors the library's own `authorizeDepsFrom`,
- *  which is not exported from `@jini-ai/cms/identity`). */
-function authorizeDepsFrom(repos: IdentityRepos): AuthorizeDeps {
-  return {
-    principals: repos.principals,
-    principalRoles: repos.principalRoles,
-    rolePolicies: repos.rolePolicies,
-    principalPolicies: repos.principalPolicies,
-    policyPermissions: repos.policyPermissions,
-  };
-}
+// Repo-bag assembly and its sharing rationale now live in Jini user-management/server (grant-service.ts).
 
 /** Trim-and-bound one of the two name fields, or throw `IdentityValidationError`. */
 function requireBoundedName(value: unknown, field: string): string {
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (trimmed.length < NAME_MIN_LENGTH || trimmed.length > NAME_MAX_LENGTH) {
-    throw new IdentityValidationError(
-      `'${field}' must be ${NAME_MIN_LENGTH}..${NAME_MAX_LENGTH} characters after trimming`
-    );
+    throw new IdentityValidationError({ message: `'${field}' must be ${NAME_MIN_LENGTH}..${NAME_MAX_LENGTH} characters after trimming` });
   }
   return trimmed;
 }
@@ -118,10 +96,7 @@ async function assertGrantClamp(required: {
 
   const offending = distinct.filter((permission) => !holdsUnconstrained(effectiveRows, permission));
   if (offending.length > 0) {
-    throw new GrantExceedsIssuerError(
-      `principal '${required.callerPrincipalId}' cannot grant permission(s) it does not hold unconstrained: ${offending.join(", ")}`,
-      offending
-    );
+    throw new GrantExceedsIssuerError({ message: `principal '${required.callerPrincipalId}' cannot grant permission(s) it does not hold unconstrained: ${offending.join(", ")}`, offendingPermissions: offending });
   }
 }
 
@@ -176,7 +151,7 @@ export async function createApiKeyPrincipal(required: {
   });
 
   if (input.kind !== undefined && input.kind !== "api_key") {
-    throw new IdentityValidationError(`'kind' must be 'api_key', got '${String(input.kind)}'`);
+    throw new IdentityValidationError({ message: `'kind' must be 'api_key', got '${String(input.kind)}'` });
   }
   const displayName = requireBoundedName(input.displayName, "displayName");
 
@@ -186,7 +161,7 @@ export async function createApiKeyPrincipal(required: {
     kind: "api_key",
     displayName,
     status: "active",
-    createdAt: deps.clock.nowIso(),
+    createdAt: new Date(deps.clock.nowMs()).toISOString(),
   };
   await deps.repos.principals.save(principal);
 
@@ -205,11 +180,11 @@ export interface IssueApiKeyInput {
 /** Read `policyIds` off an untyped body: a non-empty array of non-blank strings, or 400. */
 function requirePolicyIds(value: unknown): string[] {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new IdentityValidationError("'policyIds' must be a non-empty array of policy ids");
+    throw new IdentityValidationError({ message: "'policyIds' must be a non-empty array of policy ids" });
   }
   return value.map((entry) => {
     const id = typeof entry === "string" ? entry.trim() : "";
-    if (id.length === 0) throw new IdentityValidationError("'policyIds' entries must be non-blank policy ids");
+    if (id.length === 0) throw new IdentityValidationError({ message: "'policyIds' entries must be non-blank policy ids" });
     return id;
   });
 }
@@ -223,15 +198,13 @@ async function findIssuableTargetOrThrow(required: {
   const { deps, workspaceId, principalId } = required;
 
   const target = await deps.repos.principals.findById({ workspaceId, id: principalId });
-  if (!target) throw new IdentityNotFoundError(`principal '${principalId}' was not found`);
+  if (!target) throw new IdentityNotFoundError({ message: `principal '${principalId}' was not found` });
 
   if (target.kind !== "api_key") {
-    throw new IdentityValidationError(
-      `ISSUE_API_KEY target must be a machine (kind='api_key') principal, got kind='${target.kind}'`
-    );
+    throw new IdentityValidationError({ message: `ISSUE_API_KEY target must be a machine (kind='api_key') principal, got kind='${target.kind}'` });
   }
   if (target.status !== "active") {
-    throw new IdentityValidationError(`principal '${principalId}' is disabled`);
+    throw new IdentityValidationError({ message: `principal '${principalId}' is disabled` });
   }
 
   const [roleGrants, policyGrants] = await Promise.all([
@@ -239,9 +212,7 @@ async function findIssuableTargetOrThrow(required: {
     deps.repos.principalPolicies.listByPrincipalId({ workspaceId, principalId }),
   ]);
   if (roleGrants.length > 0 || policyGrants.length > 0) {
-    throw new IdentityValidationError(
-      `principal '${principalId}' already carries grants; ISSUE_API_KEY requires a grantless principal so the key's authority equals exactly the policies attached here`
-    );
+    throw new IdentityValidationError({ message: `principal '${principalId}' already carries grants; ISSUE_API_KEY requires a grantless principal so the key's authority equals exactly the policies attached here` });
   }
 
   return target;
@@ -258,13 +229,11 @@ async function collectSnapshotSourceRows(required: {
 
   for (const policyId of policyIds) {
     const policy = await deps.repos.policies.findById({ workspaceId, id: policyId });
-    if (!policy) throw new IdentityNotFoundError(`policy '${policyId}' was not found`);
+    if (!policy) throw new IdentityNotFoundError({ message: `policy '${policyId}' was not found` });
 
     const policyRows = await deps.repos.policyPermissions.listByPolicyId({ workspaceId, policyId });
     if (policyRows.some((row) => row.permission === "*")) {
-      throw new IdentityValidationError(
-        `policy '${policyId}' carries the owner wildcard '*'; an API-key snapshot may never carry it`
-      );
+      throw new IdentityValidationError({ message: `policy '${policyId}' carries the owner wildcard '*'; an API-key snapshot may never carry it` });
     }
     rows.push(...policyRows);
   }
@@ -277,7 +246,7 @@ function readOptionalExpiry(value: unknown): ISODateTime | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = new Date(String(value)).getTime();
   if (Number.isNaN(parsed)) {
-    throw new IdentityValidationError("'expiresAt' must be an ISO-8601 date-time or null");
+    throw new IdentityValidationError({ message: "'expiresAt' must be an ISO-8601 date-time or null" });
   }
   // Canonicalized to UTC on the way in, so the stored value is comparable by instant and never by
   // accident of the offset the caller happened to send.
@@ -323,7 +292,7 @@ export async function issueApiKey(required: {
   const expiresAt = readOptionalExpiry(input.expiresAt);
   const boundPrincipalId = typeof input.principalId === "string" ? input.principalId.trim() : "";
   if (boundPrincipalId.length === 0) {
-    throw new IdentityValidationError("'principalId' is required");
+    throw new IdentityValidationError({ message: "'principalId' is required" });
   }
 
   await findIssuableTargetOrThrow({ deps, workspaceId, principalId: boundPrincipalId });
@@ -379,7 +348,7 @@ export async function issueApiKey(required: {
     keyHash: await deps.secretHasher.hash(minted.secret),
     prefix: minted.prefix,
     issuedPolicyId: snapshotPolicyId,
-    createdAt: deps.clock.nowIso(),
+    createdAt: new Date(deps.clock.nowMs()).toISOString(),
     expiresAt,
   };
   await deps.apiKeys.save(apiKey);
@@ -394,7 +363,7 @@ export async function issueApiKey(required: {
  *
  * **Disclosed deviation from state.spec §3.** That row calls for retiring the snapshot policy
  * outright — "its `principal_policies` row + the frozen `policies` row + its `policy_permissions`".
- * `PrincipalPolicyRepoPort` (`@jini-ai/cms/identity`) exposes only `listByPrincipalId`/
+ * `PrincipalPolicyRepoPort` (`@jini-ai/user-management`) exposes only `listByPrincipalId`/
  * `listByPolicyId`/`save`, with no delete, and the port is not this repo's to change. Deleting the
  * `policies` row while its join row survives would leave exactly the dangling reference INV-09
  * exists to prevent, so this instead empties the snapshot via `deleteByPolicyId` and leaves the
@@ -419,9 +388,9 @@ export async function revokeApiKey(required: {
   });
 
   const existing = await deps.apiKeys.findById({ workspaceId: input.workspaceId, id: input.keyId });
-  if (!existing) throw new IdentityNotFoundError(`api key '${input.keyId}' was not found`);
+  if (!existing) throw new IdentityNotFoundError({ message: `api key '${input.keyId}' was not found` });
 
-  const revoked: ApiKeyRecord = { ...existing, revokedAt: existing.revokedAt ?? deps.clock.nowIso() };
+  const revoked: ApiKeyRecord = { ...existing, revokedAt: existing.revokedAt ?? new Date(deps.clock.nowMs()).toISOString() };
   await deps.apiKeys.save(revoked);
 
   if (revoked.issuedPolicyId) {
@@ -451,7 +420,7 @@ function isCandidateStillUsable(
 
 /**
  * Resolve a presented raw key to its principal, applying every fail-closed check. The Bearer-auth
- * counterpart of `@jini-ai/cms/identity`'s `validateSession`, and deliberately the same shape: it
+ * counterpart of `@jini-ai/user-management`'s `validateSession`, and deliberately the same shape: it
  * returns `null` for EVERY rejection reason rather than throwing a distinguishable error, so a
  * caller cannot tell "unknown key" from "revoked key" from "expired key" from "disabled principal".
  *
@@ -485,7 +454,7 @@ export async function authenticateApiKey(required: {
   const matches = await deps.secretHasher.verify(candidate.keyHash, parsed.secret);
   if (!matches) return null;
 
-  const now = deps.clock.nowIso();
+  const now = new Date(deps.clock.nowMs()).toISOString();
   const principal = await deps.repos.principals.findById({
     workspaceId: input.workspaceId,
     id: candidate.principalId,

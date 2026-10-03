@@ -1,4 +1,5 @@
-import type { DomainEvent, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
 /**
  * @file An `OutboxPort` view that enqueues but never claims, for a process that writes content but
@@ -29,10 +30,10 @@ export function toEnqueueOnlyOutbox(outbox: OutboxPort): OutboxPort {
   return {
     enqueue: (event: DomainEvent) => outbox.enqueue(event),
     claimPending: async (): Promise<OutboxRecord[]> => [],
-    markDelivered: async (id: UUID) => {
+    markDelivered: async ({ id }) => {
       throw new Error(enqueueOnlyViolation("markDelivered", id));
     },
-    markFailed: async (id: UUID) => {
+    markFailed: async ({ id }) => {
       throw new Error(enqueueOnlyViolation("markFailed", id));
     },
   };

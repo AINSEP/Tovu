@@ -59,7 +59,7 @@ function pagePost(overrides: Partial<PostRecord> = {}): PostRecord {
  *  `toAbsoluteUrl` falls back to. */
 class NoOriginRegistry implements OriginRegistryPort {
   async canonicalOrigin(): Promise<never> {
-    throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+    throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
   }
   async isAllowedRedirectTarget(): Promise<boolean> {
     return false;

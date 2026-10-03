@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -6,13 +8,18 @@ import test from "node:test";
 import express from "express";
 
 import { readEnabledExternalMcpConfigs } from "../../assistant/index.js";
-import { listToolContributors } from "../../assistant/tool-contribution-registry.js";
+
 import { provisionAgentPluginMcpServers } from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig } from "../../features/agent-plugins/manifest.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import { bootAuthenticated } from "./helpers/http-test-server.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Supabase works from the admin UI with NO AI agent involved (owner requirement, 2026-09-29,
@@ -52,7 +59,7 @@ async function buildAdminOnlyApp() {
 
 test("with no agent running, an admin pastes a Supabase access token in Settings and the connection uses it", async (t) => {
   const { app, deps, pluginUrl } = await buildAdminOnlyApp();
-  assert.equal(listToolContributors().length, 0, "no assistant tool is installed in this process");
+  assert.equal(contributions.contributors.list({}).length, 0, "no assistant tool is installed in this process");
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers`;
 

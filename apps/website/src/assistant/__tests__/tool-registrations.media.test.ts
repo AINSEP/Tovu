@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 4 Media tools, the union of what `tool-registrations.forms.test.ts` covers for
  * Forms: published contracts, risk cross-check, the confirmation-transport guard, the model-facing
@@ -32,19 +34,24 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see
 // `media/tool-registrations.ts`'s own header), so `buildAssistantToolRegistrations` below no longer
 // wires it unless something explicitly installs it first, mirroring what the real composition roots
 // now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeMediaTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeMediaTools() });
 
 const WORKSPACE_ID = "ws-media-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -69,7 +76,7 @@ async function seedPublicTransform(deps: RouteDeps): Promise<void> {
     deps: {
       transformRepo: (deps as unknown as { transformDefinitionRepo: InMemoryTransformDefinitionRepo }).transformDefinitionRepo,
       idGen: { newId: () => "transform-public-v1" },
-      clock: { nowIso: () => NOW },
+      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
@@ -77,18 +84,18 @@ async function seedPublicTransform(deps: RouteDeps): Promise<void> {
 
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
-  const mediaRepo = new InMemoryMediaRepo();
-  const assetBlobRepo = new InMemoryAssetBlobRepo();
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const assetBlobRepo = new InMemoryAssetBlobRepo({});
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     assetBlobRepo,
@@ -118,7 +125,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function mediaRegistrations(deps: RouteDeps, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, surfaces)
+    buildAssistantToolRegistrations(deps, surfaces, { contributions })
       .filter((r) => r.descriptor.id.startsWith("media_") || r.descriptor.id === "content_read.media_asset")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -373,13 +380,13 @@ test("the real Media catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.media_asset") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Media catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("media_upload_asset", { ...catalogEntry("media_upload_asset"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("media_upload_asset", { ...catalogEntry("media_upload_asset"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

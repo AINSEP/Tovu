@@ -1,13 +1,15 @@
-import { ForbiddenError, type SettingScope, resetNamespace } from "#src/features/settings/index";
+import { ForbiddenError, type SettingScope } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared.js";
+import { resolveTargetWorkspaceId, createTovuSettingsService } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
-/** This route's required fields, off an untyped body: `namespace` and a `VALID_SCOPES` member.
- *  `null` means the body failed that check.
- *  @complexity O(1). */
+/**
+ * This route's required fields, off an untyped body: `namespace` and a `VALID_SCOPES` member.
+ * `null` means the body failed that check.
+ * @complexity O(1).
+ */
 function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const namespace = String(body.namespace ?? "");
@@ -18,16 +20,15 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
   return { namespace, scope, bodyWorkspaceId: body.workspaceId };
 }
 
-/** The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
- *  `global`, else this workspace's own partition, falling back to the ambient workspace when the
- *  resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`
- *  itself returns, which never reaches here since `scope !== "global"` on this path).
- *  @complexity O(1). */
-function resolveDefinitionWorkspaceId(scope: SettingScope, workspaceId: string | undefined, ambientWorkspaceId: string): string | null {
-  return scope === "global" ? null : (workspaceId ?? ambientWorkspaceId);
-}
-
 /**
+ * Partition selection and rationale: Jini packages/cms/src/http/settings/cms-adapter.ts.
+ * The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
+ * `global`, else this workspace's own partition, falling back to the ambient workspace when the
+ * resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`
+ * itself returns, which never reaches here since `scope !== "global"` on this path).
+ * @complexity O(1).
+ * @complexity O(keys registered in the namespace), including CMS ledger writes.
+ *
  * POST reset every setting in a namespace to defaults at a scope
  * (SPEC-007 api.spec.md `SETTINGS_RESET`, tasks.md T042).
  *
@@ -93,17 +94,9 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
         return;
       }
 
-      const definitionWorkspaceId = resolveDefinitionWorkspaceId(scope, workspaceId, deps.workspaceId);
-      const definitions = await deps.settingsRepo.listActiveDefinitions({ workspaceId: definitionWorkspaceId });
-      const keysInNamespace = definitions.filter((d) => d.namespace === namespace).map((d) => d.key);
-
-      const result = await resetNamespace(
-        {
-          deps: toWriteServiceDeps(deps),
-          input: { namespace, scope, workspaceId, callerPrincipalId: principal.id, authWorkspaceId },
-        },
-        keysInNamespace
-      );
+      const result = await createTovuSettingsService({ deps }).reset({
+        namespace, scope, workspaceId, callerPrincipalId: principal.id, authWorkspaceId,
+      });
 
       res.json({ namespace, clearedCount: result.clearedCount, revisionSeqs: result.revisionSeqs });
     } catch (err) {

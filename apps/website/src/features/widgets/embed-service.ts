@@ -22,7 +22,8 @@
  * dispatch rather than the earlier domain-layer session, since it composes `updateEntry`'s new
  * `bodyJson` capability which did not exist yet at that time.
  */
-import type { ChangeSetRepoPort, ClockPort, CommandActor, JsonObject, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, JsonObject, JsonValue, UUID } from "@jini-ai/core/primitives";
+import type { ChangeSetRepoPort, CommandActor, OutboxPort } from "@jini-ai/cms/core";
 import { ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
@@ -392,7 +393,7 @@ async function writePostHostBody(
               delegatedById: actor.kind === "user" ? undefined : actor.principalId,
             },
           }),
-        captureEntityVersion: (r) => r.post.version,
+        captureEntityVersion: ({ result }) => result.post.version,
         rollback: async () => {
           if (!priorPost) return;
           await restorePostForward({

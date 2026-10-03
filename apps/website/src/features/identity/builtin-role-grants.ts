@@ -1,10 +1,5 @@
-import type { IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type {
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-} from "@jini-ai/cms/identity";
+import type { IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, RolePolicyRepoPort, RoleRepoPort } from "@jini-ai/user-management";
 
 /**
  * @file Boot-time backfill of a permission onto a BUILT-IN role's policy, for workspaces that were

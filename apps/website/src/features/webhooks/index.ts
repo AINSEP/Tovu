@@ -1,3 +1,4 @@
+export type { SealedSecret } from "@jini-ai/platform/secrets";
 /**
  * @file Public surface of the `integrations` Tier-2 core library (ADR-036).
  *
@@ -11,7 +12,6 @@
 export type {
   IntegrationId,
   IntegrationSecretRecord,
-  SealedSecret,
   SecretVersion,
   WebhookBeforeDispatchHook,
   WebhookBeforeDispatchResult,
@@ -22,7 +22,7 @@ export type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "./types.js";
+} from "@jini-ai/integrations/webhooks";
 
 export type {
   IntegrationSecretRepoPort,

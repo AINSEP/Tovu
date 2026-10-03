@@ -28,8 +28,8 @@ import type { JournalKernel } from "../journal-kernel.js";
  * deliberate, disclosed extension, not a silent gap.
  */
 
-/** Terminal `migration_runs.status` values a row is never found by `findNonTerminalForSite`
- * (kept in sync with `features/storage/migrate-forward/state-machine.ts`'s `MigrationRunStatus`). */
+/** Terminal `migration_runs.status` values a row is never found by `findNonTerminalForSite`. */
+// MigrationRunStatus (features/database/migrate-forward/state-machine.ts) was deleted 2026-10-03: unused; this schema owns the persisted terminal values; see development/DELETED-CODE.md.
 export const MIGRATION_RUN_TERMINAL_STATUSES = ["DONE", "ABORTED_SAFE", "RESTORED", "RESTORE_FAILED", "ROLLBACK_TO_BLUE"] as const;
 
 /**

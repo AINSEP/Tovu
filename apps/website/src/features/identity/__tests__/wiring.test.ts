@@ -9,7 +9,7 @@ import { openContentDb, openContentDbReadOnly } from "#src/platform/db/sqlite/co
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the
 // package does not publish that module as its own subpath; loading the barrel loads it.
-import { type IdentityRepos } from "@jini-ai/cms/identity";
+import { type IdentityRepos } from "@jini-ai/user-management";
 // Side-effect import, same shape as the line above and for the same reason: loading the Pages
 // barrel is what registers this repo's OWN permission-migration pair (theme.edit ->
 // pages.edit_html, `features/pages/permissions.ts`). Registered by a host rather than by the
@@ -18,7 +18,53 @@ import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 
 const WORKSPACE = "workspace-1";
-const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z" };
+const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z", nowMs: () => Date.parse("2026-07-14T00:00:00.000Z") };
+
+// REGRESSION: fails if the in-memory wiring returns raw repositories without its shared transaction port.
+test("identity wiring rolls back a failed unit and serializes an ordinary writer behind it", async () => {
+  const deps = createInMemoryIdentityRouteDeps({ workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  await deps.identityReady;
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => { release = resolve; });
+  let entered!: () => void;
+  const ready = new Promise<void>((resolve) => { entered = resolve; });
+  const row = { id: "rollback-role", workspaceId: WORKSPACE, name: "temporary", isBuiltin: false };
+  const failed = deps.transactions.run({ workspaceId: WORKSPACE, execute: async () => {
+    await deps.roleRepo.save(row);
+    entered();
+    await hold;
+    throw new Error("rollback probe");
+  } });
+  const rejected = assert.rejects(failed, /rollback probe/);
+  await ready;
+  let writerFinished = false;
+  const writer = deps.roleRepo.save({ ...row, id: "committed-role" }).then(() => { writerFinished = true; });
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(writerFinished, false, "an ordinary save cannot bypass the active transaction");
+  } finally {
+    release();
+  }
+  await rejected;
+  await writer;
+  assert.equal(await deps.roleRepo.findById({ workspaceId: WORKSPACE, id: row.id }), null);
+  assert.equal((await deps.roleRepo.findById({ workspaceId: WORKSPACE, id: "committed-role" }))?.name, row.name);
+});
+
+// REGRESSION: fails if seed input appends ownerUsername: "admin" after reading TOVU_ADMIN_USER.
+test("identity wiring preserves the host's configured owner username", async () => {
+  const previous = process.env.TOVU_ADMIN_USER;
+  process.env.TOVU_ADMIN_USER = "Configured-Owner";
+  try {
+    const deps = createInMemoryIdentityRouteDeps({ workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    await deps.identityReady;
+    const owner = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId: await deps.ownerPrincipalId });
+    assert.equal(owner?.username, "configured-owner");
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_ADMIN_USER;
+    else process.env.TOVU_ADMIN_USER = previous;
+  }
+});
 
 function counterIdGen() {
   let n = 0;

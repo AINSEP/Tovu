@@ -1,9 +1,10 @@
+import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { set, type SettingDefinitionRecord } from "@jini-ai/cms/settings";
 
@@ -26,7 +27,7 @@ function seedWorkspace(db: ContentDb, id: string): void {
     .run();
 }
 
-const clock = { nowIso: () => "2026-07-11T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-11T00:00:00.000Z", nowMs: () => Date.parse("2026-07-11T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `sqlite-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
@@ -64,7 +65,7 @@ test("SqliteSettingsRepo: saveDefinition + findActiveDefinition round-trip throu
 test("SqliteSettingsRepo: set() writes exactly one value row + one revision row in the real DB (AC-07)", async () => {
   const db = openTestDb();
   const repo = new SqliteSettingsRepo(db);
-  const principals = new InMemoryPrincipalRepo([]);
+  const principals = new InMemoryPrincipalRepo({});
   const def: SettingDefinitionRecord = {
     settingId: "setting-sqlite-2",
     version: 1,
@@ -88,7 +89,7 @@ test("SqliteSettingsRepo: set() writes exactly one value row + one revision row 
   seedWorkspace(db, "ws-sqlite-1");
 
   const result = await set({
-    deps: { repo, clock, ids, authorize: alwaysAllow, principals },
+    deps: { repo, clock, ids, authorize: alwaysAllow, principals: createSettingsPrincipalLookup({ repo: principals }) },
     input: {
       namespace: def.namespace,
       key: def.key,

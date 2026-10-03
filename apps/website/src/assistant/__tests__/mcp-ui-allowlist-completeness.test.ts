@@ -29,9 +29,15 @@ const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a
 /** Permanent-delete handlers iterate a static catalog and pass a parameterised toolId to
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
+  // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
+  // exercise both IDs with the real exchange store, including wrong-binding and typed answers.
+  "settings_set_value", "settings_clear_value",
   "trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
   "identity_user_delete", "external_mcp_delete", "custom_credential_delete",
   "deployment_delete_provider_credential", "source_control_delete_credential",
+  // Newsletter's shared confirmation helper receives the ID from the tested caller.
+  "newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign",
+  "newsletter_resend_confirmation",
 ]);
 
 /** Allowlisted without opening an exchange — see `mcp-ui-tool-calls.ts` for each justification. */

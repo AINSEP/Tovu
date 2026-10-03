@@ -1,4 +1,6 @@
-import type { ClockPort, JsonObject, OutboxPort, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { toSlug } from "#src/platform/html/slug";
@@ -654,7 +656,7 @@ export async function deletePost(
     throw new PostNotFoundError(`post '${input.id}' was not found`);
   }
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const version = existing.version + 1;
   const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
 
@@ -707,7 +709,7 @@ export interface RetirePostForReplacementInput {
   expectedVersion: number;
   /**
    * `yyyymmdd`, e.g. `"20260924"` — supplied by the caller rather than derived from
-   * `deps.clock.nowIso()`'s ISO format, so the renamed slug is a pure function of an explicit input
+   * `clockNowIso({ clock: deps.clock })`'s ISO format, so the renamed slug is a pure function of an explicit input
    * instead of this function parsing a timestamp string it does not otherwise need to understand.
    */
   today: string;
@@ -791,7 +793,7 @@ export async function retirePostForReplacement(
     slug = `${base}-${suffix}`;
   }
 
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const renamed: PostRecord = { ...existing, slug, updatedAt: now, version: existing.version + 1 };
 
   const { post, id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
@@ -1224,7 +1226,7 @@ export async function createPost(
   // One clock read, reused for both `updatedAt` and `createdAt` below — a second `nowIso()` call
   // would risk the pair disagreeing by a tick and misrepresenting "created" as happening after
   // "last updated" on the very row that just created it.
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
   const post: PostRecord = {
     id: input.id,
     workspaceId: input.workspaceId,
@@ -1466,7 +1468,7 @@ export async function updatePost(
   });
   const ext = mergeExt(existing.ext, extPatch);
 
-  const post = buildUpdatedPost(existing, input, { title, slug }, ext, deps.clock.nowIso());
+  const post = buildUpdatedPost(existing, input, { title, slug }, ext, clockNowIso({ clock: deps.clock }));
 
   // The record write and its revision-ledger append are one atomic unit (see
   // `PostRepoPort.transaction`'s own doc). A conflict rejection from `persistUpdatedPost` (nothing
@@ -1601,7 +1603,7 @@ export async function restorePostForward(
   const current = await deps.repo.findById({ workspaceId: prior.workspaceId, id: prior.id });
   if (!current || current.version <= prior.version) return null;
 
-  const restored: PostRecord = { ...prior, updatedAt: deps.clock.nowIso(), version: current.version + 1 };
+  const restored: PostRecord = { ...prior, updatedAt: clockNowIso({ clock: deps.clock }), version: current.version + 1 };
   // The write being undone was a trash exactly when the row is trashed NOW and was not before.
   // Read from the two records rather than taken from the caller, so an update rollback cannot
   // forget an index row that a trash it knows nothing about legitimately owns.
@@ -2025,7 +2027,7 @@ export async function importPostEntity(required: {
   const post: PostRecord = {
     ...carriedOver,
     workspaceId,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: clockNowIso({ clock: deps.clock }),
     version: (existing?.version ?? 0) + 1,
     // Write-once authorship, same convention `importMediaEntity` applies to `media.createdAt`: an
     // existing row keeps its own, a brand-new row takes the source's. `repo.sqlite.ts`'s

@@ -1,16 +1,6 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  optionalString,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
+import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 // `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
@@ -34,7 +24,8 @@ import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "../fs-files/layout.js";
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
-import { buildImportFilename, fetchImage, MediaImportValidationError, validateImageBytes } from "./fetch-image.js";
+import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
+import { fetchImage, validateImageBytes } from "./fetch-image.js";
 
 /**
  * @file Wires URL and local-file imports onto the same upload pipeline: fetch URLs through the
@@ -59,8 +50,8 @@ import { buildImportFilename, fetchImage, MediaImportValidationError, validateIm
 export interface MediaImportToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
-  idGen: { newId(): string };
+  clock: Clock;
+  idGen: IdGenerator;
   mediaRepo: MediaRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
@@ -87,7 +78,7 @@ export interface MediaImportToolDeps {
   mediaImportLocalMaxBytes?: number;
 }
 
-const CATALOG_BY_ID = indexCatalogById(mediaImportAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: mediaImportAgentToolCatalog });
 
 const DOMAIN = "media-import";
 
@@ -123,7 +114,7 @@ const DOMAIN = "media-import";
  *
  * @complexity O(1) — two `instanceof` checks.
  */
-function isImportShapeRejection(error: unknown): boolean {
+function isImportShapeRejection({ error }: { error: unknown }): boolean {
   return error instanceof MediaImportValidationError || error instanceof EgressRefusedError;
 }
 
@@ -145,7 +136,7 @@ async function withCallerSafeEgressRefusal<T>(log: (line: string) => void, work:
   } catch (err) {
     if (!(err instanceof EgressRefusedError)) throw err;
     log(`[media-import] media_import_from_url egress refused: ${err.message}`);
-    throw new EgressRefusedError(err.callerSafeMessage, { callerSafeMessage: err.callerSafeMessage });
+    throw new EgressRefusedError({ message: err.callerSafeMessage }, { callerSafeMessage: err.callerSafeMessage });
   }
 }
 
@@ -194,12 +185,12 @@ export interface ImportedMediaView {
 function resolveLocalImportRoot(required: { routeDeps: MediaImportToolDeps; root: string }): string {
   const { routeDeps, root } = required;
   if (!(FS_ROOT_IDS as readonly string[]).includes(root)) {
-    throw new MediaImportValidationError(`'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}`);
+    throw new MediaImportValidationError({ message: `'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}` });
   }
   const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ workspaceId: routeDeps.workspaceId })))();
   const rootPath = roots[root as FsRootId];
   if (rootPath === undefined) {
-    throw new MediaImportValidationError(`no folder has been set for the '${root}' root yet. ${LOCAL_FILE_IMPORT_RECOVERY}`);
+    throw new MediaImportValidationError({ message: `no folder has been set for the '${root}' root yet. ${LOCAL_FILE_IMPORT_RECOVERY}` });
   }
   return rootPath;
 }
@@ -220,7 +211,7 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
     input,
   }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
   // Identical recording discipline to the URL, generated-media and admin upload paths.
-  const sniffed = sniffContentType(input.bytes);
+  const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
   const urls = await resolveMediaPublicUrls(routeDeps, [media]);
   return {
@@ -238,61 +229,76 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
 export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     media_import_local_file: async (ctx): Promise<{ media: ImportedMediaView }> => {
-      const input = requireInputRecord(ctx.input);
-      const root = requireString(input, "root");
-      const relativePath = requireString(input, "path");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
+      const input = requireInputRecord({ input: ctx.input });
+      const root = requireString({ input, key: "root" });
+      const relativePath = requireString({ input, key: "path" });
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "media.upload",
+      }, { entityType: "media" });
 
       return withSchemaOnRejection({
         toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
-        isShapeRejection: (error) => error instanceof FsFilePathError || error instanceof MediaImportValidationError,
-      }, async () => {
-        const rootPath = resolveLocalImportRoot({ routeDeps, root });
-        const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
-        const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
-        const contentType = validateImageBytes(relativePath, bytes, false);
-        const title = optionalString(input, "title");
-        // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
-        // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
-        const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
-        return persistImportedMedia({
-          routeDeps,
-          input: {
-            workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
-            alt: optionalString(input, "alt"), caption: optionalString(input, "caption"),
-            createdByPrincipal: ctx.principal.id,
-          },
-          sourceUrl: "",
-        });
+        isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError,
+        fn: async () => {
+          const rootPath = resolveLocalImportRoot({ routeDeps, root });
+          const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+          const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
+          const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
+          const title = optionalString({ input, key: "title" });
+          // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
+          // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
+          const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
+          return persistImportedMedia({
+            routeDeps,
+            input: {
+              workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
+              alt: optionalString({ input, key: "alt" }), caption: optionalString({ input, key: "caption" }),
+              createdByPrincipal: ctx.principal.id,
+            },
+            sourceUrl: "",
+          });
+        },
       });
     },
 
     media_import_from_url: async (ctx): Promise<{ media: ImportedMediaView }> => {
-      const input = requireInputRecord(ctx.input);
-      const url = requireString(input, "url");
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
+      const input = requireInputRecord({ input: ctx.input });
+      const url = requireString({ input, key: "url" });
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "media.upload",
+      }, { entityType: "media" });
 
       const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
-      return withSchemaOnRejection({ toolId: "media_import_from_url", catalog: CATALOG_BY_ID, isShapeRejection: isImportShapeRejection }, () =>
-        withCallerSafeEgressRefusal(logEgressRefusal, async () => {
-          const fetched = await fetchImage({ httpClient: routeDeps.mediaImportHttpClient }, { url });
+      return withSchemaOnRejection({
+        toolId: "media_import_from_url",
+        catalog: CATALOG_BY_ID,
+        isShapeRejection: isImportShapeRejection,
+        fn: () =>
+          withCallerSafeEgressRefusal(logEgressRefusal, async () => {
+            const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient }, url });
 
-          return persistImportedMedia({
-            routeDeps,
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              bytes: fetched.bytes,
-              filename: buildImportFilename(fetched.url, fetched.contentType, optionalString(input, "filename")),
-              contentType: fetched.contentType,
-              alt: optionalString(input, "alt"),
-              caption: optionalString(input, "caption"),
-              credit: optionalString(input, "credit"),
-              createdByPrincipal: ctx.principal.id,
-            },
-            sourceUrl: fetched.url.href,
-          });
-        })
-      );
+            return persistImportedMedia({
+              routeDeps,
+              input: {
+                workspaceId: routeDeps.workspaceId,
+                bytes: fetched.bytes,
+                filename: buildImportFilename({ url: fetched.url, contentType: fetched.contentType }, { override: optionalString({ input, key: "filename" }) }),
+                contentType: fetched.contentType,
+                alt: optionalString({ input, key: "alt" }),
+                caption: optionalString({ input, key: "caption" }),
+                credit: optionalString({ input, key: "credit" }),
+                createdByPrincipal: ctx.principal.id,
+              },
+              sourceUrl: fetched.url.href,
+            });
+          })
+      });
     },
   };
 

@@ -53,7 +53,7 @@ function makeWriteDeps(): CustomCredentialWriteDeps {
     repo: new InMemoryCustomCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => FIXED_NOW },
+    clock: { nowMs: () => Date.parse(FIXED_NOW) },
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

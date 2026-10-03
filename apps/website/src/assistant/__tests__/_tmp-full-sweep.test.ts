@@ -1,18 +1,25 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { createByokToolSurface } from "../byok-tool-surface.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { sanitizeGoogleSchema } from "../byok-provider-turn.js";
-import { listToolContributors, resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { sanitizeGoogleSchema } from "@jini-ai/agent-runtime/providers/tool-turn";
+
 import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 // This file's whole point is "the FULL wired-tool catalog" — install the registry-contributed
 // domains (comments/newsletter, 2026-08-17) or "full" silently means ~21 tools short.
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 function isRec(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
@@ -39,7 +46,7 @@ function walk(node: unknown, path: string, report: (msg: string) => void): void 
 test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 classes", async () => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  const surface = createByokToolSurface(deps as never);
+  const surface = createByokToolSurface(deps as never, { contributions });
   const tools = surface.registry.list();
   assert.ok(tools.length > 100, `expected ~130 tools, got ${tools.length}`);
 
@@ -54,10 +61,10 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
     "seo", "settings", "site-backup", "site-evidence", "site-inspection", "sites", "source-control", "static-publish",
     "taxonomy", "themes", "theme-set-active", "change-sets", "trash", "widgets", "workspace",
   ];
-  const contributors = listToolContributors();
+  const contributors = contributions.contributors.list({});
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore() };
-  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { includeContentReadCollapse: false }).map((registration) => registration.descriptor.id));
-  assert.deepEqual([...ids].sort(), buildAssistantToolRegistrations(deps as never, surfaces).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
+  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { ...( { includeContentReadCollapse: false }), contributions }).map((registration) => registration.descriptor.id));
+  assert.deepEqual([...ids].sort(), buildAssistantToolRegistrations(deps as never, surfaces, { contributions }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
   for (const domain of requiredDomains) {
     const contributor = contributors.find((entry) => entry.domain === domain);
     assert.ok(contributor, `missing contributor ${domain}`);
@@ -74,7 +81,7 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   let issues = 0;
   const perTool: Array<{ name: string; size: number }> = [];
   for (const tool of tools) {
-    const sanitized = sanitizeGoogleSchema(tool.inputSchema ?? { type: "object", properties: {} });
+    const sanitized = sanitizeGoogleSchema({ schema: tool.inputSchema ?? { type: "object", properties: {} } });
     const serialized = JSON.stringify(sanitized);
     totalSize += serialized.length;
     perTool.push({ name: tool.id, size: serialized.length });

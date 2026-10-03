@@ -59,7 +59,7 @@ export function createContentTargetPorts(deps: {
 /** The permission `contentType`'s own editor saves under: `content.write` for a post or page,
  *  `admin.collections.manage` for a collection entry. */
 export function contentEditPermission(contentType: string): string {
-  return isContentTypeOnAllowList(contentType) ? "content.write" : "admin.collections.manage";
+  return isContentTypeOnAllowList({ contentType }) ? "content.write" : "admin.collections.manage";
 }
 
 /**
@@ -71,6 +71,6 @@ export async function authorizeContentEdit(deps: { authorize: AuthorizeFn; works
   const permission = contentEditPermission(contentType);
   const result = await deps.authorize({ principalId, permission, workspaceId: deps.workspaceId });
   if (!result.allowed) {
-    throw new ForbiddenError(`principal '${principalId}' is not authorized for '${permission}' (${result.reason})`, permission, result.reason);
+    throw new ForbiddenError({ message: `principal '${principalId}' is not authorized for '${permission}' (${result.reason})`, permission, reason: result.reason });
   }
 }

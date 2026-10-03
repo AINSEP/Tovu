@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -183,6 +184,8 @@ test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GE
 
   // redirect: false so we can inspect the redirect response itself, not follow it.
   const res = await fetch(`${baseUrl}/store/buy?productId=p1`, { redirect: "manual" });
+  assert.equal(res.status, 302);
+  assert.match(res.headers.get("location") ?? "", /^\/store\?msg=/);
   logRow("GET /store/buy", summarizeCacheHeaders(res), `status=${res.status} (a redirect, per the handler's own res.redirect())`);
   assert.equal(
     res.headers.get("cache-control"),
@@ -213,7 +216,7 @@ test("A: does the auto-generated ETag actually short-circuit a conditional GET t
 
 test("A: GET /products/:id (detail)", async (t) => {
   const deps: RouteDeps = createRouteDeps();
-  deps.store = { listProducts: () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
+  deps.store = { listProducts: () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
   const app = express();
   registerProductRoutes(app, deps);
   const baseUrl = await startTestServer(app, t);
@@ -223,6 +226,11 @@ test("A: GET /products/:id (detail)", async (t) => {
   logRow("GET /products/:id", summarizeCacheHeaders(res), "");
   assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: /products/:id must send the owner-decided Cache-Control");
   const bodyA = await res.text();
+  assert.match(bodyA, /Test Widget/);
+  const slugRes = await fetch(`${baseUrl}/products/test-widget`);
+  assert.equal(slugRes.status, 200);
+  assert.equal(slugRes.headers.get("cache-control"), EXPECTED_CACHE_CONTROL);
+  assert.equal(await slugRes.text(), bodyA, "slug and id must render the same product");
   const flavored = await fetch(`${baseUrl}/products/p1`, { headers: { cookie: "x=1" } });
   const bodyB = await flavored.text();
   assert.equal(bodyA, bodyB, "product detail body must be identical regardless of cookie");
@@ -433,4 +441,46 @@ test("B: a member-session response must not be publicly cacheable — anonymous 
     EXPECTED_CACHE_CONTROL_FORM_RESULT,
     "both triggers resolve to the same never-store directive; neither path may overwrite the other"
   );
+});
+
+async function seedMemberCookie(deps: RouteDeps): Promise<string> {
+  const token = "cacheability-valid-member-token";
+  await deps.memberRepo.save({ id: "cache-member", workspaceId: deps.workspaceId, email: "cache@example.com", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 });
+  await deps.memberSessionRepo.save({ id: "cache-session", workspaceId: deps.workspaceId, memberId: "cache-member", tokenHash: createHash("sha256").update(token).digest("hex"), createdAt: deps.clock.nowIso(), expiresAt: "2099-01-01T00:00:00.000Z" });
+  return `${MEMBER_SESSION_COOKIE}=${token}`;
+}
+
+test("B: a valid signed-in member session keeps each public page private", async (t) => {
+  const { app, deps } = buildPublicSiteApp();
+  const cookie = await seedMemberCookie(deps);
+  const baseUrl = await startTestServer(app, t);
+  for (const path of ["/", "/about", "/the-weight-of-type"]) {
+    const res = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
+    assert.equal(res.status, 200, path);
+    assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL_MEMBER_RESPONSE, path);
+  }
+});
+
+test("B: a content-owned homepage stays public anonymously and private for form or member state", async (t) => {
+  const { app, deps } = buildPublicSiteApp();
+  await deps.postRepo.save({
+    id: "cache-owned-home", workspaceId: deps.workspaceId, slug: "/", kind: "page", title: "Authored homepage cache probe",
+    status: "published", bodyFormat: "doc", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Authored homepage cache probe" }] }] },
+    bodyHtml: null, updatedAt: deps.clock.nowIso(), version: 1, createdByPrincipalId: null,
+  });
+  const memberCookie = await seedMemberCookie(deps);
+  const baseUrl = await startTestServer(app, t);
+  for (const [query, cookie, directive] of [
+    ["", "", EXPECTED_CACHE_CONTROL],
+    [`?${VALIDATION_LANDING_QUERY}`, "", EXPECTED_CACHE_CONTROL_FORM_RESULT],
+    ["", flashCookieHeader({ name: "Ada" }), EXPECTED_CACHE_CONTROL_FORM_RESULT],
+    ["", UNRECOGNIZED_MEMBER_SESSION_COOKIE, EXPECTED_CACHE_CONTROL_MEMBER_RESPONSE],
+    ["", memberCookie, EXPECTED_CACHE_CONTROL_MEMBER_RESPONSE],
+  ]) {
+    const res = await fetch(`${baseUrl}/${query}`, { headers: cookie ? { cookie } : {} });
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /Authored homepage cache probe/, "the authored page must own this response");
+    assert.equal(res.headers.get("cache-control"), directive);
+    if (cookie.startsWith(FORM_FLASH_COOKIE_NAME)) assert.match(res.headers.get("set-cookie") ?? "", /tovu_form_flash=;.*Max-Age=0/);
+  }
 });

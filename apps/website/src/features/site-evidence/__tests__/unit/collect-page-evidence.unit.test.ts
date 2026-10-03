@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { ObservePageRequest, ObservePageResult, PageObservation, SiteEvidenceBrowserFactory } from "../../browser-port.js";
 import { collectPageEvidence, SITE_EVIDENCE_LIMITS, type CollectPageEvidenceDeps } from "../../collect-page-evidence.js";
@@ -298,7 +298,7 @@ test("a workspace with no verified origin propagates OriginNotVerifiedError rath
   await assert.rejects(
     () =>
       collectPageEvidence(
-        { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(new OriginNotVerifiedError("none registered")), openBrowser: browser.factory },
+        { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(new OriginNotVerifiedError({ message: "none registered" })), openBrowser: browser.factory },
         { paths: ["/"] },
       ),
     OriginNotVerifiedError,

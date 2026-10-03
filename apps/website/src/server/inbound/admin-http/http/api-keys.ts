@@ -1,4 +1,4 @@
-import type { PrincipalRecord } from "@jini-ai/cms/identity";
+import type { PrincipalRecord } from "@jini-ai/user-management";
 
 import type { ApiKeyRecord } from "#src/features/identity/api-key-types";
 

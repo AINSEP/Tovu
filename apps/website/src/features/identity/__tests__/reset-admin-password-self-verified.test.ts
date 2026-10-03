@@ -1,10 +1,12 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type IdentityRepos } from "@jini-ai/cms/identity";
+import { login, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { AuthInvalidCredentialsError, type IdentityRepos } from "@jini-ai/user-management";
 
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
@@ -27,7 +29,7 @@ import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/hel
  */
 
 const WORKSPACE = "workspace-reset-admin-pw-test";
-const fixedClock = { nowIso: () => "2026-09-03T00:00:00.000Z" };
+const fixedClock = { nowIso: () => "2026-09-03T00:00:00.000Z", nowMs: () => Date.parse("2026-09-03T00:00:00.000Z") };
 
 function counterIdGen() {
   let n = 0;
@@ -47,6 +49,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
     await identity.identityReady;
 
     const repos: IdentityRepos = {
+      transactions: identity.transactions,
       principals: identity.principalRepo,
       users: identity.userRepo,
       sessions: identity.sessionRepo,
@@ -57,7 +60,8 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
       principalRoles: identity.principalRoleRepo,
       principalPolicies: identity.principalPolicyRepo,
     };
-    const auth: AuthServiceDeps = { repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+    const auth: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
     const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
 
     const ownerBefore = await identity.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" });
@@ -71,12 +75,12 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
 
     // The NEW password logs in end-to-end through the real login() path, not just this module's
     // own internal verify() call.
-    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "recovered-pw-123456" } });
+    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "recovered-pw-123456" } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
     assert.equal(principal.id, ownerBefore!.principalId);
 
     // The OLD (seed-default) password must no longer work.
     await assert.rejects(
-      () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "tovu-dev" } }),
+      () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "tovu-dev" } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
       AuthInvalidCredentialsError
     );
   } finally {
@@ -92,6 +96,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
     await identity.identityReady;
 
     const repos: IdentityRepos = {
+      transactions: identity.transactions,
       principals: identity.principalRepo,
       users: identity.userRepo,
       sessions: identity.sessionRepo,
@@ -112,10 +117,11 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
     // normal) but whose verify() always reports false — simulating exactly the incident's failure
     // mode, "a hash gets written that doesn't verify against the password that produced it."
     const brokenHasher = {
-      hash: (password: string) => identity.passwordHasher.hash(password),
+      hash: ({ password }: { password: string }) => identity.passwordHasher.hash({ password: password }),
       verify: async () => false,
     };
-    const auth: AuthServiceDeps = { repos, hasher: brokenHasher, clock: fixedClock, idGen: counterIdGen() };
+    const auth: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}), repos, hasher: brokenHasher, clock: fixedClock, idGen: counterIdGen() };
     const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
 
     await assert.rejects(

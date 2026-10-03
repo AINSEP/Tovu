@@ -1,4 +1,5 @@
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
@@ -224,7 +225,7 @@ export function buildPublishContentImportHooks(
    *  call it, because a second derivation is a second, unverified judgment call — see that
    *  function's own comment. */
   async function buildReport(): Promise<PublishContentReport> {
-    const now = input.clock.nowIso();
+    const now = clockNowIso({ clock: input.clock });
     const staged = await loadActiveBundle({ repo: input.bundleRepo, workspaceId: input.workspaceId, id: input.bundleId, now });
     if (!staged) {
       throw new PublishContentBundleNotFoundError(
@@ -283,7 +284,7 @@ export function buildPublishContentImportHooks(
       // route BEFORE `gateway.execute()` ever reaches this function — see this file's header.
       const captured = await input.dbOps.captureRestorePoint({ scopeId: input.workspaceId });
       const restorePointId = input.idGen.newId();
-      const now = input.clock.nowIso();
+      const now = clockNowIso({ clock: input.clock });
       await input.restorePointsRepo.save({
         restorePointId,
         idempotencyKey: restorePointId,

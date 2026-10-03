@@ -78,10 +78,7 @@ export function notTrashed(required: { entityType: TrashEntityType }, options: {
 }
 
 /** The same condition as {@link notTrashed}, negated — true for a row that is currently TRASHED. */
-export function isCurrentlyTrashed(required: { entityType: TrashEntityType }, options: { registry: TrashRegistry }): TrashCondition {
-  const live = notTrashed(required, options);
-  return (eb) => eb.not(live(eb));
-}
+// isCurrentlyTrashed (apps/website/src/features/trash/not-trashed.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
  * Converts a SQL column name (`deleted_at`) to the camelCase JS property name this codebase's

@@ -66,6 +66,6 @@ export function resolveMcpJsonInjection(
     args: [script],
     ...(underElectron ? { env: { ELECTRON_RUN_AS_NODE: "1" } } : {}),
     daemonUrl,
-    credential: mintRunCredential,
+    credential: ({ runId }) => mintRunCredential(runId),
   };
 }

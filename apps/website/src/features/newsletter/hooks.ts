@@ -10,7 +10,7 @@
  * a hidden cross-test/cross-instance singleton while still exposing the three named capabilities
  * the ADR's Contract Map (C-018) names.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { OutboundEmail } from "../../platform/mail/index.js";
 import type { SubscriptionStatus } from "./types.js";
 

@@ -161,7 +161,7 @@ test("integration: GET /about a static theme's own menu marker resolves through 
     testDeps({
       themes: [themeWithMenuMarker("about")],
       postRepo: new InMemoryPostRepo([publishedPost()]),
-      menuRepo: new InMemoryMenuRepo([menuEntry()]),
+      menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry()] }),
     })
   );
   const baseUrl = await startTestServer(app, t);

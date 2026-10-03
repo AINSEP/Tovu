@@ -1,3 +1,4 @@
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,7 +10,7 @@ import {
   set,
   SCOPE_BIT,
 } from "../../features/settings/index.js";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   ensurePublicAssistantSettingDefinitions,
   getPublicAssistantSettings,
@@ -31,7 +32,7 @@ import {
 
 const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
-const clock = { nowIso: () => "2026-07-30T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-30T00:00:00.000Z"), nowIso: () => "2026-07-30T00:00:00.000Z" };
 let idCounter = 0;
 const ids = { newId: () => `assistant-settings-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
@@ -47,7 +48,7 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
  */
 function makeDeps() {
   const settingsRepo = new InMemorySettingsRepo();
-  const principals = new InMemoryPrincipalRepo([]);
+  const principals = new InMemoryPrincipalRepo({}, { initialRows: [] });
   return {
     settingsRepo,
     principals,
@@ -56,7 +57,7 @@ function makeDeps() {
       clock,
       ids,
       authorize: alwaysAllow,
-      principals,
+      principals: createSettingsPrincipalLookup({ repo: principals }),
       resolveDefinitionRaw,
       registerDefinitions,
       scopeBit: SCOPE_BIT,

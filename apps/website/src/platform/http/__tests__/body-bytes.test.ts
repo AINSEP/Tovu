@@ -37,7 +37,9 @@ function makePolicy(overrides: Partial<EgressPolicy> = {}): EgressPolicy {
   };
 }
 
-/** Mirrors what `transport.fetch.ts` actually does: ONE `Buffer.concat`, returned in both shapes. */
+/** Mirrors the guarded transport: ONE `Buffer.concat`, returned in both shapes.
+ * transport.fetch.ts (platform/http/transport.fetch.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
 class BinaryTransport implements HttpTransportAdapter {
   constructor(private readonly bytes: Uint8Array) {}
 

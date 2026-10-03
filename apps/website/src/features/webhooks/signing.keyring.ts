@@ -1,7 +1,12 @@
-import { signPayload, type WebhookSigner } from "./signing.js";
+import { createKeyringBackedSigner as createWebhookSigner, type WebhookSigner } from "@jini-ai/integrations/webhooks";
 import type { KeyringPort } from "./ports.js";
+import { SIGNATURE_VOCABULARY } from "./signing.js";
 
-/**
+// Per-attempt keyring derivation rationale: Jini/packages/integrations/src/webhooks/signing.keyring.ts (ADR-036 §5).
+/** Supply Tovu's signature field vocabulary without storing or caching signing material.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
  * @file `WebhookSigner` backed by a real `KeyringPort` (ADR-PIPE-015 Phase 1, GAP-02).
  *
  * Purpose:
@@ -14,9 +19,7 @@ import type { KeyringPort } from "./ports.js";
  *   bytes those functions already expect.
  * - `./delivery.ts`'s `processDueDeliveries` depends on the `WebhookSigner` interface, not on
  *   this adapter directly, so swapping it in is a pure DI change (no call-site edits needed).
- */
-
-/**
+ *
  * Constructs a `WebhookSigner` that derives each subscription's signing secret from `keyring`
  * at sign time rather than reading it from an in-memory map.
  *
@@ -24,14 +27,5 @@ import type { KeyringPort } from "./ports.js";
  * @overallScore 100
  */
 export function createKeyringBackedSigner(keyring: KeyringPort): WebhookSigner {
-  return {
-    async signForSubscription({ subscription, rawBody, timestampSeconds }) {
-      const secret = await keyring.deriveSigningSecret({
-        workspaceId: subscription.workspaceId,
-        subscriptionId: subscription.id,
-        version: subscription.secretVersion,
-      });
-      return signPayload({ secret: Buffer.from(secret), rawBody, timestampSeconds });
-    },
-  };
+  return createWebhookSigner({ keyring, vocabulary: SIGNATURE_VOCABULARY });
 }

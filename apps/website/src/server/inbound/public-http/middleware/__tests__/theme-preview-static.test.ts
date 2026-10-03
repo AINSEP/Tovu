@@ -59,7 +59,7 @@ test("registerThemePreviewStatic: a real preview build asset serves with the scr
     assert.equal(await res.text(), "body{color:red}", "bytes unchanged");
 
     const csp = res.headers.get("content-security-policy") ?? "";
-    assert.ok(csp.includes("sandbox"), `expected a sandboxing CSP, got "${csp}"`);
+    assert.equal(csp, "default-src 'none'; sandbox");
     assert.ok(!/\ballow-scripts\b/.test(csp));
     assert.equal(res.headers.get("x-content-type-options"), "nosniff");
   }, themesStaticDir);
@@ -77,11 +77,15 @@ test("registerThemePreviewStatic: a preview build's font carries `Access-Control
   await withTempApp(async (baseUrl) => {
     const font = await fetch(`${baseUrl}/theme-preview/sometheme/fonts/inter.woff2`);
     assert.equal(font.status, 200);
+    assert.equal(font.headers.get("content-security-policy"), "default-src 'none'; sandbox");
+    assert.equal(font.headers.get("x-content-type-options"), "nosniff");
     assert.equal(font.headers.get("access-control-allow-origin"), "*");
     assert.equal(font.headers.get("access-control-allow-credentials"), null);
 
     const css = await fetch(`${baseUrl}/theme-preview/sometheme/styles.css`);
     assert.equal(css.status, 200);
+    assert.equal(css.headers.get("content-security-policy"), "default-src 'none'; sandbox");
+    assert.equal(css.headers.get("x-content-type-options"), "nosniff");
     assert.equal(css.headers.get("access-control-allow-origin"), null);
   }, themesStaticDir);
 });
@@ -101,7 +105,39 @@ test("registerThemePreviewStatic: an .svg with an embedded <script> planted in a
     assert.equal(await res.text(), payload, "content still served -- this is a serve-side defusal, not censorship");
 
     const csp = res.headers.get("content-security-policy") ?? "";
-    assert.ok(csp.includes("sandbox"), `expected a sandboxing CSP, got "${csp}"`);
+    assert.equal(csp, "default-src 'none'; sandbox");
     assert.equal(res.headers.get("x-content-type-options"), "nosniff");
   }, themesStaticDir);
+});
+
+test("registerThemePreviewStatic: an absent root and an unbuilt preview fall through to 404", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "theme-preview-missing-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "unbuilt"));
+  for (const themesStaticDir of [path.join(root, "absent"), root]) {
+    await withTempApp(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/theme-preview/unbuilt/dark/styles.css`);
+      assert.equal(response.status, 404);
+      assert.equal(response.headers.get("content-security-policy"), null, "no preview mount was registered");
+    }, themesStaticDir);
+  }
+});
+
+test("registerThemePreviewStatic: missing assets and traversal within a registered mount retain security headers", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "theme-preview-traversal-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "sometheme", "preview"), { recursive: true });
+  writeFileSync(path.join(root, "sometheme", "outside.txt"), "OUTSIDE-PREVIEW-SECRET");
+  await withTempApp(async (baseUrl) => {
+    for (const suffix of ["missing.svg", "%2e%2e%2foutside.txt"]) {
+      const response = await fetch(`${baseUrl}/theme-preview/sometheme/${suffix}`);
+      assert.equal(response.status, 404, suffix);
+      assert.equal(response.headers.get("content-security-policy"), "default-src 'none'; sandbox");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.doesNotMatch(await response.text(), /OUTSIDE-PREVIEW-SECRET/);
+    }
+    const missingTheme = await fetch(`${baseUrl}/theme-preview/unknown/styles.css`);
+    assert.equal(missingTheme.status, 404);
+    assert.equal(missingTheme.headers.get("content-security-policy"), null);
+  }, root);
 });

@@ -315,31 +315,31 @@ test("an ext bag shaped unexpectedly (not an object) degrades to null + note rat
 // ---------------------------------------------------------------------------
 
 test("registerEnabledPluginCapabilityTools registers exactly one tool for one enabled plugin", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   await registerEnabledPluginCapabilityTools(registry, {
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
   });
 
-  assert.ok(registry.has("plugin_capability_word_count"));
-  assert.equal(registry.list().length, 1);
+  assert.ok(registry.has({ toolId: "plugin_capability_word_count" }));
+  assert.equal(registry.list({}).length, 1);
 });
 
 test("registerEnabledPluginCapabilityTools registers nothing for a disabled plugin", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   await registerEnabledPluginCapabilityTools(registry, {
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([]),
   });
 
-  assert.equal(registry.list().length, 0);
-  assert.equal(registry.has("plugin_capability_word_count"), false);
+  assert.equal(registry.list({}).length, 0);
+  assert.equal(registry.has({ toolId: "plugin_capability_word_count" }), false);
 });
 
 test("a tool id that collides with an already-registered tool fails LOUDLY at registration time (ToolRegistry's own built-in guard), never silently shadows it", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registry.register({
     descriptor: { id: "plugin_capability_word_count", description: "pre-existing native tool" },
     handler: async () => ({}),

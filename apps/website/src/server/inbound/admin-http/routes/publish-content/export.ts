@@ -83,7 +83,7 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
       )
         return;
 
-      const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
+      const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
       const sourceLabel = workspace?.name ?? deps.workspaceId;
       const publishContentDeps = toPublishContentDeps(deps);
 

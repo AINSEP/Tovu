@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type {
   MediaProviderCredentialRecord,

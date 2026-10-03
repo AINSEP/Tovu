@@ -5,7 +5,7 @@ import express from "express";
 
 import { createToolRegistry, isReadOnlyTool, type Principal, type RunRef, type SurfaceEmitter, type ToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
@@ -57,7 +57,7 @@ function registerThrowingTool(registry: ToolRegistry, id = "throws_secret"): voi
 // ---------------------------------------------------------------------------
 
 test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production composition", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry);
   const records: ToolFailureRecord[] = [];
   const executor = createAssistantToolExecutor({
@@ -67,7 +67,7 @@ test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production
     toolFailures: { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) },
   });
 
-  const result = await executor.execute(PRINCIPAL, RUN, "throws_secret", {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "throws_secret", input: {} });
 
   assert.equal(result.status, "failed");
   assert.match(result.error!, new RegExp(`^Error ${FIXED_ID}: `));
@@ -82,14 +82,14 @@ test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production
 // ---------------------------------------------------------------------------
 
 test("BRIDGE: the persisted tool_result event and http-kit's internal-error log both carry the ID with no secret", async (t) => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry);
   const toolExecutor = createAssistantToolExecutor({
     registry,
     surfaceExchanges: createSurfaceExchangeStore(),
     toolFailures: { mintErrorId: () => FIXED_ID },
   });
-  const eventLog = createInMemoryEventLog();
+  const eventLog = createInMemoryEventLog({});
   const lifecycle = createRunLifecycle({ eventLog });
   const { run } = await lifecycle.start({ contextRef: "ctx-failure-redaction" });
 
@@ -118,14 +118,14 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
 });
 
 test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR", async (t) => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry);
   const toolExecutor = createAssistantToolExecutor({
     registry,
     surfaceExchanges: createSurfaceExchangeStore(),
     toolFailures: { mintErrorId: () => FIXED_ID, onFailure: () => undefined },
   });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
@@ -142,11 +142,11 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
 });
 
 test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry);
   // The BARE executor — no redaction layer, so no ERR id — standing in for any path that skipped it.
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
   const result = await delegatedToolExecuteRoute.handle(
@@ -171,7 +171,7 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
 // ---------------------------------------------------------------------------
 
 test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never the message", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry);
   const sink = createInMemoryToolAttemptAuditSink();
   const executor = createAssistantToolExecutor({
@@ -181,7 +181,7 @@ test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never
     toolFailures: { mintErrorId: () => FIXED_ID },
   });
 
-  await executor.execute(PRINCIPAL, RUN, "throws_secret", {});
+  await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "throws_secret", input: {} });
 
   const failedEvent = sink.events.find((e) => e.phase === "failed");
   assert.ok(failedEvent, "a failed attempt row must have been appended");
@@ -194,7 +194,7 @@ test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never
 // ---------------------------------------------------------------------------
 
 test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagged in the 400 body", async (t) => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   registerThrowingTool(registry, "content_post_delete");
   const surfaceExchanges = createSurfaceExchangeStore();
   const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures: { mintErrorId: () => FIXED_ID } });
@@ -222,9 +222,9 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
 // ---------------------------------------------------------------------------
 
 test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact code prefix, with no ID and no record", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const wrapped = withModelFacingErrors(
-    { forbidden_tool: async () => { throw new ForbiddenError(`no grant: ${STRIPE_KEY}`, "x.manage", "no_grant"); } },
+    { forbidden_tool: async () => { throw new ForbiddenError({ message: `no grant: ${STRIPE_KEY}`, permission: "x.manage", reason: "no_grant" }); } },
     [forbiddenRule("X")],
   );
   registry.register({
@@ -239,7 +239,7 @@ test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact c
     toolFailures: { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) },
   });
 
-  const result = await executor.execute(PRINCIPAL, RUN, "forbidden_tool", {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "forbidden_tool", input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.errorKind, "validation");
@@ -255,7 +255,7 @@ test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact c
 // ---------------------------------------------------------------------------
 
 test("READ-ONLY: the recovery remedy-refusal message on a completed result is byte-for-byte unchanged", async () => {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   let reads = 0;
   let writes = 0;
   registry.register({
@@ -271,7 +271,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
     policy: { authorize: () => "allow" },
     handler: () => { writes += 1; return { saved: true }; },
   });
-  assert.equal(isReadOnlyTool(registry.list().find((d) => d.id === "ro_probe_write")), false, "PREMISE: the remedy must not itself be read-only");
+  assert.equal(isReadOnlyTool({ descriptor: registry.list({}).find((d) => d.id === "ro_probe_write") }), false, "PREMISE: the remedy must not itself be read-only");
 
   const surfaceExchanges = createSurfaceExchangeStore();
   const executor = createAssistantToolExecutor({
@@ -283,7 +283,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (s) => void emitted.push(s);
 
-  const result = await executor.execute(readOnlyPrincipal, RUN, "ro_probe_read", {}, undefined, emitSurface);
+  const result = await executor.execute({ principal: readOnlyPrincipal, run: RUN, toolId: "ro_probe_read", input: {} }, { emitSurface: emitSurface });
 
   const refusal = refuseNonReadOnlyDispatch({ principal: readOnlyPrincipal, toolId: "ro_probe_write", registry });
   assert.ok(refusal, "PREMISE: the remedy must actually be refused for a read-only principal");
@@ -306,7 +306,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
 function fakeByokRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-16T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-16T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {

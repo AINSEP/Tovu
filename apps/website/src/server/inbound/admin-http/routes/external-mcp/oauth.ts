@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { ExternalMcpReauthRequiredError, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
-import { isOAuthError } from "#src/platform/oauth/index";
+import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { externalMcpOAuthCallbackUrl } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback-url";
@@ -31,7 +31,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * A connect attempt is a foreground action with a human watching. Failures are reported with a
  * specific code and left in a re-clickable state; the operator retries with one click. The machine
  * does not, because an authorization code is single-use and the first response may have been lost
- * after the provider already redeemed it. `errors.ts` in `src/platform/oauth/` carries the full argument.
+ * after the provider already redeemed it. `@jini-ai/oauth`'s `errors.ts` carries the full argument.
  */
 
 /** OAuth-specific route dependencies, on top of the roster slice the other three routes use.
@@ -66,7 +66,7 @@ function sendExternalMcpOAuthError(res: import("express").Response, error: unkno
     res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
     return;
   }
-  if (isOAuthError(error)) {
+  if (error instanceof OAuthError) {
     // 502 for "we could not reach them", 400 for "they refused us or we asked wrongly" — the two
     // demand different things of the operator (wait/check network vs. check configuration), and
     // collapsing them would tell someone behind a flaky network that their client id is wrong.
@@ -89,8 +89,8 @@ function sendExternalMcpOAuthError(res: import("express").Response, error: unkno
 
 /** Answers the shared limiter check, writing the 429 itself. `Retry-After` is set so a client can
  *  back off correctly instead of hammering. */
-function withinRateLimit(limiter: RateLimiter, req: import("express").Request, res: import("express").Response): boolean {
-  const result = limiter.check(resolveClientIp(req));
+async function withinRateLimit(limiter: RateLimiter, req: import("express").Request, res: import("express").Response): Promise<boolean> {
+  const result = await limiter.check({ key: resolveClientIp(req) });
   if (result.allowed) return true;
   res.setHeader("Retry-After", String(result.retryAfterSeconds));
   res.status(429).json({
@@ -118,7 +118,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
   limiter: RateLimiter,
 ): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect", async (req, res) => {
-    if (!withinRateLimit(limiter, req, res)) return;
+    if (!(await withinRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const serverId = String(req.params.serverId ?? "");
@@ -147,7 +147,7 @@ export function registerAdminExternalMcpOAuthDevicePollRoute(
   limiter: RateLimiter,
 ): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll", async (req, res) => {
-    if (!withinRateLimit(limiter, req, res)) return;
+    if (!(await withinRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       res.json(await deps.externalMcpOAuth.pollDeviceAuthorization({ serverId: String(req.params.serverId ?? "") }));

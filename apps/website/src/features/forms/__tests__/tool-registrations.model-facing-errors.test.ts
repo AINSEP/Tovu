@@ -18,9 +18,9 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
@@ -32,11 +32,17 @@ function makeRouteDeps(options: { allow?: boolean } = {}): FormsToolDeps {
   const allow = options.allow ?? true;
   let counter = 0;
   return {
+    executeCommand,
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
-    outbox: { enqueue: async () => undefined } as unknown as FormsToolDeps["outbox"],
+    outbox: {
+      enqueue: async () => undefined,
+      claimPending: async () => [],
+      markDelivered: async () => undefined,
+      markFailed: async () => undefined,
+    },
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
@@ -44,10 +50,10 @@ function makeRouteDeps(options: { allow?: boolean } = {}): FormsToolDeps {
 }
 
 async function buildHarness(routeDeps: FormsToolDeps) {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildFormsRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 }
@@ -55,7 +61,10 @@ async function buildHarness(routeDeps: FormsToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, harness);
+  return delegatedToolExecuteRoute.handle({
+    input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input },
+    deps: harness,
+  });
 }
 
 test("forms_list_submissions for an unknown definition is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

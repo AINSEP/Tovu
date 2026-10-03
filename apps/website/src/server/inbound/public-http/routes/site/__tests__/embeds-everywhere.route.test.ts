@@ -161,7 +161,7 @@ test("GET /:slug (template branch): a menu marker in a Post's OWN body_html -- o
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
     postRepo: new InMemoryPostRepo([post]),
-    menuRepo: new InMemoryMenuRepo([footerNavMenu()]),
+    menuRepo: new InMemoryMenuRepo({}, { initialRows: [footerNavMenu()] }),
   });
   t.after(() => closeServer(server));
 
@@ -614,7 +614,7 @@ test("themed 404: still returns 404, its menu marker still renders (regression),
   const { server, baseUrl } = await startServer({
     themes: [themeWithHomeAndNotFoundMarkers()],
     postRepo: new InMemoryPostRepo([]),
-    menuRepo: new InMemoryMenuRepo([footerNavMenu()]),
+    menuRepo: new InMemoryMenuRepo({}, { initialRows: [footerNavMenu()] }),
     entryRepo,
   });
   t.after(() => closeServer(server));

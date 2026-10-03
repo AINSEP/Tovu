@@ -2,12 +2,12 @@
  * @file ADR-049 Decision 5 — replaces the deleted, Claude-only `listAgents()` (old
  * `src/agent-chat/runner.ts`) with a real probe across `@jini-ai/agent-runtime`'s full 24-def
  * `AGENT_DEFS` registry. Every def is reported with its own truthfully-probed availability
- * (`AgentSummary.available`/`diagnostic`), matching `@jini-ai/http`'s `agents.ts` module doc:
+ * (`AgentSummary.available`/`diagnostic`), matching `@jini-ai/daemon/http`'s `agents.ts` module doc:
  * "a hardcoded client-side agent list would enable the composer on machines where the run then
  * fails."
  *
  * The probe itself is real filesystem I/O (`resolveAgentLaunch` walks PATH per def, 24 defs), and
- * `@jini-ai/http-kit`'s own `AgentsHttpDeps` doc is explicit that caching it is THIS file's job, not
+ * `@jini-ai/daemon/http`'s own `AgentsHttpDeps` doc is explicit that caching it is THIS file's job, not
  * the transport's: "The host owns probing, timeouts, caching, PATH/env policy... this transport only
  * serializes the safe summary." Before 2026-08-10 nothing here did — `listAssistantAgents()` re-ran
  * the full sweep on every call, and `agent-daemon-server.ts` never supplied `rescanAgents` at all, so
@@ -19,12 +19,12 @@
  * PATH — that does not change turn to turn or even poll to poll.
  */
 import { AGENT_DEFS, probeAgentModels, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
-import type { AgentSummary } from "@jini-ai/http-kit";
+import type { AgentSummary } from "@jini-ai/daemon/http";
 
 /**
- * `AgentSummary` plus one extra, Tovu-only field the shared `@jini-ai/http-kit` wire type doesn't
+ * `AgentSummary` plus one extra, Tovu-only field the shared `@jini-ai/daemon/http` wire type doesn't
  * declare — added here rather than upstream because it is a Tovu-side transport decision
- * (`assistant-transport.ts`'s prompt-assembly gate), not a `@jini-ai/http-kit` transport concern.
+ * (`assistant-transport.ts`'s prompt-assembly gate), not a `@jini-ai/daemon/http` transport concern.
  * The extra key rides the same JSON body `AgentSummary` already serializes to; a consumer that only
  * knows `AgentSummary` (e.g. `@jini-ai/chat`'s `ChatPaneAgent`) simply never reads it.
  *
@@ -81,10 +81,10 @@ export function setAgentModelProberForTesting(prober: AgentModelProber | null): 
 async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
   return Promise.all(
     AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AssistantAgentSummary> => {
-      const launch = resolveAgentLaunch(def);
+      const launch = resolveAgentLaunch({ def });
       const available = Boolean(launch.launchPath);
       const { models, source } = available
-        ? await agentModelProber(def)
+        ? await agentModelProber({ def })
         : { models: def.fallbackModels, source: "fallback" as const };
       return {
         id: def.id,
@@ -97,7 +97,7 @@ async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
         // the single derivation point for "can this runtime receive Tovu/Jini tools at all,"
         // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
         // runtime-id list here.
-        supportsTools: runtimeSupportsExternalTools(def),
+        supportsTools: runtimeSupportsExternalTools({ def }),
         // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
         // the CLI itself, not this transport, owns the def's multi-turn memory.
         carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),
@@ -141,7 +141,7 @@ function refreshAssistantAgentsCache(): Promise<AssistantAgentSummary[]> {
 }
 
 /**
- * The host's cached-or-fresh agent inventory — wired as `@jini-ai/http-kit`'s
+ * The host's cached-or-fresh agent inventory — wired as `@jini-ai/daemon/http`'s
  * `AgentsHttpDeps.listAgents`, backing `GET /api/agents`. Probes once per process and reuses the
  * result for every caller afterward; see {@link rescanAssistantAgents} for the explicit invalidation
  * path.
@@ -163,7 +163,7 @@ export function listAssistantAgents(): Promise<AssistantAgentSummary[]> {
 
 /**
  * Forces a fresh probe and replaces the cache — the host side of `POST /api/agents/rescan`
- * (`@jini-ai/http-kit`'s `AgentsHttpDeps.rescanAgents`; see that package's own doc: "asks the host
+ * (`@jini-ai/daemon/http`'s `AgentsHttpDeps.rescanAgents`; see that package's own doc: "asks the host
  * to invalidate its discovery cache and probe again"). The one deliberate way an operator who just
  * installed or removed a CLI mid-session sees that change without restarting the daemon.
  *

@@ -1,3 +1,4 @@
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -44,6 +45,7 @@ const REDIRECT_URI = "https://tovu.example.com/api/mcp-servers/oauth/callback/re
 function makeClock(startIso = "2026-08-26T12:00:00.000Z") {
   let nowMs = Date.parse(startIso);
   return {
+    nowMs: () => nowMs,
     nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms: number) => {
       nowMs += ms;
@@ -109,7 +111,8 @@ function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly 
     clock: store.clock,
     pending: createPendingAuthorizationStore({ clock: store.clock }),
     devices: createDeviceAuthorizationStore(),
-    ...overrides,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (overrides.fetchFn ?? fetch)(url, init) },
   });
 }
 

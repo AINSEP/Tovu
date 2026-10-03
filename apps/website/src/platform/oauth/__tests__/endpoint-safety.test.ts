@@ -1,7 +1,9 @@
+import { OAuthError } from "@jini-ai/oauth";
+import type { HttpClientPort, HttpRequest, RequestRedirect } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "../endpoint-safety.js";
+import { createTovuOAuthGuard, createTovuOAuthHttpPorts, withTovuOAuthCopy, assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "../endpoint-safety.js";
 
 test("safe URLs return normalized URLs and permit plaintext only on loopback", () => {
   assert.equal(assertSafeProviderEndpoint("  https://AUTH.example.com/token?q=7  ", "token endpoint").href,
@@ -44,3 +46,50 @@ for (const raw of ["https://user@auth.example.com/activate", "https://:password@
     });
   });
 }
+
+// REGRESSION: fails if createTovuOAuthGuard defaults allowLoopbackHttp to true.
+test("production plaintext loopback OAuth requires an explicit exception", () => {
+  assert.throws(() => createTovuOAuthGuard({}).assertSafeUrl({ raw: "http://127.0.0.1/token", label: "token endpoint" }), { code: "OAUTH_UNSAFE_ENDPOINT" });
+});
+
+// REGRESSION: fails if the adapter drops the redirect: error option or caller signal.
+test("OAuth uses the guarded port with redirect refusal and bounded response policy", async () => {
+  let sent: HttpRequest | undefined;
+  let redirect: RequestRedirect | undefined;
+  const http: HttpClientPort = { async send({ request }, options) {
+    sent = request; redirect = options?.redirect;
+    return { status: 200, headers: {}, bodyText: "{}", bodyTruncated: false };
+  } };
+  const signal = new AbortController().signal;
+  const ports = createTovuOAuthHttpPorts({ http });
+  await ports.fetchFn({ url: "https://auth.example.com/token" }, { method: "POST", body: "grant_type=refresh_token", signal });
+  assert.equal(redirect, "error");
+  assert.ok(sent);
+  assert.equal(sent.signal, signal);
+  assert.equal(sent.idleTimeoutMs, 15_000);
+  assert.equal(sent.maxResponseBytes, 64 * 1024);
+  assert.equal(sent.body, "grant_type=refresh_token");
+});
+
+// REGRESSION: fails if bodyTruncated is ignored by createTovuOAuthHttpPorts.
+test("OAuth rejects clipped guarded responses", async () => {
+  const http: HttpClientPort = { async send() {
+    return { status: 200, headers: {}, bodyText: "{}", bodyTruncated: true };
+  } };
+  await assert.rejects(() => createTovuOAuthHttpPorts({ http }).fetchFn({ url: "https://auth.example.com/token" }), { code: "OAUTH_MALFORMED_RESPONSE" });
+});
+
+// REGRESSION: fails if withTovuOAuthCopy passes neutral connection-settings copy through.
+test("host error copy preserves Settings wording and provider error metadata", async () => {
+  const error = new OAuthError({ code: "OAUTH_INVALID_GRANT", message: "dead grant", operatorAction: "Reconnect this server in the connection settings." }, { providerErrorCode: "invalid_grant" });
+  await assert.rejects(() => withTovuOAuthCopy({ call: async () => { throw error; } }), {
+    code: "OAUTH_INVALID_GRANT", message: "dead grant", operatorAction: "Reconnect this server in Settings → External MCP.", providerErrorCode: "invalid_grant",
+  });
+});
+
+// REGRESSION: fails if withTovuOAuthCopy returns Jini's unreachable wrapper for a clipped response.
+test("guarded clipping retains its malformed-response code through a fetch wrapper", async () => {
+  const clipped = new OAuthError({ code: "OAUTH_MALFORMED_RESPONSE", message: "clipped", operatorAction: "Check response size." });
+  const wrapped = new OAuthError({ code: "OAUTH_PROVIDER_UNREACHABLE", message: "unreachable", operatorAction: "Try again." }, { cause: clipped });
+  await assert.rejects(() => withTovuOAuthCopy({ call: async () => { throw wrapped; } }), (error) => error === clipped);
+});

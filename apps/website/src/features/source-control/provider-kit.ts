@@ -23,8 +23,8 @@ const NO_HTTP_CLIENT: HttpClientPort = {
 export function createSourceControlProviderKit(options: { readonly httpClient?: HttpClientPort; readonly fetchFn?: typeof fetch } = {}): SourceControlProviderKit {
   return {
     fetch: (url, init) => (options.fetchFn ?? fetch)(url, init),
-    redirectGuardInit: (init) => redirectGuardInit(init),
-    assertNotRedirected: (response, hostName) => assertNotRedirected(response, hostName),
+    redirectGuardInit: (init) => redirectGuardInit({ init }),
+    assertNotRedirected: (response, hostName) => assertNotRedirected({ resp: response, providerLabel: hostName }),
     isRedirectRefusal: (error) => error instanceof DeployError,
     httpClient: options.httpClient ?? NO_HTTP_CLIENT,
     describeTransportError: (error) => ({

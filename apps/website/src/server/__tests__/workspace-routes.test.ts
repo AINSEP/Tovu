@@ -90,11 +90,19 @@ test("AC-03: GET /api/admin/v1/workspaces returns exactly the caller's own works
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const foreign = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Foreign Site", slug: "foreign-site" }),
+  });
+  assert.equal(foreign.status, 201);
+  const foreignBody = (await foreign.json()) as { workspace: { id: string } };
+  assert.notEqual(foreignBody.workspace.id, deps.workspaceId);
   const listed = await fetch(`${baseUrl}/api/admin/v1/workspaces`, { headers: { cookie } });
   assert.equal(listed.status, 200);
   const body = (await listed.json()) as { workspaces: Array<{ id: string }> };
   assert.equal(body.workspaces.length, 1);
   assert.equal(body.workspaces[0].id, deps.workspaceId);
+  assert.deepEqual(body.workspaces.map((workspace) => workspace.id), [deps.workspaceId]);
 
   // AC-08: a caller holding only settings.write (not workspace.manage) is denied.
   await deps.identityReady;
@@ -150,14 +158,27 @@ test("AC-05: PATCH renames name/slug, rejects a colliding slug, and rejects an i
 
   const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
 
+  const before = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { headers: { cookie } });
+  assert.equal(before.status, 200);
+  const oldSlug = ((await before.json()) as { workspace: { slug: string } }).workspace.slug;
   const renamed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Renamed Site" }),
+    body: JSON.stringify({ name: "Renamed Site", slug: "renamed-site" }),
   });
   assert.equal(renamed.status, 200);
-  const renamedBody = (await renamed.json()) as { workspace: { name: string } };
+  const renamedBody = (await renamed.json()) as { workspace: { name: string; slug: string } };
   assert.equal(renamedBody.workspace.name, "Renamed Site");
+  assert.equal(renamedBody.workspace.slug, "renamed-site");
+  const reread = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { headers: { cookie } });
+  assert.equal(reread.status, 200);
+  assert.equal(((await reread.json()) as { workspace: { slug: string } }).workspace.slug, "renamed-site");
+  const reuse = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Reuses old slug", slug: oldSlug }),
+  });
+  assert.equal(reuse.status, 201, "renaming must release the original slug");
+
 
   // Create a second workspace, then try to rename the first onto the second's slug.
   await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
@@ -278,7 +299,7 @@ test("AC-06c/INV-05: minting a second workspace row does NOT unlock deleting the
   // The status code alone would still pass if the guard ran AFTER the delete, or if some later
   // handler removed the row anyway — so assert the durable outcome, not just the envelope.
   assert.ok(
-    await deps.workspaceRepo.findById(deps.workspaceId),
+    await deps.workspaceRepo.findById({ id: deps.workspaceId }),
     "the bound workspace row must still exist after a refused delete"
   );
 });
@@ -294,7 +315,7 @@ test("AC-06c/INV-05: minting a second workspace row does NOT unlock deleting the
 test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOURCE_NOT_FOUND", () => {
   const { res, capture } = createCapturingResponse();
 
-  sendDeleteWorkspaceError(res, new WorkspaceNotFoundError("workspace 'nope' was not found"));
+  sendDeleteWorkspaceError(res, new WorkspaceNotFoundError({ message: "workspace 'nope' was not found" }));
 
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, {
@@ -305,7 +326,7 @@ test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOUR
 
 test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 LAST_WORKSPACE, and anything else to a generic 500 that leaks no message", () => {
   const last = createCapturingResponse();
-  sendDeleteWorkspaceError(last.res, new WorkspaceLastRemainingError("the install's last remaining workspace cannot be deleted (INV-03)"));
+  sendDeleteWorkspaceError(last.res, new WorkspaceLastRemainingError({ message: "the install's last remaining workspace cannot be deleted (INV-03)" }));
   assert.equal(last.capture.statusCode, 409);
   assert.equal((last.capture.jsonBody as { code?: string }).code, "LAST_WORKSPACE");
 

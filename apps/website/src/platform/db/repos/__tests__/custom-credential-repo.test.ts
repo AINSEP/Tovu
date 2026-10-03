@@ -124,13 +124,14 @@ describeEachDialect(
 
     test("update replaces every field of the targeted row", async () => {
       const repo = await makeRepo();
-      await repo.insert(makeRecord());
+      await repo.insert(makeRecord({ username: "old-user", additionalHosts: ["https://old.example"] }));
 
       await repo.update(
         makeRecord({
           label: "name.com-renamed",
           category: "ops",
           baseUrl: "https://api2.name.com",
+          additionalHosts: ["https://new.example"],
           sealed: { keyId: "k2", ciphertext: "bmV3", nonce: "bm9uY2Uy", alg: "aes-256-gcm" },
           updatedAt: LATER,
         })
@@ -142,6 +143,14 @@ describeEachDialect(
       assert.equal(found?.baseUrl, "https://api2.name.com");
       assert.deepEqual(found?.sealed, { keyId: "k2", ciphertext: "bmV3", nonce: "bm9uY2Uy", alg: "aes-256-gcm" });
       assert.equal(found?.updatedAt, LATER);
+      assert.deepEqual(found, makeRecord({
+        label: "name.com-renamed", category: "ops", baseUrl: "https://api2.name.com",
+        additionalHosts: ["https://new.example"],
+        sealed: { keyId: "k2", ciphertext: "bmV3", nonce: "bm9uY2Uy", alg: "aes-256-gcm" },
+        updatedAt: LATER,
+      }));
+      await repo.update(makeRecord({ additionalHosts: [], updatedAt: LATER }));
+      assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), makeRecord({ updatedAt: LATER }));
     });
 
     test("update never crosses a workspace boundary", async () => {

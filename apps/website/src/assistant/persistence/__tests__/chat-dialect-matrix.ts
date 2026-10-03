@@ -1,10 +1,15 @@
 import { after, describe } from "node:test";
 
 import { sql } from "kysely";
+import pg from "pg";
+import { openPostgresKernel } from "@jini-ai/db/kernel/postgres";
+import { openPgliteKernel } from "@jini-ai/db/kernel/pglite";
+import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
+import type { StorageDialect, StorageKernel } from "@jini-ai/db/kernel";
+import { PGlite } from "@electric-sql/pglite";
 
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
 import { heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { openPgliteKernel, type StorageDialect, sqliteKernel, type StorageKernel } from "#src/platform/db/kernel/index";
 import { migrateChatDatabase } from "#src/platform/db/migrations/index";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 
@@ -19,6 +24,26 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 
 let sharedPg: StorageKernel<unknown> | undefined;
 let migrated: Promise<unknown> | undefined;
+let sharedRealPg: StorageKernel<unknown> | undefined;
+let realPgMigrated: Promise<unknown> | undefined;
+
+/** Explicit acceptance only: a real server, guarded by a disposable database-name prefix. */
+function emptiedPostgresChatKernel(): ChatKernel {
+  const connectionString = process.env.TOVU_CHAT_TEST_POSTGRES_URL;
+  if (!connectionString || !/^jini_chat_test_/.test(new URL(connectionString).pathname.slice(1))) {
+    throw new Error("TOVU_CHAT_TEST_POSTGRES_URL must name a disposable jini_chat_test_* database");
+  }
+  if (sharedRealPg === undefined) {
+    sharedRealPg = openPostgresKernel<unknown>({ pg, connectionString });
+    realPgMigrated = migrateChatDatabase(sharedRealPg);
+  }
+  const base = sharedRealPg;
+  const pending = (realPgMigrated as Promise<unknown>).then(() =>
+    base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
+  );
+  pending.catch(() => {});
+  return heldUntil(pgChatKernel(base), pending);
+}
 
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
@@ -28,7 +53,7 @@ export function freshSqliteChatKernel(): ChatKernel {
 /** The file's shared PGlite chat kernel, with every chat table emptied before its first call. */
 export function emptiedPgChatKernel(): ChatKernel {
   if (sharedPg === undefined) {
-    sharedPg = openPgliteKernel<unknown>();
+    sharedPg = openPgliteKernel<unknown>({ PGlite });
     migrated = migrateChatDatabase(sharedPg);
   }
   const base = sharedPg;
@@ -53,4 +78,14 @@ export function describeEachChatDialect<R>(
     });
     body(() => make(emptiedPgChatKernel()), "postgres");
   });
+  if (process.env.TOVU_CHAT_TEST_POSTGRES_URL !== undefined) {
+    describe(`${title} [real postgres]`, () => {
+      after(async () => {
+        await sharedRealPg?.close();
+        sharedRealPg = undefined;
+        realPgMigrated = undefined;
+      });
+      body(() => make(emptiedPostgresChatKernel()), "postgres");
+    });
+  }
 }

@@ -1,7 +1,8 @@
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import {
@@ -65,7 +66,7 @@ function call(handler: ToolRegistration["handler"], input: unknown) {
     run: { id: "run-1" },
     input,
     signal: new AbortController().signal,
-  } as Parameters<typeof handler>[0]);
+  });
 }
 
 /** Builds a real, wired `external_mcp_oauth_connect` handler over one saved authorization_code
@@ -74,7 +75,7 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-10T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-10T00:00:00.000Z"), nowIso: () => "2026-09-10T00:00:00.000Z" };
 
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
@@ -106,7 +107,8 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
     clock,
     pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: NETWORK_TRIPWIRE,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
+      fetchFn: ({ url }, init) => (NETWORK_TRIPWIRE)(url, init) },
     lookupProvider: () => PROVIDER,
   });
 

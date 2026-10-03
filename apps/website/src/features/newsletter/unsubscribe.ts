@@ -13,7 +13,7 @@
  */
 import { timingSafeEqual } from "node:crypto";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "../webhooks/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { VerifiedOrigin } from "../../features/origin/index.js";

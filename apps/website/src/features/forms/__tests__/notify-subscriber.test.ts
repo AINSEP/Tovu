@@ -6,7 +6,7 @@ import type { DomainEvent } from "@jini-ai/cms/core";
 import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
 import { registerFormNotifySubscriber } from "../notify-subscriber.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file Unit tests for `registerFormNotifySubscriber` (C-009, REQ-12, AC-17/18, EC-06).
@@ -44,6 +44,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
     slug: "contact",
     fields: [{ id: "name", label: "Name", type: "text", required: true }],
     notify: { enabled: false, recipients: [] },
+    version: 1,
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
@@ -156,13 +157,17 @@ test("registerFormNotifySubscriber: EC-06 — a SUPPRESSED mailer result is logg
   assert.equal(mailer.calls.length, 1);
 });
 
-test("registerFormNotifySubscriber: a throwing MailerPort.send() is caught, never propagated into the bus", async () => {
+// REGRESSION: fails if the default logger reads error from argument one instead of argument two.
+test("registerFormNotifySubscriber: a throwing MailerPort.send() is caught, logged with its cause, never propagated into the bus", async (t) => {
   const bus = new InMemoryEventBus();
   const definitionRepo = new InMemoryFormDefinitionRepo();
   const submissionRepo = new InMemoryFormSubmissionRepo();
   const mailer = new RecordingMailer();
+  const failure = new Error("provider is down");
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   mailer.send = async () => {
-    throw new Error("provider is down");
+    throw failure;
   };
 
   await definitionRepo.create(
@@ -172,6 +177,9 @@ test("registerFormNotifySubscriber: a throwing MailerPort.send() is caught, neve
 
   await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo });
   await assert.doesNotReject(() => publishSubmissionEvent(bus, "sub-1"));
+  assert.equal(warnings.length, 1);
+  assert.match(String(warnings[0][0]), /mail send threw/);
+  assert.equal(warnings[0][1], failure);
 });
 
 for (const scenario of ["missing definition", "missing submission", "empty recipients", "definition read fails", "submission read fails"] as const) {
@@ -186,7 +194,7 @@ for (const scenario of ["missing definition", "missing submission", "empty recip
     if (scenario === "submission read fails") t.mock.method(submissionRepo, "findById", async () => { throw new Error("submission read failed"); });
     await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo });
     let siblingCalls = 0;
-    await bus.subscribe("form.submission.received", async () => { siblingCalls++; });
+    await bus.subscribe({ eventName: "form.submission.received", handler: async () => { siblingCalls++; } });
     await assert.doesNotReject(() => publishSubmissionEvent(bus, "sub-1"));
     assert.equal(mailer.calls.length, 0);
     assert.equal(siblingCalls, 1);
@@ -202,7 +210,7 @@ test("registerFormNotifySubscriber: unsubscribe stops later sends while sibling 
   await submissionRepo.create(makeSubmission());
   const unsubscribe = await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo });
   let siblingCalls = 0;
-  await bus.subscribe("form.submission.received", async () => { siblingCalls++; });
+  await bus.subscribe({ eventName: "form.submission.received", handler: async () => { siblingCalls++; } });
   await publishSubmissionEvent(bus, "sub-1");
   assert.equal(mailer.calls.length, 1);
   await unsubscribe();

@@ -1,6 +1,6 @@
 import type { Express, Request } from "express";
 
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import { ingestHit, type IngestHitDeps } from "#src/features/analytics/ingest";
 import type { IngestBeacon, IngestContext } from "#src/features/analytics/index";
 
@@ -88,7 +88,7 @@ function buildContext(req: Request, receivedAt: string): IngestContext {
  */
 export function registerAnalyticsIngestRoute(app: Express, deps: IngestHitDeps): void {
   app.post("/_analytics/e", async (req, res) => {
-    const receivedAt = deps.clock.nowIso();
+    const receivedAt = new Date(deps.clock.nowMs()).toISOString();
     const beacon = parseBeacon(req.body, req.hostname ?? "");
     const context = buildContext(req, receivedAt);
 

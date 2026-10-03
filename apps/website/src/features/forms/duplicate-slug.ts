@@ -1,6 +1,7 @@
 import { toSlug } from "#src/platform/html/slug";
-import { SLUG_PATTERN } from "./write-service.js";
-import { deriveAvailableName, MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
+import { SLUG_PATTERN } from "@jini-ai/cms-forms";
+import { deriveAvailableName } from "@jini-ai/core/naming";
+import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
 
 /**
  * @file `content_duplicate`'s `"form"` resource needs a slug for the copy, and Forms — unlike Posts —
@@ -9,8 +10,8 @@ import { deriveAvailableName, MAX_SUFFIX_ATTEMPTS } from "../content-duplication
  * `createPost` derives and disambiguates a slug itself whenever the caller omits one, which is why
  * `duplicatePostOrPage` can just pass `slug: undefined` and be done. `createFormDefinition` is the
  * opposite: `slug` is required, is immutable after creation (`updateFormDefinition` always re-passes
- * `existing.slug`), and is validated against `write-service.ts`'s `SLUG_PATTERN` plus its reserved
- * set. Duplicating a form therefore has to arrive with a valid, free slug in hand — otherwise every
+ * `existing.slug`), and is validated against `@jini-ai/cms-forms`' `SLUG_PATTERN` plus the adapter's
+ * reserved set. Duplicating a form therefore has to arrive with a valid, free slug in hand — otherwise every
  * copy of "Contact Us" collides with the previous one and the operator sees a raw
  * `FormSlugConflictError` instead of a copy.
  *
@@ -23,10 +24,11 @@ import { deriveAvailableName, MAX_SUFFIX_ATTEMPTS } from "../content-duplication
  * takes an explicit caller-supplied slug, and giving it a silent derivation would change a published
  * tool contract this task has no mandate to change.
  *
- * The bounded suffix-search LOOP itself (2026-09-08) is no longer written here — it is
- * `../content-duplication/derive-available-name.ts`'s `deriveAvailableName`, generalized from this
- * file's own original loop so the collision-search shape is shared with the NAME derivation every
- * `content_duplicate` resource now needs, rather than reinvented a second time. This file keeps
+ * The bounded suffix-search LOOP itself was first shared with
+ * `../content-duplication/derive-available-name.ts` (2026-09-08), generalized from this file's own
+ * original loop. Its implementation and rationale now live in `@jini-ai/core/naming`'s
+ * `deriveAvailableName`, keeping the collision-search shape shared with the NAME derivation every
+ * `content_duplicate` resource needs, rather than reinvented a second time. This file keeps
  * everything SLUG-specific: the character class (`slugifyFormName`), the length ceiling and
  * base-shortening (`withSuffix`), and the reserved-word list (`RESERVED_SLUGS`).
  */
@@ -93,25 +95,23 @@ export async function deriveAvailableFormSlug(
   const base = slugifyFormName(required.name) || FALLBACK_SLUG;
 
   return deriveAvailableName(
-    { base },
     {
-      withSuffix,
+      base,
+      withSuffix: ({ base, suffix }) => withSuffix(base, suffix),
       // RESERVED_SLUGS/SLUG_PATTERN are "skip this candidate", not "this candidate is taken" — but
       // the generic loop makes no distinction between the two (see its own doc), so folding both
       // checks in here reproduces this function's original `continue`-then-try-the-next-suffix
       // behavior exactly.
-      isTaken: async (candidate) => {
+      isTaken: async ({ candidate }) => {
         if (RESERVED_SLUGS.has(candidate)) return true;
         if (!SLUG_PATTERN.test(candidate)) return true;
         return options.isTaken(candidate);
       },
-      onExhausted: () => {
-        throw new Error(
-          `no free slug could be derived from '${required.name}' after ${MAX_SUFFIX_ATTEMPTS} attempts — ` +
-            "give the copy an explicit slug"
-        );
-      },
-    }
+      exhaustionMessage: ({ maxAttempts }) =>
+        `no free slug could be derived from '${required.name}' after ${maxAttempts} attempts — ` +
+          "give the copy an explicit slug",
+    },
+    { maxAttempts: MAX_SUFFIX_ATTEMPTS },
   );
 }
 

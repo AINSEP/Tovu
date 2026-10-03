@@ -10,10 +10,31 @@ import { startStubProviderServer } from "../../server/__tests__/helpers/stub-pro
 import {
   coerceNumericEnumStringsToNumbers,
   findNumericEnumPaths,
-  runByokProviderTurn,
+  providerTurnAdapters,
+  runProviderToolTurn,
   sanitizeGoogleSchema,
-  type ByokProviderTurnInput,
-} from "../byok-provider-turn.js";
+} from "@jini-ai/agent-runtime/providers/tool-turn";
+import { runByokProviderTurn, type ByokProviderTurnInput } from "../byok-provider-turn.js";
+
+// REGRESSION: fails if Jini's OpenAI tool_result mapping removes event.isError from its OR guard.
+test("the adopted provider mapper preserves an adapter-reported tool error without a fold marker", async () => {
+  const failures: boolean[] = [];
+  const result = await runProviderToolTurn({
+    protocol: "openai", apiKey: "test", model: "test", system: "test", messages: [], tools: [],
+    executeTool: async () => ({ content: "unused" }),
+    onEvent: (event) => { if (event.type === "tool_result") failures.push(event.isError); },
+    adapters: {
+      ...providerTurnAdapters,
+      openai: async ({ onEvent }) => {
+        onEvent({ type: "tool_result", toolUseId: "call", content: "invalid image", isError: true });
+        onEvent({ type: "end", reason: "stop" });
+        return { finishReason: "stop", toolTurns: 1 };
+      },
+    },
+  });
+  assert.deepEqual(failures, [true]);
+  assert.equal(result.stopReason, "stop");
+});
 
 /**
  * @file Regression coverage for the Gemini BYOK failure reported 2026-08-04 from the admin dock's
@@ -37,7 +58,7 @@ import {
  *    number), so the fix has two coordinated halves — see `runByokProviderTurn(google): a
  *    numeric-enum tool` below.
  *
- * `sanitizeGoogleSchema` (in `byok-provider-turn.ts`, applied only inside `runGoogleTurn`) is the
+ * `sanitizeGoogleSchema` (in `@jini-ai/agent-runtime/providers/tool-turn`, applied only inside `runGoogleTurn`) is the
  * fix for all three waves; `findNumericEnumPaths`/`coerceNumericEnumStringsToNumbers` are the
  * second half of wave 3's numeric-`enum` fix, applied at the tool-call boundary rather than inside
  * the schema conversion itself. This file pins:
@@ -69,7 +90,7 @@ test("sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the
     properties: { name: { type: "string" } },
     required: ["name"],
   };
-  assert.deepEqual(sanitizeGoogleSchema(input), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: input }), {
     type: "object",
     properties: { name: { type: "string" } },
     required: ["name"],
@@ -97,7 +118,7 @@ test("sanitizeGoogleSchema strips the same keys when nested in properties/items/
     required: ["tags"],
   };
 
-  assert.deepEqual(sanitizeGoogleSchema(input), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: input }), {
     type: "object",
     properties: {
       tags: {
@@ -114,10 +135,10 @@ test("sanitizeGoogleSchema strips the same keys when nested in properties/items/
 });
 
 test("sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched", () => {
-  assert.equal(sanitizeGoogleSchema("x"), "x");
-  assert.equal(sanitizeGoogleSchema(5), 5);
-  assert.equal(sanitizeGoogleSchema(null), null);
-  assert.deepEqual(sanitizeGoogleSchema({}), {});
+  assert.equal(sanitizeGoogleSchema({ schema: "x" }), "x");
+  assert.equal(sanitizeGoogleSchema({ schema: 5 }), 5);
+  assert.equal(sanitizeGoogleSchema({ schema: null }), null);
+  assert.deepEqual(sanitizeGoogleSchema({ schema: {} }), {});
 });
 
 test("sanitizeGoogleSchema converts const to enum, top-level and nested", () => {
@@ -128,7 +149,7 @@ test("sanitizeGoogleSchema converts const to enum, top-level and nested", () => 
       target: { type: "object", properties: { discriminator: { const: "x" } } },
     },
   };
-  assert.deepEqual(sanitizeGoogleSchema(input), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: input }), {
     type: "object",
     properties: {
       // `type: "string"` is synthesized, not present on the input — a bare `const` has no sibling
@@ -155,17 +176,17 @@ test("sanitizeGoogleSchema converts a const nested exactly 2 properties-levels d
       target: { type: "object", properties: { kind: { const: "entryRef" }, entryId: { type: "string" } } },
     },
   };
-  const sanitized = sanitizeGoogleSchema(input) as { properties: { target: { properties: { kind: unknown } } } };
+  const sanitized = sanitizeGoogleSchema({ schema: input }) as { properties: { target: { properties: { kind: unknown } } } };
   assert.deepEqual(sanitized.properties.target.properties.kind, { type: "string", enum: ["entryRef"] });
 });
 
 test("sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested", () => {
-  assert.deepEqual(sanitizeGoogleSchema({ type: ["string", "null"] }), { type: "string", nullable: true });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: { type: ["string", "null"] } }), { type: "string", nullable: true });
   // Order-independent: "null" can appear first.
-  assert.deepEqual(sanitizeGoogleSchema({ type: ["null", "integer"] }), { type: "integer", nullable: true });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: { type: ["null", "integer"] } }), { type: "integer", nullable: true });
   // A bare single-element array with no "null" member — still needs collapsing to a plain string,
   // just without `nullable`.
-  assert.deepEqual(sanitizeGoogleSchema({ type: ["string"] }), { type: "string" });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: { type: ["string"] } }), { type: "string" });
 
   const nested = {
     type: "object",
@@ -173,7 +194,7 @@ test("sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) t
       ledgerEventId: { type: ["string", "null"], description: "nullable id" },
     },
   };
-  assert.deepEqual(sanitizeGoogleSchema(nested), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: nested }), {
     type: "object",
     properties: { ledgerEventId: { type: "string", nullable: true, description: "nullable id" } },
   });
@@ -181,22 +202,22 @@ test("sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) t
 
 test("sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested", () => {
   const input = { type: "integer", enum: [301, 302, 307, 308], description: "status" };
-  assert.deepEqual(sanitizeGoogleSchema(input), { type: "string", enum: ["301", "302", "307", "308"], description: "status" });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: input }), { type: "string", enum: ["301", "302", "307", "308"], description: "status" });
 
   const nested = { type: "object", properties: { statusCode: { type: "integer", enum: [301, 302] } } };
-  assert.deepEqual(sanitizeGoogleSchema(nested), { type: "object", properties: { statusCode: { type: "string", enum: ["301", "302"] } } });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: nested }), { type: "object", properties: { statusCode: { type: "string", enum: ["301", "302"] } } });
 
   // A string enum is NOT touched by this conversion — only a genuinely numeric one.
   const stringEnum = { type: "string", enum: ["active", "disabled"] };
-  assert.deepEqual(sanitizeGoogleSchema(stringEnum), stringEnum);
+  assert.deepEqual(sanitizeGoogleSchema({ schema: stringEnum }), stringEnum);
 });
 
 test("sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch", () => {
   const oneOfOnly = { oneOf: [{ type: "string" }, { type: "number" }] };
-  assert.deepEqual(sanitizeGoogleSchema(oneOfOnly), { anyOf: [{ type: "string" }, { type: "number" }] });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: oneOfOnly }), { anyOf: [{ type: "string" }, { type: "number" }] });
 
   const oneOfWithSiblingAnyOf = { anyOf: [{ type: "boolean" }], oneOf: [{ type: "string" }] };
-  assert.deepEqual(sanitizeGoogleSchema(oneOfWithSiblingAnyOf), { anyOf: [{ type: "boolean" }, { type: "string" }] });
+  assert.deepEqual(sanitizeGoogleSchema({ schema: oneOfWithSiblingAnyOf }), { anyOf: [{ type: "boolean" }, { type: "string" }] });
 
   // A tagged-union oneOf, matching the shape both real catalog sites (NAV_TARGET_SCHEMA, blockNode)
   // actually use: each branch a `properties` map with arbitrary property names, one of them `const`.
@@ -206,7 +227,7 @@ test("sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf
       { type: "object", additionalProperties: false, required: ["kind", "href"], properties: { kind: { const: "url" }, href: { type: "string" } } },
     ],
   };
-  assert.deepEqual(sanitizeGoogleSchema(taggedUnion), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: taggedUnion }), {
     anyOf: [
       { type: "object", required: ["kind", "entryId"], properties: { kind: { type: "string", enum: ["entryRef"] }, entryId: { type: "string" } } },
       { type: "object", required: ["kind", "href"], properties: { kind: { type: "string", enum: ["url"] }, href: { type: "string" } } },
@@ -220,7 +241,7 @@ test("sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value",
     properties: { name: { $ref: "#/$defs/nonEmptyString" } },
     $defs: { nonEmptyString: { type: "string", minLength: 1 } },
   };
-  assert.deepEqual(sanitizeGoogleSchema(input), {
+  assert.deepEqual(sanitizeGoogleSchema({ schema: input }), {
     type: "object",
     properties: { name: { type: "string", minLength: 1 } },
   });
@@ -240,7 +261,7 @@ test("sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to
     properties: { root: { $ref: "#/$defs/node" } },
   };
 
-  const output = sanitizeGoogleSchema(input) as Record<string, unknown>;
+  const output = sanitizeGoogleSchema({ schema: input }) as Record<string, unknown>;
   const serialized = JSON.stringify(output);
 
   // Terminates (this assertion running at all proves it didn't infinite-loop) and stays a bounded
@@ -266,7 +287,7 @@ test("sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/
   for (const { domain, tools } of catalogs) {
     assert.ok(tools.length > 0, `expected ${domain}'s catalog to be non-empty`);
     for (const tool of tools) {
-      const sanitized = sanitizeGoogleSchema(tool.inputSchema ?? { type: "object", properties: {} });
+      const sanitized = sanitizeGoogleSchema({ schema: tool.inputSchema ?? { type: "object", properties: {} } });
       const serialized = JSON.stringify(sanitized);
       for (const key of forbiddenKeys) {
         assert.ok(!serialized.includes(`"${key}"`), `${domain}.${tool.name}: sanitized schema still contains "${key}": ${serialized}`);
@@ -283,27 +304,27 @@ test("on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's 
   const update = tools.find((t) => t.name === "redirects_update");
   assert.ok(create?.inputSchema && update?.inputSchema, "expected redirects_create and redirects_update, each with an inputSchema, in the catalog");
 
-  const sanitizedCreate = sanitizeGoogleSchema(create.inputSchema) as { properties: { statusCode: { type: string; enum: string[] } } };
+  const sanitizedCreate = sanitizeGoogleSchema({ schema: create.inputSchema }) as { properties: { statusCode: { type: string; enum: string[] } } };
   assert.equal(sanitizedCreate.properties.statusCode.type, "string");
   assert.deepEqual(sanitizedCreate.properties.statusCode.enum, ["301", "302", "307", "308"]);
 
-  assert.deepEqual(findNumericEnumPaths(create.inputSchema), ["statusCode"]);
-  assert.deepEqual(findNumericEnumPaths(update.inputSchema), ["statusCode"]);
+  assert.deepEqual(findNumericEnumPaths({ schema: create.inputSchema }), ["statusCode"]);
+  assert.deepEqual(findNumericEnumPaths({ schema: update.inputSchema }), ["statusCode"]);
 });
 
 test("coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone", () => {
   const paths = ["statusCode"];
-  assert.deepEqual(coerceNumericEnumStringsToNumbers({ statusCode: "301", fromPattern: "/old" }, paths), { statusCode: 301, fromPattern: "/old" });
+  assert.deepEqual(coerceNumericEnumStringsToNumbers({ input: { statusCode: "301", fromPattern: "/old" }, paths }), { statusCode: 301, fromPattern: "/old" });
   // Already a number (a well-behaved caller, or a protocol that never stringified it) — left as-is.
-  assert.deepEqual(coerceNumericEnumStringsToNumbers({ statusCode: 301 }, paths), { statusCode: 301 });
+  assert.deepEqual(coerceNumericEnumStringsToNumbers({ input: { statusCode: 301 }, paths }), { statusCode: 301 });
   // Not a numeric-looking string — left as-is; the tool handler's own validation reports this, not
   // this coercion step.
-  assert.deepEqual(coerceNumericEnumStringsToNumbers({ statusCode: "not-a-number" }, paths), { statusCode: "not-a-number" });
+  assert.deepEqual(coerceNumericEnumStringsToNumbers({ input: { statusCode: "not-a-number" }, paths }), { statusCode: "not-a-number" });
   // No paths for this tool — input passed through unchanged, no cloning even attempted.
   const input = { anything: "x" };
-  assert.equal(coerceNumericEnumStringsToNumbers(input, []), input);
+  assert.equal(coerceNumericEnumStringsToNumbers({ input: input, paths: [] }), input);
   // Nested path.
-  assert.deepEqual(coerceNumericEnumStringsToNumbers({ target: { statusCode: "302" } }, ["target.statusCode"]), { target: { statusCode: 302 } });
+  assert.deepEqual(coerceNumericEnumStringsToNumbers({ input: { target: { statusCode: "302" } }, paths: ["target.statusCode"] }), { target: { statusCode: 302 } });
 });
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

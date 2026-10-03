@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file The published-contract half of the Widgets tool wiring — the sibling of
  * `tool-registrations.widgets-authorization.test.ts`, and the Widgets counterpart of
@@ -27,22 +29,28 @@ import { registerContentType } from "../../features/content-types/index.js";
 import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-aware-memory-repo.js";
 import { createEntry } from "../../features/entries/index.js";
 import { PRE_AUTHORIZED } from "../../features/widgets/authorize-helper.js";
-import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeWidgetsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeWidgetsTools() });
 
 const WORKSPACE_ID = "ws-widgets-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -61,7 +69,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined },
     entryRepo,
@@ -96,7 +104,7 @@ const WIDGETS_COLLAPSED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(["conten
 
 function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("widgets_") || WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -119,7 +127,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
  */
 async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
+  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "widgets_trash_instance");
   assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
   const emitted: unknown[] = [];
   const pending = trashTool.handler({
@@ -151,7 +159,7 @@ async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: nu
   const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo; entryRepo: TrashAwareInMemoryEntryRepo };
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     ids: { newId: () => `ct-${Math.random()}` },
     authorize: PRE_AUTHORIZED,
     indexProvisioner: new NoopContentTypeIndexProvisioner(),
@@ -162,7 +170,7 @@ async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: nu
     await registerContentType({ deps: ctDeps, input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: HOST_CONTENT_TYPE, label: "Article", fields: [] } });
   }
   const created = await createEntry({
-    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => `entry-${Math.random()}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => `entry-${Math.random()}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: PRINCIPAL_ID,
       workspaceId: WORKSPACE_ID,
@@ -311,13 +319,13 @@ test("the real Widgets catalog and tool-registrations' independent classificatio
   const { deps } = fakeRouteDeps();
   for (const id of widgetsRegistrations(deps).keys()) {
     if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Widgets catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("widgets_create_instance", { ...catalogEntry("widgets_create_instance"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("widgets_create_instance", { ...catalogEntry("widgets_create_instance"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

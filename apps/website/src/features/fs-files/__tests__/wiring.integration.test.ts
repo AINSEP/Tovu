@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -7,9 +9,14 @@ import { setCustomFsRoot } from "../custom-root-store.js";
 
 import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
-import { resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
+
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Proves `fs_list_files`/`fs_read_file` are not merely DEFINED but actually REGISTERED and
@@ -26,13 +33,13 @@ import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
  */
 
 test.beforeEach(() => {
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
 });
 
 test("fs_list_files and fs_read_file are registered by installFirstPartyToolContributors and reach buildAssistantToolRegistrations's real catalog", () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
 
-  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
   const ids = registrations.map((r) => r.descriptor.id);
 
   assert.ok(ids.includes(FS_LIST_FILES_TOOL_ID), `expected '${FS_LIST_FILES_TOOL_ID}' in the built catalog`);
@@ -40,9 +47,9 @@ test("fs_list_files and fs_read_file are registered by installFirstPartyToolCont
 });
 
 test("both tools are marked readOnly in their descriptor, matching their 'none' sideEffects declaration", () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
 
-  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
   const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));
 
   assert.equal(byId.get(FS_LIST_FILES_TOOL_ID)?.descriptor.readOnly, true);
@@ -52,7 +59,7 @@ test("both tools are marked readOnly in their descriptor, matching their 'none' 
 test("without installFirstPartyToolContributors, neither tool is present — proving the assertion above is about real installation, not an always-present default", () => {
   // Deliberately no installFirstPartyToolContributors() call — resetToolContributorsForTests() in
   // beforeEach already left the registry empty.
-  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
   const ids = registrations.map((r) => r.descriptor.id);
 
   assert.equal(ids.includes(FS_LIST_FILES_TOOL_ID), false);
@@ -79,8 +86,8 @@ test("catalog filesystem handlers use the current workspace's persisted custom r
   setCustomFsRoot(deps.workspaceId, ownRoot, { siteDir: base });
   setCustomFsRoot("other-workspace", otherRoot, { siteDir: base });
   deps.authorize = async () => ({ allowed: true }) as never;
-  installFirstPartyToolContributors();
-  const catalog = buildAssistantToolRegistrations(deps);
+  installFirstPartyToolContributors({ contributions });
+  const catalog = buildAssistantToolRegistrations(deps, undefined, { contributions });
   const read = catalog.find((r) => r.descriptor.id === FS_READ_FILE_TOOL_ID);
   const list = catalog.find((r) => r.descriptor.id === FS_LIST_FILES_TOOL_ID);
   assert.ok(read);

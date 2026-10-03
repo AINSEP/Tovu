@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, ForbiddenError } from "../../settings/index.js";
 import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings.js";
 import { SeoSettingsValidationError } from "../errors.js";
@@ -18,7 +18,7 @@ const WORKSPACE = "workspace-1";
 const SYSTEM_PRINCIPAL = "system-seo";
 const CALLER = "caller-1";
 
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-13T00:00:00.000Z", nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `seo-setting-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
@@ -30,7 +30,7 @@ function makeDeps(authorize = alwaysAllow) {
     clock,
     ids,
     authorize,
-    principals: new InMemoryPrincipalRepo([]),
+    principals: new InMemoryPrincipalRepo({}, { initialRows: [] }),
   };
 }
 

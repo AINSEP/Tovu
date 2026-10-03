@@ -103,8 +103,8 @@ export function createLiveRunTracker(): LiveRunTracker {
 
 /** The two `RunLifecycle` calls {@link waitForStoppingRuns} needs. */
 export interface StoppingRunLifecycle {
-  onCancelRequested(runId: string, listener: () => void): () => void;
-  waitForTerminal(runId: string): Promise<unknown>;
+  onCancelRequested(input: { runId: string; listener: () => void }): () => void;
+  waitForTerminal(input: { runId: string }): Promise<unknown>;
 }
 
 /** How long a new run waits for a stopped run on the same chat to exit. A stopped Claude turn was
@@ -116,9 +116,9 @@ export const STOPPING_RUN_WAIT_MS = 20_000;
 function isStopping(lifecycle: StoppingRunLifecycle, runId: string): boolean {
   let stopping = false;
   try {
-    lifecycle.onCancelRequested(runId, () => {
+    lifecycle.onCancelRequested({ runId, listener: () => {
       stopping = true;
-    })();
+    } })();
   } catch {
     // An unknown run id: nothing to wait for.
     return false;
@@ -158,7 +158,7 @@ export async function waitForStoppingRuns(input: {
     timer = setTimeout(resolve, timeoutMs);
   });
   const allEnded = Promise.all(
-    stopping.map((id) => lifecycle.waitForTerminal(id).then(() => tracker.unregister(conversationId, id))),
+    stopping.map((id) => lifecycle.waitForTerminal({ runId: id }).then(() => tracker.unregister(conversationId, id))),
   );
   try {
     await Promise.race([allEnded, timedOut]);
@@ -169,7 +169,7 @@ export async function waitForStoppingRuns(input: {
 
 /** The two `RunLifecycle` calls {@link failRunBeforeStart} needs. */
 export interface FailingRunLifecycle {
-  emit(runId: string, input: { event: "error"; data: { message: string } }): Promise<unknown>;
+  emit(args: { runId: string; input: { event: "error"; data: { message: string } } }): Promise<unknown>;
   finish(input: { runId: string; status: "failed"; code: null; signal: null; resumable: false }): Promise<unknown>;
 }
 
@@ -185,6 +185,6 @@ export const CONCURRENT_RUN_REFUSAL_MESSAGE =
  * take the event never stops the run from finishing.
  */
 export async function failRunBeforeStart(lifecycle: FailingRunLifecycle, runId: string, message: string): Promise<void> {
-  await lifecycle.emit(runId, { event: "error", data: { message } }).catch(() => undefined);
+  await lifecycle.emit({ runId, input: { event: "error", data: { message } } }).catch(() => undefined);
   await lifecycle.finish({ runId, status: "failed", code: null, signal: null, resumable: false });
 }

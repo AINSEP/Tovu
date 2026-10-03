@@ -1,18 +1,22 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import {
-  getWorkspaceAgentToolCatalog,
-  InMemoryWorkspaceRepo,
-  type WorkspaceAgentToolDefinition,
-} from "../../features/workspace/index.js";
+import { type AgentToolDefinition as WorkspaceAgentToolDefinition } from "@jini-ai/core";
+import { getWorkspaceAgentToolCatalog, InMemoryWorkspaceRepo } from "../../features/workspace/index.js";
 import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 /**
  * @file The Workspace (SPEC-044) tool-wiring test file — mirrors
@@ -28,8 +32,8 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
  * `installFirstPartyToolContributors()`. Reset first so this file's own registration is the only one
  * this process's registry holds while these tests run.
  */
-resetToolContributorsForTests();
-registerToolContributor(contributeWorkspaceTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeWorkspaceTools() });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -39,12 +43,12 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
-  const workspaceRepo = new InMemoryWorkspaceRepo([{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW }]);
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW }] });
 
   const deps = {
     workspaceId: WORKSPACE_ID,
     workspaceRepo,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => "id-unused" },
     outbox: { enqueue: async () => {} },
     bus: { publish: async () => {} },
@@ -62,7 +66,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function workspaceRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -90,18 +94,18 @@ test("exactly the 2 wireable workspace entries are registered — get and update
 test("workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_create"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_create", catalogEntry("workspace_create")), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable("workspace_create", catalogEntry("workspace_create"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_delete"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_delete", catalogEntry("workspace_delete")), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable("workspace_delete", catalogEntry("workspace_delete"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("workspace_create"), false);
   assert.equal(ids.includes("workspace_delete"), false);
 });
@@ -144,13 +148,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.workspace") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("workspace_update", { ...catalogEntry("workspace_update"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("workspace_update", { ...catalogEntry("workspace_update"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -192,7 +196,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
   test(`${toolId}: a denied principal is rejected and nothing is written`, async () => {
     const { deps, workspaceRepo } = fakeRouteDeps({ allow: false });
-    const before = await workspaceRepo.findById(WORKSPACE_ID);
+    const before = await workspaceRepo.findById({ id: WORKSPACE_ID });
 
     await assert.rejects(
       () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
@@ -203,7 +207,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
       },
     );
 
-    const after = await workspaceRepo.findById(WORKSPACE_ID);
+    const after = await workspaceRepo.findById({ id: WORKSPACE_ID });
     assert.deepEqual(after, before, "the permission gate must run ahead of any durable effect");
   });
 }

@@ -1,5 +1,7 @@
-import type { NextFunction, Request, RequestHandler, Response } from "express";
+import type { RequestHandler } from "express";
+import { rejectOversizedJsonBody as rejectHttpOversizedJsonBody } from "@jini-ai/http-kit/middleware";
 
+// Generic enforcement and rationale: Jini/packages/http-kit/src/middleware.ts.
 /**
  * @file Route-layer body-size cap for content-entry create/update endpoints.
  *
@@ -37,22 +39,17 @@ export type BodySizeLimitOptional = Record<string, never>;
  * it would perform) never runs on an oversized request. Must be mounted after the app's
  * `express.json()` body parser (so `req.body` is populated) and before the route's own handler.
  *
+ * Generic measurement and its rationale now live in Jini/packages/http-kit/src/middleware.ts;
+ * this adapter binds Tovu's response envelope.
  * @complexity O(n) in the serialized size of `req.body` per request — bounded above by the app's
  * blanket 15 MiB `express.json()` limit, so this is not an unbounded cost.
- * @overallScore 100
  */
 export function rejectOversizedJsonBody(
-  required: BodySizeLimitRequired,
-  _optional: BodySizeLimitOptional = {}
+  { maxBytes }: BodySizeLimitRequired,
+  optional: BodySizeLimitOptional = {},
 ): RequestHandler {
-  const { maxBytes } = required;
-
-  return (req: Request, res: Response, next: NextFunction) => {
-    const bodySize = Buffer.byteLength(JSON.stringify(req.body ?? {}), "utf8");
-    if (bodySize > maxBytes) {
-      res.status(413).json({ error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE" });
-      return;
-    }
-    next();
-  };
+  return rejectHttpOversizedJsonBody({
+    maxBytes,
+    errorResponseFactory: () => ({ error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE" }),
+  }, optional);
 }

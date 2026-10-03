@@ -1,7 +1,8 @@
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   InMemorySettingsRepo,
   INSTRUCTIONS_NAMESPACE,
@@ -25,13 +26,13 @@ import {
 
 const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
-const clock = { nowIso: () => "2026-07-31T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-31T00:00:00.000Z"), nowIso: () => "2026-07-31T00:00:00.000Z" };
 
 function makeDeps() {
   const settingsRepo = new InMemorySettingsRepo();
-  const principals = new InMemoryPrincipalRepo([]);
+  const principals = new InMemoryPrincipalRepo({}, { initialRows: [] });
   const ids = { newId: (() => { let n = 0; return () => `custom-instructions-test-id-${++n}`; })() };
-  return { settingsRepo, deps: { settingsRepo, clock, ids, principals } };
+  return { settingsRepo, deps: { settingsRepo, clock, ids, principals: createSettingsPrincipalLookup({ repo: principals }) } };
 }
 
 async function withDefinitions() {

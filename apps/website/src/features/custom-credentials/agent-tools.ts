@@ -1,4 +1,4 @@
-import type { AgentToolSideEffect } from "@jini-ai/cms/core";
+import type { AgentToolSideEffect } from "@jini-ai/core";
 
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
 import { WRITE_FILES_LIMITS } from "./write-files-validation.js";

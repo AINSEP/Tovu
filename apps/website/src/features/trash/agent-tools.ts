@@ -48,10 +48,12 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-/** The four phase-1 domains, kept only as {@link getTrashAgentToolCatalog}'s zero-arg fallback so
- *  existing importers (that call it with no registry in hand) keep compiling. Nothing that can
+/** The four phase-1 domains, originally kept as a zero-argument fallback for importers without
+ *  a registry. The constant remains available to the existing schema tests. Nothing that can
  *  resolve a real {@link TrashRegistry} should read this constant directly — call
- *  {@link trashToolEntityTypes} instead. */
+ *  {@link trashToolEntityTypes} instead.
+ * getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
 export const TRASH_TOOL_ENTITY_TYPES = [
   POST_ENTITY_TYPE,
   COMMENT_ENTITY_TYPE,
@@ -157,9 +159,7 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
  *  the live kind set) keeps compiling. `tool-registrations.ts` does not call this — it calls
  *  {@link buildTrashAgentToolCatalog} with {@link trashToolEntityTypes}'s output instead.
  *  @complexity O(1). */
-export function getTrashAgentToolCatalog(): readonly AgentToolDefinition[] {
-  return buildTrashAgentToolCatalog(TRASH_TOOL_ENTITY_TYPES);
-}
+// getTrashAgentToolCatalog (apps/website/src/features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
  * Every kind the Trash can currently list or restore: the bespoke phase-1 kinds

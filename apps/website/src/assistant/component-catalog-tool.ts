@@ -1,13 +1,4 @@
-import {
-  buildDomainRegistrations,
-  optionalNumber,
-  requireInputRecord,
-  requireString,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildComponentCatalogQuery } from "./component-catalog-query.js";
 
@@ -143,19 +134,19 @@ export function buildComponentCatalogRegistrations(_routeDeps: unknown, _surface
 
   const handlers: Record<string, ToolHandler> = {
     [SEARCH_COMPONENTS_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const query = requireString(input, "query");
-      const rawLimit = optionalNumber(input, "limit");
+      const input = requireInputRecord({ input: ctx.input });
+      const query = requireString({ input, key: "query" });
+      const rawLimit = optionalNumber({ input, key: "limit" });
       // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
       // caller is actually asking for, mirroring `byok-tool-surface.ts`'s identical `runSearchTools`
       // treatment of `search_tools`' own `limit` argument.
       const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
-      return componentCatalog.search(query, limit);
+      return componentCatalog.search({ query }, { limit });
     },
     [DESCRIBE_COMPONENT_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const id = requireString(input, "id");
-      const entry = componentCatalog.describe(id);
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input, key: "id" });
+      const entry = componentCatalog.describe({ id });
       if (!entry) throw new Error(`component '${id}' was not found`);
       return entry;
     },

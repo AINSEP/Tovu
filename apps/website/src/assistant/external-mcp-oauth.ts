@@ -1,4 +1,9 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../platform/oauth/endpoint-safety.js";
+import { randomBytes } from "node:crypto";
+import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
+import type { PendingAuthorizationStore } from "../platform/oauth/pending-authorizations.js";
+import { OAuthError as LegacyOAuthError } from "../platform/oauth/errors.js";
+// Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
@@ -10,22 +15,23 @@ import {
   completeAuthorizationCode,
   createTokenRefresher,
   discoverAuthorizationServer,
-  getOAuthProvider,
-  isOAuthError,
+  createOAuthProviderRegistry,
+  refreshAccessToken,
   OAuthError,
   pollDeviceAuthorizationOnce,
   registerOAuthClientDynamically,
-  requestOAuthToken,
   type AuthorizationCallbackParams,
   type DeviceAuthorization,
   type DiscoveredOAuthConfiguration,
   type OAuthClient,
   type OAuthClientAuthMethod,
-  type OAuthFetch,
   type OAuthProviderDescriptor,
   type OAuthTokenSet,
-  type PendingAuthorizationStore,
-} from "../platform/oauth/index.js";
+  type PendingAuthorizationStore as JiniPendingAuthorizationStore,
+  type OAuthHttpPorts,
+  type OAuthAppOptions,
+  type OAuthProviderRegistry,
+} from "@jini-ai/oauth";
 import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
@@ -41,9 +47,9 @@ import {
 } from "./external-mcp-store.js";
 
 /**
- * @file Connects `src/platform/oauth/`'s generic client to one external-MCP connection row.
+ * @file Connects `@jini-ai/oauth`'s generic client to one external-MCP connection row.
  *
- * This is the ONLY module that knows both halves. `src/platform/oauth/` knows nothing about MCP;
+ * This is the ONLY module that knows both halves. `@jini-ai/oauth` knows nothing about MCP;
  * `external-mcp-store.ts` knows nothing about token endpoints; this file owns the join and nothing
  * else — no HTTP routing (that is `server/routes/`), no federation (that is `mcp-federation/`).
  *
@@ -59,7 +65,7 @@ import {
  * at all — Composio was the OAuth client there, and Tovu asked it for a redirect URL and later for
  * a *connected account*. There was no authorization-code grant, no PKCE, no token endpoint, no refresh
  * token and no expiry column anywhere in that path. There was nothing to port; a direct integration
- * inherits every one of those duties, and they are implemented fresh in `src/platform/oauth/` behind a
+ * inherits every one of those duties, and they are implemented in `@jini-ai/oauth` behind a
  * provider-agnostic descriptor so no vendor's quirks reach this file either.
  *
  * ## Connect-time failures are loud, fast and never retried
@@ -155,7 +161,7 @@ export function externalMcpSettingsDeepLink(serverId: string): string {
  *
  * `Promise`-returning for the same reason `oauth/pending-authorizations.ts`'s
  * `PendingAuthorizationStore` is: the real adapter
- * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `createSqliteDeviceAuthorizationStore`)
+ * (`platform/db/repos/oauth-pending-store.ts`'s `createSqliteDeviceAuthorizationStore`)
  * persists to `content.db` and seals `deviceCode` through the same ADR-058 sealer/keyring every
  * other secret there goes through, so both implementations share one async call shape. This file's
  * own `createDeviceAuthorizationStore` below is the in-memory ADR-006 "second adapter" — used by
@@ -272,15 +278,25 @@ export interface ExternalMcpOAuthDeps {
   readonly clock: ClockPort;
   readonly pending: PendingAuthorizationStore;
   readonly devices: DeviceAuthorizationStore;
-  /** Injected so tests never touch the network. Defaults to global `fetch`. */
-  readonly fetchFn?: OAuthFetch;
+  /** Required guarded transport and endpoint policy: no raw-fetch fallback can send a credential. */
+  readonly httpPorts: OAuthHttpPorts;
+  /** Host-owned registration; separate services do not mutate a process-wide provider map. */
+  readonly providers?: OAuthProviderRegistry;
   /** Resolves a REGISTERED provider descriptor. Injected so a test can register its own without
-   *  mutating the process-wide registry. Defaults to `src/platform/oauth/`'s. */
+   *  mutating another service's registry. Defaults to this service's host-owned instance. */
   readonly lookupProvider?: (providerId: string) => OAuthProviderDescriptor;
   /** Runs after a sign-in succeeds (redirect callback or device poll), once the token is durable.
    *  The composition root wires `features/agent-plugins/apply-connect-defaults.ts` here. A throw is
    *  logged and never fails the sign-in: the connection itself already succeeded. */
   readonly onConnected?: (serverId: string) => Promise<void>;
+}
+
+/** Stable registration identity; callback URLs come only from the host's trusted origin policy.
+ * Device-only clients deliberately register no redirect URI (RFC 7591).
+ */
+function oauthClientOptions(record: ExternalMcpServerRecord, redirectUri: string | undefined): OAuthAppOptions {
+  return { clientDisplayName: record.label ?? record.serverId, softwareId: "tovu",
+    redirectUris: redirectUri === undefined ? [] : [redirectUri] };
 }
 
 /** Calls {@link ExternalMcpOAuthDeps.onConnected}, keeping its failure out of the sign-in's result. */
@@ -430,15 +446,18 @@ function readStoredEndpoints(record: ExternalMcpServerRecord): StoredOAuthEndpoi
 
 /** Builds a descriptor from the endpoints an operator typed on this connection.
  *  @throws {OAuthError} When they do not form a usable provider. */
-function buildConnectionOwnedProvider(record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints & { tokenEndpoint: string }): OAuthProviderDescriptor {
+function buildConnectionOwnedProvider(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints & { tokenEndpoint: string }): OAuthProviderDescriptor {
+  const clientAuth = readStoredClientAuth(endpoints);
   return buildOperatorOAuthProvider({
+    guard: deps.httpPorts.guard,
     providerId: record.oauthProviderId ?? `connection-${record.serverId}`,
     label: record.label ?? record.serverId,
     tokenEndpoint: endpoints.tokenEndpoint,
+  }, {
     ...(endpoints.authorizationEndpoint === undefined ? {} : { authorizationEndpoint: endpoints.authorizationEndpoint }),
     ...(endpoints.deviceAuthorizationEndpoint === undefined ? {} : { deviceAuthorizationEndpoint: endpoints.deviceAuthorizationEndpoint }),
     scopes: readStoredScopes(record),
-    ...(readStoredClientAuth(endpoints) === null ? {} : { clientAuth: readStoredClientAuth(endpoints) as OAuthClientAuthMethod }),
+    ...(clientAuth === null ? {} : { clientAuth }),
   });
 }
 
@@ -466,7 +485,7 @@ function readStoredScopes(record: ExternalMcpServerRecord): string[] {
  * Resolves the provider descriptor for a row: a registered id, or the operator's own endpoints.
  *
  * Both paths end at the same validated {@link OAuthProviderDescriptor}, which is what keeps every
- * flow in `src/platform/oauth/` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
+ * flow in `@jini-ai/oauth` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
  * from which endpoints are present, so a row cannot claim a grant it has no endpoint for.
  *
  * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the row names neither, or
@@ -476,14 +495,14 @@ function readStoredScopes(record: ExternalMcpServerRecord): string[] {
 function resolveProviderDescriptor(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord): OAuthProviderDescriptor {
   const endpoints = readStoredEndpoints(record);
   if (endpoints.tokenEndpoint !== undefined) {
-    return buildConnectionOwnedProvider(record, { ...endpoints, tokenEndpoint: endpoints.tokenEndpoint });
+    return buildConnectionOwnedProvider(deps, record, { ...endpoints, tokenEndpoint: endpoints.tokenEndpoint });
   }
   if (record.oauthProviderId === null) {
-    throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, {
-      operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
-    });
+    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
   }
-  return (deps.lookupProvider ?? getOAuthProvider)(record.oauthProviderId);
+  if (deps.lookupProvider) return deps.lookupProvider(record.oauthProviderId);
+  const providers = deps.providers ?? createOAuthProviderRegistry({ guard: deps.httpPorts.guard });
+  return providers.get({ providerId: record.oauthProviderId });
 }
 
 /** Builds the client identity for one row, unsealing the client secret only when there is one.
@@ -495,9 +514,7 @@ async function resolveClient(
   provider: OAuthProviderDescriptor,
 ): Promise<OAuthClient> {
   if (record.oauthClientId === null) {
-    throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' has no OAuth client id`, {
-      operatorAction: "Add this connection's OAuth client id in Settings → External MCP.",
-    });
+    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id`, operatorAction: "Add this connection's OAuth client id in Settings → External MCP.", });
   }
   const payload = await openExternalMcpOAuthPayload(deps.sealer, record);
   return {
@@ -558,15 +575,14 @@ async function discoverConnectionAuthorizationServer(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
 ): Promise<DiscoveredOAuthConfiguration> {
-  if (record.url === null) {
-    throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, {
-      operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
-    });
+  const resourceUrl = record.url;
+  if (resourceUrl === null) {
+    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
   }
-  return discoverAuthorizationServer(
-    { ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-    { resourceUrl: record.url, timeoutMs: CONNECT_TIMEOUT_MS },
-  );
+  return withTovuOAuthCopy({ call: () => discoverAuthorizationServer(
+    { ...deps.httpPorts, resourceUrl },
+    { timeoutMs: 10_000, metadataPolicy: createTovuIssuerBoundDiscoveryPolicy({ guard: deps.httpPorts.guard }) },
+  ) });
 }
 
 /** RFC 8628's grant-type identifier — how both RFC 8414's `grant_types_supported` and RFC 7591's own
@@ -606,11 +622,7 @@ function registrationGrantTypes(grant: ExternalMcpOAuthGrant): readonly string[]
 function resolveGrantFromDiscovery(grantTypesSupported: readonly string[], serverId: string): ExternalMcpOAuthGrant {
   if (grantTypesSupported.includes("authorization_code")) return "authorization_code";
   if (grantTypesSupported.includes(DEVICE_CODE_GRANT_TYPE)) return "device_code";
-  throw new OAuthError(
-    "OAUTH_INVALID_REQUEST",
-    `the authorization server for external MCP server '${serverId}' advertises no grant Tovu supports (it offers: ${grantTypesSupported.join(", ") || "none"})`,
-    { operatorAction: "Set this connection's sign-in method by hand in Settings → External MCP." },
-  );
+  throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `the authorization server for external MCP server '${serverId}' advertises no grant Tovu supports (it offers: ${grantTypesSupported.join(", ") || "none"})`, operatorAction: "Set this connection's sign-in method by hand in Settings → External MCP." });
 }
 
 /**
@@ -634,29 +646,28 @@ async function mintClientForConnection(
 ) {
   const registrationEndpoint = discovered.server.registrationEndpoint;
   if (registrationEndpoint === null) {
-    throw new OAuthError(
-      "OAUTH_INVALID_REQUEST",
-      `external MCP server '${record.serverId}' has no OAuth client id and its authorization server offers no dynamic client registration`,
-      { operatorAction: "Add this connection's OAuth client id in Settings → External MCP — this server does not mint them automatically." },
-    );
+    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' has no OAuth client id and its authorization server offers no dynamic client registration`, operatorAction: "Add this connection's OAuth client id in Settings → External MCP — this server does not mint them automatically." });
   }
-  return registerOAuthClientDynamically(
-    { ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
+  return withTovuOAuthCopy({ call: () => registerOAuthClientDynamically(
     {
+      ...deps.httpPorts,
+      options: oauthClientOptions(record, input.redirectUri),
       registrationEndpoint,
-      clientName: record.label ?? record.serverId,
+      scopes: input.scopes,
+    },
+    {
+      messages: tovuOAuthMessages,
       // Empty for a device-only client: RFC 7591 requires `redirect_uris` only for a client that
       // registers a redirect-based grant, and `registrationGrantTypes` below registers none for
       // `device_code`. Registering a placeholder instead would mint a client pinned to a callback
       // nothing serves.
-      redirectUris: input.redirectUri === undefined ? [] : [input.redirectUri],
-      scopes: input.scopes,
+      // oauthClientOptions carries exactly this grant's callback, or [] for device-only clients.
       grantTypes: registrationGrantTypes(input.grant),
       // Read only if the server issues a secret without saying how to present it.
       authMethodsSupported: discovered.server.tokenEndpointAuthMethodsSupported,
       timeoutMs: CONNECT_TIMEOUT_MS,
     },
-  );
+  ) });
 }
 
 /** Writes one connect's self-configuration onto the row, preserving anything already sealed beside it.
@@ -693,7 +704,7 @@ async function persistSelfConfiguration(
     sealedOAuth,
     // Carried from the seal, never from `...record` — the spread holds the row's OLD version.
     oauthAadVersion,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: readNowIso({ clock: deps.clock }),
   };
   await deps.repo.upsert(next);
   return next;
@@ -842,7 +853,7 @@ async function persistTokens(
     sealedOAuth,
     // Carried from the seal, never from `...record` — the spread holds the row's OLD version.
     oauthAadVersion,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: readNowIso({ clock: deps.clock }),
   });
 }
 
@@ -971,7 +982,7 @@ async function setOAuthStatus(
     ...clearedTokenPatch,
     ...(forgetClient ? { oauthClientId: null, oauthEndpointsJson: JSON.stringify(withoutSelfRegisteredClient(endpoints)) } : {}),
     oauthRefreshLeaseUntil: null,
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: readNowIso({ clock: deps.clock }),
   });
 }
 
@@ -989,17 +1000,32 @@ async function setOAuthStatus(
  *   (`oauth/pending-authorizations.ts`'s `createPendingAuthorizationStore`,
  *   this file's own `createDeviceAuthorizationStore`) cannot survive that split — a `Map` in one
  *   process is invisible to the other. The DB-backed implementations
- *   (`platform/db/sqlite/oauth-pending-store.sqlite.ts`) can, because both processes open the same
+ *   (`platform/db/repos/oauth-pending-store.ts`) can, because both processes open the same
  *   `content.db`. Every production composition root injects the DB-backed pair for exactly this
  *   reason; the in-memory pair remains correct only for a caller that can guarantee both halves of
  *   a handshake run in the same process (a narrow test double, or a composition root with no
  *   persistent `content.db` at all).
  */
-export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): ExternalMcpOAuthService {
+export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): ExternalMcpOAuthService {
+  const deps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
+  // The DB lane still supplies its existing store port. Translate its size getter and errors,
+  // preserving atomic redemption; RFC 8707 activation awaits that lane's durable resource handoff.
+  const pending: JiniPendingAuthorizationStore = {
+    put: (input) => deps.pending.put(input),
+    async take(input) {
+      try { return await deps.pending.take(input); }
+      catch (error) {
+        if (!(error instanceof LegacyOAuthError)) throw error;
+        throw new OAuthError({ code: error.code, message: error.message, operatorAction: error.operatorAction }, { cause: error });
+      }
+    },
+    size: () => deps.pending.size(),
+  };
   const refresher = createTokenRefresher({
     clock: deps.clock,
+    sleep: ({ ms }) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
     port: {
-      async load(serverId) {
+      async load({ key: serverId }) {
         const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
         if (!record) return null;
         // A row already parked in `needs_reauth` must not be probed again on every tool call: the
@@ -1011,33 +1037,29 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
           : { ...payload.tokens, scopes: [...payload.tokens.scopes] };
       },
 
-      async refresh(serverId, refreshToken) {
+      async refresh({ key: serverId, refreshToken }) {
         const record = await requireOAuthRecord(deps, serverId);
         const provider = resolveProviderDescriptor(deps, record);
-        return requestOAuthToken(
-          { clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-          {
-            tokenEndpoint: provider.tokenEndpoint,
-            client: await resolveClient(deps, record, provider),
-            params: { grant_type: "refresh_token", refresh_token: refreshToken },
-            timeoutMs: CONNECT_TIMEOUT_MS,
-          },
-        );
+        return withTovuOAuthCopy({ call: async () => refreshAccessToken(
+          { ...deps.httpPorts, clock: deps.clock, tokenEndpoint: provider.tokenEndpoint,
+            client: await resolveClient(deps, record, provider), refreshToken },
+          { scopes: readStoredScopes(record), timeoutMs: CONNECT_TIMEOUT_MS },
+        ) });
       },
 
-      async persist(serverId, tokens) {
+      async persist({ key: serverId, tokens }) {
         const record = await requireOAuthRecord(deps, serverId);
         await persistTokens(deps, record, tokens);
       },
 
-      async markNeedsReauth(serverId) {
+      async markNeedsReauth({ key: serverId }) {
         // The token is CLEARED, not kept: it is known dead, and a dead credential sitting in the
         // row is one accidental read away from being sent to a provider that will reject it.
         await setOAuthStatus(deps, serverId, "needs_reauth", { clearToken: true });
       },
 
-      async tryAcquireRefreshLease(serverId) {
-        const nowIso = deps.clock.nowIso();
+      async tryAcquireRefreshLease({ key: serverId }) {
+        const nowIso = readNowIso({ clock: deps.clock });
         return deps.repo.tryClaimOAuthRefreshLease({
           workspaceId: deps.workspaceId,
           serverId,
@@ -1046,7 +1068,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
         });
       },
 
-      async releaseRefreshLease(serverId) {
+      async releaseRefreshLease({ key: serverId }) {
         await deps.repo.releaseOAuthRefreshLease({ workspaceId: deps.workspaceId, serverId });
       },
     },
@@ -1062,10 +1084,10 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       const scopes = readStoredScopes(record);
 
       if (record.oauthGrant === "device_code") {
-        const authorization = await beginDeviceAuthorization(
-          { provider, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-          { client, scopes, timeoutMs: CONNECT_TIMEOUT_MS },
-        );
+        const authorization = await withTovuOAuthCopy({ call: () => beginDeviceAuthorization(
+          { ...deps.httpPorts, provider, clock: deps.clock, client },
+          { scopes, timeoutMs: CONNECT_TIMEOUT_MS },
+        ) });
         await deps.devices.put(record.serverId, authorization);
         await setOAuthStatus(deps, record.serverId, "pending");
         return {
@@ -1081,7 +1103,8 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       // Every path below this line is redirect-based, so the requirement is real rather than
       // defensive — and it is stated where it can name both the grant and the fix, instead of being
       // a blanket precondition a caller had to satisfy before it knew which grant it had.
-      if (input.redirectUri === undefined) {
+      const redirectUri = input.redirectUri;
+      if (redirectUri === undefined) {
         throw new ExternalMcpValidationError(
           `external MCP server '${record.serverId}' uses the authorization_code grant, which needs an absolute callback URL ` +
             `Tovu can be reached at, and none could be found: TOVU_PUBLIC_URL is not set, and this execution context has no ` +
@@ -1094,15 +1117,18 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
         );
       }
 
-      const started = await beginAuthorizationCode(
-        { provider, pending: deps.pending },
-        {
+      const started = await withTovuOAuthCopy({ call: () => beginAuthorizationCode(
+        { provider, pending, guard: deps.httpPorts.guard,
+          randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
+          options: oauthClientOptions(record, redirectUri),
           ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
           client,
-          redirectUri: input.redirectUri,
+          redirectUri,
+        }, {
           scopes,
+          messages: tovuOAuthMessages,
         },
-      );
+      ) });
       await setOAuthStatus(deps, record.serverId, "pending");
       return { kind: "redirect_required", authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt };
     },
@@ -1114,20 +1140,20 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
 
       let tokens: OAuthTokenSet;
       try {
-        tokens = await completeAuthorizationCode(
-          { provider, pending: deps.pending, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-          {
+        tokens = await withTovuOAuthCopy({ call: () => completeAuthorizationCode(
+          { ...deps.httpPorts, provider, pending, clock: deps.clock,
             ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
             client,
             params: input.params,
+          }, {
             timeoutMs: CONNECT_TIMEOUT_MS,
           },
-        );
+        ) });
       } catch (error) {
         // A provider that refuses the CLIENT (revoked, or never known) will refuse it on every retry,
         // so a self-registered one is dropped and the next connect mints a fresh one. The provider's
         // error still reaches the caller.
-        if (isOAuthError(error) && CLIENT_REJECTED_PROVIDER_CODES.includes(error.providerErrorCode ?? "")) {
+        if ((error instanceof OAuthError) && CLIENT_REJECTED_PROVIDER_CODES.includes(error.providerErrorCode ?? "")) {
           await setOAuthStatus(deps, record.serverId, "disconnected", { clearToken: true, forgetSelfRegisteredClient: true });
         }
         throw error;
@@ -1142,23 +1168,21 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       const record = await requireOAuthRecord(deps, input.serverId);
       const authorization = await deps.devices.get(input.serverId);
       if (!authorization) {
-        throw new OAuthError("OAUTH_INVALID_STATE", `no device authorization is in progress for '${input.serverId}'`, {
-          operatorAction: "Start the connection again from Settings → External MCP.",
-        });
+        throw new OAuthError({ code: "OAUTH_INVALID_STATE", message: `no device authorization is in progress for '${input.serverId}'`, operatorAction: "Start the connection again from Settings → External MCP.", });
       }
 
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
       try {
-        const tokens = await pollDeviceAuthorizationOnce(
-          { provider, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-          {
+        const tokens = await withTovuOAuthCopy({ call: () => pollDeviceAuthorizationOnce(
+          { ...deps.httpPorts, provider, clock: deps.clock,
             client,
             deviceCode: authorization.deviceCode,
             expiresAt: authorization.expiresAt,
+          }, {
             timeoutMs: CONNECT_TIMEOUT_MS,
           },
-        );
+        ) });
         await deps.devices.delete(input.serverId);
         await persistTokens(deps, record, tokens);
         await notifyConnected(deps, input.serverId);
@@ -1166,7 +1190,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       } catch (error) {
         // The ONLY retryable branch in this whole module — RFC 8628 §3.5 requires the client to keep
         // polling on these two, and only these two.
-        if (isOAuthError(error) && error.retryable) {
+        if ((error instanceof OAuthError) && error.retryable) {
           return { status: "pending", retryAfterSeconds: error.retryAfterSeconds ?? authorization.intervalSeconds };
         }
         await deps.devices.delete(input.serverId);
@@ -1219,13 +1243,13 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
     tokenResolver: {
       async resolveAccessToken({ serverId }) {
         try {
-          return await refresher.getAccessToken(serverId);
+          return await refresher.getAccessToken({ key: serverId });
         } catch (error) {
           // Whatever the refresher's own taxonomy says, the caller here is about to hand a message to
           // a model, so a `needs_reauth` outcome is translated into the one non-retryable sentence
           // that makes it stop. Anything else (a provider outage) keeps its own error, because it is
           // NOT a durable state and must not be reported as one.
-          if (isOAuthError(error) && error.code === "OAUTH_INVALID_GRANT") {
+          if ((error instanceof OAuthError) && error.code === "OAUTH_INVALID_GRANT") {
             const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
             throw new ExternalMcpReauthRequiredError({ serverId, label: record?.label ?? null });
           }

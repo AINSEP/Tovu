@@ -230,7 +230,7 @@ test("media rendition route: a source blob the pixel pipeline cannot decode is a
     // test — `image-transformer.sharp.test.ts` already covers the real decoder's own failure mode.
     deps.imageTransformer = {
       transform: async () => {
-        throw new ImageSourceCorruptError("the source image could not be decoded/re-encoded (target format 'webp'): simulated decode failure");
+        throw new ImageSourceCorruptError({ message: "the source image could not be decoded/re-encoded (target format 'webp'): simulated decode failure" });
       },
     };
 
@@ -276,7 +276,7 @@ test("media rendition route: the pixel-operation adapter being unavailable is a 
 
     deps.imageTransformer = {
       transform: async () => {
-        throw new ImageTransformUnavailableError("sharp is not installed in this environment");
+        throw new ImageTransformUnavailableError({ message: "sharp is not installed in this environment" });
       },
     };
 

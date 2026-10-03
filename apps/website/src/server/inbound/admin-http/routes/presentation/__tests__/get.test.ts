@@ -75,7 +75,7 @@ test("presentation get: mismatched workspaceId 404s", async (t) => {
 });
 
 test("presentation get: no presentation_settings row for the workspace surfaces PresentationSettingsNotFoundError as a 404", async (t) => {
-  const app = buildApp({ presentationRepo: new InMemoryPresentationSettingsRepo([]) });
+  const app = buildApp({ presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }) });
   const { status, json } = await get(t, app);
   assert.equal(status, 404);
   assert.deepEqual(json, {
@@ -85,9 +85,9 @@ test("presentation get: no presentation_settings row for the workspace surfaces 
 
 test("presentation get: an active theme id no longer among the discovered themes still 200s, with empty template/page lists", async (t) => {
   const app = buildApp({
-    presentationRepo: new InMemoryPresentationSettingsRepo([
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [
       { workspaceId: WORKSPACE_ID, activeThemeId: "totally-not-a-real-theme", updatedAt: "2026-08-20T00:00:00.000Z" },
-    ]),
+    ] }),
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 200, JSON.stringify(json));
@@ -133,9 +133,9 @@ test("presentation get: a stored retired theme id (`basic`, renamed `tovu-theme`
   assert.ok(fixture);
   const app = buildApp({
     themes: [{ ...fixture, manifest: { ...fixture.manifest, templates: ["article.html", "landing.html"] }, pages: { home: "Home fixture", about: "About fixture" } }],
-    presentationRepo: new InMemoryPresentationSettingsRepo([
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [
       { workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: "2026-09-26T00:00:00.000Z" },
-    ]),
+    ] }),
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 200, JSON.stringify(json));

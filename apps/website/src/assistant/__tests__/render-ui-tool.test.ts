@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations } from "../render-ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";

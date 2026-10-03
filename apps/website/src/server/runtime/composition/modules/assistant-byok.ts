@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 /**
  * @file The admin assistant dock's "API · BYOK" execution mode (ADR-049's picker, see
  * `@jini-ai/chat`'s `AgentRuntimePicker`) — a SECOND, provider-direct run path alongside the
@@ -319,24 +321,29 @@ async function resolveTurnInputsOrRespond(
 }
 
 export function createAssistantByokModule(
-  routeDeps: RouteDeps,
+  routeDeps: RouteDeps & ByokToolSurfaceDeps,
   toolSurface?: ByokToolSurface,
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
-  // `assistant/tool-contribution-registry.ts` currently holds, and the registry starts empty every
+  // this composition's explicit core registries hold, and those registries start empty every
   // process boot. See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
   // `agent-daemon-server.ts`, and nowhere else. Idempotent, so a test supplying its own `toolSurface`
   // (built from an already-installed registry) pays nothing extra for this still running.
-  installFirstPartyToolContributors();
-  // `routeDeps`'s declared type here is `RouteDeps` (this function's own parameter above), which is
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
+  // Historical rationale for the pre-extraction cast (retained to explain the old failure):
+  // `routeDeps`'s declared type here was `RouteDeps` (the old parameter), which is
   // honestly narrower than what `createByokToolSurface` needs (`ByokToolSurfaceDeps` — every
   // `AssistantToolRegistryDeps` field, including all 10 of `NewsletterToolDeps`'s own). The real
   // object this is always called with (`app.ts`'s `createApp(routeDeps: RouteDeps =
   // createRouteDeps())`) already carries them — `createRouteDeps()`'s actual return type is
   // `NewsletterRouteDeps`, a superset of `RouteDeps` — the same structural-narrowing gap
   // `server/app.ts`'s own `newsletterAdminDeps = routeDeps as NewsletterRouteDeps` cast documents and
-  // accepts at the identical seam, a few hundred lines away in the same composition root.
+  // accepted at the identical seam, a few hundred lines away in the same composition root.
   //
   // Unlike that precedent, a SINGLE cast is not available here: `NewsletterRouteDeps extends
   // RouteDeps` is a declared nominal relationship, so TypeScript accepts `routeDeps as
@@ -345,19 +352,22 @@ export function createAssistantByokModule(
   // ("neither type sufficiently overlaps... convert the expression to 'unknown' first"), naming the
   // exact same `NewsletterToolDeps` fields TS2345 named when this parameter's own type was
   // `Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter">` outright (`npx tsc -p tsconfig.json
-  // --noEmit`, both checked directly before choosing this form). The `unknown` detour below is
-  // TypeScript's own required spelling for "these two types don't provably overlap, trust the
+  // --noEmit`, both checked directly before choosing this form). The old `unknown` detour was
+  // TypeScript's required spelling at that time for "these two types don't provably overlap, trust the
   // runtime invariant" — the same one-step escape hatch `byok-tool-surface.ts` used to need
-  // internally before its own signature was made honest; it now lives at the one remaining seam
-  // where the type information is actually insufficient, not two stacked assumptions.
+  // internally before its own signature was made honest; it then lived at the one remaining seam
+  // where the type information was actually insufficient, not two stacked assumptions.
   //
   // Widening this function's own `routeDeps: RouteDeps` parameter to close the gap structurally
   // (instead of casting) would ripple into `app.ts`'s `createApp` signature and every test that
   // constructs a bare `RouteDeps` fixture for this module — a behavior-preserving but far wider
   // change than this narrowing pass's scope.
+  // Extraction now requires the complete BYOK deps in the public contract and in both roots;
+  // no cast may conceal a missing runtime port. This replaces that historical scope compromise.
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(routeDeps as unknown as ByokToolSurfaceDeps, {
+    createByokToolSurface(routeDeps, {
+      contributions,
       // Injected by the composition root, never resolved here — see
       // `RouteDeps.toolAttemptAuditSink`'s own doc. This module used to pick memory-vs-sqlite off
       // `process.env.TOVU_DB` and open its OWN `ContentDb` for the sink; `openContentDb` migrates

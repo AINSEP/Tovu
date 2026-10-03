@@ -1,3 +1,4 @@
+import type { AssistantToolContributions } from "./tool-contribution-registry.js";
 /**
  * @file Composes a SECOND, in-process copy of the admin's real tool surface — for the BYOK execution
  * path, which runs inside Tovu's main server process rather than the separately-spawned agent daemon
@@ -41,7 +42,7 @@ import {
   type ToolRegistry,
 } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
-import type { ToolCatalogQuery } from "@jini-ai/http-kit";
+import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
@@ -336,7 +337,7 @@ function runSearchTools(
     typeof rawLimit === "number" && Number.isFinite(rawLimit)
       ? Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX)
       : SEARCH_LIMIT_DEFAULT;
-  const hits = catalog.search(query, limit);
+  const hits = catalog.search({ query }, { limit });
   if (audit) {
     appendToolCatalogAttempt(audit.sink, {
       workspaceId: audit.workspaceId,
@@ -347,7 +348,7 @@ function runSearchTools(
     });
   }
   if (hits.length === 0) {
-    return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list().length} tools.` });
+    return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list({}).length} tools.` });
   }
   return ok({ hits });
 }
@@ -356,7 +357,7 @@ function runSearchTools(
 function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown>, audit: MetaToolCatalogAudit | undefined): ByokMetaToolResult {
   const id = typeof args.id === "string" ? args.id.trim() : "";
   if (id.length === 0) return err("'id' is required and must be a non-empty string.");
-  const entry = catalog.describe(id);
+  const entry = catalog.describe({ id });
   if (audit) {
     appendToolCatalogAttempt(audit.sink, {
       workspaceId: audit.workspaceId,
@@ -405,7 +406,7 @@ async function runExecuteDelegatedTool(
   if (!resolvedInput.ok) return err(resolvedInput.message);
 
   try {
-    const result = await executor.execute(principal, run, toolId, resolvedInput.input, signal, emitSurface);
+    const result = await executor.execute({ principal: principal, run: run, toolId: toolId, input: resolvedInput.input }, { signal: signal, emitSurface: emitSurface });
     return mapToolExecutionResult(result, toolId);
   } catch (error) {
     // `ToolExecutor.execute` THROWS on an id it does not know (`unknown tool "<id>"`) rather than
@@ -482,6 +483,7 @@ export function createByokToolSurface(
      * cost a swallowed `console.warn` per call, not a test failure, but there is no reason to pay it.
      */
     readonly installExtensions?: boolean;
+    readonly contributions?: AssistantToolContributions;
     /**
      * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
      * injected by the composition root (`modules/assistant-byok.ts` passes
@@ -529,7 +531,7 @@ export function createByokToolSurface(
   // `RouteDeps` declares no relationship to `ByokToolSurfaceDeps`, unlike the `NewsletterRouteDeps
   // extends RouteDeps` precedent it otherwise mirrors), so it keeps the same `unknown` detour — see
   // that call site's own comment for the full trace of why.
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
   // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
   // through `routeDeps` cannot replace it.
@@ -540,7 +542,7 @@ export function createByokToolSurface(
   };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore();
 
-  for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions })) {
     registry.register(registration);
   }
 

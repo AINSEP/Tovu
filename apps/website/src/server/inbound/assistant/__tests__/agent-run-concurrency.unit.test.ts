@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns } from "../agent-run-concurrency.js";
+import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, type FailingRunLifecycle } from "../agent-run-concurrency.js";
 
 /**
  * @file H2 regression cover for `createLiveRunTracker`. Before this tracker existed, nothing
@@ -103,11 +103,11 @@ describe("waitForStoppingRuns", () => {
       end(runId: string) {
         ends.get(runId)?.();
       },
-      onCancelRequested(runId: string, listener: () => void) {
+      onCancelRequested({ runId, listener }: { runId: string; listener: () => void }) {
         if (cancelled.has(runId)) listener();
         return () => undefined;
       },
-      waitForTerminal(runId: string) {
+      waitForTerminal({ runId }: { runId: string }) {
         let promise = ended.get(runId);
         if (!promise) {
           promise = new Promise<void>((resolve) => ends.set(runId, resolve));
@@ -163,7 +163,7 @@ describe("failRunBeforeStart", () => {
   test("puts the plain reason on the run's stream before finishing it failed", async () => {
     const calls: unknown[] = [];
     const lifecycle = {
-      async emit(runId: string, input: unknown) {
+      async emit({ runId, input }: Parameters<FailingRunLifecycle["emit"]>[0]) {
         calls.push(["emit", runId, input]);
       },
       async finish(input: unknown) {

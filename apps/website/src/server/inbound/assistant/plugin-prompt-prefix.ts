@@ -12,7 +12,7 @@
  * here changes WHERE they live, not what they do — see git history on this file's introduction
  * for the line-for-line move out of `onStarted`'s neighborhood.
  */
-import type { RunStartHandler } from "@jini-ai/http-kit";
+import type { RunStartHandler } from "@jini-ai/daemon/http";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/resolve-agent-plugin-refs";

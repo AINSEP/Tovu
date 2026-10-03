@@ -69,7 +69,7 @@ export interface RegisterRedirectHitOutboxHandlerDeps {
 export async function registerRedirectHitOutboxHandler(
   deps: RegisterRedirectHitOutboxHandlerDeps
 ): Promise<() => Promise<void>> {
-  return deps.bus.subscribe<RedirectHitEventPayload>("redirect.hit", async (event) => {
+  return deps.bus.subscribe<RedirectHitEventPayload>({ eventName: "redirect.hit", handler: async (event) => {
     try {
       await deps.hitSink.record({
         workspaceId: event.payload.workspaceId,
@@ -80,5 +80,5 @@ export async function registerRedirectHitOutboxHandler(
       // Best-effort — a failed hit-count fold is logged elsewhere (future
       // operability improvement) but never rethrown (INV-06).
     }
-  });
+  } });
 }

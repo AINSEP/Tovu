@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 
-import type { ClockPort } from "@jini-ai/cms/core";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
 import type { BuiltInPluginSource, PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";

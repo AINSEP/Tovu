@@ -3,7 +3,8 @@ import type { Selectable } from "kysely";
 import type { ContentKernel } from "../content-kernel.js";
 import type { OutboxEventsTable } from "../content-database.generated.js";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/outbox-worker";
-import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
 /**
  * @file THE `OutboxPort` adapter over `outbox_events` (ADR-046 Phase 1): one Kysely query body for
@@ -41,8 +42,9 @@ function toRecord(row: Selectable<OutboxEventsTable>): OutboxRecord {
 /** Statuses `claimPending` may take: never claimed, or claimed under a lease that may have expired. */
 const CLAIMABLE_STATUSES = ["pending", "processing"];
 
-/** The `outbox_events` row for a freshly-produced `event` (snake_case; `sqlite/outbox-repo.sqlite.ts`'s
- *  `outboxRowFor` is the same row in Drizzle's shape for callers still inserting through Drizzle). */
+/** The `outbox_events` row for a freshly-produced `event` (snake_case).
+ * outboxRowFor (platform/db/sqlite/outbox-repo.sqlite.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ */
 export function outboxEventValues(event: DomainEvent) {
   return {
     id: event.id,
@@ -77,7 +79,7 @@ export class SqlOutboxAdapter implements OutboxPort {
    * `processing` under a fresh lease in one kernel transaction — the select-then-update is never
    * observable as two separate steps to a concurrent claimer. Returned records keep the due time
    * they were claimed at. */
-  async claimPending(batchSize: number, nowIso: ISODateTime): Promise<OutboxRecord[]> {
+  async claimPending({ batchSize, nowIso }: { batchSize: number; nowIso: ISODateTime }): Promise<OutboxRecord[]> {
     const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey("outbox_events:claim");
@@ -104,7 +106,7 @@ export class SqlOutboxAdapter implements OutboxPort {
     });
   }
 
-  async markDelivered(id: UUID): Promise<void> {
+  async markDelivered({ id }: { id: UUID }): Promise<void> {
     await this.kernel.run((db) => db.updateTable("outbox_events").set({ status: "delivered" }).where("id", "=", id).execute());
   }
 
@@ -114,10 +116,12 @@ export class SqlOutboxAdapter implements OutboxPort {
    * single UPDATE, same shape as `markDelivered`: the caller already had every value it needed.
    */
   async markFailed(
-    id: UUID,
-    error: string,
-    nextAttemptAt: ISODateTime,
-    nextStatus: Extract<OutboxRecord["status"], "pending" | "failed">
+    { id, error, nextAttemptAt, nextStatus }: {
+      id: UUID;
+      error: string;
+      nextAttemptAt: ISODateTime;
+      nextStatus: Extract<OutboxRecord["status"], "pending" | "failed">;
+    }
   ): Promise<void> {
     await this.kernel.run((db) =>
       db

@@ -13,28 +13,13 @@
  * three self-enforcing tools would be a duplicate evaluator, and a `ToolPolicy`-only check would be
  * bypassable by any future non-tool caller of the same domain function.
  */
+import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
-import {
-  type OutboxPort,
-  AGENT_TOOL_PRINCIPAL_KIND,
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  withSchemaOnRejection,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
-import {
-  forbiddenRule,
-  withModelFacingErrors,
-  type ModelFacingErrorRule,
-} from "#src/contracts/core/model-facing-tool-errors";
+import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { formsAgentToolCatalog } from "./agent-tools.js";
 import { deriveAvailableFormSlug } from "./duplicate-slug.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -45,15 +30,16 @@ import {
   FormSlugConflictError,
   FormSubmissionNotFoundError,
   FormSubmissionValidationError,
-} from "./errors.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
+} from "@jini-ai/cms-forms";
+import type { FormDefinitionRepoPort, FormCommandExecutorPort } from "@jini-ai/cms-forms";
+import { adaptFormSubmissionRepo, type FormSubmissionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
   FormDefinitionRecord,
   FormDefinitionStatus,
   FormSubmissionRecord,
   NotifyConfig,
-} from "./types.js";
+} from "@jini-ai/cms-forms";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
@@ -64,19 +50,20 @@ const SUBMISSIONS_DEFAULT_LIMIT = 50;
 const SUBMISSIONS_MIN_LIMIT = 1;
 const SUBMISSIONS_MAX_LIMIT = 100;
 
-const CATALOG_BY_ID = indexCatalogById(formsAgentToolCatalog);
+const CATALOG_BY_ID = indexCatalogById({ catalog: formsAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Forms' tool handlers read. Declared structurally (rather
  * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
  * composition root. `server/routes/*` satisfies this structurally by passing its existing
- * `RouteDeps` object; nothing there changes.
+ * `RouteDeps` object, with the CMS command executor supplied by composition.
  */
 export interface FormsToolDeps {
+  executeCommand: FormCommandExecutorPort;
   authorize: AuthorizeFn;
   workspaceId: string;
-  clock: { nowIso(): string };
-  idGen: { newId(): string };
+  clock: Clock;
+  idGen: IdGenerator;
   changeSets: ChangeSetRepoPort;
   outbox: OutboxPort;
   formDefinitionRepo: FormDefinitionRepoPort;
@@ -111,7 +98,7 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
  * A `ForbiddenError` or `FormSlugConflictError` is not a shape problem, and appending a schema to
  * those would be noise the model must read past — worse, it would imply the call is retryable.
  */
-function isFormsShapeRejection(error: unknown): boolean {
+function isFormsShapeRejection({ error }: { error: unknown }): boolean {
   return error instanceof FormFieldValidationError;
 }
 
@@ -194,13 +181,15 @@ function requireSubmissionsLimit(input: Record<string, unknown>): number {
   if (input.limit === undefined) return SUBMISSIONS_DEFAULT_LIMIT;
   const limit = input.limit;
   if (typeof limit !== "number" || !Number.isInteger(limit) || limit < SUBMISSIONS_MIN_LIMIT || limit > SUBMISSIONS_MAX_LIMIT) {
-    throw new ToolInputError(`'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}`);
+    throw new ToolInputError({ message: `'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}` });
   }
   return limit;
 }
 
+/** Binds host persistence and the audited command gateway for the Forms policy adapter. */
 function formsDeps(routeDeps: FormsToolDeps) {
   return {
+    executeCommand: routeDeps.executeCommand,
     repo: routeDeps.formDefinitionRepo,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
@@ -224,7 +213,7 @@ function formsDeps(routeDeps: FormsToolDeps) {
 function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatus {
   const value = input.status;
   if (value !== "active" && value !== "disabled") {
-    throw new FormFieldValidationError("'status' must be exactly 'active' or 'disabled'");
+    throw new FormFieldValidationError({ message: "'status' must be exactly 'active' or 'disabled'", fieldErrors: [] });
   }
   return value;
 }
@@ -249,7 +238,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
   if (Array.isArray(input.fields)) patch.fields = input.fields as FieldDescriptor[];
   if (input.notify !== undefined) patch.notify = input.notify as NotifyConfig;
   if (Object.keys(patch).length === 0) {
-    throw new FormFieldValidationError("at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated");
+    throw new FormFieldValidationError({ message: "at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated", fieldErrors: [] });
   }
   return patch;
 }
@@ -259,7 +248,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
  * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
  * this list is an ALLOWLIST rather than a blanket unwrap.
  *
- * Codes are `errors.ts`'s own documented per-class codes verbatim (`FORMS_SLUG_CONFLICT`,
+ * Codes retain Tovu's per-class vocabulary (`FORMS_SLUG_CONFLICT`,
  * `FORMS_DEFINITION_NOT_FOUND`, ...), the same discipline `features/widgets/tool-registrations.ts`
  * follows, so the model-facing token matches what that class already claims to be.
  *
@@ -276,7 +265,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
  * property, not in the `message` this surfaces.
  */
 const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("FORMS"),
+  forbiddenRule({ domainPrefix: "FORMS", error: ForbiddenError }),
   { error: FormDefinitionNotFoundError, code: "FORMS_DEFINITION_NOT_FOUND" },
   { error: FormSubmissionNotFoundError, code: "FORMS_SUBMISSION_NOT_FOUND" },
   { error: FormSlugConflictError, code: "FORMS_SLUG_CONFLICT" },
@@ -287,98 +276,113 @@ const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     forms_list_definitions: async (ctx) => {
-      await requireToolPermission(routeDeps, {
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
         principalId: ctx.principal.id,
         permission: "admin.forms.manage",
-        entityType: "form_definition",
-      });
+      }, { entityType: "form_definition" });
       const definitions = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
       return { definitions: definitions.map(toFormDefinitionView) };
     },
     forms_create_definition: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "forms_create_definition", catalog: CATALOG_BY_ID, isShapeRejection: isFormsShapeRejection }, async () => {
-        const { definition } = await createFormDefinition({
-          deps: formsDeps(routeDeps),
-          input: {
-            workspaceId: routeDeps.workspaceId,
-            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            name: requireString(input, "name"),
-            slug: requireString(input, "slug"),
-            fields: Array.isArray(input.fields) ? (input.fields as FieldDescriptor[]) : [],
-            notify: input.notify as NotifyConfig | undefined,
-          },
-        });
-        return { definition: toFormDefinitionView(definition) };
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({
+        toolId: "forms_create_definition",
+        catalog: CATALOG_BY_ID,
+        isShapeRejection: isFormsShapeRejection,
+        fn: async () => {
+          const { definition } = await createFormDefinition({
+            deps: formsDeps(routeDeps),
+            input: {
+              workspaceId: routeDeps.workspaceId,
+              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+              name: requireString({ input, key: "name" }),
+              slug: requireString({ input, key: "slug" }),
+              fields: Array.isArray(input.fields) ? (input.fields as FieldDescriptor[]) : [],
+              notify: input.notify as NotifyConfig | undefined,
+            },
+          });
+          return { definition: toFormDefinitionView(definition) };
+        },
       });
     },
     forms_update_definition: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "forms_update_definition", catalog: CATALOG_BY_ID, isShapeRejection: isFormsShapeRejection }, async () => {
-        const { definition } = await updateFormDefinition({
-          deps: formsDeps(routeDeps),
-          input: {
-            workspaceId: routeDeps.workspaceId,
-            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            formId: requireString(input, "formId"),
-            patch: requireFormsPatch(input),
-          },
-        });
-        return { definition: toFormDefinitionView(definition) };
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({
+        toolId: "forms_update_definition",
+        catalog: CATALOG_BY_ID,
+        isShapeRejection: isFormsShapeRejection,
+        fn: async () => {
+          const { definition } = await updateFormDefinition({
+            deps: formsDeps(routeDeps),
+            input: {
+              workspaceId: routeDeps.workspaceId,
+              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+              formId: requireString({ input, key: "formId" }),
+              patch: requireFormsPatch(input),
+            },
+          });
+          return { definition: toFormDefinitionView(definition) };
+        },
       });
     },
     forms_set_definition_status: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "forms_set_definition_status", catalog: CATALOG_BY_ID, isShapeRejection: isFormsShapeRejection }, async () => {
-        const { definition } = await setFormDefinitionStatus({
-          deps: formsDeps(routeDeps),
-          input: {
-            workspaceId: routeDeps.workspaceId,
-            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            formId: requireString(input, "formId"),
-            status: requireFormsStatus(input),
-          },
-        });
-        return { definition: toFormDefinitionView(definition) };
+      const input = requireInputRecord({ input: ctx.input });
+      return withSchemaOnRejection({
+        toolId: "forms_set_definition_status",
+        catalog: CATALOG_BY_ID,
+        isShapeRejection: isFormsShapeRejection,
+        fn: async () => {
+          const { definition } = await setFormDefinitionStatus({
+            deps: formsDeps(routeDeps),
+            input: {
+              workspaceId: routeDeps.workspaceId,
+              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+              formId: requireString({ input, key: "formId" }),
+              status: requireFormsStatus(input),
+            },
+          });
+          return { definition: toFormDefinitionView(definition) };
+        },
       });
     },
 
     forms_list_submissions: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const formId = requireString(input, "formId");
-      await requireToolPermission(routeDeps, {
+      const input = requireInputRecord({ input: ctx.input });
+      const formId = requireString({ input, key: "formId" });
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
         principalId: ctx.principal.id,
         permission: "admin.forms.submissions.read",
-        entityType: "form_submission",
-      });
+      }, { entityType: "form_submission" });
 
       const definition = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: formId });
-      // The domain's own typed class, not a bare `Error`: `errors.ts` already declares it with the
-      // `FORMS_DEFINITION_NOT_FOUND` code this reaches the model under, and a bare `Error` could
-      // never be matched by any allowlist without opening one that matches everything.
-      if (!definition) throw new FormDefinitionNotFoundError(`form definition '${formId}' was not found`);
+      // The shared typed class reaches the model through Tovu's explicit not-found allowlist.
+      // A bare Error cannot match that allowlist without broadening it to expose every error.
+      if (!definition) throw new FormDefinitionNotFoundError({ message: `form definition '${formId}' was not found` });
 
       const limit = requireSubmissionsLimit(input);
       const cursor = typeof input.cursor === "string" ? input.cursor : undefined;
-      const page = await routeDeps.formSubmissionRepo.listByDefinition({
+      const page = await adaptFormSubmissionRepo({ repo: routeDeps.formSubmissionRepo }).listByDefinition({
         workspaceId: routeDeps.workspaceId,
         formDefinitionId: formId,
         limit,
-        cursor,
-      });
+      }, { cursor });
       return { submissions: page.items.map(toFormSubmissionView), nextCursor: page.nextCursor };
     },
 
     forms_get_submission: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const formId = requireString(input, "formId");
-      const submissionId = requireString(input, "submissionId");
-      await requireToolPermission(routeDeps, {
+      const input = requireInputRecord({ input: ctx.input });
+      const formId = requireString({ input, key: "formId" });
+      const submissionId = requireString({ input, key: "submissionId" });
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
         principalId: ctx.principal.id,
         permission: "admin.forms.submissions.read",
-        entityType: "form_submission",
-        entityId: submissionId,
-      });
+      }, { entityType: "form_submission", entityId: submissionId });
 
       const submission = await routeDeps.formSubmissionRepo.findById({ workspaceId: routeDeps.workspaceId, id: submissionId });
       if (!submission || submission.formDefinitionId !== formId) {
@@ -386,7 +390,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         // "not found" for a submission that EXISTS under a different definition — the cross-form
         // probe is refused with the same text as a genuine miss, and surfacing the real reason
         // does not change that: the message names only the id the caller already supplied.
-        throw new FormSubmissionNotFoundError(`submission '${submissionId}' was not found`);
+        throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
       }
       return { submission: toFormSubmissionView(submission) };
     },
@@ -403,7 +407,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
     // Composes with the three handlers' inner `withSchemaOnRejection` rather than competing with
     // it: a shape rejection is already a `ToolInputError` by the time it reaches here, and
     // `reclassifyToolError` returns those untouched.
-    handlers: withModelFacingErrors(handlers, FORMS_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers, rules: FORMS_MODEL_FACING_ERRORS }),
     derivedRisk: formsDerivedRisk,
   });
 }
@@ -461,16 +465,16 @@ async function duplicateFormDefinition(
   // `active`/`disabled`, flipped by `forms_set_definition_status`. Silently dropping the field would
   // leave a caller believing it had set something.
   if (input.overrides.status !== undefined) {
-    throw new ToolInputError(
+    throw new ToolInputError({ message:
       "content_duplicate: resource 'form' does not support the 'status' override — a form definition is " +
         "active/disabled, not draft/published. Overrides honored for 'form': title (the copy's name) and " +
         "slug. The copy inherits the source's own active/disabled state; use forms_set_definition_status " +
         "to change it afterwards."
-    );
+    });
   }
 
   const source = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: input.id });
-  if (!source) throw new FormDefinitionNotFoundError(`form definition '${input.id}' was not found`);
+  if (!source) throw new FormDefinitionNotFoundError({ message: `form definition '${input.id}' was not found` });
 
   const name = input.overrides.title ?? (await deriveDefaultDuplicateFormName(routeDeps, source));
   const slug =

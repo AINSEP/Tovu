@@ -1,10 +1,7 @@
 import type { Response } from "express";
 
-import {
-  createPolicy,
-  IdentityForbiddenError,
-  IdentityValidationError,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityValidationError } from "@jini-ai/user-management";
+import { createPolicy } from "@jini-ai/user-management/server";
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
@@ -45,15 +42,16 @@ export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = (app, deps) =
 
     try {
       const caller = getAuthedPrincipal(res);
+      const { name, description } = parsePolicyCreateBody(req.body);
 
       const { policy } = await createPolicy({
         deps: identityServiceDepsFrom(deps),
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
-          ...parsePolicyCreateBody(req.body),
+          name,
         },
-      });
+      }, { description });
 
       res.status(201).json({ policy: toAdminPolicyResponse(policy) });
     } catch (err) {

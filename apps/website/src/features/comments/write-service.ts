@@ -1,3 +1,4 @@
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file ADR-031 §3/§8 — the moderation write-service: wraps `CommentRepoPort.applyModeration`/
  * `purge` with outbox event emission and the `comments.statusChanged` action hook. Routes call
@@ -5,7 +6,8 @@
  * directly — the same "typed, core-owned write, no side-door" discipline ADR-023 §7 requires of
  * the repo itself, one layer up.
  */
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { CommentHookRegistry } from "./hooks.js";
 import type { CommentEventName, CommentRepoPort } from "./ports.js";
 import type { CommentRecord, CommentStatus, ModerationAction, ModerationLogEntry } from "./types.js";
@@ -103,7 +105,7 @@ async function emitEvent(
   await deps.outbox.enqueue({
     id: deps.idGen.newId(),
     name: required.name,
-    occurredAt: deps.clock.nowIso(),
+    occurredAt: clockNowIso({ clock: deps.clock }),
     aggregateId: required.commentId,
     workspaceId: required.workspaceId,
     payload: { commentId: required.commentId, entryId: required.entryId, status: required.status },
@@ -191,7 +193,7 @@ export function createCommentWriteService(deps: CommentWriteServiceDeps): Commen
       // property on a fresh object literal (a real `tsc` error, not just a lint nit). The Trash's
       // `actor.pluginId` is a SEPARATE concern, carried only as far as `syncRemovalIndex` below.
       const { actorPluginId, ...repoRequired } = required;
-      const at = deps.clock.nowIso();
+      const at = clockNowIso({ clock: deps.clock });
       const result = await deps.runInTransaction(async () => {
         const applied = await deps.repo.applyModeration({ ...repoRequired, at });
         if (!applied.ok) return applied;
@@ -222,7 +224,7 @@ export function createCommentWriteService(deps: CommentWriteServiceDeps): Commen
     },
 
     async purge(required) {
-      const at = deps.clock.nowIso();
+      const at = clockNowIso({ clock: deps.clock });
       const before = await deps.repo.findById({ workspaceId: required.workspaceId, id: required.id });
       const result = await deps.runInTransaction(async () => {
         const purged = await deps.repo.purge({ ...required, at });

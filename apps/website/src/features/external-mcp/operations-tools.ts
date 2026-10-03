@@ -1,8 +1,10 @@
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireToolPermission, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "../../contracts/core/rate-limit/rate-limit.js";
-import { EXTERNAL_MCP_MANAGE_PERMISSION, type AgentToolDefinition } from "./agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
 import type { ExternalMcpToolDeps } from "./deps.js";
 
 /** Composition injects the same services the External MCP admin routes call. Secrets stay in those services. */
@@ -50,8 +52,8 @@ export const externalMcpOperationsDerivedRisk: DerivedRiskByToolId = new Map<str
  * @complexity O(k) time and space for input keys (allowlists contain at most one key).
  */
 function readOperationInput(input: unknown, toolId: string, allowedKeys: readonly string[]): Record<string, unknown> {
-  const record = requireInputRecord(input ?? {});
-  if (Object.keys(record).some(key => !allowedKeys.includes(key))) throw new ToolInputError(`${toolId}: unsupported input fields. Never pass credentials through tool arguments.`);
+  const record = requireInputRecord({ input: input ?? {} });
+  if (Object.keys(record).some(key => !allowedKeys.includes(key))) throw new ToolInputError({ message: `${toolId}: unsupported input fields. Never pass credentials through tool arguments.` });
   return record;
 }
 
@@ -67,25 +69,27 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
   return buildDomainRegistrations({
     domain: "external-mcp-operations",
     catalogModule: "features/external-mcp/operations-tools.ts",
-    catalog: indexCatalogById(externalMcpOperationsToolCatalog),
+    catalog: indexCatalogById({ catalog: externalMcpOperationsToolCatalog }),
     derivedRisk: externalMcpOperationsDerivedRisk,
     handlers: {
       external_mcp_probe_connection: async ctx => {
         const input = readOperationInput(ctx.input, "external_mcp_probe_connection", ["id"]);
-        if (typeof input.id !== "string" || !input.id.trim() || input.id.length > 64) throw new ToolInputError("external_mcp_probe_connection: pass a non-empty saved server id. Use content_read.external_mcp to find it.");
+        if (typeof input.id !== "string" || !input.id.trim() || input.id.length > 64) throw new ToolInputError({ message: "external_mcp_probe_connection: pass a non-empty saved server id. Use content_read.external_mcp to find it." });
         const id = input.id.trim();
-        await requireToolPermission(deps, { principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION, entityType: "integration", entityId: id });
-        const budget = limiter.check(deps.workspaceId);
-        if (!budget.allowed) throw new ToolInputError(`external_mcp_probe_connection: too many probe attempts. Try again in ${budget.retryAfterSeconds} seconds.`);
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
+        workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration", entityId: id });
+        const budget = await limiter.check({ key: deps.workspaceId });
+        if (!budget.allowed) throw new ToolInputError({ message: `external_mcp_probe_connection: too many probe attempts. Try again in ${budget.retryAfterSeconds} seconds.` });
         const result = await operations.probe(deps, id);
-        if (!result.ok) throw new ToolInputError(`external_mcp_probe_connection: ${result.body.error}. Review the server in Settings → External MCP; use external_mcp_test_connection for a configuration-only check.`);
+        if (!result.ok) throw new ToolInputError({ message: `external_mcp_probe_connection: ${result.body.error}. Review the server in Settings → External MCP; use external_mcp_test_connection for a configuration-only check.` });
         return result.body;
       },
       external_mcp_get_admissions: async ctx => {
         readOperationInput(ctx.input, "external_mcp_get_admissions", []);
-        await requireToolPermission(deps, { principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION, entityType: "integration" });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
+        workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration" });
         const result = await operations.admissions();
-        if (!result.ok) throw new ToolInputError(`external_mcp_get_admissions: ${result.body.error}. Start the assistant and try again; no live admissions report is available.`);
+        if (!result.ok) throw new ToolInputError({ message: `external_mcp_get_admissions: ${result.body.error}. Start the assistant and try again; no live admissions report is available.` });
         return result.configFailures === undefined ? { connections: result.connections } : { connections: result.connections, configFailures: result.configFailures };
       },
     },

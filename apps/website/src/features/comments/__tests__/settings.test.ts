@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { CommentsSettingsValidationError } from "../errors.js";
 import {
@@ -16,14 +16,14 @@ import {
  */
 
 const WORKSPACE = "workspace-1";
-const clock = { nowIso: () => "2026-07-16T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-16T00:00:00.000Z", nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `comments-settings-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function makeDeps() {
   const settingsRepo = new InMemorySettingsRepo();
-  const principals = new InMemoryPrincipalRepo([]);
+  const principals = new InMemoryPrincipalRepo({}, { initialRows: [] });
   return {
     settingsRepo,
     deps: { settingsRepo, clock, ids, authorize: alwaysAllow, principals },

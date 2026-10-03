@@ -1,32 +1,19 @@
+import type { ToolRegistration, ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import {
-  type AuthorizeFn,
-  requireToolPermission,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+  buildFederatedMcpRegistrations as buildJiniRegistrations,
+  federateSession as federateJiniSession,
+  defaultFederationMessages,
+  type FederationMessages,
+  type FederationDeps as JiniFederationDeps,
+} from "@jini-ai/mcp/federation";
 import { McpAuthFailedError } from "./mcp-protocol.js";
-import type {
-  FederatedCallConfirmationOutcome,
-  FederatedCallConfirmationRequest,
-  FederatedCallTarget,
-  FederatedMcpConnectionConfig,
-  McpSessionPort,
-  RemoteToolResult,
-} from "./ports.js";
-import {
-  admitRemoteTools,
-  isOperatorDeclaredReadOnly,
-  assertNoNativeCollision,
-  extractFederatedImageBlocks,
-  FEDERATED_ENTITY_TYPE,
-  FEDERATED_TOOL_PERMISSION,
-  wrapUntrustedResult,
-  writeShapedInputNames,
-  federatedCallConfirmationForAction,
-  type AdmittedFederatedTool,
-  type FederatedAdmissionReport,
-} from "./trust.js";
+import { toJiniMcpSession } from "./adapter.http.js";
+import { explainFederatedToolRefusal, safeRemoteName } from "./refusal-notice.js";
+import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget,
+  FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "./ports.js";
+import type { FederatedAdmissionReport } from "./trust.js";
+// Implementation and security rationale: Jini/packages/mcp/src/federation/{registrations,trust}.ts.
 
 /**
  * @file Turns one connected external MCP server into `ToolRegistration`s — the federated
@@ -56,6 +43,66 @@ import {
  * check itself via the kit's `requireToolPermission` — the same shape as
  * `features/database/tool-registrations.ts`'s read handlers, which gate inline because their domain
  * functions carry no gate to inherit. It is one evaluator, not two (ADR-021 §2).
+ *
+ * Delegated implementation rationale (Jini helper names):
+ * What `federate` needs from a composition root. A narrow slice of `RouteDeps`, deliberately —
+ * federation touches no repo, no clock, no id generator, and asking for the whole bag would imply
+ * otherwise.
+ * Liveness AND revocation first — see `FederationDeps.assertConnectionUsable` for why this
+ * precedes the permission check rather than following it.
+ * ONE evaluator, run before anything crosses the network — not after, so a denied principal's
+ * arguments are never even sent to a third party. `entityId` is the connection, so a
+ * deployment can grant per-connection rather than all-or-nothing.
+ * Fixed ONCE, before any card is drawn: the frozen copy the human sees is the same object that
+ * is sent, so nothing that happens to `ctx.input` while the card waits can change what runs.
+ * The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
+ * remote must never see, or be able to depend on, Tovu's naming.
+ * A token valid at boot can die mid-session; nothing here re-probes it proactively (no
+ * periodic refresh exists), so this is where that discovery actually happens. Handed to
+ * `onAuthFailed` so the SAME durable state and terminal, non-retryable error this file's
+ * `assertConnectionUsable` doc already promises apply here too — not just to a connection
+ * already known dead at the call's start.
+ * R7's media carve-out (trust.ts): image blocks are pulled out of `result.content` BEFORE the
+ * untrusted-data envelope is built, so they reach the model through the daemon's typed
+ * `media` channel (`extractResultMedia`) intact — see the shared Jini media-extraction rationale
+ * for why stringifying them into the byte-capped text boundary instead would corrupt them.
+ * R7. Every federated result reaches the model inside an untrusted-data boundary, including
+ * the remote's own `isError` claim — which is reported as data rather than acted on, because
+ * a remote lying about its own success is not a case this side can adjudicate.
+ * The ONLY field `@jini-ai/daemon`'s `extractResultMedia` reads to hoist inline media onto
+ * the `tool_result` wire event — see `demo-image-tool.ts` for the identical shape proven
+ * end to end through the chat pane. Omitted (not an empty array) when there is nothing to
+ * hoist, so a text-only result's return shape is byte-identical to before this existed.
+ * Pass-through, matching `buildDomainRegistrations`'s identical choice and for the identical
+ * ADR-021 §2 reason: the handler above IS this tool's one gate, and a `ToolPolicy` check would
+ * be a second evaluator of the same rule.
+ * Connects nothing and lists nothing itself — takes a session, drains its tool list, and returns
+ * registrations. The one place `listTools` is called, so `trust.ts` R5's "frozen at connect" is a
+ * property of the code rather than a convention: there is no other path that could re-list.
+ *
+ * @throws {Error} If `listTools` rejects — a connection that cannot enumerate is not usable, and
+ * `bootstrap.ts` is where that is turned into "carry on without federation".
+ * @complexity O(t) in the advertised tool count.
+ * @overallScore 100
+ * G3: the per-call human gate for protected actions (permanent deletion, delivery to people,
+ * and changes to assistant privacy/instructions/access). Write-shaped names describe the card;
+ * they do not independently require one (owner policy, 2026-10-01). Returns
+ * `null` when the call may proceed — a read-only tool with ordinary inputs, or an explicit Confirm — and otherwise the
+ * model-facing result that replaces the call. One card per call: the card is opened here, inside the
+ * call it guards, and closes when answered, so one Confirm authorizes exactly one call.
+ *
+ * @throws {ToolInputError} `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when the root wired no confirmer —
+ *   nothing is sent.
+ * @complexity O(1) plus the wait for the human.
+ * {@link normalizeArguments}, then a deep, frozen copy — the one object both shown and sent (G3).
+ * Narrows `ToolExecutionContext.input` to the `arguments` object a `tools/call` carries.
+ *
+ * Undefined and `{}` both become `{}` — MCP servers routinely publish parameterless tools, and the
+ * kit's own `requireNoInput` establishes that "omit it or pass `{}`" is this codebase's convention
+ * for one. Anything else is refused rather than coerced: forwarding an array or a string as
+ * `arguments` would produce a remote-side error the model cannot act on, and silently dropping it
+ * would teach the model its argument was accepted.
+ * extractFederatedImageBlocks (assistant/mcp-federation/trust.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** What `federate` needs from a composition root. A narrow slice of `RouteDeps`, deliberately —
@@ -71,7 +118,7 @@ export interface FederationDeps {
    * ## Why a gate rather than unregistering the tools
    *
    * Nothing in this subtree unregisters anything, and that is structural rather than an omission:
-   * `buildToolCatalogQuery` snapshots `registry.list()` into a ONE-SHOT FTS index at boot, so a tool
+   * `buildToolCatalogQuery` snapshots `registry.list({})` into a ONE-SHOT FTS index at boot, so a tool
    * removed from the registry afterwards would still be discoverable by `search_tools` and
    * `describe_tool` while no longer being executable — strictly worse than leaving it registered.
    * `trust.ts` R5's "frozen at connect" guarantee rests on the same snapshot.
@@ -107,7 +154,7 @@ export interface FederationDeps {
   readonly assertConnectionUsable?: (connectionId: string, call: FederatedCallTarget) => void | Promise<void>;
   /**
    * Called when a live call throws {@link McpAuthFailedError} — the remote itself rejected our
-   * authorization (HTTP 401/403), discovered mid-session rather than at boot. Optional; when absent,
+   * authorization (HTTP 401), discovered mid-session rather than at boot. Optional; when absent,
    * the `McpAuthFailedError` propagates unchanged, which is a `McpProtocolError` and reads to a
    * model like any other transient transport fault (see `assertConnectionUsable` above for why that
    * shape invites a retry loop).
@@ -120,15 +167,16 @@ export interface FederationDeps {
    */
   readonly onAuthFailed?: (connectionId: string, error: McpAuthFailedError) => Promise<never>;
   /**
-   * G3 (`trust.ts` R3): asks a human to Confirm or Cancel ONE call to a tool that is not marked
-   * read-only, before anything reaches the remote. Wired by the composition root to the held-open
+   * G3 (`trust.ts` R3): asks a human to Confirm or Cancel ONE protected action (permanent
+   * deletion, delivery to real people, or assistant privacy/instructions/access changes), before
+   * anything reaches the remote. Read-only hints alone do not determine confirmation. Wired by the composition root to the held-open
    * MCP-UI card (`assistant/external-mcp-call-confirmation.ts`).
    *
    * Optional only so a root with no human in the loop still type-checks: when it is absent, every
    * tool whose confirmation is not `"none"` is refused at the call and nothing is sent — fail closed,
    * never "run it anyway".
    */
-  readonly confirmCall?: (ctx: ToolExecutionContext, request: FederatedCallConfirmationRequest) => Promise<FederatedCallConfirmationOutcome>;
+  readonly confirmCall?: (ctx: ToolExecutionContext & ToolExecutionOptions, request: FederatedCallConfirmationRequest) => Promise<FederatedCallConfirmationOutcome>;
 }
 
 export interface FederatedRegistrationResult {
@@ -137,216 +185,80 @@ export interface FederatedRegistrationResult {
   readonly report: FederatedAdmissionReport;
 }
 
-/**
- * Builds the `ToolRegistration`s for one federated connection from its already-listed tool surface.
- *
- * Split from the connect/list I/O on purpose: this function is pure given a session, so every trust
- * rule and every handler behaviour is testable without a transport.
- *
- * @param params.tools - The remote's advertised surface, verbatim and untrusted.
- * @param params.session - The live session, used only to forward `tools/call`.
- * @param params.config - The site owner's connection config — the trusted side of admission.
- * @param params.nativeToolIds - Every id already registered natively, for the R1 collision assertion.
- * @throws {Error} If a federated id would collide with a native one, or the connection id is invalid.
- * @complexity O(t) in the advertised tool count.
- * @overallScore 100
+/** Tovu owns settings vocabulary and model-facing refusal copy; protocol behavior lives in Jini. */
+export const tovuFederationMessages: FederationMessages = {
+  ...defaultFederationMessages,
+  refusalExplanations: {
+    "not-in-operator-allowlist": explainFederatedToolRefusal("not-in-operator-allowlist"),
+    "remote-declares-not-read-only": explainFederatedToolRefusal("remote-declares-not-read-only"),
+    "remote-declares-destructive": explainFederatedToolRefusal("remote-declares-destructive"),
+    "missing-or-invalid-input-schema": explainFederatedToolRefusal("missing-or-invalid-input-schema"),
+    "invalid-remote-tool-name": explainFederatedToolRefusal("invalid-remote-tool-name"),
+    "duplicate-remote-tool-name": explainFederatedToolRefusal("duplicate-remote-tool-name"),
+    "connection-tool-cap-reached": explainFederatedToolRefusal("connection-tool-cap-reached"),
+  },
+  unprintableName: safeRemoteName(undefined),
+  absentExplanation: 'the administrator allowed this tool, but the server does not offer a tool by that name — most likely a typo in "Allowed tools", or the server was started without the feature that provides it.',
+  inertWriteGrantExplanation: 'the administrator put this tool in "Allowed to make changes" but not in "Allowed tools", so the grant does nothing at all. Fix: add the same name to "Allowed tools" too, then restart the assistant.',
+  prefixHeading: "EXTERNAL TOOL AVAILABILITY — read this before telling anyone that a capability is missing or that you do not know why something failed.",
+  prefixInstruction: "These external tools were withheld from your catalog when this assistant started. They are NOT in `search_tools`, `describe_tool` " +
+    "cannot describe them, and calling them is impossible — their absence is a configuration decision that was already made, not a " +
+    "missing feature and not a fault of yours. If a user asks for something one of these would do, say exactly which tool was withheld " +
+    "and repeat the fix below verbatim. Never guess at, or invent, a different reason for the capability being unavailable. This list " +
+    "is fixed for the lifetime of this assistant process: a setting changed now takes effect only after the assistant is restarted.",
+  omittedRefusals: ({ omitted, total }) => `- …and ${omitted} more, for ${total} withheld in total. The administrator can see the complete list in Settings → External MCP.`,
+  authenticationRefused: ({ method }) => `mcp-federation: the server refused '${method}' with 401 — its authorization has expired or been revoked, reconnect it in Settings → External MCP`,
+  closedByHost: "closed by Tovu",
+  nativeCollision: ({ toolId }) => `mcp-federation: federated tool id '${toolId}' collides with a natively-registered tool — an external server must never be able to shadow Tovu's own catalog`,
+  confirmationWarning: ({ request }) => {
+    const base = request.destructive
+      ? `${request.connectionLabel} marks this tool as destructive: it can delete or overwrite data, and that may not be undoable.`
+      : `This can change things in ${request.connectionLabel}.`;
+    return request.writeShapedInputs.length
+      ? `${base} Its input ${request.writeShapedInputs.join(", ")} looks like it can change data, so Tovu asks every time.` : base;
+  },
+  // Command basenames, including Windows suffixes, select the original installed-toolchain advice.
+  launchUnavailable: ({ command, searchedDirs }) => {
+    const name = command.replace(/\.(cmd|exe)$/i, "").split(/[\\/]/).pop();
+    if (name === "uvx" || name === "uv") return 'This server needs "uvx" (from uv), which isn\'t installed on this computer. Tovu includes ' +
+      "Node.js (node, npm, npx) but not uv. Install uv from https://docs.astral.sh/uv/ and restart Tovu.";
+    if (name === "docker") return 'This server needs "docker", which isn\'t installed or isn\'t on this computer\'s standard ' +
+      "paths. Install Docker Desktop, start it, then restart Tovu.";
+    return `This server's command "${command}" wasn't found on this computer. Tovu searched: ${searchedDirs.join(", ")}.`;
+  },
+};
+
+/** Binds Tovu's one CMS permission evaluator and translates workspace metadata to Jini scope.
+ * Existing liveness, confirmation and 401 hooks remain host-owned; none becomes a permissive default.
+ * @complexity O(1), no I/O at construction.
  */
+export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFederationDeps {
+  return {
+    messages: tovuFederationMessages, errorCode: "EXTERNAL_MCP", scope: deps.workspaceId,
+    permissionGate: ({ context, permission, entityType, entityId }) => requireToolPermission({
+      authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
+      principalId: context.principal.id, permission,
+    }, { entityType, entityId }),
+    ...(deps.assertConnectionUsable ? { assertConnectionUsable: ({ connectionId, call }: { connectionId: string; call: FederatedCallTarget }) => deps.assertConnectionUsable!(connectionId, call) } : {}),
+    ...(deps.onAuthFailed ? { onAuthFailed: ({ connectionId, error }: Parameters<NonNullable<JiniFederationDeps["onAuthFailed"]>>[0]) =>
+      deps.onAuthFailed!(connectionId, new McpAuthFailedError(error.message, { cause: error })) } : {}),
+    ...(deps.confirmCall ? { confirmCall: ({ context, request }: Parameters<NonNullable<JiniFederationDeps["confirmCall"]>>[0]) => deps.confirmCall!(context, request) } : {}),
+  };
+}
+
+/** Adapts the admitted surface without listing again; Jini preserves its frozen-arguments and trust gates. */
 export function buildFederatedMcpRegistrations(params: {
-  tools: Parameters<typeof admitRemoteTools>[0]["tools"];
-  session: McpSessionPort;
-  config: FederatedMcpConnectionConfig;
-  deps: FederationDeps;
-  nativeToolIds: ReadonlySet<string>;
+  tools: readonly RemoteToolDescriptor[]; session: McpSessionPort; config: FederatedMcpConnectionConfig;
+  deps: FederationDeps; nativeToolIds: ReadonlySet<string>;
 }): FederatedRegistrationResult {
-  const { session, config, deps } = params;
-  const report = admitRemoteTools({ tools: params.tools, config });
-
-  assertNoNativeCollision(
-    report.admitted.map((tool) => tool.toolId),
-    params.nativeToolIds,
-  );
-
-  const registrations = report.admitted.map((tool): ToolRegistration => {
-    const handler: ToolHandler = async (ctx) => {
-      // Liveness AND revocation first — see `FederationDeps.assertConnectionUsable` for why this
-      // precedes the permission check rather than following it.
-      await deps.assertConnectionUsable?.(config.connectionId, {
-        remoteName: tool.remoteName,
-        declaredAnnotations: tool.declaredAnnotations,
-        origin: config.origin,
-      });
-
-      // ONE evaluator, run before anything crosses the network — not after, so a denied principal's
-      // arguments are never even sent to a third party. `entityId` is the connection, so a
-      // deployment can grant per-connection rather than all-or-nothing.
-      await requireToolPermission(deps, {
-        principalId: ctx.principal.id,
-        permission: FEDERATED_TOOL_PERMISSION,
-        entityType: FEDERATED_ENTITY_TYPE,
-        entityId: config.connectionId,
-      });
-
-      // Fixed ONCE, before any card is drawn: the frozen copy the human sees is the same object that
-      // is sent, so nothing that happens to `ctx.input` while the card waits can change what runs.
-      const args = frozenArguments(ctx.input);
-      const declined = await askBeforeCall(ctx, deps, config, tool, args);
-      if (declined) return declined;
-
-      let result: RemoteToolResult;
-      try {
-        result = await session.callTool({
-          // The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
-          // remote must never see, or be able to depend on, Tovu's naming.
-          name: tool.remoteName,
-          arguments: args,
-          signal: ctx.signal,
-        });
-      } catch (error) {
-        // A token valid at boot can die mid-session; nothing here re-probes it proactively (no
-        // periodic refresh exists), so this is where that discovery actually happens. Handed to
-        // `onAuthFailed` so the SAME durable state and terminal, non-retryable error this file's
-        // `assertConnectionUsable` doc already promises apply here too — not just to a connection
-        // already known dead at the call's start.
-        if (error instanceof McpAuthFailedError && deps.onAuthFailed) await deps.onAuthFailed(config.connectionId, error);
-        throw error;
-      }
-
-      // R7's media carve-out (trust.ts): image blocks are pulled out of `result.content` BEFORE the
-      // untrusted-data envelope is built, so they reach the model through the daemon's typed
-      // `media` channel (`extractResultMedia`) intact — see `extractFederatedImageBlocks`'s own doc
-      // for why stringifying them into the byte-capped text boundary instead would corrupt them.
-      const { images, remainder } = extractFederatedImageBlocks({
-        content: result.content,
-        maxResultBytes: config.maxResultBytes,
-      });
-
-      // R7. Every federated result reaches the model inside an untrusted-data boundary, including
-      // the remote's own `isError` claim — which is reported as data rather than acted on, because
-      // a remote lying about its own success is not a case this side can adjudicate.
-      return {
-        federated: { connectionId: config.connectionId, tool: tool.remoteName, remoteReportedError: result.isError === true },
-        untrusted: wrapUntrustedResult({
-          connectionLabel: config.label,
-          remoteName: tool.remoteName,
-          result: { content: remainder, structuredContent: result.structuredContent },
-          maxResultBytes: config.maxResultBytes,
-        }),
-        // The ONLY field `@jini-ai/daemon`'s `extractResultMedia` reads to hoist inline media onto
-        // the `tool_result` wire event — see `demo-image-tool.ts` for the identical shape proven
-        // end to end through the chat pane. Omitted (not an empty array) when there is nothing to
-        // hoist, so a text-only result's return shape is byte-identical to before this existed.
-        ...(images.length > 0 ? { content: images } : {}),
-      };
-    };
-
-    return {
-      descriptor: {
-        id: tool.toolId,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        ...(isOperatorDeclaredReadOnly(tool.remoteName, tool.declaredAnnotations, config.readOnlyRemoteNames) ? { readOnly: true } : {}),
-      },
-      // Pass-through, matching `buildDomainRegistrations`'s identical choice and for the identical
-      // ADR-021 §2 reason: the handler above IS this tool's one gate, and a `ToolPolicy` check would
-      // be a second evaluator of the same rule.
-      policy: { authorize: () => "allow" },
-      handler,
-    };
-  });
-
-  return { registrations, report };
+  return buildJiniRegistrations({ ...params, session: toJiniMcpSession({ session: params.session }),
+    deps: toJiniFederationDeps({ deps: params.deps }) });
 }
 
-/**
- * Connects nothing and lists nothing itself — takes a session, drains its tool list, and returns
- * registrations. The one place `listTools` is called, so `trust.ts` R5's "frozen at connect" is a
- * property of the code rather than a convention: there is no other path that could re-list.
- *
- * @throws {Error} If `listTools` rejects — a connection that cannot enumerate is not usable, and
- * `bootstrap.ts` is where that is turned into "carry on without federation".
- * @complexity O(t) in the advertised tool count.
- * @overallScore 100
- */
-export async function federateSession(params: {
-  session: McpSessionPort;
-  config: FederatedMcpConnectionConfig;
-  deps: FederationDeps;
-  nativeToolIds: ReadonlySet<string>;
+/** Jini owns connect-time enumeration; the host adapts its session and permission ports. */
+export function federateSession(params: {
+  session: McpSessionPort; config: FederatedMcpConnectionConfig; deps: FederationDeps; nativeToolIds: ReadonlySet<string>;
 }): Promise<FederatedRegistrationResult> {
-  const tools = await params.session.listTools();
-  return buildFederatedMcpRegistrations({ ...params, tools });
-}
-
-/**
- * G3: the per-call human gate for a tool that is not marked read-only (`trust.ts` R3), or whose
- * schema or arguments carry a write-shaped input name (`WRITE_SHAPED_INPUT_WORDS`). Returns
- * `null` when the call may proceed — a read-only tool with ordinary inputs, or an explicit Confirm — and otherwise the
- * model-facing result that replaces the call. One card per call: the card is opened here, inside the
- * call it guards, and closes when answered, so one Confirm authorizes exactly one call.
- *
- * @throws {ToolInputError} `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when the root wired no confirmer —
- *   nothing is sent.
- * @complexity O(1) plus the wait for the human.
- */
-async function askBeforeCall(
-  ctx: ToolExecutionContext,
-  deps: FederationDeps,
-  config: FederatedMcpConnectionConfig,
-  tool: AdmittedFederatedTool,
-  args: Readonly<Record<string, unknown>>,
-): Promise<Record<string, unknown> | null> {
-  const confirmation = federatedCallConfirmationForAction(tool.remoteName, tool.declaredAnnotations, args);
-  if (confirmation === "none") return null;
-  const writeShapedInputs = [...new Set([...tool.writeShapedInputs, ...writeShapedInputNames(args)])].sort();
-  if (!deps.confirmCall) {
-    throw new ToolInputError(
-      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: this protected action requires confirmation, ` +
-        "and nothing here can ask a person. Nothing was sent.",
-    );
-  }
-  const outcome = await deps.confirmCall(ctx, {
-    toolId: tool.toolId,
-    remoteName: tool.remoteName,
-    connectionId: config.connectionId,
-    connectionLabel: config.label,
-    arguments: args,
-    destructive: confirmation === "confirm-destructive",
-    declaredAnnotations: tool.declaredAnnotations,
-    origin: config.origin,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-    writeShapedInputs,
-  });
-  if (outcome.confirmed) return null;
-  return { federated: { connectionId: config.connectionId, tool: tool.remoteName }, ran: false, ...outcome.result };
-}
-
-/** {@link normalizeArguments}, then a deep, frozen copy — the one object both shown and sent (G3). */
-function frozenArguments(input: unknown): Readonly<Record<string, unknown>> {
-  return deepFreeze(structuredClone(normalizeArguments(input)));
-}
-
-function deepFreeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) deepFreeze(child);
-    Object.freeze(value);
-  }
-  return value;
-}
-
-/**
- * Narrows `ToolExecutionContext.input` to the `arguments` object a `tools/call` carries.
- *
- * Undefined and `{}` both become `{}` — MCP servers routinely publish parameterless tools, and the
- * kit's own `requireNoInput` establishes that "omit it or pass `{}`" is this codebase's convention
- * for one. Anything else is refused rather than coerced: forwarding an array or a string as
- * `arguments` would produce a remote-side error the model cannot act on, and silently dropping it
- * would teach the model its argument was accepted.
- */
-function normalizeArguments(input: unknown): Record<string, unknown> {
-  if (input === undefined || input === null) return {};
-  if (typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("input must be an object — federated MCP tools take a JSON object of arguments, or omit input entirely");
-  }
-  return input as Record<string, unknown>;
+  return federateJiniSession({ ...params, session: toJiniMcpSession({ session: params.session }),
+    deps: toJiniFederationDeps({ deps: params.deps }) });
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   ALLOWED_THEME_IDS,
   InMemoryPresentationSettingsRepo,
@@ -28,11 +28,11 @@ const SYSTEM_PRINCIPAL_ID = "system-settings-migration";
 
 function makeDeps(rows: PresentationSettingsRecord[]) {
   return {
-    presentationRepo: new InMemoryPresentationSettingsRepo(rows),
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: rows }),
     settingsRepo: new InMemorySettingsRepo(),
     clock,
     ids,
-    principals: new InMemoryPrincipalRepo([]),
+    principals: new InMemoryPrincipalRepo({}),
     systemPrincipalId: SYSTEM_PRINCIPAL_ID,
   };
 }

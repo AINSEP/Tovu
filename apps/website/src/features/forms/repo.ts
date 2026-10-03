@@ -1,6 +1,6 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { FormSlugConflictError } from "./errors.js";
+import { FormSlugConflictError } from "@jini-ai/cms-forms";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import {
   toDefinitionRecord,
@@ -9,7 +9,7 @@ import {
   toSubmissionRow,
   updatableDefinitionColumns,
 } from "./repo.rows.js";
-import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "./types.js";
+import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
  * @file THE forms repositories: one Kysely query body for every database the storage kernel drives
@@ -85,12 +85,12 @@ export class SqlFormDefinitionRepo implements FormDefinitionRepoPort {
           .executeTakeFirst()
       );
       if (conflicting) {
-        throw new FormSlugConflictError(
-          conflicting.deleted_at !== null
+        throw new FormSlugConflictError({
+          message: conflicting.deleted_at !== null
             ? `a form with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
             : `a form with slug '${record.slug}' already exists`,
-          record.slug
-        );
+          slug: record.slug,
+        });
       }
       await this.kernel.run((db) => db.insertInto("form_definitions").values(toDefinitionRow(record)).execute());
     });

@@ -2,6 +2,7 @@ import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/cms/settings";
 
+import type { LiveOriginSourceDeps } from "./live-url.js";
 import { ADMIN_SCREENS } from "./admin-screens.generated.js";
 import type { SiteCapabilitiesDeps, SiteCapabilityToolRow } from "./site-capabilities.js";
 import type {
@@ -53,7 +54,7 @@ export interface SiteProfileSourceDeps {
   postRepo: { list(required: { workspaceId: string }): Promise<readonly SiteProfilePostRow[]> };
   /** Boot-discovered themes. Read only — this domain never mutates the roster. */
   themes: readonly SiteProfileThemeRow[];
-  presentationRepo: { findByWorkspaceId(workspaceId: string): Promise<{ activeThemeId: string } | null> };
+  presentationRepo: { findByWorkspaceId(required: { workspaceId: string }): Promise<{ activeThemeId: string } | null> };
   settingsRepo: SettingsRepoPort;
   /** The real `@jini-ai/cms/settings` resolver, injected rather than re-implemented. */
   getEffective: typeof getEffective;
@@ -67,7 +68,7 @@ export interface SiteProfileSourceDeps {
  * factory that `fetch_published_page` renders through and the registry reader
  * `site_describe_capabilities` lists tools from.
  */
-export interface SiteInspectionToolDeps extends SiteProfileSourceDeps {
+export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOriginSourceDeps {
   /**
    * The site's own app factory (`RouteDeps.createSiteApp`), used by `fetchPublishedPage`.
    * Method syntax and an `unknown` parameter so this declaration satisfies both the historical
@@ -114,7 +115,7 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
     // `SiteProfileDeps` has one shape and the service never branches on sync-vs-async.
     listThemes: async () => deps.themes,
     readActiveThemeId: async () => {
-      const record = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+      const record = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
       return record?.activeThemeId ?? null;
     },
     listPlugins: () => deps.discoverPlugins(),

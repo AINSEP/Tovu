@@ -1,4 +1,5 @@
-import type { DomainEvent, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { DomainEvent } from "@jini-ai/cms/core";
 
 /**
  * @file `DELETE_USER`'s purge port (delete-user plan, 2026-09-24, decision 2/7).

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
-import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/http-kit";
+import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/daemon/http";
 import { getActiveContextTool } from "@jini-ai/mcp";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
@@ -128,7 +128,7 @@ test("MCP: get_active_context against the daemon route returns the run's screen 
   registerRunActiveContextRoute(app, store);
   const baseUrl = await startTestServer(app, t);
 
-  const answer = await getActiveContextTool.handler({}, { baseUrl, fetchImpl: fetch, authHeaders: { Authorization: `Bearer ${token}` } });
+  const answer = await getActiveContextTool.handler({ args: {}, ctx: { baseUrl, fetchImpl: fetch, authHeaders: { Authorization: `Bearer ${token}` } } });
 
   assert.deepEqual(answer, {
     active: true,

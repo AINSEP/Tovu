@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserResetPasswordRoute } from "../reset-password.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/cms/identity";
+import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password`;
@@ -129,9 +129,9 @@ test("RESET_USER_PASSWORD route: 204 on success, revokes every active session, n
   const alreadyRevokedSessionId = deps.idGen.newId();
   const nowIso = deps.clock.nowIso();
   const svcDeps = identityServiceDepsFrom(deps);
-  const active = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } });
-  const secondActive = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } });
-  const control = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId: ownerId } });
+  const active = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
+  const secondActive = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
+  const control = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId: ownerId } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
   const activeSessionId = active.session.id;
   const secondActiveSessionId = secondActive.session.id;
   const controlSessionId = control.session.id;
@@ -163,9 +163,9 @@ test("RESET_USER_PASSWORD route: 204 on success, revokes every active session, n
   assert.ok(updatedUser);
   assert.notEqual(updatedUser?.passwordHash, originalHash, "password hash must actually change");
 
-  assert.equal(await deps.passwordHasher.verify(updatedUser!.passwordHash, newPassword), true, "the exact supplied credential must work");
+  assert.equal(await deps.passwordHasher.verify({ hash: updatedUser!.passwordHash, password: newPassword }), true, "the exact supplied credential must work");
   for (const wrongPassword of ["resetroute-p4ssw0rd!", newPassword.toLowerCase(), newPassword.trim()]) {
-    assert.equal(await deps.passwordHasher.verify(updatedUser!.passwordHash, wrongPassword), false);
+    assert.equal(await deps.passwordHasher.verify({ hash: updatedUser!.passwordHash, password: wrongPassword }), false);
   }
 
   const activeSession = await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: activeSessionId });

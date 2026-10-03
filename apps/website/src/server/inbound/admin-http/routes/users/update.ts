@@ -1,6 +1,7 @@
 import type { Response } from "express";
 
-import { IdentityForbiddenError, IdentityNotFoundError, updateUser } from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError } from "@jini-ai/user-management";
+import { updateUser } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
@@ -23,7 +24,7 @@ function parseUserUpdateBody(rawBody: unknown): { email: string | undefined } {
  */
 async function assembleUpdatedUserResponse(deps: UsersRouteDeps, principalId: string, user: Parameters<typeof toAdminUserResponse>[0]["user"]) {
   const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
-  if (!principal) throw new IdentityNotFoundError(`principal '${principalId}' was not found`);
+  if (!principal) throw new IdentityNotFoundError({ message: `principal '${principalId}' was not found` });
   const [roleLinks, policyLinks] = await Promise.all([
     deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId }),
     deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId }),
@@ -75,15 +76,7 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 
-      const { user } = await updateUser({
-        deps: identityServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          principalId,
-          ...parseUserUpdateBody(req.body),
-        },
-      });
+      const { user } = await updateUser({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, principalId } }, { ...parseUserUpdateBody(req.body) });
 
       res.json({ user: await assembleUpdatedUserResponse(deps, principalId, user) });
     } catch (err) {

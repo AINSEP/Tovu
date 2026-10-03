@@ -1,15 +1,10 @@
 import type { Express, Response } from "express";
 
-import {
-  GrantExceedsIssuerError,
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  type IdentityRepos,
-} from "@jini-ai/cms/identity";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, type IdentityRepos } from "@jini-ai/user-management";
 import type { ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 
 /**
  * @file `RouteDeps` -> `identity`/api-key service-deps mapping for the three api-keys admin routes,
@@ -43,7 +38,7 @@ export type ApiKeysRouteDeps = Pick<
   | "passwordHasher"
   | "apiKeyRepo"
   | "apiKeySecretHasher"
->;
+> & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the api-keys route modules (mirrors `UsersRouteRegistrar`). */
 export type ApiKeysRouteRegistrar = (app: Express, deps: ApiKeysRouteDeps) => void;
@@ -51,6 +46,7 @@ export type ApiKeysRouteRegistrar = (app: Express, deps: ApiKeysRouteDeps) => vo
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 function identityReposFrom(deps: ApiKeysRouteDeps): IdentityRepos {
   return {
+    transactions: deps.transactions,
     principals: deps.principalRepo,
     users: deps.userRepo,
     sessions: deps.sessionRepo,
@@ -68,8 +64,9 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
   return {
     repos: identityReposFrom(deps),
     hasher: deps.passwordHasher,
-    clock: deps.clock,
+    clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
+    tokens: deps.tokens,
     apiKeys: deps.apiKeyRepo,
     secretHasher: deps.apiKeySecretHasher,
   };

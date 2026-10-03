@@ -23,7 +23,7 @@ import type {
   MemberTierRepoPort,
   MembersWriteServiceDeps,
 } from "#src/features/members/index";
-import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "#src/features/origin/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 

@@ -1,73 +1,16 @@
 /**
- * @file The Newsletter agent-tool catalog (ADR-PIPE-011/SPEC-011), instantiating SPEC-016 REQ-22's
- * naming/callability convention for this domain — the same shape `forms/agent-tools.ts` and
- * `identity/agent-tools.ts` use, including the `inputSchema` contract.
- *
- * Purpose:
- * A static, in-process catalog describing every agent-callable tool this domain exposes and the
- * permission each carries. Every entry maps 1:1 onto a real admin HTTP route already exposed to a
- * human operator (`server/routes/admin/newsletter/*.ts`) — this catalog never names an operation
- * the admin UI does not already perform.
- *
- * Deliberate absences (the point of a catalog, not an oversight) — of the 19 real admin routes,
- * 5 are withheld:
- * - `newsletter_send_campaign` (`SEND_CAMPAIGN`). Triggers the send pipeline to actually email the
- *   campaign's real, frozen subscriber audience. This is precisely the "real-world side effect an
- *   agent should probably not trigger autonomously" the dispatch directive names by example —
- *   third-party email at scale, and one that cannot be undone once delivered. Draft/list/create/
- *   update tools are wired; the launch action is not.
- * - `newsletter_send_test_campaign` (`SEND_TEST_CAMPAIGN`). Narrower blast radius than a full send,
- *   but the recipient is a caller-supplied free-form address, not (like every other included
- *   write tool) an existing, already-known subscriber/member. That makes it a mechanism an agent
- *   could be manipulated into using to email attacker-chosen addresses with attacker-influenced
- *   campaign content — a spam/abuse vector distinct from every other tool here, all of which only
- *   ever email a party the workspace already has a subscription/consent relationship with.
- * - `newsletter_schedule_campaign` (`SCHEDULE_CAMPAIGN`). Sets `draft -> scheduled`, which the send
- *   pipeline later drains with NO further human click required — functionally a deferred, unattended
- *   launch. Excluded for the identical reason `send_campaign` is: the dispatch directive's "consider
- *   excluding send campaign / launch" covers scheduling an autonomous future send just as much as an
- *   immediate one.
- * - `newsletter_resume_campaign` (`RESUME_CAMPAIGN`, `paused -> sending`). `campaign.ts`'s
- *   `transitionCampaignStatus` groups this with the `send` tier for a reason: resuming CONTINUES
- *   actual outbound mail to the remaining frozen audience, the same real-world effect as
- *   `send_campaign`, just for whatever recipients a prior send hadn't yet reached. `pause_campaign`
- *   (the opposite direction, `sending -> paused`) IS wired — it only ever HALTS outbound mail, never
- *   starts or continues it, so it carries none of that risk; it is the "brake," not the "accelerator."
- * - `newsletter_import_subscriptions` (`IMPORT_SUBSCRIPTIONS`). `subscriptions.ts`'s
- *   `importSubscriptions` routes every row through the identical `saveSubscription` path
- *   `newsletter_create_subscription` (below) uses, which is deliberately wired for a SINGLE
- *   subscriber — but import accepts 1-500 rows per call, and each new subscription mints and
- *   emails a real confirmation link to its contact. A single call could therefore email up to 500
- *   third parties at once, which is exactly the "emails third parties at scale" concern the
- *   dispatch directive raises; a single-target add does not carry that risk.
- *
- * `newsletter_create_subscription` and `newsletter_resend_confirmation` ARE wired despite each
- * sending a real email, for the same reason Members' `members_request_magic_link` is: the
- * recipient is always a single, already-known contact (an existing Members subscriber the caller
- * already named), the action already exists in the admin UI, and it is a double-opt-in
- * confirmation link, not the marketing content itself — nothing is delivered to the subscriber's
- * inbox as "the campaign," only a confirm-your-subscription link they must still act on.
- * `newsletter_remove_subscription` (unsubscribe) is wired too: like `identity_user_disable`/
- * `members_disable`, it only ever narrows access/reach, never grants it, so it carries none of the
- * compliance risk the dispatch directive flags for consent/unsubscribe operations that ADD or
- * ASSERT consent.
- *
- * How it relates to the project:
- * `assistant/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s.
- * Like Comments/Members and UNLIKE Forms/Identity, none of Newsletter's domain functions call
- * `authorize()` internally (`http/admin/newsletter.ts`'s own file header: "none of Newsletter's
- * domain functions call authorize()/throw NewsletterForbiddenError themselves ... every admin
- * route therefore calls requireNewsletterPermissionOrRespond as its own first line") —
- * `tool-registrations.ts`'s handlers mirror that same explicit call, translated into throw-on-deny
- * for a `ToolHandler`. See that file's Newsletter section header for the full disclosure.
- *
- * Architectural role:
- * `newsletter` domain declaration. Imports only the constants its own domain already enforces
- * (`campaign-write-service.ts`'s subject/preheader bounds), so the published JSON Schemas cannot
- * drift from the validators. Performs no I/O and no enforcement itself.
+ * @file Newsletter composition, list and subscription catalog.
+ * Delivery tools live in delivery/tool-registrations.ts. Mass sends, scheduling, resume and confirmation
+ * resends require the existing browser-only confirmation channel; owner test sends do not.
+ * Bulk subscription import remains unavailable to the assistant.
  */
-
 import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service.js";
+/** Bulk import stays absent: 1-500 imported contacts can each trigger a real confirmation email,
+ * so one call creates third-party mail at scale. Single-contact adds send double-opt-in links,
+ * never campaign content or an assertion of consent. Pause/unsubscribe only narrow delivery.
+ * Shared editorial bounds come from the validators so published schemas cannot drift from them.
+ * The catalog declares permissions but performs no authorization; registration handlers must
+ * check them explicitly because Newsletter domain services do not authorize themselves. */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -191,7 +134,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_create_campaign",
     description:
-      "Creates a new campaign in 'draft' status. A draft is never sent by this tool or any other agent tool — there is no agent-callable send/schedule tool. Use newsletter_update_campaign to edit it further, or the admin UI to actually launch it.",
+      "Creates a new newsletter campaign in 'draft' status. Returns {campaign}. Use newsletter_update_campaign to edit it, newsletter_send_test for an owner-only test, or newsletter_send_campaign/newsletter_schedule_campaign for a human-confirmed subscriber send. Refuses an unknown list or invalid editorial fields.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.newsletter.campaign.compose" },
     inputSchema: {
@@ -230,7 +173,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_pause_campaign",
     description:
-      "Pauses a campaign that is actively 'sending', halting further outbound mail. This only ever STOPS sending, never starts or continues it — there is no agent-callable resume tool, so pausing here cannot be reversed by any agent tool.",
+      "Pauses a campaign that is actively 'sending', halting remaining recipients without a confirmation card. An in-flight recipient may finish. Returns {campaign}. Use newsletter_resume_campaign to resume with human confirmation. Refuses campaigns that are not sending.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.newsletter.campaign.send" },
     inputSchema: {
@@ -307,7 +250,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_resend_confirmation",
     description:
-      "Resends the double-opt-in confirmation email for an existing 'pending' subscription (invalidates any prior unconsumed link first). Resolves {delivered:true} even if the underlying contact cannot be resolved (anti-enumeration), except for a genuinely unknown subscriptionId, which is refused.",
+      "Requests a human confirmation card before resending a double-opt-in link. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Cancellation returns confirmed:false and delivered:false. Requires subscriber-management permission and a browser confirmation channel.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {

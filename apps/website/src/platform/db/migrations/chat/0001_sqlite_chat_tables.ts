@@ -5,7 +5,7 @@ import type { MigrationStep } from "../step.js";
 
 /**
  * @file Chat step `0001_sqlite_chat_tables` (R1 plan R1h): the AI chat tables in a SQLite site's
- * own `chat.db` — `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus Tovu's `assistant_agent_sessions` and
+ * own `chat.db` — `@jini-ai/sqlite-chat`'s `CHAT_HISTORY_DDL` plus Tovu's `assistant_agent_sessions` and
  * `assistant_conversation_tool_approvals`, exactly as `openChatDb` created them before the runner.
  * Every statement is `IF NOT EXISTS`, so an existing `chat.db` is adopted as it is.
  *

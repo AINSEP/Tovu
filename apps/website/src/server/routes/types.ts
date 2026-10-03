@@ -16,20 +16,10 @@ import type {
   TrashRegistry,
   TrashSweepOnce,
 } from "#src/features/trash/index";
-import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
-import type {
-  PasswordHasherPort,
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  PrincipalPolicyRepoPort,
-  PrincipalRepoPort,
-  PrincipalRoleRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-  SessionRepoPort,
-  UserRepoPort,
-} from "@jini-ai/cms/identity";
+import type { PasswordHasherPort, PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
@@ -162,7 +152,7 @@ import type { FileBlobIndexPort } from "../../features/publish-content/file-blob
  * domain group here.
  */
 export interface ClockDeps {
-  clock: { nowIso(): string };
+  clock: { nowMs(): number; nowIso(): string };
   idGen: { newId(): string };
 }
 
@@ -176,7 +166,10 @@ export interface ClockDeps {
  * sessions, and the RBAC seed run against these.
  */
 export interface IdentityDeps {
-  principalRepo: PrincipalRepoPort;
+  /** The same transaction/session token ports the identity root binds; callers cannot omit them. */
+  transactions: import("@jini-ai/user-management").IdentityRepos["transactions"];
+  tokens: import("@jini-ai/user-management").SessionTokenPort;
+  principalRepo: PrincipalRepoPort & import("@jini-ai/cms/settings").SettingsPrincipalLookupPort;
   userRepo: UserRepoPort;
   sessionRepo: SessionRepoPort;
   roleRepo: RoleRepoPort;
@@ -330,6 +323,8 @@ export interface CredentialsDeps {
    * database (route tests) leaves it out and the tools fall back to an in-memory store.
    */
   databaseTransferDestinationStore?: DatabaseDestinationStorePort;
+  /** Online capture from the same chat kernel the running root owns; hermetic roots omit it. */
+  databaseTransferChatSnapshot?: () => Promise<Buffer>;
   /**
    * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
    * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
@@ -502,6 +497,8 @@ export interface CredentialsDeps {
    * operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
    */
   customCredentialsHttpClient: HttpClientPort;
+  /** Deploy observation requests must not follow vendor redirects, even to another public host. */
+  deployOpsHttpClient?: HttpClientPort;
   /**
    * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
    * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink
@@ -520,6 +517,8 @@ export interface CredentialsDeps {
    * lives here.
    */
   mediaImportHttpClient: HttpClientPort;
+  /** Canonical guard for media generation and all returned-asset downloads; private peers refused. */
+  mediaGenerationHttpClient: import("@jini-ai/core/primitives").HttpClientPort;
 }
 
 /**
@@ -695,6 +694,9 @@ export interface MembersDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  /** Refreshes and settles lazy mail configuration without sending; keeps tool responses
+   * independent of whether a member is disabled and therefore skips send(). */
+  settleMailer?: () => Promise<void>;
 }
 
 /**
@@ -843,6 +845,7 @@ export interface WebhooksDeps {
  * composes `FormsDeps` directly instead of re-listing the 2 keys a second time — see its own doc.
  */
 export interface FormsDeps {
+  executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
   /** Moves a submission to the Trash — `bindRemoveEntity(trash, "form_submission")` at composition. */

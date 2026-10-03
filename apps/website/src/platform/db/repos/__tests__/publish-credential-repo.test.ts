@@ -95,10 +95,16 @@ describeEachDialect(
     test("update changes the row in place — a second insert-shaped id never appears", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ label: "Old label" }));
-      await repo.update(makeRecord({ label: "New label", updatedAt: "2026-08-15T01:00:00.000Z" }));
+      const updated = makeRecord({
+        label: "New label", updatedAt: "2026-08-15T01:00:00.000Z", providerId: "vercel",
+        sealed: { keyId: "v2", ciphertext: "bmV3", nonce: "bm9uY2Uy", alg: "aes-256-gcm" },
+        accountLabel: "rotated-account",
+      });
+      await repo.update(updated);
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.label, "New label");
+      assert.deepEqual(found, updated);
       assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE })).length, 1);
     });
 
@@ -219,7 +225,13 @@ describeEachDialect(
     test("updateAccountLabel on a non-existent row is a harmless no-op (matches this port's other idempotent-write methods)", async () => {
       const repo = await makeRepo();
       await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
-      // Nothing to assert beyond "did not throw" — there is no row to have changed.
+      assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "no-such-id" }), null);
+      assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+      const siblings = [makeRecord({ accountLabel: "original" }), makeRecord({ id: "cred-2", label: "Sibling", accountLabel: "sibling" })];
+      for (const sibling of siblings) await repo.insert(sibling);
+      await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
+      assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "no-such-id" }), null);
+      assert.deepEqual((await repo.listByWorkspace({ workspaceId: WORKSPACE })).sort((a, b) => a.id.localeCompare(b.id)), siblings);
     });
   }
 );

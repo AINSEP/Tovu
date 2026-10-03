@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter } from "@jini-ai/core";
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 
 import { DEMO_CHOICES_TOOL_ID, buildDemoChoicesRegistrations } from "../demo-choices-tool.js";
 import {

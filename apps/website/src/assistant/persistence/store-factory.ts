@@ -1,5 +1,5 @@
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
-import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope.js";
@@ -9,7 +9,7 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
  * between them is one line rather than one architecture.
  *
  * Both return the same {@link ChatStoreFactory} backed by the same chat-history store
- * (`chat-history-store.ts`, one Kysely body on the chat kernel). Only the database differs — the
+ * (`chat-history-store.ts`, Jini adapters borrowing the chat kernel). Only the database differs — the
  * real one writes into the site's chat database, the test one into an anonymous `:memory:`
  * `chat.db` that vanishes with the process.
  */

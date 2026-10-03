@@ -1,6 +1,6 @@
 import type { Insertable, Selectable } from "kysely";
 
-import type { JsonValue } from "@jini-ai/cms/core";
+import type { JsonValue } from "@jini-ai/core/primitives";
 import type {
   SettingsRepoPort,
   DefinitionStatus,
@@ -420,6 +420,4 @@ export class SqlSettingsRepo implements SettingsRepoPort {
 }
 
 /** The settings repo on `kernel`'s database, whichever dialect. */
-export function settingsRepoFor(kernel: ContentKernel): SettingsRepoPort {
-  return new SqlSettingsRepo(kernel);
-}
+// settingsRepoFor (apps/website/src/features/settings/repo.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.

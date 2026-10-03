@@ -1,6 +1,7 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import { importMediaEntity } from "./import-media-entity.js";
@@ -142,7 +143,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       // `null` carries a missing staged object into `importMediaEntity`, which owns that refusal.
       const bytes = (await blobStore.exists({ storageKey })) ? await blobStore.get({ storageKey }) : null;
       const outcome = await importMediaEntity({
-        deps: { mediaRepo, assetBlobRepo, blobStore, clock: deps.clock, idGen: deps.idGen },
+        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
         input: {
           workspaceId,
           record,
@@ -162,7 +163,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
       // imported, never carried from the source (the store's own invariant). `bytes` is non-null
       // here: `importMediaEntity` blocks a missing one.
-      if (bytes) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType(bytes) });
+      if (bytes) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType({ bytes }) });
       const saved = await mediaRepo.findById({ workspaceId, id });
       // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.

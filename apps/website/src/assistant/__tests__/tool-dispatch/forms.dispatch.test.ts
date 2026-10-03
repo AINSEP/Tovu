@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -7,14 +9,19 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "../../tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
-import type { FieldDescriptor } from "../../../features/forms/types.js";
+import type { FieldDescriptor } from "@jini-ai/cms-forms";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 // Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
 // entirely (2026-08-27, "invert AI-tool contribution registration") — nothing puts forms tools into
 // the registry now unless something explicitly installs them first, mirroring what the real
 // composition roots do via `installFirstPartyToolContributors()`.
-installFirstPartyToolContributors();
+installFirstPartyToolContributors({ contributions });
 
 /**
  * @file Canary: proves `forms_create_definition` -> `forms_set_definition_status` actually work
@@ -31,8 +38,8 @@ async function buildRealExecutor() {
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) {
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
@@ -45,11 +52,11 @@ test("forms_create_definition -> forms_set_definition_status through the real To
   const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
   const run = { id: "run-canary-forms" };
 
-  const createResult = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+  const createResult = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
     name: "Canary Contact Form",
     slug: "canary-contact-form",
     fields: [{ id: "email", label: "Email", type: "email", required: true }],
-  });
+  } });
 
   assert.equal(createResult.status, "completed", `create should succeed, got: ${JSON.stringify(createResult)}`);
   const created = (createResult.output as { definition: { id: string; slug: string; status: string; fields: FieldDescriptor[] } }).definition;
@@ -71,10 +78,10 @@ test("forms_create_definition -> forms_set_definition_status through the real To
   }
 
   // "Delete": forms' real retirement lever, since no hard-delete tool exists (INV-08).
-  const disableResult = await toolExecutor.execute(ownerPrincipal, run, "forms_set_definition_status", {
+  const disableResult = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_set_definition_status", input: {
     formId: created.id,
     status: "disabled",
-  });
+  } });
   assert.equal(disableResult.status, "completed", `disable should succeed, got: ${JSON.stringify(disableResult)}`);
 
   const persistedAfterDisable = await routeDeps.formDefinitionRepo.findById({
@@ -97,11 +104,11 @@ test("forms_create_definition through the real ToolExecutor refuses a principal 
     createdAt: routeDeps.clock.nowIso(),
   });
 
-  const result = await toolExecutor.execute({ id: "bare-principal-forms-canary" }, run, "forms_create_definition", {
+  const result = await toolExecutor.execute({ principal: { id: "bare-principal-forms-canary" }, run: run, toolId: "forms_create_definition", input: {
     name: "Should Not Be Created",
     slug: "should-not-be-created",
     fields: [{ id: "email", label: "Email", type: "email", required: true }],
-  });
+  } });
 
   assert.equal(result.status, "failed", `an unauthorized principal must not succeed, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /principal 'bare-principal-forms-canary' is not authorized for 'admin\.forms\.manage'/);
@@ -117,15 +124,15 @@ test("content_read.form_definition resolves a form by name to its id, closing th
   const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
   const run = { id: "run-canary-forms-list" };
 
-  const createResult = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+  const createResult = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
     name: "Lookup Target Form",
     slug: "lookup-target-form",
     fields: [{ id: "email", label: "Email", type: "email", required: true }],
-  });
+  } });
   assert.equal(createResult.status, "completed");
   const created = (createResult.output as { definition: { id: string } }).definition;
 
-  const listResult = await toolExecutor.execute(ownerPrincipal, run, "content_read.form_definition", {});
+  const listResult = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "content_read.form_definition", input: {} });
   assert.equal(listResult.status, "completed", `list should succeed, got: ${JSON.stringify(listResult)}`);
   const definitions = (listResult.output as { definitions: { id: string; name: string; slug: string; status: string }[] }).definitions;
   const found = definitions.find((d) => d.name === "Lookup Target Form");
@@ -136,10 +143,10 @@ test("content_read.form_definition resolves a form by name to its id, closing th
 
   // Prove the resolved id is actually usable — the whole point of the lookup — by retiring it
   // without ever having been told the id directly, only the name.
-  const disableResult = await toolExecutor.execute(ownerPrincipal, run, "forms_set_definition_status", {
+  const disableResult = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_set_definition_status", input: {
     formId: found.id,
     status: "disabled",
-  });
+  } });
   assert.equal(disableResult.status, "completed");
   const disabled = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: found.id });
   assert.equal(disabled?.status, "disabled", "retiring the id resolved by name must persist");
@@ -159,7 +166,7 @@ test("content_read.form_definition through the real ToolExecutor refuses a princ
   });
 
   const before = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
-  const result = await toolExecutor.execute({ id: "bare-principal-forms-list-canary" }, run, "content_read.form_definition", {});
+  const result = await toolExecutor.execute({ principal: { id: "bare-principal-forms-list-canary" }, run: run, toolId: "content_read.form_definition", input: {} });
   assert.equal(result.status, "failed", `an unauthorized principal must not succeed, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /principal 'bare-principal-forms-list-canary' is not authorized for 'admin\.forms\.manage'/);
   assert.deepEqual(await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId }), before);
@@ -180,7 +187,7 @@ test("a submissions-only grant does not authorize creating or reading form defin
     ["forms_create_definition", { name: "Refused", slug: "refused", fields: [{ id: "email", label: "Email", type: "email", required: true }] }],
     ["content_read.form_definition", {}],
   ] as const) {
-    const result = await toolExecutor.execute({ id: principalId }, { id: "run-narrow-forms" }, toolId, input);
+    const result = await toolExecutor.execute({ principal: { id: principalId }, run: { id: "run-narrow-forms" }, toolId: toolId, input: input });
     assert.equal(result.status, "failed", toolId);
     assert.match(result.error ?? "", /principal 'forms-submissions-reader' is not authorized for 'admin\.forms\.manage'/, toolId);
   }
@@ -190,9 +197,9 @@ test("a submissions-only grant does not authorize creating or reading form defin
 test("forms_list_submissions accepts the default and both explicit limit boundaries through ToolExecutor", async () => {
   const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
   const run = { id: "run-submissions-success" };
-  const created = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+  const created = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
     name: "Submissions", slug: "submissions", fields: [{ id: "email", label: "Email", type: "email", required: true }],
-  });
+  } });
   assert.equal(created.status, "completed");
   const formId = (created.output as { definition: { id: string } }).definition.id;
   const records = ["older", "newer"].map((id, index) => ({
@@ -201,7 +208,7 @@ test("forms_list_submissions accepts the default and both explicit limit boundar
   }));
   for (const record of records) await routeDeps.formSubmissionRepo.create(record);
   for (const limit of [undefined, 1, 100]) {
-    const result = await toolExecutor.execute(ownerPrincipal, run, "forms_list_submissions", { formId, ...(limit === undefined ? {} : { limit }) });
+    const result = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_list_submissions", input: { formId, ...(limit === undefined ? {} : { limit }) } });
     assert.equal(result.status, "completed", JSON.stringify(result));
     const submissions = (result.output as { submissions: unknown[] }).submissions;
     const expected = (limit === 1 ? [records[1]] : [records[1], records[0]]).map(({ workspaceId: _workspaceId, ...record }) => record);
@@ -212,14 +219,14 @@ test("forms_list_submissions accepts the default and both explicit limit boundar
 test("forms_update_definition persists name, fields and notify while preserving the slug", async () => {
   const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
   const run = { id: "run-forms-update" };
-  const created = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+  const created = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
     name: "Before", slug: "unchanged-slug", fields: [{ id: "email", label: "Email", type: "email", required: true }],
-  });
+  } });
   assert.equal(created.status, "completed");
   const formId = (created.output as { definition: { id: string } }).definition.id;
   const fields = [{ id: "email", label: "Contact email", type: "email", required: false }, { id: "message", label: "Message", type: "textarea", required: true }];
   const notify = { enabled: true, recipients: ["notify@example.com"] };
-  const result = await toolExecutor.execute(ownerPrincipal, run, "forms_update_definition", { formId, name: "After", fields, notify });
+  const result = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_update_definition", input: { formId, name: "After", fields, notify } });
   assert.equal(result.status, "completed", JSON.stringify(result));
   const persisted = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: formId });
   assert.ok(persisted);
@@ -249,15 +256,15 @@ for (const row of INPUT_REJECTIONS) {
     const { toolExecutor, ownerPrincipal } = await buildRealExecutor();
     const run = { id: `run-canary-${row.toolId}-validation` };
 
-    const created = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+    const created = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
       name: `Validation Target ${row.toolId}`,
       slug: `validation-target-${row.toolId.replaceAll("_", "-")}`,
       fields: [{ id: "email", label: "Email", type: "email", required: true }],
-    });
+    } });
     assert.equal(created.status, "completed", `seed create must succeed: ${JSON.stringify(created)}`);
     const formId = (created.output as { definition: { id: string } }).definition.id;
 
-    const result = await toolExecutor.execute(ownerPrincipal, run, row.toolId, row.input(formId));
+    const result = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: row.toolId, input: row.input(formId) });
 
     assert.equal(result.status, "failed");
     assert.equal(result.errorKind, "validation", `got: ${JSON.stringify(result)}`);

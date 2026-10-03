@@ -1,7 +1,3 @@
-import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../platform/mail/index.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
-
 /**
  * @file `registerFormNotifySubscriber` — the Forms-owned outbox subscriber (SPEC-010 REQ-12,
  * ADR-PIPE-010 C-009).
@@ -19,14 +15,15 @@ import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js"
  * importing it from `./manifest` — see `types.ts`'s file header for why domain code never reads
  * the manifest back.
  */
-
-const FORM_SUBMISSION_RECEIVED_TOPIC = "form.submission.received";
-
-interface FormSubmissionReceivedPayload {
-  workspaceId: string;
-  formDefinitionId: string;
-  submissionId: string;
-}
+import type { Logger } from "@jini-ai/core/primitives";
+// Subscriber/dedup rationale: Jini/packages/cms/forms/src/notify-subscriber.ts (SPEC-010, ADR-037, SPEC-022).
+import {
+  registerFormNotifySubscriber as registerPackageSubscriber,
+  type FormDefinitionRepoPort,
+} from "@jini-ai/cms-forms";
+import type { EventBusPort } from "@jini-ai/cms/core";
+import type { MailerPort } from "../../platform/mail/index.js";
+import { adaptFormSubmissionRepo, type FormSubmissionRepoPort } from "./ports.js";
 
 export interface RegisterFormNotifySubscriberDeps {
   bus: EventBusPort;
@@ -36,70 +33,21 @@ export interface RegisterFormNotifySubscriberDeps {
 }
 
 /**
- * Registers the C-009 subscriber. Returns the bus's async unsubscribe function (per
- * `EventBusPort.subscribe`'s contract) — called once at boot (`server/app.ts`).
- *
- * @complexity O(r) over the definition's configured recipients.
- * @overallScore 100
+ * Binds the Tovu sender and positional mail port to Jini's notification subscriber.
+ * @returns Async unsubscribe; repository/delivery errors are logged by the package.
+ * @complexity O(r) sends per submission, with r bounded by the definition recipient cap.
+ * @example const unsubscribe = await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo, formSubmissionRepo });
  */
-export async function registerFormNotifySubscriber(
-  deps: RegisterFormNotifySubscriberDeps
+export function registerFormNotifySubscriber(
+  deps: RegisterFormNotifySubscriberDeps,
+  { logger = { warn: ({ message }, { error } = {}) => console.warn(message, ...(error === undefined ? [] : [error])) } }: { logger?: Pick<Logger, "warn"> } = {},
 ): Promise<() => Promise<void>> {
-  return deps.bus.subscribe<FormSubmissionReceivedPayload>(
-    FORM_SUBMISSION_RECEIVED_TOPIC,
-    async (event: DomainEvent<FormSubmissionReceivedPayload>) => {
-      try {
-        const { workspaceId, formDefinitionId, submissionId } = event.payload;
-
-        const definition = await deps.formDefinitionRepo.findById({ workspaceId, id: formDefinitionId });
-        if (!definition || !definition.notify.enabled || definition.notify.recipients.length === 0) {
-          return;
-        }
-
-        const submission = await deps.formSubmissionRepo.findById({ workspaceId, id: submissionId });
-        if (!submission) return;
-
-        for (const recipient of definition.notify.recipients) {
-          try {
-            const result = await deps.mailer.send(
-              {
-                workspaceId,
-                to: { email: recipient },
-                from: { email: "no-reply@forms.local", name: "Forms" },
-                subject: `New submission: ${definition.name}`,
-                text: JSON.stringify(submission.data),
-              },
-              {
-                // ADR-037 amendment 1 — idempotencyKey built from submissionId, per-recipient so
-                // a shared mail-lib dedup ledger never suppresses a second recipient's send.
-                idempotencyKey: `forms:notify:${submissionId}:${recipient}`,
-                workspaceId,
-                sourceContext: { module: "forms", ref: formDefinitionId },
-                purpose: "transactional",
-                // SPEC-022 REQ-09/REQ-10: notification lane — gated on durable-outbox
-                // readiness in production mode (unlike members' interactive-lane send).
-                lane: "notification",
-              }
-            );
-            if (!result.ok) {
-              console.warn(
-                `[forms:notify] mail send failed for submission '${submissionId}' recipient '${recipient}': ${result.errorCode} (${result.message})`
-              );
-            }
-          } catch (err) {
-            // EC-06/REQ-12 — a failed send is terminal, logged, never retried inline, and never
-            // affects the submission row itself.
-            console.warn(
-              `[forms:notify] mail send threw for submission '${submissionId}' recipient '${recipient}':`,
-              err
-            );
-          }
-        }
-      } catch (err) {
-        // Defensive outer guard — even a repo-read failure must never propagate into
-        // `publish()`'s subscriber loop and break sibling subscribers (e.g. the webhook fan-out).
-        console.warn("[forms:notify] subscriber failed:", err);
-      }
-    }
-  );
+  return registerPackageSubscriber({
+    bus: deps.bus,
+    sender: { email: "no-reply@forms.local", name: "Forms" },
+    logger,
+    mailer: { send: ({ message, options }) => deps.mailer.send(message, options) },
+    formDefinitionRepo: deps.formDefinitionRepo,
+    formSubmissionRepo: adaptFormSubmissionRepo({ repo: deps.formSubmissionRepo }),
+  });
 }

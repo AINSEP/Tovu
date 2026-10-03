@@ -105,7 +105,7 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   listTokenSignInPlugins?: typeof listTokenSignInPluginsReal;
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
-  listSites?: typeof listSitesReal;
+  listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
   createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
@@ -237,7 +237,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      const registered: SiteListEntry[] = listSites();
+      const registered: readonly SiteListEntry[] = listSites();
       const binding = deps.siteBinding;
       const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
       const serving = sites.find((site) => site.dir === binding.dir);

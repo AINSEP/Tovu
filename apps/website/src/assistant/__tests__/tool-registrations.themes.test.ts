@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,23 +8,27 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../features/theme/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
-import type { UIResource } from "../index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Themes moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `features/theme/tool-registrations.ts`'s header), so
 // `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
 // first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeThemesTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeThemesTools() });
 
 /**
  * @file Covers all 4 Themes catalog entries (all wired): catalog completeness, published contracts,
@@ -89,7 +95,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "marketplace_list_themes").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -106,6 +112,9 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 const WIRED_THEMES_TOOL_IDS = [
   "content_read.theme",
+  "marketplace_list_themes",
+  "theme_install_from_marketplace",
+  "theme_rescan",
   "theme_copy_file",
   "theme_edit_file",
   "theme_list_files",
@@ -127,6 +136,8 @@ const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "co
 
 // Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
+  "theme_install_from_marketplace",
+  "theme_rescan",
   "theme_write_file",
   "theme_edit_file",
   "theme_reset_file",
@@ -145,10 +156,11 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 // grows. Updated 2026-09-12: 8 -> 10 (added theme_copy_file then theme_reset_file, the last two
 // gaps a read-only survey found against the human Explore screen's own per-file operations — see
 // `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`).
-test("exactly the 10 themes entries are registered — nothing else", () => {
+// t11 adds marketplace browse/install and theme rescan: 10 -> 13.
+test("exactly the 13 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 10, "sanity: the full themes catalog is still 10 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 13, "sanity: the full themes catalog is 13 entries");
 });
 
 // `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
@@ -159,7 +171,7 @@ test("exactly the 10 themes entries are registered — nothing else", () => {
 // `agent-tools.ts`'s header for the full reasoning).
 test("no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
   for (const excluded of ["theme_delete_file", "theme_delete", "theme_create", "theme_rename_folder", "theme_rename"]) {
     assert.equal(ids.includes(excluded), false, `'${excluded}' must not be wired — see agent-tools.ts's exclusions`);
   }
@@ -173,7 +185,7 @@ test("an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unkn
         description: "hypothetical",
         sideEffects: "mutates-durable-state",
         authorization: { permission: "theme.edit" },
-      }),
+      }, contributions),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/
   );
 });
@@ -198,25 +210,26 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
 
 test("each catalog entry's declared risk matches what this layer derives from its handler", () => {
   for (const id of CATALOGUED_THEMES_TOOL_IDS) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
-test("only the write/edit/rename tools declare a durable side effect; the three read tools declare none", () => {
+test("file writes, installation and rescan declare durable effects; browse and file reads declare none", () => {
   for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
     assert.equal(catalogEntry(id).sideEffects, "mutates-durable-state", `${id} should be durable`);
   }
-  for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
+  for (const id of ["marketplace_list_themes", "theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).sideEffects, "none");
   }
 });
 
-test("reads reuse the existing theme.set permission; every write/edit/rename is gated by its own theme.edit", () => {
-  for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
+test("reads and theme lifecycle tools require theme.set; file writes require theme.edit", () => {
+  for (const id of ["marketplace_list_themes", "theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).authorization.permission, "theme.set");
   }
   for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
-    assert.equal(catalogEntry(id).authorization.permission, "theme.edit", `${id} should require theme.edit`);
+    const permission = ["theme_install_from_marketplace", "theme_rescan"].includes(id) ? "theme.set" : "theme.edit";
+    assert.equal(catalogEntry(id).authorization.permission, permission, `${id} should require ${permission}`);
   }
 });
 
@@ -249,22 +262,15 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
 test("each themes tool checks exactly the permission its catalog entry declares", async () => {
   const { deps, authorizeCalls, themesDir } = fakeRouteDeps();
   fs.cpSync(path.join(themesDir, "plain"), path.join(themesDir, THEME_CATALOG_DIR, "declarative", "plain"), { recursive: true });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const registrations = new Map(buildAssistantToolRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
   async function checkPermission(toolId: string, input: Record<string, unknown>) {
     authorizeCalls.length = 0;
     const emitted: unknown[] = [];
-    const pending = registrations.get(toolId)!.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+    const result = await registrations.get(toolId)!.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
     if (toolId === "theme_trash_file") {
-      await new Promise((resolve) => setImmediate(resolve));
-      assert.equal(emitted.length, 1);
-      const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-      const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-      assert.ok(match);
-      assert.deepEqual(surfaceExchanges.deliver({ exchangeId: match[1]!, toolId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }), { ok: true });
+      assert.deepEqual(emitted, [], "reversible theme trash runs without a confirmation card");
     }
-    const result = await pending;
     assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]), [
       [toolId === "content_read.theme" ? "theme.set" : catalogEntry(toolId).authorization.permission, PRINCIPAL_ID, WORKSPACE_ID],
     ], `${toolId} must request exactly its declared permission for this caller`);

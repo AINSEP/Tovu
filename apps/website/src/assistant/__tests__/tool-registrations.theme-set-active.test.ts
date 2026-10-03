@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,7 +8,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 
-import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { discoverAllBuiltInThemes, NO_THEME_ID } from "#src/features/theme/index";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import {
@@ -15,6 +17,11 @@ import {
   setActiveThemeDerivedRisk,
   type SetActiveThemeToolDeps,
 } from "#src/features/theme/set-active-theme-tool";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file `theme_set_active` (F7a, 2026-09-24) — TDD certification for the agent-tool half of
@@ -60,15 +67,15 @@ interface FakeDepsOptions {
 function fakeDeps(options: FakeDepsOptions = {}): SetActiveThemeToolDeps {
   const themesDir = makeThemesRoot(["basic", "aurora"]);
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  const presentationRepo = new InMemoryPresentationSettingsRepo([
+  const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, activeThemeId: options.seededActiveThemeId ?? "basic", updatedAt: SEEDED_AT },
-  ]);
+  ] });
 
   return {
     workspaceId: WORKSPACE_ID,
     authorize: async () =>
       options.allow === false ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" },
-    clock: { nowIso: () => "2026-09-24T01:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T01:00:00.000Z" },
     themes,
     presentationRepo,
   };
@@ -102,13 +109,13 @@ test("theme_set_active: wires with a published schema and a cross-checked risk c
 });
 
 test("theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain", () => {
-  resetToolContributorsForTests();
-  registerToolContributor(contributeSetActiveThemeTools());
+  contributions.contributors.clear({});
+  contributions.contributors.register({ contribution: contributeSetActiveThemeTools() });
 
-  const contributors = listToolContributors();
+  const contributors = contributions.contributors.list({});
   assert.equal(contributors.length, 1);
   assert.equal(contributors[0]?.domain, "theme-set-active");
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
 });
 
 test("theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch", async () => {

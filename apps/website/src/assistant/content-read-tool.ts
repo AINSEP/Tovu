@@ -1,12 +1,4 @@
-import {
-  buildDomainRegistrations,
-  isRecord,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, isRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";
 
@@ -16,7 +8,7 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  * resource-keyed catalog entries** (`content_read.<resource>`), one per Tier-1 "collapses
  * unconditionally" read tool group, **all dispatching through {@link dispatchByIdPresence} — the
  * one shared handler factory** — rather than 29 hand-written handlers. No schema change to
- * `@jini-ai/sqlite` or `tool-catalog-query.ts`: the id itself carries the resource, exactly as D1
+ * `@jini-ai/sqlite-chat` or `tool-catalog-query.ts`: the id itself carries the resource, exactly as D1
  * measured — it matched the pre-collapse baseline case-for-case at top-10, on both the whole set and
  * the affected subset. The numbers themselves are deliberately NOT restated here: they move whenever
  * the catalog changes (the shipped top-20 already moved the baseline's own figure), and a bare
@@ -288,7 +280,8 @@ function sourceRegistration(byId: ReadonlyMap<string, ToolRegistration>, toolId:
  */
 function dispatchByIdPresence(idProperty: string, get: ToolHandler, list: ToolHandler): ToolHandler {
   return async (ctx) => {
-    const value = isRecord(ctx.input) ? ctx.input[idProperty] : undefined;
+    const candidate = { value: ctx.input };
+    const value = isRecord(candidate) ? candidate.value[idProperty] : undefined;
     return value !== undefined ? get(ctx) : list(ctx);
   };
 }
@@ -386,7 +379,7 @@ function unionInputSchema(
 export function deriveContentReadRegistrations(sourceRegistrations: readonly ToolRegistration[]): ToolRegistration[] {
   const byId = new Map(sourceRegistrations.map((registration) => [registration.descriptor.id, registration] as const));
   const retiredIds = new Set<string>();
-  const catalog = new Map<string, WirableToolDefinition>();
+  const catalog = new Map<string, AgentToolDefinition>();
   const handlers: Record<string, ToolHandler> = {};
   const derivedRisk = new Map<string, AgentToolSideEffect>();
 
@@ -427,7 +420,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
 
     for (const memberId of memberIds) retiredIds.add(memberId);
 
-    const authorization: WirableToolDefinition["authorization"] = card.orPermission
+    const authorization: AgentToolDefinition["authorization"] = card.orPermission
       ? { permission: card.permission, orPermission: card.orPermission }
       : { permission: card.permission };
 

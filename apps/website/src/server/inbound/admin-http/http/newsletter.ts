@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
-import type { PrincipalRecord } from "@jini-ai/cms/identity";
+import type { PrincipalRecord } from "@jini-ai/user-management";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import {
   NewsletterCampaignNotEditableError,

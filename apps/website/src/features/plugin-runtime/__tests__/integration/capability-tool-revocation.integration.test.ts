@@ -66,7 +66,7 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
 /** Boots the tool surface the way `agent-daemon-server.ts` does: register once, then keep the same
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<ToolRegistry> {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   await registerEnabledPluginCapabilityTools(registry, {
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
@@ -74,7 +74,7 @@ async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<To
     discoverPlugins: async () => [RECORD],
     pluginActivationRepo: repo,
   });
-  assert.equal(registry.has(TOOL_ID), true, "precondition: an enabled plugin must register its tool at boot");
+  assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
 
@@ -93,7 +93,7 @@ test("a site plugin disabled through setPluginEnabled — the composition both t
   assert.match(JSON.stringify(before.output), /"count":42/, "precondition: it really serves the plugin's stored field");
 
   await setPluginEnabled({
-    deps: { clock: { nowIso: () => NOW }, repo, discovery: [RECORD], onEnabled: async () => undefined, onDisabled: () => undefined },
+    deps: { clock: { nowMs: () => Date.parse(NOW) }, repo, discovery: [RECORD], onEnabled: async () => undefined, onDisabled: () => undefined },
     input: { workspaceId: WORKSPACE, pluginId: PLUGIN_ID, enabled: false },
   });
 

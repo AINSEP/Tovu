@@ -4,7 +4,7 @@
  * Small, independent chokepoint (lists have no status machine) — `saveList`/`archiveList` are the
  * ONLY writers of `p_newsletter__lists`.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import {
   NewsletterConflictError,
   NewsletterDefaultListProtectedError,

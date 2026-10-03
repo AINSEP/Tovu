@@ -1,4 +1,4 @@
-import type { Principal, RunRef, SurfaceEmitter, ToolDescriptor, ToolRegistry } from "@jini-ai/core";
+import type { Principal, ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { buildFormSurface, type SurfaceField, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -415,7 +415,7 @@ function resolveRecoveryGate(input: {
   const readOnlyRefusal = refuseNonReadOnlyDispatch({ principal, toolId: diagnostic.remedyToolId, registry });
   if (readOnlyRefusal !== null) return { attempt: false, outcome: { ...result, error: readOnlyRemedyRefusalMessage(readOnlyRefusal) } };
 
-  const descriptor = registry.list().find((d) => d.id === diagnostic.remedyToolId);
+  const descriptor = registry.list({}).find((d) => d.id === diagnostic.remedyToolId);
   const plan = planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput });
   if (!plan) return { attempt: false, outcome: result };
 
@@ -463,15 +463,10 @@ function buildRemedyInput(plan: RemedyPlan, decision: Extract<RecoveryDecision, 
  */
 export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRecoveryDeps): ToolExecutor {
   return {
-    execute: async (
-      principal: Principal,
-      run: RunRef,
-      toolId: string,
-      input: unknown,
-      signal?: AbortSignal,
-      emitSurface?: SurfaceEmitter,
-    ): Promise<ToolExecutionResult> => {
-      const result = await inner.execute(principal, run, toolId, input, signal, emitSurface);
+    execute: async (required, optional = {}): Promise<ToolExecutionResult> => {
+      const { principal, toolId, input } = required;
+      const { signal, emitSurface } = optional;
+      const result = await inner.execute(required, optional);
 
       // SILENCE STAYS FREE: everything but a completed call whose output carries an actionable
       // diagnostic returns `result` exactly as `inner` produced it — no extra work, no surface, no
@@ -505,7 +500,7 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
       // returns. Whatever either one returns, including a fresh hint+remedyToolId of its own, is never
       // fed back into the scan above: that scan is written exactly once, above this comment, and
       // nothing here loops or recurses into it again. See this file's header.
-      const remedyResult = await inner.execute(principal, run, diagnostic.remedyToolId, remedyInput, signal, emitSurface);
+      const remedyResult = await inner.execute({ ...required, toolId: diagnostic.remedyToolId, input: remedyInput }, optional);
       // The fix itself did not complete (denied, threw, timed out, ...) — nothing changed, so retrying
       // the original would only reproduce the same failure. Return the ORIGINAL result, untouched.
       if (remedyResult.status !== "completed") return result;
@@ -516,10 +511,10 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
 
       // Retry the ORIGINAL call exactly once, with its exact original input. Whatever this returns —
       // success or a fresh failure — is this wrapper's final answer.
-      return inner.execute(principal, run, toolId, input, signal, emitSurface);
+      return inner.execute(required, optional);
     },
-    resumeConfirmation: (executionId, decision) => inner.resumeConfirmation(executionId, decision),
-    cancel: (executionId) => inner.cancel(executionId),
-    getAuditRecord: (executionId) => inner.getAuditRecord(executionId),
+    resumeConfirmation: (required) => inner.resumeConfirmation(required),
+    cancel: (required) => inner.cancel(required),
+    getAuditRecord: (required) => inner.getAuditRecord(required),
   };
 }

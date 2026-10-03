@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { ToolInputError } from "@jini-ai/core";
 import { buildPagesRegistrations } from "../tool-registrations.js";
 
 /**
@@ -33,13 +34,24 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
 const clock = { nowIso: () => "2026-09-09T00:00:00.000Z" };
 const WS = "ws-region";
 
-function harness() {
+function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
   const repo = new InMemoryPostRepo([]);
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
     authorize: async () => ({ allowed: true }),
     postRepo: repo,
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
+    pagesHtmlStore: (scope) => {
+      const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+      if (afterRead) {
+        const read = store.read.bind(store);
+        store.read = async () => {
+          const html = await read();
+          await afterRead(repo);
+          return html;
+        };
+      }
+      return store;
+    },
   });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
   const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
@@ -136,10 +148,16 @@ test("a handle carried by two elements is refused rather than guessed — an add
       `<section data-agent-element="dup" data-agent-role="region"><p>second</p></section>`
   );
 
+  const before = await repo.findById({ workspaceId: WS, id: "page-1" });
   await assert.rejects(
     () => call("pages_write_region", { id: "page-1", handle: "dup", html: "<p>x</p>" }),
-    /2 elements|twice|ambiguous/i
+    {
+      message: "Nothing was written: 2 elements in page 'page-1' carry data-agent-element=\"dup\", so that handle " +
+        "is not an address — a write to it could land in either one. Fix the duplicate with pages_write_html (give each " +
+        "section its own handle), then edit the region you meant.",
+    }
   );
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "page-1" }), before);
 });
 
 test("a region containing a nested same-tag element is replaced whole — the splice does not stop at the first inner </section>", async () => {
@@ -408,4 +426,48 @@ test("pages_write_html still rewrites a legacy page whose existing duplicate it 
 
   const kept = (await call("pages_write_html", { id: "page-1", html: LEGACY_DUPLICATE.replace("<h1>Hi</h1>", "<h1>Hello</h1>") })) as { written: boolean };
   assert.equal(kept.written, true, "an unchanged pre-existing duplicate must not lock the page against full rewrites");
+});
+
+test("pages_write_region reports a store CAS race as an actionable input error and preserves the winner", async () => {
+  let winningRow: unknown;
+  const { repo, call } = harness(async (repo) => {
+    const winner = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-race" }, { repo, clock });
+    await winner.read();
+    await winner.write(THREE_REGIONS.replace("Body copy.", "Winning edit."));
+    winningRow = await repo.findById({ workspaceId: WS, id: "page-race" });
+  });
+  await seedHtmlBypassingTools(repo, "page-race", THREE_REGIONS);
+  const basis = (await repo.findById({ workspaceId: WS, id: "page-race" }))!.version;
+  await assert.rejects(
+    call("pages_write_region", { id: "page-race", handle: "page-hero", html: "<h1>loser</h1>", expectedVersion: basis }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError);
+      assert.match(err.message, /^VERSION_CONFLICT:/);
+      assert.match(err.message, /Nothing was written/);
+      assert.match(err.message, /Re-read the page with pages_read_html/);
+      assert.match(err.message, /reapply.*resend/);
+      return true;
+    }
+  );
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "page-race" }), winningRow);
+});
+
+test("pages_write_region refuses doc, trashed, and missing pages without changing rows", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "doc-page");
+  await seedHtmlBypassingTools(repo, "trashed-page", THREE_REGIONS);
+  const trashed = (await repo.findById({ workspaceId: WS, id: "trashed-page" }))!;
+  await repo.save({ ...trashed, deletedAt: clock.nowIso() });
+  for (const id of ["doc-page", "trashed-page", "missing-page"]) {
+    const before = await repo.findById({ workspaceId: WS, id });
+    if (id === "trashed-page") {
+      await assert.rejects(call("pages_write_region", { id, handle: "page-hero", html: "<p>x</p>" }), /ENTITY_IN_TRASH:.*Restore it from the Trash/);
+    } else {
+      const result = await call("pages_write_region", { id, handle: "page-hero", html: "<p>x</p>" }) as { written: boolean; reason: string };
+      assert.equal(result.written, false);
+      assert.match(result.reason, /has no bespoke HTML body/);
+      assert.match(result.reason, /pages_write_html first/);
+    }
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id }), before);
+  }
 });

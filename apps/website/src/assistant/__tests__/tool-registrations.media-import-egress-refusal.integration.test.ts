@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import {
   InMemoryAssetBlobRepo,
@@ -60,22 +60,22 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
   const routeDeps: MediaImportToolDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-07T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-07T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
-    mediaRepo: new InMemoryMediaRepo(),
-    assetBlobRepo: new InMemoryAssetBlobRepo(),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo(),
+    mediaRepo: new InMemoryMediaRepo({}),
+    assetBlobRepo: new InMemoryAssetBlobRepo({}),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo(),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     mediaImportHttpClient: new RefusingHttpClient(clientError),
     mediaImportEgressRefusalLog: log,
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildMediaImportRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
 
   return { routeDeps, registry, toolExecutor, lifecycle };
 }
@@ -92,7 +92,7 @@ async function executeImport(clientError: Error, url: string, log?: (line: strin
 
 test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR", async () => {
   const result = await executeImport(
-    new EgressRefusedError(METADATA_REFUSAL, { callerSafeMessage: METADATA_REFUSAL_CALLER_SAFE }),
+    new EgressRefusedError({ message: METADATA_REFUSAL }, { callerSafeMessage: METADATA_REFUSAL_CALLER_SAFE }),
     "https://metadata.internal.example/latest/meta-data/"
   );
 
@@ -111,7 +111,7 @@ test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked add
 });
 
 test("the refusal is a refusal, not an invitation to retry the identical call", async () => {
-  const result = await executeImport(new EgressRefusedError(METADATA_REFUSAL), "https://metadata.internal.example/");
+  const result = await executeImport(new EgressRefusedError({ message: METADATA_REFUSAL }), "https://metadata.internal.example/");
 
   assert.ok(!result.ok);
   // `withSchemaOnRejection`'s decoration. Load-bearing here specifically because a model that reads
@@ -127,7 +127,7 @@ test("a scheme refusal from the policy layer surfaces the same way — the class
   // Built exactly as `client.ts`'s `assertAllowedTarget` builds it: this refusal carries no address,
   // so its caller-safe form is the full message.
   const result = await executeImport(
-    new EgressRefusedError("scheme 'http:' is not in the allowed egress schemes", { callerSafeMessage: "scheme 'http:' is not in the allowed egress schemes" }),
+    new EgressRefusedError({ message: "scheme 'http:' is not in the allowed egress schemes" }, { callerSafeMessage: "scheme 'http:' is not in the allowed egress schemes" }),
     "https://cdn.example.com/redirects-to-http.png"
   );
 
@@ -153,7 +153,7 @@ test("the address a named host resolved to never reaches the caller; the full re
   // it resolved to. Returning that address lets a caller map internal DNS one import at a time.
   const logLines: string[] = [];
   const result = await executeImport(
-    new EgressRefusedError("egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private", {
+    new EgressRefusedError({ message: "egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private" }, {
       callerSafeMessage: "egress to 'internal-db.corp' rejected: resolved address is private",
     }),
     "https://internal-db.corp/avatar.png",

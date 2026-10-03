@@ -1,10 +1,7 @@
-import {
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
-import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } from "@jini-ai/core";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
@@ -74,7 +71,7 @@ const DESCRIPTION = [
   "{ saved: false, reason: 'unavailable' } when the service could not be reached; { saved: false, reason: 'cancelled' | 'expired' | 'abandoned' } when nobody submitted.",
 ].join(" ");
 
-export const agentPluginAccessTokenAgentToolCatalog: WirableToolDefinition[] = [
+export const agentPluginAccessTokenAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID,
     description: DESCRIPTION,
@@ -135,10 +132,10 @@ function hostOf(url: string | null): string | null {
 export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, target: TokenAuthTarget): Promise<ExternalMcpServerRecord> {
   const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
   if (row === null) {
-    throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${target.pluginId}''s connection could not be set up in this Tovu version. Nothing was changed.`);
+    throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${target.pluginId}''s connection could not be set up in this Tovu version. Nothing was changed.` });
   }
   if (hostOf(row.url) !== hostOf(target.config.url)) {
-    throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: the '${target.connectionId}' connection no longer points at ${target.displayName}. Nothing was changed.`);
+    throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: the '${target.connectionId}' connection no longer points at ${target.displayName}. Nothing was changed.` });
   }
   return row;
 }
@@ -152,16 +149,16 @@ export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, ta
 export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, pluginId: string, principalId: string): Promise<TokenAuthTarget> {
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(routeDeps.workspaceId, id));
   const plugin = await resolvePlugin(pluginId);
-  if (!plugin) throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' is not an installed Agent Plugin in this workspace.`);
+  if (!plugin) throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' is not an installed Agent Plugin in this workspace.` });
 
   const declared = Object.entries(plugin.servers).flatMap(([serverKey, config]) =>
     config.type !== "stdio" && config.tovuTokenAuth ? [{ serverKey, config: config as TokenAuthTarget["config"] }] : [],
   );
-  if (declared.length === 0) throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' declares no access-token sign-in.`);
-  if (declared.length > 1) throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' declares more than one access-token sign-in.`);
+  if (declared.length === 0) throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' declares no access-token sign-in.` });
+  if (declared.length > 1) throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' declares more than one access-token sign-in.` });
   const [{ serverKey, config }] = declared as [(typeof declared)[number]];
   const connectionId = deriveAgentPluginConnectionId(serverKey);
-  if (!connectionId) throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.`);
+  if (!connectionId) throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
 
   await provisionAgentPluginMcpServers(
     { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
@@ -270,11 +267,11 @@ async function handleAnswer(
   return { result: { saved: true, next }, outcome: outcome(exchange, target, "success", "Token saved", next) };
 }
 
-function requireEmitSurface(ctx: ToolExecutionContext): SurfaceEmitter {
-  if (!ctx.emitSurface) {
+function requireEmitSurface(optional: ToolExecutionOptions): SurfaceEmitter {
+  if (!optional.emitSurface) {
     throw new Error(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: this execution context has no interactive form channel (no emitSurface), so this form cannot be shown here. Nothing was changed.`);
   }
-  return ctx.emitSurface;
+  return optional.emitSurface;
 }
 
 /**
@@ -288,20 +285,16 @@ export async function runAgentPluginSetAccessToken(
   surfaces: AssistantSurfaceDeps,
   ctx: ToolExecutionContext,
   input: Readonly<Record<string, unknown>>,
+  optional: ToolExecutionOptions = {},
 ): Promise<SetAccessTokenResult> {
   if (Object.keys(input).some((key) => key !== "pluginId")) {
-    throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID} takes only a pluginId. The token is pasted into the form, never passed here.`);
+    throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID} takes only a pluginId. The token is pasted into the form, never passed here.` });
   }
   const pluginId = input.pluginId;
-  if (typeof pluginId !== "string" || pluginId.trim() === "") throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: pluginId is required.`);
+  if (typeof pluginId !== "string" || pluginId.trim() === "") throw new ToolInputError({ message: `${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: pluginId is required.` });
 
-  await requireToolPermission(routeDeps, {
-    principalId: ctx.principal.id,
-    permission: AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION,
-    entityType: "agent-plugin",
-    entityId: pluginId,
-  });
-  const emitSurface = requireEmitSurface(ctx);
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
+  const emitSurface = requireEmitSurface(optional);
   const target = await resolveTarget(routeDeps, pluginId, ctx.principal.id);
   await requireTargetRow(routeDeps, target);
 

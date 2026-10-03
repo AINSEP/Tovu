@@ -1,3 +1,4 @@
+import { adaptFormSubmissionRepo } from "#src/features/forms/ports";
 import type { Request } from "express";
 
 import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -83,12 +84,11 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         return;
       }
 
-      const page = await deps.formSubmissionRepo.listByDefinition({
+      const page = await adaptFormSubmissionRepo({ repo: deps.formSubmissionRepo }).listByDefinition({
         workspaceId: deps.workspaceId,
         formDefinitionId: definition.id,
         limit: parsedQuery.limit,
-        cursor: parsedQuery.cursor,
-      });
+      }, { cursor: parsedQuery.cursor });
       res.json(toAdminFormSubmissionListResponse(page));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

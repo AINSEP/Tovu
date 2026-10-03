@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,37 +11,29 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import type { UIResource } from "#src/assistant/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 
-import {
-  identityAgentToolCatalog,
-  type IdentityAgentToolDefinition as AgentToolDefinition,
-  type IdentityRepos,
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  seedIdentity,
-} from "@jini-ai/cms/identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import { type IdentityRepos } from "@jini-ai/user-management";
+import { identityAgentToolCatalog, type IdentityAgentToolDefinition as AgentToolDefinition, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
+import { Argon2PasswordHasher, loadArgon2Binding, createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeIdentityTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeIdentityTools() });
 
 /**
  * @file The model-facing contract half of the identity tool wiring — companion to
@@ -59,7 +53,7 @@ registerToolContributor(contributeIdentityTools());
  */
 
 const WORKSPACE_ID = "workspace-tools";
-const HASHER = new Argon2PasswordHasher({ memoryCost: 8, timeCost: 1, parallelism: 1 });
+const HASHER = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding }, { memoryCost: 8, timeCost: 1, parallelism: 1 });
 
 function counterIdGen() {
   let n = 0;
@@ -73,19 +67,19 @@ interface Harness {
 }
 
 async function buildHarness(): Promise<Harness> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
   const idGen = counterIdGen();
-  const clock = { nowIso: () => "2026-07-29T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-29T00:00:00.000Z"), nowIso: () => "2026-07-29T00:00:00.000Z" };
 
   const { ownerPrincipalId } = await seedIdentity({
     deps: { repos, hasher: HASHER, clock, idGen },
@@ -97,6 +91,8 @@ async function buildHarness(): Promise<Harness> {
     clock,
     idGen,
     passwordHasher: HASHER,
+    transactions: repos.transactions,
+    tokens: new NodeSessionTokens({}),
     ownerPrincipalId: Promise.resolve(ownerPrincipalId),
     principalRepo: repos.principals,
     userRepo: repos.users,
@@ -127,7 +123,7 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
 
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES })
+    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
@@ -410,28 +406,28 @@ test("the identity catalog and the wiring layer's independent classification agr
   // cross-check them against here — see COLLAPSED_IDENTITY_CONTENT_READ_IDS's own comment.
   for (const id of identityRegistrations(deps).keys()) {
     if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("an identity catalog entry cannot downgrade its own risk — declaring 'none' for a mutating handler fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_role_assign", { ...catalogEntry("identity_role_assign"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("identity_role_assign", { ...catalogEntry("identity_role_assign"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("the two read tools are classified 'none', and claiming otherwise also fails — the cross-check is symmetric", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("identity_user_list", catalogEntry("identity_user_list")));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("identity_user_list", catalogEntry("identity_user_list"), contributions));
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_user_list", { ...catalogEntry("identity_user_list"), sideEffects: "mutates-durable-state" }),
+    () => assertRiskMetadataIsWirable("identity_user_list", { ...catalogEntry("identity_user_list"), sideEffects: "mutates-durable-state" }, contributions),
     /declares sideEffects 'mutates-durable-state' but this layer derives 'none'/,
   );
 });
 
 test("an identity tool that carried a confirmation-requiring actor-class rule could not be wired with a plain handler", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_user_disable", { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
+    () => assertRiskMetadataIsWirable("identity_user_disable", { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }, contributions),
     {
       message:
         "tool-registrations: 'identity_user_disable' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +

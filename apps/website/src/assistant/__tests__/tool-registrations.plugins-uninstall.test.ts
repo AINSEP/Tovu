@@ -18,7 +18,8 @@ import {
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
-import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
+import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
 // S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the

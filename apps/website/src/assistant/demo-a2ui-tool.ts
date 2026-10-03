@@ -5,13 +5,7 @@ import {
   type AgentToRendererMessage,
 } from "@jini-ai/agentic/a2ui";
 
-import {
-  buildDomainRegistrations,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 
@@ -46,7 +40,7 @@ import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchan
  * a second time via the legacy two-call redemption shape (`mcp-ui-tool-calls-route.ts`'s Shape 2).
  * A2UI has no equivalent: `a2ui-actions-route.ts` only ever delivers into an open
  * {@link SurfaceExchangeStore} exchange (Shape 1's own reasoning, restated for a channel with no
- * Shape 2 to fall back to at all). Without `ctx.emitSurface` there is no exchange to open and
+ * Shape 2 to fall back to at all). Without `emitSurface` there is no exchange to open and
  * therefore no way for this tool to ever learn what a human did — so the honest behavior is to say
  * so and return, not to fabricate a degraded rendering path that doesn't exist for this channel.
  *
@@ -65,7 +59,7 @@ export const DEMO_A2UI_TOOL_ID = "assistant_demo_a2ui";
  * `createLabCatalog()` returns fresh `Map`s per call but its `catalogId` and schemas are pure
  * constants, so there is nothing per-call to gain by rebuilding it on every invocation.
  */
-const CATALOG = createLabCatalog();
+const CATALOG = createLabCatalog({});
 
 /** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts:82`. */
 interface AgentToolDefinition {
@@ -163,17 +157,16 @@ export function buildDemoA2uiRegistrations(
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    [DEMO_A2UI_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
+    [DEMO_A2UI_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
       // Unlike `demo-choices-tool.ts`, there is no degraded second path for a missing emit seam —
       // see this module's doc for why A2UI has no equivalent of MCP-UI's legacy two-call shape.
-      if (!ctx.emitSurface) {
+      if (!emitSurface) {
         return {
           completed: false,
           reason: "no-surface-channel",
           note: "This execution has no live surface channel, so the A2UI demo cannot render or wait for an answer.",
         };
       }
-      const emitSurface = ctx.emitSurface;
 
       // The exchange is opened BEFORE any message is sent, exactly like `demo-choices-tool.ts` —
       // opening requires the emitter, so waiting on an unsent message is unrepresentable.
@@ -191,7 +184,7 @@ export function buildDemoA2uiRegistrations(
        * of the literal messages below fails loudly here instead of reaching the renderer as a
        * message it then has to reject. */
       const emitA2ui = async (message: AgentToRendererMessage): Promise<void> => {
-        const validated = parseAgentToRendererMessage(message);
+        const validated = parseAgentToRendererMessage({ raw: message });
         if (!validated.ok) {
           throw new Error(`${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: ${validated.message}`);
         }

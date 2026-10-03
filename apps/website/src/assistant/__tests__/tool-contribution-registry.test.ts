@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Contract tests for `tool-contribution-registry.ts` and `server/tool-catalog-manifest.ts` —
  * the 2026-08-17 registry that replaced `assistant/tool-registrations.ts` importing `comments` and
@@ -16,20 +18,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AgentToolSideEffect, DerivedRiskByToolId } from "@jini-ai/cms/core";
+import type { AgentToolSideEffect, DerivedRiskByToolId } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import {
-  listToolContributors,
-  registerToolContributor,
-  resetToolContributorsForTests,
-  type ToolContributor,
-} from "../tool-contribution-registry.js";
+import { type ToolContributor } from "../tool-contribution-registry.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /** A minimal, valid `ToolRegistration` — enough to satisfy `buildAssistantToolRegistrations`'s own
  *  bookkeeping (it only reads `descriptor.id`); no test here executes a handler. */
@@ -49,7 +51,7 @@ function fakeContributor(domain: string, toolIds: readonly string[]): ToolContri
 }
 
 test.beforeEach(() => {
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
 });
 
 // ---------------------------------------------------------------------------
@@ -57,30 +59,30 @@ test.beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 test("a freshly reset registry has no contributors", () => {
-  assert.deepEqual(listToolContributors(), []);
+  assert.deepEqual(contributions.contributors.list({}), []);
 });
 
 test("registerToolContributor appends in call order", () => {
-  registerToolContributor(fakeContributor("alpha", ["alpha_one"]));
-  registerToolContributor(fakeContributor("beta", ["beta_one"]));
-  assert.deepEqual(listToolContributors().map((c) => c.domain), ["alpha", "beta"]);
+  contributions.contributors.register({ contribution: fakeContributor("alpha", ["alpha_one"]) });
+  contributions.contributors.register({ contribution: fakeContributor("beta", ["beta_one"]) });
+  assert.deepEqual(contributions.contributors.list({}).map((c) => c.domain), ["alpha", "beta"]);
 });
 
 test("re-registering the same domain REPLACES the earlier entry in place, not appends — idempotent per catalog instance", () => {
-  registerToolContributor(fakeContributor("alpha", ["alpha_one"]));
-  registerToolContributor(fakeContributor("beta", ["beta_one"]));
-  registerToolContributor(fakeContributor("alpha", ["alpha_two"])); // replaces "alpha", position preserved
+  contributions.contributors.register({ contribution: fakeContributor("alpha", ["alpha_one"]) });
+  contributions.contributors.register({ contribution: fakeContributor("beta", ["beta_one"]) });
+  contributions.contributors.register({ contribution: fakeContributor("alpha", ["alpha_two"]) }); // replaces "alpha", position preserved
 
-  const contributors = listToolContributors();
+  const contributors = contributions.contributors.list({});
   assert.deepEqual(contributors.map((c) => c.domain), ["alpha", "beta"], "domain count/order must not change on replacement");
   assert.deepEqual(contributors[0].build({} as never, {} as never).map((r) => r.descriptor.id), ["alpha_two"]);
 });
 
 test("installFirstPartyToolContributors is idempotent — calling it twice leaves the registry in the same state as calling it once", () => {
-  installFirstPartyToolContributors();
-  const once = listToolContributors().map((c) => c.domain).sort();
-  installFirstPartyToolContributors();
-  const twice = listToolContributors().map((c) => c.domain).sort();
+  installFirstPartyToolContributors({ contributions });
+  const once = contributions.contributors.list({}).map((c) => c.domain).sort();
+  installFirstPartyToolContributors({ contributions });
+  const twice = contributions.contributors.list({}).map((c) => c.domain).sort();
   assert.deepEqual(twice, once);
 });
 
@@ -89,7 +91,7 @@ test("installFirstPartyToolContributors is idempotent — calling it twice leave
 // ---------------------------------------------------------------------------
 
 test("installFirstPartyToolContributors installs exactly the converted domains — no more, no fewer", () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   // Stage 1 (2026-08-17): comments, newsletter. Stage 2 batch 1 (same day): identity, members,
   // redirects, taxonomy. Stage 2 batch 2 (same day, run as two parallel worker groups): group A
   // did widgets, content-types, forms, menus, recovery, plugins, entries; group B did integrations,
@@ -166,7 +168,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // fixing this list for `agent-plugin-search` — not introduced by, and not otherwise in scope for,
   // that addition. See `features/agent-plugins/tool-registrations.ts`'s own "search_agent_plugin_local"
   // section header for what `agent-plugin-search` itself contributes.
-  assert.deepEqual(listToolContributors().map((c) => c.domain), [
+  assert.deepEqual(contributions.contributors.list({}).map((c) => c.domain), [
     "identity-policy-list-permissions",
     "sites-list",
     "publish-content-disconnect",
@@ -200,6 +202,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "members",
     "menus",
     "newsletter",
+    "newsletter-delivery",
     "pages",
     "plugins",
     "post",
@@ -249,41 +252,41 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
 // with `post` wired this way. The assertion was simply never flipped when that landed, so this test
 // failed against correct code for a day — a stale test, not a regression.
 test("post IS installed by installFirstPartyToolContributors — the final conversion of the 25/25 registry rollout, after an earlier attempt was reverted (see features/post/tool-registrations.ts's own header)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "post"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "post"), true);
 });
 
 test("database IS installed by installFirstPartyToolContributors — converted to the registry in a later pass than the test above's comment describes (see features/database/tool-registrations.ts's own header: the `getDriftStatus` edge that closed its 16-module SCC was cut by relocating drift.ts into db/, and check:architecture confirmed 0 cycles with database wired this way)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "database"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "database"), true);
 });
 
 test("source-control IS installed by installFirstPartyToolContributors — retried once dual-read.ts's legacy-table imports were injected instead of value-imported (see features/source-control/tool-registrations.ts's own header, and ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "source-control"), true);
 });
 
 test("deployments IS installed by installFirstPartyToolContributors — retried once vendor-credentials/store.ts's own extractGitHubLogin import was ALSO injected instead of value-imported (see features/deployments/tool-registrations.ts's own header)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "deployments"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "deployments"), true);
 });
 
 test("static-publish IS installed by installFirstPartyToolContributors — retried and landed together with deployments above (see features/deployments/publish-agent-tools.ts's own header: the two share the same features/deployments module, so check:architecture required converting both together)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "static-publish"), true);
 });
 
 test("themes IS installed by installFirstPartyToolContributors — retried once deployments/static-publish above left assistant without any transitive path into export (see features/theme/tool-registrations.ts's own header for the full trace, including its two prior reverts)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "themes"), true);
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some((c) => c.domain === "themes"), true);
 });
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {
-  installFirstPartyToolContributors();
-  const first = listToolContributors().map((c) => c.domain);
-  resetToolContributorsForTests();
-  installFirstPartyToolContributors();
-  const second = listToolContributors().map((c) => c.domain);
+  installFirstPartyToolContributors({ contributions });
+  const first = contributions.contributors.list({}).map((c) => c.domain);
+  contributions.contributors.clear({});
+  installFirstPartyToolContributors({ contributions });
+  const second = contributions.contributors.list({}).map((c) => c.domain);
   assert.deepEqual(second, first);
 });
 
@@ -293,11 +296,11 @@ test("registration order is deterministic across repeated installs, not just sta
 // ---------------------------------------------------------------------------
 
 test("two registry contributors claiming the same tool id fail buildAssistantToolRegistrations, naming both domains", () => {
-  registerToolContributor(fakeContributor("dup-a", ["shared_tool_id"]));
-  registerToolContributor(fakeContributor("dup-b", ["shared_tool_id"]));
+  contributions.contributors.register({ contribution: fakeContributor("dup-a", ["shared_tool_id"]) });
+  contributions.contributors.register({ contribution: fakeContributor("dup-b", ["shared_tool_id"]) });
 
   assert.throws(
-    () => buildAssistantToolRegistrations(createRouteDeps()),
+    () => buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }),
     /'shared_tool_id' is registered by both the dup-a and dup-b domains/,
   );
 });
@@ -322,8 +325,8 @@ test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the 
   // If the in-chat UI slices are ever removed too, `DOMAIN_SLICES` becomes empty and the legacy seam
   // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
   // test that proves a seam still behaves correctly is worthless once there is no seam.
-  registerToolContributor(fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]));
-  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
+  contributions.contributors.register({ contribution: fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]) });
+  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------
@@ -337,16 +340,16 @@ test("a real catalog entry from a NOT-installed contributor fails assertRiskMeta
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment");
   assert.ok(entry, "sanity: the catalog entry itself still exists independent of wiring");
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry!), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry!, contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else", async () => {
   const { contributeCommentsTools } = await import("../../features/comments/tool-registrations.js");
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));
-  registerToolContributor(contributeCommentsTools());
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));
+  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
+  contributions.contributors.register({ contribution: contributeCommentsTools() });
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
 });
 
 // ---------------------------------------------------------------------------
@@ -364,10 +367,10 @@ test("installing the contributor afterward makes the same id wirable — proving
 const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = [];
 
 test("core registers no Supabase-specific connect tool — the generic agent_plugin_connect is the only way in", async () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
 
   assert.ok(ids.includes("agent_plugin_connect"), "the generic Agent Plugin Connect tool must stay registered");
   assert.ok(!ids.includes("supabase_get_database"), "supabase_get_database must not be registered");
@@ -379,7 +382,7 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
 });
 
 test("two independent buildAssistantToolRegistrations calls after one installFirstPartyToolContributors() see the identical tool-id set — daemon and BYOK must never drift apart", async () => {
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
 
   // Two separately-constructed deps bags, mirroring `agent-daemon-server.ts` and
   // `assistant-byok.ts`/`byok-tool-surface.ts` each building their own `routeDeps` independently
@@ -389,8 +392,8 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   const byokLikeDeps = createRouteDeps();
   await byokLikeDeps.identityReady;
 
-  const daemonIds = buildAssistantToolRegistrations(daemonLikeDeps).map((r) => r.descriptor.id).sort();
-  const byokIds = buildAssistantToolRegistrations(byokLikeDeps).map((r) => r.descriptor.id).sort();
+  const daemonIds = buildAssistantToolRegistrations(daemonLikeDeps, undefined, { contributions }).map((r) => r.descriptor.id).sort();
+  const byokIds = buildAssistantToolRegistrations(byokLikeDeps, undefined, { contributions }).map((r) => r.descriptor.id).sort();
 
   assert.deepEqual(byokIds, daemonIds);
   // And specifically includes the registry-contributed domains, not just parity on whatever

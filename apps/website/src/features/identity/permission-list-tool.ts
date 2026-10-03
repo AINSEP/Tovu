@@ -1,13 +1,14 @@
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireToolPermission, type AuthorizeFn, type DerivedRiskByToolId, type ToolRegistration, type WirableToolDefinition } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import type { PolicyRepoPort, PolicyPermissionRepoPort } from "@jini-ai/cms/identity";
+import type { PolicyRepoPort, PolicyPermissionRepoPort } from "@jini-ai/user-management";
 
 /** Read ports only; no permission grants or user credentials. */
 export interface Deps { workspaceId: string; authorize: AuthorizeFn; policyRepo: Pick<PolicyRepoPort, "findById">; policyPermissionRepo: Pick<PolicyPermissionRepoPort, "listByPolicyId">; }
 
 /** Catalog for the admin service exposed through this standalone contributor. */
-export const catalog: WirableToolDefinition[] = [{
+export const catalog: AgentToolDefinition[] = [{
   name: "identity_policy_list_permissions",
   description: "Reads the permissions and resource constraints granted by one policy. Call to explain what a role can do after finding its policy id with content_read.identity_policy. Returns {policyPermissions}, an empty array when nothing is granted. Read-only: no grants or revocations. Unknown policies are refused with lookup guidance.",
   sideEffects: "none",
@@ -29,14 +30,14 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
   return buildDomainRegistrations({
     domain: "identity-policy-list-permissions", catalogModule: "features/identity/permission-list-tool.ts",
-    catalog: indexCatalogById(catalog), derivedRisk,
+    catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
     handlers: { identity_policy_list_permissions: async ctx => {
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "role.manage" });
-      const input = requireInputRecord(ctx.input);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "role.manage" });
+      const input = requireInputRecord({ input: ctx.input });
       const policyId = input.policyId;
-      if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError("policyId must be a non-empty string.");
+      if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ message: "policyId must be a non-empty string." });
       const policy = await deps.policyRepo.findById({ workspaceId: deps.workspaceId, id: policyId });
-      if (!policy) throw new ToolInputError(`policy '${policyId}' was not found. Use content_read.identity_policy to find a policy id.`);
+      if (!policy) throw new ToolInputError({ message: `policy '${policyId}' was not found. Use content_read.identity_policy to find a policy id.` });
       return { policyPermissions: await deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId }) };
     } },
   });

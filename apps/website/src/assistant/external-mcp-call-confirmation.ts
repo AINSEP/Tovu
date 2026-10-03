@@ -27,7 +27,8 @@
  *
  * Architectural role: `assistant` composition helper, implementing `FederationDeps.confirmCall`.
  */
-import type { AuthorizeFn, UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -236,7 +237,7 @@ export function createFederatedCallConfirmer(
     const offerAlways =
       rememberable && context.alwaysKey !== undefined && !request.destructive && approvals !== undefined && (await mayAlwaysAllow(ctx, approvals));
     const spec = buildFederatedCallConfirmSpec(request, { offerChat: rememberable && context.chatKey !== undefined, offerAlways });
-    const outcome = await requireHumanConfirm(ctx, surfaces, spec);
+    const outcome = await requireHumanConfirm({ ctx, surfaces, spec }, { emitSurface: ctx.emitSurface });
     if (!outcome.confirmed) return { confirmed: false, result: notConfirmedResult(outcome) };
     if (approvals) await remember(ctx, approvals, request, context, outcome.choice);
     return { confirmed: true };

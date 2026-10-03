@@ -1,7 +1,8 @@
 import type { Express } from "express";
 
 import type { AuthorizeFn, ChangeSetRepoPort } from "#src/contracts/core/commands/index";
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 import type { PluginPackageFiles } from "#src/features/plugin-runtime/package-files";

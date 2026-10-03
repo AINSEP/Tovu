@@ -6,9 +6,8 @@ import express from "express";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { identityReposFrom } from "../inbound/admin-http/routes/users/deps.js";
-import { resetUserPassword } from "@jini-ai/cms/identity";
-import type { RouteDeps } from "../routes/types.js";
+import { identityServiceDepsFrom } from "../inbound/admin-http/routes/users/deps.js";
+import { resetUserPassword } from "@jini-ai/user-management/server";
 
 /**
  * @file Route-level tests for `GET /api/admin/v1/auth/me/password-status` (password-banner plan,
@@ -64,7 +63,7 @@ test("password-status: after resetUserPassword to another value, a fresh sign-in
   const ownerId = await deps.ownerPrincipalId;
 
   await resetUserPassword({
-    deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+    deps: identityServiceDepsFrom(deps),
     input: {
       workspaceId: deps.workspaceId,
       callerPrincipalId: ownerId,
@@ -93,12 +92,12 @@ test("password-status: repeat reads of an unchanged hash reuse one argon2 verify
   const realHasher = deps.passwordHasher;
   const defaultChecks: string[] = [];
   deps.passwordHasher = {
-    ...realHasher,
-    verify: async (hash: string, password: string) => {
+    hash: (required) => realHasher.hash(required),
+    verify: async ({ hash, password }: { hash: string; password: string }) => {
       if (password === "tovu-dev") defaultChecks.push(hash);
-      return realHasher.verify(hash, password);
+      return realHasher.verify({ hash: hash, password: password });
     },
-  } as RouteDeps["passwordHasher"];
+  };
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = defaultChecks.length;
 
@@ -110,7 +109,7 @@ test("password-status: repeat reads of an unchanged hash reuse one argon2 verify
 
   const ownerId = await deps.ownerPrincipalId;
   await resetUserPassword({
-    deps: { repos: identityReposFrom(deps), hasher: realHasher, clock: deps.clock, idGen: deps.idGen },
+    deps: { ...identityServiceDepsFrom(deps), hasher: realHasher },
     input: {
       workspaceId: deps.workspaceId,
       callerPrincipalId: ownerId,

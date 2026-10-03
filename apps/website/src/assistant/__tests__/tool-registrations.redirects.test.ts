@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers all 7 Redirects catalog entries, all wired (2026-09-24: `redirects_import` joined
  * the other 6 — tool-design audit F2/F3): catalog completeness, published contracts, risk
@@ -20,7 +22,8 @@ import { InMemoryOutbox } from "../../contracts/core/events/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import type { UIResource } from "../index.js";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../features/origin/index.js";
-import { getRedirectsAgentToolCatalog, type AgentToolDefinition } from "../../features/redirects/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { redirectMatcher } from "../../features/redirects/matcher.js";
 import type { RedirectDbHandle } from "../../features/redirects/ports.internal.js";
 import { InMemoryRedirectRepo } from "../../features/redirects/repo.memory.js";
@@ -30,16 +33,21 @@ import type { RedirectHitStats } from "../../features/redirects/types.js";
 import type { RedirectHitSink } from "../../features/redirects/ports.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Redirects moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeRedirectsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeRedirectsTools() });
 
 const WORKSPACE_ID = "ws-redirects-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -83,7 +91,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => `2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -109,7 +117,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function redirectsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -129,7 +137,7 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  */
 async function tombstoneRule(deps: RouteDeps, id: string): Promise<{ rule: { status: string; version: number } }> {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "redirects_tombstone");
+  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "redirects_tombstone");
   assert.ok(trashTool, "expected 'redirects_tombstone' to be wired");
   const emitted: unknown[] = [];
   const pending = trashTool.handler({ ...executionContext({ id }), emitSurface: async (s) => void emitted.push(s) });
@@ -171,7 +179,7 @@ test("exactly the 6 wireable redirects entries plus redirects_import are registe
 
 test("redirects_import is agent-callable across the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
   assert.ok(ids.includes("redirects_import"));
 });
 
@@ -213,13 +221,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.redirect") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("redirects_create", { ...catalogEntry("redirects_create"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("redirects_create", { ...catalogEntry("redirects_create"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

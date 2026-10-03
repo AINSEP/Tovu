@@ -79,7 +79,7 @@ async function resolveCopyContentType(
   bytes: Uint8Array
 ): Promise<string> {
   const recorded = await routeDeps.mediaContentTypeStore?.getMany({ workspaceId: routeDeps.workspaceId, sha256s: [sha256] });
-  return recorded?.get(sha256) ?? sniffContentType(bytes);
+  return recorded?.get(sha256) ?? sniffContentType({ bytes });
 }
 
 /**
@@ -174,23 +174,19 @@ export async function duplicateMediaAsset(
   // override is spelled in post/page's vocabulary (draft/published), which a media asset has no
   // equivalent of — its statuses are active/trashed, and a copy is never created trashed.
   if (input.overrides.status !== undefined) {
-    throw new ToolInputError(
-      "content_duplicate: resource 'media' does not support the 'status' override — a media asset is " +
+    throw new ToolInputError({ message: "content_duplicate: resource 'media' does not support the 'status' override — a media asset is " +
         "active/trashed, not draft/published, and a copy is always created active. Overrides honored " +
-        "for 'media': title and slug. Use media_trash_asset afterwards to trash the copy."
-    );
+        "for 'media': title and slug. Use media_trash_asset afterwards to trash the copy." });
   }
 
   const source = await findMediaByIdOrSlug({
     deps: { mediaRepo: routeDeps.mediaRepo },
     input: { workspaceId: routeDeps.workspaceId, idOrSlug: input.id },
   });
-  if (!source) throw new ToolInputError(`content_duplicate: media asset '${input.id}' was not found`);
+  if (!source) throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' was not found` });
   if (source.status === "trashed") {
-    throw new ToolInputError(
-      `content_duplicate: media asset '${input.id}' is in the trash and was not copied — a copy would be ` +
-        "a live entry for content you already deleted. Restore it first if you meant to copy it."
-    );
+    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' is in the trash and was not copied — a copy would be ` +
+        "a live entry for content you already deleted. Restore it first if you meant to copy it." });
   }
 
   // Resolved BEFORE anything is written: an asset whose bytes are genuinely gone must fail loudly
@@ -198,10 +194,8 @@ export async function duplicateMediaAsset(
   // discipline `duplicatePostOrPage` applies to a bespoke-HTML page with no store wired).
   const blob = await routeDeps.assetBlobRepo.findByHash({ workspaceId: routeDeps.workspaceId, sha256: source.source.sha256 });
   if (!blob) {
-    throw new ToolInputError(
-      `content_duplicate: media asset '${input.id}' has no stored blob for hash ${source.source.sha256} — ` +
-        "nothing was copied. Its bytes are missing, so a copy would reference content that does not exist."
-    );
+    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' has no stored blob for hash ${source.source.sha256} — ` +
+        "nothing was copied. Its bytes are missing, so a copy would reference content that does not exist." });
   }
   const bytes = await routeDeps.blobStore.get({ storageKey: blob.storageKey });
   const contentType = await resolveCopyContentType(routeDeps, source.source.sha256, bytes);

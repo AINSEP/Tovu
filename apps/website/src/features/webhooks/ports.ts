@@ -23,8 +23,14 @@
  * Architectural role:
  * INTERFACES ONLY. In-memory adapters back local dev/tests; the SQLite/undici adapters are the
  * production second half of each rule-of-two.
+ *
+ * Contract rationale for the Jini implementation and this host boundary:
+ *
+ * Opaque root-key handle. The raw bytes never cross the SDK/ABI surface (ADR-024 §3 by-handle).
+ *
+ * Names the active root-key generation, stamped into {@link SealedSecret.keyId}.
  */
-import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { EgressPolicy, HttpClientPort } from "../../platform/http/index.js";
 import type {
   IntegrationId,
@@ -43,11 +49,8 @@ export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "..
 /* Secret material — kept OUT of the portable content.db                       */
 /* -------------------------------------------------------------------------- */
 
-/** Opaque root-key handle. The raw bytes never cross the SDK/ABI surface (ADR-024 §3 by-handle). */
-export interface RootKeyHandle {
-  /** Names the active root-key generation, stamped into {@link SealedSecret.keyId}. */
-  readonly keyId: string;
-}
+export type { RootKeyHandle } from "@jini-ai/platform/secrets";
+import type { RootKeyHandle } from "@jini-ai/platform/secrets";
 
 /**
  * Access to the install's root key, held OUTSIDE `content.db` (env var now → OS keychain next =

@@ -67,7 +67,7 @@ function makeWriteDeps(): CustomCredentialWriteDeps {
     repo: new InMemoryCustomCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => FIXED_NOW },
+    clock: { nowMs: () => Date.parse(FIXED_NOW) },
     idGen: (() => {
       let n = 0;
       return {
@@ -803,7 +803,7 @@ test("makeCredentialedRequest: a transport failure throws CredentialedRequestTra
 // caller with its OWN type intact, not folded into `CredentialedRequestTransportError`.
 test("makeCredentialedRequest: an EgressRefusedError from the http client passes through with its own type, not wrapped into CredentialedRequestTransportError", async () => {
   const writeDeps = await seedNameComAndFlyIo();
-  const httpClient = new FakeHttpClient([new EgressRefusedError("egress to 'api.name.com' (169.254.169.254) rejected: resolved address is link-local")]);
+  const httpClient = new FakeHttpClient([new EgressRefusedError({ message: "egress to 'api.name.com' (169.254.169.254) rejected: resolved address is link-local" })]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
 

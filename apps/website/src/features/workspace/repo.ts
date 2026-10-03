@@ -27,7 +27,7 @@ export class SqlWorkspaceRepo implements WorkspaceRepoPort {
     );
   }
 
-  async findBySlug(slug: string): Promise<WorkspaceRecord | null> {
+  async findBySlug({ slug }: { slug: string }): Promise<WorkspaceRecord | null> {
     const row = await this.kernel.run((db) =>
       db.selectFrom("workspaces").selectAll().where("slug", "=", slug).limit(1).executeTakeFirst()
     );
@@ -35,7 +35,7 @@ export class SqlWorkspaceRepo implements WorkspaceRepoPort {
   }
 
   /** SPEC-044 REQ-08. */
-  async findById(id: string): Promise<WorkspaceRecord | null> {
+  async findById({ id }: { id: string }): Promise<WorkspaceRecord | null> {
     const row = await this.kernel.run((db) =>
       db.selectFrom("workspaces").selectAll().where("id", "=", id).limit(1).executeTakeFirst()
     );
@@ -60,8 +60,22 @@ export class SqlWorkspaceRepo implements WorkspaceRepoPort {
   }
 
   /** SPEC-044 REQ-08. */
-  async delete(id: string): Promise<void> {
+  async delete({ id }: { id: string }): Promise<void> {
     await this.kernel.run((db) => db.deleteFrom("workspaces").where("id", "=", id).execute());
+  }
+
+  /**
+   * Serialize the workspace-count guard and delete on the same kernel as the repository reads.
+   * Awaited reads can interleave, so one event loop does not protect the last-workspace floor.
+   * The install-wide roster lock covers every workspace; nested kernel calls join this transaction.
+   * All workspace writers must use this lock before the multi-workspace delete path is enabled.
+   * @complexity O(1) transaction overhead plus the callback's database work.
+   */
+  async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
+    return this.kernel.transaction(async () => {
+      await this.kernel.lockKey("workspace:roster");
+      return fn();
+    });
   }
 }
 

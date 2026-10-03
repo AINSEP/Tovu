@@ -92,7 +92,7 @@ export class ExternalMcpConnectionRevokedError extends ToolInputError {
   readonly reason: ExternalMcpRevocationReason;
 
   constructor(input: RevocationMessageInput) {
-    super(revocationMessage(input));
+    super({ message: revocationMessage(input) });
     this.name = "ExternalMcpConnectionRevokedError";
     this.serverId = input.serverId;
     this.reason = input.reason;

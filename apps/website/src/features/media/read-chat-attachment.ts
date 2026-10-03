@@ -94,7 +94,7 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import { isUnchangedAttachment } from "@jini-ai/http-kit";
+import { isUnchangedAttachment } from "@jini-ai/daemon/http";
 
 /**
  * Accepted `ref` shape. `attachment:` matches the id `AttachmentStore.register` mints
@@ -304,7 +304,7 @@ export async function readChatAttachmentForOwner(
 
   const observed = await observeAttachment(loaded.filePath);
   if (observed === undefined) return refuse("integrity");
-  if (!isUnchangedAttachment({ ...loaded.record, filePath: loaded.filePath }, observed)) return refuse("integrity");
+  if (!isUnchangedAttachment({ recorded: { ...loaded.record, filePath: loaded.filePath }, observed })) return refuse("integrity");
 
   return { ok: true, bytes: await readFile(loaded.filePath) };
 }

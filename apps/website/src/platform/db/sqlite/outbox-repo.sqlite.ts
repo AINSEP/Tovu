@@ -1,14 +1,12 @@
-import { outboxEvents } from "../schema.sqlite.js";
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { outboxEventValues, SqlOutboxAdapter } from "../repos/outbox-repo.js";
+import { SqlOutboxAdapter } from "../repos/outbox-repo.js";
 import type { ContentDb } from "./content-db.js";
-import type { DomainEvent } from "@jini-ai/cms/core";
 
 /**
  * @file The outbox on a site's SQLite `content.db`: {@link SqlOutboxAdapter} (the one Kysely query
  * body, `repos/outbox-repo.ts`), kept as a named class so the composition root that builds it from
- * the content db handle stays as it is. Also {@link outboxRowFor}, the same row in Drizzle's shape
- * for the callers that still insert it through Drizzle inside their own transaction.
+ * the content db handle stays as it is. Transactional callers use the shared Kysely row builder.
+ * outboxRowFor (platform/db/sqlite/outbox-repo.sqlite.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /**
@@ -18,18 +16,7 @@ import type { DomainEvent } from "@jini-ai/cms/core";
  * with the purge deletes rather than through this adapter's own single-row `enqueue()`) can reuse
  * the identical row shape ({@link outboxEventValues}, renamed to Drizzle's keys) instead of a copy.
  */
-export function outboxRowFor(event: DomainEvent): typeof outboxEvents.$inferInsert {
-  const row = outboxEventValues(event);
-  return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    eventJson: row.event_json,
-    status: row.status,
-    attempts: row.attempts,
-    nextAttemptAt: row.next_attempt_at,
-    createdAt: row.created_at,
-  };
-}
+// outboxRowFor (apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 export class SqliteOutboxAdapter extends SqlOutboxAdapter {
   /**

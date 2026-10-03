@@ -1,6 +1,7 @@
-import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
-import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonValue, UUID } from "@jini-ai/core/primitives";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import {
+  createSettingsPrincipalLookup,
   type SettingsRepoPort,
   getEffective,
   resolveDefinitionRaw,
@@ -71,7 +72,7 @@ const COMMENTS_DEFINITIONS: readonly CommentsDefinitionSpec[] = [
 
 export interface EnsureCommentsSettingDefinitionsDeps {
   settingsRepo: SettingsRepoPort;
-  clock: ClockPort;
+  clock: ClockPort | { nowIso(): string };
   ids: IdGeneratorPort;
   principals: PrincipalRepoPort;
 }
@@ -90,10 +91,10 @@ const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "syst
 function bootWriteServiceDeps(deps: EnsureCommentsSettingDefinitionsDeps) {
   return {
     repo: deps.settingsRepo,
-    clock: deps.clock,
+    clock: jiniClock(deps.clock),
     ids: deps.ids,
     authorize: alwaysAllowBoot,
-    principals: deps.principals,
+    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
   };
 }
 
@@ -176,7 +177,7 @@ export async function getCommentsSettings(
 }
 
 export interface SetCommentsSettingsDeps extends GetCommentsSettingsDeps {
-  clock: ClockPort;
+  clock: ClockPort | { nowIso(): string };
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
   principals: PrincipalRepoPort;
@@ -309,7 +310,7 @@ export async function setCommentsSettings(
 
   for (const write of writes) {
     await set({
-      deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.ids, authorize: deps.authorize, principals: deps.principals },
+      deps: { repo: deps.settingsRepo, clock: jiniClock(deps.clock), ids: deps.ids, authorize: deps.authorize, principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
       input: {
         namespace: COMMENTS_NAMESPACE,
         key: write.key,
@@ -331,4 +332,9 @@ export async function setCommentsSettings(
   }
 
   return getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });
+}
+
+/** Tovu's ISO-clock adapter; the shared clock contract/rationale lives in Jini core/primitives. */
+function jiniClock(clock: ClockPort | { nowIso(): string }): ClockPort {
+  return "nowMs" in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) };
 }

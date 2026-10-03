@@ -1,13 +1,7 @@
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import {
-  buildDomainRegistrations,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
-import type { UUID } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import type { UUID } from "@jini-ai/core/primitives";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -215,7 +209,7 @@ function parseReauthServerId(ctx: Parameters<ToolHandler>[0]): string {
   const input = (ctx.input ?? {}) as Record<string, unknown>;
   const serverId = typeof input["id"] === "string" ? input["id"] : "";
   if (!serverId) {
-    throw new ToolInputError(`${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
+    throw new ToolInputError({ message: `${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.` });
   }
   return serverId;
 }
@@ -335,7 +329,7 @@ export function buildExternalMcpReauthRegistrations(
   const activePrompts = new Set<string>();
 
   const handlers: Record<string, ToolHandler> = {
-    [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
+    [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0], optional = {}) => {
       const serverId = parseReauthServerId(ctx);
       const record = await requireReauthableExternalMcpServer(routeDeps, serverId);
       const label = record.label ?? record.serverId;
@@ -344,7 +338,7 @@ export function buildExternalMcpReauthRegistrations(
       // raising a dialog nobody can see. Non-destructive, unlike `content_post_delete`'s hard refusal
       // for the identical case: there is nothing to protect by refusing outright, only somebody to
       // still tell.
-      if (!ctx.emitSurface) return buildReauthNoSurfaceResult({ serverId, label });
+      if (!optional.emitSurface) return buildReauthNoSurfaceResult({ serverId, label });
 
       const promptKey = JSON.stringify([ctx.principal.id, serverId]);
       if (activePrompts.has(promptKey)) return buildReauthAlreadyShowingResult({ serverId, label });
@@ -352,7 +346,7 @@ export function buildExternalMcpReauthRegistrations(
       activePrompts.add(promptKey);
       const exchange = surfaces.surfaceExchanges.open(
         { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface,
+        optional.emitSurface,
       );
       // A cancelled run closes its notice at once, like every sibling exchange tool. Left open, the
       // notice waited out its idle TTL and the guard above stayed set, silently suppressing every

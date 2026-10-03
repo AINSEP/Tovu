@@ -1,3 +1,4 @@
+import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { toEnqueueOnlyOutbox } from "#src/contracts/core/events/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
@@ -123,7 +124,7 @@ export function startPluginActivationPolling(
 export async function createAgentDaemonRouteDeps(
   required: { env: NodeJS.ProcessEnv },
   optional: { dbPath?: string } = {}
-): Promise<NewsletterRouteDeps> {
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { env } = required;
   const routeDeps =
     env.TOVU_DB === "memory" ? createRouteDeps() : await createSiteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath, "client");

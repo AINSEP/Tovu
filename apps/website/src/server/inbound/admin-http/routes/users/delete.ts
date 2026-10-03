@@ -1,11 +1,6 @@
 import type { Response } from "express";
 
-import {
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  OwnerRequiredError,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

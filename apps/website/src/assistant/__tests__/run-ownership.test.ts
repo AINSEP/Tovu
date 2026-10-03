@@ -9,7 +9,8 @@ import express from "express";
 import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
-import { registerRunRoutes, type AdapterContext, type RunStartHandler } from "@jini-ai/http-kit";
+import { registerRunRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
+import { type AdapterContext } from "@jini-ai/http-kit";
 
 import {
   createOwnedRunListHandler,
@@ -72,7 +73,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
   app.use("/api/runs/:runId", requireRunOwnership(registry, lifecycle));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }));
   const adapter: AdapterContext = { resolvedPortRef: { current: 0 } };
-  registerRunRoutes(app, { lifecycle, onStarted: recordOwnerOnStart }, adapter);
+  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -312,7 +313,7 @@ test("the production daemon mounts ownership before run routes and records the d
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));');
-  const routes = statements.indexOf('registerRunRoutes(app, { lifecycle, onStarted }, adapter);');
+  const routes = statements.indexOf('registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });');
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 

@@ -55,7 +55,7 @@ async function resolveFormUpdateResult(
 
   const existing = await repo.findById({ workspaceId, id: formId });
   if (!existing) {
-    throw new FormDefinitionNotFoundError(`form definition '${formId}' was not found`);
+    throw new FormDefinitionNotFoundError({ message: `form definition '${formId}' was not found` });
   }
   return existing;
 }
@@ -79,6 +79,7 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
       const principal = getAuthedPrincipal(res);
       const actor = { id: principal.id, kind: "user" as const };
       const writeDeps = {
+        executeCommand: deps.executeCommand,
         repo: deps.formDefinitionRepo,
         clock: deps.clock,
         idGen: deps.idGen,

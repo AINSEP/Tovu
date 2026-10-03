@@ -1,31 +1,32 @@
-import { isIP } from "node:net";
-import { domainToASCII } from "node:url";
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireToolPermission, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import {
+  createDomainDnsChecks,
+  DomainDnsInputError,
+  DNS_TYPES,
+  readPublicDomain as readDiagnosticDomain,
+  readPublicDnsName as readDiagnosticDnsName,
+  type DomainDnsChecks,
+  type PublicDnsResolver,
+  type TlsStatus,
+} from "@jini-ai/diagnostics/domain-dns";
 import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
 
-/** Public DNS only. The composition root supplies a resolver that cannot inspect internal DNS. */
-export const DNS_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS"] as const;
-export type DnsRecordType = typeof DNS_TYPES[number];
-export interface DnsQuery {
-  type: DnsRecordType;
-  status: "ok" | "not-found" | "no-data";
-  records: Array<{ value: string; ttl: number }>;
-}
-export interface PublicDnsResolver {
-  query(input: { domain: string; type: DnsRecordType }): Promise<DnsQuery>;
-}
-export interface TlsStatus {
-  status: "verified" | "invalid" | "unavailable";
-  httpStatus: number | null;
-}
+// These types remain on the registration adapter's public surface until r15 redirects the
+// feature barrel. They denote the package contract, rather than a second set of DNS shapes.
+export { DNS_TYPES };
+export type { DnsRecordType, DnsQuery, PublicDnsResolver, TlsStatus } from "@jini-ai/diagnostics/domain-dns";
+
+// Public-network validation and bounded-query rationale: Jini/packages/diagnostics/src/domain-dns/index.ts.
+/** Tovu authorization and publishing ports; public DNS/TLS contracts belong to diagnostics. */
 export interface DomainDnsToolDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
   resolver: PublicDnsResolver;
   /** Workspace-scoped saved publishing hostnames, not caller-supplied expectations. */
-  listExpectedHosts(): Promise<string[]>;
+  listExpectedHosts(required: Record<string, never>): Promise<string[]>;
   probeTls(input: { domain: string }): Promise<TlsStatus>;
 }
 interface AgentToolDefinition {
@@ -65,115 +66,122 @@ export const domainDnsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   ["domain_tls_status", "none"],
 ]);
 
+const UNKNOWN_REASON = "No independent hosting hostname is saved. Connect a publish destination or publish the site first.";
+
 /**
- * Normalizes a public hostname before any effect.
- * @param value Hostname text, including optional trailing dot or IDNA characters.
- * @param toolId Prefix for caller-facing validation errors.
+ * Normalizes a public hostname before any effect, preserving Tovu's caller-input error marker.
+ * Generic validation and its URL/IP/internal-name rationale live in Jini diagnostics/domain-dns.
+ * @param required Hostname text and the caller-facing error prefix.
  * @returns Canonical ASCII hostname.
  * @throws {ToolInputError} For URLs, IPs, ports, invalid labels, or reserved/internal suffixes.
  * @complexity O(length) time and space.
- * @example readPublicDomain("EXAMPLE.COM.", "domain_lookup_dns"); // example.com
+ * @example readPublicDomain({ value: "EXAMPLE.COM.", errorPrefix: "domain_lookup_dns" });
  */
-export function readPublicDomain(value: unknown, toolId: string): string {
-  return readPublicName(value, toolId);
+export function readPublicDomain(required: { value: unknown; errorPrefix: string }): string {
+  return domainInputBoundary({ read: () => readDiagnosticDomain(required) });
 }
+
 /**
  * Normalizes public DNS owner names, including ACME, DKIM, and DMARC underscores.
- * @returns Canonical ASCII owner name; TLS and hosting inputs use readPublicDomain instead.
+ * TLS and hosting inputs use readPublicDomain instead; underscore owners are never TLS hosts.
+ * @param required Owner text and the caller-facing error prefix.
+ * @returns Canonical ASCII owner name with Tovu's error classification.
  * @throws {ToolInputError} For URLs, IPs, invalid labels, or reserved/internal suffixes.
  * @complexity O(length) time and space.
- * @example readPublicDnsName("_acme-challenge.example.com", "domain_lookup_dns");
+ * @example readPublicDnsName({ value: "_acme-challenge.example.com", errorPrefix: "domain_lookup_dns" });
  */
-export function readPublicDnsName(value: unknown, toolId: string): string {
-  return readPublicName(value, toolId, { allowUnderscores: true });
+export function readPublicDnsName(required: { value: unknown; errorPrefix: string }): string {
+  return domainInputBoundary({ read: () => readDiagnosticDnsName(required) });
 }
-/** Shared normalization keeps URL/IP/internal-name refusals identical for both kinds of public name. */
-function readPublicName(value: unknown, toolId: string, options: { allowUnderscores?: boolean } = {}): string {
-  const invalid = () => new ToolInputError(`${toolId}: pass a public DNS hostname such as 'example.com', without a URL, IP address, path, or port.`);
-  if (typeof value !== "string" || value.length > 254 || value.trim() !== value || /[/\\?#@:%\[\]\s]/u.test(value)) throw invalid();
-  const domain = domainToASCII(value.replace(/\.$/, "")).toLowerCase();
-  const labels = domain.split(".");
-  const labelPattern = options.allowUnderscores ? /^[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?$/ : /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-  const validLabels = labels.every(label => labelPattern.test(label));
-  const validSuffix = /^[a-z][a-z0-9-]*$/.test(labels.at(-1)!);
-  const reservedName = /\.(?:local|localhost|internal|invalid|test|onion)$/.test(domain);
-  if (!domain || domain.length > 253 || isIP(domain) || labels.length < 2 || !validLabels || !validSuffix || reservedName) throw invalid();
-  return domain;
-}
-/** Checks the bounded record type selection without silently dropping unknown/duplicate types. */
-function readTypes(value: unknown): DnsRecordType[] {
-  if (value === undefined) return [...DNS_TYPES];
-  if (!Array.isArray(value) || value.length < 1 || value.length > 6 || new Set(value).size !== value.length || !value.every(type => DNS_TYPES.includes(type))) {
-    throw new ToolInputError("domain_lookup_dns: types must be a non-empty list of distinct A, AAAA, CNAME, MX, TXT, or NS record types.");
+
+/** Converts synchronous diagnostics validation into Tovu's model-facing error type; no I/O. */
+function domainInputBoundary<T>({ read }: { read: () => T }): T {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof DomainDnsInputError) {
+      throw new ToolInputError({ message: error.message }, { cause: error });
+    }
+    throw error;
   }
-  return value as DnsRecordType[];
 }
-/** Sequential bounded fan-out keeps a single tool call to at most six DNS requests. O(records). */
-async function queryTypes(resolver: PublicDnsResolver, domain: string, types: readonly DnsRecordType[]): Promise<DnsQuery[]> {
-  const queries: DnsQuery[] = [];
-  for (const type of types) queries.push(await resolver.query({ domain, type }));
-  return queries;
-}
-/** Canonicalizes address spelling (including compressed IPv6) for set comparison. O(r log r) time and O(r) space for r records. */
-function recordValues(queries: DnsQuery[], type: DnsRecordType): string[] {
-  const records = queries.find(query => query.type === type)?.records ?? [];
-  return [...new Set(records.map(({ value }) => type === "AAAA" ? new URL(`https://[${value}]/`).hostname.slice(1, -1) : value.toLowerCase().replace(/\.$/, "")))].sort();
-}
-/** Set difference preserves the normalized record order. O(left + right) time and space. */
-function difference(left: string[], right: string[]): string[] {
-  const expected = new Set(right);
-  return left.filter(value => !expected.has(value));
-}
-const UNKNOWN_REASON = "No independent hosting hostname is saved. Connect a publish destination or publish the site first.";
-/** Compares all advertised addresses, so one correct record cannot hide a wrong IPv6 route. O(r log r) time, O(r) space; at most five bounded DNS queries. */
-async function checkHost(deps: DomainDnsToolDeps, domain: string, selected: unknown) {
-  const hosts = [...new Set(await deps.listExpectedHosts())].filter(host => host !== domain).sort();
-  if (hosts.length === 0 && selected === undefined) return { domain, status: "unknown", expectedHost: null, reason: UNKNOWN_REASON, untrusted: true };
-  const expectedHost = selected === undefined && hosts.length === 1 ? hosts[0] : selected;
-  if (typeof expectedHost !== "string" || !hosts.includes(expectedHost)) {
-    throw new ToolInputError(`domain_check_dns: choose expectedHost from the saved hosting hostnames: ${hosts.join(", ") || "(none)"}.`);
-  }
-  const actualQueries = await queryTypes(deps.resolver, domain, ["A", "AAAA", "CNAME"]);
-  const hostQueries = await queryTypes(deps.resolver, expectedHost, ["A", "AAAA"]);
-  const expected = { A: recordValues(hostQueries, "A"), AAAA: recordValues(hostQueries, "AAAA") };
-  const observed = { A: recordValues(actualQueries, "A"), AAAA: recordValues(actualQueries, "AAAA"), CNAME: recordValues(actualQueries, "CNAME") };
-  const unexpected = { A: difference(observed.A, expected.A), AAAA: difference(observed.AAAA, expected.AAAA) };
-  const missing = { A: difference(expected.A, observed.A), AAAA: difference(expected.AAAA, observed.AAAA) };
-  const hasExpected = expected.A.length + expected.AAAA.length > 0;
-  const differs = unexpected.A.length + unexpected.AAAA.length + missing.A.length + missing.AAAA.length > 0;
-  return { domain, expectedHost, status: !hasExpected ? "unknown" : differs ? "mismatch" : "matches-host-dns", expectationSource: "host-dns", expected, observed, unexpected, missing, untrusted: true, limitation: "Compares current public DNS, not provider-required records. Shared/CDN addresses do not prove that traffic reaches the correct app." };
-}
+
 /**
- * Wires three read-only diagnostics; validation and authorization precede all reads.
- * @param deps Workspace authorization and injected DNS/TLS/repository ports.
- * @returns Registrations for domain_lookup_dns, domain_check_dns, and domain_tls_status.
+ * Binds diagnostics operations to Tovu permissions for this invocation's principal.
+ * @returns Checks which validate before authorization and network reads. No effects during setup.
+ * @complexity O(1) setup; the package bounds each call to at most six DNS reads.
+ */
+function checksForPrincipal({ deps, principalId }: { deps: DomainDnsToolDeps; principalId: string }): DomainDnsChecks {
+  return createDomainDnsChecks({
+    resolver: deps.resolver,
+    listExpectedHosts: required => deps.listExpectedHosts(required),
+    probeTls: required => deps.probeTls(required),
+    authorize: async ({ operation }) => {
+      const permission = operation === "check-dns" ? "deployments.read" : "content.read";
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission }, { entityType: "domain-dns" });
+      if (operation === "check-dns") {
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission: "publish_content.read" }, { entityType: "domain-dns" });
+      }
+    },
+  });
+}
+
+/**
+ * Converts only diagnostics validation failures to the daemon's caller-input marker.
+ * Authorization and transport failures propagate unchanged; no effects beyond the injected call.
+ * @complexity O(1) beyond check execution.
+ */
+async function toolInputBoundary<T>({ check }: { check: () => Promise<T> }): Promise<T> {
+  try {
+    return await check();
+  } catch (error) {
+    if (error instanceof DomainDnsInputError) {
+      throw new ToolInputError({ message: error.message }, { cause: error });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Wires Tovu's catalog/permissions around Jini's bounded public DNS and TLS checks.
+ * @param deps Workspace authorization and public-network/publishing ports.
+ * @returns Three read-only tool registrations; validation errors retain Tovu's ToolInputError.
+ * @complexity O(1) registration; effects occur only when a handler is invoked.
  * @example buildDomainDnsRegistrations(deps);
  */
 export function buildDomainDnsRegistrations(deps: DomainDnsToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "domain-dns", catalogModule: "features/domain-dns/tools.ts", catalog: indexCatalogById(domainDnsAgentToolCatalog), derivedRisk: domainDnsDerivedRisk, handlers: {
+  return buildDomainRegistrations({ domain: "domain-dns", catalogModule: "features/domain-dns/tools.ts", catalog: indexCatalogById({ catalog: domainDnsAgentToolCatalog }), derivedRisk: domainDnsDerivedRisk, handlers: {
     domain_lookup_dns: async ctx => {
-      const input = requireInputRecord(ctx.input);
-      const domain = readPublicDnsName(input.domain, "domain_lookup_dns");
-      const types = readTypes(input.types);
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "content.read", entityType: "domain-dns" });
-      return { domain, resolver: "public-dns", untrusted: true, queries: await queryTypes(deps.resolver, domain, types) };
+      const input = requireInputRecord({ input: ctx.input });
+      const checks = checksForPrincipal({ deps, principalId: ctx.principal.id });
+      return toolInputBoundary({ check: () => checks.lookupDns({ domain: input.domain }, { types: input.types }) });
     },
     domain_check_dns: async ctx => {
-      const input = requireInputRecord(ctx.input);
-      const domain = readPublicDomain(input.domain, "domain_check_dns");
-      const expectedHost = input.expectedHost === undefined ? undefined : readPublicDomain(input.expectedHost, "domain_check_dns");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "domain-dns" });
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "publish_content.read", entityType: "domain-dns" });
-      return checkHost(deps, domain, expectedHost);
+      const input = requireInputRecord({ input: ctx.input });
+      const checks = checksForPrincipal({ deps, principalId: ctx.principal.id });
+      const result = await toolInputBoundary({ check: () => checks.checkDns({ domain: input.domain }, { expectedHost: input.expectedHost }) });
+      if (result.status === "unknown" && result.expectedHost === null) {
+        return { ...result, reason: UNKNOWN_REASON };
+      }
+      return result;
     },
     domain_tls_status: async ctx => {
-      const domain = readPublicDomain(requireInputRecord(ctx.input).domain, "domain_tls_status");
-      await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "content.read", entityType: "domain-dns" });
-      return { domain, ...await deps.probeTls({ domain }), certificate: { expiresAt: null, issuer: null }, limitation: "Checks certificate trust, hostname, and validity through HTTPS. Certificate issuer and expiry date are not exposed by this client." };
+      const input = requireInputRecord({ input: ctx.input });
+      const checks = checksForPrincipal({ deps, principalId: ctx.principal.id });
+      return toolInputBoundary({ check: () => checks.tlsStatus({ domain: input.domain }) });
     },
   } });
 }
-/** Composition injects ports; feature code never constructs clients or imports server values. */
-export function contributeDomainDnsTools(createDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => DomainDnsToolDeps): ToolContributor {
+
+/**
+ * Supplies Tovu's ports from the composition root without constructing network clients here.
+ * @param required Host dependency factory; invoked only during tool catalog assembly.
+ * @returns The domain contributor and its unchanged derived-risk map.
+ * @complexity O(1).
+ * @example contributeDomainDnsTools({ createDeps });
+ */
+export function contributeDomainDnsTools({ createDeps }: {
+  createDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => DomainDnsToolDeps;
+}): ToolContributor {
   return { domain: "domain-dns", build: routeDeps => buildDomainDnsRegistrations(createDeps(routeDeps)), risk: domainDnsDerivedRisk };
 }

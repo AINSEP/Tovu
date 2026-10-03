@@ -1,11 +1,13 @@
-import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
+// Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
+import { attachFederatedMcpTools as attachJiniTools, type McpSessionPort as JiniMcpSessionPort } from "@jini-ai/mcp/federation";
+import type { ToolRegistry } from "@jini-ai/core";
 
-import { connectMcpHttpSession, createFetchMcpHttpExchange } from "./adapter.http.js";
+import { connectMcpHttpSession, createFetchMcpHttpExchange, toJiniMcpSession, toTovuMcpSession } from "./adapter.http.js";
 import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio.js";
 import type { ResolvedFederatedConnection } from "./config.js";
 import { isHttpLaunchSpec, type McpSessionPort, type McpStdioChannel, type McpStdioLaunchSpec } from "./ports.js";
 import { listFederatedMcpPresets } from "./presets.js";
-import { federateSession, type FederationDeps } from "./registrations.js";
+import { toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 import { stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch } from "./stdio-launch-resolver.js";
 // `registrations.ts` imports this type from `trust.ts` for its own use but does not re-export it,
 // so it has to come from the module that declares it.
@@ -41,6 +43,36 @@ import type { FederatedAdmissionReport } from "./trust.js";
  * stored roster. Before 2026-07-30 this file imported
  * Supabase's resolver directly, which meant adding a second vendor was an edit to core federation.
  * See `presets.ts` for the seam's rationale.
+ *
+ * Delegated boot-loop rationale (Jini helper names):
+ * Registers every admitted tool from one connection's {@link federateSession} pass into
+ *  `registry`, returning the ids actually registered. Split out of
+ *  {@link attachOneFederatedConnection} purely to keep that function's complexity under the shop
+ *  ceiling.
+ * Logs one connection's full admission accounting. Refusals are reported, never silent —
+ *  `buildDomainRegistrations`'s own "silence is never the outcome" discipline. An operator
+ *  debugging a missing tool needs the reason, and an operator reading logs after an incident needs
+ *  to see what a remote TRIED to expose. Split out of {@link attachOneFederatedConnection} purely
+ *  to keep that function's complexity under the shop ceiling.
+ *
+ *  The two `writeAuthorized`/`writeAllowedButNotAllowlisted` lines are WARN, not INFO, on purpose:
+ *  an operator-authorized write tool entering the model's catalog — or an operator's write
+ *  authorization silently doing nothing because the same name is missing from the allowlist — is a
+ *  security-relevant boot event, not routine informational noise. See the write-tools
+ *  implementation outline §9.
+ * One iteration of {@link attachFederatedMcpTools}'s original inline loop body — connect, list,
+ *  admit, register, log — extracted purely to keep that function's complexity under the shop
+ *  ceiling. Fail-open per connection: any failure (connect, list, or admission) is logged and
+ *  swallowed here rather than propagated, matching this file's own fail-open doc. A session that
+ *  connected but failed later still gets closed.
+ * The admission report `federateSession` produced, or `null` when this connection never reached
+ *  that step (connect failed, listing failed, or a native-id collision dropped it whole).
+ * Set (never `""`) exactly when `report` is `null` — the human-readable reason this connection
+ *  never reached admission, for the caller to surface as a {@link AttachFederatedToolsResult.connectFailures}
+ *  entry instead of leaving the connection silently absent everywhere. `undefined` on success.
+ * Snapshotted here, immediately before the admission check, so the collision assertion sees
+ * every native tool AND every tool an earlier connection in this same loop already claimed.
+ * A session that connected but failed during listing/admission still owns a child process.
  */
 
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
@@ -108,7 +140,7 @@ export interface AttachFederatedToolsResult {
  * `registry`, and returns what happened.
  *
  * Must be awaited BEFORE `buildToolCatalogQuery(registry)` runs: that function snapshots
- * `registry.list()` into an FTS index once, so a tool registered afterwards would be executable but
+ * `registry.list({})` into an FTS index once, so a tool registered afterwards would be executable but
  * invisible to `search_tools`/`describe_tool`.
  *
  * @param params.registry - The daemon's registry, already populated with the native catalog.
@@ -231,114 +263,27 @@ function warnOnceStdioLaunchResolver(resolver: McpStdioLaunchResolver, logger: F
 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);
-
-  if (connections.length === 0) return { registeredToolIds: [], sessions: [], reports: [], connectFailures: [] };
-
-  const registeredToolIds: string[] = [];
-  const sessions: McpSessionPort[] = [];
-  const reports: { connectionId: string; report: FederatedAdmissionReport; isPreset: boolean }[] = [];
-  const connectFailures: { connectionId: string; reason: string }[] = [];
-
-  for (const { connection, isPreset } of connections) {
-    const attached = await attachOneFederatedConnection({ connection, registry: params.registry, deps: params.deps, connect, logger });
-    registeredToolIds.push(...attached.registeredToolIds);
-    if (attached.session) sessions.push(attached.session);
-    if (attached.report) reports.push({ connectionId: connection.config.connectionId, report: attached.report, isPreset });
-    if (attached.connectFailureReason !== undefined) {
-      connectFailures.push({ connectionId: connection.config.connectionId, reason: attached.connectFailureReason });
-    }
-  }
-
-  return { registeredToolIds, sessions, reports, connectFailures };
-}
-
-/** Registers every admitted tool from one connection's {@link federateSession} pass into
- *  `registry`, returning the ids actually registered. Split out of
- *  {@link attachOneFederatedConnection} purely to keep that function's complexity under the shop
- *  ceiling. */
-function registerFederatedTools(registry: ToolRegistry, registrations: readonly ToolRegistration[]): string[] {
-  const registeredToolIds: string[] = [];
-  for (const registration of registrations) {
-    registry.register(registration);
-    registeredToolIds.push(registration.descriptor.id);
-  }
-  return registeredToolIds;
-}
-
-/** Logs one connection's full admission accounting. Refusals are reported, never silent —
- *  `buildDomainRegistrations`'s own "silence is never the outcome" discipline. An operator
- *  debugging a missing tool needs the reason, and an operator reading logs after an incident needs
- *  to see what a remote TRIED to expose. Split out of {@link attachOneFederatedConnection} purely
- *  to keep that function's complexity under the shop ceiling.
- *
- *  The two `writeAuthorized`/`writeAllowedButNotAllowlisted` lines are WARN, not INFO, on purpose:
- *  an operator-authorized write tool entering the model's catalog — or an operator's write
- *  authorization silently doing nothing because the same name is missing from the allowlist — is a
- *  security-relevant boot event, not routine informational noise. See the write-tools
- *  implementation outline §9. */
-function logFederatedAdmissionReport(connectionId: string, report: FederatedAdmissionReport, logger: FederationLogger): void {
-  for (const refusal of report.refused) {
-    logger.warn(`mcp-federation: '${connectionId}' refused remote tool '${refusal.remoteName}' — ${refusal.reason}`);
-  }
-  for (const admitted of report.admitted) {
-    if (admitted.writeAuthorized) {
-      logger.warn(`mcp-federation: '${connectionId}' admitted WRITE tool '${admitted.remoteName}' (operator-authorized)`);
-    }
-  }
-  for (const absent of report.allowlistedButAbsent) {
-    logger.warn(`mcp-federation: '${connectionId}' allowlists '${absent}' but the server never advertised it — check the allowlist for a typo, or the server's --features`);
-  }
-  for (const drift of report.writeAllowedButNotAllowlisted) {
-    logger.warn(`mcp-federation: '${connectionId}' write-authorizes '${drift}' but it is not in the allowlist — it will never be admitted until it is added to both`);
-  }
-}
-
-/** One iteration of {@link attachFederatedMcpTools}'s original inline loop body — connect, list,
- *  admit, register, log — extracted purely to keep that function's complexity under the shop
- *  ceiling. Fail-open per connection: any failure (connect, list, or admission) is logged and
- *  swallowed here rather than propagated, matching this file's own fail-open doc. A session that
- *  connected but failed later still gets closed. */
-async function attachOneFederatedConnection(params: {
-  connection: ResolvedFederatedConnection;
-  registry: ToolRegistry;
-  deps: FederationDeps;
-  connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
-  logger: FederationLogger;
-}): Promise<{
-  readonly registeredToolIds: readonly string[];
-  readonly session: McpSessionPort | null;
-  /** The admission report `federateSession` produced, or `null` when this connection never reached
-   *  that step (connect failed, listing failed, or a native-id collision dropped it whole). */
-  readonly report: FederatedAdmissionReport | null;
-  /** Set (never `""`) exactly when `report` is `null` — the human-readable reason this connection
-   *  never reached admission, for the caller to surface as a {@link AttachFederatedToolsResult.connectFailures}
-   *  entry instead of leaving the connection silently absent everywhere. `undefined` on success. */
-  readonly connectFailureReason?: string;
-}> {
-  const { connection, registry, deps, connect, logger } = params;
-  const { connectionId } = connection.config;
-  let session: McpSessionPort | undefined;
-  try {
-    session = await connect(connection);
-    // Snapshotted here, immediately before the admission check, so the collision assertion sees
-    // every native tool AND every tool an earlier connection in this same loop already claimed.
-    const nativeToolIds = new Set(registry.list().map((descriptor) => descriptor.id));
-
-    const { registrations, report } = await federateSession({ session, config: connection.config, deps, nativeToolIds });
-    const registeredToolIds = registerFederatedTools(registry, registrations);
-
-    logger.info(
-      `mcp-federation: '${connectionId}' registered ${registrations.length} federated tool(s): ${registrations.map((r) => r.descriptor.id).join(", ") || "(none)"}`,
-    );
-    logFederatedAdmissionReport(connectionId, report, logger);
-
-    return { registeredToolIds, session, report };
-  } catch (error) {
-    logger.warn(`mcp-federation: '${connectionId}' failed, continuing without its tools — ${messageOf(error)}`);
-    // A session that connected but failed during listing/admission still owns a child process.
-    await session?.close().catch(() => undefined);
-    return { registeredToolIds: [], session: null, report: null, connectFailureReason: messageOf(error) };
-  }
+  const originalSessions = new Map<JiniMcpSessionPort, McpSessionPort>();
+  const result = await attachJiniTools({
+    registry: params.registry, deps: toJiniFederationDeps({ deps: params.deps }),
+    async connect({ connection }) {
+      const hostSession = await connect(connection);
+      const session = toJiniMcpSession({ session: hostSession });
+      originalSessions.set(session, hostSession);
+      return session;
+    },
+  }, {
+    // Host presets resolve here, not in Jini's independent registry. Presets still get first claim.
+    connections: connections.filter(entry => entry.isPreset).map(entry => entry.connection),
+    extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
+    env: params.env ?? process.env,
+    logger: {
+      info: ({ message }) => logger.info(message),
+      warn: ({ message }) => logger.warn(message),
+      error: ({ message }) => logger.warn(message),
+    },
+  });
+  return { ...result, sessions: result.sessions.map(session => originalSessions.get(session) ?? toTovuMcpSession({ session })) };
 }
 
 /**

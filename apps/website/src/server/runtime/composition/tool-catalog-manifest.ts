@@ -1,11 +1,14 @@
+import type { AssistantToolContributions } from "#src/assistant/index";
+import { ToolInputError } from "@jini-ai/core";
+import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
+import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
+import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/list-tool";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import { contributeCommerceGetStatusTools } from "#src/features/commerce/index";
 import {
-  registerDerivedToolContributor,
-  registerToolContributor,
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
 } from "#src/assistant/index";
@@ -20,7 +23,10 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
+import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
+import type { DeployOpsRegistry } from "#src/features/deployments/index";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
@@ -30,9 +36,10 @@ import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
+import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
-import { contributePostTools, contributePostDuplicateHandlers } from "#src/features/post/tool-registrations";
+import { contributePostTools, contributePostDuplicateHandlers, contributeContentStatsTools, contributePostPreviewTools } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
@@ -46,10 +53,12 @@ import { contributeMediaTools } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "#src/features/media/duplicate-asset";
 import { contributeMediaViewImageTools } from "#src/features/media/view-image-tool";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
+import { contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
+import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
@@ -126,7 +135,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `features/post/tool-registrations.ts`'s own header for the full trace).
  *
  * `settings` is genuinely the last, converted in a follow-up pass the same day. It had been left
- * wired via a one-off inline `registerToolContributor({domain: "settings", ...})` call right here
+ * wired via a one-off inline core `register({ contribution: {domain: "settings", ...} })` call right here
  * (removed, see below) because 3 files inside `assistant/` (`public-assistant-settings.ts`,
  * `custom-instructions.ts`, `execution-mode-settings.ts`) value-imported `features/settings`'s engine
  * functions directly — a real `assistant -> features/settings` edge that giving `features/settings`
@@ -140,7 +149,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * (`server/routes/types.ts`'s `RouteDeps.getEffective`/`.set`/`.instructionsNamespace`, populated in
  * both `server/runtime/composition/app.ts`/`server/runtime/composition/deps.ts`). That removed the real edge entirely, so `settings` now has
  * its own `contributeSettingsTools()` below like every other domain, and the inline
- * `registerToolContributor` call plus its explanatory comment are gone.
+ * core `register({ contribution })` call plus its explanatory comment are gone.
  *
  * `check:architecture` confirms 0 module cycles / largest SCC 0 with all 25 domains converted this
  * way — no domain still wires through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array
@@ -173,9 +182,9 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * call time, not a second index: nothing is seeded, cached or ranked, so it cannot disagree with
  * `search_tools` the way the removed `capability_search` below could.
  *
- * Idempotent: `registerToolContributor` — called here, once per domain, on the `ToolContributor`
+ * Idempotent: core `register({ contribution })` — called here, once per domain, on the `ToolContributor`
  * each `contribute<Domain>Tools()` returns (Phase 0 restructure, 2026-08-27: contributors used to
- * call `registerToolContributor` themselves, which meant a domain/feature file importing the
+ * call core `register({ contribution })` themselves, which meant a domain/feature file importing the
  * assistant runtime by value just to register itself; inverted so only this composition root does,
  * enforced by the `domain-no-direct-assistant-tool-registration` dependency-cruiser rule) — replaces
  * an existing entry by domain key rather than appending, so calling this function more than once in
@@ -189,7 +198,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * - `server/runtime/composition/modules/assistant-byok.ts`'s `createAssistantByokModule` (the in-process BYOK path).
  *
  * NOT third-party plugin tool contributions: those must still enter through this same
- * `registerToolContributor` seam eventually, but gated behind the SPEC-005 plugin runtime's own
+ * core `register({ contribution })` seam eventually, but gated behind the SPEC-005 plugin runtime's own
  * policy checks, not auto-discovered from disk and installed unconditionally the way the calls below
  * are — plugin/data-module membership (`declareDataModule`) and AI-tool membership are deliberately
  * two different systems (see the 2026-08-17 architecture addendum this file implements).
@@ -272,111 +281,129 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * THREE different permissions (`content.write` / `admin.forms.manage` / `media.upload`), which is
  * what makes the tool's per-resource permission resolution load-bearing rather than decorative.
  */
-export function installFirstPartyToolContributors(): void {
+export function installFirstPartyToolContributors(
+  { contributions }: { contributions: AssistantToolContributions },
+  options: { deployOpsRegistry?: DeployOpsRegistry } = {},
+): void {
+  contributions.contributors.register({ contribution: contributeContentStatsTools() });
+  contributions.contributors.register({ contribution: contributeAnalyticsTools() });
+  contributions.contributors.register({ contribution: contributeMailStatusTools() });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
   // header for why the two halves use different wiring seams.
-  registerToolContributor(contributeIdentityPolicyListPermissionsTools());
-  registerToolContributor(contributeSitesListTools());
-  registerToolContributor(contributePublishContentDisconnectTools());
-  registerToolContributor(contributeThemeSetPagePublishedTools());
-  registerToolContributor(contributeCommerceGetStatusTools());
-  registerToolContributor(contributeAgentPluginSearchTools());
+  contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
+  contributions.contributors.register({ contribution: contributeSitesListTools() });
+  contributions.contributors.register({ contribution: contributePublishContentDisconnectTools() });
+  contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
+  contributions.contributors.register({ contribution: contributeCommerceGetStatusTools() });
+  contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
   // this plugin's account" tool any OAuth-authenticated Agent Plugin uses — and its access-token
   // fallback `agent_plugin_set_access_token`. Static, same seam as `search_agent_plugin_local` above.
-  registerToolContributor(contributeAgentPluginConnectTools());
+  contributions.contributors.register({ contribution: contributeAgentPluginConnectTools() });
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
   // one uninstall id for both plugin families instead of two near-identically-named tools. See
   // `features/agent-plugins/uninstall-tool.ts`'s header for the merge.
-  registerToolContributor(contributeCommentsTools());
+  contributions.contributors.register({ contribution: contributeCommentsTools() });
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s
   // `domain-no-direct-assistant-tool-registration` rule bans ANY non-type-only `features/** ->
   // assistant/**` import, and reading the registry from inside that feature was a real
   // `check:boundaries` error until this seam replaced it. Passed as the reader FUNCTION, not a
   // pre-read array — the per-resource handlers below are registered after this line.
-  registerToolContributor(contributeContentDuplicationTools({ listResourceHandlers: listDuplicateResourceHandlers }));
-  registerToolContributor(contributeContentTypesTools());
-  registerToolContributor(contributeCustomCredentialsTools());
-  registerToolContributor(contributeDatabaseTools());
+  contributions.contributors.register({ contribution: contributeContentDuplicationTools({ listResourceHandlers: listDuplicateResourceHandlers }) });
+  contributions.contributors.register({ contribution: contributeContentTypesTools() });
+  contributions.contributors.register({ contribution: contributeCustomCredentialsTools() });
+  contributions.contributors.register({ contribution: contributeDatabaseTools() });
   // Database transfer P0 (2026-09-27): `database_transfer_plan` (read-only) and `database_transfer_run`,
   // which holds its call open for the human's Copy before copying the site's data into a Postgres
   // database's private `tovu` area. The site keeps running on SQLite.
-  registerToolContributor(contributeDatabaseTransferTools());
-  registerToolContributor(contributeDeploymentsTools());
+  contributions.contributors.register({ contribution: contributeDatabaseTransferTools() });
+  contributions.contributors.register({ contribution: contributeDeploymentsTools() });
+  contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: options.deployOpsRegistry }) });
   const domainDnsHttpClient = createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY);
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
-  registerToolContributor(contributeDomainDnsTools(routeDeps => ({
+  contributions.contributors.register({ contribution: contributeDomainDnsTools({ createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
     resolver: createPublicDnsResolver(domainDnsHttpClient, domainDnsDiagnostics),
     probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
-  })));
-  registerToolContributor(contributeEntriesTools());
-  registerToolContributor(contributeExternalMcpTools());
-  registerToolContributor(contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions }));
-  registerToolContributor(contributeFsFilesTools());
-  registerToolContributor(contributeFormsTools());
-  registerToolContributor(contributeIdentityTools());
-  registerToolContributor(contributeWebhooksTools());
-  registerToolContributor(contributeMediaTools());
-  registerToolContributor(contributeMediaViewImageTools());
-  registerToolContributor(contributeMediaGenerationTools());
-  registerToolContributor(contributeMediaImportTools());
-  registerToolContributor(contributeMembersTools());
-  registerToolContributor(contributeMenusTools());
-  registerToolContributor(contributeNewsletterTools());
-  registerToolContributor(contributePagesTools());
-  registerToolContributor(contributePluginsTools());
-  registerToolContributor(contributePostTools());
+  }) }) });
+  contributions.contributors.register({ contribution: contributeEntriesTools() });
+  contributions.contributors.register({ contribution: contributeExternalMcpTools() });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions }) });
+  contributions.contributors.register({ contribution: contributeFsFilesTools() });
+  contributions.contributors.register({ contribution: contributeFormsTools() });
+  contributions.contributors.register({ contribution: contributeIdentityTools() });
+  contributions.contributors.register({ contribution: contributeWebhooksTools() });
+  contributions.contributors.register({ contribution: contributeMediaTools() });
+  contributions.contributors.register({ contribution: contributeMediaViewImageTools() });
+  contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
+  contributions.contributors.register({ contribution: contributeMediaProviderTools() });
+  contributions.contributors.register({ contribution: contributeMediaImportTools() });
+  contributions.contributors.register({ contribution: contributeMembersTools() });
+  contributions.contributors.register({ contribution: contributeMenusTools() });
+  contributions.contributors.register({ contribution: contributeNewsletterTools() });
+  contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
+  contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributePluginsTools() });
+  contributions.contributors.register({ contribution: contributePostTools() });
+  contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
+    try { return await renderPostPreview(deps as Parameters<typeof renderPostPreview>[0], input); }
+    catch (error) {
+      if (error instanceof TemplatePreviewRenderError) throw new ToolInputError({ message: `content_post_preview: ${error.message}` });
+      throw error;
+    }
+  } }) });
   // The two publishing tools (2026-09-19; narrowed from three on 2026-09-24 — see
   // `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S4):
   // 'is publishing set up' and 'set it up'. Publishing itself now happens only through the admin
   // Publish dialog — see that feature's `tool-registrations.ts` header.
-  registerToolContributor(contributePublishContentTools());
+  // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
+  // so registered content types see the same ports through either entry point.
+  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => toPublishContentDeps(deps) }) });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
   // Idempotent: re-registering replaces by entity type.
   installFirstPartyPublishContentTypes();
-  registerToolContributor(contributeRecoveryTools());
-  registerToolContributor(contributeRedirectsTools());
-  registerToolContributor(contributeSeoTools());
-  registerToolContributor(contributeSettingsTools());
-  registerToolContributor(contributeUiLocalesTools());
+  contributions.contributors.register({ contribution: contributeRecoveryTools() });
+  contributions.contributors.register({ contribution: contributeRedirectsTools() });
+  contributions.contributors.register({ contribution: contributeSeoTools() });
+  contributions.contributors.register({ contribution: contributeSettingsTools() });
+  contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
-  registerToolContributor(contributeSiteBackupTools());
-  registerToolContributor(contributeSiteEvidenceTools());
-  registerToolContributor(contributeSiteInspectionTools());
-  registerToolContributor(contributeSitesTools());
-  registerToolContributor(contributeSourceControlTools());
-  registerToolContributor(contributeStaticPublishTools());
-  registerToolContributor(contributeTaxonomyTools());
-  registerToolContributor(contributeThemesTools());
+  contributions.contributors.register({ contribution: contributeSiteBackupTools() });
+  contributions.contributors.register({ contribution: contributeSiteEvidenceTools() });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createDefaultHttpClient(LIVE_PAGE_EGRESS_POLICY)) });
+  contributions.contributors.register({ contribution: contributeSitesTools() });
+  contributions.contributors.register({ contribution: contributeSourceControlTools() });
+  contributions.contributors.register({ contribution: contributeStaticPublishTools() });
+  contributions.contributors.register({ contribution: contributeTaxonomyTools() });
+  contributions.contributors.register({ contribution: contributeThemesTools() });
   // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
   // key would replace that domain's four file-operation tools instead of adding a fifth.
-  registerToolContributor(contributeSetActiveThemeTools());
+  contributions.contributors.register({ contribution: contributeSetActiveThemeTools() });
   // `change_sets_list`/`change_sets_revert` (F7b option A, S6, 2026-09-24) — own domain key
   // (`"change-sets"`), sharing no key with any other contributor above.
-  registerToolContributor(contributeChangeSetsTools());
+  contributions.contributors.register({ contribution: contributeChangeSetsTools() });
   // Owner Q1 (2026-10-01): permanent deletes reuse the authenticated human-confirm exchange.
-  registerToolContributor(contributePermanentDeleteTools({ buildDeps: buildPermanentDeleteDeps }));
+  contributions.contributors.register({ contribution: contributePermanentDeleteTools({ buildDeps: buildPermanentDeleteDeps }) });
   // Trash listing/restoring remains in its existing contributor.
   // (`trash_item` is not a contributor: `buildAssistantToolRegistrations` derives it afterwards from
   // the four per-domain delete tools, through the derived-contributor seam registered just below —
   // see `features/trash/trash-item-tool.ts`.)
-  registerToolContributor(contributeTrashTools());
-  registerDerivedToolContributor({ domain: "trash-item", derive: deriveTrashItemRegistrations, risk: trashItemDerivedRisk });
-  registerToolContributor(contributeWidgetsTools());
-  registerToolContributor(contributeWorkspaceTools());
+  contributions.contributors.register({ contribution: contributeTrashTools() });
+  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: deriveTrashItemRegistrations, risk: trashItemDerivedRisk } });
+  contributions.contributors.register({ contribution: contributeWidgetsTools() });
+  contributions.contributors.register({ contribution: contributeWorkspaceTools() });
 
   // `content_duplicate`'s per-resource handler registry (`assistant/duplicate-resource-registry.ts`)
   // — a SEPARATE registration from the ToolContributor calls above (see that file's own header for

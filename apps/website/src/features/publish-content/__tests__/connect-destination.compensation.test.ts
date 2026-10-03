@@ -92,7 +92,7 @@ function repoFailingOn(
 function connectDeps(repo: PublishContentPeerRepoPort, provisioning: RecordingProvisioning) {
   return {
     repo,
-    clock: { nowIso: () => "2026-09-20T12:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },
     idGen: { newId: () => "peer-1" },
     // The grant half is already written by the time the peer row is saved, so these tests inject
     // the completed handshake result rather than standing up a fake destination server.
@@ -138,7 +138,7 @@ test("a failed grant reversal during disconnect puts the peer row back", async (
 
   const deps = {
     repo: inner,
-    clock: { nowIso: () => "2026-09-20T12:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },
     idGen: { newId: () => "peer-2" },
     reverseGrant: async (): Promise<never> => {
       throw new Error("This site's publishing settings could not be saved: config file is read-only");
@@ -166,7 +166,7 @@ test("a clean disconnect removes both halves", async () => {
   const result = await disconnectAndForgetDestination(
     {
       repo: inner,
-      clock: { nowIso: () => "2026-09-20T12:00:00.000Z" },
+      clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },
       idGen: { newId: () => "peer-2" },
       reverseGrant: async () => {
         provisioning.calls.push("disconnect");

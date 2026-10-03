@@ -1,27 +1,12 @@
 import { ToolInputError } from "@jini-ai/core";
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  requireNoInput,
-  requireToolPermission,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { ADMIN_LOCALES } from "../../contracts/core/admin-locales.js";
 import type { ToolContributor } from "#src/assistant/index";
 
-/** Host-local catalog shape, matching the existing native feature-tool catalogs. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
-
-/** n05's real gap: supported admin language codes were only discoverable by shell reads. */
+/** n05's real gap: supported admin language codes were only discoverable by shell reads.
+ * Uses the canonical kernel catalog contract shared by the native feature tools. */
 export const uiLocalesAgentToolCatalog: AgentToolDefinition[] = [{
   name: "settings_list_ui_locales",
   description:
@@ -61,14 +46,19 @@ export function buildUiLocalesRegistrations(deps: UiLocalesToolDeps): ToolRegist
   return buildDomainRegistrations({
     domain: "settings-ui-locales",
     catalogModule: "features/settings/ui-locales-tool.ts",
-    catalog: indexCatalogById(uiLocalesAgentToolCatalog),
+    catalog: indexCatalogById({ catalog: uiLocalesAgentToolCatalog }),
     derivedRisk: uiLocalesDerivedRisk,
     handlers: {
       settings_list_ui_locales: async (ctx) => {
         // The shared no-input reader treats an empty array as a record; this schema accepts objects only.
-        if (Array.isArray(ctx.input)) throw new ToolInputError("this tool accepts no input — omit 'input' or pass {}");
-        requireNoInput(ctx.input);
-        await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "settings.read", entityType: "setting-value" });
+        if (Array.isArray(ctx.input)) throw new ToolInputError({ message: "this tool accepts no input — omit 'input' or pass {}" });
+        requireNoInput({ input: ctx.input });
+        await requireToolPermission({
+          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
+          workspaceId: deps.workspaceId,
+          principalId: ctx.principal.id,
+          permission: "settings.read",
+        }, { entityType: "setting-value" });
         return {
           locales: ADMIN_LOCALES.map((locale) => ({ ...locale })),
           setting: "core.language.locale",

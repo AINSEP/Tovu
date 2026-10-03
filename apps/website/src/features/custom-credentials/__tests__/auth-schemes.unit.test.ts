@@ -91,7 +91,7 @@ test("a source directory without the file contributes nothing and is not an erro
 // ---------------------------------------------------------------------------------------------
 
 test("parse: accepts a valid file and ignores unknown keys such as note", () => {
-  const parsed = parseCredentialSchemesFile(JSON.stringify({ schemaVersion: 1, schemes: [{ id: "a-b", prefix: "Pfx", scheme: "Pfx", note: "evidence" }] }));
+  const parsed = parseCredentialSchemesFile({ raw: JSON.stringify({ schemaVersion: 1, schemes: [{ id: "a-b", prefix: "Pfx", scheme: "Pfx", note: "evidence" }] }) });
   assert.deepEqual(parsed, { ok: true, rules: [{ id: "a-b", prefix: "Pfx", scheme: "Pfx" }] });
 });
 
@@ -107,7 +107,7 @@ test("parse: rejects each malformed shape with its exact reason", () => {
     [JSON.stringify({ schemaVersion: 1, schemes: [{ id: "a", prefix: "P", scheme: "Bad Scheme" }] }), "schemes[0].scheme must be an HTTP auth-scheme name"],
     [JSON.stringify({ schemaVersion: 1, schemes: [{ id: "a", prefix: "P", scheme: "P" }, { id: "a", prefix: "Q", scheme: "Q" }] }), "schemes[1].id 'a' is declared twice"],
   ];
-  for (const [raw, reason] of cases) assert.deepEqual(parseCredentialSchemesFile(raw), { ok: false, reason }, raw);
+  for (const [raw, reason] of cases) assert.deepEqual(parseCredentialSchemesFile({ raw }), { ok: false, reason }, raw);
 });
 
 // ---------------------------------------------------------------------------------------------

@@ -1,9 +1,11 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -29,6 +31,11 @@ import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aw
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import { createRedirect } from "#src/features/redirects/redirects";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool that is a fifth DOOR onto the four
  * per-domain delete tools, not a fifth PATH around them.
@@ -39,8 +46,8 @@ import { createRedirect } from "#src/features/redirects/redirects";
  * by hand would pass just as well with `trash_item` missing from the product.
  */
 
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-20T12:00:00.000Z";
@@ -61,7 +68,7 @@ function harness(grants: Grants) {
     },
   } as RouteDeps;
   const surfaceExchanges = createSurfaceExchangeStore();
-  const registrations = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges });
+  const registrations = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges }, { contributions });
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
 }
 
@@ -144,7 +151,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     registry,
     trash,
     db: trashDb,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
   } as unknown as TrashItemToolDeps;
 
   return {
@@ -416,7 +423,7 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   let postAdapterRegistered = true;
   const probed = { ...routeDeps, isTrashableEntityType: (entityType: string) => entityType !== "post" || postAdapterRegistered };
   const surfaceExchanges = createSurfaceExchangeStore();
-  const trashItem = tool(buildAssistantToolRegistrations(probed as RouteDeps, { surfaceExchanges }), TRASH_ITEM_TOOL_ID);
+  const trashItem = tool(buildAssistantToolRegistrations(probed as RouteDeps, { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
   void registrations;
 
   postAdapterRegistered = false;
@@ -572,7 +579,7 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
       },
     },
   } as RouteDeps;
-  const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges }), TRASH_ITEM_TOOL_ID);
+  const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
 
   for (const input of [{}, { entityType: "post", entityId: "missing-post" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
     try {

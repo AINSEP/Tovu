@@ -1,4 +1,5 @@
-import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -276,7 +277,7 @@ export async function createSourceControlCredential(
   const connection = validateConnection(input.connection);
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const id = deps.idGen.newId();
-  const now = deps.clock.nowIso();
+  const now = clockNowIso({ clock: deps.clock });
 
   const existingForProvider = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: connection.providerId });
   const isDefault = decideCreateDefault(existingForProvider, requestedDefault);
@@ -343,7 +344,7 @@ export async function updateSourceControlCredential(
 
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const now: ISODateTime = deps.clock.nowIso();
+  const now: ISODateTime = clockNowIso({ clock: deps.clock });
 
   let providerId = existing.providerId;
   let sealed = existing.sealed;

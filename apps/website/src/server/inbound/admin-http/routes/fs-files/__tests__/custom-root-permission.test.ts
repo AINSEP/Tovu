@@ -1,3 +1,4 @@
+import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,21 +7,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import {
-  InMemoryPolicyPermissionRepo,
-  InMemoryPolicyRepo,
-  InMemoryPrincipalPolicyRepo,
-  InMemoryPrincipalRepo,
-  InMemoryPrincipalRoleRepo,
-  InMemoryRolePolicyRepo,
-  InMemoryRoleRepo,
-  InMemorySessionRepo,
-  InMemoryUserRepo,
-  authorize,
-  migrateDeprecatedPermissionGrants,
-  seedIdentity,
-  type IdentityRepos,
-} from "@jini-ai/cms/identity";
+import { type IdentityRepos } from "@jini-ai/user-management";
+import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -65,7 +53,7 @@ const PRINCIPAL_HEADER = "x-test-principal";
  */
 const ABSENT_IN_SHIPPING_WORKSPACE = ["theme.edit", "workspace.manage", "admin.assistant.manage"];
 
-const clock = { nowIso: () => "2026-09-15T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-15T00:00:00.000Z", nowMs: () => Date.parse("2026-09-15T00:00:00.000Z") };
 
 function counterIdGen(prefix: string) {
   let n = 0;
@@ -75,8 +63,8 @@ function counterIdGen(prefix: string) {
 /** argon2id is ~100ms per hash and this file never verifies a password — the seed only needs SOME
  *  hasher to satisfy the port (same shortcut `pages/__tests__/edit-html-permission.test.ts` takes). */
 const fakeHasher = {
-  hash: async (password: string) => `hashed:${password}`,
-  verify: async (hash: string, password: string) => hash === `hashed:${password}`,
+  hash: async ({ password }: { password: string }) => `hashed:${password}`,
+  verify: async ({ hash, password }: { hash: string; password: string }) => hash === `hashed:${password}`,
 };
 
 type RoleName = "owner" | "admin" | "editor" | "viewer";
@@ -94,17 +82,17 @@ interface Chain {
  * @complexity O(r) in the built-in role count — four roles, one seed.
  */
 async function buildChain(): Promise<Chain> {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+  const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
+    principals: new InMemoryPrincipalRepo({}),
+    users: new InMemoryUserRepo({}),
+    sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({}),
+    policies: new InMemoryPolicyRepo({}),
+    policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    rolePolicies: new InMemoryRolePolicyRepo({}),
+    principalRoles: new InMemoryPrincipalRoleRepo({}),
+    principalPolicies: new InMemoryPrincipalPolicyRepo({}),
+  } });
 
   await seedIdentity({
     deps: { repos, hasher: fakeHasher, clock, idGen: counterIdGen("seed") },
@@ -113,7 +101,7 @@ async function buildChain(): Promise<Chain> {
 
   await rewindAdminToShippingVintage(repos);
 
-  await migrateDeprecatedPermissionGrants({
+  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),

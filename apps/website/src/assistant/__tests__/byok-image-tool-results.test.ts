@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,9 +7,14 @@ import type { ToolDescriptor } from "@jini-ai/core";
 
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { runByokProviderTurn, type ByokProtocol, type ByokToolResult } from "../byok-provider-turn.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file BYOK half of "a tool can show the model an image" (`media_view_image`).
@@ -20,8 +27,8 @@ import { startStubProviderServer } from "../../server/__tests__/helpers/stub-pro
  * hands them one, by reading what actually goes out on the wire to a loopback stub provider.
  */
 
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 /** A real 1x1 PNG. */
 const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
@@ -35,7 +42,7 @@ const IMAGE_RESULT: ByokToolResult = {
 function fakeRouteDeps(): ByokToolSurfaceDeps {
   return {
     workspaceId: "ws-byok-image",
-    clock: { nowIso: () => "2026-10-01T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-10-01T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     outbox: { enqueue: async () => {} },
@@ -43,7 +50,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 }
 
 test("SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
+  const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
     id: "call-1",
     name: "execute_delegated_tool",
@@ -60,7 +67,7 @@ test("SURFACE: execute_delegated_tool returns an image-bearing tool output as co
 });
 
 test("SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
+  const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
     id: "call-2",
     name: "search_tools",

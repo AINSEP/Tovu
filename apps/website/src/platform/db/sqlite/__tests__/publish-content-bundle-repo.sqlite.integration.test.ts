@@ -41,7 +41,7 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
     };
     await stageBundle(input, {
       repo,
-      clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
+      clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
       idGen: { newId: () => "bundle-sweep-old" },
       ttlMs: 1_000,
     });
@@ -49,7 +49,7 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
 
     await stageBundle(input, {
       repo,
-      clock: { nowIso: () => "2026-09-18T00:00:01.000Z" },
+      clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.000Z") },
       idGen: { newId: () => "bundle-sweep-boundary" },
     });
     assert.ok(
@@ -59,7 +59,7 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
 
     await stageBundle(input, {
       repo,
-      clock: { nowIso: () => "2026-09-18T00:00:01.001Z" },
+      clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.001Z") },
       idGen: { newId: () => "bundle-sweep-new" },
     });
 

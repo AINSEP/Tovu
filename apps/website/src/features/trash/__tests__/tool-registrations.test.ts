@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
-import type { UserRepoPort, UserRecord } from "@jini-ai/cms/identity";
+import type { UserRepoPort, UserRecord } from "@jini-ai/user-management";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 
@@ -126,7 +126,7 @@ function harness(
 
   const registrations = buildTrashRegistrations({
     workspaceId: WS,
-    clock: { nowIso: () => NOW },
+    clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) },
     trash,
     userRepo: {
       ...fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),

@@ -21,7 +21,7 @@
  */
 import { createHash } from "node:crypto";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
 import type { FederatedConnectionOrigin, RemoteToolDescriptor } from "./mcp-federation/ports.js";
 

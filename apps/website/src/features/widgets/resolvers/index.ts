@@ -18,7 +18,7 @@
  * shared try/catch + timeout boundary so a resolver failure never propagates past REQ-27/INV-05.
  * Verified against `__tests__/integration/resolver-service.integration.test.ts`.
  */
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { findWidgetTypeRegistration } from "../registry.js";
 import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers.js";
 import type {

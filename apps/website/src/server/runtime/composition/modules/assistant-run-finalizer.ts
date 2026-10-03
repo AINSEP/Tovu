@@ -248,7 +248,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     watch({ principalId, conversationId, message }) {
       const runId = message.runId;
       if (message.role !== "assistant" || !runId || !isDaemonRunId(runId)) return;
-      if (message.runStatus === undefined || isTerminalRunStatus(message.runStatus)) return;
+      if (message.runStatus === undefined || isTerminalRunStatus({ status: message.runStatus })) return;
       if (active.has(runId)) return;
 
       const watch: Watch = {

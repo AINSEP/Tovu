@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,7 +8,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
-import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import {
   listDuplicateResourceHandlers,
@@ -26,14 +28,21 @@ import { createRouteDeps } from "../app.js";
 import { createAssistantByokModule } from "../modules/assistant-byok.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 /**
  * @file Architecture pass P1 (2026-09-24, `ADS-memory/.local-artifacts/architecture-pass-2026-09-24.md`
  * C1/C8): several process roots — `createApp` (via `createAssistantByokModule`, which it builds
  * directly, see `app.ts:1724`), the in-process BYOK host (`modules/assistant-byok.ts`), and the
  * spawned agent daemon (`agent-daemon-server.ts`) — each build their own tool registry and
- * publish-content type registry from the SAME module-level registration singletons
+ * publish-content type registry through the SAME registrar manifest and host seams
  * (`assistant/tool-contribution-registry.ts`, `assistant/duplicate-resource-registry.ts`,
- * `features/publish-content/type-registry.ts`), which start empty every process boot. Nothing
+ * `features/publish-content/type-registry.ts`), which start empty every process boot. Normal and
+ * derived tool contributions now use explicit core instances; the other two host seams retain
+ * their existing lifecycle. Nothing
  * asserted the three roots end up with the same registries — that gap is exactly what shipped
  * f0cfd0c67 (the daemon never registered publish-content types, so the assistant said "nothing to
  * publish" on a site with 33 pages and 6 posts; regression-pinned separately in
@@ -171,11 +180,11 @@ function currentDuplicateResources(): readonly string[] {
 /** (a) The shared base every real root calls before building its own registry — see
  *  `tool-catalog-manifest.ts`'s own header, "Real callers". */
 function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
-  installFirstPartyToolContributors();
-  const ids = new Set(buildAssistantToolRegistrations(routeDeps).map((r) => r.descriptor.id));
+  installFirstPartyToolContributors({ contributions });
+  const ids = new Set(buildAssistantToolRegistrations(routeDeps, undefined, { contributions }).map((r) => r.descriptor.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
@@ -185,12 +194,12 @@ function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
  *  (S1's fix) has already been applied — the same wait `modules/assistant-byok.ts`'s real turn route
  *  performs once per boot; see `ByokToolSurface.ready`'s own doc. */
 async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
   await byok.toolSurface.ready;
-  const ids = new Set(byok.toolSurface.registry.list().map((d) => d.id));
+  const ids = new Set(byok.toolSurface.registry.list({}).map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
@@ -211,12 +220,12 @@ async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapsh
  *  — no fixture needed, and no plugin-runtime plugin is enabled by default, so it contributes zero
  *  ids today; exercised anyway so a future enabled capability plugin is covered by this same replay. */
 async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
-  installFirstPartyToolContributors();
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  installFirstPartyToolContributors({ contributions });
+  const registry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
 
   const extensions = attachAssistantToolExtensions(
     registry,
@@ -238,7 +247,7 @@ async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnap
   );
   await extensions.installed;
 
-  const ids = new Set(registry.list().map((d) => d.id));
+  const ids = new Set(registry.list({}).map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
@@ -299,7 +308,7 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
 
   await withEmptyAgentPluginsDir(() =>
     withOneInstalledSkill(routeDeps.workspaceId, async () => {
-      resetToolContributorsForTests();
+      contributions.contributors.clear({});
       resetPublishContentContributorsForTests();
       resetDuplicateResourceHandlersForTests();
       const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
@@ -325,7 +334,7 @@ test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazi
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
-  resetToolContributorsForTests();
+  contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   const { toolSurface } = createAssistantByokModule(routeDeps);
@@ -340,4 +349,66 @@ test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazi
   // turn actually calls `awaitFederation`. An eager `start()` here (the daemon's own timing, wrongly
   // copied onto BYOK) would flip this to `true` before this assertion ever runs.
   assert.equal(toolSurface.federation?.started, false, "federation must not be started at construction — BYOK starts it lazily on the first turn, not at boot");
+});
+
+// REGRESSION: fails if permissionMode is moved back into agentExecutor.run's first argument.
+test("daemon dev mode passes bypass in the executor's options bag", async () => {
+  const { default: ts } = await import("typescript");
+  const { daemonSource, evaluateDaemonExpression } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
+  let runCall: import("typescript").CallExpression | undefined;
+  let permissionFunction: import("typescript").FunctionDeclaration | undefined;
+  function visit(node: import("typescript").Node): void {
+    if (ts.isCallExpression(node) && node.expression.getText(daemonSource) === "agentExecutor.run") runCall = node;
+    if (ts.isFunctionDeclaration(node) && node.name?.text === "resolvePermissionMode") permissionFunction = node;
+    ts.forEachChild(node, visit);
+  }
+  visit(daemonSource);
+  assert.ok(runCall);
+  assert.ok(permissionFunction?.body);
+  const env = {};
+  const resolvePermissionMode = new Function("process", "resolveRuntimeMode", permissionFunction.body.getText(daemonSource));
+  const mode = resolvePermissionMode({ env }, () => "development");
+  assert.equal(mode, "bypass");
+  const captured = evaluateDaemonExpression<Promise<{ required: Record<string, unknown>; optional: Record<string, unknown> }>>(runCall, {
+    agentExecutor: { run: async (required: Record<string, unknown>, optional: Record<string, unknown> = {}) => ({ required, optional }) },
+    run: { id: "run-dev" }, sessionBinding: { agentId: "claude", sessionFields: {} },
+    prompt: "Review a page", process: { env, cwd: () => "/tmp/dev-run" },
+    resolvePermissionMode: () => mode,
+    ASSISTANT_DISALLOWED_TOOLS: ["Bash"], ASSISTANT_SETTING_SOURCES: [],
+    resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
+    model: undefined, reasoning: undefined, attachmentRunFields: {},
+  });
+  const { required, optional } = await captured;
+  assert.equal(Object.hasOwn(required, "permissionMode"), false);
+  assert.equal(optional.permissionMode, "bypass");
+  assert.deepEqual(optional.disallowedTools, ["Bash"]);
+  assert.deepEqual(required, { runId: "run-dev", agentId: "claude", prompt: "Review a page", cwd: "/tmp/dev-run" });
+});
+
+
+// REGRESSION: fails if exitDaemon removes the pointer before registryPublication settles.
+test("daemon shutdown waits for publication even when durability fails after rename", async () => {
+  const { default: ts } = await import("typescript");
+  const { daemonSource } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
+  const declaration = daemonSource.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === "exitDaemon");
+  assert.ok(declaration && ts.isFunctionDeclaration(declaration));
+  const code = ts.transpileModule(declaration.getText(daemonSource), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText;
+  let rejectPublication!: (error: Error) => void;
+  const publication = new Promise<void>((_resolve, reject) => { rejectPublication = reject; });
+  const calls: string[] = [];
+  const exit = new Function("registryPublication", "daemonRegistry", "process", "console",
+    `let daemonExiting = false; ${code}; return exitDaemon;`)(
+      publication,
+      { removeIfCurrent: async ({ pid }: { pid: number }) => { calls.push(`remove:${pid}`); } },
+      { pid: 123, exit: (code: number) => { calls.push(`exit:${code}`); } },
+      { error: () => undefined },
+    );
+  const first = exit(143);
+  await exit(130);
+  assert.deepEqual(calls, [], "cleanup must wait; a second signal must not duplicate removal");
+  rejectPublication(new Error("directory fsync failed after rename"));
+  await first;
+  assert.deepEqual(calls, ["remove:123", "exit:143"]);
 });

@@ -3,7 +3,7 @@ import test from "node:test";
 import Ajv from "ajv";
 
 import type { SurfaceEmitter } from "@jini-ai/core";
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolRegistration } from "@jini-ai/core";
 
 import { ASK_CHOICE_ANSWER_TICKET_PARAM, ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
 import {

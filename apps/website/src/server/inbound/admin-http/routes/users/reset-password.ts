@@ -1,12 +1,7 @@
 import type { Response } from "express";
 
-import {
-  IdentityForbiddenError,
-  IdentityNotFoundError,
-  IdentityValidationError,
-  OwnerRequiredError,
-  resetUserPassword,
-} from "@jini-ai/cms/identity";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
+import { resetUserPassword } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";

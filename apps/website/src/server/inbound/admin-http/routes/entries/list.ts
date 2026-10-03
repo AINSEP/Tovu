@@ -28,7 +28,7 @@ export function registerAdminEntryListRoute(app: Express, deps: ContentTypesRout
       }
 
       const type = typeof req.query.type === "string" ? req.query.type : undefined;
-      const result = await listEntries({ repo: deps.entryRepo, workspaceId: deps.workspaceId, type });
+      const result = await listEntries({ repo: deps.entryRepo, workspaceId: deps.workspaceId }, { type });
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "internal error";

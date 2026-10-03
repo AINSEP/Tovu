@@ -1,9 +1,16 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file The BYOK composition root's half of `site_describe_capabilities`' registry wiring. Run through
@@ -15,8 +22,8 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 
 // `createByokToolSurface` is called directly (not through `createAssistantByokModule`, which installs
 // first-party contributors itself), so this file must install them — see `byok-tool-surface.test.ts`.
-resetToolContributorsForTests();
-installFirstPartyToolContributors();
+contributions.contributors.clear({});
+installFirstPartyToolContributors({ contributions });
 
 const PRINCIPAL = { id: "principal-site-capabilities" };
 const RUN = { id: "run-site-capabilities" };
@@ -25,7 +32,7 @@ const RUN = { id: "run-site-capabilities" };
 function fakeRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: "ws-site-capabilities",
-    clock: { nowIso: () => "2026-09-15T00:00:00.000Z" },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-15T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {
@@ -62,7 +69,7 @@ async function describeCapabilitiesTools(surface: ReturnType<typeof createByokTo
 }
 
 test("BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps());
+  const surface = createByokToolSurface(fakeRouteDeps(), { contributions });
   const tools = await describeCapabilitiesTools(surface);
 
   assert.equal(tools.status, "ok", `tools section was ${tools.status}/${tools.reason ?? ""} — the surface did not wire its registry reader`);
@@ -81,7 +88,7 @@ test("BYOK: site_describe_capabilities lists every tool this surface's describe_
 
 test("BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader", async () => {
   const deps = { ...fakeRouteDeps(), listCatalogTools: () => [] } as unknown as ByokToolSurfaceDeps;
-  const surface = createByokToolSurface(deps);
+  const surface = createByokToolSurface(deps, { contributions });
   const tools = await describeCapabilitiesTools(surface);
 
   assert.equal(tools.status, "ok");

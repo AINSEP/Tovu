@@ -5,7 +5,8 @@ import type { DatabaseDestinationRecord, DatabaseDestinationRepoPort } from "./d
 /**
  * @file {@link DatabaseDestinationRepoPort} on the content kernel, one query body for every dialect:
  * one row per workspace in `database_transfer_destinations`. It moves the sealed quad as opaque
- * text and never opens it. `last_run_json` is JSON text on both dialects (`kernel/drivers/pg-types.ts`).
+ * text and never opens it. `last_run_json` is JSON text on both dialects (`@jini-ai/db/core`).
+ * pg-types.ts (platform/db/kernel/drivers/pg-types.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 type Row = {

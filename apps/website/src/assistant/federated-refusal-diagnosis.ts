@@ -181,7 +181,7 @@ function diagnoseStillConnectingOrFailed(toolId: string, status: FederationBootS
   // doc, but redacted anyway for the same defense-in-depth reason the refusal branch below redacts
   // an operator-authored/fixed-prose string that "never matches a redaction rule" today — a
   // guarantee this file has no way to keep verifying stays true upstream.
-  return failedResult(redactSecretShapes(`External MCP server '${connectionId}' failed to connect: ${failure.reason}`).text);
+  return failedResult(redactSecretShapes({ text: `External MCP server '${connectionId}' failed to connect: ${failure.reason}` }).text);
 }
 
 /** One `status: 'failed'`, `errorKind: 'validation'` result — the shape both diagnosis branches
@@ -233,15 +233,11 @@ export function withFederatedRefusalDiagnosis(
 ): ToolExecutor {
   return {
     execute: async (
-      principal: Principal,
-      run: RunRef,
-      toolId: string,
-      input: unknown,
-      signal?: AbortSignal,
-      emitSurface?: SurfaceEmitter,
+      { principal, run, toolId, input }: { principal: Principal; run: RunRef; toolId: string; input: unknown },
+      { signal, emitSurface }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter } = {},
     ): Promise<ToolExecutionResult> => {
       try {
-        return await inner.execute(principal, run, toolId, input, signal, emitSurface);
+        return await inner.execute({ principal, run, toolId, input }, { signal, emitSurface });
       } catch (error) {
         if (!isUnknownToolError(error) || !toolId.startsWith(FEDERATED_TOOL_ID_PREFIX)) throw error;
         const refusal = findFederatedToolRefusal(toolId, getSnapshot());
@@ -263,13 +259,13 @@ export function withFederatedRefusalDiagnosis(
           // secret shapes, so a remote naming a tool e.g. `sk-ant-api03-...` would otherwise leak it
           // verbatim. `connectionId` and `explanation` are operator-authored / fixed prose and never
           // match a redaction rule, so this is a no-op for them.
-          error: redactSecretShapes(
-            `tool "${refusal.remoteName}" on external server "${refusal.connectionId}" was refused: ${refusal.explanation}`,
-          ).text,
+          error: redactSecretShapes({
+            text: `tool "${refusal.remoteName}" on external server "${refusal.connectionId}" was refused: ${refusal.explanation}`,
+          }).text,
         };
       }
     },
-    resumeConfirmation: (executionId, decision) => inner.resumeConfirmation(executionId, decision),
+    resumeConfirmation: (args) => inner.resumeConfirmation(args),
     cancel: (executionId) => inner.cancel(executionId),
     getAuditRecord: (executionId) => inner.getAuditRecord(executionId),
   };

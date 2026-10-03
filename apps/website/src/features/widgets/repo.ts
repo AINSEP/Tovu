@@ -2,7 +2,7 @@ import type { Selectable } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { WidgetRegionBindingsTable } from "../../platform/db/content-database.generated.js";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import type { WidgetRegionBindingRepoPort } from "./ports.js";
 import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types.js";
 

@@ -1,3 +1,6 @@
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Covers the 7 Comments tools: catalog completeness, published contracts, risk
  * cross-check, the ADR-021 authorization half (explicit-handler style — see
@@ -19,22 +22,28 @@ import {
   ForbiddenError as SettingsForbiddenError,
   InMemorySettingsRepo,
 } from "../../features/settings/index.js";
-import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../features/comments/agent-tools.js";
+import { type AgentToolDefinition } from "@jini-ai/core";
+import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import { InMemoryCommentRepo } from "../../features/comments/repo.memory.js";
 import { createCommentHookRegistry } from "../../features/comments/hooks.js";
 import { createCommentWriteService } from "../../features/comments/write-service.js";
 import { ensureCommentsSettingDefinitions } from "../../features/comments/settings.js";
 import type { CommentRecord } from "../../features/comments/types.js";
-import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
 import { commentTrashDoubles } from "../../features/comments/__tests__/comment-trash-doubles.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 // Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
@@ -42,8 +51,8 @@ import { commentTrashDoubles } from "../../features/comments/__tests__/comment-t
 // it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
 // `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
 // own registration is the only one this process's registry holds while these tests run.
-resetToolContributorsForTests();
-registerToolContributor(contributeCommentsTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeCommentsTools() });
 
 const WORKSPACE_ID = "ws-comments-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -59,14 +68,14 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const commentRepo = new InMemoryCommentRepo();
   const settingsRepo = new InMemorySettingsRepo();
-  const principalRepo = new InMemoryPrincipalRepo();
-  const clock = { nowIso: () => NOW };
+  const principalRepo = new InMemoryPrincipalRepo({});
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   const idGen = counterIdGen();
 
   // The real ledger write chokepoint requires a registered definition before `set()` can write a
   // value — mirrors what boot-time `commentsSettingsReady` does in the real server.
   await ensureCommentsSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: principalRepo },
+    { settingsRepo, clock, ids: idGen, principals: createSettingsPrincipalLookup({ repo: principalRepo }) },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: SYSTEM_PRINCIPAL_ID },
   );
 
@@ -113,7 +122,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function commentsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("comments_") || r.descriptor.id === "content_read.comment_moderation_queue")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -214,13 +223,13 @@ test("the real Comments catalog and tool-registrations' independent risk classif
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.comment_moderation_queue") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a Comments catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("comments_approve_comment", { ...catalogEntry("comments_approve_comment"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("comments_approve_comment", { ...catalogEntry("comments_approve_comment"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

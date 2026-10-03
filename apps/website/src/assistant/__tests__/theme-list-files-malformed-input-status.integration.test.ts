@@ -10,7 +10,7 @@ import express from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/daemon/http";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
@@ -47,10 +47,10 @@ async function buildDelegatedToolDeps() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
 
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildThemesRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) };
@@ -123,7 +123,7 @@ test("the mounted HTTP adapter serializes malformed, missing and unknown theme i
     const { run, ...deps } = await buildDelegatedToolDeps();
     const app = express();
     app.use(express.json());
-    registerDelegatedToolRoutes(app, deps, { resolvedPortRef: { current: 7456 }, env: {} });
+    registerDelegatedToolRoutes({ app, deps: deps, adapter: { resolvedPortRef: { current: 7456 }, env: {} } });
 
     // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
     // stream: no listening socket, and no stub of the adapter's status or JSON writers.

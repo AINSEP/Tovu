@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
@@ -12,12 +14,18 @@ import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
-import { externalMcpAgentToolCatalog, type AgentToolDefinition as ExternalMcpAgentToolDefinition, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
+import { type AgentToolDefinition as ExternalMcpAgentToolDefinition } from "@jini-ai/core";
+import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
 import { buildExternalMcpRegistrations } from "../../features/external-mcp/tool-registrations.js";
 import type { ExternalMcpToolDeps } from "../../features/external-mcp/deps.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests, registerToolContributor } from "../tool-contribution-registry.js";
+
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file The External MCP wiring test — the RED/GREEN proof for
@@ -35,8 +43,8 @@ import { contributeExternalMcpTools } from "../../features/external-mcp/tool-reg
  * pattern for that half).
  */
 
-resetToolContributorsForTests();
-registerToolContributor(contributeExternalMcpTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeExternalMcpTools() });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -55,7 +63,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     externalMcpServerRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -74,7 +82,7 @@ function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRe
  *  directly — proving the wiring end to end, not just that the builder itself works. */
 function assembledExternalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps as never)
+    buildAssistantToolRegistrations(deps as never, undefined, { contributions })
       // `content_read.external_mcp` (2026-09-08, assistant/content-read-tool.ts) is what
       // `external_mcp_list` becomes on the way through the REAL assembly path — the collapse
       // rewrites the final wired list only, which is exactly the difference this function exists to
@@ -187,7 +195,7 @@ test("every wired external-mcp registration publishes its catalog entry's inputS
 test("the independent risk classification agrees with the catalog for all five tools", () => {
   const { deps } = fakeDeps();
   for (const id of externalMcpRegistrations(deps).keys()) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 

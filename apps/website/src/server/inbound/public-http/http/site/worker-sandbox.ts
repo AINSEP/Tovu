@@ -1,111 +1,49 @@
+/**
+ * ADR-020: Tovu theme budgets and worker paths over @jini-ai/sandbox/node-worker.
+ * A main-thread Promise.race cannot interrupt synchronous template work. A fresh Node
+ * worker gives the parent a termination boundary and V8 heap limits without a native
+ * sandbox dependency or vm2's known escape problems. Engine workers own template semantics;
+ * the package owns result settlement, timeout cancellation and best-effort worker cleanup.
+ */
 import { createRequire } from "node:module";
 import path from "node:path";
-import { Worker, type ResourceLimits } from "node:worker_threads";
-
+import type { ResourceLimits } from "node:worker_threads";
+import {
+  createNodeWorkerFactory,
+  createNodeWorkerScheduler,
+  renderInWorkerSandbox as renderWithWorker,
+  resolveDefaultTimeoutMs as resolveWorkerTimeout,
+} from "@jini-ai/sandbox/node-worker";
 import type { SiteRenderContext } from "./render.js";
 
-// ESM has no ambient `require`; this file's own worker-bootstrap string (below)
-// still needs `require.resolve` to locate `tsx/cjs/api` as a filesystem path
-// (not the `file://` URL `import.meta.resolve` would return), so a local
-// `require` is synthesized the standard Node way.
-const require = createRequire(import.meta.url);
+export type { SandboxRenderResult } from "@jini-ai/sandbox/node-worker";
 
-/**
- * @file ADR-020 Tier-2 guardrail: shared render-isolation machinery for the "templated" (LiquidJS)
- * and Handlebars logic tiers.
- *
- * Purpose:
- * Spawns a fresh `worker_threads` `Worker` per render, bounded by a CPU wall-clock timeout and V8
- * heap `resourceLimits`, so an adversarial "templated" or Handlebars theme (e.g. an unbounded loop,
- * or a template that builds an enormous string) cannot hang or OOM the main server process. A
- * `Promise.race` around a synchronous render call would not help here — synchronous CPU-bound work
- * on the main thread can't be pre-empted by a timer running on that same thread. Running the render
- * on a *separate* thread is what makes `worker.terminate()` able to actually stop it.
- * `worker_threads` is used instead of `isolated-vm`/`vm2`: it ships with Node (no new native
- * dependency), and `vm2` carries known sandbox-escape CVEs while `isolated-vm` needs native
- * compilation.
- *
- * Extracted from `liquid-sandbox.ts` and `handlebars-sandbox.ts` (2026-08-20): both engines needed
- * this identical spawn-per-render / timeout / resourceLimits machinery, and carrying it as two
- * independently-maintained copies had already drifted once — the `resolveDefaultTimeoutMs` doc
- * comment below used to be duplicated verbatim in both files, and the copy inside `liquid-sandbox.ts`
- * cited `render-handlebars.test.ts` (the wrong engine's test file) for its incident writeup. One
- * shared copy is what makes that class of error structurally impossible going forward — see
- * `ADS-memory/reports/architecture/2026-08-20-worker-sandbox-extraction-proposal.md`.
- *
- * `liquid-sandbox.ts` and `handlebars-sandbox.ts` each keep their own `@file` header (per-engine
- * threat model), their own input/result type names (so `liquid-worker.ts`/`handlebars-worker.ts`
- * need no import changes), and their own one-line `render*InSandbox` wrapper naming their worker
- * file and engine label — this module owns only the mechanical part neither engine's semantics
- * actually depend on.
- */
-
-/** The plain, structured-cloneable `workerData` shape both engine workers accept. Each engine's own
- * `*WorkerInput` type `extends` this with whatever it needs beyond `source`/`ctx` (e.g. Liquid's
- * `skipLiquidAllowlist`, which Handlebars has no equivalent of). */
+/** Plain structured-cloneable payload shared by the Liquid and Handlebars workers. */
 export interface SandboxRenderInput {
   source: string;
   ctx: SiteRenderContext;
 }
 
-/** The worker's reply, via `postMessage` — identical shape for both engines. */
-export type SandboxRenderResult = { ok: true; html: string } | { ok: false; error: string };
-
 export interface SandboxOptions {
-  /** Wall-clock budget for one render before the worker is force-terminated. */
   timeoutMs?: number;
-  /** V8 heap caps for the worker thread. */
   resourceLimits?: ResourceLimits;
 }
 
-const DEFAULT_RENDER_TIMEOUT_MS = 5000;
-const MAX_RENDER_TIMEOUT_MS = 300_000;
-
+// Use require.resolve for the TS registration module: the worker bootstrap needs a
+// filesystem path, whereas import.meta.resolve yields a file URL.
+const require = createRequire(import.meta.url);
 /**
- * Wall-clock budget for one sandboxed render before the worker is force-terminated. Shared by both
- * the Liquid and Handlebars tiers — `liquid-sandbox.ts` and `handlebars-sandbox.ts` both
- * `export { resolveDefaultTimeoutMs } from "./worker-sandbox.js"` rather than each defining their
- * own; `sandbox-timeout-resolution.test.ts` asserts that stays true.
- *
- * 5s is the product default and stays the product default: a real visitor must never wait longer
- * than that for a runaway theme template, and this guard is what stops one from wedging a request.
- * It is deliberately NOT scaled by machine load for that reason — a busy server is exactly when a
- * visitor least wants a 30s wait.
- *
- * `TOVU_THEME_RENDER_TIMEOUT_MS` exists for the two cases where 5s is the wrong number and the
- * alternative is worse:
- *   - an operator on a slow/oversubscribed VPS whose legitimate themes genuinely need longer;
- *   - test runs, where a saturated CI box made this fire spuriously. On 2026-08-19 a 7-agent run
- *     drove an 8-core machine to load average 135 and `render-handlebars.test.ts` failed with
- *     "Handlebars render exceeded 5000ms timeout" on a template that renders in ~50ms idle; the
- *     same file passed 9/9 alone. Raising the DEFAULT would have weakened a real production guard
- *     to fix a test-environment problem; an explicit opt-in does not. (This resolver is shared by
- *     both engines — the same CI-saturation phenomenon could equally have hit
- *     `liquid-sandbox.test.ts`'s own timeout case; `render-handlebars.test.ts` is simply the one
- *     that actually did.)
- *
- * Callers that pass `options.timeoutMs` are unaffected either way — the sandbox tests pin their own
- * budgets (500ms to prove termination, 15000ms for the memory-blowup case) precisely so they never
- * depend on this default.
+ * A visitor must not wait beyond 5s for a runaway theme; load-scaled defaults would
+ * weaken that guard exactly when the server is busiest. TOVU_THEME_RENDER_TIMEOUT_MS is
+ * an explicit opt-in for slow VPS hosts and saturated CI, not a higher shared default.
+ * The original CI incident ran seven agents on eight cores at load 135: a roughly 50ms
+ * idle template falsely exceeded 5000ms, yet its test file passed alone. Explicit test
+ * budgets (500ms termination, 15000ms memory failure) avoid depending on this default.
  */
-export function resolveDefaultTimeoutMs(): number {
-  const raw = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
-  if (!raw) return DEFAULT_RENDER_TIMEOUT_MS;
-  // STRICT digits-only, deliberately not `Number.parseInt`: parseInt stops at the first non-digit and
-  // silently accepts a malformed prefix, which is worse than rejecting it. Measured 2026-08-19 during
-  // an adversarial audit of this very function: `"5e3"` -> 5 (a 5 MILLISECOND budget, so every render
-  // on the site fails) and `"1e10"` -> 1; `"60000ms"` -> 60000, quietly bypassing the fallback the
-  // comment claimed to provide. A typo in an operator's env var must degrade to the safe default, not
-  // to a value that looks deliberate.
-  if (!/^\d+$/.test(raw.trim())) return DEFAULT_RENDER_TIMEOUT_MS;
-  const parsed = Number(raw.trim());
-  // Upper bound as well as lower: this guard exists to stop a runaway template wedging a request, so
-  // an absurd budget defeats its purpose as surely as a zero one. 5 minutes is far past any legitimate
-  // slow-VPS render and still finite.
-  if (!Number.isSafeInteger(parsed) || parsed <= 0 || parsed > MAX_RENDER_TIMEOUT_MS) return DEFAULT_RENDER_TIMEOUT_MS;
-  return parsed;
-}
-
+const DEFAULT_RENDER_TIMEOUT_MS = 5_000;
+// Five minutes exceeds legitimate slow-VPS rendering but stays finite; an absurd timeout
+// defeats the runaway-theme guard as surely as a zero one.
+const MAX_RENDER_TIMEOUT_MS = 300_000;
 const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
   maxOldGenerationSizeMb: 64,
   maxYoungGenerationSizeMb: 16,
@@ -113,143 +51,52 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
 };
 
 /**
- * Construct the isolated `Worker` for one render, matching whichever runtime is currently active.
- *
- * Under a `tsc` build (`npm run build` → `node dist/...`) `import.meta.filename` ends in `.js`; the
- * compiled worker file sibling is a plain file `Worker` needs no special handling.
- *
- * Under `tsx` (dev / `npm test`) `import.meta.filename` ends in `.ts`. Passing the `.ts` sibling as
- * the `Worker`'s *entry* file with `execArgv: ["--import", "tsx"]` looks like the documented tsx
- * pattern, but does not work here: verified empirically that Node's ESM loader routes a
- * CommonJS-typed `.ts` *entry point* through its `loadCJSModule` translator, which does not run
- * registered `--import` hooks against that first file — the sibling fails to parse with "Cannot use
- * import statement outside a module" even though `execArgv`/`process.execArgv` show the flag
- * present. The fix (also verified empirically) is to give the worker an inline bootstrap script via
- * `eval: true` that first calls `tsx/cjs/api`'s `register()` — the same programmatic hook `tsx`'s CLI
- * registers, but invoked as an ordinary `require()` inside the worker's own CommonJS entry — and only
- * then `require()`s the real `.ts` worker file by absolute path. That `require()` is a normal,
- * already-registered-hook require, which is the path every other cross-file `.ts` import in this
- * codebase already goes through successfully under `--import tsx`.
+ * Resolve Tovu's live timeout configuration without freezing the environment at module load.
+ * @returns A positive render budget, falling back to 5s for invalid values or values above 5min.
+ * @complexity O(n) for n characters in the configured value.
  */
-function spawnSandboxWorker(workerBasename: string, workerData: SandboxRenderInput, resourceLimits: ResourceLimits): Worker {
-  const isTsSource = import.meta.filename.endsWith(".ts");
-  if (!isTsSource) {
-    return new Worker(path.join(import.meta.dirname, `${workerBasename}.js`), { workerData, resourceLimits });
-  }
-  const workerFile = path.join(import.meta.dirname, `${workerBasename}.ts`);
-  const tsxApiPath = require.resolve("tsx/cjs/api");
-  const bootstrap = `require(${JSON.stringify(tsxApiPath)}).register();\nrequire(${JSON.stringify(workerFile)});\n`;
-  return new Worker(bootstrap, { eval: true, workerData, resourceLimits, env: tsxWorkerEnv() });
+export function resolveDefaultTimeoutMs(): number {
+  return resolveWorkerTimeout({
+    rawValue: process.env.TOVU_THEME_RENDER_TIMEOUT_MS,
+    defaultTimeoutMs: DEFAULT_RENDER_TIMEOUT_MS,
+    maxTimeoutMs: MAX_RENDER_TIMEOUT_MS,
+  });
 }
 
 /**
- * The `env` a `tsx`-mode sandbox worker is given: `process.env` with `NODE_V8_COVERAGE` removed, or
- * `undefined` (Node's default — an ordinary copy of `process.env`) when that variable isn't set,
- * which is every run except a coverage run.
+ * Liquid and Handlebars share this lifecycle machinery to prevent duplicated timeout
+ * policy from drifting between engines. Their workers still own their template semantics.
+ * Input must already be plain structured-cloneable site data. A rejected render is handled
+ * by renderSite with a minimal built-in body (SPEC-004 REQ-10): a hostile theme must not 500
+ * the site. ADR-020 bounds both CPU time and worker heap use.
  *
- * Why this exists, and why it is scoped to the `tsx` branch above and nowhere else: a
- * `worker_threads` Worker writes its OWN V8 coverage profile into whatever directory its env's
- * `NODE_V8_COVERAGE` names — verified directly, one `coverage-<pid>-<ts>-<threadId>.json` per thread.
- * `--experimental-test-coverage` points that variable at the runner's aggregation directory and
- * merges every profile it finds there, so an inheriting worker's profile is unioned into the same
- * lcov block as the main thread's. Under the `tsx` bootstrap directly above, the worker's entry is
- * eval'd CommonJS, so everything it loads — `liquid-worker.ts`/`handlebars-worker.ts`, `render.ts`,
- * `#src/features/theme/index` and their whole transitive graph — is transpiled by esbuild in CJS
- * format, esbuild's `__toCommonJS`/`__copyProps`/`__export` interop helpers included. Merging that
- * CJS image over the main thread's ESM image of the same files concatenates their `FN:` tables and
- * lets the worker's never-exercised copy clobber `DA:` line hits: the dual-instantiation corruption
- * `development/scripts/check-coverage-integrity.ts` exists to catch, and measured on 2026-09-05 to
- * account for 62 of the 71 contaminated first-party blocks in a real `test:cov` lcov
- * (`ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`).
- *
- * Dropping the variable makes the worker emit no profile at all, so the merge has nothing to
- * corrupt. That is deliberately narrower than redirecting it to a scratch directory (equivalent for
- * the lcov, but leaves a temp directory for someone to clean up) and it costs exactly one thing: the
- * two worker-entry files, which run in no other thread, no longer appear in coverage output. Their
- * only previous coverage was the CJS image this removes.
- *
- * The compiled (`dist/`, non-`tsx`) branch is left alone on purpose: there the worker loads plain
- * ESM `.js`, identical in shape to the main thread's, so a merge of the two is meaningful rather
- * than corrupting, and nothing about production behaviour should depend on a coverage variable.
- *
- * @complexity O(n) in the number of environment variables — one shallow copy, only under coverage.
- */
-function tsxWorkerEnv(): NodeJS.ProcessEnv | undefined {
-  if (process.env.NODE_V8_COVERAGE === undefined) return undefined;
-  const env = { ...process.env };
-  delete env.NODE_V8_COVERAGE;
-  return env;
-}
-
-/**
- * Render a theme body inside an isolated worker thread, bounded by a wall-clock timeout and V8 heap
- * limits. Shared run loop for both the Liquid and Handlebars tiers — `renderLiquidInSandbox` and
- * `renderHandlebarsInSandbox` are one-line callers naming their own worker file and engine label.
- *
- * @param workerBasename the sibling worker file to spawn, without extension (e.g. `"liquid-worker"`,
- *   `"handlebars-worker"`) — resolved relative to THIS module's directory, so the named worker file
- *   must live beside `worker-sandbox.ts`.
- * @param errorLabel the engine name used in thrown error text (`"Liquid"` / `"Handlebars"`), so a
- *   render failure's message still carries the same engine identity a caller or an operator reading
- *   logs would see before this extraction.
- * @param input the template source plus the render context (must already be plain,
- *   structured-cloneable data — `SiteRenderContext`'s `posts`/`post` fields are, by construction,
- *   `PostRecord`s with no functions/class instances).
- * @param options timeout/resourceLimits overrides; sane defaults apply.
- * @returns the rendered HTML body.
- * @throws if the render times out, the worker crashes/OOMs, or the template itself is invalid
- *   (syntax error, or a disallowed construct caught by the worker's defensive re-lint) — callers
- *   already treat any thrown error from a logic-tier render as "fall back to the minimal built-in
- *   body" (`render.ts`'s `renderSite`, SPEC-004 REQ-10 spirit: a broken/hostile theme must never 500
- *   the site).
- * @complexity O(1) additional work beyond the render itself: one Worker spawn/teardown per call. No
- *   pooling — see the Programmer handoff for the documented spawn-cost tradeoff.
+ * Render with Tovu's sibling worker entry and heap budgets, retaining engine caller contracts.
+ * The TypeScript bootstrap stays host-resolved; Jini suppresses its worker's CJS coverage image.
+ * @param workerBasename Worker path relative to this module, without an extension.
+ * @param errorLabel Engine name used in controlled render errors.
+ * @param input Structured-cloneable template and site context.
+ * @param options Optional per-render wall-clock and heap budgets.
+ * @returns Rendered HTML.
+ * @throws On timeout, worker failure, invalid reply or rejected template; renderSite handles fallback.
+ * @complexity O(e) environment copying for e variables, excluding worker startup and rendering.
  */
 export function renderInWorkerSandbox(
   workerBasename: string,
   errorLabel: string,
   input: SandboxRenderInput,
-  options: SandboxOptions = {}
+  options: SandboxOptions = {},
 ): Promise<string> {
-  // Resolved per call, not once at module load: a module-level const would freeze whatever
-  // TOVU_THEME_RENDER_TIMEOUT_MS happened to be set at import time, so a test (or an operator
-  // reloading config) setting it later would be silently ignored.
-  const timeoutMs = options.timeoutMs ?? resolveDefaultTimeoutMs();
-  const resourceLimits = options.resourceLimits ?? DEFAULT_RESOURCE_LIMITS;
-
-  return new Promise<string>((resolve, reject) => {
-    const worker = spawnSandboxWorker(workerBasename, input, resourceLimits);
-    let settled = false;
-
-    const finish = (fn: () => void): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      fn();
-    };
-
-    const timer = setTimeout(() => {
-      finish(() => {
-        reject(new Error(`${errorLabel} render exceeded ${timeoutMs}ms timeout`));
-      });
-      // Best-effort teardown; the promise has already settled above.
-      void worker.terminate();
-    }, timeoutMs);
-
-    worker.once("message", (message: SandboxRenderResult) => {
-      finish(() => {
-        if (message.ok) resolve(message.html);
-        else reject(new Error(message.error));
-      });
-      void worker.terminate();
-    });
-
-    worker.once("error", (err: Error) => {
-      finish(() => reject(err));
-    });
-
-    worker.once("exit", (code: number) => {
-      finish(() => reject(new Error(`${errorLabel} render worker exited with code ${code}`)));
-    });
+  const isTsSource = import.meta.filename.endsWith(".ts");
+  const workerFactory = createNodeWorkerFactory({ env: { ...process.env } }, {
+    ...(isTsSource ? { typescriptBootstrap: { registerModulePath: require.resolve("tsx/cjs/api") } } : {}),
   });
+  return renderWithWorker({
+    workerEntry: path.join(import.meta.dirname, `${workerBasename}.${isTsSource ? "ts" : "js"}`),
+    input,
+    errorLabel,
+    defaultTimeoutMs: resolveDefaultTimeoutMs(),
+    defaultResourceLimits: DEFAULT_RESOURCE_LIMITS,
+    workerFactory,
+    scheduler: createNodeWorkerScheduler({}),
+  }, options);
 }

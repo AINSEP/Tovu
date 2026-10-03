@@ -5,7 +5,8 @@ import { SqlSettingsRepo } from "./repo.js";
 /**
  * @file The settings repo on a site's SQLite `content.db`: {@link SqlSettingsRepo} (the one Kysely
  * query body, `repo.ts`), kept as a named class so the call sites that construct it from the content
- * db handle stay as they are; new code calls `settingsRepoFor`.
+ * db handle stay as they are; new code constructs `SqlSettingsRepo` with its kernel.
+ * settingsRepoFor (features/settings/repo.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export class SqliteSettingsRepo extends SqlSettingsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */

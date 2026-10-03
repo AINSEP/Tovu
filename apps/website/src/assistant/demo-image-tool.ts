@@ -1,10 +1,4 @@
-import {
-  buildDomainRegistrations,
-  type AgentToolSideEffect,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
 

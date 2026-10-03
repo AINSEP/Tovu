@@ -61,7 +61,7 @@ function nameOf(theme: DiscoveredTheme | undefined): string | null {
 /** @complexity one indexed read plus O(themes). */
 async function findActiveTheme(ports: Ports, workspaceId: string, id: string): Promise<ActiveThemeRow | null> {
   if (id !== ACTIVE_THEME_ID) return null;
-  const record = await ports.presentation.findByWorkspaceId(workspaceId);
+  const record = await ports.presentation.findByWorkspaceId({ workspaceId });
   if (!record) return null;
   const themeId = RENAMED_THEME_IDS[record.activeThemeId] ?? record.activeThemeId;
   const theme = installedTheme(ports, themeId);

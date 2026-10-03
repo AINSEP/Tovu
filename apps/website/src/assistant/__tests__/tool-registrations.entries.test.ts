@@ -1,3 +1,5 @@
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,17 +11,22 @@ import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDe
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+
 import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
-import { registerToolContributor } from "../tool-contribution-registry.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+
 
 // Entries moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
-resetToolContributorsForTests();
-registerToolContributor(contributeEntriesTools());
+contributions.contributors.clear({});
+contributions.contributors.register({ contribution: contributeEntriesTools() });
 
 /**
  * @file The Entries (Collections authoring surface) tool-wiring test file — mirrors
@@ -47,7 +54,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined },
     entryRepo,
@@ -67,7 +74,7 @@ async function seedContentType(deps: RouteDeps): Promise<void> {
   const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo };
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     ids: { newId: () => `ct-${Math.random()}` },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     indexProvisioner: new NoopContentTypeIndexProvisioner(),
@@ -97,7 +104,7 @@ function catalogEntry(toolId: string): EntriesAgentToolDefinition {
 }
 
 function entriesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -160,13 +167,13 @@ test("the independent risk classification agrees with the catalog for all 5 wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.collection_entry") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring collections_entry_create sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_entry_create", { ...catalogEntry("collections_entry_create"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("collections_entry_create", { ...catalogEntry("collections_entry_create"), sideEffects: "none" }, contributions),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

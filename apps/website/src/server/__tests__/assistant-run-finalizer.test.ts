@@ -11,7 +11,8 @@ import {
   type RunDaemonClient,
 } from "../runtime/composition/modules/assistant-run-finalizer.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
-import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -74,11 +75,12 @@ function streamOf(...chunks: string[]): Response {
   return new Response(chunks.join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
 }
 
-function harness(daemon: RunDaemonClient, deps: RouteDeps = createRouteDeps(), checkpointIntervalMs = 0) {
+function harness(daemon: RunDaemonClient | undefined, deps: RouteDeps = createRouteDeps(), checkpointIntervalMs = 0) {
   const finalizer: AssistantRunFinalizer = createAssistantRunFinalizer({
     ledger: deps.chatRunLedger,
     daemon,
     checkpointIntervalMs,
+    now: () => Date.now(),
     reconnectDelayMs: 1,
     maxReconnects: 2,
   });
@@ -236,9 +238,7 @@ test("a run in flight when the API process dies is saved canceled at the next bo
   await putStub(baseUrl, cookie, conversationId);
   stream.push(text("Still writ"));
   // Let the frame reach the finalizer and its checkpoint land before the process "dies".
-  await new Promise((r) => setTimeout(r, 30));
-
-  const running = await assistantRow(baseUrl, cookie, conversationId);
+  const running = await waitForAssistantContent(baseUrl, cookie, conversationId, "Still writ");
   assert.equal(running.runStatus, "running", "a checkpoint must not change the status");
   assert.equal(running.content, "Still writ", "the in-flight answer was not checkpointed");
 
@@ -264,21 +264,61 @@ test("a run that goes quiet right after a frame the interval skipped still gets 
   const { app, finalizer } = harness(daemon, deps, 40);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const conversationId = await startConversation(baseUrl, cookie);
-
   await putStub(baseUrl, cookie, conversationId);
-  stream.push(text("Still "));
-  await new Promise((r) => setTimeout(r, 5));
-  // Inside the interval: skipped now. Then the run goes quiet (a long tool call), and no frame
-  // arrives to trigger the next checkpoint.
-  stream.push(text("writ"));
-  await new Promise((r) => setTimeout(r, 150));
 
-  const running = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(running.runStatus, "running");
-  assert.equal(running.content, "Still writ", "the quiet run's last frame was never checkpointed");
-
-  stream.close();
-  await finalizer.idle();
+  const realTimeout = globalThis.setTimeout;
+  const realClearTimeout = globalThis.clearTimeout;
+  const checkpoint = deps.chatRunLedger.checkpoint.bind(deps.chatRunLedger);
+  let firstSaved!: () => void;
+  const first = new Promise<void>((resolve) => { firstSaved = resolve; });
+  let lastSaved!: () => void;
+  const last = new Promise<void>((resolve) => { lastSaved = resolve; });
+  const saved: string[] = [];
+  t.mock.method(deps.chatRunLedger, "checkpoint", async (input: Parameters<typeof checkpoint>[0]) => {
+    await checkpoint(input);
+    saved.push(input.content);
+    if (input.content === "Still ") firstSaved();
+    if (input.content === "Still writ") lastSaved();
+  });
+  const bounded = async (signal: Promise<void>) => {
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      await Promise.race([signal, new Promise<never>((_resolve, reject) => { timer = realTimeout(() => reject(new Error("checkpoint signal timed out")), 2000); })]);
+    } finally {
+      realClearTimeout(timer!);
+    }
+  };
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1000 });
+  let armed!: () => void;
+  const trailingArmed = new Promise<void>((resolve) => { armed = resolve; });
+  const fakeTimeout = globalThis.setTimeout;
+  const timerSpy = t.mock.method(globalThis, "setTimeout", (...args: Parameters<typeof setTimeout>) => {
+    const timer = fakeTimeout(...args);
+    if (args[1] === 40) armed();
+    return timer;
+  });
+  try {
+    stream.push(text("Still "));
+    await bounded(first);
+    stream.push(text("writ"));
+    await bounded(trailingArmed);
+    assert.deepEqual(saved, ["Still "], "the second frame must be skipped inside the interval");
+    t.mock.timers.tick(39);
+    assert.deepEqual(saved, ["Still "], "no checkpoint before the trailing deadline");
+    t.mock.timers.tick(1);
+    await bounded(last);
+    assert.deepEqual(saved, ["Still ", "Still writ"]);
+    const running = await assistantRow(baseUrl, cookie, conversationId);
+    assert.equal(running.runStatus, "running");
+    assert.equal(running.content, "Still writ", "the quiet run's last frame must be persisted before termination");
+  } finally {
+    timerSpy.mock.restore();
+    t.mock.timers.reset();
+    stream.close();
+    await finalizer.idle();
+  }
+  // Stream termination is a separate transition; both checkpoints above were observed in-flight.
+  assert.equal((await assistantRow(baseUrl, cookie, conversationId)).content, "Still writ");
 });
 
 test("when the browser saves the finished turn first, the finalizer does not overwrite it", async (t) => {
@@ -424,4 +464,89 @@ test("BYOK and AG-UI run ids are not watched: the daemon does not hold them", as
   await putStub(baseUrl, cookie, conversationId, "agui:5678");
   assert.equal(daemon.opened, 0);
   assert.equal(finalizer.activeCount(), 0);
+});
+
+async function waitForAssistantContent(baseUrl: string, cookie: string, conversationId: string, expected: string): Promise<SavedMessage> {
+  const deadline = Date.now() + 2000;
+  let row = await assistantRow(baseUrl, cookie, conversationId);
+  while (row.content !== expected && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    row = await assistantRow(baseUrl, cookie, conversationId);
+  }
+  assert.equal(row.content, expected, "checkpoint did not land before the deadline");
+  return row;
+}
+
+test("a dropped stream reconnects from event zero and saves every event exactly once", async (t) => {
+  let connection = 0;
+  const daemon = fakeDaemon({ events: () => ++connection === 1
+    ? streamOf(text("First "))
+    : streamOf(text("First "), text("second"), frame("end", { code: 0, status: "succeeded" })), runStatus: 200 });
+  const { app, finalizer } = harness(daemon);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const conversationId = await startConversation(baseUrl, cookie);
+  await putStub(baseUrl, cookie, conversationId);
+  await finalizer.idle();
+  assert.equal(daemon.opened, 2);
+  assert.equal(finalizer.activeCount(), 0);
+  const row = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(row.runStatus, "succeeded");
+  assert.equal(row.content, "First second");
+  assert.deepEqual(row.events, [{ kind: "text", text: "First second" }]);
+});
+
+test("reconnect exhaustion stops watching and leaves an unproven run available for reattachment", { timeout: 5000 }, async (t) => {
+  const daemon = fakeDaemon({ events: () => streamOf(text("Partial")), runStatus: 200 });
+  const { app, finalizer } = harness(daemon);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const conversationId = await startConversation(baseUrl, cookie);
+  await putStub(baseUrl, cookie, conversationId);
+  await finalizer.idle();
+  assert.equal(daemon.opened, 3, "one attempt plus two reconnects");
+  assert.equal(finalizer.activeCount(), 0);
+  const row = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(row.runStatus, "running", "exhaustion alone does not prove failure");
+  assert.equal(row.content, "Partial");
+  assert.deepEqual(row.events, [{ kind: "text", text: "Partial" }]);
+});
+
+test("the default daemon client forwards token, principal and encoded run path through reconnect to a saved answer", async (t) => {
+  const deps = createRouteDeps();
+  const { app, finalizer } = harness(undefined, deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
+  assert.equal(me.status, 200);
+  const { user } = await me.json() as { user: { id: string } };
+  const daemonApp = express();
+  const runId = "run with/slash";
+  const requests: Array<{ path: string; token?: string; principal?: string }> = [];
+  let opened = 0;
+  daemonApp.use((req, res) => {
+    const principal = req.get(RUN_PRINCIPAL_HEADER);
+    requests.push({ path: req.originalUrl, token: req.get("authorization"), principal });
+    if (req.method !== "GET" || req.get("authorization") !== "Bearer finalizer-test-token" || principal !== user.id) { res.sendStatus(403); return; }
+    if (req.originalUrl === `/api/runs/${encodeURIComponent(runId)}/events`) {
+      opened += 1;
+      res.type("text/event-stream").send(opened === 1 ? text("First ", runId) : text("First ", runId) + text("answer", runId) + frame("end", { code: 0, status: "succeeded" }, runId));
+    } else if (req.originalUrl === `/api/runs/${encodeURIComponent(runId)}`) res.json({ status: "running" });
+    else res.sendStatus(404);
+  });
+  const daemonUrl = await startTestServer(daemonApp, t);
+  const previousUrl = process.env.JINI_AGENT_DAEMON_URL;
+  const previousToken = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  process.env.JINI_AGENT_DAEMON_URL = daemonUrl;
+  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = "finalizer-test-token";
+  try {
+    const conversationId = await startConversation(baseUrl, cookie);
+    await putStub(baseUrl, cookie, conversationId, runId);
+    await finalizer.idle();
+    const row = await assistantRow(baseUrl, cookie, conversationId);
+    assert.equal(row.runStatus, "succeeded");
+    assert.equal(row.content, "First answer");
+    assert.deepEqual(row.events, [{ kind: "text", text: "First answer" }]);
+    assert.deepEqual(requests, ["/events", "", "/events"].map((suffix) => ({ path: `/api/runs/${encodeURIComponent(runId)}${suffix}`, token: "Bearer finalizer-test-token", principal: user.id })));
+  } finally {
+    if (previousUrl === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = previousUrl;
+    if (previousToken === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR]; else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = previousToken;
+  }
 });

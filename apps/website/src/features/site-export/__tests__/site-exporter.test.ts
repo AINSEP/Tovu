@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import express from "express";
-import type { UUID } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "#src/features/redirects/index";

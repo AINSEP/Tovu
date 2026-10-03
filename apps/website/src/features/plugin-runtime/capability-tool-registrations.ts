@@ -1,15 +1,5 @@
-import {
-  buildDomainRegistrations,
-  indexCatalogById,
-  isRecord,
-  requireInputRecord,
-  requireString,
-  requireToolPermission,
-  type DerivedRiskByToolId,
-  type ToolHandler,
-  type ToolRegistration,
-  type WirableToolDefinition,
-} from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
@@ -256,7 +246,9 @@ function buildCapabilityInputSchema(): Record<string, unknown> {
  *  at each level rather than casting, and treats any unexpected shape the same as "not yet written"
  *  (`null` + note) rather than throwing on data this handler does not own the shape of. */
 function buildCapabilityToolResult(source: PluginCapabilityToolSource, post: PostRecord): Record<string, unknown> {
-  const pluginBag = isRecord(post.ext) && isRecord(post.ext[source.pluginId]) ? (post.ext[source.pluginId] as Record<string, unknown>) : undefined;
+  const extension = { value: post.ext };
+  const candidate = { value: isRecord(extension) ? extension.value[source.pluginId] : undefined };
+  const pluginBag = isRecord(candidate) ? candidate.value : undefined;
 
   const fields: Record<string, unknown> = {};
   let anyComputed = false;
@@ -289,7 +281,7 @@ export interface PluginCapabilityToolDeps {
 }
 
 /** One source's catalog entry. `content.read`, like `content_post_get` — see `buildPluginCapabilityToolRegistrations`. */
-function capabilityCatalogEntry(source: PluginCapabilityToolSource): WirableToolDefinition {
+function capabilityCatalogEntry(source: PluginCapabilityToolSource): AgentToolDefinition {
   return {
     name: source.id,
     description: source.description,
@@ -302,14 +294,9 @@ function capabilityCatalogEntry(source: PluginCapabilityToolSource): WirableTool
 /** One source's handler — today's handler body, moved verbatim. @complexity one permission check plus one post read. */
 function capabilityToolHandler(source: PluginCapabilityToolSource, deps: PluginCapabilityToolDeps): ToolHandler {
   return async (ctx) => {
-    const input = requireInputRecord(ctx.input);
-    const postId = requireString(input, "postId");
-    await requireToolPermission(deps, {
-      principalId: ctx.principal.id,
-      permission: "content.read",
-      entityType: "post",
-      entityId: postId,
-    });
+    const input = requireInputRecord({ input: ctx.input });
+    const postId = requireString({ input: input, key: "postId" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: postId });
 
     const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
     if (!post) {
@@ -377,7 +364,7 @@ export function buildPluginCapabilityToolRegistrations(
     buildDomainRegistrations({
       domain: "plugin-capability",
       catalogModule: "features/plugin-runtime/capability-tool-registrations.ts",
-      catalog: indexCatalogById([capabilityCatalogEntry(source)]),
+      catalog: indexCatalogById({ catalog: [capabilityCatalogEntry(source)] }),
       handlers: { [source.id]: capabilityToolHandler(source, deps) },
       derivedRisk: pluginCapabilityToolDerivedRisk([source]),
     }).map((registration) => withActivationGate(registration, deps, source.pluginId)),
