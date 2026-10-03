@@ -42,7 +42,7 @@ test("taxonomy + term round trip: taxonomy first, parent term before child, ids 
   assert.deepEqual(first.rows.map((r) => [r.entityId, r.outcome]), [["tx-cat", "created"], ["t-root", "created"], ["t-child", "created"]]);
   assert.deepEqual(second.rows.map((r) => r.outcome), ["unchanged", "unchanged", "unchanged"]);
   assert.deepEqual(destinationPack.map((e) => e.contentHash), entities.map((e) => e.contentHash));
-  assert.equal((await dst.terms.findByIdFull("t-child"))?.parentId, "t-root");
+  assert.equal((await dst.terms.findByIdFull({ id: "t-child" }))?.parentId, "t-root");
 });
 
 test("term: a rename and a reparent on the source update the destination in place (forced)", async () => {
@@ -55,7 +55,7 @@ test("term: a rename and a reparent on the source update the destination in plac
   const report = await plan(entities, dest, ["term:t-child"]);
   await applyReport(report, entities, dest);
 
-  const moved = await dst.terms.findByIdFull("t-child");
+  const moved = await dst.terms.findByIdFull({ id: "t-child" });
   assert.equal(moved?.name, "Matcha");
   assert.equal(moved?.parentId, "t-tea");
   assert.deepEqual((await plan(await packAll(source), dest)).rows.map((r) => r.outcome), ["unchanged", "unchanged", "unchanged", "unchanged"]);

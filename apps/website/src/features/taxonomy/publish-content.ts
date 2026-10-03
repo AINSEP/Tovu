@@ -106,8 +106,8 @@ export const contributeTermPublish = (): PublishContentContributor =>
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
       const deps = writeDeps(ctx, "term");
-      const input = { taxonomyId: state.taxonomyId as string, parentId: (state.parentId ?? null) as string | null, name: state.name as string };
-      const saved = await importTerm({ deps, principalId, id, ...input, expectedVersion });
+      const parentId = (state.parentId ?? null) as string | null;
+      const saved = await importTerm({ deps, principalId, id, taxonomyId: state.taxonomyId as string, name: state.name as string, expectedVersion }, { parentId });
       return { version: saved.version };
     },
     errors,

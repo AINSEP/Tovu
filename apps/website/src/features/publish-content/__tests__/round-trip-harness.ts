@@ -43,7 +43,7 @@ export function makeSite(ports: Partial<PublishContentPorts>, name = "site"): Pu
   let id = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => new Date(Date.UTC(2026, 8, 26, 0, 0, tick++)).toISOString() },
+    clock: { nowMs: () => Date.UTC(2026, 8, 26, 0, 0, tick++) },
     idGen: { newId: () => `${name}-id-${++id}` },
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
