@@ -135,11 +135,20 @@ function useUnavailableRetry(failingTransiently: boolean, isFetching: boolean, r
     refetchRef.current = refetch;
   });
 
-  useEffect(() => {
-    if (!failingTransiently) setAttempts(0);
-  }, [failingTransiently]);
+  // Judge the outage only on SETTLED reads. `@jini-ai/ui`'s fetch-query cache clears `error` while a
+  // re-read of a never-answered query is in flight (TanStack kept it), so reading the live value made
+  // every retry look like a recovery: the counter reset to 0 each time and a daemon that is genuinely
+  // down was polled forever and never reported. Holding the last settled value across the in-flight
+  // read keeps the bound real and the "starting" line steady. (React's adjust-state-during-render
+  // pattern, so the held value is never one render stale.)
+  const [settledFailing, setSettledFailing] = useState(failingTransiently);
+  if (!isFetching && settledFailing !== failingTransiently) setSettledFailing(failingTransiently);
 
-  const waiting = failingTransiently && attempts < UNAVAILABLE_RETRY_ATTEMPTS;
+  useEffect(() => {
+    if (!settledFailing) setAttempts(0);
+  }, [settledFailing]);
+
+  const waiting = settledFailing && attempts < UNAVAILABLE_RETRY_ATTEMPTS;
 
   useEffect(() => {
     const handle =
