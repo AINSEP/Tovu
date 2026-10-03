@@ -23,7 +23,7 @@ import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures } from "./search.eval.js";
  */
 
 const WS = "ws-search-eval-socket" as UUID;
-const clock: ClockPort = { nowIso: () => "2026-09-28T00:00:00.000Z" };
+const clock: ClockPort = { nowMs: () => Date.parse("2026-09-28T00:00:00.000Z") };
 
 let dataParent: string;
 let socketDir: string;

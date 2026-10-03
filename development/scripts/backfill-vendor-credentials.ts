@@ -57,9 +57,10 @@
  *   accidental collision between the two source tables is not a realistic concern; reusing the id
  *   keeps the migrated row traceable back to its origin without inventing a new identifier scheme.
  * - **vendor mapping**: `PUBLISH_PROVIDER_TO_VENDOR`/`SOURCE_CONTROL_PROVIDER_TO_VENDOR`
- *   (`src/features/vendor-credentials/types.ts`) — both are `Record`s over their OLD provider-id
- *   union, so an unmapped provider id is a compile-time error in that file, not a runtime surprise
- *   here.
+ *   (below) — both are `Record`s over their OLD provider-id union, so an unmapped provider id is a
+ *   compile-time error, not a runtime surprise. They live here, not in
+ *   `src/features/vendor-credentials/types.ts`, since core names no deploy vendor
+ *   (`no-deploy-vendor-in-core.boundary.test.ts`) and this script is their only reader.
  * - **label collisions**: EXPECTED, not an edge case — every row in both source tables was written
  *   by an admin UI that hardcoded the literal label `"default"` (`PUBLISH_CREDENTIAL_ROW_LABEL`/
  *   `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`), so a workspace with both a `github-pages` publish
@@ -120,7 +121,18 @@ import type { PublishProviderId } from "../../apps/website/src/features/deployme
 import { buildSourceControlCredentialAad } from "../../apps/website/src/features/source-control/aad.js";
 import type { SourceControlProviderId } from "../../apps/website/src/features/source-control/types.js";
 import { buildVendorCredentialAad } from "../../apps/website/src/features/vendor-credentials/aad.js";
-import { SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../apps/website/src/features/vendor-credentials/types.js";
+
+/** The `vendor_credential_sets.vendor_id` values this backfill writes. Frozen with the two legacy
+ *  tables it reads, so it never grows. */
+type VendorId = "github" | "gitlab" | "bitbucket" | "vercel" | "netlify" | "cloudflare" | "s3-compatible";
+
+/** `source_control_credential_sets.provider_id` -> `VendorId`. A `Record` so a new source-control
+ *  provider without an entry here is a `tsc` error, not a runtime surprise in this script. */
+const SOURCE_CONTROL_PROVIDER_TO_VENDOR: Record<SourceControlProviderId, VendorId> = {
+  github: "github",
+  gitlab: "gitlab",
+  bitbucket: "bitbucket",
+};
 
 /** The legacy `publish_credential_sets.provider_id` values and their vendor. Frozen: that table takes
  *  no new rows (the app copies it into `vendor_credential_sets` at boot), so this set never grows. */
