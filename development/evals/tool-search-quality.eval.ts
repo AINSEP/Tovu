@@ -192,11 +192,11 @@ function run(): void {
   // so skipping this leaves `DOMAIN_SLICES` (now empty of first-party domains; see
   // `tool-registrations.ts`'s own header) as the only source, and the catalog comes back empty.
   installFirstPartyToolContributors();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const baseline = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
-  const catalogSize = registry.list().length;
+  const catalogSize = registry.list({}).length;
 
   const heldOut = score(catalog, HELD_OUT_CASES);
 

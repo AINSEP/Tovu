@@ -211,7 +211,19 @@ test.describe("admin composer — attachment file picker excludes no file type",
 
   test("text, code, and config files all upload through the picker and classify as 'file'", async ({ page }) => {
     await openDock(page);
-    for (const matrixCase of TEXT_CODE_CONFIG_MATRIX) await runMatrixCase(page, matrixCase);
+    // One upload must start at the visible action: setting the hidden input alone cannot catch
+    // a menu item whose input.click() wiring was removed.
+    const markdown = TEXT_CODE_CONFIG_MATRIX[0]!;
+    await page.getByRole("button", { name: "Add context", exact: true }).click();
+    const chooserOpened = page.waitForEvent("filechooser");
+    await page.getByRole("menuitem", { name: "Attach files", exact: true }).click();
+    const chooser = await chooserOpened;
+    expect(await chooser.element().getAttribute("data-testid")).toBe("composer-attachment-input");
+    await chooser.setFiles({ name: markdown.fileName, mimeType: markdown.mimeType, buffer: markdown.content });
+    await expect(attachmentChip(page, markdown.fileName)).toBeVisible({ timeout: 15_000 });
+    await expect(attachmentChip(page, markdown.fileName)).toHaveAttribute("data-attachment-kind", "file");
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    for (const matrixCase of TEXT_CODE_CONFIG_MATRIX.slice(1)) await runMatrixCase(page, matrixCase);
     // 9 successful uploads in one session — under the 10-per-batch cap this suite is deliberately
     // staying under (see module doc).
     await expect(page.getByTestId("attachment-chip")).toHaveCount(TEXT_CODE_CONFIG_MATRIX.length);

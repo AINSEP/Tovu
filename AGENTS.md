@@ -7,6 +7,17 @@
 - On the first user message in this repository, boot with `AI-Dev-Shop/AGENTS.md` loaded before any substantive reply.
 - If `AI-Dev-Shop/AGENTS.md` is missing or unreadable, state that explicitly and stop.
 
+## Jini First (owner, 2026-10-01)
+
+- Tovu, Zana, Open Marketing and future AI-native products reuse the same `@jini-ai/*` packages. Zana and Open Marketing import only from Jini, never from Tovu.
+- Before adding generic code to Tovu, build it in a `@jini-ai/*` package instead. Generic means anything another product could use, such as:
+  - auth, OAuth, credentials, outbound HTTP and rate limits
+  - MCP, the agent/tool runtime and chat
+  - the admin shell and widgets, and the desktop shell
+  - observability and dev/release tooling
+- Inject dependencies as ports. Every public function or factory takes `(requiredArgs, optionalArgs)`: two objects, and no positional scalars. Tovu keeps only CMS/site-specific code and thin adapters.
+- If it can't go into Jini right now, say so, and add it to the backlog in `ADS-memory/.local-artifacts/tovu-to-jini-extract/SURVEY.md`.
+
 ## Always Consult
 
 Before proposing architecture changes, implementation plans, or new platform modules in this workspace, consult:

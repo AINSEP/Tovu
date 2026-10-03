@@ -130,10 +130,10 @@ function main(): void {
 
   // Pre-collapse catalog: the 36 originals still exist here, which is what the fat arm collapses.
   const uncollapsed = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
-  const preIds = new Map((uncollapsed.list() as readonly Descriptor[]).map((d) => [d.id, d]));
+  const preIds = new Map((uncollapsed.list({}) as readonly Descriptor[]).map((d) => [d.id, d]));
   // The REAL shipped catalog, with the 29 cards, for the card-selection arm.
   const shipped = buildEvalToolRegistry(fakeEvalRouteDeps());
-  const shippedIds = new Set(shipped.list().map((d) => d.id));
+  const shippedIds = new Set(shipped.list({}).map((d) => d.id));
 
   // ---- Integrity gates -----------------------------------------------------------------------
   const missingTier = TIER1_CLEAN.filter((id) => !preIds.has(id));
@@ -163,7 +163,7 @@ function main(): void {
    *  read is a near-miss inside the same verb, while doing it on a request that wanted a write is an
    *  over-trigger of the whole tool. Classified mechanically, never by judgment. */
   const readOnlyOf = new Map(
-    (uncollapsed.list() as readonly { id: string; readOnly?: boolean }[]).map((d) => [d.id, d.readOnly === true]),
+    (uncollapsed.list({}) as readonly { id: string; readOnly?: boolean }[]).map((d) => [d.id, d.readOnly === true]),
   );
 
   const order = shuffledIndices(HELD_OUT_V2.length, SHUFFLE_SEED);

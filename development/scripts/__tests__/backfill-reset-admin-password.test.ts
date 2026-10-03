@@ -1,3 +1,4 @@
+import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -6,7 +7,8 @@ import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
-import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type IdentityRepos } from "@jini-ai/cms/identity";
+import { AuthInvalidCredentialsError, type IdentityRepos } from "@jini-ai/user-management";
+import { login, type AuthServiceDeps } from "@jini-ai/user-management/server";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
@@ -31,7 +33,7 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const SCRIPT = path.join("development", "scripts", "backfill-reset-admin-password.ts");
 const WORKSPACE = "workspace-1";
 const NOW = "2026-09-03T00:00:00.000Z";
-const fixedClock = { nowIso: () => NOW };
+const fixedClock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
 
 function counterIdGen() {
   let n = 0;
@@ -164,6 +166,7 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
   const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
+      transactions: identity.transactions,
     principals: identity.principalRepo,
     users: identity.userRepo,
     sessions: identity.sessionRepo,
@@ -174,14 +177,15 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
     principalRoles: identity.principalRoleRepo,
     principalPolicies: identity.principalPolicyRepo,
   };
-  const auth: AuthServiceDeps = { repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+  const auth: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
   // Not hardcoded "tovu-dev": `createSqliteIdentityRouteDeps` seeds with
   // `process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD` (`wiring.ts`), and this ambient
   // override IS set in some environments (see the repo's own test-running notes on this exact env
   // var) — asserting the literal default here would falsely pass or fail depending on the
   // environment this test happens to run in, independent of whether the refusal actually worked.
   const seedPassword = process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD;
-  const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } });
+  const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
   assert.ok(principal.id, "the seed-default password must still authenticate — the refused apply must not have written anything");
   db.$client.close();
 
@@ -203,6 +207,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
   const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
+      transactions: identity.transactions,
     principals: identity.principalRepo,
     users: identity.userRepo,
     sessions: identity.sessionRepo,
@@ -213,13 +218,14 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
     principalRoles: identity.principalRoleRepo,
     principalPolicies: identity.principalPolicyRepo,
   };
-  const auth: AuthServiceDeps = { repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+  const auth: AuthServiceDeps = {
+    tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
 
-  const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "recovered-pw-445566" } });
+  const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "recovered-pw-445566" } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
   assert.ok(principal.id);
 
   await assert.rejects(
-    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "tovu-dev" } }),
+    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "tovu-dev" } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
     AuthInvalidCredentialsError,
     "the old seed-default password must no longer authenticate"
   );

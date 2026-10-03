@@ -43,7 +43,7 @@
  * problem. A dry run opens strictly read-only (`openContentDbReadOnly`), so unlike an ordinary
  * `openContentDb` open it never migrates the schema either — only `--apply` does.
  *
- * A whole-file online-backup restore point (`@jini-ai/infra`'s `SqliteDbOpsAdapter`) is captured
+ * A whole-file online-backup restore point (`@jini-ai/db`'s `SqliteDbOpsAdapter`) is captured
  * immediately before the first write in an `--apply` run — same mechanism
  * `backfill-slug-collision-defaults.ts`/`convert-legacy-doc-pages-to-html.ts` already use.
  *

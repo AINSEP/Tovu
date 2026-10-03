@@ -22,6 +22,21 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Admin motifs: swap the whole admin look with one theme (owner call, 2026-10-02; NOT before the Tovu→Jini re-architecture lands)
+
+Swap one CSS + design-token set and the whole admin restyles live: glassmorphic, or wildly different designs. Use it
+to prove the admin is truly themeable. It could later ship as downloadable theme plugins (one plugin per motif).
+Builds on the admin-theming work already in Jini: the `AdminTheme` type plus `applyAdminTheme` in `@jini-ai/ui/styles`
+(the variable contract folded in from the deleted `@jini-ai/tokens`).
+
+## Admin "buffet": compose an admin from Jini modules (owner idea, 2026-10-02; still being thought through)
+
+`createAdmin({ modules: [...] })` builds the pages from per-package admin modules. Each tab is its own feature slice,
+so a host can take one tab and not another. UI bindings stay out of the domain packages (e.g. `@jini-ai/admin/react`
+or `@jini-ai/admin/vue`), so cms and the rest stay frontend-agnostic. Today only user-management ships admin panels.
+Open question (owner): how much of this belongs in Jini at all.
+
+
 ## Entries envelope owner is a per-caller parameter, not a property of the content type (found 2026-09-19)
 
 **The defect.** `createEntry` takes `input.owner` (`@jini-ai/cms` `entries/write-service.ts:125`) and feeds it to
@@ -828,8 +843,7 @@ backend ADR.
 - The **daemon attachment contract is no longer `image/*`-only**: `attachmentAccept` was removed on
   purpose and `agent-daemon-server.ts`'s non-image filter is gone, so the upload path is kind-agnostic
   end to end (`AssistantDock.tsx:567-584`). The residual is cosmetic Jini-side naming (`imagePaths`).
-- The **bounded source catalog** item is moot: `createToolCatalogComposerCapabilitySource()` was
-  deliberately unwired by owner decision 2026-08-21 (`tool-catalog-composer-source.ts:10-25`).
+- createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md. The bounded source catalog item is moot: it was deliberately unwired by owner decision 2026-08-21.
 
 ---
 

@@ -60,6 +60,12 @@ function countTables(dbPath: string): number {
   }
 }
 
+function tableRows(dbPath: string, table: string): unknown[] {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try { return db.prepare(`SELECT * FROM ${table} ORDER BY id`).all(); }
+  finally { db.close(); }
+}
+
 function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
   const env = { ...process.env, ...(rootKeyHex !== undefined ? { TOVU_INTEGRATIONS_ROOT_KEY: rootKeyHex } : {}) };
   delete env.TOVU_INTEGRATIONS_ROOT_KEY_UNUSED;
@@ -162,6 +168,8 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
     .run();
   seedDb.$client.close();
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const originalPublishRows = tableRows(dbPath, "publish_credential_sets");
+  const originalSourceControlRows = tableRows(dbPath, "source_control_credential_sets");
 
   // --- Dry run: needs NO root key at all (this script's own header claims this explicitly) and
   // must write nothing. ---
@@ -174,6 +182,8 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   // --- Apply: now the real migration runs, decrypting under each row's OLD AAD and re-sealing under
   // the NEW one. ---
   const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.deepEqual(tableRows(dbPath, "publish_credential_sets"), originalPublishRows);
+  assert.deepEqual(tableRows(dbPath, "source_control_credential_sets"), originalSourceControlRows);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
   assert.match(applyOutput, new RegExp(`MIGRATED: origin=publish workspace=${WORKSPACE} id=${publishId} vendor=github label='default' isDefault=true`));
   assert.match(
@@ -256,6 +266,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
 
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
   db.$client.close();
+  const targetRowsBeforeSecondApply = tableRows(dbPath, "vendor_credential_sets");
 
   // --- Idempotency: a second --apply run over an already-migrated database must be a complete
   // no-op — no new rows, no restore point (nothing pending to back up for). ---
@@ -265,6 +276,9 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   const afterSecondApply = openContentDb(dbPath);
   assert.equal(afterSecondApply.select().from(vendorCredentialSets).all().length, 3, "a second --apply run must not duplicate or alter anything");
   afterSecondApply.$client.close();
+  assert.deepEqual(tableRows(dbPath, "vendor_credential_sets"), targetRowsBeforeSecondApply, "a second apply must preserve all credential bytes and metadata");
+  assert.deepEqual(tableRows(dbPath, "publish_credential_sets"), originalPublishRows);
+  assert.deepEqual(tableRows(dbPath, "source_control_credential_sets"), originalSourceControlRows);
 
   // --- Old tables must be untouched — this script only ever reads them. ---
   const oldTablesStillIntact = openContentDb(dbPath);
@@ -273,6 +287,57 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   oldTablesStillIntact.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-vendor-credentials: resumes a partial github group and migrates the S3 secretAccessKey", async (t) => {
+  const scratch = tmpDir("backfill-vendor-resume-");
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const priorKey = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  t.after(() => { if (priorKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY; else process.env.TOVU_INTEGRATIONS_ROOT_KEY = priorKey; });
+  const rootKeyHex = randomBytes(32).toString("hex");
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const key = await keyring.activeKey();
+  const dbPath = path.join(scratch, "content.db");
+  const db = openContentDb(dbPath);
+  t.after(() => { if (db.$client.open) db.$client.close(); });
+  db.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  const fixtures = [
+    { id: "already-github", origin: "publish", providerId: "github-pages", vendorId: "github", plaintext: JSON.stringify({ providerId: "github-pages", token: "github-secret-1111" }), tail: "1111" },
+    { id: "pending-github", origin: "source-control", providerId: "github", vendorId: "github", plaintext: JSON.stringify({ providerId: "github", token: "github-secret-2222" }), tail: "2222" },
+    { id: "pending-s3", origin: "publish", providerId: "s3-compatible", vendorId: "s3-compatible", plaintext: JSON.stringify({ providerId: "s3-compatible", accessKeyId: "ACCESS-5678", secretAccessKey: "s3-secret-9876" }), tail: "9876" },
+  ] as const;
+  for (const fixture of fixtures) {
+    const aad = fixture.origin === "publish"
+      ? buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: fixture.providerId as "github-pages" | "s3-compatible", id: fixture.id })
+      : buildSourceControlCredentialAad({ workspaceId: WORKSPACE, providerId: "github", id: fixture.id });
+    const sealed = await sealer.seal({ plaintext: fixture.plaintext, key, aad });
+    const row = { id: fixture.id, workspaceId: WORKSPACE, providerId: fixture.providerId, label: "default", sealedKeyId: sealed.keyId, sealedCiphertext: sealed.ciphertext, sealedNonce: sealed.nonce, sealedAlg: sealed.alg, isDefault: true, accountLabel: "account-preserved", createdAt: NOW, updatedAt: NOW };
+    if (fixture.origin === "publish") db.insert(publishCredentialSets).values(row).run();
+    else db.insert(sourceControlCredentialSets).values(row).run();
+  }
+  const existingSealed = await sealer.seal({ plaintext: fixtures[0].plaintext, key, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: fixtures[0].id }) });
+  db.insert(vendorCredentialSets).values({ id: fixtures[0].id, workspaceId: WORKSPACE, vendorId: "github", label: "default", tokenTail: "1111", isDefault: true, accountLabel: "existing-account", createdAt: NOW, updatedAt: NOW, sealedKeyId: existingSealed.keyId, sealedCiphertext: existingSealed.ciphertext, sealedNonce: existingSealed.nonce, sealedAlg: existingSealed.alg }).run();
+  db.$client.close();
+  const existing = tableRows(dbPath, "vendor_credential_sets")[0];
+  assert.match(runScript(dbPath, rootKeyHex), /2 row\(s\) would be migrated, 1 already migrated, 3 total/);
+  assert.match(runScript(dbPath, rootKeyHex, ["--apply"]), /2 row\(s\) migrated, 1 already migrated, 3 total/);
+  const raw = new Database(dbPath, { readonly: true });
+  try {
+    assert.deepEqual(raw.prepare("SELECT * FROM vendor_credential_sets WHERE id = ?").get(fixtures[0].id), existing);
+    const rows = raw.prepare("SELECT * FROM vendor_credential_sets ORDER BY id").all() as Array<Record<string, any>>;
+    assert.equal(rows.length, 3);
+    for (const fixture of fixtures) {
+      const row = rows.find((row) => row.id === fixture.id)!;
+      assert.ok(row);
+      assert.equal(row.token_tail, fixture.tail);
+      assert.equal(await sealer.open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg }, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: fixture.vendorId, id: fixture.id }) }), fixture.plaintext);
+    }
+    const resumed = rows.find((row) => row.id === "pending-github")!;
+    assert.equal(resumed.label, "default (Source Control)");
+    assert.equal(resumed.is_default, 0);
+  } finally { raw.close(); }
 });
 
 test("backfill-vendor-credentials: a corrupted source row aborts the run without losing rows written before it", async () => {
@@ -368,7 +433,12 @@ test("backfill-vendor-credentials: a dry run against a not-yet-migrated content.
 
   assert.throws(
     () => runScript(dbPath, undefined),
-    /Command failed/,
+    (error: unknown) => {
+      const failure = error as { status?: number; stderr?: string };
+      assert.equal(failure.status, 1);
+      assert.match(String(failure.stderr), /no such table: publish_credential_sets/);
+      return true;
+    },
     "a dry run against an unmigrated db must fail loudly (no such table), not silently succeed"
   );
 

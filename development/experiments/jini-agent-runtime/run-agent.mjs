@@ -20,14 +20,15 @@ import {
 const [sandboxDir, promptFile] = process.argv.slice(2);
 const prompt = readFileSync(promptFile, 'utf8');
 
-const launch = resolveAgentLaunch(claudeAgentDef);
+const launch = resolveAgentLaunch({ def: claudeAgentDef });
 if (!launch.launchPath) throw new Error('no launchPath: ' + launch.diagnostic);
 
-const args = claudeAgentDef.buildArgs(prompt, [], [sandboxDir], {}, {
-  cwd: sandboxDir,
-  newSessionId: randomUUID(),
+const args = claudeAgentDef.buildArgs({ prompt, imagePaths: [] }, {
+  extraAllowedDirs: [sandboxDir],
+  options: {},
+  runtimeContext: { cwd: sandboxDir, newSessionId: randomUUID() },
 });
-const env = applyAgentLaunchEnv({ ...process.env }, launch);
+const env = applyAgentLaunchEnv({ env: { ...process.env }, launch });
 
 console.log('[harness] spawn:', launch.launchPath, args.join(' '));
 console.log('[harness] cwd:', sandboxDir);
@@ -40,7 +41,7 @@ const toolCalls = [];
 let usage = null;
 
 const shapes = Object.create(null);
-const handler = createClaudeStreamHandler((event) => {
+const handler = createClaudeStreamHandler({ onEvent: (event) => {
   counts[event.type] = (counts[event.type] ?? 0) + 1;
   shapes[event.type] ??= Object.keys(event);
   // NB: the payload field is `delta`, NOT `text`. Undocumented, and because
@@ -49,7 +50,7 @@ const handler = createClaudeStreamHandler((event) => {
   if (event.type === 'tool_use') toolCalls.push({ name: event.name, input: event.input });
   if (event.type === 'usage') usage = event;
   if (event.type === 'status') console.log('[event] status:', event.status ?? JSON.stringify(event));
-});
+} });
 
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (c) => handler.feed(c));

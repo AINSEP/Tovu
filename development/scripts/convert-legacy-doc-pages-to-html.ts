@@ -43,7 +43,7 @@
  * of the real problem. A dry run itself opens strictly read-only (`openContentDbReadOnly`), so
  * unlike an ordinary `openContentDb` open it never migrates the schema either — only `--apply` does.
  *
- * A whole-file online-backup restore point (`@jini-ai/infra`'s `SqliteDbOpsAdapter`, the same
+ * A whole-file online-backup restore point (`@jini-ai/db`'s `SqliteDbOpsAdapter`, the same
  * mechanism the admin Database panel uses) is captured immediately before the first write in an
  * `--apply` run, and its artifact ref is printed. Idempotent: `ensureHtmlFormat` no-ops (content
  * untouched) on a row already `bodyFormat: "html"`, so a second run over already-converted rows

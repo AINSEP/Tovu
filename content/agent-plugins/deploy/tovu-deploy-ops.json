@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "platforms": [
+    { "id": "fly", "label": "Fly.io", "module": "deploy-ops/fly.mjs", "hosts": ["api.machines.dev", "api.fly.io"] },
+    { "id": "github-actions", "label": "GitHub Actions", "module": "deploy-ops/github-actions.mjs", "hosts": ["api.github.com"] }
+  ]
+}

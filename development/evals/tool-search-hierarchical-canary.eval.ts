@@ -8,7 +8,7 @@
  * that is the ceiling for the whole approach no matter how good stage two is. So the canary question
  * is exactly that first-stage number, isolated.
  *
- * Nearly free to run: this reuses the SAME `@jini-ai/sqlite` FTS5/BM25 machinery
+ * Nearly free to run: this reuses the SAME `@jini-ai/sqlite-chat` FTS5/BM25 machinery
  * (`ensureToolCatalogTables`/`reseedToolCatalog`/`searchToolCatalog`) the production index already
  * uses, just seeded with one row PER DOMAIN instead of one row per tool. Each domain's row text is
  * the concatenation of its member tools' current (keyword-augmented) indexed descriptions — the
@@ -19,7 +19,7 @@
  */
 import Database from "better-sqlite3";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
-import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
@@ -85,7 +85,7 @@ function fakeRouteDeps(): RouteDeps {
 
 function run(): void {
   const registry = buildEvalToolRegistry(fakeRouteDeps());
-  const descriptors = registry.list();
+  const descriptors = registry.list({});
 
   // Group by domain, concatenating each tool's ALREADY-INDEXED text (keywords folded in) — the
   // exact text the flat index uses today, just aggregated one level up.

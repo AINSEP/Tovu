@@ -309,7 +309,7 @@ function main(): void {
   // behaviour that turns out to dominate the real result is invisible to it in principle.
   if (family === "read") {
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
-  const descById = new Map((registry.list() as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
+  const descById = new Map((registry.list({}) as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
   const membersOf = new Map<string, string[]>();
   for (const id of TIER1_CLEAN) membersOf.set(resourceKeyOf(id), [...(membersOf.get(resourceKeyOf(id)) ?? []), id]);
   const resourceOnlyIndex = buildToolCatalogQuery({

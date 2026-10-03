@@ -35,7 +35,7 @@ import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import Database from "better-sqlite3";
-import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
 
@@ -142,7 +142,7 @@ function rateRow(label: string, vecs: Record<Cutoff, boolean[]>, n: number): voi
 
 function run(): void {
   const registry = buildEvalToolRegistry(fakeRouteDeps());
-  const descriptors = registry.list();
+  const descriptors = registry.list({});
   const n = HELD_OUT_V2.length;
 
   // Fail loudly on a missing expansion rather than silently falling back to the raw query — a silent

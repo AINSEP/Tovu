@@ -34,7 +34,7 @@ export function createJiniAgentRunner(): AgentRunnerPort {
   return {
     async listAvailableAgents() {
       const { detectAgents } = await loadJini();
-      const agents = await detectAgents();
+      const agents = await detectAgents({});
       return agents.map((a) => ({ id: a.id, version: a.version ?? null, available: a.available }));
     },
 
@@ -44,25 +44,26 @@ export function createJiniAgentRunner(): AgentRunnerPort {
       const { spawn } = await import('node:child_process');
       const { randomUUID } = await import('node:crypto');
 
-      const launch = resolveAgentLaunch(claudeAgentDef);
+      const launch = resolveAgentLaunch({ def: claudeAgentDef });
       if (!launch.launchPath) throw new Error(`agent unavailable: ${launch.diagnostic ?? 'no launch path'}`);
 
-      const args = claudeAgentDef.buildArgs(req.prompt, [], [req.workingDir], { model: req.model ?? null }, {
-        cwd: req.workingDir,
-        newSessionId: randomUUID(),
+      const args = claudeAgentDef.buildArgs({ prompt: req.prompt, imagePaths: [] }, {
+        extraAllowedDirs: [req.workingDir],
+        options: { model: req.model ?? null },
+        runtimeContext: { cwd: req.workingDir, newSessionId: randomUUID() },
       });
-      const env = applyAgentLaunchEnv({ ...process.env }, launch);
+      const env = applyAgentLaunchEnv({ env: { ...process.env }, launch });
       const child = spawn(launch.launchPath, args, { cwd: req.workingDir, env, stdio: ['pipe', 'pipe', 'pipe'] });
 
       const result: AgentTurnResult = { exitCode: null, text: '', toolCalls: [], costUsd: null };
 
-      const handler = createClaudeStreamHandler((raw) => {
+      const handler = createClaudeStreamHandler({ onEvent: (raw) => {
         const e = raw as AgentTurnEvent;
         if (e.type === 'text_delta') result.text += e.delta;
         if (e.type === 'tool_use') result.toolCalls.push({ name: e.name, input: e.input });
         if (e.type === 'usage') result.costUsd = e.costUsd;
         onEvent(e);
-      });
+      } });
 
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (c: string) => handler.feed(c));

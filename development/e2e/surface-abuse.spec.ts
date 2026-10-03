@@ -10,7 +10,7 @@ import { buildDeleteConfirmationResource } from "../../apps/website/src/features
  * ## STATUS (2026-08-04): most of this file's attacks are SKIPPED — the target moved mid-dispatch
  *
  * This suite was designed and written against the documented ADR-053 shape of `content_post_delete`:
- * step 1 mints a `pending-confirmations.ts` token and returns it embedded in a rendered MCP-UI
+ * step 1 mints a confirmation-store token and returns it embedded in a rendered MCP-UI
  * resource; step 2 redeems that token via a second, ordinary call. Because `content_post_delete` is
  * unconditionally on `MCP_UI_REDEEMABLE_TOOL_IDS` (`assistant/mcp-ui-tool-calls.ts`), Shape 2 of
  * `mcp-ui-tool-calls-route.ts` reaches BOTH steps by calling `toolExecutor.execute` synchronously —
@@ -22,7 +22,7 @@ import { buildDeleteConfirmationResource } from "../../apps/website/src/features
  * a token — and fails closed, throwing before ever building a dialog, whenever `ctx.emitSurface` is
  * absent, which it always is on the redemption route's synthetic `RunRef`. The specific reason THIS
  * FILE'S 19 token-shaped tests are superseded is narrower and is **ADR-055 Decision 3**: "the
- * confirmation token is removed entirely" — there is no `pending-confirmations.ts` token to mint,
+ * confirmation token is removed entirely" — there is no confirmation-store token to mint,
  * leak, exfiltrate, or replay anymore, so every test built around one (escaping the token's own
  * serialization, grepping for it on the wire, replaying it, racing its redemption) has nothing left
  * to attack. Confirmed live: `POST /api/admin/v1/mcp-ui/tool-calls` for `content_post_delete` now
@@ -42,6 +42,7 @@ import { buildDeleteConfirmationResource } from "../../apps/website/src/features
  * UNAFFECTED, still real, still passing: the allowlist-bypass group (the route's own `toolName` gate
  * runs before the handler is ever reached, `ctx.emitSurface` or not) and the slug-injection probe (a
  * plain REST create call, no agent tool involved at all).
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Points every skipped group at the write-up explaining why, so `--reporter=list` output is

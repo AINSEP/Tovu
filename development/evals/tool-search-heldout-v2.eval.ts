@@ -136,7 +136,7 @@ function label(k: Cutoff): string {
 
 function run(): void {
   const registry = buildEvalToolRegistry(fakeRouteDeps());
-  const realIds = new Set(registry.list().map((d) => d.id));
+  const realIds = new Set(registry.list({}).map((d) => d.id));
   const n = HELD_OUT_V2.length;
 
   // ---- Integrity. A bad id silently scores as a permanent miss, which reads as a retrieval failure

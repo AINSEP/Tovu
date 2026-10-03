@@ -54,15 +54,18 @@ async function login(request: import("@playwright/test").APIRequestContext) {
  */
 async function waitForDaemonReady(request: import("@playwright/test").APIRequestContext): Promise<void> {
   await login(request);
+  let lastStatus: number | undefined;
   for (let attempt = 0; attempt < 40; attempt++) {
     // Any authenticated request that reaches the daemon at all (even one that 409s) proves it is
     // up. Only a `502 BAD_GATEWAY` from the proxy's own `ECONNREFUSED` catch means "keep waiting".
     const res = await request.post(A2UI_PATH, {
       data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") },
     });
-    if (res.status() !== 502) return;
+    lastStatus = res.status();
+    if (lastStatus !== 502) return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
+  throw new Error(`Agent daemon did not become ready after 40 attempts (last HTTP status: ${lastStatus})`);
 }
 
 test.beforeAll(async ({ request }) => {

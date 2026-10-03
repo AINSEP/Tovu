@@ -6,7 +6,7 @@
  * that cost $4.5135 / 3m24s and made ~45 tool-search/describe turns against only 16 real tool
  * calls. `site_describe_capabilities` — which answers "what can this site do" in one call — never
  * appeared in that transcript. This probe answers a narrower, checkable question: is that because
- * `search_tools` (FTS5 + `bm25()`, see `@jini-ai/sqlite`'s `tool-catalog.ts`) cannot find it?
+ * `search_tools` (FTS5 + `bm25()`, see `@jini-ai/sqlite-chat`'s `tool-catalog.ts`) cannot find it?
  *
  * Uses `buildEvalToolRegistry` -> `buildToolCatalogQuery`, the same seam
  * `tool-search-quality.eval.ts` uses, so the index queried here is byte-for-byte the same ranking
@@ -62,7 +62,7 @@ const QUERIES = [
 
 function main() {
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
-  console.log(`Registry size: ${registry.list().length} tools\n`);
+  console.log(`Registry size: ${registry.list({}).length} tools\n`);
 
   const catalog = buildToolCatalogQuery(registry);
   const deep = process.argv.includes("--deep");

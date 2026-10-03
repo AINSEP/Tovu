@@ -85,7 +85,7 @@ function main(): void {
   mkdirSync(outDir, { recursive: true });
 
   const uncollapsed = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
-  const byId = new Map((uncollapsed.list() as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
+  const byId = new Map((uncollapsed.list({}) as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
   const missing = DELETE_FAMILY.filter(([, id]) => !byId.has(id)).map(([, id]) => id);
   if (missing.length > 0) throw new Error(`delete-family ids absent from the catalog: ${missing.join(", ")}`);
 

@@ -81,7 +81,7 @@ test.describe("Dockerfile tab is editable", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     // Success is visible two ways: the transient "Saved" confirmation, and the pill going away.
-    await expect(page.getByText("Saved")).toBeVisible();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
     await expect(page.getByText("Unsaved changes")).not.toBeVisible();
     await expect(textarea).toHaveValue(editedContents);
 

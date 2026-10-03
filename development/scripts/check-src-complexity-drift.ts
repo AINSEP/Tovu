@@ -209,7 +209,8 @@ export function findViolations(): Violation[] {
         // Exit 2 is not exit 1: the `catch` below only recovers a report when stdout exists, so an
         // unguarded scan would throw rather than silently pass — but a caller reading only the exit
         // code could still misread 2 as "not 1, therefore fine". Same category as the
-        // `apps/admin/dist-debug` and `.claude/worktrees` entries in eslint.config.mjs.
+        // `.claude/worktrees` entry in eslint.config.mjs.
+        // apps/admin/dist-debug/ was deleted 2026-10-03: unused debug build; see development/DELETED-CODE.md.
         "--ignore-pattern",
         "**/__tests__/**",
         "--ignore-pattern",

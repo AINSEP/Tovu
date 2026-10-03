@@ -76,8 +76,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import express from "express";
-import type { AdapterContext, RunStartHandler } from "@jini-ai/http-kit";
-import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/http-kit";
+import type { AdapterContext } from "@jini-ai/http-kit";
+import type { RunStartHandler } from "@jini-ai/daemon/http";
+import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
@@ -259,7 +260,7 @@ async function main(): Promise<void> {
       });
   };
 
-  registerRunRoutes(app, { lifecycle, onStarted }, { resolvedPortRef: { current: PORT } } as AdapterContext);
+  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: { resolvedPortRef: { current: PORT } } as AdapterContext });
   registerToolCatalogRoutes(app, { catalog }, { resolvedPortRef: { current: PORT } } as AdapterContext);
 
   const server = app.listen(PORT, "127.0.0.1");

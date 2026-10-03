@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -115,4 +115,40 @@ test("every AAD backfill script defaults --db to a path this repo never creates"
     false,
     "infra/content.db now exists — the shared default is no longer a guaranteed refusal",
   );
+});
+
+test("every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository", async (t) => {
+  const scriptsDir = path.join(REPO_ROOT, "development", "scripts");
+  const scripts = fs.readdirSync(scriptsDir).filter((name) => {
+    if (!/^(backfill-|convert-|migrate-|cleanup-).*\.ts$/.test(name)) return false;
+    const source = fs.readFileSync(path.join(scriptsDir, name), "utf8");
+    return /resolveExistingDbPath\(|runAadBackfill\(/.test(source) && /\bmain\(/.test(source);
+  });
+  assert.ok(scripts.length >= SCRIPTS.length + 8, "discovery must include the non-AAD database CLIs");
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "backfill-defaults-")));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  {
+    fs.mkdirSync(path.join(scratch, "development", "scripts"), { recursive: true });
+    for (const name of fs.readdirSync(scriptsDir).filter((name) => name.endsWith(".ts"))) {
+      fs.copyFileSync(path.join(scriptsDir, name), path.join(scratch, "development", "scripts", name));
+    }
+    fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(scratch, "package.json"));
+    fs.copyFileSync(path.join(REPO_ROOT, "tsconfig.json"), path.join(scratch, "tsconfig.json"));
+    fs.symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(scratch, "node_modules"), "dir");
+    fs.symlinkSync(path.join(REPO_ROOT, "apps"), path.join(scratch, "apps"), "dir");
+    for (const script of scripts) {
+      await t.test(script, () => {
+        const result = spawnSync(process.execPath, ["--import", "tsx", path.join(scratch, "development", "scripts", script)], {
+          cwd: scratch, encoding: "utf8", timeout: 30_000,
+      });
+      assert.equal(result.error, undefined, script);
+      assert.equal(result.signal, null, script);
+      assert.equal(result.status, 1, `${script}: ${result.stdout}${result.stderr}`);
+      const missing = path.join(scratch, "infra", "content.db");
+      assert.ok(`${result.stdout}${result.stderr}`.includes(missingDbPathMessage(missing)), `${script}: ${result.stdout}${result.stderr}`);
+      assert.equal(fs.existsSync(missing), false, script);
+      assert.equal(fs.existsSync(path.join(scratch, "sites")), false, `${script} must not create an alternate default database`);
+      });
+    }
+  }
 });

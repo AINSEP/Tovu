@@ -62,7 +62,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import type { IdentityRepos } from "@jini-ai/cms/identity";
+import type { IdentityRepos } from "@jini-ai/user-management";
 
 import { contentKernel } from "../../apps/website/src/platform/db/content-kernel.js";
 import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/platform/db/sqlite/content-db.js";
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
   const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   const workspaceId = (await resolveWorkspace({ kernel: contentKernel(db) })).id;
 
-  const clock = { nowIso: () => new Date().toISOString() };
+  const clock = { nowIso: () => new Date().toISOString(), nowMs: () => Date.now() };
   const idGen = { newId: () => randomUUID() };
   // reconcileGrantsOnBoot mirrors args.apply exactly: a dry run's `db` is opened strictly read-only
   // above, and identityReady's boot-time grant/migration reconciliation calls `.save()` when
@@ -181,6 +181,7 @@ async function main(): Promise<void> {
   }
 
   const repos: IdentityRepos = {
+      transactions: identity.transactions,
     principals: identity.principalRepo,
     users: identity.userRepo,
     sessions: identity.sessionRepo,
@@ -196,7 +197,7 @@ async function main(): Promise<void> {
   try {
     await resetAdminPasswordSelfVerified(
       {
-        auth: { repos, hasher: identity.passwordHasher, clock, idGen },
+        auth: { repos, tokens: identity.tokens, hasher: identity.passwordHasher, clock, idGen },
         dbOps,
         ownerPrincipalId: identity.ownerPrincipalId,
         log: (m) => console.log(m),

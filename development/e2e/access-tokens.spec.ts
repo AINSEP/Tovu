@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
+const CREDENTIALS_PATH = "/api/admin/v1/workspaces/workspace-local/system";
+
 /**
  * @file Regression/verification suite for the Security page's Access Tokens tab
  * (`apps/admin/src/features/security/`, `/admin/access-tokens`) — the centralized place to Create,
@@ -12,8 +14,12 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  */
 
 test.describe("Access Tokens tab", () => {
-  test("renders all seven providers as Not connected before anything is saved", async ({ page }) => {
+  test("renders all seven providers and the current saved-token count", async ({ page }) => {
     await loginAsAdmin(page);
+    const snapshots = ["publish", "source-control", "custom"].map((kind) =>
+      page.waitForResponse((response) => response.url().endsWith(`${CREDENTIALS_PATH}/${kind}/credentials`) && response.request().method() === "GET")
+        .then((response) => response.json())
+    );
     await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Security", level: 1 })).toBeVisible();
     await expect(page.getByRole("tab", { name: /Access Tokens/ })).toBeVisible();
@@ -27,8 +33,10 @@ test.describe("Access Tokens tab", () => {
     }
     await expect(page.getByRole("heading", { name: /^GitHub Pages/, level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: /^GitHub\s*·\s*Source Control/, level: 3 })).toBeVisible();
-    // Every provider starts unconnected — the "0 tokens saved" count is the honest starting state.
-    await expect(page.getByText(/^0 tokens saved$/)).toBeVisible();
+    // This server is shared: count the snapshots this page actually read, rather than assuming
+    // the database was empty before this test started.
+    const saved = (await Promise.all(snapshots)).reduce((count, snapshot) => count + snapshot.credentials.length, 0);
+    await expect(page.getByText(new RegExp(`^${saved} tokens? saved$`))).toBeVisible();
   });
 
   test("create a named GitHub Pages token, it shows connected with the typed name, and Static Site still sees it", async ({ page }) => {
@@ -57,7 +65,8 @@ test.describe("Access Tokens tab", () => {
     // it as connected, unmodified by this page's existence (`Security.tsx`'s own header, "Static
     // Site and Source Control are UNCHANGED").
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/connected/i).first()).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("tab", { name: /^GitHub Pages/ }).click();
+    await expect(page.locator('[data-agent-element="deployment-static-site-credentials-row-github-pages"] > summary .deployment-step-summary-text')).toContainText("GitHub Pages connected");
   });
 
   test("search for 'github' surfaces both the Pages and Source Control groups, never merged into one card", async ({ page }) => {
@@ -70,6 +79,51 @@ test.describe("Access Tokens tab", () => {
     await expect(page.getByRole("heading", { name: /^GitHub\s*·\s*Source Control/, level: 3 })).toBeVisible();
     // Providers this query does not match are hidden, not just filtered-empty.
     await expect(page.getByRole("heading", { name: /^Vercel/, level: 3 })).toHaveCount(0);
+  });
+
+  test("source-control writes recover after rejection, and custom providers persist", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
+    const name = `e2e-source-${Date.now()}`;
+    const github = page.locator(".access-tokens-provider-group", { has: page.getByRole("heading", { name: /^GitHub\s*·\s*Source Control/ }) });
+    await github.getByRole("button", { name: /^(Connect|.*Add another.*)$/ }).click();
+    const form = github.locator(".access-tokens-row:not(.access-tokens-row-done)");
+    await form.getByLabel("Name").fill(name);
+    await form.getByLabel("Access token").fill("ghp_e2e_source_retry");
+    const rejectWrite = async (route: import("@playwright/test").Route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "UNAVAILABLE", message: "e2e rejected write" } }) });
+      } else await route.continue();
+    };
+    await page.route(`**${CREDENTIALS_PATH}/source-control/credentials`, rejectWrite);
+    await form.getByRole("button", { name: /^Save/ }).click();
+    await expect(form.locator(".save-error")).toBeVisible();
+    await expect(form.getByLabel("Access token")).toHaveValue("ghp_e2e_source_retry");
+    await expect(form.getByRole("button", { name: /^Save/ })).toBeEnabled();
+    await page.unroute(`**${CREDENTIALS_PATH}/source-control/credentials`, rejectWrite);
+    await form.getByRole("button", { name: /^Save/ }).click();
+    await expect(github.getByText(name, { exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(github.getByText(name, { exact: true })).toBeVisible();
+
+    const customName = `e2e-custom-${Date.now()}`;
+    await page.getByRole("button", { name: /Add custom provider/ }).click();
+    const dialog = page.locator("dialog.access-tokens-add-custom-dialog[open]");
+    await dialog.getByLabel(/^Name/).fill(customName);
+    await dialog.getByLabel(/^API base URL/).fill("https://e2e.example.invalid");
+    await dialog.getByLabel(/^Access token/).fill("e2e_custom_token");
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText(customName, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Add custom provider/ }).click();
+    await dialog.getByLabel(/^Name/).fill(customName);
+    await dialog.getByLabel(/^API base URL/).fill("https://e2e.example.invalid");
+    await dialog.getByLabel(/^Access token/).fill("e2e_duplicate_token");
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(dialog.locator(".save-error")).toContainText("already exists");
+    await expect(page.locator(".access-tokens-row-name").filter({ hasText: customName })).toHaveCount(1);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
   test("rename an existing token without retyping it, and Remove reads 'Remove from Tovu' with the non-revocation disclosure", async ({ page }) => {
@@ -90,8 +144,19 @@ test.describe("Access Tokens tab", () => {
     await netlifyGroup.getByText("30-day test token", { exact: true }).click();
     const nameField = netlifyGroup.getByLabel("Name");
     await nameField.fill("Renamed token");
+    const renameResponse = page.waitForResponse((response) => response.url().includes(`${CREDENTIALS_PATH}/publish/credentials/`) && response.request().method() === "PUT");
     await netlifyGroup.getByRole("button", { name: "Save" }).click();
+    const renamed = await renameResponse;
+    expect(renamed.request().postDataJSON()).toEqual({ label: "Renamed token" });
+    expect(renamed.ok()).toBe(true);
+    const { credential } = await renamed.json();
+    expect(credential.configured).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(netlifyGroup.getByText("Renamed token", { exact: true })).toBeVisible();
+    const persisted = await page.request.get(`${CREDENTIALS_PATH}/publish/credentials`);
+    expect(persisted.ok()).toBe(true);
+    expect((await persisted.json()).credentials).toContainEqual(expect.objectContaining({ id: credential.id, label: "Renamed token", configured: true }));
+    await netlifyGroup.getByText("Renamed token", { exact: true }).click();
 
     // Remove — the dialog must say "Remove from Tovu" and explicitly disclose that removing here
     // does not revoke the credential at the provider (`rules.ts`'s own load-bearing copy constraint).
@@ -138,11 +203,19 @@ test.describe("Access Tokens tab", () => {
 
     // Now that there are two, exactly one Default pill and one Make-default link should be present.
     await expect(cloudflareGroup.getByText("Default", { exact: true })).toBeVisible();
-    const makeDefault = cloudflareGroup.getByRole("button", { name: "Make default" });
+    const production = cloudflareGroup.locator(".access-tokens-row-done", { has: page.getByText("Production", { exact: true }) });
+    const staging = cloudflareGroup.locator(".access-tokens-row-done", { has: page.getByText("Staging", { exact: true }) });
+    await expect(production.getByText("Default", { exact: true })).toBeVisible();
+    const makeDefault = staging.getByRole("button", { name: /^Make default/ });
     await expect(makeDefault).toBeVisible();
     await makeDefault.click();
     await expect(cloudflareGroup.getByText("Default", { exact: true })).toBeVisible();
-    await expect(cloudflareGroup.getByRole("button", { name: "Make default" })).toBeVisible();
+    await expect(staging.getByText("Default", { exact: true })).toBeVisible();
+    await expect(production.getByText("Default", { exact: true })).toHaveCount(0);
+    await expect(production.getByRole("button", { name: /^Make default/ })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(staging.getByText("Default", { exact: true })).toBeVisible();
+    await expect(production.getByRole("button", { name: /^Make default/ })).toBeVisible();
   });
 
   test("a token saved through Static Site BEFORE this page existed shows up with a real name, not the raw 'default' label", async ({ page }) => {
@@ -157,7 +230,7 @@ test.describe("Access Tokens tab", () => {
     await page.getByRole("tab", { name: /^Vercel/ }).click();
     await page.getByLabel("Access token").fill("fake-vercel-token-for-migration-e2e");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText(/connected/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-agent-element="deployment-static-site-credentials-row-vercel"] > summary .deployment-step-summary-text')).toContainText("Vercel connected");
 
     // Now open the Access Tokens tab — the brief's own "v1 must migrate what's already stored"
     // requirement: this row must appear with a sensible auto-generated name, never literally
@@ -171,6 +244,6 @@ test.describe("Access Tokens tab", () => {
     // through the same `isDefault` lookup it always used (never by label text).
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: /^Vercel/ }).click();
-    await expect(page.getByText(/connected/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-agent-element="deployment-static-site-credentials-row-vercel"] > summary .deployment-step-summary-text')).toContainText("Vercel connected");
   });
 });

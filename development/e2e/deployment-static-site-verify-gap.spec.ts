@@ -19,10 +19,8 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * a direct authenticated fetch, which returned a real `accountLabel` — but nothing in the admin
  * frontend ever calls it. A human following the assistant's own instructions has no button to find.
  *
- * Two tests: the first is the reproduction and is EXPECTED TO FAIL until a Verify control is wired
- * up in `StaticSiteTab.tsx`'s connected-credential row. The second is a grounding fact and should
- * PASS today — it proves the gap is a missing UI wiring, not a missing backend capability, so
- * whoever fixes this does not also need to build the verify mechanism from scratch.
+ * The Verify control now exists. The first test drives that control and checks the exact row's
+ * request and displayed verdict; the second checks the backend route's failed-verification shape.
  *
  * Synthetic credential only (`data-classification.md`'s synthetic-PII rule) — this test never talks
  * to the real GitHub API, so the token value itself is never expected to verify as valid; only its
@@ -33,7 +31,7 @@ const WORKSPACE_ID = "workspace-local";
 const CREDENTIALS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/system/publish/credentials`;
 
 test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-saved credential", () => {
-  test("a connected-but-unverified credential offers a way to (re-)verify it without re-entering the token [reproduction — expected to fail until fixed]", async ({
+  test("a connected-but-unverified credential can be re-verified without re-entering the token", async ({
     page,
   }) => {
     await loginAsAdmin(page);
@@ -50,6 +48,7 @@ test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-
       },
     });
     expect(createRes.ok(), `seeding the synthetic credential failed: ${createRes.status()} ${await createRes.text()}`).toBe(true);
+    const { credential } = await createRes.json();
 
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: "GitHub Pages" }).click();
@@ -59,17 +58,27 @@ test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-
     // controls.
     await expect(page.getByText(/token stored, encrypted/i)).toBeVisible();
 
-    // The reproduction: the assistant tells a human to "hit verify" here. No such control exists.
-    const verifyControl = page.getByRole("button", { name: /verify/i });
+    const row = page.locator('[data-agent-element="deployment-static-site-credentials-row-github-pages"]');
+    const verifyControl = row.getByRole("button", { name: "Verify", exact: true });
     await expect(
       verifyControl,
-      'expected a "Verify" control on the connected GitHub Pages credential row — none exists today, ' +
-        "so a human following the assistant's own recovery instructions (Deployment > Static Site > " +
-        "Publish > hit verify) has nothing to click. See this file's header for the full chain."
+      'expected a "Verify" control on the connected GitHub Pages credential row'
     ).toBeVisible();
+    // Control only the provider verdict at the HTTP boundary; the visible action must still
+    // request verification of the exact saved credential and render the returned result.
+    const verification = { status: "invalid", message: "e2e provider rejected the saved credential", checkedAt: "2026-09-30T00:00:00.000Z" };
+    await page.route(`**${CREDENTIALS_PATH}/${credential.id}/verify`, (route) => route.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify({ verification }),
+    }));
+    const verifyRequest = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === `${CREDENTIALS_PATH}/${credential.id}/verify`);
+    await verifyControl.click();
+    await verifyRequest;
+    await expect(row.getByText(verification.message, { exact: true })).toBeVisible();
+    await expect(verifyControl).toBeEnabled();
+    await expect(row).not.toHaveAttribute("open", "");
   });
 
-  test("the backend verify route already exists and works — the gap above is UI wiring, not a missing capability [grounding fact]", async ({
+  test("the backend verify route reports a failed check for a synthetic token", async ({
     page,
   }) => {
     await loginAsAdmin(page);
@@ -84,12 +93,16 @@ test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-
     expect(createRes.ok()).toBe(true);
     const { credential } = (await createRes.json()) as { credential: { id: string } };
 
-    // Same route `StaticSiteTab.tsx` never calls. A synthetic token will not come back `valid`
+    // Same route the UI calls. A synthetic token will not come back `valid`
     // against the real GitHub API — that's fine, this only asserts the route responds and reports a
     // real verification shape, proving the capability is there for a UI control to call.
     const verifyRes = await page.request.post(`${CREDENTIALS_PATH}/${credential.id}/verify`);
     expect(verifyRes.ok(), `verify route failed: ${verifyRes.status()} ${await verifyRes.text()}`).toBe(true);
-    const body = (await verifyRes.json()) as { verification?: { status: string } };
+    const body = (await verifyRes.json()) as { verification?: { status: string; message: string; checkedAt: string; accountLabel?: string } };
     expect(body.verification?.status).toBeDefined();
+    expect(["invalid", "unreachable"]).toContain(body.verification?.status);
+    expect(body.verification?.message.trim()).toBeTruthy();
+    expect(Number.isNaN(Date.parse(body.verification?.checkedAt ?? ""))).toBe(false);
+    expect(body.verification?.accountLabel).toBeUndefined();
   });
 });

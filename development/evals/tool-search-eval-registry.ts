@@ -87,11 +87,11 @@ export function buildEvalToolRegistry(
   options?: { readonly includeContentReadCollapse?: boolean },
 ): ToolRegistry {
   installFirstPartyToolContributors();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(routeDeps, surfaces, options);
   for (const registration of registrations) registry.register(registration);
 
-  const size = registry.list().length;
+  const size = registry.list({}).length;
   if (size < MIN_EXPECTED_TOOL_COUNT) {
     throw new Error(
       `tool-search eval registry only has ${size} tools (expected >= ${MIN_EXPECTED_TOOL_COUNT}). ` +

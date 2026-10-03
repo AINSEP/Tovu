@@ -2,6 +2,10 @@ import { test, expect, _electron as electron, type ElectronApplication } from "@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
+import { initSiteDir } from "../../apps/desktop/src/site-dir-store.ts";
+import { sitesFilePath, trackSite, SITE_ORIGIN } from "../../apps/desktop/src/tracked-sites.ts";
 
 /**
  * @file End-to-end coverage for `apps/desktop`, driven through Playwright's Electron driver.
@@ -20,7 +24,9 @@ import path from "node:path";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps", "desktop");
-const ELECTRON_BIN = path.join(DESKTOP_DIR, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
+const desktopRequire = createRequire(path.join(DESKTOP_DIR, "package.json"));
+const ELECTRON_BIN: string = desktopRequire("electron");
+let fixtureRoot: string;
 
 /**
  * A scratch `HOME` per launch. **This alone does not isolate Electron's on-disk state** — kept
@@ -98,9 +104,24 @@ async function launchShell(env: Record<string, string>): Promise<ElectronApplica
 }
 
 test.describe("apps/desktop shell", () => {
+  test.beforeAll(async () => {
+    test.setTimeout(150_000);
+    expect(fs.existsSync(ELECTRON_BIN), `Electron runtime missing at ${ELECTRON_BIN}`).toBe(true);
+    fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-e2e-sites-"));
+    for (const name of ["site-alpha", "site-beta"]) {
+      const dir = path.join(fixtureRoot, name);
+      fs.mkdirSync(dir);
+      await initSiteDir({ repoRoot: REPO_ROOT, dir, name, cliMode: "source", baseEnv: { ...process.env, TOVU_SITE_DIR: dir } });
+      expect(fs.existsSync(path.join(dir, "config.json"))).toBe(true);
+      expect(fs.existsSync(path.join(dir, "content.db"))).toBe(true);
+    }
+  });
+  test.afterAll(() => {
+    if (fixtureRoot) fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  });
+
   test("opens an already-initialized site and loads its own admin", async () => {
-    const siteDir = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites", "site-alpha");
-    test.skip(!fs.existsSync(path.join(siteDir, "config.json")), `fixture site missing at ${siteDir}`);
+    const siteDir = path.join(fixtureRoot, "site-alpha");
 
     const app = await launchShell({
       HOME: scratchHome("open-existing"),
@@ -117,6 +138,91 @@ test.describe("apps/desktop shell", () => {
     }
   });
 
+  test("macOS native Find shortcut, typing and match navigation keep the find input focused", async () => {
+    test.skip(process.platform !== "darwin", "this test uses macOS System Events for real OS key routing");
+    const userDataDir = scratchHome("native-find-profile");
+    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    const app = await launchShell({
+      HOME: scratchHome("native-find"),
+      TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
+      TOVU_DESKTOP_SITE_DIR: "",
+      TOVU_DESKTOP_SITE_DIRS: "",
+      TOVU_DESKTOP_URL: "",
+      TOVU_DESKTOP_UI: "runner",
+    });
+    try {
+      const win = await app.firstWindow({ timeout: 150_000 });
+      await win.waitForLoadState("domcontentloaded");
+      // Real renderer and Chromium find, with deterministic visible text to search.
+      await expect(win.locator(".app")).toBeVisible();
+      await win.evaluate(() => {
+        const fixture = document.createElement("p");
+        fixture.textContent = "nativefindtoken nativefindtoken nativefindtoken";
+        document.body.append(fixture);
+      });
+      await app.evaluate(({ app: electronApp, BrowserWindow }) => {
+        electronApp.focus({ steal: true });
+        BrowserWindow.getAllWindows()[0]?.focus();
+      });
+      const frontmostPid = () => Number(execFileSync("osascript", ["-e", 'tell application "System Events" to get unix id of first application process whose frontmost is true'], { encoding: "utf8", timeout: 5000 }).trim());
+      await expect.poll(frontmostPid).toBe(app.process().pid);
+      const nativeKey = (command: string) => {
+        expect(frontmostPid(), "stop before sending keys if the tested app lost OS focus").toBe(app.process().pid);
+        execFileSync("osascript", ["-e", `tell application "System Events" to ${command}`], { timeout: 5000 });
+      };
+      const checkNativeFind = async (query: string) => {
+        // The actual menu accelerator must open the bar; no IPC or CDP key injection (F3.1).
+        nativeKey('keystroke "f" using {command down}');
+        const input = win.getByRole("textbox", { name: "Find in page" });
+        await expect(input).toBeVisible();
+        let typed = "";
+        for (const character of query) {
+          nativeKey(`keystroke "${character}"`);
+          typed += character;
+          await expect(input).toHaveValue(typed);
+          await expect(input).toBeFocused();
+        }
+        const count = async () => {
+          const match = /^(\d+) of (\d+)$/.exec((await win.locator(".findbar__count").textContent())?.trim() ?? "");
+          return match ? { ordinal: Number(match[1]), total: Number(match[2]) } : null;
+        };
+        await expect.poll(async () => (await count())?.total ?? 0).toBeGreaterThanOrEqual(3);
+        const first = await count();
+        expect(first).not.toBeNull();
+        nativeKey("key code 36");
+        await expect.poll(async () => (await count())?.ordinal).toBe(first!.ordinal % first!.total + 1);
+        await expect(input).toBeFocused();
+        nativeKey("key code 36 using {shift down}");
+        await expect.poll(async () => (await count())?.ordinal).toBe(first!.ordinal);
+        await expect(input).toBeFocused();
+        nativeKey("key code 53");
+        await expect(input).toHaveCount(0);
+      };
+      await checkNativeFind("nativefindtoken");
+
+      // A prior top-level search makes Chromium reuse the window's find manager for this guest.
+      const card = win.locator(".card").filter({ has: win.locator(".card__name", { hasText: /^site-alpha$/ }) });
+      await card.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
+      await card.locator(".card__name").click();
+      await expect(win.locator("webview")).toBeVisible();
+      await expect.poll(() => app.evaluate(({ webContents }) => webContents.getAllWebContents().some((contents: { getType(): string; getURL(): string }) => contents.getType() === "webview" && /\/admin\//.test(contents.getURL())))).toBe(true);
+      await app.evaluate(async ({ webContents }) => {
+        const guest = webContents.getAllWebContents().find((contents: { getType(): string; getURL(): string }) => contents.getType() === "webview" && /\/admin\//.test(contents.getURL()));
+        if (!guest) throw new Error("admin guest not found");
+        await guest.executeJavaScript(`(() => {
+          const fixture = document.createElement('p');
+          fixture.textContent = 'guestfindtoken guestfindtoken guestfindtoken';
+          document.body.append(fixture);
+        })()`);
+        guest.focus();
+      });
+      await checkNativeFind("guestfindtoken");
+    } finally {
+      await app.close();
+    }
+  });
+
   test("'Open Site…' onto an EMPTY folder creates a real site and serves it", async () => {
     /**
      * Drives the actual user flow, and the ordering here is the whole trick. The stub CANNOT be
@@ -127,8 +233,7 @@ test.describe("apps/desktop shell", () => {
      * Everything past `dialog.showOpenDialog` — classification, `tovu init`, the MRU write, the
      * keyed serializer, the spawn, the window — is the shipping path.
      */
-    const existing = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites", "site-alpha");
-    test.skip(!fs.existsSync(path.join(existing, "config.json")), `fixture site missing at ${existing}`);
+    const existing = path.join(fixtureRoot, "site-alpha");
     const target = emptySiteFolder("open-empty");
 
     const app = await launchShell({
@@ -165,13 +270,9 @@ test.describe("apps/desktop shell", () => {
   });
 
   test("two sites open as two windows on two distinct ports", async () => {
-    const root = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites");
+    const root = fixtureRoot;
     const alpha = path.join(root, "site-alpha");
     const beta = path.join(root, "site-beta");
-    test.skip(
-      !fs.existsSync(path.join(alpha, "config.json")) || !fs.existsSync(path.join(beta, "config.json")),
-      "both fixture sites are required",
-    );
 
     const app = await launchShell({
       HOME: scratchHome("two-sites"),
@@ -261,8 +362,7 @@ test.describe("apps/desktop shell", () => {
      * login form would pass just as happily against a blank page, an error page, or an admin that
      * had not finished booting; a 200 carrying real permissions cannot.
      */
-    const siteDir = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites", "site-alpha");
-    test.skip(!fs.existsSync(path.join(siteDir, "config.json")), `fixture site missing at ${siteDir}`);
+    const siteDir = path.join(fixtureRoot, "site-alpha");
 
     const app = await launchShell({
       HOME: scratchHome("authenticated"),
@@ -300,8 +400,7 @@ test.describe("apps/desktop shell", () => {
      * Asserted against everything Playwright captured from the launch, which is exactly the surface
      * a leak would show up on.
      */
-    const siteDir = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites", "site-alpha");
-    test.skip(!fs.existsSync(path.join(siteDir, "config.json")), `fixture site missing at ${siteDir}`);
+    const siteDir = path.join(fixtureRoot, "site-alpha");
 
     const captured: string[] = [];
     const app = await launchShell({
@@ -316,6 +415,90 @@ test.describe("apps/desktop shell", () => {
       expect(captured.join("")).not.toContain("bootToken");
     } finally {
       await app.close();
+    }
+  });
+
+  test("card body keeps text beside actions and stacks menu above power", async () => {
+    const userDataDir = scratchHome("card-layout-profile");
+    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    const app = await launchShell({
+      TOVU_DESKTOP_UI: "runner",
+      TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
+      TOVU_DESKTOP_SITE_DIR: "",
+      TOVU_DESKTOP_SITE_DIRS: "",
+      TOVU_DESKTOP_URL: "",
+    });
+    try {
+      const win = await app.firstWindow({ timeout: 150_000 });
+      const card = win.locator(".card").filter({ has: win.locator(".card__name", { hasText: /^site-alpha$/ }) });
+      await expect(card).toBeVisible();
+      for (const width of [1200, 720]) {
+        await app.evaluate(({ BrowserWindow }, contentWidth) => BrowserWindow.getAllWindows()[0].setContentSize(contentWidth, 800), width);
+        // F1.5: measure Chromium's final cascade and geometry, including responsive overrides.
+        await expect.poll(() => card.evaluate((element) => {
+          const info = element.querySelector(".card__info")!.getBoundingClientRect();
+          const actions = element.querySelector(".card__actions")!.getBoundingClientRect();
+          const menu = element.querySelector(".card__menubutton")!.getBoundingClientRect();
+          const power = element.querySelector(".card__power")!.getBoundingClientRect();
+          return {
+            bodyDirection: getComputedStyle(element.querySelector(".card__body")!).flexDirection,
+            actionsDirection: getComputedStyle(element.querySelector(".card__actions")!).flexDirection,
+            beside: info.width > 0 && actions.width > 0 && info.right <= actions.left + 1,
+            stacked: menu.height > 0 && power.height > 0 && menu.bottom <= power.top + 1,
+            rightAligned: Math.abs(menu.right - power.right) <= 1,
+          };
+        })).toEqual({ bodyDirection: "row", actionsDirection: "column", beside: true, stacked: true, rightAligned: true });
+      }
+    } finally {
+      await app.close();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    }
+  });
+
+  test("a host click at the guest assistant FAB opens the guest assistant", async () => {
+    const siteDir = path.join(fixtureRoot, "site-alpha");
+    const userDataDir = scratchHome("guest-fab-profile");
+    trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
+    const app = await launchShell({
+      TOVU_DESKTOP_UI: "runner",
+      TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
+      TOVU_DESKTOP_SITE_DIR: "",
+      TOVU_DESKTOP_SITE_DIRS: "",
+      TOVU_DESKTOP_URL: "",
+    });
+    try {
+      const win = await app.firstWindow({ timeout: 150_000 });
+      const card = win.locator(".card").filter({ has: win.locator(".card__name", { hasText: /^site-alpha$/ }) });
+      await card.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
+      await card.locator(".card__name").click();
+      await expect(win.locator("webview")).toBeVisible();
+
+      const readFab = () => app.evaluate(async ({ webContents }) => {
+        const guest = webContents.getAllWebContents().find((contents: { getType(): string; getURL(): string }) => contents.getType() === "webview" && /\/admin\//.test(contents.getURL()));
+        if (!guest) return null;
+        return guest.executeJavaScript(`(() => {
+          const button = document.querySelector('button.chat-fab');
+          if (!button) return null;
+          const rect = button.getBoundingClientRect();
+          return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2,
+            width: rect.width, height: rect.height, expanded: button.getAttribute('aria-expanded') };
+        })()`);
+      });
+      await expect.poll(async () => (await readFab())?.expanded, { timeout: 30_000 }).toBe("false");
+      const fab = await readFab();
+      expect(fab.width).toBeGreaterThan(0);
+      expect(fab.height).toBeGreaterThan(0);
+      const guestBox = await win.locator("webview").boundingBox();
+      expect(guestBox).not.toBeNull();
+      const point = { x: guestBox!.x + fab.x, y: guestBox!.y + fab.y };
+      // A host overlay in any imported child, with any name, fails this hit test.
+      await expect.poll(() => win.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, point)).toBe("WEBVIEW");
+      await win.mouse.click(point.x, point.y);
+      await expect.poll(async () => (await readFab())?.expanded).toBe("true");
+    } finally {
+      await app.close();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
     }
   });
 });

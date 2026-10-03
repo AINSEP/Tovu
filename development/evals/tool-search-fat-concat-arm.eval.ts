@@ -26,7 +26,7 @@
  * mid-run. They are byte-identical to that file's versions as of commit `5ac03312`.
  *
  * MEASUREMENT ONLY. No tool is registered; the shipping catalog is untouched. Every arm is built by
- * filtering `registry.list()` into a `Pick<ToolRegistry,"list">` stand-in.
+ * filtering `registry.list({})` into a `Pick<ToolRegistry,"list">` stand-in.
  *
  * Run: `npx tsx development/evals/tool-search-fat-concat-arm.eval.ts`
  */
@@ -142,7 +142,7 @@ function run(): void {
   // baseline arm silently becomes the treatment and every affected case scores as a permanent miss —
   // the integrity guard below caught exactly that on this file's first run.
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
-  const all = registry.list() as readonly Descriptor[];
+  const all = registry.list({}) as readonly Descriptor[];
 
   /** The REAL shipped catalog, collapsed for real, as a fourth arm alongside the synthetic ones. */
   const shippedRegistry = buildEvalToolRegistry(fakeEvalRouteDeps());

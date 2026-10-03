@@ -53,10 +53,13 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
     // measurement land in `useFabPosition`'s `avoidRightPx` before the drag starts, so the drag's
     // start position reflects the FAB already having been pushed clear of the dock (the untouched
     // default's expected, unregressed behavior — see that spec for the dedicated check).
-    await page.waitForTimeout(500);
-
     const fab = page.locator("button.chat-fab.chat-fab-dock-open");
     await expect(fab).toBeVisible();
+    await expect.poll(async () => {
+      const dockBox = await dock.boundingBox();
+      const fabBox = await fab.boundingBox();
+      return dockBox && fabBox ? fabBox.x + fabBox.width <= dockBox.x : false;
+    }).toBe(true);
     const dockBoxBefore = await dock.boundingBox();
     const fabBoxBefore = await fab.boundingBox();
     expect(dockBoxBefore, "dock bounding box must be measurable").not.toBeNull();
@@ -89,7 +92,17 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
 
     // The FAB's own resting-position recompute happens synchronously in React state, but give one
     // frame for the DOM to reflect it rather than reading `boundingBox()` in the same tick as `up()`.
-    await page.waitForTimeout(100);
+    const expectAtDrop = async () => {
+      await expect.poll(async () => {
+        const box = await fab.boundingBox();
+        return box ? Math.abs(box.x + box.width / 2 - targetX) : Infinity;
+      }, { message: "the FAB must retain the requested horizontal position" }).toBeLessThanOrEqual(2);
+      await expect.poll(async () => {
+        const box = await fab.boundingBox();
+        return box ? Math.abs(box.y + box.height / 2 - targetY) : Infinity;
+      }, { message: "the FAB must retain the requested vertical position" }).toBeLessThanOrEqual(2);
+    };
+    await expectAtDrop();
 
     const fabBoxAfter = await fab.boundingBox();
     expect(fabBoxAfter, "FAB bounding box must be measurable after the drop").not.toBeNull();
@@ -103,6 +116,7 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
       fabCenterXAfter,
       `FAB center (${fabCenterXAfter}) must land inside the dock's horizontal span [${dockBoxBefore.x}, ${dockBoxBefore.x + dockBoxBefore.width}] after being dropped there`
     ).toBeGreaterThanOrEqual(dockBoxBefore.x);
+    expect(fabCenterXAfter).toBeLessThanOrEqual(dockBoxBefore.x + dockBoxBefore.width);
 
     // Direct mechanism check, not just the visible symptom: the persisted position must actually be
     // marked `pinnedByUser`, confirming the fix's own gate (not some unrelated coincidence of pixel
@@ -118,7 +132,7 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
     await expect(dock).toHaveAttribute("hidden", "");
     await page.locator("button.chat-fab").click(); // reopen
     await expect(dock).not.toHaveAttribute("hidden", "");
-    await page.waitForTimeout(500);
+    await expectAtDrop();
 
     const fabBoxReopened = await page.locator("button.chat-fab.chat-fab-dock-open").boundingBox();
     expect(fabBoxReopened, "FAB bounding box must be measurable after reopening the dock").not.toBeNull();
@@ -128,5 +142,9 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
       fabCenterXReopened,
       "the pinned position must still be inside the dock after a close/reopen cycle"
     ).toBeGreaterThanOrEqual(dockBoxBefore.x);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    if (await dock.getAttribute("hidden") !== null) await page.locator("button.chat-fab").click();
+    await expect(dock).not.toHaveAttribute("hidden", "");
+    await expectAtDrop();
   });
 });

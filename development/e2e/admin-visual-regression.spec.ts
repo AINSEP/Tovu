@@ -486,7 +486,6 @@ test.describe("every admin page tab", () => {
 });
 
 test.describe("nested page tabs", () => {
-  test.skip("settings memory: how (host marks the nested controls inert)", async () => {});
   for (const [index, id] of categories.entries()) {
     test(`access-tokens: category ${id}`, async ({ page }) => {
       await page.goto("/admin/access-tokens?tab=access-tokens");
@@ -595,8 +594,13 @@ test.describe("seeded entity pages and editor tabs", () => {
   for (const detail of details) {
     test(detail.id, async ({ page, adminSeed }) => {
       await page.goto(detail.url(adminSeed.entities));
-      await expect(page.getByRole("heading", { name: detail.heading, exact: true })).toBeVisible();
-      if (detail.id === "change-password") await expect(page.getByRole("dialog", { name: "Reset password?", exact: true })).toBeVisible();
+      if (detail.id === "change-password") {
+        // showModal makes the underlying Users page inert and removes its heading from
+        // role queries. Assert the actual routed dialog instead of racing its open effect.
+        await expect(page.getByRole("dialog", { name: "Reset password?", exact: true })).toBeVisible();
+      } else {
+        await expect(page.getByRole("heading", { name: detail.heading, exact: true })).toBeVisible();
+      }
       await capture(page, `admin-${detail.id}.png`);
     });
   }
@@ -615,11 +619,6 @@ test.describe("assistant chat + Skills confirmation", () => {
     await page.locator("button.chat-fab").click();
     await expect(page.locator(".admin-chat-dock")).toBeVisible();
     await expect(page.locator("textarea.jini-composer-input")).toHaveValue("");
-    await capture(page, "assistant-open-empty.png");
-  });
-
-  test("slash popup /sk and a selected skill", async ({ page }) => {
-    await page.goto("/admin/dashboard");
     // Measure the rendered pane: a matching class/selector alone cannot prove flex sizing.
     await expect.poll(() => page.locator(".admin-chat-dock").evaluate(dock => {
       const pane = dock.querySelector(".admin-chat-dock-drop > .jini-chat-pane");
@@ -627,6 +626,11 @@ test.describe("assistant chat + Skills confirmation", () => {
       const bounds = pane.getBoundingClientRect();
       return Math.max(Math.abs(dock.clientWidth - bounds.width), Math.abs(dock.clientHeight - bounds.height));
     })).toBeLessThanOrEqual(1);
+    await capture(page, "assistant-open-empty.png");
+  });
+
+  test("slash popup /sk and a selected skill", async ({ page }) => {
+    await page.goto("/admin/dashboard");
     await page.locator("button.chat-fab").click();
     const input = page.locator("textarea.jini-composer-input");
     await input.pressSequentially("/sk");

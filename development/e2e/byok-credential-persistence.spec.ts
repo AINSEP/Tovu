@@ -104,7 +104,7 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // own left nav, so the BYOK tab is not mounted merely by landing on /admin/settings.
     await page.getByTestId("settings-dialog-nav-execution").click();
     await expect(page.getByRole("tab", { name: "BYOK" })).toBeVisible({ timeout: 10_000 });
-    expect(pageErrors.join("\n")).not.toMatch(/\.trim is not a function/);
+    expect(pageErrors).toEqual([]);
   });
 
   test("DEFENSE-IN-DEPTH: non-JSON garbage in legacy localStorage falls back to an empty field instead of crashing the settings page", async ({
@@ -113,6 +113,9 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     test.slow();
     await login(page);
     await stubExecutionRoutes(page);
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
 
     await page.evaluate(
       ({ key }) => window.localStorage.setItem(key, "{not-valid-json:::garbage,,,"),
@@ -132,12 +135,29 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // localStorage key. `readLegacyLocalCredential`'s own try/catch (in `execution-settings.ts`)
     // is exercised by this payload too, but the field would read blank either way.
     await expect(page.locator('.jini-byok-card .jini-field-input-row input')).toHaveValue("");
+    expect(pageErrors).toEqual([]);
   });
 
   test("SECURITY PIN: a typed API key never reaches localStorage, checked under the exact two-tab race that used to leak it pre-ADR-058", async ({
     context,
   }) => {
     test.slow();
+    const secrets = ["sk-ant-FROM-TAB-A", "sk-ant-FROM-TAB-B"];
+    const ledgerWrites: string[] = [];
+    context.on("request", (request) => {
+      if (request.method() === "PUT" && new URL(request.url()).pathname.includes("/settings/")) ledgerWrites.push(request.postData() ?? "");
+    });
+    // Install before either application boots, so transient writes and writes to any storage key
+    // remain observable even if a later removeItem hides them from the final snapshot.
+    await context.addInitScript(() => {
+      const state = window as unknown as { __storageWrites: Array<{ key: string; value: string }> };
+      state.__storageWrites = [];
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        state.__storageWrites.push({ key: String(key), value: String(value) });
+        return setItem.call(this, key, value);
+      };
+    });
     const tabA = await context.newPage();
     const tabB = await context.newPage();
     await login(tabA);
@@ -163,8 +183,16 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // Tab A types a key and lets the debounced auto-save flush (SAVE_DEBOUNCE_MS = 600ms,
     // `use-settings-slice.hooks.ts`) — the exact trigger that used to write the key to
     // localStorage pre-ADR-058.
-    await tabA.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-FROM-TAB-A");
-    await tabA.waitForTimeout(1_200);
+    await tabA.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[0]!);
+    const waitForModelSave = (page: Page, model: string) => page.waitForResponse((response) => {
+      if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
+      const body = response.request().postDataJSON();
+      return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === model;
+    });
+    const modelA = `e2e-tab-a-${Date.now()}`;
+    const tabASaved = waitForModelSave(tabA, modelA);
+    await setByokModel(tabA, modelA);
+    expect((await tabASaved).ok()).toBe(true);
     const afterTabASave = await tabA.evaluate(
       (key) => window.localStorage.getItem(key),
       CREDENTIALS_KEY,
@@ -174,8 +202,11 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // Tab B edits an unrelated field and lets its own debounce flush — the exact trigger that used
     // to race tab A's save and silently wipe it. There is no key in localStorage left to wipe now,
     // so this is checking the same race produces the same (empty) outcome, not a different one.
-    await setByokModel(tabB, "claude-sonnet-4-5");
-    await tabB.waitForTimeout(1_200);
+    await tabB.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[1]!);
+    const modelB = `e2e-tab-b-${Date.now()}`;
+    const tabBSaved = waitForModelSave(tabB, modelB);
+    await setByokModel(tabB, modelB);
+    expect((await tabBSaved).ok()).toBe(true);
 
     const afterTabBSave = await tabA.evaluate(
       (key) => window.localStorage.getItem(key),
@@ -185,6 +216,16 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // Belt-and-suspenders: even if some future, unrelated change starts writing SOMETHING to this
     // localStorage key again, the raw key material itself must never appear in it.
     expect(afterTabBSave ?? "").not.toContain("FROM-TAB-A");
+    expect(ledgerWrites.length).toBeGreaterThanOrEqual(2);
+    for (const tab of [tabA, tabB]) {
+      const storage = await tab.evaluate(() => ({
+        writes: (window as unknown as { __storageWrites: unknown[] }).__storageWrites,
+        local: Object.entries(localStorage),
+        session: Object.entries(sessionStorage),
+      }));
+      for (const secret of secrets) expect(JSON.stringify(storage)).not.toContain(secret);
+    }
+    for (const secret of secrets) expect(JSON.stringify(ledgerWrites)).not.toContain(secret);
 
     await tabA.close();
     await tabB.close();

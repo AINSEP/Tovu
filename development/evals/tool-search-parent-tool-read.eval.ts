@@ -4,7 +4,7 @@
  * the n=130 blind held-out set at top-1 / top-5 / top-10 / top-20.
  *
  * MEASUREMENT ONLY. Nothing here is registered into the shipping catalog: the collapsed variant is
- * built by filtering `registry.list()` and appending a synthetic descriptor, then handing that array
+ * built by filtering `registry.list({})` and appending a synthetic descriptor, then handing that array
  * to `buildToolCatalogQuery` (which takes `Pick<ToolRegistry,"list">`, so a plain object suffices).
  * `tool-catalog-manifest.ts` is untouched and no existing tool is removed from anything that ships.
  *
@@ -241,9 +241,9 @@ function pct(hits: number, n: number): string {
 
 function run(): void {
   installFirstPartyToolContributors();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
-  const all = registry.list() as readonly Descriptor[];
+  const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
 
@@ -388,9 +388,9 @@ const RESOURCE_KEY_ARTIFACTS =
   `exactly the tuning this arm exists to avoid.`;
 
 function runAddendum(): void {
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
-  const all = registry.list() as readonly Descriptor[];
+  const all = registry.list({}) as readonly Descriptor[];
   const n = HELD_OUT_V2.length;
 
   const collapsed = new Set(TIER1_CLEAN);
@@ -539,16 +539,16 @@ function runRealCatalog(): void {
   resetToolContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   installFirstPartyToolContributors();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({});
   const registrations = buildAssistantToolRegistrations(fakeRouteDeps());
   for (const r of registrations) registry.register(r);
   const n = HELD_OUT_V2.length;
 
   const cardIds = registrations.map((r) => r.descriptor.id).filter((id) => id.startsWith("content_read."));
-  const stillPresent = TIER1_CLEAN.filter((id) => registry.has(id));
+  const stillPresent = TIER1_CLEAN.filter((id) => registry.has({ toolId: id }));
 
   console.log(`\n\n${"=".repeat(110)}\nSECOND ADDENDUM — the REAL shipped catalog (buildAssistantToolRegistrations, unmodified)\n${"=".repeat(110)}\n`);
-  console.log(`  wired tools, real catalog        ${registry.list().length}`);
+  console.log(`  wired tools, real catalog        ${registry.list({}).length}`);
   console.log(`  content_read.* cards actually built  ${cardIds.length} of 29 expected`);
   console.log(`  Tier-1 ids still present (should be 0) ${stillPresent.length}${stillPresent.length ? " -> " + stillPresent.join(", ") : ""}`);
 

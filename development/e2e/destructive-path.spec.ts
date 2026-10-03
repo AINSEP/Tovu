@@ -165,7 +165,7 @@ async function waitForDeleteDialog(page: Page, postId: string, timeoutMs: number
  * `grep -c cancelledConfirmations dist/tool-executor.js`: 0). Root cause, traced against source:
  * `content_post_delete` never sets `descriptor.requiresConfirmation` (see
  * `src/features/post/agent-tools.ts`'s own comment on that tool, and
- * `src/assistant/pending-confirmations.ts:16`'s "exists and is deliberately never set"), so it never
+ * the former token store's "exists and is deliberately never set" rationale), so it never
  * reaches the `ToolExecutor` gate `a7c0f8b5` changed. Its actual confirmation-pending state is
  * Tovu's own `SurfaceExchange` (`src/assistant/surface-exchanges.ts`), parked *inside the handler
  * itself* (`src/features/post/tool-registrations.ts`'s `content_post_delete` handler), which closes
@@ -182,6 +182,7 @@ async function waitForDeleteDialog(page: Page, postId: string, timeoutMs: number
  * `Capability.requiresConfirmation` onto exactly that field for capabilities like
  * `chat.reset_conversation` (`packages/chat/src/core/agentic/chat-capabilities.ts`), so that family
  * is the candidate — not `content_post_delete` or any other CMS tool.
+ * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Pulls the current run id off the same debug transcript mirror `readTranscript` reads

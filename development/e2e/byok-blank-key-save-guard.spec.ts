@@ -1,4 +1,7 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
+import * as http from "node:http";
+import type { AddressInfo } from "node:net";
+import { byokModelTextInput, setByokModel } from "./byok-model-field.js";
 
 /**
  * @file "Save key must not offer to write a key that isn't there" — on BOTH panels of
@@ -52,6 +55,8 @@ import { test, expect, type Browser, type Page } from "@playwright/test";
 
 const ADMIN_ORIGIN_PATH = "/admin/";
 const CREDENTIAL_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution-credential";
+const VISITOR_CREDENTIAL_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/site-credential";
+const MODELS_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/models";
 
 /** Long enough to be a plausible Anthropic key and obviously fake. Never a real credential. */
 const FAKE_KEY = "sk-ant-api03-NOT-A-REAL-KEY-FOR-TESTS-ONLY";
@@ -176,7 +181,7 @@ test.describe("blank-key save guard", () => {
     await expect(save, 'whitespace is not a credential — "   " must read as empty').toBeDisabled();
   });
 
-  test("ADMIN panel, key already stored: an empty field still saves, and leaves the stored key INTACT", async () => {
+  test("ADMIN panel, key already stored: an empty field leaves Save key disabled and the stored key intact", async () => {
     // The trap the two tests above could otherwise cause someone to walk into. Everything here is
     // about the OTHER meaning of an empty field.
     await openAdminPanel(page);
@@ -263,4 +268,77 @@ test.describe("blank-key save guard", () => {
     const after = await page.request.get(CREDENTIAL_PATH).then((r) => r.json());
     expect(after.data.masked, "a whitespace-only field must never replace the stored key").toBe(before.data.masked);
   });
+
+  for (const panel of ["ADMIN", "VISITOR"] as const) {
+    test(`${panel} panel: Save settings persists the model without changing the stored key`, async () => {
+      const credentialPath = panel === "ADMIN" ? CREDENTIAL_PATH : VISITOR_CREDENTIAL_PATH;
+      const openPanel = panel === "ADMIN" ? openAdminPanel : openVisitorPanel;
+      const original = (await page.request.get(credentialPath).then((r) => r.json())).data;
+      const received: Array<{ path: string | undefined; authorization: string | undefined }> = [];
+      const deputy = http.createServer((req, res) => {
+        received.push({ path: req.url, authorization: req.headers.authorization });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "guard-model", object: "model" }] }));
+      });
+      await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
+      const baseUrl = `http://127.0.0.1:${(deputy.address() as AddressInfo).port}`;
+      const settings = panel === "ADMIN"
+        ? { protocol: "openai", providerId: "openai", baseUrl, model: "guard-model" }
+        : { provider: "openai", baseUrl, model: "guard-model" };
+      try {
+        expect((await page.request.put(credentialPath, { data: settings })).ok()).toBe(true);
+        await openPanel(page);
+        await keyField(page).fill(FAKE_KEY);
+        const keyWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
+        await saveButton(page, "Save key").click();
+        expect((await keyWrite).ok()).toBe(true);
+        await expect(keyField(page)).toHaveValue("");
+        const stored = (await page.request.get(credentialPath).then((r) => r.json())).data;
+        expect(stored.isSet).toBe(true);
+        await expect(keyField(page)).toHaveAttribute("placeholder", stored.masked);
+
+        await keyField(page).fill(FAKE_KEY);
+        await expect(saveButton(page, "Save key")).toBeEnabled();
+        for (const blank of ["", "   \t   "]) {
+          await keyField(page).fill(blank);
+          await expect(saveButton(page, "Save key")).toBeDisabled();
+          const afterBlank = (await page.request.get(credentialPath).then((r) => r.json())).data;
+          expect(afterBlank.isSet).toBe(true);
+          expect(afterBlank.masked).toBe(stored.masked);
+        }
+
+        await setByokModel(page, "guard-model-updated");
+        await expect(saveButton(page, "Save settings")).toBeEnabled();
+        const settingsWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
+        await saveButton(page, "Save settings").click();
+        const response = await settingsWrite;
+        expect(response.ok()).toBe(true);
+        expect(response.request().postDataJSON()).not.toHaveProperty("apiKey");
+        expect(response.request().postDataJSON()).toMatchObject({ ...settings, model: "guard-model-updated" });
+        await openPanel(page);
+        await expect(byokModelTextInput(page)).toHaveValue("guard-model-updated");
+        await expect(keyField(page)).toHaveValue("");
+        const reloaded = (await page.request.get(credentialPath).then((r) => r.json())).data;
+        expect(reloaded).toMatchObject({ ...settings, model: "guard-model-updated", isSet: true, masked: stored.masked });
+
+        received.length = 0;
+        const probe = await page.request.post(MODELS_PATH, {
+          data: { protocol: "openai", baseUrl, apiKey: "", ...(panel === "ADMIN" ? { useAdminStoredCredential: true } : { useStoredCredential: true }) },
+        });
+        expect(probe.status()).toBe(200);
+        expect((await probe.json()).ok).toBe(true);
+        expect(received).toContainEqual({ path: "/v1/models", authorization: `Bearer ${FAKE_KEY}` });
+      } finally {
+        try {
+          expect((await page.request.delete(credentialPath)).ok()).toBe(true);
+          const restoredSettings = panel === "ADMIN"
+            ? { protocol: original.protocol, providerId: original.providerId, baseUrl: original.baseUrl ?? "", model: original.model ?? "" }
+            : { provider: original.provider, baseUrl: original.baseUrl ?? "", model: original.model ?? "" };
+          expect((await page.request.put(credentialPath, { data: restoredSettings })).ok()).toBe(true);
+        } finally {
+          await new Promise<void>((resolve) => deputy.close(() => resolve()));
+        }
+      }
+    });
+  }
 });

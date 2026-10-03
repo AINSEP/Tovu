@@ -51,49 +51,57 @@ async function login(request: APIRequestContext): Promise<void> {
 }
 
 const MODELS_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/models";
+const CONNECTION_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/test-connection";
 
 function modelsBody(baseUrl: string, apiKey = "sk-test-FAKE-KEY-NOT-REAL") {
-  return { protocol: "openai", baseUrl, apiKey };
+  return { protocol: "openai", baseUrl, apiKey, model: "deputy-marker-model" };
 }
 
 test("ssrf-guard blocks every documented private/reserved range and non-http(s) scheme", async ({ request }) => {
   await login(request);
 
-  const blockedCases: Array<{ name: string; baseUrl: string; expectMessage: RegExp }> = [
+  const blockedCases: Array<{ name: string; baseUrl: string; expectMessage: string }> = [
     {
       name: "cloud metadata service (169.254.169.254)",
       baseUrl: "http://169.254.169.254/latest/meta-data/",
-      expectMessage: /internal ip/i,
+      expectMessage: "Internal IPs blocked",
     },
-    { name: "0.0.0.0", baseUrl: "http://0.0.0.0", expectMessage: /internal ip/i },
-    { name: "RFC1918 10.x", baseUrl: "http://10.0.0.5", expectMessage: /internal ip/i },
-    { name: "RFC1918 192.168.x", baseUrl: "http://192.168.1.1", expectMessage: /internal ip/i },
-    { name: "RFC1918 172.16-31.x", baseUrl: "http://172.16.0.1", expectMessage: /internal ip/i },
-    { name: "CGNAT 100.64/10", baseUrl: "http://100.64.0.1", expectMessage: /internal ip/i },
+    { name: "0.0.0.0", baseUrl: "http://0.0.0.0", expectMessage: "Internal IPs blocked" },
+    { name: "RFC1918 10.x", baseUrl: "http://10.0.0.5", expectMessage: "Internal IPs blocked" },
+    { name: "RFC1918 192.168.x", baseUrl: "http://192.168.1.1", expectMessage: "Internal IPs blocked" },
+    { name: "RFC1918 172.16-31.x", baseUrl: "http://172.16.0.1", expectMessage: "Internal IPs blocked" },
+    { name: "CGNAT 100.64/10", baseUrl: "http://100.64.0.1", expectMessage: "Internal IPs blocked" },
     {
       name: "decimal-encoded 10.x (167772165 = 10.0.0.5)",
       baseUrl: "http://167772165",
-      expectMessage: /internal ip/i,
+      expectMessage: "Internal IPs blocked",
     },
-    { name: "hex-encoded private IP (0xac100001 = 172.16.0.1)", baseUrl: "http://0xac100001", expectMessage: /internal ip/i },
-    { name: "file://", baseUrl: "file:///etc/passwd", expectMessage: /http|https/i },
-    { name: "gopher://", baseUrl: "gopher://127.0.0.1:70/_test", expectMessage: /http|https/i },
+    { name: "hex-encoded private IP (0xac100001 = 172.16.0.1)", baseUrl: "http://0xac100001", expectMessage: "Internal IPs blocked" },
+    { name: "IPv6 ULA fc00", baseUrl: "http://[fc00::1]", expectMessage: "Internal IPs blocked" },
+    { name: "IPv6 ULA fd00", baseUrl: "http://[fd00::1]", expectMessage: "Internal IPs blocked" },
+    { name: "IPv6 link-local", baseUrl: "http://[fe80::1]", expectMessage: "Internal IPs blocked" },
+    { name: "IPv4-mapped private IPv6", baseUrl: "http://[::ffff:10.0.0.5]", expectMessage: "Internal IPs blocked" },
+    { name: "userinfo hiding a private host", baseUrl: "http://public.example@10.0.0.5", expectMessage: "Internal IPs blocked" },
+    { name: "file://", baseUrl: "file:///etc/passwd", expectMessage: "Only http/https allowed" },
+    { name: "gopher://", baseUrl: "gopher://127.0.0.1:70/_test", expectMessage: "Only http/https allowed" },
   ];
 
-  for (const { name, baseUrl, expectMessage } of blockedCases) {
-    const start = Date.now();
-    const res = await request.post(MODELS_PATH, { data: modelsBody(baseUrl) });
-    const elapsedMs = Date.now() - start;
-    expect(res.status(), name).toBe(200); // route always 200s; `ok:false` carries the failure
-    const body = await res.json();
-    expect(body.ok, name).toBe(false);
-    expect(body.message, name).toMatch(expectMessage);
-    // A guard rejection is a synchronous hostname/DNS check, not a real connection attempt —
-    // it should return fast. Loose smoke bound, not a precise SLA (shared dev machine, real
-    // multi-second jitter observed even on passing cases) — the signal it guards against is
-    // the guard letting a request through and something downstream hitting ITS OWN
-    // multi-second timeout (`PROVIDER_MODELS_TIMEOUT_MS` is 12s), which this sits well under.
-    expect(elapsedMs, name).toBeLessThan(10_000);
+  for (const path of [MODELS_PATH, CONNECTION_PATH]) {
+    for (const { name, baseUrl, expectMessage } of blockedCases) {
+      const start = Date.now();
+      const res = await request.post(path, { data: modelsBody(baseUrl) });
+      const elapsedMs = Date.now() - start;
+      expect(res.status(), name).toBe(200); // route always 200s; `ok:false` carries the failure
+      const body = await res.json();
+      expect(body.ok, name).toBe(false);
+      expect(body.message, `${path}: ${name}`).toBe(expectMessage);
+      // A guard rejection is a synchronous hostname/DNS check, not a real connection attempt —
+      // it should return fast. Loose smoke bound, not a precise SLA (shared dev machine, real
+      // multi-second jitter observed even on passing cases) — the signal it guards against is
+      // the guard letting a request through and something downstream hitting ITS OWN
+      // multi-second timeout (`PROVIDER_MODELS_TIMEOUT_MS` is 12s), which this sits well under.
+      expect(elapsedMs, name).toBeLessThan(10_000);
+    }
   }
 });
 
@@ -113,8 +121,8 @@ test("a hostname that DNS-resolves to a private IP is blocked (rebinding defense
   // cloned to a different path, confirmed live against run `31998106661`. The package export is the
   // same function Tovu's own production code already resolves this same way elsewhere.
   const fakeLookup = async () => [{ address: "10.0.0.5", family: 4 }];
-  const result = await validateBaseUrlResolved("http://internal.example.com", fakeLookup);
-  expect(result.error).toMatch(/internal ip/i);
+  const result = await validateBaseUrlResolved({ baseUrl: "http://internal.example.com", lookup: fakeLookup });
+  expect(result.error).toBe("Internal IPs blocked");
   expect(result.forbidden).toBe(true);
 });
 
@@ -123,55 +131,56 @@ test("ssrf-guard: loopback is allowed BY DESIGN, with no port restriction — th
 }) => {
   await login(request);
 
-  // Part A: every IP-literal encoding of loopback is ACCEPTED (not rejected) by the guard.
-  // These don't reach a real listener (unused high port) — the point is purely the
-  // ACCEPT/REJECT decision, read from the response shape (never the guard's own "Internal
-  // IPs blocked" message; any other failure proves the guard let it through).
-  const encodings = [
-    "http://localhost:1",
-    "http://127.0.0.1:1",
-    "http://[::1]:1",
-    "http://2130706433:1", // decimal 127.0.0.1
-    "http://0177.0.0.1:1", // octal 127.0.0.1
-    "http://0x7f000001:1", // hex 127.0.0.1
-  ];
-  for (const baseUrl of encodings) {
-    const res = await request.post(MODELS_PATH, { data: modelsBody(baseUrl) });
-    const body = await res.json();
-    expect(body.message, baseUrl).not.toMatch(/internal ip/i);
-  }
-
-  // Part B — the money shot: a REAL local listener actually receives the request. The
-  // "confused deputy" stands in for ANY service that might be bound to loopback on a real
-  // deployment (the Tovu API itself, a database's admin UI, an internal tool, etc.) — it
-  // deliberately does NOT run on a "known LLM server" port, because the point is that the
-  // guard applies no port scoping at all.
+  // Every encoding must reach an owned listener and return a usable catalog. A generic
+  // network error cannot establish that loopback was accepted or the endpoint constructed right.
   let hitCount = 0;
-  let receivedPath: string | undefined;
-  const deputy = http.createServer((req, res) => {
+  const received: Array<{ path: string | undefined; method: string | undefined; authorization: string | undefined }> = [];
+  const handler: http.RequestListener = (req, res) => {
     hitCount++;
-    receivedPath = req.url;
+    received.push({ path: req.url, method: req.method, authorization: req.headers.authorization });
     res.writeHead(200, { "content-type": "application/json" });
     // A non-empty catalog: an empty `data: []` is reported by `model-catalog.ts` as
     // `ok:false` ("Provider returned no usable text-generation models"), which would be
     // indistinguishable from a guard rejection in this test.
     res.end(JSON.stringify({ data: [{ id: "deputy-marker-model", object: "model" }] }));
+  };
+  const deputy = http.createServer(handler);
+  const ipv6Deputy = http.createServer(handler);
+  await new Promise<void>((resolve, reject) => {
+    deputy.once("error", reject);
+    deputy.listen(0, "127.0.0.1", resolve);
   });
-  await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
   const port = (deputy.address() as AddressInfo).port;
 
   try {
-    const res = await request.post(MODELS_PATH, { data: modelsBody(`http://127.0.0.1:${port}`) });
-    const body = await res.json();
-
-    // The measured fact, not an inference: the deputy's own request counter incremented —
-    // this alone is the SSRF proof, independent of how Tovu's route then interprets the
-    // deputy's response body.
-    expect(hitCount).toBe(1);
-    expect(receivedPath).toBe("/v1/models");
-    expect(body.ok).toBe(true);
-    expect(body.models).toContain("deputy-marker-model");
+    await new Promise<void>((resolve, reject) => {
+      ipv6Deputy.once("error", reject);
+      ipv6Deputy.listen(0, "::1", resolve);
+    });
+    const ipv6Port = (ipv6Deputy.address() as AddressInfo).port;
+    const encodings = [
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`,
+      `http://[::1]:${ipv6Port}`,
+      `http://2130706433:${port}`,
+      `http://0177.0.0.1:${port}`,
+      `http://0x7f000001:${port}`,
+      `http://[::ffff:127.0.0.1]:${port}`,
+    ];
+    for (const baseUrl of encodings) {
+      const before = hitCount;
+      const res = await request.post(MODELS_PATH, { data: modelsBody(baseUrl) });
+      expect(res.status(), baseUrl).toBe(200);
+      const body = await res.json();
+      expect(hitCount, baseUrl).toBe(before + 1);
+      expect(received[before], baseUrl).toEqual({
+        path: "/v1/models", method: "GET", authorization: "Bearer sk-test-FAKE-KEY-NOT-REAL",
+      });
+      expect(body.ok, baseUrl).toBe(true);
+      expect(body.models, baseUrl).toContain("deputy-marker-model");
+    }
   } finally {
     await new Promise<void>((resolve) => deputy.close(() => resolve()));
+    await new Promise<void>((resolve) => ipv6Deputy.close(() => resolve()));
   }
 });

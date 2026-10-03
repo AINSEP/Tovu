@@ -254,7 +254,7 @@ export async function runMenuHrefAllowlistSync(): Promise<readonly HrefMismatch[
     loadHrefChecker(STATIC_RENDER_TS_PATH),
   ]);
   const checkers: Record<string, HrefChecker> = {
-    "jini:isAllowedHref": (href) => isAllowedHref(href),
+    "jini:isAllowedHref": (href) => isAllowedHref({ rawHref: href }),
     "render.ts:safeHref": renderTsChecker,
     "static-render.ts:safeHref": staticRenderTsChecker,
   };

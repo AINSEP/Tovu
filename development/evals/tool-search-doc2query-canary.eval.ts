@@ -25,7 +25,7 @@
  */
 import Database from "better-sqlite3";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
-import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
@@ -110,7 +110,7 @@ function summarize(label: string, results: ReturnType<typeof score>) {
 
 function run(): void {
   const registry = buildEvalToolRegistry(fakeRouteDeps());
-  const descriptors = registry.list();
+  const descriptors = registry.list({});
 
   const db = new Database(":memory:");
   ensureToolCatalogTables(db);

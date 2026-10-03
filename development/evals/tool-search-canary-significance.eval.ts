@@ -25,7 +25,7 @@ import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2quer
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 import { HYDE_PROMPT_EXPANSIONS } from "./tool-search-hyde-prompt-expansions.js";
 import Database from "better-sqlite3";
-import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 
 interface EvalCase {
   readonly query: string;
@@ -138,7 +138,7 @@ function run(): void {
   const baselineVec = top1Vector((c) => shipped.search(c.query, 10)[0]?.id ?? null);
 
   // doc2query index
-  const descriptors = registry.list();
+  const descriptors = registry.list({});
   const doc2Db = new Database(":memory:");
   ensureToolCatalogTables(doc2Db);
   reseedToolCatalog(

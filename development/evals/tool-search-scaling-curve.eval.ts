@@ -56,7 +56,7 @@ import { indexedDescriptionFor, stripSearchKeywords } from "../../apps/website/s
 import { MASTER_DISTRACTOR_DOC2QUERY, distractorsForSize, type DistractorTool } from "./tool-search-distractors.js";
 import { CALIBRATION_DOC2QUERY_250 } from "./tool-search-distractors-doc2query-calibration-250.js";
 import Database from "better-sqlite3";
-import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
+import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
 
@@ -207,7 +207,7 @@ function buildDoc2QueryIndex(
 
 function run(): void {
   const registry = buildEvalToolRegistry(fakeRouteDeps());
-  const realDescriptors = registry.list();
+  const realDescriptors = registry.list({});
   const n = HELD_OUT_V2.length;
 
   const SIZES = [131, 250, 500, 1000] as const;

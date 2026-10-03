@@ -1,10 +1,4 @@
 import { test, expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
-// The REAL installed package Tovu's own daemon runs (module resolution from this repo's root
-// resolves it to `node_modules/@jini-ai/agentic`, not a copy) — used unmodified in LEVEL 3 so the
-// schema validation, handle checks and the credential-withholding guard are the actual production
-// code, not a re-implementation of them.
-import { executePageCapability } from "@jini-ai/agentic";
 import { loginAsAdmin } from "./auth-fixtures.js";
 import { waitForAgentDaemon } from "./daemon-ready.js";
 
@@ -86,78 +80,9 @@ async function* parseSseFrames(reader: ReadableStreamDefaultReader<Uint8Array>):
   }
 }
 
-/**
- * LEVEL 3's own scope boundary, disclosed here rather than left implicit: this is a faithful but
- * DELIBERATELY MINIMAL re-implementation of `dom-page-driver.ts`'s `findElements`/`describeState`
- * (same attribute names — `data-agent-element`/`data-agent-role`/`data-agent-label` — same
- * `control.value` read), scoped to exactly the one query this test issues, executed via real
- * `page.evaluate` calls against the REAL rendered admin tab. It stands in for the bundled
- * `createFrontendSessionBridge`'s browser-side execution, which this test cannot reach directly (it
- * is a closure inside a live React component, not something a test process can import and drive).
- * Everything downstream of this — schema validation, the handle/role checks, and the
- * credential-withholding guard — is the REAL `executePageCapability` from the REAL installed
- * `@jini-ai/agentic` package, unmodified. LEVEL 1 already proved this file's own read/write
- * technique matches the real driver's against this exact page.
- */
-function buildPageEvaluateDriver(page: Page) {
-  return {
-    async findElements(filter: { role?: string; query?: string }) {
-      return page.evaluate((f) => {
-        const nodes = Array.from(document.querySelectorAll("[data-agent-element]"));
-        const found = nodes.map((el) => ({
-          handle: el.getAttribute("data-agent-element") ?? "",
-          role: el.getAttribute("data-agent-role") ?? undefined,
-          label: el.getAttribute("data-agent-label") ?? (el.textContent ?? "").trim(),
-          page: el.closest("[data-agent-page]")?.getAttribute("data-agent-page") ?? undefined,
-        }));
-        const query = f.query?.toLowerCase();
-        return found.filter((el) => {
-          if (f.role !== undefined && el.role !== f.role) return false;
-          if (query === undefined) return true;
-          return el.handle.toLowerCase().includes(query) || el.label.toLowerCase().includes(query);
-        });
-      }, filter);
-    },
-    async listPages() {
-      return [];
-    },
-    async describeState(handle: string) {
-      return page.evaluate((h) => {
-        // `Element`, not `HTMLInputElement` — the handle can name ANY tagged element, and the
-        // over-specific cast this line used to carry is exactly what broke the `instanceof` check
-        // two lines down: once TypeScript "knows" `el` is an `HTMLInputElement`, the falsy branch of
-        // `el instanceof HTMLInputElement` narrows to `never` (the only type left once the sole
-        // possibility is excluded), and `never instanceof HTMLTextAreaElement` is TS2358 — the
-        // left-hand side of `instanceof` must be an object type, and `never` doesn't count. Every
-        // read below that needs an input/textarea-specific member (`.value`, `.type`, `.readOnly`,
-        // …) now re-casts explicitly at its own use site instead of relying on this one blanket cast
-        // to smuggle it in for the whole function.
-        const el = document.querySelector(`[data-agent-element="${h}"]`);
-        if (!el) return null;
-        const isField = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
-        return {
-          text: (el.textContent ?? "").trim(),
-          ...(isField ? { value: (el as HTMLInputElement | HTMLTextAreaElement).value } : {}),
-          disabled: (el as HTMLInputElement).disabled === true,
-          visible: el.checkVisibility ? el.checkVisibility() : undefined,
-          ...(isField
-            ? {
-                field: {
-                  type: el instanceof HTMLInputElement ? el.type.toLowerCase() : "textarea",
-                  autocomplete: el.getAttribute("autocomplete")?.toLowerCase() || undefined,
-                  name: (el as HTMLInputElement).name || undefined,
-                  id: el.id || undefined,
-                  accessibleLabels: [document.querySelector(`label[for="${el.id}"]`)?.textContent?.trim() ?? ""].filter(Boolean),
-                  readOnly: (el as HTMLInputElement).readOnly === true,
-                  disabled: (el as HTMLInputElement).disabled === true,
-                },
-              }
-            : {}),
-        };
-      }, handle);
-    },
-  };
-}
+// Observe frames on the bundle's native EventSource. The production bridge remains responsible
+// for handling invocations and posting responses; the test never executes a page capability.
+type BridgeObservation = { sessionId: string; bindToken: string };
 
 test.describe.serial("Agent page-control — live verification", () => {
   test("LEVEL 1: DOM page-driver mechanics work against the real rendered SPA — existence, current value, and a React-safe write", async ({ page }) => {
@@ -185,6 +110,8 @@ test.describe.serial("Agent page-control — live verification", () => {
     await tokenField.fill(typedValue);
     const readBack = await tokenField.evaluate((el: HTMLInputElement) => el.value);
     expect(readBack, "reading .value after a real fill must return what was typed").toBe(typedValue);
+    await tokenField.fill("");
+    await expect(saveButton, "the driver write must start from blank React state").toBeDisabled();
 
     // ---- Write the way `dom-page-driver.ts`'s real `fill()` writes: through the prototype setter,
     // dispatching real `input`/`change` events — not a bare assignment, which the driver's own
@@ -247,6 +174,9 @@ test.describe.serial("Agent page-control — live verification", () => {
     await page.goto(STATIC_SITE_TAB_PATH, { waitUntil: "domcontentloaded" });
     const realBridgeRequest = await bridgeStreamRequest;
     expect(realBridgeRequest.url(), "the real admin bundle's own bridge must claim page.* capabilities").toContain("capability=page.");
+    expect(new URL(realBridgeRequest.url()).searchParams.getAll("capability").filter((id) => id.startsWith("page.")).sort()).toEqual([
+      "page.click", "page.fill", "page.find_elements", "page.highlight", "page.navigate", "page.scroll_to", "page.select_option",
+    ]);
 
     // ---- Proof 2: the daemon's own end of that same route hands back a real attach frame — same
     // wire protocol `frontend-session-bridge.ts` speaks (`GET .../stream?capability=...`, first
@@ -287,68 +217,41 @@ test.describe.serial("Agent page-control — live verification", () => {
     test.setTimeout(6 * 60_000);
     await waitForAgentDaemon();
 
+    await page.addInitScript(() => {
+      const state = window as unknown as { __observedAdminBridge?: { sessionId: string; bindToken: string } };
+      const NativeEventSource = window.EventSource;
+      window.EventSource = class extends NativeEventSource {
+        constructor(url: string | URL, configuration?: EventSourceInit) {
+          super(url, configuration);
+          if (!String(url).includes("/api/frontend-sessions/stream")) return;
+          this.addEventListener("message", (event) => {
+            const frame = JSON.parse(event.data);
+            if (frame.type === "attached") state.__observedAdminBridge = { sessionId: frame.sessionId, bindToken: frame.bindToken };
+          });
+          this.addEventListener("error", () => { delete state.__observedAdminBridge; });
+        }
+        close() {
+          delete state.__observedAdminBridge;
+          super.close();
+        }
+      };
+    });
     await loginAsAdmin(page);
     await page.goto(STATIC_SITE_TAB_PATH, { waitUntil: "domcontentloaded" });
-    // A known, non-secret, recognizable value in the exact field a repo picker would drive — so the
-    // agent's report can be checked against a concrete fact, not just "some JSON came back".
     await page.getByLabel("GitHub owner or org").fill(OWNER_TEST_VALUE);
-
-    // ---- Attach a frontend session over the real wire protocol, same as LEVEL 2. Kept open and
-    // read continuously below, rather than cancelled after the first frame. ----
-    const loginRes = await fetch(`${baseURL}/api/admin/v1/auth/login`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
-    });
-    expect(loginRes.status).toBe(200);
-    const cookieHeader = (loginRes.headers.getSetCookie?.() ?? []).map((raw) => raw.split(";")[0]).join("; ");
-
-    const streamUrl = `${baseURL}/api/frontend-sessions/stream?capability=${encodeURIComponent("page.find_elements")}`;
-    const streamRes = await fetch(streamUrl, { headers: { accept: "text/event-stream", cookie: cookieHeader } });
-    expect(streamRes.status).toBe(200);
-    if (!streamRes.body) throw new Error("no response body for frontend-sessions stream");
-    const sessionReader = streamRes.body.getReader();
-    const sessionFrames = parseSseFrames(sessionReader);
-
-    const first = await sessionFrames.next();
-    const attached = first.value as { type: string; sessionId: string; bindToken: string };
-    expect(attached?.type).toBe("attached");
-    const { sessionId, bindToken } = attached;
-
-    const driver = buildPageEvaluateDriver(page);
-    let servedInvocations = 0;
-    /** Serves every invocation this session receives until `stop` is set — runs concurrently with
-     *  the run-events stream below, since both must be read at once for the round trip to complete
-     *  (the daemon will not deliver an invocation until the run starts; the run will not get a
-     *  tool_result until the invocation is served). */
-    let stop = false;
-    const serveInvocations = (async () => {
-      for await (const frame of sessionFrames) {
-        if (stop) break;
-        if (frame["type"] !== "invocation") continue;
-        const invocationId = String(frame["invocationId"]);
-        const capabilityId = String(frame["capabilityId"]);
-        const input = (frame["input"] ?? {}) as Record<string, unknown>;
-        let body: Record<string, unknown>;
-        try {
-          const output = await executePageCapability(
-            driver as unknown as Parameters<typeof executePageCapability>[0],
-            capabilityId,
-            input,
-          );
-          body = { invocationId, ok: true, output };
-        } catch (error) {
-          body = { invocationId, ok: false, message: error instanceof Error ? error.message : String(error) };
-        }
-        await fetch(`${baseURL}/api/frontend-sessions/${encodeURIComponent(sessionId)}/responses`, {
-          method: "POST",
-          headers: { "content-type": "application/json", cookie: cookieHeader },
-          body: JSON.stringify(body),
-        });
-        servedInvocations += 1;
-        if (stop) break;
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { __observedAdminBridge?: BridgeObservation }).__observedAdminBridge?.bindToken
+    )).toBeTruthy();
+    const { sessionId, bindToken } = await page.evaluate(() =>
+      (window as unknown as { __observedAdminBridge: BridgeObservation }).__observedAdminBridge
+    );
+    const browserResponses: Array<{ ok: boolean; output?: unknown }> = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === `/api/frontend-sessions/${encodeURIComponent(sessionId)}/responses`) {
+        browserResponses.push(request.postDataJSON());
       }
-    })();
+    });
+    const cookieHeader = (await page.context().cookies(baseURL!)).map(({ name, value }) => `${name}=${value}`).join("; ");
 
     // ---- Start a real run: a real `claude` CLI, bound to the session above, instructed to call
     // page.find_elements and nothing else. Same directive-and-narrow style
@@ -417,17 +320,12 @@ test.describe.serial("Agent page-control — live verification", () => {
     }
     await runReader.cancel().catch(() => undefined);
 
-    // ---- Tear down the frontend session before asserting, so a failed assertion doesn't leak an
-    // open connection. ----
-    stop = true;
-    await sessionReader.cancel().catch(() => undefined);
-    await serveInvocations.catch(() => undefined);
     await fetch(`${baseURL}/api/runs/${runId}/cancel`, { method: "POST", headers: { "content-type": "application/json", cookie: cookieHeader }, body: "{}" }).catch(() => undefined);
 
-    expect(
-      servedInvocations,
-      `expected at least one page.find_elements invocation to be served; run events seen: ${seenTypes.join(", ")}; agent payloads: ${JSON.stringify(agentPayloads)}`,
-    ).toBeGreaterThan(0);
+    expect(browserResponses.length, "the admin bundle itself must POST a page-control response").toBeGreaterThan(0);
+    expect(browserResponses).toContainEqual(expect.objectContaining({ ok: true }));
+    expect(JSON.stringify(browserResponses), "the actual browser executor must resolve the live owner field").toContain(OWNER_TEST_VALUE);
+    expect(JSON.stringify(browserResponses)).toContain(OWNER_FIELD_HANDLE);
     expect(toolResultContent, `expected a tool_result event; run events seen: ${seenTypes.join(", ")}`).toBeTruthy();
     const resultText = JSON.stringify(toolResultContent);
     // The decisive check: the real, live value typed into the real rendered field must appear in the

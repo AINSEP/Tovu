@@ -50,7 +50,7 @@ if (!out) throw new Error("usage: tsx tool-search-export-corpus.ts <out.json>");
 
 const registry = buildEvalToolRegistry(fakeRouteDeps());
 
-const tools = registry.list().map((d) => {
+const tools = registry.list({}).map((d) => {
   const base = d.description ?? "";
   const d2q = DOC2QUERY[d.id];
   return {

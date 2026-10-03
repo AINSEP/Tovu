@@ -121,7 +121,7 @@ function main(): void {
   if (!outDir) throw new Error("usage: tsx tool-search-argument-fill-duplicate.ts <out-dir>");
   mkdirSync(outDir, { recursive: true });
 
-  const shipped = buildEvalToolRegistry(fakeEvalRouteDeps()).list() as readonly {
+  const shipped = buildEvalToolRegistry(fakeEvalRouteDeps()).list({}) as readonly {
     id: string;
     description?: string;
     inputSchema?: Record<string, unknown>;
