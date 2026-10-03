@@ -479,7 +479,9 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
 
 test("the product handler renders the Commerce sale card and the unwired empty state", async () => {
   const theme = createRouteDeps().themes.find((theme) => theme.manifest.id === "fashion-modern");
-  assert.ok(theme);
+  // A message on every assert.ok here: without one, Node regenerates the failing expression by
+  // acorn-parsing this file's tsx output (one very long line), which takes minutes and looks like a hang.
+  assert.ok(theme, "the sale-card fixture must use the shipped storefront template");
   for (const populated of [true, false]) {
     const deps = {
       ...createRouteDeps(), ...(populated ? { themes: [theme] } : {}), store: undefined,
@@ -497,7 +499,7 @@ test("the product handler renders the Commerce sale card and the unwired empty s
     assert.equal(status, 200);
     if (populated) {
       const card = /<li class="product-card">([\s\S]*?)<\/li>/.exec(html);
-      assert.ok(card);
+      assert.ok(card, "the Commerce product must render a storefront card");
       assert.match(card[1], /Sale Tee/);
       assert.match(card[1], /class="product-card__price-current">\$35\.00<\/span>/);
       assert.match(card[1], /class="product-card__price-compare">\$45\.00<\/span>/);
