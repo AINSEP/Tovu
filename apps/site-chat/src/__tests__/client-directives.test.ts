@@ -71,7 +71,7 @@ describe("wrong-typed page actions at both trust boundaries", () => {
   }
   it("rejects a non-boolean navigate auto flag at both boundaries", () => {
     for (const auto of ["true", 1, null]) {
-      const action = { ...NAV, auto };
+      const action: Omit<PageAction, "auto"> & { auto: string | number | null } = { ...NAV, auto };
       assert.equal(isPageActionDirective({ kind: "page_action", action }), false);
       assert.equal(isQueuedPageAction(action), false);
     }

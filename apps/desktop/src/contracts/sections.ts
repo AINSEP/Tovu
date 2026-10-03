@@ -15,14 +15,15 @@
  * collide with a fleet tool, so the left chat cannot accidentally edit a post.
  *
  * The converse half of that sentence used to read "and the right chat cannot stop a
- * process", with the prefix as the reason, then (ADR-061) "and `site-assistant-tools.ts`
- * — a SECOND, narrower list — keeps it away from the rest". Both are stale as of
+ * process", with the prefix as the reason, then (ADR-061) a second, narrower allowlist
+ * kept it away from the rest. Both claims were stale as of
  * 2026-08: the operator decided the two chats should carry identical capability (single
  * developer, single-user desktop app, no second party on either side of the Runner↔Tovu
- * line — see `site-assistant-tools.ts`'s header for the full argument and the residual
- * exposure), so that file now mirrors `runnerToolNames()` instead of excluding from it.
- * Adding a verb below grants it to BOTH chats — that mirror is the current design, not
- * an oversight this file needs to guard against. The prefix still does its own job (no
+ * line), accepting the residual exposure that user-supplied site content could prompt an
+ * assistant to act on another project. The historical mirror represented that trust decision;
+ * this checkout never imported it or supplied its advertised enforcement gates.
+ * site-assistant-tools.ts (contracts/site-assistant-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * The prefix still does its own job (no
  * collisions, no unprefixed verb, Tovu never importing a Runner tool by accident); it
  * was just never what separated the two chats' capability, in either era.
  *
@@ -78,12 +79,7 @@ export interface RunnerSection {
   tools: readonly string[];
 }
 
-export const RUNNER_SECTION_GROUPS: readonly RunnerSectionGroup[] = [
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'work', label: 'Work' },
-  { id: 'operations', label: 'Operations' },
-  { id: 'access', label: 'Access' },
-];
+// RUNNER_SECTION_GROUPS (apps/desktop/src/contracts/sections.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 export const RUNNER_SECTIONS = [
   {
@@ -222,10 +218,11 @@ export const RUNNER_SECTIONS = [
   },
   // `as const satisfies` rather than a `: readonly RunnerSection[]` annotation. The annotation
   // widened every `tools` entry to `string`, which left the type system with no vocabulary for
-  // "a verb this app actually declares" — so `site-assistant-tools.ts`'s mirror of this list could
-  // only be checked at runtime. Preserving the literals is what lets `RunnerToolName` exist, and
+  // "a verb this app actually declares" — so a mirror of this list could only be checked at
+  // runtime. Preserving the literals is what lets `RunnerToolName` exist, and
   // `satisfies` keeps the shape check the annotation was there for, so nothing about this list got
   // looser.
+  // site-assistant-tools.ts (contracts/site-assistant-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 ] as const satisfies readonly RunnerSection[];
 
 /** Navigation is itself a tool — the left chat can move the top nav, not just answer about it. */
@@ -268,11 +265,11 @@ export function visibleSections(): readonly RunnerSection[] {
  * Every `desktop.*` verb this build declares, as a literal union.
  *
  * Derived from {@link RUNNER_SECTIONS} rather than restated, for the same reason `SECTION_IDS` in
- * `runner-tools.ts` is derived: a second hand-maintained copy drifts. Its job is to give
- * `site-assistant-tools.ts`'s mirror of this list something to be checked against at compile time,
- * so that list can never name a verb this app does not actually declare — that gate matters more,
- * not less, now that the two lists are meant to agree, since a typo there would otherwise silently
- * grant a site assistant a tool name Runner's own bridge never advertises.
+ * `runner-tools.ts` is derived: a second hand-maintained copy drifts. The literal union lets
+ * consumers check tool names at compile time, so a mirror cannot name a verb this app does not
+ * actually declare. A typo in a hand-maintained mirror would otherwise silently grant a tool
+ * name the bridge never advertises.
+ * site-assistant-tools.ts (contracts/site-assistant-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export type RunnerToolName =
   | typeof RUNNER_NAVIGATE_TOOL

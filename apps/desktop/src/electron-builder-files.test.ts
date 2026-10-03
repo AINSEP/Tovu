@@ -41,7 +41,33 @@ import { fileURLToPath } from "node:url";
 
 import yaml from "js-yaml";
 import os from "node:os";
-import { getMainFileMatchers, getNodeModuleFileMatcher, getFileMatchers, copyFiles } from "app-builder-lib/out/fileMatcher.js";
+import { getMainFileMatchers, getNodeModuleFileMatcher, getFileMatchers, copyFiles, type FileMatcher } from "app-builder-lib/out/fileMatcher.js";
+
+/** The packager fields read by the installed internal matcher implementation. */
+interface MatcherPackager {
+  config: Parameters<typeof getFileMatchers>[0];
+  projectDir: string;
+  buildResourcesDir: string;
+  isPrepackedAppAsar?: boolean;
+  debugLogger: { isEnabled: boolean; add(key: string, patterns: string[]): void };
+}
+
+// electron-builder exports these functions in fileMatcher.js but strips their @internal
+// declarations from fileMatcher.d.ts. Keep the real production helpers in these tests;
+// describe their consumed inputs instead of casting incomplete packagers to never.
+declare module "app-builder-lib/out/fileMatcher.js" {
+  export function getMainFileMatchers(
+    appDir: string, destination: string, macroExpander: (pattern: string) => string,
+    platformSpecificBuildOptions: Parameters<typeof getFileMatchers>[3]["customBuildOptions"],
+    platformPackager: { info: MatcherPackager }, outDir: string, isElectronCompile: boolean,
+  ): FileMatcher[];
+  export function getNodeModuleFileMatcher(
+    appDir: string, destination: string, macroExpander: (pattern: string) => string,
+    platformSpecificBuildOptions: Parameters<typeof getFileMatchers>[3]["customBuildOptions"],
+    packager: MatcherPackager,
+  ): FileMatcher;
+  export function copyFiles(matchers: FileMatcher[] | null, transformer: undefined, isUseHardLink: boolean): Promise<void | void[]>;
+}
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG_PATH = path.join(DESKTOP_ROOT, "electron-builder.yml");
@@ -52,13 +78,16 @@ const PRE_FIX_PATTERNS = ["main.ts", "package.json", "dist/**", "src/**", "!**/*
 
 /** Use the production matcher builder, including its built-in exclusions. */
 function matcherPackager(patterns: readonly string[]) {
-  return { config: { files: [...patterns] }, projectDir: DESKTOP_ROOT, buildResourcesDir: "build", debugLogger: { isEnabled: false } };
+  return { config: { files: [...patterns] }, projectDir: DESKTOP_ROOT, buildResourcesDir: "build",
+    debugLogger: { isEnabled: false, add: () => assert.fail("disabled debug logger must not be called") } };
 }
 
 function shipsPath(patterns: readonly string[], relPath: string): boolean {
   const matchers = getMainFileMatchers(DESKTOP_ROOT, "/fixture-dest", (value: string) => value, {},
-    { info: matcherPackager(patterns) } as never, path.join(DESKTOP_ROOT, "release"), false)!;
-  return matchers[0].createFilter()(path.join(DESKTOP_ROOT, relPath), { isDirectory: () => false } as fs.Stats);
+    { info: matcherPackager(patterns) }, path.join(DESKTOP_ROOT, "release"), false);
+  const matcher = matchers[0];
+  assert.ok(matcher);
+  return matcher.createFilter()(path.join(DESKTOP_ROOT, relPath), { isDirectory: () => false } as fs.Stats);
 }
 
 function configuredFilePatterns(): string[] {
@@ -101,7 +130,7 @@ test("the files: list still excludes test files it is meant to exclude", () => {
  * @complexity O(n) in the pattern count.
  */
 function shipsNodeModulePath(patterns: readonly string[], relPath: string): boolean {
-  const matcher = getNodeModuleFileMatcher(DESKTOP_ROOT, "/fixture-dest", (value: string) => value, {}, matcherPackager(patterns) as never);
+  const matcher = getNodeModuleFileMatcher(DESKTOP_ROOT, "/fixture-dest", (value: string) => value, {}, matcherPackager(patterns));
   return matcher.createFilter()(path.join(DESKTOP_ROOT, relPath), { isDirectory: () => false } as fs.Stats);
 }
 
@@ -181,7 +210,7 @@ test("npm's own node_modules ships as a SEPARATE extraResources entry, not folde
 test("production extraResources copies the npm CLIs, dependencies and Tovu payload", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-builder-fixture-"));
   const output = path.join(root, "resources");
-  const required = [
+  const required: Array<readonly [string, string]> = [
     ["staging/npm/bin/npx-cli.js", "npm/bin/npx-cli.js"],
     ["staging/npm/bin/npm-cli.js", "npm/bin/npm-cli.js"],
     ["staging/npm/package.json", "npm/package.json"],

@@ -8,23 +8,24 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { EventEmitter } from "node:events";
 
 import { createAutoUpdateController } from "./auto-update-controller.ts";
 import type { AutoUpdateControllerDeps } from "./auto-update-controller.ts";
-import { writeInstanceRecord } from "./instance-presence.ts";
-import { PRESENCE_STALE_MS, UPDATE_CHECK_INTERVAL_MS } from "./update-policy.ts";
+import { createInstancePresence } from "./instance-presence.ts";
+import { PRESENCE_STALE_MS, UPDATE_CHECK_INTERVAL_MS } from "@jini-ai/desktop-host/electron/updates";
 
 const SELF = 100;
 
 /** A stand-in for `electron-updater`'s `autoUpdater` that records every call. */
 function fakeUpdater() {
-  const listeners = new Map<string, (payload: unknown) => void>();
+  const listeners = new EventEmitter();
   const calls: string[] = [];
   const updater = {
     autoDownload: false,
     autoInstallOnAppQuit: true,
     autoRunAppAfterInstall: true,
-    checkResult: Promise.resolve(null) as Promise<{ downloadPromise?: Promise<unknown> | null } | null>,
+    checkResult: Promise.resolve<{ downloadPromise?: Promise<unknown> | null } | null>(null),
     checkForUpdates() {
       calls.push("check");
       return updater.checkResult;
@@ -32,11 +33,14 @@ function fakeUpdater() {
     quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean) {
       calls.push(`quitAndInstall(${isSilent},${isForceRunAfter})`);
     },
-    on(event: string, listener: (payload: never) => void) {
-      listeners.set(event, listener as (payload: unknown) => void);
+    on(...args:
+      | [event: "update-downloaded", listener: (info: { version: string }) => void]
+      | [event: "error", listener: (error: Error) => void]
+    ) {
+      return listeners.on(args[0], args[1]);
     },
     emit(event: string, payload: unknown) {
-      listeners.get(event)?.(payload);
+      listeners.emit(event, payload);
     },
   };
   return { updater, calls };
@@ -75,7 +79,7 @@ function setup(overrides: Partial<AutoUpdateControllerDeps> = {}) {
     advance: (ms: number) => (clock += ms),
     addSibling: (pid: number, startedAt: number) => {
       alive.add(pid);
-      writeInstanceRecord(presenceDir, { pid, startedAt, heartbeatAt: clock });
+      createInstancePresence({ directory: presenceDir }).write({ record: { pid, startedAt, heartbeatAt: clock } });
     },
     chooseRestart: () => (restartChoice = true),
   };
@@ -112,7 +116,7 @@ test("an instance that started later than a live sibling never checks", () => {
 test("an older dead sibling cannot suppress this instance's update check", async () => {
   const t = setup();
   // Leave a crash record on disk without adding the pid to setup's live set.
-  writeInstanceRecord(t.presenceDir, { pid: 50, startedAt: 0, heartbeatAt: 1_000_000 });
+  createInstancePresence({ directory: t.presenceDir }).write({ record: { pid: 50, startedAt: 0, heartbeatAt: 1_000_000 } });
   t.controller.tick();
   await flush();
   assert.deepEqual(t.calls, ["check"]);

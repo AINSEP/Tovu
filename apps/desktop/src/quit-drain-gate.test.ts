@@ -1,12 +1,12 @@
 /**
- * @file Behavioural proof for `quit-drain-gate.ts`, the decision `main.ts`'s `before-quit` makes for
- * every quit attempt. See that file's header for the defect: a second Cmd+Q during the drain quit
- * Electron before the parallel `server.stop()` calls finished.
+ * @file Behavioural proof for Jini's `desktop-host/src/shutdown/quit-drain-gate.ts`, the decision
+ * `main.ts`'s `before-quit` makes for every quit attempt. See that module's header for the defect:
+ * a second Cmd+Q during the drain quit Electron before the parallel `server.stop()` calls finished.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { decideBeforeQuit } from "./quit-drain-gate.ts";
+import { decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 
 test("with nothing open and nothing tearing down, the quit goes straight through", () => {
   assert.equal(decideBeforeQuit({ phase: "idle", nothingToDrain: true }), "proceed");

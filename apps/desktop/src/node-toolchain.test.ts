@@ -10,7 +10,8 @@ import path from "node:path";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
 
-import { assertCmdQuotable, buildNodeToolchainEnv, buildNodeToolchainShims, writeNodeToolchain } from "./node-toolchain.ts";
+import { buildNodeToolchainEnv, buildNodeToolchainShims, writeNodeToolchain } from "./node-toolchain.ts";
+import { assertCmdQuotable } from "@jini-ai/desktop-host/node-toolchain";
 
 const ELECTRON = "/Applications/Tovu.app/Contents/MacOS/Tovu";
 const NPM_ROOT = "/Applications/Tovu.app/Contents/Resources/npm";
@@ -63,12 +64,12 @@ test("buildNodeToolchainShims refuses a win32 path containing % \" ^ or &", () =
 });
 
 test("assertCmdQuotable rejects empty/non-string input and every unsafe character, accepts a clean path", () => {
-  assert.throws(() => assertCmdQuotable("", "field"), /must be a non-empty string/);
-  assert.throws(() => assertCmdQuotable(undefined, "field"), /must be a non-empty string/);
+  assert.throws(() => assertCmdQuotable({ value: "", field: "field" }), /must be a non-empty string/);
+  assert.throws(() => assertCmdQuotable({ value: undefined, field: "field" }), /must be a non-empty string/);
   for (const bad of ["a%b", 'a"b', "a^b", "a&b", "a\rb", "a\nb"]) {
-    assert.throws(() => assertCmdQuotable(bad, "field"), /cannot be used/, `input: ${JSON.stringify(bad)}`);
+    assert.throws(() => assertCmdQuotable({ value: bad, field: "field" }), /cannot be used/, `input: ${JSON.stringify(bad)}`);
   }
-  assert.equal(assertCmdQuotable("C:\\Program Files\\Tovu\\Tovu.exe", "field"), "C:\\Program Files\\Tovu\\Tovu.exe");
+  assert.equal(assertCmdQuotable({ value: "C:\\Program Files\\Tovu\\Tovu.exe", field: "field" }), "C:\\Program Files\\Tovu\\Tovu.exe");
 });
 
 test("writeNodeToolchain writes exactly the three POSIX shims, mode 0o700, with no leftover temp files", () => {
@@ -201,7 +202,7 @@ test("written POSIX shims execute scripts with preserved arguments and Electron-
     const nodeOutput = execFileSync(path.join(paths.binDir, "node"), ["-e", 'console.log(JSON.stringify({value: 42, mode: process.env.ELECTRON_RUN_AS_NODE}))'], { encoding: "utf8" });
     assert.deepEqual(JSON.parse(nodeOutput), { value: 42, mode: "1" });
     for (const command of ["npm", "npx"]) {
-      const output = execFileSync(path.join(paths.binDir, command), ["one argument", "--flag"], { encoding: "utf8" });
+      const output: string = execFileSync(path.join(paths.binDir, command), ["one argument", "--flag"], { encoding: "utf8" });
       assert.deepEqual(JSON.parse(output), { cli: command, args: ["one argument", "--flag"], mode: "1" });
     }
   } finally { fs.rmSync(userDataDir, { recursive: true, force: true }); }

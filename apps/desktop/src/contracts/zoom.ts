@@ -20,4 +20,4 @@ export const ZOOM_COMMAND_CHANNEL = 'runner:zoom:command';
 
 /** Which way one zoom command moves. `'reset'` returns to 100% (zoom level 0) outright rather than
  *  stepping toward it. */
-export type ZoomDirection = 'in' | 'out' | 'reset';
+export type { ZoomCommandDirection as ZoomDirection } from "@jini-ai/desktop-host/electron/usability";

@@ -565,7 +565,7 @@ function allocatePort(): Promise<number> {
  * this structurally, so `nodeSpawn` needs no cast.
  */
 interface SpawnedChild {
-  pid: number | undefined;
+  pid?: number;
   stdout: Readable | null;
   stderr: Readable | null;
   exitCode: number | null;
@@ -808,7 +808,7 @@ interface TovuServerHandle {
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
 async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerHandle> {
-  const spawnFn = input.spawnFn ?? nodeSpawn as SpawnFn;
+  const spawnFn: SpawnFn = input.spawnFn ?? nodeSpawn;
   const readyTimeoutMs = input.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const stopGraceMs = input.stopGraceMs ?? DEFAULT_STOP_GRACE_MS;
   const port = input.port ?? (await allocatePort());

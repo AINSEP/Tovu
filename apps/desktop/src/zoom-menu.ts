@@ -15,58 +15,37 @@
  *
  * No `electron` import, so it can be tested under plain `node --test`.
  */
-
-/** Mirrors `contracts/zoom.ts`'s `ZOOM_COMMAND_CHANNEL`. */
-const ZOOM_COMMAND_CHANNEL = "runner:zoom:command";
-
-/** Mirrors `contracts/zoom.ts`'s `ZoomDirection`. */
-type ZoomCommandDirection = "in" | "out" | "reset";
-
-/** A menu click's focused window, as far as this module reads one. Electron types it as a
- *  `BaseWindow`, which has no `webContents`, so that is optional — mirrors `find-menu.ts`'s
- *  `FindCommandWindow`. */
-interface ZoomCommandWindow {
+// Renderer routing/keyboard rationale: Jini/packages/desktop-host/src/electron/usability/zoom-menu.ts.
+import { zoomMenuItems as buildZoomMenuItems, sendZoomCommand as sendCommand } from "@jini-ai/desktop-host/electron/usability";
+import type { ZoomDirection } from "./contracts/zoom.ts";
+/** Mirrors the renderer contract; keep the main-only adapter out of preload imports. */
+export const ZOOM_COMMAND_CHANNEL = "runner:zoom:command";
+export type ZoomCommandDirection = ZoomDirection;
+export interface ZoomCommandWindow {
   isDestroyed(): boolean;
-  webContents?: { send(channel: string, direction: ZoomCommandDirection): void };
+  webContents?: { send(channel: string, direction: ZoomDirection): void };
 }
-
-/** One Zoom menu item. `click` has the leading parameters of Electron's `MenuItem` click. */
-interface ZoomMenuItem {
+export interface ZoomMenuItem {
   label: string;
   accelerator: string;
   visible?: boolean;
   click: (item: unknown, window: ZoomCommandWindow | undefined) => void;
 }
-
-/**
- * Tells `window`'s renderer to move its zoom one step in `direction`.
- *
- * @param window the menu click's focused window. Electron types it as a `BaseWindow`, which has
- *   no `webContents`, so that is checked rather than assumed.
- * @returns whether anything was sent.
- * @complexity O(1).
- */
-function sendZoomCommand(window: ZoomCommandWindow | undefined, direction: ZoomCommandDirection): boolean {
-  if (!window || window.isDestroyed() || !window.webContents) return false;
-  window.webContents.send(ZOOM_COMMAND_CHANNEL, direction);
-  return true;
+/** Translate the native window's send signature. @complexity O(1). */
+function windowPort({ window }: { window: ZoomCommandWindow | undefined }) {
+  if (!window) return undefined;
+  const contents = window.webContents;
+  return {
+    isDestroyed: () => window.isDestroyed(),
+    ...(contents ? { webContents: { send: ({ channel, direction }: { channel: string; direction: ZoomDirection }) => contents.send(channel, direction) } } : {}),
+  };
 }
-
-/**
- * The Zoom items — Actual Size, Zoom In (plus its hidden `=` alias), Zoom Out — in the order
- * `sitesHomeMenuTemplate` places them inside View, between Toggle Developer Tools and Toggle Full
- * Screen.
- *
- * @complexity O(1).
- */
-function zoomMenuItems(): ZoomMenuItem[] {
-  return [
-    { label: "Actual Size", accelerator: "CmdOrCtrl+0", click: (_item, window) => void sendZoomCommand(window, "reset") },
-    { label: "Zoom In", accelerator: "CmdOrCtrl+Plus", click: (_item, window) => void sendZoomCommand(window, "in") },
-    { label: "Zoom In", accelerator: "CmdOrCtrl+=", visible: false, click: (_item, window) => void sendZoomCommand(window, "in") },
-    { label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: (_item, window) => void sendZoomCommand(window, "out") },
-  ];
+/** Send a Tovu zoom direction to the focused window. @complexity O(1). */
+export function sendZoomCommand({ window, direction }: { window: ZoomCommandWindow | undefined; direction: ZoomDirection }): boolean {
+  return sendCommand({ window: windowPort({ window }), direction, channel: ZOOM_COMMAND_CHANNEL });
 }
-
-export { ZOOM_COMMAND_CHANNEL, sendZoomCommand, zoomMenuItems };
-export type { ZoomCommandDirection, ZoomCommandWindow, ZoomMenuItem };
+/** Keep native menu callbacks and Tovu wording. @complexity O(1). */
+export function zoomMenuItems(_requiredArgs: Record<string, never>): ZoomMenuItem[] {
+  return buildZoomMenuItems({ channel: ZOOM_COMMAND_CHANNEL, labels: { reset: "Actual Size", in: "Zoom In", out: "Zoom Out" } })
+    .map((item) => ({ ...item, click: (_item, window) => item.click({ window: windowPort({ window }) }) }));
+}

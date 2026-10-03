@@ -136,8 +136,12 @@ test("the live announcer passes the launcher, site workspace and session unchang
   assert.deepEqual(writes, [{ userDataDir: "/user-data", electronPath: "/Applications/Tovu.app/Tovu", bridgePath: "/app/bin/mcp-bridge.ts" }]);
   assert.deepEqual(requests, [{ net, session: siteSession, adminUrl: server.adminUrl, workspaceId: server.workspaceId,
     launcherPath: "/user-data/launcher", bridgePath: "/app/bin/mcp-bridge.ts", userDataDir: "/user-data" }]);
-  assert.match(warnings[0], /site refused/);
+  const refusedWarning = warnings[0];
+  assert.ok(refusedWarning);
+  assert.match(refusedWarning, /site refused/);
   assert.doesNotThrow(() => announcer({ ...deps, writeSitesMcpLauncher: () => { throw new Error("disk denied"); } })(server, "persist:custom-site"));
   assert.equal(requests.length, 1, "no registration after a failed launcher write");
-  assert.match(warnings[1], /disk denied/);
+  const diskWarning = warnings[1];
+  assert.ok(diskWarning);
+  assert.match(diskWarning, /disk denied/);
 });

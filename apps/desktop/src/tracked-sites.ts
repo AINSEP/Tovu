@@ -1,7 +1,7 @@
 /**
  * @file Which sites the operator considers "theirs" — the list the Projects screen renders cards
  * from. A JSON file in `userData`, not a sqlite table: porting Tovu-Runner's `project-registry.ts`
- * wholesale would drag `@jini-ai/sqlite` + `better-sqlite3` into a shell that has twice, in writing,
+ * wholesale would drag `@jini-ai/sqlite-chat` + `better-sqlite3` into a shell that has twice, in writing,
  * decided not to have them (`site-dir-store.ts`'s own header makes the same call for its MRU list).
  *
  * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.ts` is ground truth for

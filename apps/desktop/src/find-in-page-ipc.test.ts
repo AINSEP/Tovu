@@ -95,7 +95,7 @@ function fakeRelayWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
 
 test("relayFindResults forwards found-in-page to the renderer, narrowed to activeMatchOrdinal/matches", () => {
   const window = fakeRelayWindow();
-  relayFindResults(window);
+  relayFindResults({ window });
 
   window.fireFoundInPage({ requestId: 1, activeMatchOrdinal: 2, matches: 5, selectionArea: {}, finalUpdate: true });
 
@@ -104,7 +104,7 @@ test("relayFindResults forwards found-in-page to the renderer, narrowed to activ
 
 test("relayFindResults sends nothing once the window is destroyed", () => {
   const window = fakeRelayWindow({ destroyed: true });
-  relayFindResults(window);
+  relayFindResults({ window });
 
   window.fireFoundInPage({ activeMatchOrdinal: 1, matches: 1 });
 

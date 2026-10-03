@@ -111,9 +111,11 @@ import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, 
 import { createKeyedSerializer } from "./src/keyed-serializer.ts";
 import { createSiteSupervisor } from "./src/site-supervisor.ts";
 import { createSiteTransitions } from "./src/site-transitions.ts";
-import { createShutdownTracker } from "./src/shutdown-tracker.ts";
-import { routeQuitSignals } from "./src/quit-signals.ts";
-import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
+// Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
+// Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
+// Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
+import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
+// Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
 import {
   installAppWindowNavigationPolicy,
@@ -140,7 +142,7 @@ import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindo
 import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
 import { updaterSkipReason } from "./src/update-policy.ts";
 import { createAutoUpdateController } from "./src/auto-update-controller.ts";
-import { presenceDirPath, readLiveInstances } from "./src/instance-presence.ts";
+import { presenceDirPath, createInstancePresence } from "./src/instance-presence.ts";
 import {
   MOVE_PROMPT,
   applicationsTargetPath,
@@ -154,7 +156,7 @@ import {
 } from "./src/move-to-applications.ts";
 import type { AutoUpdateController } from "./src/auto-update-controller.ts";
 import type { MenuItemConstructorOptions } from "electron";
-import type { QuitPhase } from "./src/quit-drain-gate.ts";
+import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
 import type { SelftestTracker } from "./src/selftest-tracker.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -377,7 +379,10 @@ const siteTransitions = createSiteTransitions();
 
 /** Teardowns a window's `closed` handler has STARTED but not finished, so `before-quit` below can
  *  wait for them — see `shutdown-tracker.ts`'s own header for the leak this closes (D-09). */
-const pendingTeardowns = createShutdownTracker();
+// D-09: closed removes openSites before loopback logout/server.stop settles. The last window
+// can therefore leave an empty map with a detached tovu serve still holding content.db open;
+// if its crash-safety row was already removed, the next launch cannot discover that orphan.
+const pendingTeardowns = createShutdownTracker({});
 
 /** Where `before-quit`'s graceful multi-site shutdown is: `"idle"`, `"draining"` (stopping every open
  *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
@@ -554,9 +559,9 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // Reopen where the operator left it, on whichever display still has it — `resolveWindowBounds`
   // is what refuses a remembered spot that no display covers anymore (an unplugged monitor), so
   // this never seeds the constructor with an off-screen `x`/`y`. See `window-bounds-store.ts`.
-  const boundsPath = windowBoundsFilePath(app.getPath("userData"));
+  const boundsPath = windowBoundsFilePath({ userDataDir: app.getPath("userData") });
   const resolvedBounds = resolveWindowBounds({
-    stored: readWindowBounds(boundsPath),
+    stored: readWindowBounds({ boundsPath }),
     displays: screen.getAllDisplays(),
     fallback: { width: 1360, height: 900 },
   });
@@ -591,16 +596,16 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // operator chose and would want restored.
   window.on("close", () => {
     if (window.isDestroyed() || window.isFullScreen()) return;
-    writeWindowBounds(boundsPath, window.getBounds());
+    writeWindowBounds({ boundsPath, bounds: window.getBounds() });
   });
 
   // The find bar's top-level target (`find-in-page-ipc.ts`) — the Projects screen itself, when no
   // project tab's own `<webview>` is the visible surface. See `contracts/find-in-page.ts`'s header.
-  relayFindResults(window);
+  relayFindResults({ window });
 
   // The right-click spelling-suggestions menu for the Projects screen's own text fields (site
   // names, search boxes). A project tab's own editing surface is the GUEST below, wired separately.
-  registerSpellCheckContextMenu(window.webContents, Menu);
+  registerSpellCheckContextMenu({ webContents: window.webContents, menuBuilder: Menu });
 
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
   // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
@@ -617,7 +622,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // hands back the guest's own `webContents` on attach; `spellcheck` itself needs no toggle here,
   // Electron's own `webPreferences` default (`spellcheck: true`) already covers it.
   window.webContents.on("did-attach-webview", (_event, contents) => {
-    registerSpellCheckContextMenu(contents, Menu);
+    registerSpellCheckContextMenu({ webContents: contents, menuBuilder: Menu });
   });
 
   // Only the renderer's own file may load in this window: it holds the `tovuRunner` bridge with
@@ -988,13 +993,13 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     // `tovu serve` that `reconcileOrphans` could never find. `before-quit` waits on the tracked
     // promise, which is what stops `app.quit()` racing an unfinished `server.stop()` when this is
     // the last window (see `shutdown-tracker.ts`).
-    pendingTeardowns.track(
-      endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
+    pendingTeardowns.track({
+      promise: endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
         .catch(() => {})
         .then(() => server.stop())
         .catch(() => {})
         .finally(() => recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid })),
-    );
+    });
   });
   return window;
 }
@@ -1467,7 +1472,7 @@ async function offerMoveToApplications(): Promise<void> {
     selftest: SELFTEST,
     unattended: isUnattendedSiteLaunch(),
     inApplications: process.platform === "darwin" && app.isInApplicationsFolder(),
-    otherInstancesOpen: readLiveInstances(presenceDirPath(userDataDir)).filter((record) => record.pid !== process.pid).length,
+    otherInstancesOpen: createInstancePresence({ directory: presenceDirPath(userDataDir) }).readLive().filter((record) => record.pid !== process.pid).length,
     currentVersion: app.getVersion(),
     declinedVersion: readDeclinedVersion(declinePath),
   });
@@ -1507,8 +1512,11 @@ app
     // `before-quit`'s drain exactly once rather than kill Electron on its second copy. Here and not at
     // module load, where Chromium's own one-shot handler replaces it. See `quit-signals.ts`, and
     // `QUIT_DEADLINE_MS` for what the deadline does and does not cover.
+    // The Electron 43/macOS probe reproduced duplicate SIGTERM delivery from npm/electron launchers.
+    // SIG_DFL on the second copy killed the drain while detached children survived. Persistent
+    // listeners absorb duplicates; the deadline leaves remaining registry rows for orphan recovery.
     routeQuitSignals({
-      processLike: process,
+      processLike: { on: ({ signal, listener }) => process.on(signal, listener) },
       quit: () => app.quit(),
       forceExit: () => app.exit(1),
       deadlineMs: QUIT_DEADLINE_MS,
@@ -1649,7 +1657,7 @@ app
       // Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the
       // visible project tab. A menu accelerator still fires with focus inside a tab's guest. See
       // `site-history-menu.ts`.
-      Menu.setApplicationMenu(Menu.buildFromTemplate(sitesHomeMenuTemplate(process.platform)));
+      Menu.setApplicationMenu(Menu.buildFromTemplate(sitesHomeMenuTemplate({ platform: process.platform })));
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       openSitesHomeWindow();
       return;
@@ -1699,7 +1707,7 @@ app.on("before-quit", (event) => {
   // Holding removed a repeat quit's escape from a hung drain, so every route gets the deadline here,
   // not only a termination signal. See `QUIT_DEADLINE_MS`. Cleared once the drain is done: it bounds
   // the DRAIN, and must not cut off a macOS update being handed to Squirrel after it (the updater
-  // bounds that step itself, `auto-update-controller.ts`'s `STAGE_TIMEOUT_MS`).
+  // bounds that step itself, Jini desktop-host's `defaultUpdateTiming.stageTimeoutMs`).
   const drainDeadline = setTimeout(() => app.exit(1), QUIT_DEADLINE_MS);
   drainDeadline.unref();
   const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));

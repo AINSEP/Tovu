@@ -181,7 +181,7 @@ export function SiteAssistantWidget() {
     // SPEC-046 REQ-4/D-1: act on the latest message's client directives exactly once, only once its
     // run has actually settled — see this file's header for the full rationale.
     const latest = messages.at(-1);
-    if (!latest || latest.role !== "assistant" || !isTerminalRunStatus(latest.runStatus)) return;
+    if (!latest || latest.role !== "assistant" || !isTerminalRunStatus({ status: latest.runStatus })) return;
     if (processedMessageIdsRef.current.has(latest.id)) return;
     processedMessageIdsRef.current.add(latest.id);
 

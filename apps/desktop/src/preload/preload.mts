@@ -7,22 +7,23 @@
  * Ported from `Tovu-Runner/src/preload/preload.mts`. The `tovuRunner` half is that file unchanged;
  * `tovuVoice` is this shell's own addition, and the reason for it is that Electron takes exactly
  * ONE `preload` per window. Site-admin windows keep `sandbox: true` and
- * `src/speech/preload-speech.cts` untouched — the wiring fixed in `4b89cd09` is not disturbed by
- * this file. The sites home window cannot use that preload (it needs `tovuRunner` too), so rather than
+ * their separate `src/speech/preload-speech.cts` — the wiring fixed in `4b89cd09` still keeps
+ * the sandboxed admin and unsandboxed sites-home surfaces separate. The sites home window cannot use that preload (it needs `tovuRunner` too), so rather than
  * dropping one bridge it re-exposes both, and the mic keeps working inside the ported UI.
  *
- * **The two speech channel names below are INLINED, not imported from `speech-ipc.ts`.** That
- * module is main-process code: it pulls in `mac-on-device-transcriber.ts` and therefore
- * `child_process`, which has no business being resolved from a preload even an unsandboxed one.
- * The same rule `preload-speech.cts` already follows, for a different reason (see its header on
- * the sandboxed `require` polyfill). `preload.test.ts` guards these two literals against drifting
- * from `speech-ipc.ts`'s own exports, which stay the source of truth.
+ * **Never import speech-ipc.ts into a preload.** That main-process module pulls in
+ * mac-on-device-transcriber.ts and therefore child_process, which must not be resolved here.
+ * Both preloads now use Jini's narrow bridge with Tovu's channel namespace; the sandboxed admin
+ * preload bundles it so Electron's restricted require needs only electron. The host keeps its
+ * positional renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
  * preload is unsandboxed, so a relative import resolves, and the contracts are pure constant/type
  * modules with no Node surface of their own.
  */
+// Narrow speech bridge: Jini/packages/desktop-host/src/speech/speech-bridge.ts.
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
+import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import {
   SITE_HISTORY_CHANNEL,
@@ -54,13 +55,6 @@ import {
   type SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
-
-/** Mirrors `src/speech/speech-ipc.js`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header
- *  for why this is a literal instead of an import. */
-const IPC_CHANNEL_IS_AVAILABLE = 'tovu:speech:isAvailable';
-/** Mirrors `src/speech/speech-ipc.js`'s own `IPC_CHANNEL_TRANSCRIBE` — see this file's header for
- *  why this is a literal instead of an import. */
-const IPC_CHANNEL_TRANSCRIBE = 'tovu:speech:transcribe';
 
 /**
  * Subscribes to one main→renderer push channel and hands back the matching teardown.
@@ -168,16 +162,16 @@ contextBridge.exposeInMainWorld(
   }),
 );
 
-/**
- * Byte-for-byte the same surface `src/speech/preload-speech.cts` exposes, against the same two
- * channels `registerSpeechIpc` registers — see this file's header for why the sites home window needs
- * its own copy rather than sharing that preload.
- */
+/** Translate the existing positional renderer call into Jini's object input. */
+const speech = createSpeechBridge({
+  channelNamespace: 'tovu:speech',
+  ipcRenderer: { invoke: ({ channel }, { args = [] } = {}) => ipcRenderer.invoke(channel, ...args) },
+});
 contextBridge.exposeInMainWorld(
   'tovuVoice',
   Object.freeze({
-    isAvailable: () => ipcRenderer.invoke(IPC_CHANNEL_IS_AVAILABLE),
+    isAvailable: () => speech.isAvailable(),
     transcribe: (samples: Float32Array | readonly number[], sampleRate: number) =>
-      ipcRenderer.invoke(IPC_CHANNEL_TRANSCRIBE, samples, sampleRate),
+      speech.transcribe({ samples, sampleRate }),
   }),
 );

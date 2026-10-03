@@ -119,7 +119,9 @@ test("captureSitePreview never throws past its own boundary — every failure is
     const h = captureHarness(stage);
     await assert.doesNotReject(() => h.run("/sites/failing", 8125, "persist:fail"));
     assert.equal(h.warnings.length, 1, stage);
-    assert.match(String(h.warnings[0][0]), new RegExp(`${stage} failed`));
+    const warning = h.warnings[0];
+    assert.ok(warning);
+    assert.match(String(warning[0]), new RegExp(`${stage} failed`));
     assert.equal(h.destroyed(), true, stage);
     assert.deepEqual(h.writes, []);
   }

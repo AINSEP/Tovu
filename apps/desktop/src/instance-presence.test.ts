@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { isPidAlive, presenceDirPath, readLiveInstances, removeInstanceRecord, writeInstanceRecord } from "./instance-presence.ts";
+import { createInstancePresence, isPidAlive, presenceDirPath } from "./instance-presence.ts";
 
 function tempDir(): string {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-presence-")), "instances");
@@ -20,17 +20,17 @@ test("the presence directory is `instances` inside userData", () => {
 
 test("a written record reads back, and a heartbeat overwrites it in place", () => {
   const dir = tempDir();
-  writeInstanceRecord(dir, { pid: 11, startedAt: 1, heartbeatAt: 2 });
-  writeInstanceRecord(dir, { pid: 11, startedAt: 1, heartbeatAt: 9 });
-  assert.deepEqual(readLiveInstances(dir, () => true), [{ pid: 11, startedAt: 1, heartbeatAt: 9 }]);
+  createInstancePresence({ directory: dir }).write({ record: { pid: 11, startedAt: 1, heartbeatAt: 2 } });
+  createInstancePresence({ directory: dir }).write({ record: { pid: 11, startedAt: 1, heartbeatAt: 9 } });
+  assert.deepEqual(createInstancePresence({ directory: dir }, { isAlive: () => true }).readLive(), [{ pid: 11, startedAt: 1, heartbeatAt: 9 }]);
   assert.deepEqual(fs.readdirSync(dir), ["11.json"], "no temp file may be left behind");
 });
 
 test("a dead instance's record is dropped AND deleted on read", () => {
   const dir = tempDir();
-  writeInstanceRecord(dir, { pid: 11, startedAt: 1, heartbeatAt: 2 });
-  writeInstanceRecord(dir, { pid: 12, startedAt: 1, heartbeatAt: 2 });
-  const live = readLiveInstances(dir, (pid) => pid === 12);
+  createInstancePresence({ directory: dir }).write({ record: { pid: 11, startedAt: 1, heartbeatAt: 2 } });
+  createInstancePresence({ directory: dir }).write({ record: { pid: 12, startedAt: 1, heartbeatAt: 2 } });
+  const live = createInstancePresence({ directory: dir }, { isAlive: ({ pid }) => pid === 12 }).readLive();
   assert.deepEqual(live.map((record) => record.pid), [12]);
   assert.deepEqual(fs.readdirSync(dir), ["12.json"]);
 });
@@ -42,28 +42,28 @@ test("malformed and unrelated files are skipped, not trusted and not deleted", (
   fs.writeFileSync(path.join(dir, "6.json"), JSON.stringify({ pid: 6, startedAt: "x", heartbeatAt: 1 }));
   fs.writeFileSync(path.join(dir, "notes.txt"), "hi");
   fs.mkdirSync(path.join(dir, "7.json"));
-  assert.deepEqual(readLiveInstances(dir, () => true), []);
+  assert.deepEqual(createInstancePresence({ directory: dir }, { isAlive: () => true }).readLive(), []);
   assert.deepEqual(fs.readdirSync(dir).sort(), ["5.json", "6.json", "7.json", "notes.txt"]);
 });
 
 test("a missing directory reads as no instances", () => {
-  assert.deepEqual(readLiveInstances(path.join(tempDir(), "absent")), []);
+  assert.deepEqual(createInstancePresence({ directory: path.join(tempDir(), "absent") }).readLive(), []);
 });
 
 test("removing a record never throws, even when it is already gone", () => {
   const dir = tempDir();
-  writeInstanceRecord(dir, { pid: 11, startedAt: 1, heartbeatAt: 2 });
-  removeInstanceRecord(dir, 11);
-  removeInstanceRecord(dir, 11);
+  createInstancePresence({ directory: dir }).write({ record: { pid: 11, startedAt: 1, heartbeatAt: 2 } });
+  createInstancePresence({ directory: dir }).remove({ pid: 11 });
+  createInstancePresence({ directory: dir }).remove({ pid: 11 });
   assert.deepEqual(fs.readdirSync(dir), []);
 });
 
 test("this process is alive; a pid far past the range is not", () => {
-  assert.equal(isPidAlive(process.pid), true);
-  assert.equal(isPidAlive(2 ** 30), false);
+  assert.equal(isPidAlive({ pid: process.pid }), true);
+  assert.equal(isPidAlive({ pid: 2 ** 30 }), false);
 });
 
 test("a process owned by another user (EPERM) still counts as alive", { skip: process.platform === "win32" || process.getuid?.() === 0 }, () => {
   // pid 1 is init/launchd, which a non-root process may not signal.
-  assert.equal(isPidAlive(1), true);
+  assert.equal(isPidAlive({ pid: 1 }), true);
 });

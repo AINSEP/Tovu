@@ -8,13 +8,13 @@ import assert from "node:assert/strict";
 import { resolveTranscriptionPort, unavailablePort } from "./transcription-port.ts";
 
 test("unavailablePort reports itself unavailable with the given reason", async () => {
-  const port = unavailablePort("some-reason");
+  const port = unavailablePort({ reason: "some-reason" });
   assert.deepEqual(await port.isAvailable(), { available: false, reason: "some-reason" });
 });
 
 test("unavailablePort's transcribe() rejects rather than returning a fake transcript", async () => {
-  const port = unavailablePort("some-reason");
-  await assert.rejects(() => port.transcribe(Buffer.from([])), /some-reason/);
+  const port = unavailablePort({ reason: "some-reason" });
+  await assert.rejects(() => port.transcribe({ wavBuffer: Buffer.from([]) }), /some-reason/);
 });
 
 test("resolveTranscriptionPort returns the mac port on darwin", () => {
@@ -25,13 +25,13 @@ test("resolveTranscriptionPort returns the mac port on darwin", () => {
 
 test("resolveTranscriptionPort never calls createMacPort on a non-darwin platform", () => {
   let called = false;
-  const port = resolveTranscriptionPort({ platform: "win32", createMacPort: () => { called = true; return unavailablePort("unused"); } });
+  const port = resolveTranscriptionPort({ platform: "win32", createMacPort: () => { called = true; return unavailablePort({ reason: "unused" }); } });
   assert.equal(called, false);
   assert.equal(typeof port.isAvailable, "function");
 });
 
 test("resolveTranscriptionPort's non-darwin port names the actual platform in its reason", async () => {
-  const port = resolveTranscriptionPort({ platform: "win32", createMacPort: () => unavailablePort("unused") });
+  const port = resolveTranscriptionPort({ platform: "win32", createMacPort: () => unavailablePort({ reason: "unused" }) });
   const availability = await port.isAvailable();
   assert.equal(availability.available, false);
   assert.match(availability.reason!, /unsupported-platform:win32/);

@@ -30,7 +30,7 @@ function homeRegistrations(event: string) {
   const calls: ts.CallExpression[] = [];
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
-      && node.expression.name.text === "on" && ts.isStringLiteral(node.arguments[0])
+      && node.expression.name.text === "on" && node.arguments[0] !== undefined && ts.isStringLiteral(node.arguments[0])
       && node.arguments[0].text === event) calls.push(node);
     ts.forEachChild(node, visit);
   };
@@ -68,7 +68,11 @@ test("bounds are written on close, guarded against a destroyed or full-screen wi
   assert.match(closeHandler![0], /writeWindowBounds\(boundsPath, window\.getBounds\(\)\)/);
   const registrations = homeRegistrations("close");
   assert.equal(registrations.length, 1);
-  const callback = ts.transpile(`const handler = ${registrations[0].arguments[1].getText(sf)};`, { target: ts.ScriptTarget.ES2022 });
+  const registration = registrations[0];
+  assert.ok(registration);
+  const handlerArgument = registration.arguments[1];
+  assert.ok(handlerArgument);
+  const callback = ts.transpile(`const handler = ${handlerArgument.getText(sf)};`, { target: ts.ScriptTarget.ES2022 });
   for (const state of ["normal", "fullscreen", "destroyed"]) {
     const writes: unknown[][] = [];
     const bounds = { x: 40, y: 60, width: 800, height: 700 };
@@ -99,9 +103,14 @@ test("did-attach-webview is registered on the SAME window as will-attach-webview
   const did = homeRegistrations("did-attach-webview");
   assert.equal(will.length, 1);
   assert.equal(did.length, 1);
-  assert.equal(will[0].expression.getText(sf), "window.webContents.on");
-  assert.equal(did[0].expression.getText(sf), "window.webContents.on");
+  const willRegistration = will[0];
+  const didRegistration = did[0];
+  assert.ok(willRegistration);
+  assert.ok(didRegistration);
+  assert.equal(willRegistration.expression.getText(sf), "window.webContents.on");
+  assert.equal(didRegistration.expression.getText(sf), "window.webContents.on");
   // Both use the single constructor-bound local window in this function.
-  const home = will[0].getSourceFile().statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "openSitesHomeWindow")!;
+  const home = willRegistration.getSourceFile().statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "openSitesHomeWindow");
+  assert.ok(home);
   assert.equal((home.getText(sf).match(/const window = new BrowserWindow\(/g) ?? []).length, 1);
 });

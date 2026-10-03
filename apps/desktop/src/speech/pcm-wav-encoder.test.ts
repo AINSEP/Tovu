@@ -1,21 +1,21 @@
 /**
- * @file Direct tests for `pcm-wav-encoder.ts` — pure buffer math, no Electron and no audio
+ * @file Parity tests for Jini's shared `pcm-wav-encoder.ts` — pure buffer math, no Electron and no audio
  * hardware involved.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { encodeMonoWav, float32ToInt16Pcm, buildWavHeader, WAV_HEADER_BYTES } from "./pcm-wav-encoder.ts";
+import { encodeMonoWav, float32ToInt16Pcm, buildWavHeader, WAV_HEADER_BYTES } from "@jini-ai/desktop-host/speech";
 
 test("float32ToInt16Pcm maps the full range and midpoints correctly", () => {
-  const int16 = float32ToInt16Pcm(Float32Array.from([0, 1, -1, 0.5, -0.5]));
+  const int16 = float32ToInt16Pcm({ samples: Float32Array.from([0, 1, -1, 0.5, -0.5]) });
   // Int16Array's own assignment coercion truncates toward zero, not rounds — Math.trunc here
   // matches that, not Math.round.
   assert.deepEqual(Array.from(int16), [0, 0x7fff, -0x8000, Math.trunc(0.5 * 0x7fff), Math.trunc(-0.5 * 0x8000)]);
 });
 
 test("float32ToInt16Pcm clamps out-of-range input instead of wrapping", () => {
-  const int16 = float32ToInt16Pcm(Float32Array.from([2.5, -3]));
+  const int16 = float32ToInt16Pcm({ samples: Float32Array.from([2.5, -3]) });
   assert.deepEqual(Array.from(int16), [0x7fff, -0x8000]);
 });
 

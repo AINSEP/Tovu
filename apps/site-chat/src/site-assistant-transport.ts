@@ -156,7 +156,7 @@ const activeRuns = new Map<string, AbortController>();
 export function createSiteAssistantTransport(): ChatTransport {
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
-      const message = latestUserPromptFromHistory(input.history as ChatMessage[]);
+      const message = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
       if (!message) throw new Error("no user message to send");
 
       const runId = crypto.randomUUID();

@@ -1,25 +1,7 @@
 /**
- * @file Tests for `preload-speech.cts`, run against what it COMPILES to — that is the file Electron
- * loads (`main.ts`'s `SPEECH_PRELOAD_PATH` → `dist/speech/preload-speech.cjs`); the `.cts` source
- * itself never runs, because Electron's sandboxed preload loader neither strips types nor accepts ESM.
- *
- * The compiled text is produced here by `ts.transpileModule` with `tsconfig.preload.json`'s own
- * parsed compiler options, not read from `dist/`: tests run before any build (`npm run package` runs
- * its gates first), so a `dist/` copy may be missing or stale. The preload imports nothing but
- * `"electron"`, so no cross-file type information can change its emit — `transpileModule`'s output
- * was byte-identical to `tsc -p tsconfig.preload.json`'s when this test was written (2026-09-14).
- * The first test pins that `tsconfig.preload.json` really builds this file to the path `main.ts` loads.
- *
- * The `contextBridge`/`ipcRenderer` bridging cannot be exercised under plain `node --test` —
- * `require("electron")` outside a real Electron process resolves to a path string, not the API. What
- * IS testable without Electron, and is exactly what the source's own header says matters, is the
- * compiled TEXT: no `require()` of anything but `"electron"` (a sandboxed preload's `require` resolves
- * only `"electron"`/`"events"`/`"timers"`/`"url"` — a relative specifier throws), and its two inlined
- * channel-name literals never drifting from `speech-ipc.ts`'s own exports, which stay the source of
- * truth for both preloads.
- *
- * The one decision the file makes — which page gets `window.tovuFiles` — IS exercised, by running the
- * compiled output in a `vm` context with a stubbed `require("electron")` (`exposedGlobalsAt` below).
+ * Exercise the bundled CommonJS preload that Electron actually loads. Build preloads first:
+ * Jini must be inlined, and the restricted sandbox must require only Electron at runtime.
+ * The VM retains the admin-only file capability and positional speech wire assertions.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -32,6 +14,12 @@ import ts from "typescript";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-ipc.ts";
 
+// Electron's sandbox neither strips TypeScript nor accepts ESM, so the deployed CommonJS text
+// is the security boundary. Its restricted require cannot resolve relative imports; bundled
+// package code must leave only Electron as a runtime dependency.
+// Bridge isolation rationale: Jini/packages/desktop-host/src/speech/speech-bridge.ts.
+// Plain Node resolves require("electron") to a path string rather than the bridge API. The VM
+// uses a recording stub to exercise host capability exposure and channel forwarding instead.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DESKTOP_ROOT = path.join(__dirname, "..", "..");
@@ -55,12 +43,7 @@ function parsePreloadTsconfig(): ts.ParsedCommandLine {
 }
 
 const preloadTsconfig = parsePreloadTsconfig();
-const compiled = ts.transpileModule(fs.readFileSync(SOURCE_PATH, "utf8"), {
-  compilerOptions: preloadTsconfig.options,
-  fileName: SOURCE_PATH,
-  reportDiagnostics: true,
-});
-const compiledText = compiled.outputText;
+const compiledText = fs.readFileSync(COMPILED_PATH, "utf8");
 
 /** Every top-level `require(...)` call's argument, in source order — block comments are stripped
  *  first so a doc comment merely MENTIONING a `require(...)` call (as the preload's own header does,
@@ -71,33 +54,21 @@ function requiredSpecifiers(text: string): string[] {
   return [...withoutBlockComments.matchAll(/\brequire\(\s*["']([^"']+)["']\s*\)/g)].map((match) => match[1] as string);
 }
 
-test("tsconfig.preload.json builds preload-speech.cts to dist/speech/preload-speech.cjs, the path main.ts loads", () => {
+// REGRESSION: fails if the deployed speech bundle predates its source.
+test("the preload config includes speech source and the deployed bundle is fresh", () => {
   assert.ok(preloadTsconfig.fileNames.includes(SOURCE_PATH), "tsconfig.preload.json must include src/speech/preload-speech.cts");
   const outputs = ts.getOutputFileNames(preloadTsconfig, SOURCE_PATH, false);
   assert.ok(outputs.includes(COMPILED_PATH), `expected ${COMPILED_PATH} among ${outputs.join(", ")}`);
-  assert.deepEqual(compiled.diagnostics ?? [], []);
+  assert.ok(fs.statSync(COMPILED_PATH).mtimeMs >= fs.statSync(SOURCE_PATH).mtimeMs, "build:preload must produce fresh bundled output before these tests run");
 });
 
 test("the compiled preload requires nothing but \"electron\" — a sandboxed preload's require resolves no relative specifier", () => {
   assert.deepEqual(requiredSpecifiers(compiledText), ["electron"]);
 });
 
-test("the compiled preload's inlined IPC_CHANNEL_IS_AVAILABLE literal matches speech-ipc.ts's own export", () => {
-  const match = compiledText.match(/IPC_CHANNEL_IS_AVAILABLE\s*=\s*["']([^"']+)["']/);
-  assert.ok(match, "expected an inlined IPC_CHANNEL_IS_AVAILABLE string literal in the compiled preload");
-  assert.equal(match[1], IPC_CHANNEL_IS_AVAILABLE);
-});
-
-test("the compiled preload's inlined IPC_CHANNEL_TRANSCRIBE literal matches speech-ipc.ts's own export", () => {
-  const match = compiledText.match(/IPC_CHANNEL_TRANSCRIBE\s*=\s*["']([^"']+)["']/);
-  assert.ok(match, "expected an inlined IPC_CHANNEL_TRANSCRIBE string literal in the compiled preload");
-  assert.equal(match[1], IPC_CHANNEL_TRANSCRIBE);
-});
-
 /** Runs the compiled preload in a `vm` context whose `require("electron")` is a recording stub and
  *  whose `window.location.pathname` is `pathname`, returning every global it exposes to the page, in
- *  order. This exercises the one decision the file makes (which bridges a given page gets) without
- *  Electron; the bridged calls themselves stay untested here, as the header above says.
+ *  order. This checks capability exposure and the bridged calls without a real Electron process.
  *
  *  `exports` and `module` are supplied because the compiled CommonJS writes
  *  `Object.defineProperty(exports, "__esModule", …)`, and Electron's sandboxed loader supplies them
@@ -148,13 +119,16 @@ test("window.tovuFiles is NOT exposed to same-origin public pages, previews, or 
 });
 
 
+// PARITY: the shared bridge preserves positional renderer payloads and IPC results.
 test("compiled voice bridge forwards the channels, sample object and sample rate and returns IPC results", async () => {
   const f = preloadAt("/admin");
   assert.equal(await f.exposed.tovuVoice.isAvailable(), f.availability);
   const samples = new Float32Array([0.1, -0.2]);
   assert.equal(await f.exposed.tovuVoice.transcribe(samples, 16000), f.transcription);
   assert.deepEqual(f.invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 16000]]);
-  assert.equal(f.invokes[1][1], samples);
+  const transcriptionInvoke = f.invokes[1];
+  assert.ok(transcriptionInvoke);
+  assert.equal(transcriptionInvoke[1], samples);
 });
 
 test("compiled admin file bridge delegates to webUtils and returns the resolved path", () => {

@@ -81,7 +81,7 @@ type SitesHomeMenuEntry =
  *
  * @complexity O(1).
  */
-function viewMenu(): ViewMenu {
+function viewMenu(_requiredArgs: Record<string, never>): ViewMenu {
   return {
     label: "View",
     submenu: [
@@ -89,7 +89,7 @@ function viewMenu(): ViewMenu {
       { role: "forceReload" },
       { role: "toggleDevTools" },
       { type: "separator" },
-      ...zoomMenuItems(),
+      ...zoomMenuItems({}),
       { type: "separator" },
       { role: "togglefullscreen" },
     ],
@@ -105,7 +105,7 @@ function viewMenu(): ViewMenu {
  * @returns whether anything was sent.
  * @complexity O(1).
  */
-function sendSiteHistoryCommand(window: HistoryCommandWindow | undefined, command: SiteHistoryCommand): boolean {
+function sendSiteHistoryCommand({ window, command }: { window: HistoryCommandWindow | undefined; command: SiteHistoryCommand }): boolean {
   if (!window || window.isDestroyed() || !window.webContents) return false;
   window.webContents.send(SITE_HISTORY_CHANNEL, command);
   return true;
@@ -116,12 +116,12 @@ function sendSiteHistoryCommand(window: HistoryCommandWindow | undefined, comman
  *
  * @complexity O(1).
  */
-function siteHistoryMenu(): SiteHistoryMenu {
+function siteHistoryMenu(_requiredArgs: Record<string, never>): SiteHistoryMenu {
   return {
     label: "History",
     submenu: [
-      { label: "Back", accelerator: "CmdOrCtrl+[", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand(window, "back") },
-      { label: "Forward", accelerator: "CmdOrCtrl+]", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand(window, "forward") },
+      { label: "Back", accelerator: "CmdOrCtrl+[", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand({ window, command: "back" }) },
+      { label: "Forward", accelerator: "CmdOrCtrl+]", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand({ window, command: "forward" }) },
     ],
   };
 }
@@ -133,15 +133,15 @@ function siteHistoryMenu(): SiteHistoryMenu {
  * @param platform `process.platform`; only macOS gets the app menu.
  * @complexity O(1).
  */
-function sitesHomeMenuTemplate(platform: NodeJS.Platform): SitesHomeMenuEntry[] {
+function sitesHomeMenuTemplate({ platform }: { platform: NodeJS.Platform }): SitesHomeMenuEntry[] {
   return [
     // `as const`: a conditional spread otherwise widens this role, and every entry after it, to `string`.
     ...(platform === "darwin" ? [{ role: "appMenu" } as const] : []),
     { role: "fileMenu" },
     { role: "editMenu" },
-    viewMenu(),
-    siteHistoryMenu(),
-    findMenu(),
+    viewMenu({}),
+    siteHistoryMenu({}),
+    findMenu({}),
     { role: "windowMenu" },
     { role: "help", submenu: [] },
   ];

@@ -16,93 +16,47 @@
  * split from `findMenu`: a plain function is what `spellcheck-menu.test.ts` can call directly,
  * without a real Electron `Menu` or `webContents` to drive it.
  *
- * No `electron` import at module scope — the one place a real `Menu` is needed is an injected
- * default parameter, so this stays testable under plain `node --test` the same way
+ * No runtime `electron` import at module scope — the real `Menu` is an explicit injected port,
+ * so this stays testable under plain `node --test` the same way
  * `find-in-page-ipc.ts` keeps `BrowserWindow` at arm's length.
  */
-import type { MenuItemConstructorOptions } from "electron";
-
-/** The subset of Electron's own `ContextMenuParams` this file reads. */
-export interface SpellCheckContextMenuParams {
-  isEditable: boolean;
-  misspelledWord: string;
-  dictionarySuggestions: string[];
-  editFlags: {
-    canCut: boolean;
-    canCopy: boolean;
-    canPaste: boolean;
-    canSelectAll: boolean;
-  };
-}
-
-/** How many suggestions to offer before the rest are just noise — matches Chrome's own cap. */
-const MAX_SUGGESTIONS = 5;
-
-/**
- * Builds the right-click menu for one `context-menu` event: spelling suggestions (and "Add to
- * Dictionary") when the click landed on a misspelled word, then the ordinary edit commands when the
- * target is editable. Returns `[]` for a click with nothing to offer — neither a misspelling nor an
- * editable target — which callers treat as "show no menu" rather than an empty one.
- *
- * @param handlers.replace applies one suggestion, replacing the misspelled word.
- * @param handlers.addToDictionary remembers the misspelled word as correctly spelled from now on.
- * @complexity O(k) in the offered suggestion count, capped at {@link MAX_SUGGESTIONS}.
- */
-export function buildSpellCheckMenuTemplate(
-  params: SpellCheckContextMenuParams,
-  handlers: SpellCheckMenuHandlers,
-): MenuItemConstructorOptions[] {
-  const spelling = spellingItems(params, handlers);
-  if (!params.isEditable) return spelling;
-  const separator: MenuItemConstructorOptions[] = spelling.length > 0 ? [{ type: "separator" }] : [];
-  return [...spelling, ...separator, ...editItems(params, handlers)];
-}
-
-/** The actions a spell-check menu item can trigger — see {@link buildSpellCheckMenuTemplate}. */
+// Spelling-menu rationale: Jini packages/desktop-host/src/electron/usability/spellcheck-menu.ts.
+import {
+  buildSpellCheckMenuTemplate as buildTemplate, registerSpellCheckContextMenu as registerMenu,
+  type SpellCheckContextMenuParams, type SpellCheckLabels, type MenuItemConstructorOptions as SpellCheckMenuItem,
+} from "@jini-ai/desktop-host/electron/usability";
+export type { SpellCheckContextMenuParams } from "@jini-ai/desktop-host/electron/usability";
+const labels: SpellCheckLabels = {
+  noSuggestions: "No suggestions", addToDictionary: "Add to Dictionary",
+  cut: "Cut", copy: "Copy", paste: "Paste", selectAll: "Select All",
+};
 export interface SpellCheckMenuHandlers {
-  replace: (word: string) => void;
-  addToDictionary: (word: string) => void;
-  cut: () => void;
-  copy: () => void;
-  paste: () => void;
-  selectAll: () => void;
+  replace(word: string): void;
+  addToDictionary(word: string): void;
+  cut(): void; copy(): void; paste(): void; selectAll(): void;
 }
-
-/** The spelling half of the menu: up to {@link MAX_SUGGESTIONS} suggestions (or a disabled "No
- *  suggestions"), then "Add to Dictionary". `[]` when the click was not on a misspelled word.
- *  @complexity O(k) in the offered suggestion count. */
-function spellingItems(params: SpellCheckContextMenuParams, handlers: SpellCheckMenuHandlers): MenuItemConstructorOptions[] {
-  if (params.misspelledWord.length === 0) return [];
-  const suggestions = params.dictionarySuggestions.slice(0, MAX_SUGGESTIONS);
-  const suggestionItems: MenuItemConstructorOptions[] =
-    suggestions.length === 0
-      ? [{ label: "No suggestions", enabled: false }]
-      : suggestions.map((suggestion) => ({ label: suggestion, click: () => handlers.replace(suggestion) }));
-  return [
-    ...suggestionItems,
-    { type: "separator" },
-    { label: "Add to Dictionary", click: () => handlers.addToDictionary(params.misspelledWord) },
-  ];
+/**
+ * Build spelling suggestions followed by enabled edit commands with Tovu wording. Five matches
+ * Chrome's cap: further alternatives add noise. An empty result means no popup, not an empty menu.
+ * @complexity O(k) in suggestions, capped at five.
+ */
+export function buildSpellCheckMenuTemplate({ params, handlers }: {
+  params: SpellCheckContextMenuParams; handlers: SpellCheckMenuHandlers;
+}): SpellCheckMenuItem[] {
+  return buildTemplate({ params, labels, handlers: {
+    replace: ({ word }) => handlers.replace(word),
+    addToDictionary: ({ word }) => handlers.addToDictionary(word),
+    cut: () => handlers.cut(), copy: () => handlers.copy(),
+    paste: () => handlers.paste(), selectAll: () => handlers.selectAll(),
+  } }, { maxSuggestions: 5 });
 }
-
-/** The ordinary edit commands, each enabled per Chromium's own `editFlags`.
- *  @complexity O(1). */
-function editItems(params: SpellCheckContextMenuParams, handlers: SpellCheckMenuHandlers): MenuItemConstructorOptions[] {
-  return [
-    { label: "Cut", enabled: params.editFlags.canCut, click: () => handlers.cut() },
-    { label: "Copy", enabled: params.editFlags.canCopy, click: () => handlers.copy() },
-    { label: "Paste", enabled: params.editFlags.canPaste, click: () => handlers.paste() },
-    { type: "separator" },
-    { label: "Select All", enabled: params.editFlags.canSelectAll, click: () => handlers.selectAll() },
-  ];
-}
-
 /** The slice of a `webContents` {@link registerSpellCheckContextMenu} drives — real or faked in
  *  tests. `replaceMisspelling`/`cut`/`copy`/`paste`/`selectAll` are Electron's own `WebContents`
  *  methods; `session.addWordToSpellCheckerDictionary` is scoped to THIS contents' own session, which
  *  is what makes a guest's dictionary additions follow that project's own partition. */
 export interface SpellCheckWebContents {
   on(event: "context-menu", listener: (event: unknown, params: SpellCheckContextMenuParams) => void): unknown;
+  removeListener?(event: "context-menu", listener: (event: unknown, params: SpellCheckContextMenuParams) => void): unknown;
   replaceMisspelling(text: string): void;
   cut(): void;
   copy(): void;
@@ -111,34 +65,30 @@ export interface SpellCheckWebContents {
   session: { addWordToSpellCheckerDictionary(word: string): void };
 }
 
-/** The slice of Electron's `Menu` (the class, not an instance) this file needs. A fake of it is
- *  what tests pass; production leaves it at its default, the real `Menu`. */
+/** Native Menu builder supplied by the host composition or its test double. */
 export interface MenuBuilder {
-  buildFromTemplate(template: MenuItemConstructorOptions[]): { popup(): void };
+  buildFromTemplate(template: SpellCheckMenuItem[]): { popup(): void };
 }
 
 /**
- * Wires one `webContents`' `context-menu` event to {@link buildSpellCheckMenuTemplate} and pops the
- * result. A click with nothing to offer (see that function's own doc) shows no menu at all, rather
- * than an empty native popup.
- *
- * @param menuBuilder Electron's `Menu`, or a fake with `buildFromTemplate`. Required rather than
- *   defaulted: this module keeps no `electron` import of its own (see this file's own header), and
- *   `main.ts` already holds `Menu` from its own top-level import, so there is nothing a default
- *   here could resolve that the caller does not already have.
- * @complexity O(1) to register; each popup is `buildSpellCheckMenuTemplate`'s own cost.
+ * Register spelling for one native session; return a matching listener disposer. Menu is required
+ * because main already owns Electron's Menu: a module-level default adds no capability and would
+ * load a native runtime in plain Node tests. A click with no spelling/edit actions shows no popup.
+ * @complexity O(1) to register; each popup is capped at five suggestions.
  */
-export function registerSpellCheckContextMenu(webContents: SpellCheckWebContents, menuBuilder: MenuBuilder): void {
-  webContents.on("context-menu", (_event, params) => {
-    const template = buildSpellCheckMenuTemplate(params, {
-      replace: (word) => webContents.replaceMisspelling(word),
-      addToDictionary: (word) => webContents.session.addWordToSpellCheckerDictionary(word),
-      cut: () => webContents.cut(),
-      copy: () => webContents.copy(),
-      paste: () => webContents.paste(),
-      selectAll: () => webContents.selectAll(),
-    });
-    if (template.length === 0) return;
-    menuBuilder.buildFromTemplate(template).popup();
-  });
+export function registerSpellCheckContextMenu({ webContents, menuBuilder }: {
+  webContents: SpellCheckWebContents; menuBuilder: MenuBuilder;
+}): () => void {
+  let nativeListener: ((event: unknown, params: SpellCheckContextMenuParams) => void) | undefined;
+  return registerMenu({ labels, menuBuilder: { buildFromTemplate: ({ template }) => menuBuilder.buildFromTemplate(template) }, webContents: {
+    on: ({ event, listener }) => {
+      nativeListener = (_event, params) => listener({ params });
+      webContents.on(event, nativeListener);
+    },
+    removeListener: ({ event }) => { if (nativeListener) webContents.removeListener?.(event, nativeListener); },
+    replaceMisspelling: ({ text }) => webContents.replaceMisspelling(text),
+    session: { addWordToSpellCheckerDictionary: ({ word }) => webContents.session.addWordToSpellCheckerDictionary(word) },
+    cut: () => webContents.cut(), copy: () => webContents.copy(),
+    paste: () => webContents.paste(), selectAll: () => webContents.selectAll(),
+  } }, { maxSuggestions: 5 });
 }

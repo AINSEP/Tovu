@@ -11,7 +11,7 @@
  * Ported from Runner's `working-directory-store.ts` + its `dialog.showOpenDialog` picker, with one
  * deliberate deviation: Runner keeps its MRU in a `runner_recent_working_directories` table inside
  * the fleet registry's SQLite database. That database exists because Runner supervises N projects.
- * A single-site shell has no such database, and adding `@jini-ai/sqlite` + `better-sqlite3` to
+ * A single-site shell has no such database, and adding `@jini-ai/sqlite-chat` + `better-sqlite3` to
  * `apps/desktop` to persist ten strings would buy a native dependency, an `electron-rebuild`
  * postinstall step and a second DB for nothing. The MRU is a JSON file in `userData` instead — same
  * solution, storage sized to the problem.

@@ -15,8 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
-import { createShutdownTracker } from "./shutdown-tracker.ts";
-import { decideBeforeQuit } from "./quit-drain-gate.ts";
+import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -65,8 +64,8 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   );
 
   const teardown = deferred();
-  const pendingTeardowns = createShutdownTracker();
-  pendingTeardowns.track(teardown.promise);
+  const pendingTeardowns = createShutdownTracker({});
+  pendingTeardowns.track({ promise: teardown.promise });
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let prevented = 0;
   let finalQuits = 0;
@@ -156,7 +155,7 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
 
   // Run the actual registration fragment with injected dependencies, without loading Electron.
   const stop = deferred();
-  const pendingTeardowns = createShutdownTracker();
+  const pendingTeardowns = createShutdownTracker({});
   let onClosed!: () => void;
   let stopCalls = 0;
   let closedRows = 0;

@@ -27,7 +27,7 @@ function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
 }
 
 test("four items: Actual Size, Zoom In, a hidden Zoom In alias, Zoom Out", () => {
-  const items = zoomMenuItems();
+  const items = zoomMenuItems({});
   assert.deepEqual(
     items.map(({ label, accelerator, visible }) => [label, accelerator, visible]),
     [
@@ -40,7 +40,7 @@ test("four items: Actual Size, Zoom In, a hidden Zoom In alias, Zoom Out", () =>
 });
 
 test("each item sends its own direction to the focused window's renderer", () => {
-  const items = zoomMenuItems();
+  const items = zoomMenuItems({});
   const window = fakeWindow();
   for (const item of items) item.click(undefined, window);
   assert.deepEqual(window.sent, [
@@ -52,16 +52,16 @@ test("each item sends its own direction to the focused window's renderer", () =>
 });
 
 test("with no focused window, a destroyed one, or one without webContents, nothing is sent", () => {
-  assert.equal(sendZoomCommand(undefined, "in"), false);
+  assert.equal(sendZoomCommand({ window: undefined, direction: "in" }), false);
   const destroyed = fakeWindow({ destroyed: true });
-  assert.equal(sendZoomCommand(destroyed, "in"), false);
+  assert.equal(sendZoomCommand({ window: destroyed, direction: "in" }), false);
   assert.deepEqual(destroyed.sent, []);
-  assert.equal(sendZoomCommand({ isDestroyed: () => false }, "in"), false);
-  assert.equal(sendZoomCommand(fakeWindow(), "in"), true);
+  assert.equal(sendZoomCommand({ window: { isDestroyed: () => false }, direction: "in" }), false);
+  assert.equal(sendZoomCommand({ window: fakeWindow(), direction: "in" }), true);
 });
 
 test("the View menu is Reload, Force Reload, Toggle Dev Tools, a separator, the four Zoom items, a separator, then Toggle Full Screen", () => {
-  const menu = viewMenu();
+  const menu = viewMenu({});
   assert.equal(menu.label, "View");
   assert.deepEqual(
     menu.submenu.map((entry) => ("role" in entry ? entry.role : "type" in entry ? entry.type : entry.label)),

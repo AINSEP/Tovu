@@ -31,72 +31,72 @@ const PRIMARY = { bounds: { x: 0, y: 0, width: 1920, height: 1080 } };
 const SECONDARY_LEFT = { bounds: { x: -1440, y: 0, width: 1440, height: 900 } };
 
 test("windowBoundsFilePath names window-bounds.json under the given userData dir", () => {
-  assert.equal(windowBoundsFilePath("/x/userData"), path.join("/x/userData", "window-bounds.json"));
+  assert.equal(windowBoundsFilePath({ userDataDir: "/x/userData" }), path.join("/x/userData", "window-bounds.json"));
 });
 
 test("readWindowBounds: null when the file does not exist yet", () => {
   withTempDir((dir) => {
-    assert.equal(readWindowBounds(windowBoundsFilePath(dir)), null);
+    assert.equal(readWindowBounds({ boundsPath: windowBoundsFilePath({ userDataDir: dir }) }), null);
   });
 });
 
 test("writeWindowBounds then readWindowBounds round-trips exactly", () => {
   withTempDir((dir) => {
-    const boundsPath = windowBoundsFilePath(dir);
+    const boundsPath = windowBoundsFilePath({ userDataDir: dir });
     const bounds: WindowBounds = { x: 120, y: 80, width: 1360, height: 900 };
-    writeWindowBounds(boundsPath, bounds);
-    assert.deepEqual(readWindowBounds(boundsPath), bounds);
+    writeWindowBounds({ boundsPath, bounds });
+    assert.deepEqual(readWindowBounds({ boundsPath }), bounds);
   });
 });
 
 test("readWindowBounds: null for malformed JSON, a non-object, or a missing/non-finite field", () => {
   withTempDir((dir) => {
-    const boundsPath = windowBoundsFilePath(dir);
+    const boundsPath = windowBoundsFilePath({ userDataDir: dir });
     fs.mkdirSync(dir, { recursive: true });
 
     fs.writeFileSync(boundsPath, "not json");
-    assert.equal(readWindowBounds(boundsPath), null, "malformed JSON");
+    assert.equal(readWindowBounds({ boundsPath }), null, "malformed JSON");
 
     fs.writeFileSync(boundsPath, "42");
-    assert.equal(readWindowBounds(boundsPath), null, "a non-object");
+    assert.equal(readWindowBounds({ boundsPath }), null, "a non-object");
 
     fs.writeFileSync(boundsPath, JSON.stringify({ x: 0, y: 0, width: 800 }));
-    assert.equal(readWindowBounds(boundsPath), null, "missing height");
+    assert.equal(readWindowBounds({ boundsPath }), null, "missing height");
 
     fs.writeFileSync(boundsPath, JSON.stringify({ x: 0, y: 0, width: Infinity, height: 900 }));
-    assert.equal(readWindowBounds(boundsPath), null, "a non-finite field");
+    assert.equal(readWindowBounds({ boundsPath }), null, "a non-finite field");
   });
 });
 
 test("writeWindowBounds creates the userData dir if it does not exist yet", () => {
   withTempDir((dir) => {
     const nested = path.join(dir, "not-yet-created");
-    const boundsPath = windowBoundsFilePath(nested);
-    writeWindowBounds(boundsPath, { x: 0, y: 0, width: 800, height: 600 });
-    assert.deepEqual(readWindowBounds(boundsPath), { x: 0, y: 0, width: 800, height: 600 });
+    const boundsPath = windowBoundsFilePath({ userDataDir: nested });
+    writeWindowBounds({ boundsPath, bounds: { x: 0, y: 0, width: 800, height: 600 } });
+    assert.deepEqual(readWindowBounds({ boundsPath }), { x: 0, y: 0, width: 800, height: 600 });
   });
 });
 
 test("boundsOnScreen: true when the window is fully within one display", () => {
-  assert.equal(boundsOnScreen({ x: 100, y: 100, width: 800, height: 600 }, [PRIMARY]), true);
+  assert.equal(boundsOnScreen({ bounds: { x: 100, y: 100, width: 800, height: 600 }, displays: [PRIMARY] }), true);
 });
 
 test("boundsOnScreen: true when only a corner (at least MIN_ONSCREEN_PX) still overlaps", () => {
   // Mostly off the left edge, 150px of it still on the primary display.
-  assert.equal(boundsOnScreen({ x: -1210, y: 100, width: 1360, height: 900 }, [PRIMARY]), true);
+  assert.equal(boundsOnScreen({ bounds: { x: -1210, y: 100, width: 1360, height: 900 }, displays: [PRIMARY] }), true);
 });
 
 test("boundsOnScreen: false when the overlap is a sliver under the minimum", () => {
-  assert.equal(boundsOnScreen({ x: -1350, y: 100, width: 1360, height: 900 }, [PRIMARY]), false);
+  assert.equal(boundsOnScreen({ bounds: { x: -1350, y: 100, width: 1360, height: 900 }, displays: [PRIMARY] }), false);
 });
 
 test("boundsOnScreen: false for a display that no longer exists (an unplugged secondary monitor)", () => {
   // Bounds recorded while a monitor to the LEFT of the primary was attached; that display is gone now.
-  assert.equal(boundsOnScreen({ x: -1200, y: 100, width: 1000, height: 700 }, [PRIMARY]), false);
+  assert.equal(boundsOnScreen({ bounds: { x: -1200, y: 100, width: 1000, height: 700 }, displays: [PRIMARY] }), false);
 });
 
 test("boundsOnScreen: true when it overlaps ANY of several displays, not necessarily the first", () => {
-  assert.equal(boundsOnScreen({ x: -1200, y: 100, width: 1000, height: 700 }, [PRIMARY, SECONDARY_LEFT]), true);
+  assert.equal(boundsOnScreen({ bounds: { x: -1200, y: 100, width: 1000, height: 700 }, displays: [PRIMARY, SECONDARY_LEFT] }), true);
 });
 
 test("resolveWindowBounds: the stored rectangle when it is still on-screen", () => {

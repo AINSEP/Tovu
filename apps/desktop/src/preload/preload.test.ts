@@ -1,22 +1,9 @@
-/**
- * @file Drift guard for the two speech channel literals inlined in `preload.mts`.
- *
- * Mirrors `src/speech/preload-speech.test.ts`'s literal checks — same regex approach, same source
- * of truth (`speech-ipc.ts`'s own exports), for the same reason: two preloads now expose
- * `window.tovuVoice` (the sandboxed CommonJS one, `src/speech/preload-speech.cts`, on site-admin
- * windows, this ESM one on the sites home window), and a channel rename that updated only one of them would leave the mic silently dead on
- * whichever window was missed.
- *
- * Reads the `.mts` SOURCE rather than the compiled `dist/preload/preload.mjs`, so the guard works
- * in a checkout that has not been built. The `tovuRunner` half of that file needs no guard here:
- * its channel names are imported from `src/contracts/*.ts`, so `npm run typecheck` already catches
- * a rename, and `src/runner-ipc-stubs.test.ts` covers the main-process side.
- *
- * The bridging itself is deliberately not tested: `contextBridge.exposeInMainWorld` only runs
- * inside Electron's real preload context, exactly as `preload-speech.test.ts`'s own header
- * records.
- */
-
+/** Speech bridge adoption and host exposure guards for the sites-home preload. */
+// Both the site-admin CommonJS preload and sites-home ESM preload expose voice; a namespace
+// rename applied to only one leaves that window's mic silently dead. Keep speech-ipc.ts as the
+// host channel authority. Reading source keeps these adoption checks usable before a build;
+// real contextBridge exposure still requires Electron's preload context.
+// Shared bridge rationale: Jini/packages/desktop-host/src/speech/speech-bridge.ts.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -29,19 +16,41 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const source = fs.readFileSync(path.join(__dirname, "preload.mts"), "utf8");
 
-test("preload.mts's inlined IPC_CHANNEL_IS_AVAILABLE literal matches speech-ipc.ts's own export", () => {
-  const match = source.match(/IPC_CHANNEL_IS_AVAILABLE\s*=\s*["']([^"']+)["']/);
-  assert.ok(match, "expected an inlined IPC_CHANNEL_IS_AVAILABLE string literal in preload.mts");
-  assert.equal(match[1], IPC_CHANNEL_IS_AVAILABLE);
-});
-
-test("preload.mts's inlined IPC_CHANNEL_TRANSCRIBE literal matches speech-ipc.ts's own export", () => {
-  const match = source.match(/IPC_CHANNEL_TRANSCRIBE\s*=\s*["']([^"']+)["']/);
-  assert.ok(match, "expected an inlined IPC_CHANNEL_TRANSCRIBE string literal in preload.mts");
-  assert.equal(match[1], IPC_CHANNEL_TRANSCRIBE);
+test("preload.mts uses the shared speech bridge with the Tovu channel namespace", () => {
+  assert.match(source, /createSpeechBridge/);
+  assert.match(source, /channelNamespace: 'tovu:speech'/);
+  assert.equal(IPC_CHANNEL_IS_AVAILABLE, "tovu:speech:isAvailable");
+  assert.equal(IPC_CHANNEL_TRANSCRIBE, "tovu:speech:transcribe");
 });
 
 test("preload.mts exposes both bridges — dropping either is what the port had to avoid", () => {
   assert.match(source, /contextBridge\.exposeInMainWorld\(\s*'tovuRunner'/);
   assert.match(source, /contextBridge\.exposeInMainWorld\(\s*'tovuVoice'/);
+});
+
+// PARITY: both renderer bridges remain exposed and the ESM voice bridge preserves positional IPC.
+test("the ESM preload exposes runner and voice and forwards the exact speech payload", async (t) => {
+  const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
+  const invokes: unknown[][] = [];
+  const availability = { available: true };
+  const transcription = { text: "hello", elapsedMs: 7 };
+  t.mock.module("electron", {
+    namedExports: {
+      contextBridge: { exposeInMainWorld: (name: string, bridge: Record<string, (...args: unknown[]) => unknown>) => exposed.set(name, bridge) },
+      ipcRenderer: { invoke: async (channel: string, ...args: unknown[]) => {
+        invokes.push([channel, ...args]);
+        return channel === IPC_CHANNEL_IS_AVAILABLE ? availability : transcription;
+      } },
+      webFrame: {}, webUtils: {},
+    },
+  });
+  await import("./preload.mts");
+  assert.deepEqual([...exposed.keys()], ["tovuRunner", "tovuVoice"]);
+  const voice = exposed.get("tovuVoice")!;
+  assert.deepEqual(Object.keys(voice), ["isAvailable", "transcribe"]);
+  assert.equal(await voice.isAvailable!(), availability);
+  const samples = new Float32Array([0.1, -0.2]);
+  assert.equal(await voice.transcribe!(samples, 48000), transcription);
+  assert.deepEqual(invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 48000]]);
+  assert.equal(invokes[1]![1], samples);
 });

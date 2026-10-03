@@ -5,16 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  PRESENCE_STALE_MS,
-  UPDATE_CHECK_INTERVAL_MS,
-  decideFinalQuit,
-  decideRestartClick,
-  electUpdaterOwner,
-  shouldCheckNow,
-  updaterSkipReason,
-} from "./update-policy.ts";
-import type { FinalQuitInput, UpdaterEnvironment } from "./update-policy.ts";
+import { updaterSkipReason } from "./update-policy.ts";
+import { PRESENCE_STALE_MS, UPDATE_CHECK_INTERVAL_MS, decideFinalQuit, decideRestartClick, electUpdaterOwner, shouldCheckNow } from "@jini-ai/desktop-host/electron/updates";
+import type { FinalQuitInput, UpdaterEnvironment } from "@jini-ai/desktop-host/electron/updates";
 
 const PACKAGED_MAC: UpdaterEnvironment = { isPackaged: true, windowsStore: false, platform: "darwin", disabledByEnv: false, selftest: false };
 
@@ -44,13 +37,13 @@ test("the longest-running instance with a fresh heartbeat owns the updater", () 
     { pid: 20, startedAt: 100, heartbeatAt: now },
     { pid: 10, startedAt: 900, heartbeatAt: now },
   ];
-  assert.equal(electUpdaterOwner(instances, now), 20);
+  assert.equal(electUpdaterOwner({ instances, now, staleMs: PRESENCE_STALE_MS }), 20);
 });
 
 test("equal start times fall back to the lowest pid, so every instance elects the same owner", () => {
   const now = 1_000_000;
   assert.equal(
-    electUpdaterOwner([{ pid: 7, startedAt: 1, heartbeatAt: now }, { pid: 3, startedAt: 1, heartbeatAt: now }], now),
+    electUpdaterOwner({ instances: [{ pid: 7, startedAt: 1, heartbeatAt: now }, { pid: 3, startedAt: 1, heartbeatAt: now }], now, staleMs: PRESENCE_STALE_MS }),
     3,
   );
 });
@@ -59,21 +52,21 @@ test("a stale heartbeat cannot hold ownership, and no fresh instance means no ow
   const now = 10 * PRESENCE_STALE_MS;
   const stale = { pid: 1, startedAt: 0, heartbeatAt: now - PRESENCE_STALE_MS - 1 };
   const fresh = { pid: 2, startedAt: 50, heartbeatAt: now };
-  assert.equal(electUpdaterOwner([stale, fresh], now), 2);
-  assert.equal(electUpdaterOwner([stale], now), null);
-  assert.equal(electUpdaterOwner([], now), null);
+  assert.equal(electUpdaterOwner({ instances: [stale, fresh], now, staleMs: PRESENCE_STALE_MS }), 2);
+  assert.equal(electUpdaterOwner({ instances: [stale], now, staleMs: PRESENCE_STALE_MS }), null);
+  assert.equal(electUpdaterOwner({ instances: [], now, staleMs: PRESENCE_STALE_MS }), null);
 });
 
 test("the owner checks at once when it never has, then only after the interval", () => {
-  assert.equal(shouldCheckNow({ isOwner: true, lastCheckAt: null, now: 5, busy: false }), true);
-  assert.equal(shouldCheckNow({ isOwner: true, lastCheckAt: 0, now: UPDATE_CHECK_INTERVAL_MS - 1, busy: false }), false);
-  assert.equal(shouldCheckNow({ isOwner: true, lastCheckAt: 0, now: UPDATE_CHECK_INTERVAL_MS, busy: false }), true);
+  assert.equal(shouldCheckNow({ intervalMs: UPDATE_CHECK_INTERVAL_MS, isOwner: true, lastCheckAt: null, now: 5, busy: false }), true);
+  assert.equal(shouldCheckNow({ intervalMs: UPDATE_CHECK_INTERVAL_MS, isOwner: true, lastCheckAt: 0, now: UPDATE_CHECK_INTERVAL_MS - 1, busy: false }), false);
+  assert.equal(shouldCheckNow({ intervalMs: UPDATE_CHECK_INTERVAL_MS, isOwner: true, lastCheckAt: 0, now: UPDATE_CHECK_INTERVAL_MS, busy: false }), true);
   assert.equal(shouldCheckNow({ isOwner: true, lastCheckAt: 0, now: 10, busy: false, intervalMs: 10 }), true);
 });
 
 test("a non-owner or a busy owner never checks", () => {
-  assert.equal(shouldCheckNow({ isOwner: false, lastCheckAt: null, now: 5, busy: false }), false);
-  assert.equal(shouldCheckNow({ isOwner: true, lastCheckAt: null, now: 5, busy: true }), false);
+  assert.equal(shouldCheckNow({ intervalMs: UPDATE_CHECK_INTERVAL_MS, isOwner: false, lastCheckAt: null, now: 5, busy: false }), false);
+  assert.equal(shouldCheckNow({ intervalMs: UPDATE_CHECK_INTERVAL_MS, isOwner: true, lastCheckAt: null, now: 5, busy: true }), false);
 });
 
 const READY_SOLE: FinalQuitInput = { platform: "darwin", updateReady: true, otherInstances: 0, restartRequested: false, installStarted: false };
@@ -96,7 +89,7 @@ test("Restart to update relaunches; no update or an install already started just
 });
 
 test("Restart to update explains instead of restarting while other copies are open", () => {
-  assert.equal(decideRestartClick(true, 0), "restart");
-  assert.equal(decideRestartClick(true, 2), "others-open");
-  assert.equal(decideRestartClick(false, 0), "not-ready");
+  assert.equal(decideRestartClick({ updateReady: true, otherInstances: 0 }), "restart");
+  assert.equal(decideRestartClick({ updateReady: true, otherInstances: 2 }), "others-open");
+  assert.equal(decideRestartClick({ updateReady: false, otherInstances: 0 }), "not-ready");
 });

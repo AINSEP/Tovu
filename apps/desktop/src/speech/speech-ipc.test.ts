@@ -26,7 +26,7 @@ function fakeIpcMain() {
 
 test("registerSpeechIpc registers both channels", () => {
   const ipcMain = fakeIpcMain();
-  registerSpeechIpc({ ipcMain, isTrustedSender, port: { isAvailable: async () => ({ available: true }), transcribe: async () => ({ text: "", elapsedMs: 0 }) } });
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { port: { isAvailable: async () => ({ available: true }), transcribe: async () => ({ text: "", elapsedMs: 0 }) } });
   assert.equal(typeof ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE), "function");
   assert.equal(typeof ipcMain.handlers.get(IPC_CHANNEL_TRANSCRIBE), "function");
 });
@@ -34,7 +34,7 @@ test("registerSpeechIpc registers both channels", () => {
 test("the isAvailable handler relays the injected port's result verbatim", async () => {
   const ipcMain = fakeIpcMain();
   const port = { isAvailable: async () => ({ available: false, reason: "on-device-recognition-unavailable" }), transcribe: async () => assert.fail() };
-  registerSpeechIpc({ ipcMain, port, isTrustedSender });
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { port });
 
   const result = await ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE)!(TRUSTED_EVENT);
   assert.deepEqual(result, { available: false, reason: "on-device-recognition-unavailable" });
@@ -45,12 +45,12 @@ test("the transcribe handler encodes the incoming samples to WAV before handing 
   let receivedWav: Buffer | undefined;
   const port = {
     isAvailable: async () => assert.fail(),
-    transcribe: async (wavBuffer: Buffer) => {
+    transcribe: async ({ wavBuffer }: { wavBuffer: Buffer }) => {
       receivedWav = wavBuffer;
       return { text: "ok", elapsedMs: 10 };
     },
   };
-  registerSpeechIpc({ ipcMain, port, isTrustedSender });
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { port });
 
   const result = await ipcMain.handlers.get(IPC_CHANNEL_TRANSCRIBE)!(TRUSTED_EVENT, [0, 0.5, -0.5], 16000);
 
@@ -69,7 +69,7 @@ test("the transcribe handler encodes the incoming samples to WAV before handing 
 test("a rejected transcribe from the port propagates to the IPC caller rather than being swallowed", async () => {
   const ipcMain = fakeIpcMain();
   const port = { isAvailable: async () => assert.fail(), transcribe: async () => { throw new Error("recognition failed"); } };
-  registerSpeechIpc({ ipcMain, port, isTrustedSender });
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { port });
 
   await assert.rejects(() => ipcMain.handlers.get(IPC_CHANNEL_TRANSCRIBE)!(TRUSTED_EVENT, [0], 16000), /recognition failed/);
 });
@@ -83,12 +83,12 @@ function registerRecording(options: { maxSamples?: number } = {}) {
       calls.push("isAvailable");
       return { available: true };
     },
-    transcribe: async (wavBuffer: Buffer) => {
+    transcribe: async ({ wavBuffer }: { wavBuffer: Buffer }) => {
       calls.push(`transcribe:${wavBuffer.length}`);
       return { text: "ok", elapsedMs: 1 };
     },
   };
-  registerSpeechIpc({ ipcMain, port, isTrustedSender, ...options });
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { port, ...options });
   const transcribe = (event: unknown, samples: unknown, sampleRate: unknown) => ipcMain.handlers.get(IPC_CHANNEL_TRANSCRIBE)!(event, samples, sampleRate);
   const isAvailable = (event: unknown) => ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE)!(event);
   return { calls, transcribe, isAvailable };
@@ -111,7 +111,7 @@ async function rejectsWith(call: () => unknown, pattern: RegExp) {
 test("registerSpeechIpc refuses to register without a sender check, rather than trusting every page", () => {
   const port = { isAvailable: async () => assert.fail(), transcribe: async () => assert.fail() };
   // @ts-expect-error -- no isTrustedSender: the type rejects it, and this asserts the runtime does too.
-  assert.throws(() => registerSpeechIpc({ ipcMain: fakeIpcMain(), port }), /isTrustedSender is required/);
+  assert.throws(() => registerSpeechIpc({ ipcMain: fakeIpcMain() }, { port }), /isTrustedSender is required/);
 });
 
 test("both channels refuse a sender whose page this app does not serve, before reaching the port", async () => {
@@ -130,7 +130,7 @@ test("the sender check sees the sending frame's url, exactly", async () => {
   const ipcMain = fakeIpcMain();
   const seen: string[] = [];
   const port = { isAvailable: async () => ({ available: true }), transcribe: async () => assert.fail() };
-  registerSpeechIpc({ ipcMain, port, isTrustedSender: (url: string) => (seen.push(url), true) });
+  registerSpeechIpc({ ipcMain, isTrustedSender: (url: string) => (seen.push(url), true) }, { port });
   await ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE)!({ senderFrame: { url: "http://127.0.0.1:9/admin/x?y=1" } });
   assert.deepEqual(seen, ["http://127.0.0.1:9/admin/x?y=1"]);
 });
@@ -188,4 +188,23 @@ test("a recording of exactly the cap is accepted, and one sample more is refused
   await rejectsWith(() => transcribe(TRUSTED_EVENT, [0, 0, 0, 0, 0], 16000), tooMany);
   // 44-byte WAV header + 4 samples * 2 bytes, twice.
   assert.deepEqual(calls, ["transcribe:52", "transcribe:52"]);
+});
+
+// REGRESSION: fails if non-finite Float32Array samples or sparse array holes bypass validation.
+test("non-finite typed samples and sparse holes are refused before reaching recognition", async () => {
+  const { calls, transcribe } = registerRecording();
+  for (const samples of [new Float32Array([Number.NaN]), new Float32Array([Infinity]), new Array(1)]) {
+    await rejectsWith(() => transcribe(TRUSTED_EVENT, samples, 16000), SAMPLES_REFUSED);
+  }
+  assert.deepEqual(calls, []);
+});
+
+// REGRESSION: fails if invalid maxSamples values are accepted at registration.
+test("an invalid recording cap rejects before registering either handler", () => {
+  for (const maxSamples of [-1, 0.5, Infinity, Number.NaN]) {
+    const ipcMain = fakeIpcMain();
+    const port = { isAvailable: async () => assert.fail(), transcribe: async () => assert.fail() };
+    assert.throws(() => registerSpeechIpc({ ipcMain, isTrustedSender }, { port, maxSamples }), RangeError);
+    assert.equal(ipcMain.handlers.size, 0);
+  }
 });

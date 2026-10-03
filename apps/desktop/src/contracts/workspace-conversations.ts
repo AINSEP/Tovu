@@ -2,7 +2,7 @@
  * Browser-safe contract for the fleet chat's persisted conversation threads.
  *
  * Backed by Runner's own `runner_conversations`/`runner_conversation_messages` tables
- * (`main/fleet-conversation-store.ts`), layered onto the already-open `@jini-ai/sqlite` handle
+ * (`main/fleet-conversation-store.ts`), layered onto the already-open `@jini-ai/sqlite-chat` handle
  * `project-registry.ts`'s header documents — never a second `openDatabase` call. Channel constants
  * and DTOs only, no logic.
  *

@@ -1382,7 +1382,7 @@ test("handleList still answers when the healed list cannot be saved", (t) => {
   const stored = fs.readFileSync(deps.projectsPath, "utf8");
   const renameSync = fs.renameSync;
   let failedWrites = 0;
-  t.mock.method(fs, "renameSync", (from, to) => {
+  t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
     if (to === deps.projectsPath) {
       failedWrites += 1;
       throw new Error("injected persistence failure");

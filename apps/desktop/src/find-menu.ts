@@ -14,62 +14,36 @@
  *
  * No `electron` import, so it can be tested under plain `node --test`.
  */
-
-/** Mirrors `contracts/find-in-page.ts`'s `FIND_TOGGLE_CHANNEL`. */
-const FIND_TOGGLE_CHANNEL = "runner:find:toggle";
-
-/** A menu click's focused window, as far as this module reads one. Electron types it as a
- *  `BaseWindow`, which has no `webContents`, so that is optional — mirrors `site-history-menu.ts`'s
- *  `HistoryCommandWindow`. */
-interface FindCommandWindow {
+// Guest-focus accelerator rationale: Jini/packages/desktop-host/src/electron/usability/find-menu.ts.
+import { findMenu as buildFindMenu, sendFindToggle as sendToggle } from "@jini-ai/desktop-host/electron/usability";
+/** Mirrors the renderer contract; keep the main-only adapter out of preload imports. */
+export const FIND_TOGGLE_CHANNEL = "runner:find:toggle";
+export interface FindCommandWindow {
   isDestroyed(): boolean;
   webContents?: { send(channel: string): void };
 }
-
-/** The one Find menu item. `click` has the leading parameters of Electron's `MenuItem` click. */
-interface FindMenuItem {
+export interface FindMenuItem {
   label: string;
   accelerator: string;
   click: (item: unknown, window: FindCommandWindow | undefined) => void;
 }
-
-/** The Find menu: exactly one item. */
-interface FindMenu {
-  label: string;
-  submenu: [FindMenuItem];
-}
-
-/**
- * Tells `window`'s renderer to open (or refocus) its find bar.
- *
- * @param window the menu click's focused window. Electron types it as a `BaseWindow`, which has
- *   no `webContents`, so that is checked rather than assumed.
- * @returns whether anything was sent.
- * @complexity O(1).
- */
-function sendFindToggle(window: FindCommandWindow | undefined): boolean {
-  if (!window || window.isDestroyed() || !window.webContents) return false;
-  window.webContents.send(FIND_TOGGLE_CHANNEL);
-  return true;
-}
-
-/**
- * The Find menu: one item, Cmd+F, named the way Chrome and most browsers name their own.
- *
- * @complexity O(1).
- */
-function findMenu(): FindMenu {
+export interface FindMenu { label: string; submenu: [FindMenuItem] }
+/** Translate a native focused window to the package send port. @complexity O(1). */
+function windowPort({ window }: { window: FindCommandWindow | undefined }) {
+  if (!window) return undefined;
+  const contents = window.webContents;
   return {
-    label: "Find",
-    submenu: [
-      {
-        label: "Find in Page…",
-        accelerator: "CmdOrCtrl+F",
-        click: (_item: unknown, window: FindCommandWindow | undefined) => void sendFindToggle(window),
-      },
-    ],
+    isDestroyed: () => window.isDestroyed(),
+    ...(contents ? { webContents: { send: ({ channel }: { channel: string }) => contents.send(channel) } } : {}),
   };
 }
-
-export { FIND_TOGGLE_CHANNEL, sendFindToggle, findMenu };
-export type { FindCommandWindow, FindMenu, FindMenuItem };
+/** Send Tovu's find toggle to the focused window. @complexity O(1). */
+export function sendFindToggle({ window }: { window: FindCommandWindow | undefined }): boolean {
+  return sendToggle({ window: windowPort({ window }), channel: FIND_TOGGLE_CHANNEL });
+}
+/** Build native menu callbacks with Tovu wording. @complexity O(1). */
+export function findMenu(_requiredArgs: Record<string, never>): FindMenu {
+  const menu = buildFindMenu({ channel: FIND_TOGGLE_CHANNEL, labels: { menu: "Find", item: "Find in Page…" } });
+  const item = menu.submenu[0];
+  return { ...menu, submenu: [{ ...item, click: (_item, window) => item.click({ window: windowPort({ window }) }) }] };
+}

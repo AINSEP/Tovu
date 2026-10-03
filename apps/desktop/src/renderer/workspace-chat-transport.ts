@@ -272,7 +272,7 @@ interface ChatStartPayload {
 function buildChatStartPayload(subscriptionId: string, agentId: string, input: StartRunInput): ChatStartPayload {
   return {
     subscriptionId,
-    prompt: buildTranscript(input.history, { targetAgentId: agentId }),
+    prompt: buildTranscript({ history: input.history }, { targetAgentId: agentId }),
     agentId,
     ...(input.context?.['model'] === undefined ? {} : { model: String(input.context['model']) }),
     ...(input.context?.['reasoning'] === undefined ? {} : { reasoning: String(input.context['reasoning']) }),

@@ -1,7 +1,8 @@
 /**
  * @file Regression test for the 2026-09-18 stale-preload incident: `dist/preload/preload.mjs` — the
- * COMPILED file Electron actually loads (`preload.mts`'s own header: "Electron's sandboxed preload
- * loader runs neither TypeScript nor ESM") — was two days older than `src/preload/preload.mts` when
+ * COMPILED ESM file Electron loads in the unsandboxed, context-isolated sites-home window
+ * (`preload.mts` is source; the sandboxed site-admin preload is a separate CommonJS bundle)
+ * — was two days older than `src/preload/preload.mts` when
  * the find-in-page feature (`use-find-in-page.hooks.ts`) added `onFindToggle`/`findInPage`/
  * `stopFindInPage`/`onFindResult` to the exposed bridge. `npm run build:preload` was never re-run.
  *
@@ -32,7 +33,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { shellStalenessFailure, type StalenessShell } from "../shell-staleness.ts";
 
@@ -93,7 +94,7 @@ test("the compiled preload exposes every current source bridge method regardless
   const expected = new Map(exposed);
   assert.deepEqual([...expected.keys()].sort(), ["tovuRunner", "tovuVoice"]);
   exposed.clear();
-  await import("../../dist/preload/preload.mjs");
+  await import(pathToFileURL(builtPath).href);
   assert.deepEqual([...exposed.keys()].sort(), [...expected.keys()].sort());
   for (const [name, sourceBridge] of expected) {
     const builtBridge = exposed.get(name)!;

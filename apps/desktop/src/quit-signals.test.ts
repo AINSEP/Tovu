@@ -1,26 +1,26 @@
 /**
- * @file Behavioural proof for `quit-signals.ts` — the persistent SIGINT/SIGTERM/SIGHUP handler that
- * routes a termination signal into `main.ts`'s graceful `before-quit` drain instead of letting a
- * repeated copy of it kill Electron mid-drain. See that file's header for the defect.
+ * @file Behavioural proof for Jini's `desktop-host/src/shutdown/quit-signals.ts` — the persistent
+ * SIGINT/SIGTERM/SIGHUP handler that routes a termination signal into `main.ts`'s graceful
+ * `before-quit` drain instead of letting a repeated copy kill Electron mid-drain. See that module's header.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 
-import { routeQuitSignals, QUIT_SIGNALS } from "./quit-signals.ts";
+import { routeQuitSignals, QUIT_SIGNALS } from "@jini-ai/desktop-host/shutdown";
 
 /** A fake `process` plus recorders for everything `routeQuitSignals` can do to the outside. */
 function harness() {
   const processLike = new EventEmitter();
   const calls = { quit: 0, forceExit: 0, unref: 0 };
   const timers: { fn: () => void; ms: number }[] = [];
-  const setTimer = (fn: () => void, ms: number) => {
+  const setTimer = ({ fn, ms }: { fn: () => void; ms: number }) => {
     timers.push({ fn, ms });
     return { unref: () => (calls.unref += 1) };
   };
   routeQuitSignals(
     {
-      processLike,
+      processLike: { on: ({ signal, listener }) => processLike.on(signal, listener) },
       quit: () => (calls.quit += 1),
       forceExit: () => (calls.forceExit += 1),
       deadlineMs: 15_000,

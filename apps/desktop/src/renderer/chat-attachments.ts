@@ -31,7 +31,7 @@ function attachmentKind(file: File): ChatAttachment['kind'] {
 }
 
 async function stageOne(
-  bridge: RunnerInventoryBridge,
+  bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>,
   file: File,
   order: number,
 ): Promise<ChatAttachment> {
@@ -41,7 +41,7 @@ async function stageOne(
 }
 
 export function createLocalAttachmentUploader(
-  bridge: RunnerInventoryBridge,
+  bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>,
 ): NonNullable<ChatPaneProps['uploadAttachments']> {
   return async function uploadAttachments(
     files: File[],

@@ -27,7 +27,7 @@ function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
 }
 
 test("Find has one item, Find in Page… on CmdOrCtrl+F", () => {
-  const menu = findMenu();
+  const menu = findMenu({});
   assert.equal(menu.label, "Find");
   assert.deepEqual(
     menu.submenu.map(({ label, accelerator }) => [label, accelerator]),
@@ -36,24 +36,24 @@ test("Find has one item, Find in Page… on CmdOrCtrl+F", () => {
 });
 
 test("clicking Find in Page… sends the toggle to the focused window's renderer", () => {
-  const [findItem] = findMenu().submenu;
+  const [findItem] = findMenu({}).submenu;
   const window = fakeWindow();
   findItem.click(undefined, window);
   assert.deepEqual(window.sent, [FIND_TOGGLE_CHANNEL]);
 });
 
 test("with no focused window, a destroyed one, or one without webContents, nothing is sent", () => {
-  assert.equal(sendFindToggle(undefined), false);
+  assert.equal(sendFindToggle({ window: undefined }), false);
   const destroyed = fakeWindow({ destroyed: true });
-  assert.equal(sendFindToggle(destroyed), false);
+  assert.equal(sendFindToggle({ window: destroyed }), false);
   assert.deepEqual(destroyed.sent, []);
-  assert.equal(sendFindToggle({ isDestroyed: () => false }), false);
-  assert.equal(sendFindToggle(fakeWindow()), true);
+  assert.equal(sendFindToggle({ window: { isDestroyed: () => false } }), false);
+  assert.equal(sendFindToggle({ window: fakeWindow() }), true);
 });
 
 test("the sites-home menu adds Find between History and Window", () => {
   const roles = (template: { role?: string; label?: string }[]) => template.map((entry) => entry.role ?? entry.label);
-  assert.deepEqual(roles(sitesHomeMenuTemplate("darwin")), [
+  assert.deepEqual(roles(sitesHomeMenuTemplate({ platform: "darwin" })), [
     "appMenu",
     "fileMenu",
     "editMenu",

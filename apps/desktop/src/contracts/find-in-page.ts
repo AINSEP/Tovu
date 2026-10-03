@@ -32,23 +32,5 @@ export const FIND_IN_PAGE_CHANNELS = {
  *  — the top-level counterpart of a `<webview>`'s own `found-in-page` DOM event. */
 export const FIND_RESULT_CHANNEL = 'runner:find:result';
 
-/**
- * One `findInPage` request. Mirrors the subset of Electron's own `FindInPageOptions` this app
- * uses — `matchCase` is left at its default (case-insensitive), matching Chrome's own Cmd+F.
- *
- * `findNext` keeps Electron's own (counterintuitive) meaning: `true` begins a NEW search session —
- * the right value for a fresh query — and `false` is a follow-up within the current session — the
- * right value for stepping to the next/previous match. See `use-find-in-page.hooks.ts`'s `runFind`.
- */
-export interface FindInPageQuery {
-  text: string;
-  forward: boolean;
-  findNext: boolean;
-}
-
-/** One `found-in-page` result: `activeMatchOrdinal` is 1-based, `matches` is the total count (0
- *  when nothing matched). Mirrors the two fields of Electron's own `Result` this app reads. */
-export interface FindInPageResult {
-  activeMatchOrdinal: number;
-  matches: number;
-}
+// Electron search-session and result semantics: Jini/packages/desktop-host/src/electron/usability/find-in-page-ipc.ts.
+export type { FindInPageQuery, FindInPageResult } from "@jini-ai/desktop-host/electron/usability";
