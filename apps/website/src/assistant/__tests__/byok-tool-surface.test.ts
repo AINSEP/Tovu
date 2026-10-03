@@ -867,9 +867,14 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   const refused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__unlisted", input: {} }));
   assert.equal(refused.isError, true);
   assert.equal(session.calls.length, 1);
-  const writeRefused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
-  assert.equal(writeRefused.isError, true);
-  assert.equal(session.calls.length, 1, "a missing write grant must prevent remote execution");
+  // Owner commit 6eac86229 (2026-10-01, trust.ts R3 "confirm only protected actions"): an allowlisted
+  // ordinary write runs with no card, and writeAllowedToolNames is reported, not a gate. The same
+  // config (readOnlyHint:false, empty write list) runs in mcp-federation/__tests__/
+  // confirmation-policy.unit.test.ts "n06: create_project ordinary call needs no card". Admission
+  // (the unlisted refusal above) and authorize() still decide whether it may run at all.
+  const write = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
+  assert.notEqual(write.isError, true);
+  assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }, { name: "write_ungranted", arguments: {} }]);
 });
 
 // `settled: true`, not `false`: with no federation there is nothing still connecting, and
