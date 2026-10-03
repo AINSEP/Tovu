@@ -62,7 +62,7 @@ function fakeRegistry() {
 }
 
 function top3Ids(query: string): string[] {
-  return buildToolCatalogQuery(fakeRegistry()).search(query, 3).map((hit) => hit.id);
+  return buildToolCatalogQuery(fakeRegistry()).search({ query: query }, { limit: 3 }).map((hit) => hit.id);
 }
 
 const OPERATOR_PHRASINGS = [
@@ -81,7 +81,7 @@ for (const phrasing of OPERATOR_PHRASINGS) {
 }
 
 test("the incident's own phrasing outranks the two tools the assistant actually reached for and could not use", () => {
-  const hits = buildToolCatalogQuery(fakeRegistry()).search("save the image at this url into the media library", 10);
+  const hits = buildToolCatalogQuery(fakeRegistry()).search({ query: "save the image at this url into the media library" }, { limit: 10 });
   assert.equal(
     hits[0]?.id,
     "media_import_from_url",
@@ -96,11 +96,11 @@ test("'import from url' is not confused with redirects_create or webhooks_create
 });
 
 test("asking to GENERATE an image still finds media_generate_asset, not the importer — adding this tool did not cannibalize its sibling", () => {
-  const hits = buildToolCatalogQuery(fakeRegistry()).search("generate a new image for me with ai", 10);
+  const hits = buildToolCatalogQuery(fakeRegistry()).search({ query: "generate a new image for me with ai" }, { limit: 10 });
   assert.equal(hits[0]?.id, "media_generate_asset", `got ${hits.map((hit) => hit.id).join(", ")}`);
 });
 
 test("asking to upload bytes still finds media_upload_asset — the importer does not displace it either", () => {
-  const hits = buildToolCatalogQuery(fakeRegistry()).search("upload these base64 bytes as a new asset", 10);
+  const hits = buildToolCatalogQuery(fakeRegistry()).search({ query: "upload these base64 bytes as a new asset" }, { limit: 10 });
   assert.equal(hits[0]?.id, "media_upload_asset", `got ${hits.map((hit) => hit.id).join(", ")}`);
 });

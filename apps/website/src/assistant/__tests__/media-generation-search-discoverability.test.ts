@@ -44,7 +44,7 @@ function fakeRegistry() {
 }
 
 function top3Ids(catalog: ReturnType<typeof buildToolCatalogQuery>, query: string): string[] {
-  return catalog.search(query, 3).map((hit) => hit.id);
+  return catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
 }
 
 test("'can you generate an image of a sunset for me' finds media_generate_asset in the top 3", () => {
@@ -69,6 +69,6 @@ test("'I need a hero banner for the homepage, can you create one' finds media_ge
 
 test("media_generate_asset never gets confused for media_upload_asset when the operator says 'generate' rather than 'upload'", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("generate a new image for me", 10);
+  const hits = catalog.search({ query: "generate a new image for me" }, { limit: 10 });
   assert.equal(hits[0]?.id, "media_generate_asset", `expected media_generate_asset to rank #1; got ${hits.map((h) => h.id).join(", ")}`);
 });

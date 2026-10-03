@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
 
 /**
  * @file Pins the actual INCIDENT this dispatch closes, not just `TOOL_SEARCH_KEYWORDS`'/`DOC2QUERY`'s
@@ -49,12 +57,12 @@ function fakeRegistry() {
 }
 
 function top3Ids(catalog: ReturnType<typeof buildToolCatalogQuery>, query: string): string[] {
-  return catalog.search(query, 3).map((hit) => hit.id);
+  return catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
 }
 
 test('credential queries discover executable ids in the full production catalog after the read collapse', () => {
-  installFirstPartyToolContributors();
-  const registrations = buildAssistantToolRegistrations(createRouteDeps());
+  installFirstPartyToolContributors({ contributions });
+  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
   const byId = new Map(registrations.map((registration) => [registration.descriptor.id, registration]));
   assert.equal(byId.has('custom_credential_list'), false, 'the retired list id must not be published');
   const catalog = buildToolCatalogQuery({ list: () => registrations.map((registration) => registration.descriptor) });
@@ -123,7 +131,7 @@ test("'check if my token works' and 'is this API key still valid' both find cust
 
 test("vendor-shaped vocabulary (DNS, registrar, hosting, deployment provider, third-party API) finds all three custom-credential tools somewhere in the results", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("DNS registrar hosting deployment provider third-party API", 10).map((hit) => hit.id);
+  const hits = catalog.search({ query: "DNS registrar hosting deployment provider third-party API" }, { limit: 10 }).map((hit) => hit.id);
   for (const id of ["custom_credential_list", "custom_credential_verify", "custom_credential_make_request"]) {
     assert.ok(hits.includes(id), `expected ${id} to be findable by vendor-shaped vocabulary; got ${hits.join(", ") || "(none)"}`);
   }
@@ -138,7 +146,7 @@ test("the unrelated distractors never outrank custom_credential_list for a crede
   // with noise-level scores roughly 5 orders of magnitude below the real match. Ordering is the
   // property that would break if the new keyword/doc2query entries were wrong or too weak.
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  const hits = catalog.search("what credentials do I have saved", 10);
+  const hits = catalog.search({ query: "what credentials do I have saved" }, { limit: 10 });
   assert.equal(hits[0]?.id, "custom_credential_list", `expected custom_credential_list to rank #1; got ${hits.map((h) => h.id).join(", ")}`);
   const ownScore = hits[0]!.score;
   for (const distractorId of ["database_get_health", "webhooks_list_subscriptions", "identity_user_list"]) {
