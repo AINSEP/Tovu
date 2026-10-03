@@ -174,17 +174,31 @@ test("no purge/publish/unpublish tool exists — post.ts still has no hard-delet
   }
 });
 
+// Owner commit 6eac86229 (2026-10-01, "confirm destructive and protected actions only") rewrote the
+// content_post_delete description on purpose: a reversible Trash move no longer raises a
+// confirmation dialog, so the old HUMAN-GATED / "THIS SAME CALL performs the deletion" wording is
+// gone. The two tests below pin the current wording's two promises instead.
 test("the delete tool is a SOFT delete and says so — its description must not promise permanence", () => {
   const entry = catalogEntry("content_post_delete");
-  assert.match(entry.description, /SOFT delete/);
-  assert.match(entry.description, /restored by reverting/i);
-  assert.match(entry.description, /HUMAN-GATED/);
+  assert.ok(
+    entry.description.includes(
+      "This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set.",
+    ),
+    entry.description,
+  );
+  assert.ok(entry.description.includes("Permanent deletion is a separate confirmation-gated tool."), entry.description);
+  assert.doesNotMatch(entry.description, /HUMAN-GATED/);
 });
 
 test("the delete tool's description tells the model the SAME call reports the outcome — not a stale 'wait for a second call' instruction (ADR-055 Decision 2)", () => {
   const entry = catalogEntry("content_post_delete");
-  assert.match(entry.description, /THIS SAME CALL performs the deletion/);
-  assert.doesNotMatch(entry.description, /you cannot perform the second step yourself/i);
+  assert.ok(
+    entry.description.startsWith(
+      "Moves one post or page to Trash immediately, with {id, kind}. Returns {deleted: true, cancelled: false, post}.",
+    ),
+    entry.description,
+  );
+  assert.doesNotMatch(entry.description, /second call|second step|dialog/i);
 });
 
 // ---------------------------------------------------------------------------
@@ -701,9 +715,12 @@ test("content_post_search: calls authorize() with content.read, inline (searchAd
   const { deps, authorizeCalls } = fakeRouteDeps();
   await search(deps, { query: "anything" });
 
+  // Owner decision 2026-10-03, entityId omitted: a search names no single entity, so the
+  // authorize request carries no entityId key at all (not an own property set to undefined).
   assert.deepEqual(authorizeCalls, [
-    { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE_ID, entityType: "post", entityId: undefined },
+    { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE_ID, entityType: "post" },
   ]);
+  assert.equal(Object.hasOwn(authorizeCalls[0]!, "entityId"), false);
 });
 
 test("content_post_search: a denied principal is rejected", async () => {
