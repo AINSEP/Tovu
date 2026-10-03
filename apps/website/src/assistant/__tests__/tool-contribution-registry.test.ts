@@ -169,6 +169,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // that addition. See `features/agent-plugins/tool-registrations.ts`'s own "search_agent_plugin_local"
   // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(contributions.contributors.list({}).map((c) => c.domain), [
+    // 2026-10-03 (landed in 5ec1a964d): content stats, analytics and system-mail status reads,
+    // registered first in `installFirstPartyToolContributors`. Each its own domain key.
+    "content-stats",
+    "analytics",
+    "system-mail",
     "identity-policy-list-permissions",
     "sites-list",
     "publish-content-disconnect",
@@ -188,6 +193,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // 2026-09-27: `database_transfer_plan`/`database_transfer_run` (`features/database-transfer`).
     "database-transfer",
     "deployments",
+    // 2026-10-03 (landed in 5ec1a964d): deploy operations, its own key beside `deployments`.
+    "deploy-ops",
     "domain-dns",
     "entries",
     "external-mcp",
@@ -197,7 +204,12 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "identity",
     "integrations",
     "media",
+    // 2026-10-01 (82d2be726): `media_view_image`, its own key so it does not replace `media`'s
+    // `@jini-ai/cms`-owned catalog.
+    "media-view",
     "media-generation",
+    // 2026-10-03 (landed in 5ec1a964d): media-generation provider tools, own key.
+    "media-providers",
     "media-import",
     "members",
     "menus",
@@ -206,6 +218,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "pages",
     "plugins",
     "post",
+    // 2026-10-03 (landed in 5ec1a964d): post preview rendering, own key beside `post`.
+    "post-preview",
     // 2026-09-19: the three publishing tools â€” "is publishing set up", "set it up", "publish".
     // A NEW domain rather than an entry in the 25-domain rollout: `features/publish-content` had no
     // agent-tool surface at all until this, which is the gap that made publishing undiscoverable to
@@ -230,6 +244,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // registration order, not alphabetical).
     "theme-set-active",
     "change-sets",
+    // 2026-10-01 (ee5629af7, owner Q1): human-confirmed permanent deletes through the authenticated
+    // human-confirm exchange. This supersedes the "no purge tool, ever" line in the `trash` note
+    // below: the agent still cannot purge without the human's own confirmation.
+    "permanent-delete",
     // 2026-09-20: the local admin Trash â€” `trash_list_items` and `trash_restore_item`, and
     // deliberately nothing else. A NEW domain (`features/trash`), not an entry in the 25-domain
     // rollout. There is no purge tool and there must never be one: permanent deletion is

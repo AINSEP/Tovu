@@ -189,7 +189,12 @@ test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never
 
 test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagged in the 400 body", async (t) => {
   const registry = createToolRegistry({});
-  registerThrowingTool(registry, "content_post_delete");
+  // Any id `isMcpUiToolCallPermitted` admits WITHOUT an exchange will do. `content_post_delete` was
+  // this test's id until 6eac86229 ("confirm destructive and protected actions only") took it off
+  // the allowlist (moving to Trash no longer opens a dialog), after which the route refuses it with
+  // 403 before the executor runs. Permanent-delete ids are no substitute: they may only answer a
+  // parked exchange, never run through this legacy shape. `content_post_search` is a Shape 2 id.
+  registerThrowingTool(registry, "content_post_search");
   const surfaceExchanges = createSurfaceExchangeStore();
   const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures: { mintErrorId: () => FIXED_ID } });
 
@@ -201,7 +206,7 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-1" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: { id: "post-1", kind: "post" } }),
+    body: JSON.stringify({ toolName: "content_post_search", params: { id: "post-1", kind: "post" } }),
   });
 
   assert.equal(res.status, 400);
