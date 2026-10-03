@@ -2,14 +2,15 @@
  * @file Regression suite for `custom_credential_write_files`' network-failure branch (2026-09-16, w7).
  *
  * The defect: when a GitHub call failed before any response arrived, the GitHub write-files code's (now `content/agent-plugins/github/source-control/write-files.mjs`)
- * `githubSend` kept the thrown error's raw text as the failure `message`, and after the human confirmed,
+ * `githubSend` kept the thrown error's raw text as the failure `message`, and once the commit ran,
  * `performGitHubFilesWrite` returned that text in `{ executed: false, reason: "error", message }` —
  * straight to the model. That text is transport internals (`connect ECONNREFUSED 10.0.4.7:443`) or an
  * egress refusal naming the address a host resolved to. The plan phase had the same text: its throw is
  * redacted on the wire, but the daemon records the thrown message in the run's `tool_result` event.
  *
- * Driven through the REAL delegated-tool transport, with the human's confirmation delivered through a
- * real `SurfaceExchangeStore`. The saved token and the transport text both carry a `LEAK-` marker that
+ * Driven through the REAL delegated-tool transport. Since 6eac86229 (owner, 2026-10-01: confirm destructive
+ * and protected actions only) an ordinary file write raises no confirmation card, so every call here runs
+ * straight through and asserts no exchange was opened. The saved token and the transport text both carry a `LEAK-` marker that
  * must appear nowhere: not in the result, not in any run event, not in the server log.
  */
 import assert from "node:assert/strict";
@@ -112,24 +113,11 @@ async function buildHarness(steps: Step[]) {
 
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
-/** Calls write_files through the real transport, confirms the dialog as the human, and returns what the model and the run saw. */
-async function confirmWrite(harness: Harness) {
-  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
-  for (let tick = 0; tick < 200 && harness.openedExchangeIds.length === 0; tick++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  const exchangeId = harness.openedExchangeIds[0];
-  assert.ok(exchangeId, "the confirmation must be raised before it can be answered");
-  assert.ok(harness.surfaceExchanges.deliver({ exchangeId, toolId: WRITE_FILES_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }));
-
-  const wire = await pending;
-  const events = await harness.eventLog.replay(harness.run.id, null);
-  return { wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };
-}
-
-/** Calls write_files through the real transport when the plan phase fails, so no confirmation is ever raised. */
-async function callUnconfirmed(harness: Harness) {
+/** Calls write_files through the real transport and returns what the model and the run saw. No card:
+ *  an ordinary write runs immediately (6eac86229), so none may be opened on any path. */
+async function callWrite(harness: Harness) {
   const wire = await delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
+  assert.equal(harness.openedExchangeIds.length, 0, "an ordinary write raises no confirmation card");
   const events = await harness.eventLog.replay(harness.run.id, null);
   return { wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };
 }
@@ -140,10 +128,10 @@ function assertNowhere(haystacks: Record<string, string>, needle: string) {
   }
 }
 
-test("a network failure after confirmation returns a caller-safe message: no transport text, no address, no token — anywhere", async () => {
+test("a network failure during the commit returns a caller-safe message: no transport text, no address, no token — anywhere", async () => {
   const harness = await buildHarness([...PLAN_STEPS, { match: /\/git\/blobs$/, error: leakyTransportError() }]);
 
-  const { wireText, eventsText } = await confirmWrite(harness);
+  const { wireText, eventsText } = await callWrite(harness);
 
   const haystacks = { "model-facing result": wireText, "run events": eventsText, log: harness.logLines.join("\n") };
   assertNowhere(haystacks, LEAK_MARKER);
@@ -157,13 +145,13 @@ test("a network failure after confirmation returns a caller-safe message: no tra
   assert.match(harness.logLines[0]!, /custom_credential_write_files: commit failed code=network-unreachable detail=Error\(ECONNREFUSED\)$/);
 });
 
-test("an egress refusal after confirmation reaches the model without the resolved address; the log keeps the full refusal", async () => {
+test("an egress refusal during the commit reaches the model without the resolved address; the log keeps the full refusal", async () => {
   const refusal = new EgressRefusedError({ message: `egress to 'api.github.com' (${INTERNAL_ADDRESS}) rejected: resolved address is private` }, {
     callerSafeMessage: "egress to 'api.github.com' rejected: resolved address is private",
   });
   const harness = await buildHarness([...PLAN_STEPS, { match: /\/git\/blobs$/, error: refusal }]);
 
-  const { wireText, eventsText } = await confirmWrite(harness);
+  const { wireText, eventsText } = await callWrite(harness);
 
   assertNowhere({ "model-facing result": wireText, "run events": eventsText }, INTERNAL_ADDRESS);
   assertNowhere({ "model-facing result": wireText, "run events": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
@@ -172,12 +160,11 @@ test("an egress refusal after confirmation reaches the model without the resolve
   assert.match(harness.logLines[0]!, /commit failed code=network-unreachable detail=egress to 'api\.github\.com' \(10\.0\.4\.7\) rejected: resolved address is private$/);
 });
 
-test("a network failure while planning, before any confirmation, keeps the transport text out of the result, the run, and the log", async () => {
+test("a network failure while planning keeps the transport text out of the result, the run, and the log", async () => {
   const harness = await buildHarness([{ match: /\/git\/ref\/heads\/main$/, error: leakyTransportError() }]);
 
-  const { wireText, eventsText } = await callUnconfirmed(harness);
+  const { wireText, eventsText } = await callWrite(harness);
 
-  assert.equal(harness.openedExchangeIds.length, 0, "a failed plan must not raise a confirmation");
   const haystacks = { "model-facing result": wireText, "run events": eventsText, log: harness.logLines.join("\n") };
   assertNowhere(haystacks, LEAK_MARKER);
   assertNowhere(haystacks, INTERNAL_ADDRESS);
@@ -186,10 +173,10 @@ test("a network failure while planning, before any confirmation, keeps the trans
   assert.match(harness.logLines[0]!, /custom_credential_write_files: plan failed code=network-unreachable detail=Error\(ECONNREFUSED\)$/);
 });
 
-test("a provider rejection after confirmation still carries GitHub's own reason — the allowlist does not blank real reasons", async () => {
+test("a provider rejection during the commit still carries GitHub's own reason — the allowlist does not blank real reasons", async () => {
   const harness = await buildHarness([...PLAN_STEPS, { match: /\/git\/blobs$/, status: 422, json: { message: "Invalid blob content" } }]);
 
-  const { wireText } = await confirmWrite(harness);
+  const { wireText } = await callWrite(harness);
 
   assert.match(wireText, /"reason":"error","message":"GitHub blob creation failed: Invalid blob content"/);
   assert.ok(!wireText.includes(LEAK_MARKER), wireText);

@@ -374,7 +374,9 @@ test("a transport failure stays redacted — its message can carry an internal a
 });
 
 /* ------------------------------------------------------------------------------------------------
- * The four no-channel guards that used to throw a bare `Error` — unreachable by any `instanceof` rule
+ * The three no-channel guards that used to throw a bare `Error` — unreachable by any `instanceof` rule.
+ * custom_credential_write_files lost its guard with its card in 6eac86229 (owner, 2026-10-01: confirm
+ * destructive and protected actions only); write-files-network-failure covers its no-card path.
  * ---------------------------------------------------------------------------------------------- */
 
 test("every no-emitSurface guard carries the ToolInputError marker, so it cannot be redacted", async () => {
@@ -402,12 +404,6 @@ test("every no-emitSurface guard carries the ToolInputError marker, so it cannot
       message:
         "custom_credential_make_request: this execution context has no interactive confirmation channel " +
         "(no emitSurface), so a DELETE cannot be gated here. Nothing was sent.",
-    },
-    custom_credential_write_files: {
-      input: { label: "fly.io", ...VALID_WRITE_FILES_INPUT },
-      message:
-        "custom_credential_write_files: this execution context has no interactive confirmation channel " +
-        "(no emitSurface), so a write cannot be confirmed here. Nothing was written.",
     },
   };
 
