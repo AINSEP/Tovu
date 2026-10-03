@@ -1084,13 +1084,14 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  */
 export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx) => {
+    // Both handlers forward `optional`: it carries `emitSurface`, the only channel their card can use.
+    [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx, optional) => {
       const input = requireInputRecord({ input: ctx.input });
       const pluginId = requireString({ input: input, key: "pluginId" });
-      return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId);
+      return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId, optional);
     },
     // The token fallback (`access-token-tool.ts`) for a plugin whose server declares `tovuTokenAuth`.
-    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord({ input: ctx.input })),
+    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx, optional) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord({ input: ctx.input }), optional),
   };
 
   return buildDomainRegistrations({
