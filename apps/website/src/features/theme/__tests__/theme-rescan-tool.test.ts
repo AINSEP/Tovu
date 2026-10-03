@@ -40,7 +40,7 @@ test("theme_rescan discovers a folder written after boot, removes vanished theme
   assert.equal(f.deps.themes, live);
   assert.deepEqual(f.deps.themes.map((theme) => [theme.manifest.id, theme.status]), [["new", "valid"]]);
   assert.deepEqual(await f.invoke(), { added: [], removed: [], invalid: [] });
-  assert.deepEqual(f.calls, Array(2).fill({ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation", entityId: undefined }));
+  assert.deepEqual(f.calls, Array(2).fill({ principalId: "owner", permission: "theme.set", workspaceId: "ws-t11", entityType: "presentation" }));
 });
 
 test("theme_rescan reports invalid themes alongside valid additions", async (t) => {

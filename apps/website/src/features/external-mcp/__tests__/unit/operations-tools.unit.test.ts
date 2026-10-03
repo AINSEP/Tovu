@@ -7,7 +7,7 @@ import { buildExternalMcpOperationsRegistrations, externalMcpOperationsDerivedRi
 const NOW = "2026-10-01T00:00:00.000Z";
 function fixture(allow = true) {
   const calls: unknown[] = [];
-  const deps = { workspaceId: "ws-n04", clock: { nowIso: () => NOW }, authorize: async (input: unknown) => {
+  const deps = { workspaceId: "ws-n04", clock: { nowMs: () => Date.parse(NOW) }, authorize: async (input: unknown) => {
     calls.push(input);
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   } };
@@ -32,7 +32,7 @@ function fixture(allow = true) {
 test("admissions returns the live accounting with the shared integration permission", async () => {
   const f = fixture();
   assert.deepEqual(await f.call("external_mcp_get_admissions"), { connections: [{ connectionId: "hosted", report: { admitted: [], refused: [] }, isPreset: false }], configFailures: [{ connectionId: "broken", reason: "disabled" }] });
-  assert.deepEqual(f.calls, [{ principalId: "owner", permission: "admin.integrations.manage", workspaceId: "ws-n04", entityType: "integration", entityId: undefined }, "admissions"]);
+  assert.deepEqual(f.calls, [{ principalId: "owner", permission: "admin.integrations.manage", workspaceId: "ws-n04", entityType: "integration" }, "admissions"]);
 });
 
 test("live probe delegates the saved server id to the same service as the admin route", async () => {

@@ -36,7 +36,7 @@ test("lists exact language codes and existing setter coordinates after checking 
     ["hi", "हिन्दी"], ["ur", "اردو"], ["bn", "বাংলা"],
   ].map(([code, label]) => ({ code, label }));
   assert.deepEqual(result, { locales, setting: "core.language.locale", scope: "user", writeTool: "settings_set_ui_preference" });
-  assert.deepEqual(calls, [{ principalId: "operator", workspaceId: "ws", permission: "settings.read", entityType: "setting-value", entityId: undefined }]);
+  assert.deepEqual(calls, [{ principalId: "operator", workspaceId: "ws", permission: "settings.read", entityType: "setting-value" }]);
 });
 
 test("denied permission returns no locale data", async () => {

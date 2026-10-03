@@ -38,7 +38,7 @@ function makeDeps(options: { allow?: boolean } = {}): RedirectsToolDeps {
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse(`2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -192,7 +192,7 @@ for (const toolId of ["redirects_list", "redirects_get", "redirects_get_hits", "
     const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
     const hasId = ["redirects_get", "redirects_get_hits", "redirects_update"].includes(toolId);
     await assert.rejects(() => call(tool(registrations, toolId), { input: hasId ? { id: rule.id } : {} }), /not authorized/);
-    assert.deepEqual(authorizeCalls, [{ principalId: PRINCIPAL_ID, permission: "admin.redirects.manage", workspaceId: WORKSPACE_ID, entityType: "redirect", entityId: hasId ? rule.id : undefined }]);
+    assert.deepEqual(authorizeCalls, [{ principalId: PRINCIPAL_ID, permission: "admin.redirects.manage", workspaceId: WORKSPACE_ID, entityType: "redirect", ...(hasId ? { entityId: rule.id } : {}) }]);
     assert.deepEqual(await deps.redirectRepo.list({ workspaceId: WORKSPACE_ID }), before);
   });
 }
