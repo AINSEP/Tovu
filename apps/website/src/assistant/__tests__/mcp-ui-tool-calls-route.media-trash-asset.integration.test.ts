@@ -12,24 +12,27 @@ import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaTool
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
- * @file Real, non-mocked proof that `media_trash_asset`'s confirmation gate reaches the actual
- * allowlist a browser's click posts to — the exact hop
- * `mcp-ui-tool-calls-route.static-publish.integration.test.ts`'s own module doc names as
- * "previously-unproven": neither `agent-tools.trash-confirmation.test.ts` (this domain's own
- * handler-level file) nor `assistant/__tests__/tool-registrations.media.test.ts` ever calls
- * `surfaceExchanges.deliver()` through this route, and `deliver()` itself never consults
- * `isMcpUiToolCallAllowed` — only `registerMcpUiToolCallsRoute` does
- * (`mcp-ui-tool-calls-route.ts:184`). That gap is exactly how `media_trash_asset` shipped for one
- * commit (31fdf17d, 2026-09-08) missing from `MCP_UI_REDEEMABLE_TOOL_IDS`
- * (`assistant/mcp-ui-tool-calls.ts`) with every other test green: the tool registered, its dialog
- * rendered with real asset data, and a human's "Trash asset"/"Cancel" click both failed with
- * `TOOL_NOT_ALLOWLISTED` — caught only by a live click through the admin assistant (ADS-memory/
- * reports/2026-09-08-delete-confirmation-build.md's verification section), not by any test. This
- * file is the test that would have caught it: `res.status === 202` here is proof the allowlist
- * itself accepted this specific tool id, not merely that the tool is declared somewhere in source.
+ * @file Real, non-mocked proof of how `media_trash_asset` meets the MCP-UI callback route a
+ * browser's click posts to.
+ *
+ * ## What this certified until 2026-10-01, and why it changed
+ *
+ * From 31fdf17d (2026-09-08) `media_trash_asset` raised a confirmation dialog, and this file proved
+ * the human's "Trash asset"/"Cancel" click reached `MCP_UI_REDEEMABLE_TOOL_IDS`
+ * (`assistant/mcp-ui-tool-calls.ts`). It was written because the tool once shipped missing from that
+ * allowlist with every other test green: neither the handler-level tests nor
+ * `tool-registrations.media.test.ts` ever go through `registerMcpUiToolCallsRoute`, the only caller
+ * of the allowlist check (ADS-memory/reports/2026-09-08-delete-confirmation-build.md).
+ *
+ * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
+ * moving to Trash is reversible, so only permanent deletes still confirm, and the id left the
+ * allowlist. `mcp-ui-tool-calls.test.ts` pins the allowlist side of that in isolation (the same
+ * commit inverted its `content_post_delete`/static-publish cases to "runs normally and cannot be
+ * executed by a surface callback"). This file keeps the route-level, real-handler proof of the
+ * same two facts: the tool trashes in one call with no dialog, and this route refuses to run it.
  */
 
 const WORKSPACE_ID = "ws-mcp-ui-media-trash-integration";
@@ -54,98 +57,61 @@ function buildRealMediaToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   return { toolExecutor };
 }
 
-/** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe
- *  would (same technique the static-publish integration test uses). */
-function exchangeIdFromEmission(emission: SurfaceEmission): string {
-  const resource = (emission.payload as { resource?: { resource?: { text?: string } } }).resource;
-  const html = resource?.resource?.text ?? "";
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
-  return match[1]!;
-}
-
-test("real round trip: a browser confirmation click for media_trash_asset is accepted by the allowlist and actually trashes the asset", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
-
+async function seedAsset(toolExecutor: ReturnType<typeof buildRealMediaToolExecutor>["toolExecutor"], filename: string): Promise<string> {
   const uploaded = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-0" }, toolId: "media_upload_asset", input: {
-    filename: "logo.png",
+    filename,
     contentType: "image/png",
     dataBase64: ONE_PIXEL_PNG_BASE64,
   } });
   assert.equal(uploaded.status, "completed", `seed upload must succeed: ${JSON.stringify(uploaded)}`);
-  const mediaId = (uploaded.output as { media: { id: string } }).media.id;
+  return (uploaded.output as { media: { id: string } }).media.id;
+}
+
+test("media_trash_asset trashes the asset in one call and emits no dialog", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
+  const mediaId = await seedAsset(toolExecutor, "logo.png");
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "media_trash_asset", input: { mediaId } }, { emitSurface: async (emission: SurfaceEmission) => {
-      emitted.push(emission);
-    } });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  const exchangeId = exchangeIdFromEmission(emitted[0]!);
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "media_trash_asset", input: { mediaId } }, { emitSurface: async (emission: SurfaceEmission) => {
+    emitted.push(emission);
+  } });
 
-  const app = express();
-  app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
-  const baseUrl = await startTestServer(app, t);
-
-  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
-    body: JSON.stringify({
-      toolName: "media_trash_asset",
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    }),
-  });
-
-  const body = (await res.json()) as { delivered: boolean };
-  // The load-bearing status code: if `media_trash_asset` were missing from
-  // `MCP_UI_REDEEMABLE_TOOL_IDS`, this route refuses BEFORE ever touching the exchange
-  // (`mcp-ui-tool-calls-route.ts:184`) and this would be 403 TOOL_NOT_ALLOWLISTED, not 202 — the
-  // exact failure a live click through the admin assistant produced against the unfixed build.
-  assert.equal(res.status, 202, `expected the allowlist to accept this delivery: ${JSON.stringify(body)}`);
-  assert.equal(body.delivered, true);
-
-  const executed = await pending;
-  assert.equal(executed.status, "completed", `the parked call must resolve completed: ${JSON.stringify(executed)}`);
-  const output = executed.output as { trashed: boolean; media: { status: string } };
+  assert.equal(emitted.length, 0, "a reversible Trash move must not raise a confirmation dialog");
+  assert.equal(executed.status, "completed", `the call must complete on its own: ${JSON.stringify(executed)}`);
+  const output = executed.output as { trashed: boolean; cancelled: boolean; media: { status: string } };
   assert.equal(output.trashed, true);
+  assert.equal(output.cancelled, false);
   assert.equal(output.media.status, "trashed");
 });
 
-test("SECURITY: a Cancel click for media_trash_asset also reaches the allowlist and reports the cancellation, not a 403", async (t) => {
+test("SECURITY: a surface callback cannot run media_trash_asset — the route refuses it with 403 and never reaches the executor", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
+  const mediaId = await seedAsset(toolExecutor, "keep-me.png");
 
-  const uploaded = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-0" }, toolId: "media_upload_asset", input: {
-    filename: "keep-me.png",
-    contentType: "image/png",
-    dataBase64: ONE_PIXEL_PNG_BASE64,
-  } });
-  const mediaId = (uploaded.output as { media: { id: string } }).media.id;
-
-  const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "media_trash_asset", input: { mediaId } }, { emitSurface: async (emission: SurfaceEmission) => {
-    emitted.push(emission);
-  } });
-  await new Promise((resolve) => setImmediate(resolve));
-  const exchangeId = exchangeIdFromEmission(emitted[0]!);
-
+  let routeExecutions = 0;
+  const countingExecutor = {
+    ...toolExecutor,
+    execute: (...args: Parameters<typeof toolExecutor.execute>) => {
+      routeExecutions += 1;
+      return toolExecutor.execute(...args);
+    },
+  };
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { toolExecutor: countingExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
-    body: JSON.stringify({ toolName: "media_trash_asset", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } }),
+    body: JSON.stringify({ toolName: "media_trash_asset", params: { mediaId } }),
   });
 
-  assert.equal(res.status, 202, "Cancel must reach the exchange too — the allowlist gates the tool, not the decision");
-
-  const executed = await pending;
-  const output = executed.output as { trashed: boolean; cancelled: boolean };
-  assert.equal(output.trashed, false);
-  assert.equal(output.cancelled, true);
+  const body = (await res.json()) as { code?: string };
+  assert.equal(res.status, 403, `expected the allowlist to refuse this call: ${JSON.stringify(body)}`);
+  assert.equal(body.code, "TOOL_NOT_ALLOWLISTED");
+  // The route's executor is the only way this callback could have trashed anything.
+  assert.equal(routeExecutions, 0, "a refused callback must never reach the tool executor");
 });

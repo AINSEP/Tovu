@@ -48,27 +48,31 @@ import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/feat
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
 
 /**
- * @file Route-level allowlist proof for the five sibling tools of `media_trash_asset` in the same
- * 2026-09-08 delete-confirmation build (ADS-memory/reports/2026-09-08-delete-confirmation-build.md):
+ * @file Route-level proof for the five sibling tools of `media_trash_asset` in the same 2026-09-08
+ * delete-confirmation build (ADS-memory/reports/2026-09-08-delete-confirmation-build.md):
  * `comments_trash_comment`, `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone`,
  * `webhooks_delete_subscription`. Modeled directly on
  * `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts`'s own module doc: none of these
- * domains' handler-level confirmation-gate tests (each domain's own
- * `agent-tools.*-confirmation.test.ts` / `tool-registrations.themes-trash-restore.test.ts`) ever
- * calls `surfaceExchanges.deliver()` through the real `MCP_UI_TOOL_CALLS_PATH` route — only
- * `registerMcpUiToolCallsRoute` consults `isMcpUiToolCallAllowed`
- * (`mcp-ui-tool-calls-route.ts:184`), so a tool can register, render a correct dialog, and pass
- * every handler-level test while still 403ing on every real confirm/cancel click, exactly the way
- * `media_trash_asset` shipped for one commit. All five tools below are correctly present in
- * `MCP_UI_REDEEMABLE_TOOL_IDS` today (`mcp-ui-tool-calls.ts`) — there is no live bug — but until
- * this file, nothing would have caught it if one of them regressed out of that set, the same gap
- * that let `media_trash_asset` ship broken.
+ * domains' handler-level tests ever goes through the real `MCP_UI_TOOL_CALLS_PATH` route, and only
+ * `registerMcpUiToolCallsRoute` consults the allowlist (`isMcpUiToolCallPermitted`), so a tool can
+ * register and pass every handler-level test while the route still does the wrong thing with it —
+ * exactly the way `media_trash_asset` shipped for one commit, 403ing on every real click.
  *
- * One file, five independent scenarios: each produces its OWN pair of named `test()` cases (confirm
- * + cancel) via the loop at the bottom, so a broken allowlist entry for any one domain fails ONLY
- * that domain's own named test — this deliberately does not collapse the five tool ids into a single
- * alternation-style assertion, which would stay green while tolerating one broken member (the exact
- * failure mode `MCP_UI_REDEEMABLE_TOOL_IDS`'s own header warns about).
+ * Two families since 6eac86229 ("confirm destructive and protected actions only", 2026-10-01):
+ *
+ *  - {@link CONFIRMED_SCENARIOS}: a permanent delete still raises a card. Its confirm and cancel
+ *    clicks must both reach the parked call through this route (202), not a 403.
+ *  - {@link TRASH_SCENARIOS}: a reversible Trash move/tombstone no longer raises a card and left
+ *    `MCP_UI_REDEEMABLE_TOOL_IDS`. Each must finish in one call with no dialog, and this route must
+ *    refuse to run it (403 `TOOL_NOT_ALLOWLISTED`) without ever reaching the executor. This is the
+ *    route-level form of the inversion that same commit made in `mcp-ui-tool-calls.test.ts` ("runs
+ *    normally and cannot be executed by a surface callback").
+ *
+ * One file, five independent scenarios: each produces its OWN pair of named `test()` cases via the
+ * loops at the bottom, so a wrong allowlist entry for any one domain fails ONLY that domain's own
+ * named test — this deliberately does not collapse the tool ids into a single alternation-style
+ * assertion, which would stay green while tolerating one broken member (the exact failure mode
+ * `MCP_UI_REDEEMABLE_TOOL_IDS`'s own header warns about).
  */
 
 const PRINCIPAL = "principal-admin-1";
@@ -92,12 +96,12 @@ interface Scenario {
    *  `surfaceExchanges` store the caller also hands to `registerMcpUiToolCallsRoute` — the handler's
    *  `open()` and the route's `deliver()` must resolve the same exchange id against the same store.
    *  Returns the params the trash/tombstone/delete tool call needs, plus shape checks for the
-   *  confirmed and cancelled results. */
+   *  completed result and (for a tool that still raises a card) the cancelled one. */
   setup(surfaceExchanges: SurfaceExchangeStore): Promise<{
     toolExecutor: ReturnType<typeof createToolExecutor>;
     trashParams: Record<string, unknown>;
-    assertConfirmed(output: unknown): void;
-    assertCancelled(output: unknown): void;
+    assertDone(output: unknown): void;
+    assertCancelled?(output: unknown): void;
   }>;
 }
 
@@ -150,11 +154,10 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   return {
     toolExecutor,
     trashParams: { commentId: "comment-1", expectedVersion: 1 },
-    assertConfirmed: (output) => assert.equal((output as { trashed: boolean }).trashed, true),
-    assertCancelled: (output) => {
+    assertDone: (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
-      assert.equal(o.trashed, false);
-      assert.equal(o.cancelled, true);
+      assert.equal(o.trashed, true);
+      assert.equal(o.cancelled, false);
     },
   };
 }
@@ -197,11 +200,10 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
   return {
     toolExecutor,
     trashParams: { widgetInstanceId: instance.id },
-    assertConfirmed: (output) => assert.equal((output as { trashed: boolean }).trashed, true),
-    assertCancelled: (output) => {
+    assertDone: (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
-      assert.equal(o.trashed, false);
-      assert.equal(o.cancelled, true);
+      assert.equal(o.trashed, true);
+      assert.equal(o.cancelled, false);
     },
   };
 }
@@ -235,11 +237,10 @@ async function setupTheme(surfaceExchanges: SurfaceExchangeStore): ReturnType<Sc
   return {
     toolExecutor,
     trashParams: { themeId: "plain", path: "styles.css" },
-    assertConfirmed: (output) => assert.equal((output as { trashed: boolean }).trashed, true),
-    assertCancelled: (output) => {
+    assertDone: (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
-      assert.equal(o.trashed, false);
-      assert.equal(o.cancelled, true);
+      assert.equal(o.trashed, true);
+      assert.equal(o.cancelled, false);
     },
   };
 }
@@ -285,11 +286,10 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
   return {
     toolExecutor,
     trashParams: { id: record.id },
-    assertConfirmed: (output) => assert.equal((output as { tombstoned: boolean }).tombstoned, true),
-    assertCancelled: (output) => {
+    assertDone: (output) => {
       const o = output as { tombstoned: boolean; cancelled: boolean };
-      assert.equal(o.tombstoned, false);
-      assert.equal(o.cancelled, true);
+      assert.equal(o.tombstoned, true);
+      assert.equal(o.cancelled, false);
     },
   };
 }
@@ -337,7 +337,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   return {
     toolExecutor,
     trashParams: { subscriptionId: subscription.id },
-    assertConfirmed: (output) => assert.equal((output as { deleted: boolean }).deleted, true),
+    assertDone: (output) => assert.equal((output as { deleted: boolean }).deleted, true),
     assertCancelled: (output) => {
       const o = output as { deleted: boolean; cancelled: boolean };
       assert.equal(o.deleted, false);
@@ -346,18 +346,23 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   };
 }
 
-const SCENARIOS: Scenario[] = [
+/** Permanent deletes: still raise a card (6eac86229 kept confirmation for these). */
+const CONFIRMED_SCENARIOS: Scenario[] = [
+  { toolId: "webhooks_delete_subscription", setup: setupWebhooks },
+];
+
+/** Reversible removals: no card since 6eac86229, and not redeemable through this route. */
+const TRASH_SCENARIOS: Scenario[] = [
   { toolId: "comments_trash_comment", setup: setupComments },
   { toolId: "widgets_trash_instance", setup: setupWidgets },
   { toolId: "theme_trash_file", setup: setupTheme },
   { toolId: "redirects_tombstone", setup: setupRedirects },
-  { toolId: "webhooks_delete_subscription", setup: setupWebhooks },
 ];
 
-for (const scenario of SCENARIOS) {
+for (const scenario of CONFIRMED_SCENARIOS) {
   test(`real round trip: a browser confirmation click for ${scenario.toolId} is accepted by the allowlist`, async (t) => {
     const surfaceExchanges = createSurfaceExchangeStore();
-    const { toolExecutor, trashParams, assertConfirmed } = await scenario.setup(surfaceExchanges);
+    const { toolExecutor, trashParams, assertDone } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
     const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: scenario.toolId, input: trashParams }, { emitSurface: async (emission: SurfaceEmission) => {
@@ -388,7 +393,7 @@ for (const scenario of SCENARIOS) {
 
     const executed = await pending;
     assert.equal(executed.status, "completed", `the parked ${scenario.toolId} call must resolve completed: ${JSON.stringify(executed)}`);
-    assertConfirmed(executed.output);
+    assertDone(executed.output);
   });
 
   test(`SECURITY: a Cancel click for ${scenario.toolId} also reaches the allowlist and reports the cancellation, not a 403`, async (t) => {
@@ -416,6 +421,53 @@ for (const scenario of SCENARIOS) {
     assert.equal(res.status, 202, `Cancel must reach ${scenario.toolId}'s exchange too — the allowlist gates the tool, not the decision`);
 
     const executed = await pending;
+    assert.ok(assertCancelled, `${scenario.toolId} raises a card, so its scenario must check the cancelled result`);
     assertCancelled(executed.output);
+  });
+}
+
+for (const scenario of TRASH_SCENARIOS) {
+  test(`${scenario.toolId} completes in one call and emits no dialog`, async () => {
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const { toolExecutor, trashParams, assertDone } = await scenario.setup(surfaceExchanges);
+
+    const emitted: SurfaceEmission[] = [];
+    const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: scenario.toolId, input: trashParams }, { emitSurface: async (emission: SurfaceEmission) => {
+      emitted.push(emission);
+    } });
+
+    assert.equal(emitted.length, 0, `${scenario.toolId} is reversible and must not raise a confirmation dialog`);
+    assert.equal(executed.status, "completed", `${scenario.toolId} must complete on its own: ${JSON.stringify(executed)}`);
+    assertDone(executed.output);
+  });
+
+  test(`SECURITY: a surface callback cannot run ${scenario.toolId} — the route refuses it with 403 and never reaches the executor`, async (t) => {
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const { toolExecutor, trashParams } = await scenario.setup(surfaceExchanges);
+
+    let routeExecutions = 0;
+    const countingExecutor = {
+      ...toolExecutor,
+      execute: (...args: Parameters<typeof toolExecutor.execute>) => {
+        routeExecutions += 1;
+        return toolExecutor.execute(...args);
+      },
+    };
+    const app = express();
+    app.use(express.json());
+    registerMcpUiToolCallsRoute(app, { toolExecutor: countingExecutor, surfaceExchanges });
+    const baseUrl = await startTestServer(app, t);
+
+    const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+      body: JSON.stringify({ toolName: scenario.toolId, params: trashParams }),
+    });
+
+    const body = (await res.json()) as { code?: string };
+    assert.equal(res.status, 403, `expected the allowlist to refuse ${scenario.toolId}: ${JSON.stringify(body)}`);
+    assert.equal(body.code, "TOOL_NOT_ALLOWLISTED");
+    // The route's executor is the only way this callback could have removed anything.
+    assert.equal(routeExecutions, 0, `a refused ${scenario.toolId} callback must never reach the tool executor`);
   });
 }

@@ -6,13 +6,9 @@ import express from "express";
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryPostRepo } from "#src/features/post/index";
-import { buildPostRegistrations } from "#src/features/post/tool-registrations";
-import type { RouteDeps } from "#src/server/routes/types";
-
-import { removeVia } from "../../features/post/__tests__/remove-post-double.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { createSubscription } from "#src/features/webhooks/subscriptions";
+import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
@@ -37,8 +33,9 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
  * `mcp-ui-tool-calls.ts` / `mcp-ui-tool-calls-route.ts` for where that legacy branch still lives).
  *
  * This file wires the REAL `ToolRegistry` + `createToolExecutor` (no `delegate`, matching
- * `agent-daemon-server.ts`'s own construction exactly) over `buildPostRegistrations`'s REAL
- * `content_post_delete` handler and a REAL `SurfaceExchangeStore` — the same store instance the route
+ * `agent-daemon-server.ts`'s own construction exactly) over `buildWebhooksRegistrations`'s REAL
+ * `webhooks_delete_subscription` handler (originally `content_post_delete`'s — see below) and a REAL
+ * `SurfaceExchangeStore` — the same store instance the route
  * is mounted with, exactly as `agent-daemon-server.ts` requires — then:
  *
  *  1. Calls `toolExecutor.execute(...)` directly with a real `emitSurface`, exactly the way
@@ -48,11 +45,22 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
  *     regex-based extraction `demo-choices-tool.test.ts`/`agent-tools.delete-confirmation.test.ts` use
  *     — simulating what the rendered iframe reads, not stubbing it).
  *  3. Delivers the human's answer through THIS route (`registerMcpUiToolCallsRoute`, over real HTTP
- *     via `startTestServer`), for that SAME principal — and asserts the post is ACTUALLY trashed in
+ *     via `startTestServer`), for that SAME principal — and asserts the row is ACTUALLY deleted in
  *     the backing repo once the parked `execute()` call resolves, not just that the HTTP response
  *     looked right.
  *  4. Repeats step 3 with a DIFFERENT principal in {@link RUN_PRINCIPAL_HEADER} and asserts the
  *     delivery is refused (`binding-mismatch`) and nothing is delivered to the parked call.
+ *
+ * ## Why the tool under test is now `webhooks_delete_subscription` (2026-10-03)
+ *
+ * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) made `content_post_delete`
+ * a plain one-call move to Trash: it no longer opens an exchange and is off the allowlist, so it
+ * can no longer drive Shape 1 at all. What this file certifies is the ROUTE's delivery contract
+ * (principal binding, single use, a real effect once the parked call resolves), not anything
+ * post-specific, so it now drives `webhooks_delete_subscription`: a permanent delete that still
+ * holds its call open on a real exchange (kept in the allowlist by that same commit), with an
+ * in-memory repo whose row shows the effect. Its delete is a soft-disable (the repo has no hard
+ * delete, for audit history), so "actually deleted" reads as `status: "disabled"` + `disabledAt`.
  *
  * What this deliberately does NOT do: boot the full `agent-daemon-server.ts` process or a real
  * `RunLifecycle`/`/api/delegated-tool-calls` hop — unnecessary for what is under test here (the route's
@@ -62,59 +70,48 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
 
 const WORKSPACE_ID = "ws-mcp-ui-exchange-integration";
 const NOW = "2026-08-04T00:00:00.000Z";
-const EMPTY_DOC = { type: "doc", content: [] };
+const TOOL_ID = "webhooks_delete_subscription";
 
 /** Builds the real tool surface: one registry, one production-shaped executor (no `delegate`, no
- * mocks), over an in-memory Posts repo so a real soft-delete can be asserted directly.
- *
- * `removePost` uses the project's established `RemovePostFn` double (`remove-post-double.ts`'s
- * `removeVia`) rather than the real `TrashPort` binding: production's post trash adapter
- * (`trash/adapters/post.ts`) writes raw SQL against `content.db`, which this in-memory harness has
- * no analogue for. `deletePost` (post.ts, 9822f7697) has depended on an injected `remove` since
- * 2026-09-20; this route's own test double is only for the index-less marker flip that fixture
- * covers — see `features/trash/__tests__/` for the real-store, index-included coverage. */
-function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
-  const postRepo = new InMemoryPostRepo();
-  const changeSets = new InMemoryChangeSetRepo();
-  const outbox = new InMemoryOutbox();
-  const bus = new InMemoryEventBus();
+ * mocks), over in-memory webhook repos so a real delete can be asserted directly on the row. */
+function buildRealWebhooksToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const originRegistry = { isAllowedEgressTarget: async () => true };
   let counter = 0;
+  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
+  const idGen = { newId: () => `sub-${++counter}` };
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
-    idGen: { newId: () => `id-${++counter}` },
-    changeSets,
-    outbox,
-    bus,
-    postRepo,
-    removePost: removeVia(postRepo),
+    webhookSubscriptionRepo,
+    webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
+    originRegistry,
+    clock,
+    idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }),
-  } as unknown as RouteDeps;
+  } as unknown as IntegrationsToolDeps;
 
   const registry = createToolRegistry({});
-  for (const registration of buildPostRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
   // Same construction as `agent-daemon-server.ts`'s own `createToolExecutor({ registry })` call —
   // no `delegate` — so this exercises the real production configuration, not an idealized one.
   const toolExecutor = createToolExecutor({ registry });
-  return { toolExecutor, postRepo };
-}
-
-async function seedPost(postRepo: InMemoryPostRepo) {
-  const row = {
-    id: "p1",
-    workspaceId: WORKSPACE_ID,
-    title: "Quarterly Report",
-    slug: "quarterly-report",
-    bodyJson: EMPTY_DOC,
-    status: "published" as const,
-    kind: "post" as const,
-    updatedAt: NOW,
-    version: 1,
+  const seedSubscription = async () => {
+    const { subscription } = await createSubscription({
+      deps: { clock, repo: webhookSubscriptionRepo, idGenerator: idGen, isAllowedTarget: async () => true },
+      input: {
+        workspaceId: WORKSPACE_ID,
+        ownerPrincipalId: "principal-admin-1",
+        createdByPrincipalId: "principal-admin-1",
+        label: "Order events",
+        targetUrl: "https://example.test/hooks/orders",
+        topics: ["order.created"],
+      },
+    });
+    return subscription.id;
   };
-  await postRepo.save(row as never);
-  return row;
+  return { toolExecutor, webhookSubscriptionRepo, seedSubscription };
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe would. */
@@ -126,14 +123,15 @@ function exchangeIdFromEmission(emission: SurfaceEmission): string {
   return match[1]!;
 }
 
-/** Calls `content_post_delete` through the REAL executor, exactly as a spawned agent's first (and
- * only) call would — including the `emitSurface` `delegated-tool-bridge.ts` always supplies. */
+/** Calls the delete through the REAL executor, exactly as a spawned agent's first (and only) call
+ * would — including the `emitSurface` `delegated-tool-bridge.ts` always supplies. */
 async function openRealDialog(
-  toolExecutor: ReturnType<typeof buildRealPostToolExecutor>["toolExecutor"],
+  toolExecutor: ReturnType<typeof buildRealWebhooksToolExecutor>["toolExecutor"],
   principalId: string,
+  subscriptionId: string,
 ): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ principal: { id: principalId }, run: { id: "run-1" }, toolId: "content_post_delete", input: { id: "p1", kind: "post" } }, { emitSurface: async (emission: SurfaceEmission) => {
+  const pending = toolExecutor.execute({ principal: { id: principalId }, run: { id: "run-1" }, toolId: TOOL_ID, input: { subscriptionId } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
     } });
   await new Promise((resolve) => setImmediate(resolve));
@@ -141,13 +139,13 @@ async function openRealDialog(
   return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };
 }
 
-test("real round trip: an exchange delivery from the SAME principal that opened it actually trashes the post", async (t) => {
+test("real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
-  await seedPost(postRepo);
+  const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
+  const subscriptionId = await seedSubscription();
   const PRINCIPAL = "principal-admin-1";
 
-  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL);
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL, subscriptionId);
 
   const app = express();
   app.use(express.json());
@@ -158,7 +156,7 @@ test("real round trip: an exchange delivery from the SAME principal that opened 
     method: "POST",
     headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
     body: JSON.stringify({
-      toolName: "content_post_delete",
+      toolName: TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     }),
   });
@@ -176,20 +174,20 @@ test("real round trip: an exchange delivery from the SAME principal that opened 
   assert.equal(output.cancelled, false);
 
   // The load-bearing assertion: not just a 202 and a completed status, but the row is ACTUALLY
-  // trashed in the backing repo.
-  const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+  // deleted (soft-disabled) in the backing repo.
+  const row = await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscriptionId });
   assert.ok(row, "a soft delete keeps the row");
-  assert.equal(row.deletedAt, NOW, "the post must be genuinely trashed, not merely reported as deleted");
-  assert.equal(row.version, 2);
+  assert.equal(row.status, "disabled", "the subscription must be genuinely deleted, not merely reported as deleted");
+  assert.equal(row.disabledAt, NOW);
 });
 
 test("SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
-  await seedPost(postRepo);
+  const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
+  const subscriptionId = await seedSubscription();
 
   // Open as one principal (models the run that raised the dialog)...
-  const { pending, exchangeId } = await openRealDialog(toolExecutor, "principal-who-ran-the-agent");
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, "principal-who-ran-the-agent", subscriptionId);
 
   // ...deliver as a DIFFERENT principal (models a session/run-principal mismatch — exactly the
   // failure mode this route's binding check exists to catch: if the value RUN_PRINCIPAL_HEADER
@@ -204,7 +202,7 @@ test("SECURITY: a delivery from a DIFFERENT principal than the one that opened t
     method: "POST",
     headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-someone-else" },
     body: JSON.stringify({
-      toolName: "content_post_delete",
+      toolName: TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     }),
   });
@@ -213,13 +211,14 @@ test("SECURITY: a delivery from a DIFFERENT principal than the one that opened t
   const body = (await res.json()) as { reason: string };
   assert.equal(body.reason, "binding-mismatch", "the delivery must fail on the binding check, not silently succeed");
 
-  const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt ?? null, null, "a principal mismatch must not deliver, let alone delete anything");
+  const row = await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscriptionId });
+  assert.equal(row?.status, "active", "a principal mismatch must not deliver, let alone delete anything");
+  assert.equal(row?.disabledAt ?? null, null);
 
   // Clean up the still-parked call so this test does not leak a pending exchange.
   surfaceExchanges.deliver({
     exchangeId,
-    toolId: "content_post_delete",
+    toolId: TOOL_ID,
     principalId: "principal-who-ran-the-agent",
     params: { decision: "cancel" },
   });
@@ -231,11 +230,11 @@ test("a delivery cannot be replayed through this route — the exchange's single
   // real store, not a mock" is load-bearing here too — a route bug that somehow bypassed
   // single-use would show up as a second 202, not a 409.
   const surfaceExchanges = createSurfaceExchangeStore();
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
-  await seedPost(postRepo);
+  const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
+  const subscriptionId = await seedSubscription();
   const PRINCIPAL = "principal-admin-1";
 
-  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL);
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL, subscriptionId);
 
   const app = express();
   app.use(express.json());
@@ -247,7 +246,7 @@ test("a delivery cannot be replayed through this route — the exchange's single
       method: "POST",
       headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
       body: JSON.stringify({
-        toolName: "content_post_delete",
+        toolName: TOOL_ID,
         params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
       }),
     });
@@ -261,7 +260,7 @@ test("a delivery cannot be replayed through this route — the exchange's single
   const secondBody = (await second.json()) as { reason: string };
   assert.equal(secondBody.reason, "unknown-or-closed", "the exchange must already be gone once its call has resolved");
 
-  const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt, NOW, "still trashed exactly once, not double-processed");
-  assert.equal(row?.version, 2);
+  const row = await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscriptionId });
+  assert.equal(row?.status, "disabled", "still deleted exactly once, not double-processed");
+  assert.equal(row?.disabledAt, NOW);
 });

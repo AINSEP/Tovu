@@ -18,21 +18,23 @@ import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targe
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
- * @file Real, non-mocked proof that A4's "approval gate" — the pre-existing MCP-UI
- * held-open-exchange mechanism (ADR-055 Decisions 1/2), the same one `content_post_delete` proved
- * out (`mcp-ui-tool-calls-route.integration.test.ts`, which this file mirrors closely) — actually
- * fires for `deployment_execute_static_publish`, and that the read-only sibling tool
- * (`deployment_get_static_publish_capabilities`) is correctly NOT subject to it.
+ * @file Real, non-mocked proof of how the static-publish tools meet the MCP-UI callback route a
+ * browser's click posts to.
  *
- * This is deliberately a level below `publish-agent-tools.unit.test.ts`'s own execute-tool coverage:
- * that file calls `surfaceExchanges.deliver(...)` directly (the store's own API), which proves the
- * HANDLER's state machine but never touches `isMcpUiToolCallAllowed` or the real HTTP route a
- * browser's confirmation click actually posts to. A tool absent from `MCP_UI_REDEEMABLE_TOOL_IDS`
- * would still pass every one of that file's tests — `surfaceExchanges.deliver()` does not consult
- * the allowlist at all, only `registerMcpUiToolCallsRoute` does (`mcp-ui-tool-calls-route.ts:184`).
- * So the allowlist gate is a genuinely separate, previously-unproven hop: this file proves it by
- * going over real HTTP into the real route, exactly as `apps/admin`'s rendered confirmation dialog
- * would when a human clicks "Publish".
+ * Until 2026-10-01 this proved A4's "approval gate" — the MCP-UI held-open-exchange mechanism
+ * (ADR-055 Decisions 1/2) that `content_post_delete` proved out — fired for
+ * `deployment_execute_static_publish`, and that a human's "Publish" click over real HTTP reached
+ * `MCP_UI_REDEEMABLE_TOOL_IDS`. That hop mattered because `publish-agent-tools.unit.test.ts` only
+ * ever called `surfaceExchanges.deliver(...)` directly, which never consults the allowlist; only
+ * `registerMcpUiToolCallsRoute` does.
+ *
+ * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that gate on
+ * the owner's call that publishing is an ordinary action the agent may take, and took the id off
+ * the allowlist (`mcp-ui-tool-calls.test.ts`: "runs normally and cannot be executed by a surface
+ * callback"). So this file now proves, against the real handler and route: the publish completes in
+ * one call with no confirmation exchange, and this route refuses to run it. The read-only sibling
+ * (`deployment_get_static_publish_capabilities`) is still refused here too, and still runs through
+ * the ordinary executor path.
  */
 
 const WORKSPACE_ID = "ws-mcp-ui-static-publish-integration";
@@ -89,71 +91,63 @@ function buildRealStaticPublishToolExecutor(
   return { toolExecutor, captured };
 }
 
-/** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe
- *  would (same technique `mcp-ui-tool-calls-route.integration.test.ts` uses for `content_post_delete`). */
-function exchangeIdFromEmission(emission: SurfaceEmission): string {
+/** The emitted surface's HTML, the way the rendered iframe would read it. */
+function surfaceHtml(emission: SurfaceEmission): string {
   const resource = (emission.payload as { resource?: { resource?: { text?: string } } }).resource;
-  const html = resource?.resource?.text ?? "";
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
-  return match[1]!;
+  return resource?.resource?.text ?? "";
 }
 
-/** Calls `deployment_execute_static_publish` through the REAL executor, exactly as a spawned
- *  agent's first (and only) call would — including the `emitSurface` `delegated-tool-bridge.ts`
- *  always supplies. */
-async function openRealDialog(
-  toolExecutor: ReturnType<typeof buildRealStaticPublishToolExecutor>["toolExecutor"],
-): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
-  const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: { target: "vercel", projectName: "demo-site" } }, { emitSurface: async (emission: SurfaceEmission) => {
-      emitted.push(emission);
-    } });
-  // The handler loads the deploy registry (file reads) before it emits, so wait on the emission
-  // itself rather than a fixed number of ticks; a call that settles first never parked at all.
-  let settled = false;
-  void pending.then(() => (settled = true), () => (settled = true));
-  for (let waited = 0; emitted.length === 0 && !settled && waited < 5_000; waited += 5) await new Promise((resolve) => setTimeout(resolve, 5));
-  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
-  return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };
-}
+const PUBLISH_INPUT = { target: "vercel", projectName: "demo-site" };
 
-test("real round trip: a browser confirmation click for deployment_execute_static_publish is accepted by the allowlist and actually publishes", async (t) => {
+test("deployment_execute_static_publish publishes in one call and opens no confirmation exchange", async () => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
-  const { pending, exchangeId } = await openRealDialog(toolExecutor);
+  const emitted: SurfaceEmission[] = [];
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: PUBLISH_INPUT }, { emitSurface: async (emission: SurfaceEmission) => {
+    emitted.push(emission);
+  } });
 
-  const app = express();
-  app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
-  const baseUrl = await startTestServer(app, t);
-
-  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
-    body: JSON.stringify({
-      toolName: "deployment_execute_static_publish",
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    }),
-  });
-
-  const body = (await res.json()) as { delivered: boolean };
-  // The load-bearing status code: if `deployment_execute_static_publish` were missing from
-  // `MCP_UI_REDEEMABLE_TOOL_IDS`, this route refuses BEFORE ever touching the exchange
-  // (`mcp-ui-tool-calls-route.ts:184`) and this would be 403 TOOL_NOT_ALLOWLISTED, not 202 — so a
-  // 202 here is proof the allowlist gate let this specific tool id through, not merely that it is
-  // declared somewhere in source.
-  assert.equal(res.status, 202, `expected the allowlist to accept this delivery: ${JSON.stringify(body)}`);
-  assert.equal(body.delivered, true);
-
-  const executed = await pending;
-  assert.equal(executed.status, "completed", `the parked call must resolve completed: ${JSON.stringify(executed)}`);
+  assert.equal(executed.status, "completed", `the call must complete on its own: ${JSON.stringify(executed)}`);
   const output = executed.output as { published: boolean; target: string; url: string };
   assert.equal(output.published, true, `expected a real publish to have happened: ${JSON.stringify(output)}`);
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture must have actually exported files for the fake deploy target to receive");
+  // Whatever it shows (an outcome card), nothing it emits asks a human for an answer.
+  for (const emission of emitted) {
+    assert.doesNotMatch(surfaceHtml(emission), new RegExp(SURFACE_EXCHANGE_ID_PARAM), "a publish must not open a confirmation exchange");
+  }
+});
+
+test("SECURITY: a surface callback cannot run deployment_execute_static_publish — the route refuses it with 403 and never reaches the executor", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+
+  let routeExecutions = 0;
+  const countingExecutor = {
+    ...toolExecutor,
+    execute: (...args: Parameters<typeof toolExecutor.execute>) => {
+      routeExecutions += 1;
+      return toolExecutor.execute(...args);
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  registerMcpUiToolCallsRoute(app, { toolExecutor: countingExecutor, surfaceExchanges });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({ toolName: "deployment_execute_static_publish", params: PUBLISH_INPUT }),
+  });
+
+  const body = (await res.json()) as { code?: string };
+  assert.equal(res.status, 403, `expected the allowlist to refuse this call: ${JSON.stringify(body)}`);
+  assert.equal(body.code, "TOOL_NOT_ALLOWLISTED");
+  assert.equal(routeExecutions, 0, "a refused callback must never reach the tool executor");
+  assert.equal(captured.value, null, "nothing may have been published");
 });
 
 test("SECURITY: deployment_get_static_publish_capabilities is refused by this same route — it is a read tool with nothing to confirm, and must not become reachable through the confirmation channel", async (t) => {
