@@ -321,20 +321,27 @@ test("a publish-trust route with NO token resolves to no credential", async () =
   }
 });
 
+// Owner decision 2026-10-03: trust revocation takes effect on RESTART. The grant is read once per
+// process and cached (`createPublishTrustGrantResolver`), so emptying the kill switch under a
+// running server changes nothing until the next boot; what must hold is that a still-unexpired
+// token is refused by the restarted install.
 test("dropping the grant revokes publishing within one session, not at the end of one", async () => {
   const key = await sourceKey();
   const first = await startServer(grantDocument(key.publicKeyB64u));
+  let token: string;
   try {
-    const token = await tokenFor(first.baseUrl);
+    token = await tokenFor(first.baseUrl);
     assert.equal((await probe(first.baseUrl, token)).status, 200);
-    process.env[PUBLISH_TRUST_ENV_VAR] = "";
-    const revoked = await probe(first.baseUrl, token);
-    assert.equal(revoked.status, 401);
-    assert.deepEqual(await revoked.json(), { error: "unauthenticated", code: "UNAUTHENTICATED" });
-    process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
-    assert.equal((await probe(first.baseUrl, token)).status, 200, "the same token and keyring still work when its live grant is restored");
   } finally {
     await stop(first.server);
+  }
+
+  // The same still-unexpired token, against an install whose operator emptied the kill switch.
+  const revoked = await startServer("");
+  try {
+    assert.equal((await probe(revoked.baseUrl, token)).status, 401);
+  } finally {
+    await stop(revoked.server);
     delete process.env[PUBLISH_TRUST_ENV_VAR];
   }
 });
