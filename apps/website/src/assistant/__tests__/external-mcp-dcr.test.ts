@@ -358,19 +358,22 @@ test("connecting a connection with no sign-in method resolves authorization_code
 });
 
 test("connecting falls back to device_code when that is the only grant the server offers", async () => {
-  const deviceAuthorizationEndpoint = "https://device.example.com/device";
-  const fixture = await startDiscoveryFixture({
-    metadata: {
-      grant_types_supported: ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
-      device_authorization_endpoint: deviceAuthorizationEndpoint,
-    },
-  });
+  const metadata: Record<string, unknown> = {
+    grant_types_supported: ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+  };
+  const fixture = await startDiscoveryFixture({ metadata });
+  // The endpoint must share the issuer's origin (`createTovuIssuerBoundDiscoveryPolicy` rejects a
+  // cross-origin one), and that origin is only known once the fixture is listening. The fixture
+  // builds its metadata document per request from this same object, so setting it now is what the
+  // discovery request below will see.
+  const deviceAuthorizationEndpoint = new URL("/device", fixture.resourceUrl).toString();
+  metadata.device_authorization_endpoint = deviceAuthorizationEndpoint;
   const store = makeStore();
   try {
     await saveWithoutGrant(store, { url: fixture.resourceUrl });
     // Discovery and registration run against the REAL loopback fixture, so the grant is genuinely
     // resolved from what it advertised; only the device-authorization POST itself is stubbed, since
-    // `startDiscoveryFixture` has no route for it and nothing under `device.example.com` is real.
+    // `startDiscoveryFixture` has no route for it.
     const service = makeService(store, {
       fetchFn: stubOneEndpoint(deviceAuthorizationEndpoint, {
         device_code: "device-secret",

@@ -235,9 +235,9 @@ test("a second call within the TTL reuses the cached result instead of re-issuin
     let fakeNow = 1_000_000;
     const now = () => fakeNow;
 
-    const first = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }, now);
+    const first = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
     fakeNow += 1_000; // still well inside the TTL window
-    const second = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }, now);
+    const second = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
 
     assert.deepEqual(first, second);
     assert.equal(provider.requestCount(), 1, "the second call must be served from cache, not a fresh request");
@@ -264,9 +264,9 @@ test("a call after the TTL has expired re-issues the live call", async () => {
     let fakeNow = 1_000_000;
     const now = () => fakeNow;
 
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }, now);
+    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
     fakeNow += TTL_MS + 1;
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }, now);
+    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
 
     assert.equal(provider.requestCount(), 2, "an expired cache entry must trigger a fresh live call");
   } finally {
