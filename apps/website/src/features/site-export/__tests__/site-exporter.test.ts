@@ -400,7 +400,7 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   // theme's OWN page set (its `page-shell.html` template shell, its shadowed `about`/`pricing`
   // pages) — `tovu-starter` ships neither page, having dropped them in its own de-branding pass.
   const routeDeps = createRouteDeps();
-  const currentPresentation = await routeDeps.presentationRepo.findByWorkspaceId(routeDeps.workspaceId);
+  const currentPresentation = await routeDeps.presentationRepo.findByWorkspaceId({ workspaceId: routeDeps.workspaceId });
   await routeDeps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
 
   routeDeps.themes = routeDeps.themes.map((theme) => theme.manifest.id === "tovu-theme"
