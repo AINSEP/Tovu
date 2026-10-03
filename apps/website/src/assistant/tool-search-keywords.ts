@@ -426,9 +426,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
 
   // --- deployments / static publish -----------------------------------------------------------------------
   deployment_list: "deployments environments releases history staging production what has been deployed",
-  deployment_get_static_publish_capabilities: "can I publish ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
+  // 2026-10-03: "yet" and the host names below restore two backfill-ranking cases ("can I publish my
+  // site yet", "push my site live to netlify") after the publish_content pull tools and their vocabulary
+  // (5ec1a964d) outranked both. The host names are the targets this tool publishes to.
+  deployment_get_static_publish_capabilities: "can I publish yet ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
   deployment_preview_static_publish: "dry run check before deploy what would happen test",
-  deployment_execute_static_publish: "deploy push ship go live make it live publish the site hosting",
+  deployment_execute_static_publish: "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
   deployment_generate_bucket_hosting_setup: "instructions steps how to setup guide public website cloud storage host",
   deployment_propose_custom_provider_credential: "connect add new save credential storage provider hosting account s3 bucket",
   deployment_trigger_export: "build generate export files download self host static site",
@@ -479,7 +482,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     // It is also the only way to see what is waiting to be published: it answers with the dialog's
     // plan and publishes nothing until the person confirms there.
     "pending unpublished changes changed not yet published what would be published preview " +
-    "review before publishing without publishing dry run",
+    "review before publishing without publishing dry run " +
+    // 2026-10-03: content_post_preview's new vocabulary (5ec1a964d) pushed "what changes haven't been
+    // published to the live site yet" to rank 4; these are that question's own words for "pending".
+    "hasn't haven't been published yet",
 
   // --- trash / live-site publishing (2026-10-01) --------------------------------------------------------
   // The 2026-10-01 search eval (ADS-memory/.local-artifacts/tool-gaps/search-eval/REPORT.md, 127

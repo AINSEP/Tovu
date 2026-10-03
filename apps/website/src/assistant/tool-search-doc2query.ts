@@ -101,6 +101,15 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   deployment_get_static_publish_capabilities: [
     "Which static publishing hosts are available?", "Can this site publish to Netlify?", "Where can I publish a static site?", "Which hosting credentials are connected?",
   ],
+  // 2026-10-03: the deploy-ops tools (5ec1a964d) outranked source_control_get_capabilities for "is
+  // github connected", and catalog growth dropped site_describe_capabilities out of the top 3 for "what
+  // can this site do" (short seo/backup entries now edge it). The questions restore that phrasing.
+  source_control_get_capabilities: [
+    "Is GitHub connected for source control?", "Is git set up for this site yet?", "Which repository host is connected?", "Are my source control credentials ready?",
+  ],
+  site_describe_capabilities: [
+    "What is this site capable of?", "What features and tools does this site have?", "What can I do with this site?", "What is possible here?",
+  ],
   site_backup_plan: [
     "Can you back up my site to a private GitHub repository?", "Save a backup of my site in GitHub.", "Plan a site backup without changing remote files.", "Archive my content and database into a repository.",
   ],
