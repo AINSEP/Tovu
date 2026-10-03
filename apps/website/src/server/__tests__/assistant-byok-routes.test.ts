@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import { createContributionRegistry } from "@jini-ai/core";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import {
@@ -10,10 +11,11 @@ import {
   SYSTEM_PREAMBLE,
 } from "../runtime/composition/modules/assistant-byok.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
-import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
+import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface, type DerivedToolContributor, type ToolContributor } from "../../assistant/index.js";
+import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
-import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
+import { POST_ENTITY_TYPE } from "../../features/trash/adapters/post.js";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";
@@ -771,12 +773,15 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
   }
 });
 
-/** Seeds one draft post and stubs the Anthropic turn that asks `content_post_delete` to delete it —
- *  the shared setup for every test below in this section. Turn 2's stub is generic ("Done.") because
- *  each test's own assertions are about the tool_result/redemption plumbing, not the model's final
- *  wording. Returns the stub server's URL, which the caller must thread into the request body's
- *  `byok.baseUrl` field. */
-async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, deps: RouteDeps, postId: string): Promise<string> {
+/** The gated tool this section parks: permanent deletion still waits for a human Confirm click. */
+const PURGE_TOOL_ID = "trash_purge_item";
+
+/** Seeds one draft post, moves it to the Trash, and stubs the Anthropic turn that asks
+ *  `trash_purge_item` to permanently delete its Trash row — the shared setup for every test below in
+ *  this section. Turn 2's stub is generic ("Done.") because each test's own assertions are about the
+ *  tool_result/redemption plumbing, not the model's final wording. Returns the stub server's URL,
+ *  which the caller must thread into the request body's `byok.baseUrl` field. */
+async function seedTrashedPostAndStubPurgeTurn(t: import("node:test").TestContext, deps: RouteDeps, postId: string): Promise<string> {
   await deps.postRepo.save({
     id: postId,
     workspaceId: deps.workspaceId,
@@ -788,12 +793,24 @@ async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, dep
     updatedAt: deps.clock.nowIso(),
     version: 1,
   });
+  const marker = await deps.trash.trash({
+    workspaceId: deps.workspaceId,
+    entityType: POST_ENTITY_TYPE,
+    entityId: postId,
+    actor: { principalId: "seed" },
+    display: { title: "BYOK emitSurface probe" },
+    at: deps.clock.nowIso(),
+    expectedVersion: 1,
+  });
+  assert.equal(marker.ok, true, "seeding the post into the Trash");
+  const trashItemId = await trashRowFor(deps, postId);
+  assert.ok(trashItemId, "the trashed post must have a Trash row");
 
   return stubProvider(t, (callCount) => {
     if (callCount === 1) {
       return sseBody(
         messageStart(),
-        toolUseBlock(0, "toolu_1", "execute_delegated_tool", { toolId: "content_post_delete", input: { id: postId, kind: "post" } }),
+        toolUseBlock(0, "toolu_1", "execute_delegated_tool", { toolId: PURGE_TOOL_ID, input: { trashItemId } }),
         messageDelta("tool_use"),
         messageStop(),
       );
@@ -802,18 +819,37 @@ async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, dep
   });
 }
 
+/** The first-party contributed domains (`trash_purge_item` among them) a hand-built surface needs —
+ *  `createApp`'s own BYOK module installs these; a test composing `createByokToolSurface` directly
+ *  must pass them itself. */
+function firstPartyContributions() {
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
+  return contributions;
+}
+
+/** The Trash row id holding `postId`, or undefined once it has been purged. */
+async function trashRowFor(deps: RouteDeps, postId: string): Promise<string | undefined> {
+  const page = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 50 });
+  return page.items.find((item) => item.entityType === POST_ENTITY_TYPE && item.entityId === postId)?.id;
+}
+
 /**
- * `content_post_delete` is the ONE real (non-demo) production tool in the whole catalog that reads
- * `ctx.emitSurface` — confirmed by grepping every `tool-registrations.ts` in the repo. Before the
- * redemption slice, BYOK mode omitted `emitSurface` entirely and the tool failed closed with a
- * thrown error rather than parking (see git history for that prior test). `assistant-byok.ts` now
- * builds a real `SurfaceEmitter` per tool call, so this same tool call PARKS instead — and
- * `modules/assistant.ts`'s redemption proxy can deliver into it directly, against the SAME
- * `surfaceExchanges` store `app.ts` composed both modules with. This test proves the whole chain is
- * reachable end-to-end, through the real routes, with a real effect (the post is actually deleted) —
+ * `trash_purge_item` stands in for `content_post_delete`, which raised a confirmation card here until
+ * 6eac86229 ("confirm destructive and protected actions only") made reversible removal immediate.
+ * Permanent deletion still waits for a human Confirm click, so it is the gated tool this section
+ * drives. Before the redemption slice, BYOK mode omitted `emitSurface` entirely and a gated tool
+ * failed closed with a thrown error rather than parking (see git history for that prior test).
+ * `assistant-byok.ts` now builds a real `SurfaceEmitter` per tool call, so this same tool call PARKS
+ * instead — and `modules/assistant.ts`'s redemption proxy can deliver into it directly, against the
+ * SAME `surfaceExchanges` store `app.ts` composed both modules with. This test proves the whole chain
+ * is reachable end-to-end, through the real routes, with a real effect (the post is actually purged) —
  * not just that a surface event appears on the wire.
  */
-test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and redeeming the confirmation through the LOCAL (non-daemon) delivery path actually deletes the post`, async (t) => {
+test(`${BYOK_TURN_PATH}: trash_purge_item PARKS via a real emitSurface, and redeeming the confirmation through the LOCAL (non-daemon) delivery path actually purges the post`, async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
@@ -822,7 +858,7 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
   const otherCookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-confirm-${Date.now()}`;
-  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200);
@@ -852,19 +888,18 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
     const foreignRedeem = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST",
       headers: { cookie: otherCookie, "content-type": "application/json" },
-      body: JSON.stringify({ toolName: CONTENT_POST_DELETE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } }),
+      body: JSON.stringify({ toolName: PURGE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } }),
     });
     assert.equal(foreignRedeem.status, 409);
     assert.equal((await foreignRedeem.json()).reason, "binding-mismatch");
-    const beforeOwnerRedemption = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-    assert.ok(beforeOwnerRedemption && !beforeOwnerRedemption.deletedAt);
+    assert.ok(await trashRowFor(deps, postId), "a foreign redemption must not purge the post");
 
-    // The redemption call: a separate HTTP request, exactly the shape `McpUiSurfaceCard`'s "Delete
-    // post" button issues, hitting the SAME endpoint the daemon-mode path uses.
+    // The redemption call: a separate HTTP request, exactly the shape `McpUiSurfaceCard`'s
+    // "Permanently delete" button issues, hitting the SAME endpoint the daemon-mode path uses.
     const redeem = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },
-      body: JSON.stringify({ toolName: CONTENT_POST_DELETE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } }),
+      body: JSON.stringify({ toolName: PURGE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } }),
     });
     assert.equal(redeem.status, 202, "expected the LOCAL store to deliver — a 4xx/5xx here means it fell through to (or was rejected by) the daemon instead");
     assert.deepEqual(await redeem.json(), { delivered: true });
@@ -877,9 +912,9 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
     const toolResultFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
     assert.ok(toolResultFrame, "expected a tool_result event — the parked call resolved, it did not hang");
     assert.notEqual(toolResultFrame!.payload.isError, true);
-    const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { deleted: boolean; cancelled: boolean };
-    assert.equal(parsedResult.deleted, true);
-    assert.equal(parsedResult.cancelled, false);
+    const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { removed: boolean; purged: number };
+    assert.equal(parsedResult.removed, true);
+    assert.equal(parsedResult.purged, 1);
 
     const endFrame = frames.find((f) => f.event === "end");
     assert.ok(endFrame, "expected a terminal end frame — the turn completed normally");
@@ -887,15 +922,19 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
     await reader.cancel().catch(() => undefined);
   }
 
-  const afterDelete = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-  assert.ok(afterDelete?.deletedAt, "the post must actually be deleted — this is a real effect, not a stubbed one");
+  assert.equal(await trashRowFor(deps, postId), undefined, "the Trash row must be gone");
+  assert.equal(
+    await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId }),
+    null,
+    "the post must actually be purged — this is a real effect, not a stubbed one",
+  );
 });
 
-test(`${BYOK_TURN_PATH}: disconnecting a parked delete aborts the tool, closes its exchange, and prevents deletion`, { timeout: 15_000 }, async (t) => {
+test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes its exchange, and prevents deletion`, { timeout: 15_000 }, async (t) => {
   const deps = createRouteDeps();
   await deps.identityReady;
   const store = createSurfaceExchangeStore({ idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
-  const surface = createByokToolSurface(deps, { surfaceExchangeStore: store });
+  const surface = createByokToolSurface(deps, { surfaceExchangeStore: store, contributions: firstPartyContributions() });
   const execute = surface.executeMetaTool.bind(surface);
   let toolSignal: AbortSignal | undefined;
   let resolveFinished!: () => void;
@@ -914,7 +953,7 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked delete aborts the tool, closes i
   const { baseUrl } = await bootWithStubSurface(deps, observedSurface, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
   const postId = "byok-disconnected-delete";
-  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
   const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   const reader = res.body!.getReader();
   try {
@@ -927,8 +966,7 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked delete aborts the tool, closes i
     await finished;
     assert.equal(toolSignal.aborted, true, "the HTTP close must abort the active tool");
     assert.equal(store.size(), 0, "the abandoned exchange must be cleaned up");
-    const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-    assert.ok(post && !post.deletedAt);
+    assert.ok(await trashRowFor(deps, postId), "an abandoned purge must leave the post in the Trash");
   } finally {
     await reader.cancel().catch(() => undefined);
   }
@@ -941,7 +979,7 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-cancel-${Date.now()}`;
-  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   const reader = res.body!.getReader();
@@ -956,7 +994,7 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
     const redeem = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },
-      body: JSON.stringify({ toolName: CONTENT_POST_DELETE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } }),
+      body: JSON.stringify({ toolName: PURGE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } }),
     });
     assert.equal(redeem.status, 202);
 
@@ -964,15 +1002,14 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
     const frames = [...framesBeforeRedemption, ...remainingFrames];
     const toolResultFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
     assert.ok(toolResultFrame);
-    const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { deleted: boolean; cancelled: boolean };
-    assert.equal(parsedResult.deleted, false);
+    const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { removed: boolean; cancelled: boolean };
+    assert.equal(parsedResult.removed, false);
     assert.equal(parsedResult.cancelled, true);
   } finally {
     await reader.cancel().catch(() => undefined);
   }
 
-  const stillThere = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-  assert.ok(stillThere && !stillThere.deletedAt, "cancelling must not delete anything");
+  assert.ok(await trashRowFor(deps, postId), "cancelling must not delete anything");
 });
 
 /**
@@ -981,7 +1018,7 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
  * an unredeemed park, which would make a literal test of it both slow and a bad use of a shared test
  * run (see `PRIORITY: scoped test runs only`). `createByokToolSurface`'s injectable
  * `surfaceExchangeStore` override (added for exactly this) lets this test swap in a store with
- * millisecond TTLs, exercising the SAME code path (`content_post_delete`'s `askOnce` loop,
+ * millisecond TTLs, exercising the SAME code path (`trash_purge_item`'s `askOnce` loop,
  * `SurfaceExchangeStore`'s own idle/lifetime timers) production uses — only the constant differs.
  * Built with a hand-assembled express app (not `createApp`) because `createApp` always builds its
  * BYOK surface with the production defaults; this is the one place that needs to override them.
@@ -991,7 +1028,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   await deps.identityReady;
 
   const shortTtlStore = createSurfaceExchangeStore({ idleTtlMs: 30, maxLifetimeMs: 60 });
-  const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore });
+  const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
 
   const app = express();
   app.use(express.json());
@@ -1002,7 +1039,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-no-hang-probe-${Date.now()}`;
-  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const startedAt = Date.now();
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
@@ -1018,13 +1055,12 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const toolResultFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
   assert.ok(toolResultFrame, "expected a tool_result event — the parked call resolved on its own, it did not hang the request");
   assert.notEqual(toolResultFrame!.payload.isError, true, "an expired confirmation is a truthful RESULT the model can read, not a thrown error");
-  const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { deleted: boolean; reason?: string };
-  assert.equal(parsedResult.deleted, false);
+  const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { removed: boolean; reason?: string };
+  assert.equal(parsedResult.removed, false);
   assert.equal(parsedResult.reason, "expired");
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame — the turn completed, it did not hang");
 
-  const stillThere = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-  assert.ok(stillThere && !stillThere.deletedAt, "nothing was deleted — the confirmation never arrived");
+  assert.ok(await trashRowFor(deps, postId), "nothing was deleted — the confirmation never arrived");
 });
