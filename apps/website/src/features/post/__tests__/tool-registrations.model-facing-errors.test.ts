@@ -21,6 +21,10 @@
  * The ordering case is the one that could regress silently: `PostVersionConflictError extends
  * PostConflictError`, so a list that puts the superclass first still answers every conflict — with
  * the WRONG code and without the re-read guidance.
+ *
+ * `content_post_delete`'s no-emitSurface guard case left this file with the guard itself: since
+ * 6eac86229 (owner, 2026-10-01) a soft delete runs with no confirmation channel, which
+ * `agent-tools.delete-confirmation.test.ts` ("n06") asserts.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -231,51 +235,6 @@ test("EVERY wired Posts/Pages tool surfaces the denial, not just the first one �
     assert.equal(result.error.code, "BAD_REQUEST", `${toolId}: still redacted — ${JSON.stringify(result.error)}`);
     assert.match(result.error.message, /^CONTENT_POST_FORBIDDEN: principal /, `${toolId}: ${result.error.message}`);
   }
-});
-
-/* ------------------------------------------------------------------------------------------------
- * The two guards that used to throw a bare `Error` — unreachable by any `instanceof` rule
- * ---------------------------------------------------------------------------------------------- */
-
-test("content_post_delete with no interactive confirmation channel carries the ToolInputError marker, so it cannot be redacted", async () => {
-  const { deps, postRepo } = makeRouteDeps();
-  await seedPost(postRepo);
-
-  // HANDLER level on purpose, and the exception to this file's transport rule. `@jini-ai/daemon`'s
-  // `createDelegatedToolBridge` ALWAYS supplies an `emitSurface`, so the delegated transport cannot
-  // express the context this guard exists for; driving it from there parks the handler on a
-  // confirmation nobody will ever answer. Other execution contexts do call `ToolExecutor.execute`
-  // with no surface channel, which is why the guard is live.
-  //
-  // What is asserted is therefore the exact marker the transport keys on rather than the transport's
-  // own output: `ToolExecutor` tags anything NOT `instanceof ToolInputError` as `errorKind: 'internal'`
-  // (`tool-executor.js`), and only that bucket is SEC-005-redacted. Before the fix this threw a bare
-  // `Error`, which no `instanceof` rule in any allowlist could ever have rescued.
-  const registration = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
-    (r) => r.descriptor.id === "content_post_delete"
-  );
-  assert.ok(registration, "expected content_post_delete to be wired");
-
-  const err = await registration
-    .handler({
-      executionId: "exec-1",
-      principal: { id: PRINCIPAL_ID },
-      run: { id: "run-1" },
-      input: { id: "p1", kind: "post" },
-      signal: new AbortController().signal,
-    })
-    .then(
-      () => null,
-      (caught: unknown) => caught
-    );
-
-  assert.ok(err instanceof ToolInputError, `a bare Error here is redacted to a 500: ${String(err)}`);
-  assert.equal(
-    err.message,
-    "CONTENT_POST_NO_CONFIRMATION_CHANNEL: content_post_delete: this execution context has no " +
-      "interactive confirmation channel (no emitSurface), so a destructive delete cannot be " +
-      "gated here. Nothing was deleted."
-  );
 });
 
 /* ------------------------------------------------------------------------------------------------
