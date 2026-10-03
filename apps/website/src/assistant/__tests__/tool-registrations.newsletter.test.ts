@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -186,6 +187,26 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
+}
+
+/**
+ * Calls newsletter_resend_confirmation the way a chat pane does: the call raises its human
+ * confirmation card, and the human answers it on the browser channel. The card is the intended gate
+ * (the tool stays on the MCP-UI allowlist; see features/newsletter/delivery-confirmation.ts), so a
+ * headless call refuses with NEWSLETTER_NO_CONFIRMATION_CHANNEL and these tests go through the card.
+ */
+async function resendThroughCard(deps: RouteDeps, subscriptionId: string): Promise<unknown> {
+  const store = createSurfaceExchangeStore();
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges: store }, { contributions })
+    .find((r) => r.descriptor.id === "newsletter_resend_confirmation");
+  assert.ok(tool, "expected 'newsletter_resend_confirmation' to be wired");
+  let emitted!: (value: unknown) => void;
+  const emission = new Promise<unknown>((resolve) => { emitted = resolve; });
+  const pending = tool.handler(executionContext({ subscriptionId }), { emitSurface: async (value) => { emitted(value); } });
+  const surface = await emission as { payload: { resource: { resource: { text: string } } } };
+  const exchangeId = surface.payload.resource.resource.text.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
+  store.deliver({ exchangeId, toolId: "newsletter_resend_confirmation", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  return pending;
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -454,11 +475,13 @@ test("newsletter_resend_confirmation: sends the confirmation link, preserving th
   await newsletterSubscriptionRepo.save(seedSubscription({ id: "sub-1", subscriberId: "subscriber-1" }));
 
   const before = await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" });
-  await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "sub-1" }));
+  await resendThroughCard(deps, "sub-1");
   const [prior] = await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "sub-1" });
   sentMail.length = 0;
-  const result = await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "sub-1" }));
-  assert.deepEqual(result, { delivered: true });
+  const result = await resendThroughCard(deps, "sub-1");
+  // The acknowledgement now also says mail delivery is available; see the
+  // newsletter_resend_confirmation catalog description in features/newsletter/agent-tools.ts.
+  assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
   const message = sentMail[0] as { to: { email: string }; html: string; text: string };
   assert.equal(message.to.email, "subscriber1@example.test");
@@ -474,7 +497,10 @@ test("newsletter_resend_confirmation: sends the confirmation link, preserving th
 
 test("newsletter_resend_confirmation: unknown subscription writes no token or mail", async () => {
   const { deps, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps();
-  await assert.rejects(() => wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: "unknown" })), /NEWSLETTER_SUBSCRIPTION_NOT_FOUND/);
+  // An unknown subscription gets the same constant acknowledgement as a real one, so the tool is
+  // not an enumeration oracle (catalog description in features/newsletter/agent-tools.ts; pinned
+  // by features/newsletter/__tests__/delivery-tools.test.ts "hides missing contacts").
+  assert.deepEqual(await resendThroughCard(deps, "unknown"), { delivered: true, mailDeliveryAvailable: true });
   assert.deepEqual(await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "unknown" }), []);
   assert.deepEqual(sentMail, []);
 });
@@ -483,7 +509,7 @@ test("newsletter_resend_confirmation: an already subscribed contact retains its 
   const { deps, newsletterSubscriptionRepo } = fakeRouteDeps();
   const before = seedSubscription({ status: "subscribed", subscribedAt: NOW, consentRevisionIdAtSubscribe: "consent-1" });
   await newsletterSubscriptionRepo.save(before);
-  assert.deepEqual(await wired("newsletter_resend_confirmation", deps).handler(executionContext({ subscriptionId: before.id })), { delivered: true });
+  assert.deepEqual(await resendThroughCard(deps, before.id), { delivered: true, mailDeliveryAvailable: true });
   assert.deepEqual(await newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), before);
 });
 
