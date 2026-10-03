@@ -1,0 +1,610 @@
+# Storage C-wave affected-test sweep — 2026-09-28
+
+Agent: storage-sweep (QA/E2E persona, `claude-opus-5-5`). Read-only on source; no commits.
+
+## Scope and method
+
+- Changed source: `git diff --name-only 25fa0d193^ HEAD -- apps/website/src | grep -v __tests__` (HEAD was `a8a73bc76` when the set was built) gave 167 paths, 166 still on disk.
+- Affected set: every `*.test.ts` under `apps/website/src` that directly imports one of those files, or any module under `server/runtime/composition/` or `server/routes/`. Imports were resolved properly (relative paths, `#src/*` to `apps/website/src/*.ts`, `index.ts`, and `import`/`import()`/`mock.module` specifiers), not by basename grep. Script: `scratchpad/storage-sweep/build-set.mjs`.
+- **548 files** (out of 1276 test files). This is much larger than the "~96" in the brief: 258 import `composition/app.ts` and 153 import `server/routes/types.ts`. Only 46 are in the set solely through the composition/routes directory rule.
+- Runs: 37 batches of 15 (the last one smaller), each on a guarded test slot, with the brief's runner and a custom JSON reporter that records per-file pass/fail. Every file that failed was rerun (two rerun batches, spec reporter). Failures that persisted were run at the pre-rewrite baseline `33db80840` (= `25fa0d193^`) via `git archive` into scratch with `node_modules` symlinked (no worktree, no checkout). The one regression was bisected the same way across 8 archived commits.
+- The tree kept moving during the sweep. Other agents committed `2694418a6`..`af8cd3de7` (12:23–12:42) while batches b22–b29 ran, and HEAD is now `b2240e66c`.
+
+## Totals (first pass)
+
+548 files, **6815 pass / 39 fail / 2 skip**. After reruns and baseline runs, 39 failures split into: **1 regression**, 17 pre-existing (in 7 files), and 21 flaky (in 19 files).
+
+## REGRESSION (1)
+
+| file | test | evidence | suspect commit |
+|---|---|---|---|
+| `server/__tests__/routes/publish-trust-apply-coverage.test.ts` | "a publishing grant naming every type applies one entity of each, with no permission refused" | `Error: InMemorySettingsRepo.transaction is not reentrant, and cannot host a second overlapping transaction` thrown from `set()` in the `site-setting` fixture (test line 156). It failed 2/2 in the live tree. Bisect by archive: passes at `33db80840`, `9a798c6df`, `b35e2998c`, `fa69ffebc`, `d16944ab6`, `3dc525494`. Fails at `9febb5ca5`, `d80a234b6`, `af8cd3de7`, live HEAD. | **`9febb5ca5` refactor(db): taxonomy repos on one Kysely body** |
+
+Likely cause: `9febb5ca5` made `EntryTermRepo.upsert` async. The test still calls `s.entryTermRepo.upsert(...)` without `await` at lines 80 and 134. Together with `site()` awaiting only `deps.settingsReady`, not the end of the boot chain `siteTitleReady` (the race that `server/__tests__/site-assistant-routes.test.ts:127-133` documents), the fixture's settings write now overlaps a boot-time settings transaction. This is probably a test-side fix: await the upserts and await `siteTitleReady`. Not verified, since this pass was read-only.
+
+## PRE-EXISTING (17 failures, 7 files): same test also fails at `33db80840`
+
+| file | failing test(s) | first error line |
+|---|---|---|
+| `assistant/__tests__/tool-registrations.contracts.test.ts` | 4: CATALOGS_BY_DOMAIN entry for every domain; inputSchema from catalog; independent classification agrees; confirmation-requiring actor-class rule | `'database-transfer' is registered ... but CATALOGS_BY_DOMAIN has no entry for it` / `no wired catalog has an entry for 'database_transfer_plan'`. Caused by `fc3f9de3a`-era database-transfer wiring, which predates the wave. |
+| `features/media-import/__tests__/tool-registrations.test.ts` | "the returned view is the same shape media_upload_asset/... return, plus the resolved sourceUrl" | expected `'/m/id-2/public.v1/image.webp'`, got `'/m/8f3ac91b0e/public.v1/image.webp'` |
+| `features/site-export/__tests__/site-exporter.test.ts` | "a route whose render hangs past the fetch timeout is recorded as a timed-out failure" | `home must still succeed` (at baseline: `an unrelated theme page must still succeed`). This is the known 20 ms-timeout flake and the only failure in the file. |
+| `server/__tests__/integration/serving-app-trash-sweep.integration.test.ts` | "a post trashed past its retention window is claimed by the serving app's background sweeper" | `the hermetic post adapter has no hardDelete ...`: `['purged']` vs `['version-changed']` |
+| `server/__tests__/unit/stock-content-dirs.unit.test.ts` | "the build script copies stock data to dist/content, not dist/src" | `all four stock trees must be copied from content/ to dist/content/`: actual `[]` |
+| `server/__tests__/routes/redirects-auth.test.ts` | "admin redirects update route: workspace mismatch, update happy path, ..." | `400 !== 200` |
+| `server/__tests__/routes/deployment-overview-route.test.ts` | "the seeded owner gets 200 with real process/env-derived fields, never a fabricated value" | `TOVU_INTEGRATIONS_ROOT_KEY` row: route says `{set:true, source:'file'}`, test expects `{set:false, source:'none'}`. **Environmental, not hermetic.** The route resolves this site's key through the untracked `sites/tovu-dev/.site-meta.json` (`siteKeyId`, created 12:51 today) plus `~/.tovu/site-keys/`, but the test's expectation calls the bare `inspectRootKeyMaterial()`. At baseline it passes without that file and fails once the same `.site-meta.json` is copied in. |
+
+## FLAKY (21 failures, 19 files): passed on rerun
+
+- 17 whole-file failures, each reported as 0 pass / 1 fail with `test failed` and no subtest results (a load or boot crash). All ran in b22–b29, while other agents were committing storage-kernel changes and the working tree was changing. Every one passed on rerun:
+  - `admin-assistant-execution-routes`, `admin-database-timeline-route`, `admin-external-mcp-probe-routes`, `admin-external-mcp-routes`, `admin-site-token-routes`, `admin-trash-routes`, `route-async-guards`
+  - `routes/`: `sites-route`, `vendor-credentials-route`, `change-sets-revert`, `comments-settings-routes`, `database-migrate-forward-routes`, `export-site-route`, `comments-e2e`, `content-types-field-shape`, `core-module-auth-ordering`
+  - `deployment-overview-route`, whose rerun then showed the pre-existing env failure above
+- `server/__tests__/integration/tool-attempt-audit-sink-composition.integration.test.ts`, "createSqliteRouteDeps composes the SQLite audit sink itself": `Failed to run the query 'INSERT OR IGNORE INTO "database_write_watermark" ...'` in b21, passed 4/4 on rerun. It was probably hit mid-edit of the migration or kernel files.
+- `server/inbound/public-http/http/site/__tests__/handlebars-sandbox.test.ts` (7) and `liquid-sandbox.test.ts` (4): `Handlebars/Liquid render exceeded 5000ms timeout`. They failed in both loaded batch runs and passed 14/14 run alone. The render already takes 3.0–4.6 s against a 5 s budget, including at baseline, so they are load-sensitive rather than a regression.
+
+## IN-FLIGHT
+
+None. No failing file matches the dirty files in `git status --short` (assistant persistence, `content-kernel.ts`, `reset-legacy-site-title-pin`, `composition/modules/assistant-chats.ts`, `assistant-run-finalizer.ts`).
+
+## Known pre-existing items from the brief
+
+- `edit-html-permission.test.ts` and `tool-registrations.write-region.test.ts` are **not in the affected set** (they import none of the changed files and nothing from composition/routes), so this sweep did not confirm them. `features/pages/__tests__/write-region-discovery.integration.test.ts` is in the set and passed 10/10.
+- The site-exporter flake is confirmed, and it is the only failure in its file.
+
+## Artifacts (scratch)
+
+`/Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Tovu/51b1d61c-2ca0-4b1f-9232-86c91a2eba40/scratchpad/storage-sweep/` holds `affected.txt`, `affected-with-reasons.tsv`, `per-file.tsv`, `failures.json`, `runs/*.jsonl|*.spec`, `batches/`, and the baseline/bisect archives `base/` and `at-<sha>/`.
+
+## Per-file results (all 548, first pass)
+
+| batch | pass | fail | skip | file (under apps/website/src/) |
+|---|---|---|---|---|
+| b02 | 1 | 0 | 0 | assistant/__tests__/_tmp-full-sweep.test.ts |
+| b01 | 3 | 0 | 0 | assistant/__tests__/byok-google-catalog.test.ts |
+| b01 | 2 | 0 | 0 | assistant/__tests__/byok-tool-surface.site-capabilities.test.ts |
+| b03 | 36 | 0 | 0 | assistant/__tests__/byok-tool-surface.test.ts |
+| b00 | 6 | 0 | 0 | assistant/__tests__/content-read-tool.test.ts |
+| b02 | 1 | 0 | 0 | assistant/__tests__/installed-extension-tools.order.test.ts |
+| b01 | 2 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.content-search.integration.test.ts |
+| b02 | 10 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts |
+| b00 | 2 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts |
+| b01 | 3 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.integration.test.ts |
+| b02 | 2 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts |
+| b01 | 3 | 0 | 0 | assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts |
+| b02 | 13 | 0 | 0 | assistant/__tests__/mcp-ui.test.ts |
+| b01 | 9 | 0 | 0 | assistant/__tests__/read-only-tool-constraint.composition.test.ts |
+| b02 | 3 | 0 | 0 | assistant/__tests__/site-capabilities-search-discoverability.test.ts |
+| b01 | 18 | 0 | 0 | assistant/__tests__/tool-contribution-registry.test.ts |
+| b02 | 7 | 0 | 0 | assistant/__tests__/tool-dispatch/forms.dispatch.test.ts |
+| b02 | 23 | 0 | 0 | assistant/__tests__/tool-registrations.authorization.test.ts |
+| b00 | 27 | 0 | 0 | assistant/__tests__/tool-registrations.comments.test.ts |
+| b01 | 27 | 4 | 0 | assistant/__tests__/tool-registrations.contracts.test.ts |
+| b00 | 6 | 0 | 0 | assistant/__tests__/tool-registrations.custom-credentials-egress-refusal.integration.test.ts |
+| b01 | 57 | 0 | 0 | assistant/__tests__/tool-registrations.database-recovery.test.ts |
+| b02 | 15 | 0 | 0 | assistant/__tests__/tool-registrations.entries.test.ts |
+| b01 | 39 | 0 | 0 | assistant/__tests__/tool-registrations.forms.test.ts |
+| b00 | 64 | 0 | 0 | assistant/__tests__/tool-registrations.identity-authorization.test.ts |
+| b02 | 25 | 0 | 0 | assistant/__tests__/tool-registrations.identity-contracts.test.ts |
+| b01 | 26 | 0 | 1 | assistant/__tests__/tool-registrations.media.test.ts |
+| b00 | 19 | 0 | 0 | assistant/__tests__/tool-registrations.members.test.ts |
+| b03 | 22 | 0 | 0 | assistant/__tests__/tool-registrations.menus.test.ts |
+| b02 | 40 | 0 | 0 | assistant/__tests__/tool-registrations.newsletter.test.ts |
+| b01 | 21 | 0 | 0 | assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts |
+| b00 | 18 | 0 | 0 | assistant/__tests__/tool-registrations.plugins.test.ts |
+| b00 | 38 | 0 | 0 | assistant/__tests__/tool-registrations.post.test.ts |
+| b02 | 23 | 0 | 0 | assistant/__tests__/tool-registrations.redirects.test.ts |
+| b02 | 17 | 0 | 0 | assistant/__tests__/tool-registrations.seo.test.ts |
+| b00 | 34 | 0 | 0 | assistant/__tests__/tool-registrations.settings.test.ts |
+| b02 | 30 | 0 | 0 | assistant/__tests__/tool-registrations.taxonomy.test.ts |
+| b00 | 18 | 0 | 0 | assistant/__tests__/tool-registrations.themes-edit-rename.test.ts |
+| b01 | 24 | 0 | 0 | assistant/__tests__/tool-registrations.themes-reset-copy.test.ts |
+| b01 | 25 | 0 | 0 | assistant/__tests__/tool-registrations.themes-trash-restore.test.ts |
+| b00 | 26 | 0 | 0 | assistant/__tests__/tool-registrations.themes.test.ts |
+| b03 | 25 | 0 | 0 | assistant/__tests__/tool-registrations.trash-item.test.ts |
+| b01 | 15 | 0 | 0 | assistant/__tests__/tool-registrations.webhooks.test.ts |
+| b00 | 27 | 0 | 1 | assistant/__tests__/tool-registrations.widgets-authorization.test.ts |
+| b00 | 14 | 0 | 0 | assistant/__tests__/tool-registrations.widgets-contracts.test.ts |
+| b02 | 17 | 0 | 0 | assistant/__tests__/tool-registrations.workspace.test.ts |
+| b00 | 2 | 0 | 0 | assistant/__tests__/tool-search-keywords.backfill-ranking.test.ts |
+| b00 | 1 | 0 | 0 | assistant/__tests__/tool-search-keywords.fs-files-ranking.test.ts |
+| b03 | 2 | 0 | 0 | assistant/__tests__/tool-search-keywords.publish-pending-ranking.test.ts |
+| b03 | 1 | 0 | 0 | contracts/core/commands/__tests__/change-sets-restart.integration.test.ts |
+| b03 | 1 | 0 | 0 | contracts/core/commands/__tests__/idempotency-race.integration.test.ts |
+| b03 | 36 | 0 | 0 | contracts/core/commands/__tests__/repo.contract.test.ts |
+| b03 | 44 | 0 | 0 | contracts/core/events/__tests__/outbox-repo.contract.test.ts |
+| b03 | 3 | 0 | 0 | contracts/core/events/__tests__/outbox-restart.integration.test.ts |
+| b03 | 8 | 0 | 0 | contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts |
+| b15 | 13 | 0 | 0 | features/agent-plugins/__tests__/integration/agent-plugin-search-discovery.integration.test.ts |
+| b15 | 2 | 0 | 0 | features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts |
+| b17 | 2 | 0 | 0 | features/analytics/__tests__/index.test.ts |
+| b17 | 60 | 0 | 0 | features/analytics/__tests__/ingest.test.ts |
+| b17 | 19 | 0 | 0 | features/analytics/__tests__/repo.contract.test.ts |
+| b17 | 7 | 0 | 0 | features/analytics/__tests__/repo.memory.test.ts |
+| b17 | 5 | 0 | 0 | features/change-sets/__tests__/tool-registrations.test.ts |
+| b06 | 25 | 0 | 0 | features/comments/__tests__/repo.contract.test.ts |
+| b07 | 12 | 0 | 0 | features/comments/__tests__/repo.dialects.test.ts |
+| b07 | 1 | 0 | 0 | features/comments/__tests__/tool-registrations.update-settings-validation-status.test.ts |
+| b06 | 7 | 0 | 0 | features/commerce/__tests__/integration/checkout.integration.test.ts |
+| b06 | 18 | 0 | 0 | features/commerce/__tests__/integration/repo.sqlite.integration.test.ts |
+| b06 | 5 | 0 | 0 | features/commerce/__tests__/integration/webhook-inbox.integration.test.ts |
+| b06 | 34 | 0 | 0 | features/commerce/__tests__/repo.dialects.test.ts |
+| b06 | 4 | 0 | 0 | features/commerce/__tests__/unit/errors.unit.test.ts |
+| b06 | 2 | 0 | 0 | features/commerce/__tests__/unit/webhook-inbox.unit.test.ts |
+| b16 | 4 | 0 | 0 | features/content-types/__tests__/integration/repo.sqlite.integration.test.ts |
+| b16 | 10 | 0 | 0 | features/content-types/__tests__/repo.dialects.test.ts |
+| b12 | 17 | 0 | 0 | features/custom-credentials/__tests__/auth-failure-diagnostic.unit.test.ts |
+| b12 | 16 | 0 | 0 | features/custom-credentials/__tests__/create-agent-tool.unit.test.ts |
+| b12 | 56 | 0 | 0 | features/custom-credentials/__tests__/credentialed-request.unit.test.ts |
+| b12 | 7 | 0 | 0 | features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts |
+| b12 | 13 | 0 | 0 | features/custom-credentials/__tests__/list-agent-tool.unit.test.ts |
+| b12 | 19 | 0 | 0 | features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts |
+| b13 | 4 | 0 | 0 | features/custom-credentials/__tests__/resolve-by-label.unit.test.ts |
+| b13 | 17 | 0 | 0 | features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts |
+| b12 | 12 | 0 | 0 | features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts |
+| b12 | 12 | 0 | 0 | features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts |
+| b13 | 7 | 0 | 0 | features/custom-credentials/__tests__/update-username.unit.test.ts |
+| b12 | 21 | 0 | 0 | features/custom-credentials/__tests__/write-files-confirmation.test.ts |
+| b12 | 4 | 0 | 0 | features/custom-credentials/__tests__/write-files-network-failure.model-facing.test.ts |
+| b12 | 22 | 0 | 0 | features/custom-credentials/__tests__/write-files-validation.unit.test.ts |
+| b06 | 2 | 0 | 0 | features/database/__tests__/unit/tool-registrations.input-validation-status.unit.test.ts |
+| b18 | 10 | 0 | 0 | features/deployments/__tests__/integration/tool-registrations.integration.test.ts |
+| b17 | 75 | 0 | 0 | features/deployments/__tests__/publish-agent-tools.unit.test.ts |
+| b18 | 2 | 0 | 0 | features/deployments/__tests__/repo.dialects.test.ts |
+| b17 | 43 | 0 | 0 | features/deployments/static-publish/__tests__/adapter.unit.test.ts |
+| b17 | 6 | 0 | 0 | features/deployments/static-publish/__tests__/publish-run.unit.test.ts |
+| b07 | 26 | 0 | 0 | features/entries/__tests__/integration/repo.dialects.test.ts |
+| b07 | 1 | 0 | 0 | features/entries/__tests__/integration/repo.sqlite.integration.test.ts |
+| b07 | 9 | 0 | 0 | features/entries/__tests__/unit/publish-content.test.ts |
+| b09 | 9 | 0 | 0 | features/forms/__tests__/duplicate-slug.test.ts |
+| b09 | 34 | 0 | 0 | features/forms/__tests__/repo.contract.test.ts |
+| b09 | 22 | 0 | 0 | features/forms/__tests__/repo.dialects.test.ts |
+| b15 | 3 | 0 | 0 | features/fs-files/__tests__/wiring.integration.test.ts |
+| b09 | 15 | 0 | 0 | features/identity/__tests__/delete-user-service.test.ts |
+| b09 | 81 | 0 | 0 | features/identity/__tests__/repo.contract.test.ts |
+| b09 | 5 | 0 | 0 | features/identity/__tests__/user-purge.test.ts |
+| b09 | 21 | 0 | 0 | features/media-generation/__tests__/tool-registrations.test.ts |
+| b12 | 18 | 1 | 0 | features/media-import/__tests__/tool-registrations.test.ts |
+| b18 | 1 | 0 | 0 | features/media/__tests__/agent-upload-sniff.test.ts |
+| b18 | 10 | 0 | 0 | features/media/__tests__/blob-store.s3.test.ts |
+| b18 | 2 | 0 | 0 | features/media/__tests__/import-media-entity.render.test.ts |
+| b18 | 9 | 0 | 0 | features/media/__tests__/promote-chat-attachment.test.ts |
+| b18 | 18 | 0 | 0 | features/media/__tests__/publish-content.apply.test.ts |
+| b18 | 110 | 0 | 0 | features/media/__tests__/repo.contract.test.ts |
+| b18 | 6 | 0 | 0 | features/media/__tests__/tool-registrations.test.ts |
+| b15 | 42 | 0 | 0 | features/members/__tests__/repo.contract.test.ts |
+| b15 | 78 | 0 | 0 | features/members/__tests__/repo.dialects.test.ts |
+| b15 | 1 | 0 | 0 | features/members/__tests__/restart.integration.test.ts |
+| b10 | 43 | 0 | 0 | features/navigation/__tests__/repo.sqlite.test.ts |
+| b15 | 14 | 0 | 0 | features/newsletter/__tests__/campaign-write-service.test.ts |
+| b15 | 30 | 0 | 0 | features/newsletter/__tests__/repo.contract.test.ts |
+| b15 | 72 | 0 | 0 | features/newsletter/__tests__/repo.dialects.test.ts |
+| b15 | 58 | 0 | 0 | features/newsletter/__tests__/send-pipeline.test.ts |
+| b15 | 27 | 0 | 0 | features/origin/__tests__/repo.contract.test.ts |
+| b16 | 6 | 0 | 0 | features/pages/__tests__/html-document-store.memory.test.ts |
+| b16 | 6 | 0 | 0 | features/pages/__tests__/html-document-store.revisions.test.ts |
+| b16 | 42 | 0 | 0 | features/pages/__tests__/html-document-store.sqlite.test.ts |
+| b16 | 26 | 0 | 0 | features/pages/__tests__/regions.test.ts |
+| b16 | 10 | 0 | 0 | features/pages/__tests__/write-region-discovery.integration.test.ts |
+| b17 | 21 | 0 | 0 | features/plugin-runtime/__tests__/integration/activation.integration.test.ts |
+| b17 | 4 | 0 | 0 | features/plugin-runtime/__tests__/integration/capability-tool-revocation.integration.test.ts |
+| b17 | 16 | 0 | 0 | features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts |
+| b08 | 31 | 0 | 0 | features/post/__tests__/agent-tools.tiptap-node-vocabulary.test.ts |
+| b08 | 13 | 0 | 0 | features/post/__tests__/list-published-previews.test.ts |
+| b08 | 9 | 0 | 0 | features/post/__tests__/post.authorship.test.ts |
+| b07 | 15 | 0 | 0 | features/post/__tests__/post.autosave.test.ts |
+| b08 | 4 | 0 | 0 | features/post/__tests__/post.body-format.test.ts |
+| b09 | 2 | 0 | 0 | features/post/__tests__/post.concurrent-save.test.ts |
+| b08 | 34 | 0 | 0 | features/post/__tests__/post.delete.test.ts |
+| b07 | 5 | 0 | 0 | features/post/__tests__/post.optimistic-concurrency.test.ts |
+| b08 | 18 | 0 | 0 | features/post/__tests__/post.restore-forward.test.ts |
+| b08 | 45 | 0 | 0 | features/post/__tests__/post.revisions.test.ts |
+| b08 | 49 | 0 | 0 | features/post/__tests__/post.test.ts |
+| b08 | 5 | 0 | 0 | features/post/__tests__/post.transition-events.test.ts |
+| b08 | 4 | 0 | 0 | features/post/__tests__/publish-content.characterization.test.ts |
+| b08 | 15 | 0 | 0 | features/post/__tests__/publish-content.round-trip.test.ts |
+| b08 | 6 | 0 | 0 | features/post/__tests__/publish-content.terms.test.ts |
+| b07 | 31 | 0 | 0 | features/post/__tests__/publish-content.test.ts |
+| b09 | 8 | 0 | 0 | features/post/__tests__/repo.dialects.test.ts |
+| b07 | 1 | 0 | 0 | features/post/__tests__/repo.postgres.test.ts |
+| b07 | 15 | 0 | 0 | features/post/__tests__/repo.save-if-version.test.ts |
+| b08 | 5 | 0 | 0 | features/post/__tests__/retire-post.test.ts |
+| b08 | 21 | 0 | 0 | features/post/__tests__/search-index.sqlite.test.ts |
+| b08 | 17 | 0 | 0 | features/post/__tests__/search.test.ts |
+| b09 | 3 | 0 | 0 | features/post/__tests__/tool-registrations.html-page-body.test.ts |
+| b07 | 7 | 0 | 0 | features/post/__tests__/tool-registrations.list-compact.test.ts |
+| b07 | 4 | 0 | 0 | features/post/__tests__/tool-registrations.list-scale.test.ts |
+| b07 | 7 | 0 | 0 | features/post/__tests__/tool-registrations.partial-update.test.ts |
+| b10 | 27 | 0 | 0 | features/publish-content/__tests__/apply-loop.test.ts |
+| b10 | 4 | 0 | 0 | features/publish-content/__tests__/connect-destination.compensation.test.ts |
+| b10 | 3 | 0 | 0 | features/publish-content/__tests__/media-video-embed.round-trip.test.ts |
+| b10 | 2 | 0 | 0 | features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts |
+| b10 | 8 | 0 | 0 | features/publish-content/__tests__/peer-transport-blob-pull.test.ts |
+| b10 | 31 | 0 | 0 | features/publish-content/__tests__/peer-transport.test.ts |
+| b10 | 5 | 0 | 0 | features/publish-content/__tests__/peers.one-connected-destination.test.ts |
+| b10 | 14 | 0 | 0 | features/publish-content/__tests__/peers.test.ts |
+| b10 | 14 | 0 | 0 | features/publish-content/__tests__/publish-agent-tools.test.ts |
+| b09 | 7 | 0 | 0 | features/publish-content/ui/__tests__/sections.test.ts |
+| b09 | 2 | 0 | 0 | features/recovery/__tests__/unit/tool-registrations.deep-link-validation-status.unit.test.ts |
+| b13 | 2 | 0 | 0 | features/redirects/__tests__/phase-handler.multi-site-lifecycle.test.ts |
+| b13 | 1 | 0 | 0 | features/redirects/__tests__/phase-handler.repo-identity-binding.test.ts |
+| b13 | 29 | 0 | 0 | features/redirects/__tests__/repo.contract.test.ts |
+| b13 | 20 | 0 | 0 | features/redirects/__tests__/repo.dialects.test.ts |
+| b16 | 8 | 0 | 0 | features/seo/__tests__/page-head-contributor.test.ts |
+| b16 | 4 | 0 | 0 | features/seo/__tests__/seo.analyze.test.ts |
+| b15 | 44 | 0 | 0 | features/seo/__tests__/seo.test.ts |
+| b15 | 11 | 0 | 0 | features/seo/__tests__/sitemap.test.ts |
+| b06 | 3 | 0 | 0 | features/settings/__tests__/purge-service.fk.test.ts |
+| b06 | 39 | 0 | 0 | features/settings/__tests__/repo.contract.test.ts |
+| b06 | 4 | 0 | 0 | features/settings/__tests__/repo.sqlite.test.ts |
+| b06 | 9 | 0 | 0 | features/settings/__tests__/site-title-preservation-store.contract.test.ts |
+| b09 | 26 | 0 | 0 | features/site-backup/__tests__/tool-registrations.unit.test.ts |
+| b10 | 1 | 0 | 0 | features/site-export/__tests__/index.test.ts |
+| b10 | 18 | 0 | 0 | features/site-export/__tests__/route-manifest.test.ts |
+| b10 | 34 | 1 | 0 | features/site-export/__tests__/site-exporter.test.ts |
+| b10 | 14 | 0 | 0 | features/site-inspection/__tests__/tool-registrations.unit.test.ts |
+| b15 | 2 | 0 | 0 | features/skills/__tests__/integration/skill-tool-search-ranking.integration.test.ts |
+| b13 | 26 | 0 | 0 | features/source-control/__tests__/commit-site.unit.test.ts |
+| b13 | 2 | 0 | 0 | features/source-control/__tests__/tool-registrations.dry-run.test.ts |
+| b13 | 26 | 0 | 0 | features/source-control/__tests__/tool-registrations.unit.test.ts |
+| b14 | 12 | 0 | 0 | features/taxonomy/__tests__/integration/repo.sqlite.integration.test.ts |
+| b14 | 4 | 0 | 0 | features/taxonomy/__tests__/publish-content.test.ts |
+| b15 | 46 | 0 | 0 | features/taxonomy/__tests__/repo.dialects.test.ts |
+| b14 | 2 | 0 | 0 | features/taxonomy/__tests__/tool-registrations.assign-terms-validation-status.test.ts |
+| b13 | 21 | 0 | 0 | features/theme/__tests__/entry-list-render.test.ts |
+| b14 | 9 | 0 | 0 | features/theme/__tests__/inject-current-entity-content-id.test.ts |
+| b14 | 5 | 0 | 0 | features/theme/__tests__/inject-page-title.test.ts |
+| b14 | 19 | 0 | 0 | features/theme/__tests__/menu-tree-render.test.ts |
+| b14 | 5 | 0 | 0 | features/theme/__tests__/static-render-api-version.test.ts |
+| b14 | 5 | 0 | 0 | features/theme/__tests__/static-render-asset-quotes.test.ts |
+| b14 | 13 | 0 | 0 | features/theme/__tests__/static-render-collection.test.ts |
+| b14 | 3 | 0 | 0 | features/theme/__tests__/static-render-expand-partials.test.ts |
+| b14 | 18 | 0 | 0 | features/theme/__tests__/static-render-page-shell-fallback.test.ts |
+| b14 | 11 | 0 | 0 | features/theme/__tests__/static-render-post-previews.test.ts |
+| b13 | 2 | 0 | 0 | features/theme/__tests__/static-render-token-sentinel.test.ts |
+| b14 | 3 | 0 | 0 | features/theme/__tests__/static-theme-migrated-asset-paths.test.ts |
+| b14 | 15 | 0 | 0 | features/theme/__tests__/template-eligibility.test.ts |
+| b14 | 8 | 0 | 0 | features/theme/__tests__/template-render.canary.test.ts |
+| b13 | 20 | 0 | 0 | features/theme/__tests__/template-resolution.test.ts |
+| b13 | 39 | 0 | 0 | features/theme/__tests__/theme-pages-render.canary.test.ts |
+| b13 | 3 | 0 | 0 | features/theme/__tests__/theme-slot-honors-current-page.test.ts |
+| b12 | 7 | 0 | 0 | features/tool-audit/__tests__/integration/repo.sqlite.integration.test.ts |
+| b12 | 6 | 0 | 0 | features/tool-audit/__tests__/repo.dialects.test.ts |
+| b11 | 10 | 0 | 0 | features/trash/__tests__/follow-ups.test.ts |
+| b11 | 7 | 0 | 0 | features/trash/__tests__/form-adapter.test.ts |
+| b11 | 7 | 0 | 0 | features/trash/__tests__/form-trash-flow.test.ts |
+| b11 | 3 | 0 | 0 | features/trash/__tests__/menu-trash-flow.test.ts |
+| b11 | 10 | 0 | 0 | features/trash/__tests__/move-to-trash.test.ts |
+| b11 | 9 | 0 | 0 | features/trash/__tests__/on-changed.contract.test.ts |
+| b11 | 3 | 0 | 0 | features/trash/__tests__/post-delete-undo-index.test.ts |
+| b11 | 6 | 0 | 0 | features/trash/__tests__/prior-marker.contract.test.ts |
+| b11 | 16 | 0 | 0 | features/trash/__tests__/repo.contract.test.ts |
+| b11 | 14 | 0 | 0 | features/trash/__tests__/sweeper.test.ts |
+| b11 | 23 | 0 | 0 | features/trash/__tests__/table-adapter.test.ts |
+| b10 | 6 | 0 | 0 | features/trash/__tests__/term-trash-flow.test.ts |
+| b11 | 4 | 0 | 0 | features/trash/__tests__/tool-registrations.purge-ban.test.ts |
+| b11 | 2 | 0 | 0 | features/trash/__tests__/transaction-runner.test.ts |
+| b11 | 12 | 0 | 0 | features/trash/__tests__/trash.contract.test.ts |
+| b12 | 8 | 0 | 0 | features/trash/__tests__/user-adapter.test.ts |
+| b11 | 11 | 0 | 0 | features/trash/__tests__/widget-trash-flow.test.ts |
+| b07 | 7 | 0 | 0 | features/vendor-credentials/__tests__/dual-read.unit.test.ts |
+| b07 | 23 | 0 | 0 | features/vendor-credentials/__tests__/store.unit.test.ts |
+| b16 | 10 | 0 | 0 | features/widgets/__tests__/agent-tools.trash-confirmation.test.ts |
+| b17 | 16 | 0 | 0 | features/widgets/__tests__/integration/embed-service.integration.test.ts |
+| b17 | 12 | 0 | 0 | features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts |
+| b17 | 1 | 0 | 0 | features/widgets/__tests__/integration/header-occurrence-collision.integration.test.ts |
+| b17 | 8 | 0 | 0 | features/widgets/__tests__/integration/read-service.integration.test.ts |
+| b16 | 5 | 0 | 0 | features/widgets/__tests__/integration/region-area-service.integration.test.ts |
+| b16 | 58 | 0 | 0 | features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts |
+| b16 | 8 | 0 | 0 | features/widgets/__tests__/integration/write-service.integration.test.ts |
+| b16 | 15 | 0 | 0 | features/widgets/__tests__/repo.contract.test.ts |
+| b16 | 6 | 0 | 0 | features/widgets/__tests__/unit/publish-content.test.ts |
+| b09 | 6 | 0 | 0 | features/workspace/__tests__/integration/repo.sqlite.integration.test.ts |
+| b09 | 6 | 0 | 0 | features/workspace/__tests__/repo.dialects.test.ts |
+| b05 | 13 | 0 | 0 | platform/db/__tests__/oauth-pending-store.sqlite.test.ts |
+| b05 | 26 | 0 | 0 | platform/db/__tests__/sealed-credential-inventory.test.ts |
+| b06 | 2 | 0 | 0 | platform/db/kernel/__tests__/backup.test.ts |
+| b05 | 2 | 0 | 0 | platform/db/kernel/__tests__/database-types.test.ts |
+| b05 | 16 | 0 | 0 | platform/db/kernel/__tests__/dialect-json.test.ts |
+| b05 | 3 | 0 | 0 | platform/db/kernel/__tests__/kernel.postgres.test.ts |
+| b06 | 22 | 0 | 0 | platform/db/kernel/__tests__/kernel.test.ts |
+| b06 | 2 | 0 | 0 | platform/db/kernel/__tests__/sqlite-same-file.test.ts |
+| b04 | 2 | 0 | 0 | platform/db/migrations/__tests__/checksums.test.ts |
+| b04 | 10 | 0 | 0 | platform/db/migrations/__tests__/legacy-adoption.test.ts |
+| b04 | 3 | 0 | 0 | platform/db/migrations/__tests__/postgres-baseline.test.ts |
+| b05 | 2 | 0 | 0 | platform/db/migrations/__tests__/runner.postgres.test.ts |
+| b04 | 9 | 0 | 0 | platform/db/migrations/__tests__/runner.test.ts |
+| b05 | 2 | 0 | 0 | platform/db/pglite/__tests__/content-store.test.ts |
+| b03 | 26 | 0 | 0 | platform/db/repos/__tests__/custom-credential-repo.test.ts |
+| b04 | 14 | 0 | 0 | platform/db/repos/__tests__/execution-credential-repo.test.ts |
+| b03 | 34 | 0 | 0 | platform/db/repos/__tests__/external-mcp-repo.test.ts |
+| b04 | 6 | 0 | 0 | platform/db/repos/__tests__/external-mcp-tool-approval-repo.test.ts |
+| b04 | 18 | 0 | 0 | platform/db/repos/__tests__/gated-mutation-token-repo.test.ts |
+| b04 | 19 | 0 | 0 | platform/db/repos/__tests__/media-content-type-store.test.ts |
+| b04 | 36 | 0 | 0 | platform/db/repos/__tests__/media-provider-credential-repo.test.ts |
+| b04 | 14 | 0 | 0 | platform/db/repos/__tests__/oauth-pending-store.test.ts |
+| b04 | 12 | 0 | 0 | platform/db/repos/__tests__/publish-content-repos.dialects.test.ts |
+| b04 | 37 | 0 | 0 | platform/db/repos/__tests__/publish-credential-repo.test.ts |
+| b03 | 4 | 0 | 0 | platform/db/repos/__tests__/publish-trust-revocations.dialects.test.ts |
+| b04 | 11 | 0 | 0 | platform/db/repos/__tests__/site-credential-repo.test.ts |
+| b04 | 37 | 0 | 0 | platform/db/repos/__tests__/source-control-credential-repo.test.ts |
+| b04 | 37 | 0 | 0 | platform/db/repos/__tests__/vendor-credential-repo.test.ts |
+| b05 | 12 | 0 | 0 | platform/db/sqlite/__tests__/change-set-repo.sqlite.test.ts |
+| b05 | 1 | 0 | 0 | platform/db/sqlite/__tests__/publish-content-bundle-repo.sqlite.integration.test.ts |
+| b05 | 4 | 0 | 0 | platform/db/sqlite/__tests__/publish-content-peer-repo.sqlite.integration.test.ts |
+| b05 | 1 | 0 | 0 | platform/db/sqlite/__tests__/publish-content-run-repo.sqlite.integration.test.ts |
+| b05 | 5 | 0 | 0 | platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts |
+| b05 | 7 | 0 | 0 | platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts |
+| b05 | 48 | 0 | 0 | platform/db/sqlite/__tests__/webhook-delivery-repo.sqlite.test.ts |
+| b05 | 21 | 0 | 0 | platform/db/sqlite/__tests__/webhook-subscription-repo.sqlite.test.ts |
+| b03 | 4 | 0 | 0 | platform/html/__tests__/escape.test.ts |
+| b03 | 4 | 0 | 0 | platform/html/__tests__/slug.test.ts |
+| b20 | 12 | 0 | 0 | server/__tests__/admin-assistant-execution-credential-routes.test.ts |
+| b22 | 0 | 1 | 0 | server/__tests__/admin-assistant-execution-routes.test.ts |
+| b23 | 10 | 0 | 0 | server/__tests__/admin-assistant-settings-routes.test.ts |
+| b20 | 12 | 0 | 0 | server/__tests__/admin-assistant-site-credential-routes.test.ts |
+| b20 | 5 | 0 | 0 | server/__tests__/admin-boot-session-route.test.ts |
+| b22 | 0 | 1 | 0 | server/__tests__/admin-database-timeline-route.test.ts |
+| b20 | 8 | 0 | 0 | server/__tests__/admin-external-mcp-admissions-routes.test.ts |
+| b23 | 12 | 0 | 0 | server/__tests__/admin-external-mcp-oauth-routes.test.ts |
+| b22 | 0 | 1 | 0 | server/__tests__/admin-external-mcp-probe-routes.test.ts |
+| b22 | 0 | 1 | 0 | server/__tests__/admin-external-mcp-routes.test.ts |
+| b22 | 16 | 0 | 0 | server/__tests__/admin-integrations-routes.test.ts |
+| b29 | 11 | 0 | 0 | server/__tests__/admin-mcp-ui-tool-calls-route.test.ts |
+| b20 | 9 | 0 | 0 | server/__tests__/admin-media-provider-routes.test.ts |
+| b22 | 20 | 0 | 0 | server/__tests__/admin-media-routes.test.ts |
+| b23 | 23 | 0 | 0 | server/__tests__/admin-menus-routes.test.ts |
+| b23 | 5 | 0 | 0 | server/__tests__/admin-page-get-route.test.ts |
+| b19 | 5 | 0 | 0 | server/__tests__/admin-page-html-route.test.ts |
+| b19 | 5 | 0 | 0 | server/__tests__/admin-password-status-route.test.ts |
+| b22 | 16 | 0 | 0 | server/__tests__/admin-post-page-delete-routes.test.ts |
+| b19 | 4 | 0 | 0 | server/__tests__/admin-post-update-rollback-ledger.test.ts |
+| b29 | 0 | 1 | 0 | server/__tests__/admin-site-token-routes.test.ts |
+| b23 | 2 | 0 | 0 | server/__tests__/admin-trash-items-blocker.test.ts |
+| b29 | 0 | 1 | 0 | server/__tests__/admin-trash-routes.test.ts |
+| b20 | 28 | 0 | 0 | server/__tests__/admin-widgets-routes.test.ts |
+| b23 | 10 | 0 | 0 | server/__tests__/api-key-routes.test.ts |
+| b22 | 24 | 0 | 0 | server/__tests__/assistant-ag-ui-routes.test.ts |
+| b23 | 18 | 0 | 0 | server/__tests__/assistant-ag-ui-translate.test.ts |
+| b22 | 4 | 0 | 0 | server/__tests__/assistant-agent-list-live-models.test.ts |
+| b20 | 15 | 0 | 0 | server/__tests__/assistant-byok-routes.test.ts |
+| b20 | 10 | 0 | 0 | server/__tests__/assistant-chats-routes.test.ts |
+| b19 | 23 | 0 | 0 | server/__tests__/assistant-proxy-routes.test.ts |
+| b22 | 9 | 0 | 0 | server/__tests__/assistant-run-finalizer.test.ts |
+| b23 | 5 | 0 | 0 | server/__tests__/content-type-write-provenance.test.ts |
+| b20 | 9 | 0 | 0 | server/__tests__/identity-crud-routes.test.ts |
+| b23 | 5 | 0 | 0 | server/__tests__/identity-policy-permission-removal.test.ts |
+| b22 | 6 | 0 | 0 | server/__tests__/identity-routes.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/agent-daemon-outbox-event-loss.integration.test.ts |
+| b20 | 1 | 0 | 0 | server/__tests__/integration/boot-lifecycle-real-deps.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts |
+| b21 | 4 | 0 | 0 | server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts |
+| b21 | 7 | 0 | 0 | server/__tests__/integration/create-sqlite-route-deps-overrides.integration.test.ts |
+| b21 | 5 | 0 | 0 | server/__tests__/integration/database-migration-reconciliation-boot.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/design-c-package-themes-dir-wiring.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/dev-capability-origin-scheme.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/hydrate-blob-store-boot.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/hydrate-content-db-boot.integration.test.ts |
+| b21 | 3 | 0 | 0 | server/__tests__/integration/observability-wiring.integration.test.ts |
+| b21 | 1 | 0 | 0 | server/__tests__/integration/publish-content-export-no-leak.integration.test.ts |
+| b21 | 1 | 0 | 0 | server/__tests__/integration/serving-app-outbox-drain.integration.test.ts |
+| b21 | 0 | 1 | 0 | server/__tests__/integration/serving-app-trash-sweep.integration.test.ts |
+| b21 | 2 | 0 | 0 | server/__tests__/integration/site-title-write-composition-roots.integration.test.ts |
+| b21 | 3 | 1 | 0 | server/__tests__/integration/tool-attempt-audit-sink-composition.integration.test.ts |
+| b22 | 3 | 0 | 0 | server/__tests__/login-rate-limit.test.ts |
+| b22 | 9 | 0 | 0 | server/__tests__/media-original-video-route.test.ts |
+| b20 | 19 | 0 | 0 | server/__tests__/media-rendition-gating-bypass.test.ts |
+| b22 | 17 | 0 | 0 | server/__tests__/media-rendition-route.test.ts |
+| b20 | 4 | 0 | 0 | server/__tests__/media-slug-uuid-collision.test.ts |
+| b20 | 16 | 0 | 0 | server/__tests__/packet-one-routes.test.ts |
+| b29 | 0 | 1 | 0 | server/__tests__/route-async-guards.test.ts |
+| b23 | 25 | 0 | 0 | server/__tests__/routes/admin-post-template-preview.test.ts |
+| b23 | 5 | 0 | 0 | server/__tests__/routes/analytics-ingest.test.ts |
+| b27 | 8 | 0 | 0 | server/__tests__/routes/analytics-recent-hits.test.ts |
+| b24 | 6 | 0 | 0 | server/__tests__/routes/assistant-daemon-restart-route.test.ts |
+| b29 | 7 | 0 | 0 | server/__tests__/routes/bare-page-site-serving.test.ts |
+| b25 | 0 | 1 | 0 | server/__tests__/routes/change-sets-revert.test.ts |
+| b26 | 0 | 1 | 0 | server/__tests__/routes/comments-e2e.test.ts |
+| b25 | 0 | 1 | 0 | server/__tests__/routes/comments-settings-routes.test.ts |
+| b24 | 5 | 0 | 0 | server/__tests__/routes/commerce-status-route.integration.test.ts |
+| b24 | 12 | 0 | 0 | server/__tests__/routes/content-post-get-by-slug.test.ts |
+| b26 | 0 | 1 | 0 | server/__tests__/routes/content-types-field-shape.test.ts |
+| b28 | 10 | 0 | 0 | server/__tests__/routes/content-types-lifecycle-gap-fill.test.ts |
+| b23 | 13 | 0 | 0 | server/__tests__/routes/content-types-routes.test.ts |
+| b26 | 0 | 1 | 0 | server/__tests__/routes/core-module-auth-ordering.test.ts |
+| b28 | 9 | 0 | 0 | server/__tests__/routes/custom-credentials-route.test.ts |
+| b25 | 0 | 1 | 0 | server/__tests__/routes/database-migrate-forward-routes.test.ts |
+| b29 | 13 | 0 | 0 | server/__tests__/routes/database-restore-points-routes.test.ts |
+| b27 | 7 | 0 | 0 | server/__tests__/routes/database-schema-state-route.test.ts |
+| b26 | 0 | 1 | 0 | server/__tests__/routes/deployment-overview-route.test.ts |
+| b24 | 2 | 0 | 0 | server/__tests__/routes/deployment-overview-site-key.test.ts |
+| b28 | 4 | 0 | 0 | server/__tests__/routes/deployments-list-route.test.ts |
+| b29 | 9 | 0 | 0 | server/__tests__/routes/dockerfile-source-route.test.ts |
+| b27 | 37 | 0 | 0 | server/__tests__/routes/entries-routes.test.ts |
+| b25 | 0 | 1 | 0 | server/__tests__/routes/export-site-route.test.ts |
+| b26 | 10 | 0 | 0 | server/__tests__/routes/forms-admin-crud.test.ts |
+| b25 | 3 | 0 | 0 | server/__tests__/routes/forms-auth.test.ts |
+| b24 | 10 | 0 | 0 | server/__tests__/routes/forms-list-submissions-and-get-by-id-edge-cases.test.ts |
+| b28 | 9 | 0 | 0 | server/__tests__/routes/forms-submissions.test.ts |
+| b24 | 29 | 0 | 0 | server/__tests__/routes/forms-submit.test.ts |
+| b27 | 7 | 0 | 0 | server/__tests__/routes/get-chat-attachment-route.test.ts |
+| b28 | 3 | 0 | 0 | server/__tests__/routes/mail-status-route.test.ts |
+| b27 | 6 | 0 | 0 | server/__tests__/routes/marketplace-download-route.integration.test.ts |
+| b28 | 8 | 0 | 0 | server/__tests__/routes/media-content-type.test.ts |
+| b28 | 11 | 0 | 0 | server/__tests__/routes/media-original-route.test.ts |
+| b28 | 3 | 0 | 0 | server/__tests__/routes/media-site-serving.test.ts |
+| b24 | 13 | 0 | 0 | server/__tests__/routes/members-auth.test.ts |
+| b29 | 11 | 0 | 0 | server/__tests__/routes/members-public-complete-sign-in.test.ts |
+| b25 | 11 | 0 | 0 | server/__tests__/routes/members-public-sign-in.test.ts |
+| b25 | 4 | 0 | 0 | server/__tests__/routes/module-status-route.test.ts |
+| b28 | 2 | 0 | 0 | server/__tests__/routes/newsletter-auth.test.ts |
+| b28 | 7 | 0 | 0 | server/__tests__/routes/newsletter-public-routes.test.ts |
+| b25 | 5 | 0 | 0 | server/__tests__/routes/newsletter-routes.test.ts |
+| b27 | 3 | 0 | 0 | server/__tests__/routes/observability-status-route.test.ts |
+| b26 | 4 | 0 | 0 | server/__tests__/routes/pages-update-expected-version.test.ts |
+| b24 | 11 | 0 | 0 | server/__tests__/routes/payments-webhook.test.ts |
+| b24 | 16 | 0 | 0 | server/__tests__/routes/post-template-site-serving.test.ts |
+| b26 | 8 | 0 | 0 | server/__tests__/routes/publish-content-blob-get.test.ts |
+| b28 | 8 | 0 | 0 | server/__tests__/routes/publish-content-blobs.test.ts |
+| b27 | 6 | 0 | 0 | server/__tests__/routes/publish-content-bundles.test.ts |
+| b25 | 6 | 0 | 0 | server/__tests__/routes/publish-content-export.test.ts |
+| b28 | 7 | 0 | 0 | server/__tests__/routes/publish-content-import-routes.test.ts |
+| b26 | 2 | 0 | 0 | server/__tests__/routes/publish-content-media-wiring.test.ts |
+| b23 | 2 | 0 | 0 | server/__tests__/routes/publish-content-pull-blobs.integration.test.ts |
+| b26 | 8 | 0 | 0 | server/__tests__/routes/publish-content-types-round-trip.test.ts |
+| b24 | 23 | 0 | 0 | server/__tests__/routes/publish-credentials-route.test.ts |
+| b29 | 24 | 0 | 0 | server/__tests__/routes/publish-site-route.test.ts |
+| b29 | 2 | 1 | 0 | server/__tests__/routes/publish-trust-apply-coverage.test.ts |
+| b24 | 15 | 0 | 0 | server/__tests__/routes/publish-trust-gate.test.ts |
+| b27 | 3 | 0 | 0 | server/__tests__/routes/publish-trust-revocation-gate.test.ts |
+| b29 | 6 | 0 | 0 | server/__tests__/routes/publish-zero-setup-end-to-end.test.ts |
+| b26 | 6 | 0 | 0 | server/__tests__/routes/readiness-routes.test.ts |
+| b27 | 7 | 0 | 0 | server/__tests__/routes/recovery-restore-routes.test.ts |
+| b27 | 16 | 0 | 0 | server/__tests__/routes/recovery-routes.test.ts |
+| b29 | 5 | 1 | 0 | server/__tests__/routes/redirects-auth.test.ts |
+| b24 | 10 | 0 | 0 | server/__tests__/routes/redirects-create.test.ts |
+| b29 | 3 | 0 | 0 | server/__tests__/routes/redirects-site-serving.test.ts |
+| b26 | 2 | 0 | 0 | server/__tests__/routes/render-depth-bound-site-serving.test.ts |
+| b28 | 16 | 0 | 0 | server/__tests__/routes/request-cost-cacheability.measurement.test.ts |
+| b26 | 5 | 0 | 0 | server/__tests__/routes/request-cost-render-work.measurement.test.ts |
+| b23 | 4 | 0 | 0 | server/__tests__/routes/request-cost-traversal.measurement.test.ts |
+| b29 | 2 | 0 | 0 | server/__tests__/routes/seo-og-image-crawlability.test.ts |
+| b26 | 7 | 0 | 0 | server/__tests__/routes/seo-site-serving.test.ts |
+| b25 | 8 | 0 | 0 | server/__tests__/routes/settings-auth.test.ts |
+| b25 | 1 | 0 | 0 | server/__tests__/routes/settings-events-id-disclosure.test.ts |
+| b26 | 4 | 0 | 0 | server/__tests__/routes/settings-principal-check.test.ts |
+| b25 | 8 | 0 | 0 | server/__tests__/routes/settings-read-scoping.test.ts |
+| b27 | 4 | 0 | 0 | server/__tests__/routes/settings-register-definitions-op-validation.test.ts |
+| b27 | 13 | 0 | 0 | server/__tests__/routes/settings-workspace-scoping.test.ts |
+| b27 | 2 | 0 | 0 | server/__tests__/routes/site-phase-handler-fail-policy.test.ts |
+| b24 | 7 | 0 | 0 | server/__tests__/routes/site-profile-route.test.ts |
+| b24 | 0 | 1 | 0 | server/__tests__/routes/sites-route.test.ts |
+| b28 | 8 | 0 | 0 | server/__tests__/routes/source-control-credentials-route.test.ts |
+| b26 | 3 | 0 | 0 | server/__tests__/routes/taxonomy-merge-term-routes.test.ts |
+| b25 | 23 | 0 | 0 | server/__tests__/routes/taxonomy-routes.test.ts |
+| b27 | 5 | 0 | 0 | server/__tests__/routes/taxonomy-trash-routes.test.ts |
+| b28 | 21 | 0 | 0 | server/__tests__/routes/theme-file-copy-rename-route.integration.test.ts |
+| b25 | 2 | 0 | 0 | server/__tests__/routes/theme-file-save-route.integration.test.ts |
+| b24 | 0 | 1 | 0 | server/__tests__/routes/vendor-credentials-route.test.ts |
+| b27 | 1 | 0 | 0 | server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts |
+| b25 | 3 | 0 | 0 | server/__tests__/routes/widgets-site-serving.test.ts |
+| b23 | 5 | 0 | 0 | server/__tests__/site-assistant-env-fallbacks.unit.test.ts |
+| b20 | 12 | 0 | 0 | server/__tests__/site-assistant-provider-routing.test.ts |
+| b20 | 8 | 0 | 0 | server/__tests__/site-assistant-routes.test.ts |
+| b19 | 2 | 0 | 0 | server/__tests__/unit/route-class-precedence.unit.test.ts |
+| b19 | 4 | 0 | 0 | server/__tests__/unit/server-modules.unit.test.ts |
+| b19 | 5 | 1 | 0 | server/__tests__/unit/stock-content-dirs.unit.test.ts |
+| b22 | 10 | 0 | 0 | server/__tests__/workspace-routes.test.ts |
+| b32 | 6 | 0 | 0 | server/inbound/admin-http/__tests__/authorize-guard.test.ts |
+| b32 | 3 | 0 | 0 | server/inbound/admin-http/http/__tests__/plugin-hook-error.test.ts |
+| b34 | 3 | 0 | 0 | server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-files.integration.test.ts |
+| b34 | 2 | 0 | 0 | server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled-busy.integration.test.ts |
+| b34 | 12 | 0 | 0 | server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts |
+| b34 | 3 | 0 | 0 | server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugins-http.integration.test.ts |
+| b32 | 20 | 0 | 0 | server/inbound/admin-http/routes/comments/__tests__/moderate.test.ts |
+| b33 | 12 | 0 | 0 | server/inbound/admin-http/routes/integrations/__tests__/create.test.ts |
+| b33 | 23 | 0 | 0 | server/inbound/admin-http/routes/integrations/__tests__/integration/create-delete-pause.integration.test.ts |
+| b36 | 13 | 0 | 0 | server/inbound/admin-http/routes/media/__tests__/integration/providers.integration.test.ts |
+| b36 | 16 | 0 | 0 | server/inbound/admin-http/routes/media/__tests__/providers.test.ts |
+| b36 | 21 | 0 | 0 | server/inbound/admin-http/routes/media/__tests__/update.test.ts |
+| b36 | 10 | 0 | 0 | server/inbound/admin-http/routes/media/__tests__/upload.test.ts |
+| b34 | 7 | 0 | 0 | server/inbound/admin-http/routes/members/__tests__/disable.test.ts |
+| b35 | 7 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/cancel-campaign.test.ts |
+| b35 | 7 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/create-list.test.ts |
+| b35 | 6 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts |
+| b35 | 5 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/list-send-log.test.ts |
+| b35 | 7 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/pause-campaign.test.ts |
+| b34 | 7 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/resume-campaign.test.ts |
+| b34 | 10 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/schedule-campaign.test.ts |
+| b35 | 11 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/send-test-campaign.test.ts |
+| b35 | 20 | 0 | 0 | server/inbound/admin-http/routes/newsletter/__tests__/update-campaign.test.ts |
+| b32 | 9 | 0 | 0 | server/inbound/admin-http/routes/plugins/__tests__/integration/files.integration.test.ts |
+| b32 | 7 | 0 | 0 | server/inbound/admin-http/routes/plugins/__tests__/integration/plugins-http.integration.test.ts |
+| b32 | 10 | 0 | 0 | server/inbound/admin-http/routes/plugins/__tests__/integration/set-enabled-gap-fill.test.ts |
+| b32 | 7 | 0 | 0 | server/inbound/admin-http/routes/plugins/__tests__/integration/uninstall.integration.test.ts |
+| b32 | 11 | 0 | 0 | server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts |
+| b32 | 3 | 0 | 0 | server/inbound/admin-http/routes/posts/__tests__/revision-attribution.test.ts |
+| b32 | 22 | 0 | 0 | server/inbound/admin-http/routes/posts/__tests__/update.test.ts |
+| b36 | 7 | 0 | 0 | server/inbound/admin-http/routes/presentation/__tests__/get.test.ts |
+| b36 | 9 | 0 | 0 | server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts |
+| b36 | 5 | 0 | 0 | server/inbound/admin-http/routes/presentation/__tests__/rescan-themes.test.ts |
+| b33 | 2 | 0 | 0 | server/inbound/admin-http/routes/publish-content/__tests__/peer-transport-file-blob-index.test.ts |
+| b32 | 11 | 0 | 0 | server/inbound/admin-http/routes/publish-content/__tests__/peer-transport-scope.test.ts |
+| b33 | 18 | 0 | 0 | server/inbound/admin-http/routes/publish-content/__tests__/peers.routes.test.ts |
+| b33 | 6 | 0 | 0 | server/inbound/admin-http/routes/redirects/__tests__/list.test.ts |
+| b35 | 6 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/get-entry-analyze.test.ts |
+| b35 | 6 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/get-entry.test.ts |
+| b35 | 5 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/get-settings.test.ts |
+| b35 | 10 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/integration/put-entry.integration.test.ts |
+| b35 | 6 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/post-sitemap-regenerate.test.ts |
+| b35 | 9 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/put-entry.test.ts |
+| b35 | 6 | 0 | 0 | server/inbound/admin-http/routes/seo/__tests__/put-settings.test.ts |
+| b34 | 5 | 0 | 0 | server/inbound/admin-http/routes/skills/__tests__/integration/skills-http.integration.test.ts |
+| b33 | 12 | 0 | 0 | server/inbound/admin-http/routes/system/__tests__/integration/export-site.integration.test.ts |
+| b35 | 57 | 0 | 0 | server/inbound/admin-http/routes/themes/__tests__/integration/explore.integration.test.ts |
+| b34 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/assign-role.test.ts |
+| b33 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/attach-policy.test.ts |
+| b34 | 8 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/create-policy.test.ts |
+| b34 | 6 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/create-role.test.ts |
+| b33 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/create.test.ts |
+| b33 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/delete-policy.test.ts |
+| b33 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/delete-role.test.ts |
+| b34 | 11 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/delete.test.ts |
+| b33 | 11 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/disable.test.ts |
+| b33 | 10 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/enable.test.ts |
+| b34 | 7 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/list.test.ts |
+| b33 | 11 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/reset-password.test.ts |
+| b33 | 10 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/update-policy.test.ts |
+| b34 | 9 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/update-role.test.ts |
+| b33 | 10 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/update.test.ts |
+| b34 | 11 | 0 | 0 | server/inbound/admin-http/routes/users/__tests__/write-policy-permission.test.ts |
+| b36 | 1 | 0 | 0 | server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts |
+| b30 | 11 | 0 | 0 | server/inbound/public-http/http/site/__tests__/bare-page.unit.test.ts |
+| b30 | 15 | 0 | 0 | server/inbound/public-http/http/site/__tests__/external-links.test.ts |
+| b30 | 1 | 7 | 0 | server/inbound/public-http/http/site/__tests__/handlebars-sandbox.test.ts |
+| b30 | 2 | 4 | 0 | server/inbound/public-http/http/site/__tests__/liquid-sandbox.test.ts |
+| b30 | 12 | 0 | 0 | server/inbound/public-http/http/site/__tests__/page-head.test.ts |
+| b30 | 9 | 0 | 0 | server/inbound/public-http/http/site/__tests__/render-handlebars.test.ts |
+| b30 | 11 | 0 | 0 | server/inbound/public-http/http/site/__tests__/render-html-embed-attributes.test.ts |
+| b30 | 7 | 0 | 0 | server/inbound/public-http/http/site/__tests__/render-no-theme.test.ts |
+| b30 | 9 | 0 | 0 | server/inbound/public-http/http/site/__tests__/render-products.unit.test.ts |
+| b30 | 191 | 0 | 0 | server/inbound/public-http/http/site/__tests__/render.test.ts |
+| b30 | 69 | 0 | 0 | server/inbound/public-http/http/site/__tests__/tiptap-render-contract.test.ts |
+| b30 | 2 | 0 | 0 | server/inbound/public-http/http/site/__tests__/worker-sandbox.test.ts |
+| b30 | 2 | 0 | 0 | server/inbound/public-http/middleware/__tests__/public-page-security-headers.test.ts |
+| b30 | 15 | 0 | 0 | server/inbound/public-http/middleware/__tests__/theme-static-assets.test.ts |
+| b31 | 17 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/analytics-ingest.test.ts |
+| b30 | 13 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts |
+| b32 | 5 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/feed.route.test.ts |
+| b31 | 11 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/analytics-ingest.integration.test.ts |
+| b31 | 10 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts |
+| b31 | 8 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/products.integration.test.ts |
+| b31 | 11 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts |
+| b31 | 9 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/site-title.integration.test.ts |
+| b31 | 5 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts |
+| b31 | 7 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/llms.route.test.ts |
+| b32 | 6 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/no-theme.route.test.ts |
+| b31 | 4 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts |
+| b31 | 25 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/pages.route.test.ts |
+| b31 | 16 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/products.route.test.ts |
+| b31 | 7 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/render-context-resolution-helpers.test.ts |
+| b32 | 5 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/robots.route.test.ts |
+| b31 | 3 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/sitemap.route.test.ts |
+| b31 | 14 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts |
+| b31 | 6 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts |
+| b32 | 3 | 0 | 0 | server/inbound/public-http/routes/site/__tests__/store.route.test.ts |
+| b29 | 7 | 0 | 0 | server/inbound/shared/__tests__/json-body-parsers.test.ts |
+| b18 | 6 | 0 | 0 | server/runtime/composition/__tests__/admin-assistant-enabled.test.ts |
+| b18 | 5 | 0 | 0 | server/runtime/composition/__tests__/agent-daemon-deps.plugin-activation-poll.test.ts |
+| b18 | 1 | 0 | 0 | server/runtime/composition/__tests__/app-module-load-registers-no-phase-handler.test.ts |
+| b19 | 4 | 0 | 0 | server/runtime/composition/__tests__/content-store.test.ts |
+| b19 | 1 | 0 | 0 | server/runtime/composition/__tests__/create-app-page-head-registry.test.ts |
+| b19 | 2 | 0 | 0 | server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts |
+| b19 | 4 | 0 | 0 | server/runtime/composition/__tests__/process-root-parity.test.ts |
+| b19 | 8 | 0 | 0 | server/runtime/composition/__tests__/publish-content-manifest.test.ts |
+| b19 | 3 | 0 | 0 | server/runtime/composition/__tests__/publish-content-seed-hash.test.ts |
+| b18 | 4 | 0 | 0 | server/runtime/composition/__tests__/site-backup-wiring.integration.test.ts |
+| b18 | 3 | 0 | 0 | server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts |
+| b18 | 2 | 0 | 0 | server/runtime/composition/__tests__/tool-catalog-publish-content-types.test.ts |
+| b19 | 4 | 0 | 0 | server/runtime/composition/__tests__/trash-user-admin-override.test.ts |
+| b19 | 2 | 0 | 0 | server/runtime/composition/modules/__tests__/publish-content.destination-root.test.ts |
