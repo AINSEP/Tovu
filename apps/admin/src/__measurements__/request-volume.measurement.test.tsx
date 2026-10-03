@@ -2,6 +2,8 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../lib/fetch-query";
+import { useWiredRedirects } from "../features/redirects/hooks/use-redirects.hooks";
+import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "../lib/api";
 
 /**
@@ -91,6 +93,8 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 describe("redirects", () => {
   /**
+   * Historical diagnosis below: the redirects hook is now imported eagerly above so cold transform
+   * cost is paid before the test starts, preserving the existing 15s bound and every assertion.
    * Explicit 15s timeout (2026-08-15 flaky-test investigation, `2026-08-15-coverage-and-tests-
    * worklist.md`): this is the FIRST test in the file, so its `await import(...)` below uniquely
    * pays for cold-transforming the whole `use-redirects.hooks` dependency graph AND every shared
@@ -119,7 +123,6 @@ describe("redirects", () => {
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/redirects", respond: () => jsonResponse({ data: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRedirects } = await import("../features/redirects/hooks/use-redirects.hooks");
     const { result } = renderHook(() => useWiredRedirects(), { wrapper });
     await waitFor(() => expect(result.current.redirects).not.toBeUndefined());
     await expectRequests(calls, [`GET ${WORKSPACE}/redirects`]);
@@ -301,6 +304,7 @@ describe("collections", () => {
     const { useWiredCollectionEntryEditor } = await import("../features/collections/hooks/use-collection-entry-editor.hooks");
     const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
     calls.length = 0;
 
     await act(async () => {
@@ -466,7 +470,6 @@ describe("media", () => {
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/media", respond: () => jsonResponse({ media: [ITEM] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { Media } = await import("../features/media/Media");
     render(
       <FetchQueryProvider>
         <Media />
@@ -484,7 +487,6 @@ describe("media", () => {
       { match: "/media", respond: () => jsonResponse({ media: [ITEM] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { Media } = await import("../features/media/Media");
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>
@@ -694,7 +696,6 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     };
     const { fn, calls } = createRecorder([{ match: "/media", respond: () => jsonResponse({ media: [ITEM] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { Media } = await import("../features/media/Media");
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>

@@ -20,7 +20,7 @@ it("keeps site-token management unavailable until the wired auth request returns
   });
   vi.stubGlobal("fetch", fetch);
   const { result } = renderHook(() => useWiredSecurityPermissions(), { wrapper });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   expect(result.current.canManageSiteToken).toBe(false);
   await act(async () => { resolve(Response.json({ user: { id: "owner-17" }, effectivePermissions: ["admin.security.tokens.manage"] })); });
   await waitFor(() => expect(result.current.canManageSiteToken).toBe(true));

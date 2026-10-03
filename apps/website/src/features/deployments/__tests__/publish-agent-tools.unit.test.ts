@@ -97,7 +97,7 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return invokeFixtureHandler(registration, ctx);
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe would
@@ -1610,3 +1610,12 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   assert.notEqual(captured.value, null);
   assert.equal(store.size(), 0);
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

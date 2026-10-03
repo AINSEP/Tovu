@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { SECRET_PATTERNS } from '../../secret-patterns.js';
+import { SECRET_PATTERNS } from '@jini-ai/diagnostics/redaction/secrets-only';
 
 // F4.4/F5.2: valid length and alphabet isolate each lookaround guard; positive controls prove
 // these negative checks cannot pass merely because the vendor expression matches nothing.

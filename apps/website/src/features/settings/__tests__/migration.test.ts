@@ -45,7 +45,7 @@ test("migrateLegacyPresentationSettings: getEffective equals the pre-migration P
   };
   const deps = makeDeps([legacyRow]);
 
-  const preMigration = await deps.presentationRepo.findByWorkspaceId("workspace-1");
+  const preMigration = await deps.presentationRepo.findByWorkspaceId({ workspaceId: "workspace-1" });
   assert.ok(preMigration, "fixture row must exist pre-migration");
 
   await migrateLegacyPresentationSettings(deps);

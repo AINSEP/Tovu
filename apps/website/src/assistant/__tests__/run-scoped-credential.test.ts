@@ -134,7 +134,7 @@ test("cancel_run: a run's own bridge cancels its own run, and only that run", as
   const runId = await startRunAsProxy(harness, ALICE);
   const token = harness.credentials.mint(runId);
   const cancelled: string[] = [];
-  t.after(harness.lifecycle.onCancelRequested(runId, () => cancelled.push(runId)));
+  t.after(harness.lifecycle.onCancelRequested({ runId, listener: () => cancelled.push(runId) }));
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, {
     method: "POST",
@@ -153,7 +153,7 @@ test("another principal's run is denied with the unknown-run body, for both read
   const bobRun = await startRunAsProxy(harness, BOB);
   const aliceToken = harness.credentials.mint(aliceRun);
   const cancelled: unknown[] = [];
-  t.after(harness.lifecycle.onCancelRequested(bobRun, (request) => cancelled.push(request)));
+  t.after(harness.lifecycle.onCancelRequested({ runId: bobRun, listener: (request) => cancelled.push(request) }));
 
   const read = await fetch(`${harness.baseUrl}/api/runs/${bobRun}`, { headers: asBridge(aliceToken) });
   const cancel = await fetch(`${harness.baseUrl}/api/runs/${bobRun}/cancel`, {
@@ -166,7 +166,7 @@ test("another principal's run is denied with the unknown-run body, for both read
   assert.deepEqual(await read.json(), { error: { code: "NOT_FOUND", message: `run "${bobRun}" was not found` } });
   assert.equal(cancel.status, 404);
   assert.deepEqual(await cancel.json(), { error: { code: "NOT_FOUND", message: `run "${bobRun}" was not found` } });
-  assert.equal((await harness.lifecycle.get(bobRun))?.state, "running");
+  assert.equal((await harness.lifecycle.get({ runId: bobRun }))?.state, "running");
   assert.deepEqual(cancelled, []);
 });
 
@@ -206,7 +206,7 @@ test("a forged principal header on a run credential is overwritten, never truste
   assert.equal(forgedRead.status, 404);
   assert.deepEqual(await forgedRead.json(), { error: { code: "NOT_FOUND", message: `run "${bobRun}" was not found` } });
   assert.equal(forgedCancel.status, 404);
-  assert.equal((await harness.lifecycle.get(bobRun))?.state, "running");
+  assert.equal((await harness.lifecycle.get({ runId: bobRun }))?.state, "running");
   // The forged header did not demote the caller either: its own run still reads.
   assert.equal(forgedList.status, 200);
 });
@@ -216,7 +216,7 @@ test("start_run: a run credential cannot start runs, so it cannot start one as a
   t.after(harness.close);
   const aliceRun = await startRunAsProxy(harness, ALICE);
   const aliceToken = harness.credentials.mint(aliceRun);
-  const before = (await harness.lifecycle.list()).length;
+  const before = (await harness.lifecycle.list({})).length;
 
   const res = await fetch(`${harness.baseUrl}/api/runs`, {
     method: "POST",
@@ -229,7 +229,7 @@ test("start_run: a run credential cannot start runs, so it cannot start one as a
     error: "a run-scoped credential cannot call POST /api/runs",
     code: "FORBIDDEN",
   });
-  assert.equal((await harness.lifecycle.list()).length, before, "no run may be created");
+  assert.equal((await harness.lifecycle.list({})).length, before, "no run may be created");
 });
 
 test("a run credential reaches only the bridge's own routes, never proxy-only ones", async (t) => {
@@ -328,7 +328,7 @@ async function scopeHarness({ exempt = false } = {}) {
   const other = await start(BOB);
   const token = credentials.mint(own);
   const cancellations: string[] = [];
-  const unsubscribe = [own, sibling, other].map((id) => lifecycle.onCancelRequested(id, () => cancellations.push(id)));
+  const unsubscribe = [own, sibling, other].map((id) => lifecycle.onCancelRequested({ runId: id, listener: () => cancellations.push(id) }));
   const executions: { runId: string; principalId: string }[] = [];
   const registry = createToolRegistry({});
   registry.register({
@@ -384,14 +384,14 @@ async function scopeHarness({ exempt = false } = {}) {
         answer.body = { error: parsed.error };
         return answer;
       }
-      const result = await delegatedToolExecuteRoute.handle(parsed.value, {
+      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: {
         lifecycle, toolExecutor,
-        resolvePrincipal: ({ runId }) => {
+        resolvePrincipal: ({ request: { runId } }) => {
           const id = live.get(runId);
           assert.notEqual(id, undefined, "the route must resolve a live run");
           return { id: id! };
         },
-      });
+      } });
       assert.equal(result.ok, true, "an admitted probe must execute successfully");
       assert.equal(result.ok && result.value.result !== undefined, true);
       answer.body = result.ok ? result.value : undefined;
@@ -400,8 +400,8 @@ async function scopeHarness({ exempt = false } = {}) {
     if (!await passes(requireRunOwnership(owners, lifecycle))) return answer;
     const runId = String(req.params.runId);
     const result = method === "POST"
-      ? await runCancelRoute.handle({ runId }, { lifecycle })
-      : await runStatusRoute.handle(runId, { lifecycle });
+      ? await runCancelRoute.handle({ input: { runId }, deps: { lifecycle } })
+      : await runStatusRoute.handle({ input: runId, deps: { lifecycle } });
     answer.status = result.ok ? 200 : 404;
     answer.body = result.ok ? result.value : { error: result.error };
     return answer;
@@ -421,7 +421,7 @@ test("SCOPE: own run reads and cancels, ignoring a forged principal header", asy
   const cancel = await h.request("POST", `/api/runs/${h.own}/cancel`, { headers });
   assert.equal(cancel.status, 200);
   assert.deepEqual(h.cancellations, [h.own]);
-  assert.equal((await h.lifecycle.get(h.sibling))?.state, "running");
+  assert.equal((await h.lifecycle.get({ runId: h.sibling }))?.state, "running");
 });
 
 for (const target of ["sibling", "other", "nonexistent"] as const) {
@@ -436,8 +436,8 @@ for (const target of ["sibling", "other", "nonexistent"] as const) {
       });
     }
     assert.deepEqual(h.cancellations, []);
-    assert.equal((await h.lifecycle.get(h.sibling))?.state, "running");
-    assert.equal((await h.lifecycle.get(h.other))?.state, "running");
+    assert.equal((await h.lifecycle.get({ runId: h.sibling }))?.state, "running");
+    assert.equal((await h.lifecycle.get({ runId: h.other }))?.state, "running");
   });
 }
 

@@ -107,7 +107,10 @@ describe("AlwaysAllowPanel", () => {
 
   it("treats a 404 revoke (already gone) as done, not as an error", async () => {
     const port = createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS });
-    port.revokeExternalMcpToolApproval = async () => {
+    const removeApproval = port.revokeExternalMcpToolApproval;
+    port.revokeExternalMcpToolApproval = async (serverId, toolName) => {
+      // A 404 means another window already removed it; the next list must agree.
+      await removeApproval(serverId, toolName);
       throw new ApiError("no Always allow is saved for that tool", 404, "NOT_FOUND");
     };
     renderPanel(port);

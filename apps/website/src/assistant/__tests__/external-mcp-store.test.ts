@@ -52,7 +52,7 @@ function stdioLaunch(connection: ResolvedFederatedConnection | undefined): { com
 
 const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
-const clock = { nowIso: () => "2026-08-09T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () => "2026-08-09T00:00:00.000Z" };
 
 function makeDeps() {
   const repo = new InMemoryExternalMcpServerRepo();
@@ -455,7 +455,7 @@ test("the admission revision changes when a connection is deleted and re-created
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   let nowMs = Date.parse("2026-08-09T00:00:00.000Z");
-  const movingClock = { nowIso: () => new Date(nowMs).toISOString() };
+  const movingClock = { nowMs: () => Date.parse(new Date(nowMs).toISOString()), nowIso: () => new Date(nowMs).toISOString() };
   const deps = { repo, keyring, sealer, clock: movingClock };
 
   await saveExternalMcpServer(deps, validInput());
@@ -656,7 +656,7 @@ test("attribution is stamped the first time the write list becomes non-empty", a
 test("a save that does not touch the write list (rename) leaves its attribution untouched", async () => {
   const { deps: baseDeps, repo } = makeDeps();
   let nowIso = "2026-08-09T00:00:00.000Z";
-  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
+  const deps = { ...baseDeps, clock: { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -686,7 +686,7 @@ test("a save that does not touch the write list (rename) leaves its attribution 
 test("a save that CHANGES the write list re-stamps attribution to the new principal", async () => {
   const { deps: baseDeps, repo } = makeDeps();
   let nowIso = "2026-08-09T00:00:00.000Z";
-  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
+  const deps = { ...baseDeps, clock: { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({
@@ -714,7 +714,7 @@ test("a save that CHANGES the write list re-stamps attribution to the new princi
 test("re-sending the same write list in a different order is NOT a change — attribution is not re-stamped", async () => {
   const { deps: baseDeps, repo } = makeDeps();
   let nowIso = "2026-08-09T00:00:00.000Z";
-  const deps = { ...baseDeps, clock: { nowIso: () => nowIso } };
+  const deps = { ...baseDeps, clock: { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso } };
   await saveExternalMcpServer(
     deps,
     validInput({

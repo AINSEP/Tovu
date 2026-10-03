@@ -85,7 +85,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     // The delivery half is never exercised here (`plugins_uninstall` enqueues nothing) but is
@@ -150,7 +150,7 @@ async function uninstallWithDecision(
 
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (surface) => void emitted.push(surface);
-  const pending = registration.handler({
+  const pending = invokeFixtureHandler(registration, {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
@@ -229,7 +229,7 @@ test("plugins_uninstall: with no interactive confirmation channel, the call fail
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
 
   await assert.rejects(
-    () => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })),
+    () => invokeFixtureHandler(wired(deps, "plugins_uninstall"), executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })),
     /confirmation|cannot be gated/i,
   );
   assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached without a way to ask a human first");
@@ -258,7 +258,7 @@ test("plugins_uninstall: a denied principal is rejected and nothing is removed",
   const { deps, uninstallCalls } = fakeRouteDeps({ allow: false, discovery: [SITE_PLUGIN] });
   const emitted: unknown[] = [];
   await assert.rejects(
-    () => wired(deps, "plugins_uninstall").handler({
+    () => invokeFixtureHandler(wired(deps, "plugins_uninstall"), {
       ...executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id }),
       emitSurface: async (surface) => void emitted.push(surface),
     }),
@@ -274,7 +274,7 @@ test("plugins_uninstall: a denied principal is rejected and nothing is removed",
 
 test("plugins_uninstall: refuses a built-in plugin — nothing to remove", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: BUILT_IN.id })), /built-in/);
+  await assert.rejects(() => invokeFixtureHandler(wired(deps, "plugins_uninstall"), executionContext({ family: "site-runtime", pluginId: BUILT_IN.id })), /built-in/);
   assert.deepEqual(uninstallCalls, []);
 });
 
@@ -282,13 +282,13 @@ test("plugins_uninstall: refuses a plugin still enabled in a workspace", async (
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: true, updatedAt: NOW });
 
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })), /enabled/);
+  await assert.rejects(() => invokeFixtureHandler(wired(deps, "plugins_uninstall"), executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })), /enabled/);
   assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached while still enabled somewhere");
 });
 
 test("plugins_uninstall: refuses an unknown plugin id", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: "does-not-exist" })), /was not found/);
+  await assert.rejects(() => invokeFixtureHandler(wired(deps, "plugins_uninstall"), executionContext({ family: "site-runtime", pluginId: "does-not-exist" })), /was not found/);
 });
 
 // ---------------------------------------------------------------------------
@@ -430,7 +430,7 @@ test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm 
       emitted.push(surface);
       resolveEmitted();
     };
-    const pending = registration.handler({
+    const pending = invokeFixtureHandler(registration, {
       executionId: "exec-1",
       principal: { id: PRINCIPAL_ID },
       run: { id: "run-1" },
@@ -467,7 +467,7 @@ test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm 
 test("plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id", async () => {
   const { deps } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await assert.rejects(
-    () => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })),
+    () => invokeFixtureHandler(wired(deps, "plugins_uninstall"), executionContext({ pluginId: SITE_PLUGIN.id })),
     /'family' is required and must be exactly one of: 'site-runtime'/,
   );
 });
@@ -477,3 +477,12 @@ test("the registry this file builds has no agent_plugins_uninstall id — the st
   assert.equal(registrations(deps).has("agent_plugins_uninstall"), false);
   assert.equal(pluginAgentToolCatalog.some((tool) => tool.name === "agent_plugins_uninstall"), false);
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

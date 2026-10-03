@@ -23,7 +23,7 @@ import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures, SQLITE_BASELINE } from "./s
  */
 
 const WS = "ws-search-eval" as UUID;
-const clock: ClockPort = { nowIso: () => "2026-09-28T00:00:00.000Z" };
+const clock: ClockPort & { nowIso(): string } = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-28T00:00:00.000Z" };
 const RECORD = process.env.RECORD_SEARCH_EVAL === "1";
 
 function body(text: string): JsonObject {

@@ -38,7 +38,7 @@ test("permanent deletes rank in the top three for owner vocabulary", async () =>
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(QUERIES)) {
     for (const query of queries) {
-      const hits = catalog.search(query, 3).map(h => h.id);
+      const hits = catalog.search({ query: query }, { limit: 3 }).map(h => h.id);
       if (!hits.includes(id)) misses.push(`${id}: ${query} -> ${hits.join(", ")}`);
     }
   }

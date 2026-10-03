@@ -42,10 +42,10 @@ test("adding newsletter delivery does not worsen supported operator requests", a
   const regressions: string[] = [];
   const compared = new Set<string>();
   for (const request of operatorRequests) {
-    const baselineHits = baseline.search(request.query, 3).map((hit) => hit.id);
+    const baselineHits = baseline.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
     if (!request.expect.some((id) => baselineHits.includes(id))) continue;
     compared.add(request.id);
-    const hits = full.search(request.query, 3).map((hit) => hit.id);
+    const hits = full.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
     if (!request.expect.some((id) => hits.includes(id))) regressions.push(`${request.id}: ${hits.join(", ")}`);
   }
   // Controls keep a broken or empty baseline from making the regression comparison vacuous.
@@ -63,7 +63,7 @@ test("newsletter delivery requests rank the action in the top three of the real 
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(requests)) for (const query of queries) {
-    const hits = catalog.search(query, 3).map((hit) => hit.id);
+    const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
     if (!hits.includes(id)) misses.push(`${query}: ${id} absent from ${hits.join(", ")}`);
   }
   assert.deepEqual(misses, []);

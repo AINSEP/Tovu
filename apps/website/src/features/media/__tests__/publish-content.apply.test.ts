@@ -120,7 +120,7 @@ async function makeFixture(
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-18T12:00:00.000Z" },
+    clock: { nowIso: () => "2026-09-18T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,
     changeSets,
@@ -609,6 +609,6 @@ for (const operation of ["create", "update"] as const) {
     assert.equal(writesObserved, 1);
     assert.deepEqual(await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" }), prior);
     assert.deepEqual(await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
-    assert.deepEqual(await fixture.deps.outbox!.claimPending(10, "2026-09-18T12:00:00.000Z"), []);
+    assert.deepEqual(await fixture.deps.outbox!.claimPending({ batchSize: 10, nowIso: "2026-09-18T12:00:00.000Z" }), []);
   });
 }

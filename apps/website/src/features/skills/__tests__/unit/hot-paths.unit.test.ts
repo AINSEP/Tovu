@@ -30,14 +30,14 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
   async function request() { let called = false; await middleware(undefined, undefined, error => { if (error) throw error; called = true; }); assert.equal(called, true); }
   await upload();
   await request();
-  assert.equal((await catalog.describe("skill_incident_response"))?.id, "skill_incident_response");
-  assert.equal((await executor.execute(principal, run, "skill_incident_response", {})).status, "completed");
+  assert.equal((await catalog.describe({ id: "skill_incident_response" }))?.id, "skill_incident_response");
+  assert.equal((await executor.execute({ principal, run, toolId: "skill_incident_response", input: {} })).status, "completed");
   await uninstallSkill({ ...ctx, toolId: "skill_incident_response" });
   await request();
-  assert.equal(await catalog.describe("skill_incident_response"), null);
-  await assert.rejects(() => executor.execute(principal, run, "skill_incident_response", {}), { message: 'ToolExecutor: unknown tool "skill_incident_response"' });
+  assert.equal(await catalog.describe({ id: "skill_incident_response" }), null);
+  await assert.rejects(() => executor.execute({ principal, run, toolId: "skill_incident_response", input: {} }), { message: 'ToolExecutor: unknown tool "skill_incident_response"' });
   await upload(); await request();
-  const result = await executor.execute(principal, run, "skill_incident_response", {});
+  const result = await executor.execute({ principal, run, toolId: "skill_incident_response", input: {} });
   assert.equal(result.status, "completed");
   assert.deepEqual(result.output, { skillName: "incident-response", guidance: MD, bundledFiles: [] });
 }));

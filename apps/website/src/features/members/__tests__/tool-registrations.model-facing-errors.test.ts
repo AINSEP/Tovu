@@ -67,7 +67,7 @@ async function buildHarness(routeDeps: MembersToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, harness);
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
 }
 
 test("members_get_by_id for an unknown member is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

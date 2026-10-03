@@ -28,7 +28,7 @@ test('live checks, unsaved draft previews and finding text rank in the top three
   };
   const misses: string[] = [];
   for (const [tool, phrases] of Object.entries(queries)) for (const phrase of phrases) {
-    const hits = catalog.search(phrase, 3).map(hit => hit.id);
+    const hits = catalog.search({ query: phrase }, { limit: 3 }).map(hit => hit.id);
     if (!hits.includes(tool)) misses.push(`${tool}: ${phrase} -> ${hits.join(', ')}`);
   }
   assert.deepEqual(misses, []);

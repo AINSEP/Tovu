@@ -75,7 +75,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-attachment-kind-filter-"));
     const store = await createDiskAttachmentStore({ uploadDirectory });
     const batchId = "batch-kind-filter-test";
-    const batchDirectory = await store.createBatchDirectory(batchId);
+    const batchDirectory = await store.createBatchDirectory({ batchId });
 
     // A genuinely binary, non-text PDF — the real `%PDF-1.4` header followed by the classic
     // high-byte binary marker real PDF writers emit (`%\xe2\xe3\xcf\xd3`, the RFC-recommended
@@ -102,8 +102,8 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
       "a real PDF's leading bytes must not match any of the four recognized image signatures (PNG/JPEG/GIF/WEBP) — this is exactly why the old kind === \"image\" filter silently dropped it",
     );
 
-    const registered = await store.register({ batchId, path: filePath, name: "report.pdf", kind, size: pdfBytes.length });
-    const claimed = await store.claim([{ path: registered.path, name: "", kind: "file" }], "run-kind-filter-test");
+    const registered = await store.register({ input: { batchId, path: filePath, name: "report.pdf", kind, size: pdfBytes.length } });
+    const claimed = await store.claim({ attachments: [{ path: registered.path, name: "", kind: "file" }], runId: "run-kind-filter-test" });
 
     assert.equal(claimed.attachments.length, 1);
     assert.equal(claimed.attachments[0]?.kind, "file");

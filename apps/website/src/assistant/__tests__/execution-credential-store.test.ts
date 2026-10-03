@@ -27,7 +27,7 @@ const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
 const ADMIN_A = "principal-admin-a";
 const ADMIN_B = "principal-admin-b";
-const clock = { nowIso: () => "2026-08-05T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" };
 
 function makeDeps() {
   const repo = new InMemoryAdminExecutionCredentialRepo();

@@ -76,6 +76,10 @@ beforeEach(() => {
   // slots and shift every later assertion by one call. Routed to a fixed default-locale response
   // outside `fetchMock`'s own call queue — same interceptor pattern `Members.unit.test.tsx` uses.
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    // The auth read is independent of the users/roles/policies request queue.
+    if (String(url) === "/api/admin/v1/auth/me") {
+      return Promise.resolve(jsonResponse({ user: { id: "admin-owner" }, canManageUserTrash: false }));
+    }
     if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
       return Promise.resolve(
         new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),

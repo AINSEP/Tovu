@@ -42,16 +42,16 @@ async function realCatalog() {
 }
 
 test("the owner's name for it, 'describe_site_capabilities', ranks site_describe_capabilities first", async () => {
-  const hits = (await realCatalog()).search("describe_site_capabilities", 5).map((hit) => hit.id);
+  const hits = (await realCatalog()).search({ query: "describe_site_capabilities" }, { limit: 5 }).map((hit) => hit.id);
   assert.equal(hits[0], "site_describe_capabilities", `got ${hits.join(", ") || "(none)"}`);
 });
 
 test("the tool id itself ranks site_describe_capabilities first", async () => {
-  const hits = (await realCatalog()).search("site_describe_capabilities", 5).map((hit) => hit.id);
+  const hits = (await realCatalog()).search({ query: "site_describe_capabilities" }, { limit: 5 }).map((hit) => hit.id);
   assert.equal(hits[0], "site_describe_capabilities", `got ${hits.join(", ") || "(none)"}`);
 });
 
 test("'what can this site do' ranks site_describe_capabilities in the top 3", async () => {
-  const hits = (await realCatalog()).search("what can this site do", 3).map((hit) => hit.id);
+  const hits = (await realCatalog()).search({ query: "what can this site do" }, { limit: 3 }).map((hit) => hit.id);
   assert.ok(hits.includes("site_describe_capabilities"), `expected it in the top 3; got ${hits.join(", ") || "(none)"}`);
 });

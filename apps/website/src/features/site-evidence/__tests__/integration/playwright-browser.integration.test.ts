@@ -7,7 +7,12 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { OriginRegistryPort, VerifiedOrigin } from "#src/features/origin/index";
 import { collectPageEvidence } from "../../collect-page-evidence.js";
-import { openPlaywrightSiteEvidenceBrowser } from "../../playwright-browser.js";
+import { openPlaywrightSiteEvidenceBrowser as openDiagnosticBrowser } from "@jini-ai/diagnostics/web-evidence/playwright";
+
+const openPlaywrightSiteEvidenceBrowser = (required: Record<string, never>) => openDiagnosticBrowser(required, {
+  moduleLoader: { load: async () => await import("playwright") },
+  launchOptions: { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] },
+});
 
 /**
  * @file The Playwright adapter against a REAL browser and a REAL server.
@@ -94,8 +99,8 @@ function originRegistry(port: number): OriginRegistryPort {
   };
 }
 
-const availability = await openPlaywrightSiteEvidenceBrowser();
-if (availability.available) await availability.browser.close();
+const availability = await openPlaywrightSiteEvidenceBrowser({});
+if (availability.available) await availability.browser.close({});
 if (process.env.TOVU_SITE_EVIDENCE_BROWSER_REQUIRED === "1") {
   assert.equal(availability.available, true, availability.available ? undefined : `required browser unavailable: ${availability.reason}`);
 }
@@ -104,9 +109,7 @@ const skip = availability.available ? false : `no headless browser on this machi
 test("observes real rendered evidence from a real page", { skip }, async () => {
   const { server, port, posts } = await startFixtureServer();
   try {
-    const result = await collectPageEvidence(
-      { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser },
-      { paths: ["/"], consentAcceptSelector: "#go" },
+    const result = await collectPageEvidence({ ...{ workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser }, paths: ["/"] }, { consentAcceptSelector: "#go" }
     );
 
     assert.equal(result.browser.status, "available");
@@ -141,9 +144,7 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
     assert.equal(subscribe.phase, "after");
     assert.ok(page.observation.requests.some((request) => request.method === "GET" && request.phase === "before"));
 
-    const withoutConsent = await collectPageEvidence(
-      { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser },
-      { paths: ["/"] },
+    const withoutConsent = await collectPageEvidence({ ...{ workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser }, paths: ["/"] }
     );
     assert.equal(withoutConsent.pages.length, 1);
     const before = withoutConsent.pages[0].observation;
@@ -222,9 +223,7 @@ test("a server-side redirect off the origin is refused after navigation, with th
   const landing = await startFixtureServer();
   const { server, port } = await startFixtureServer(`http://127.0.0.1:${landing.port}/landing?token=SECRET`);
   try {
-    const result = await collectPageEvidence(
-      { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser },
-      { paths: ["/offsite"] },
+    const result = await collectPageEvidence({ ...{ workspaceId: WORKSPACE_ID, originRegistry: originRegistry(port), openBrowser: openPlaywrightSiteEvidenceBrowser }, paths: ["/offsite"] }
     );
 
     assert.deepEqual(result.pages, []);

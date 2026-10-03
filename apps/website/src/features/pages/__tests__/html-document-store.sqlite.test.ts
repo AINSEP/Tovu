@@ -22,7 +22,7 @@ import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError, SqlP
 const WS = "ws-pages";
 const OTHER_WS = "ws-other";
 
-const clock: ClockPort = { nowIso: () => "2026-08-04T00:00:00.000Z" };
+const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-08-04T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
 
 /** Inserts a `posts` row directly — `createPost`/`updatePost` can never produce an html row
  * (CIC-3), so every test here seeds through the kernel, matching how the store itself is the only

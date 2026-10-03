@@ -120,7 +120,7 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     signal: new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   } as ToolExecutionContext;
-  return registration.handler(ctx);
+  return invokeFixtureHandler(registration, ctx);
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the same technique
@@ -814,3 +814,12 @@ test("external_mcp_save: re-saving with a blank OAuth client secret field keeps 
   const payload = await openExternalMcpOAuthPayload(sealer, record!);
   assert.equal(payload.clientSecret, "s3cret", "a blank client-secret resubmission must not clear the stored secret");
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

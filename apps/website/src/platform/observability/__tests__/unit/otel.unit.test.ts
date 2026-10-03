@@ -5,7 +5,7 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import { createOtelObservabilityPort } from "../../otel.js";
-import type { ObservabilityConfigEnabled } from "../../config.js";
+import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file Proves the OTel adapter builds real spans through the port's own vocabulary
@@ -19,11 +19,13 @@ import type { ObservabilityConfigEnabled } from "../../config.js";
 const TEST_CONFIG: ObservabilityConfigEnabled = {
   enabled: true,
   serviceName: "tovu-test",
+  tracerName: "tovu.observability",
+  endpoint: "http://collector.test/v1/traces",
 };
 
 function createPortUnderTest(): { port: ReturnType<typeof createOtelObservabilityPort>; exporter: InMemorySpanExporter } {
   const exporter = new InMemorySpanExporter();
-  const port = createOtelObservabilityPort(TEST_CONFIG, { spanProcessors: [new SimpleSpanProcessor(exporter)] });
+  const port = createOtelObservabilityPort({ config: TEST_CONFIG }, { spanProcessors: [new SimpleSpanProcessor(exporter)] });
   return { port, exporter };
 }
 

@@ -47,7 +47,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     repo: new InMemorySourceControlCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => `src-cred-${(counter += 1)}` },
     ...overrides,
   };

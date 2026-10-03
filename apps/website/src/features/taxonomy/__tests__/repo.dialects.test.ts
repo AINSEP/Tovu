@@ -66,10 +66,10 @@ describeEachDialect<Bundle>(
       const repo = makeRepo();
       const row = taxonomy("t1", { hierarchical: true, version: 3 });
       assert.deepEqual(await repo.insert(row), row);
-      assert.deepEqual(await repo.findByIdFull("t1"), row);
-      assert.deepEqual(await repo.findById("t1"), { id: "t1", hierarchical: true });
+      assert.deepEqual(await repo.findByIdFull({ id: "t1" }), row);
+      assert.deepEqual(await repo.findById({ id: "t1" }), { id: "t1", hierarchical: true });
       await repo.insert(taxonomy("t2"));
-      assert.deepEqual(await repo.findById("t2"), { id: "t2", hierarchical: false });
+      assert.deepEqual(await repo.findById({ id: "t2" }), { id: "t2", hierarchical: false });
     });
 
     test("finds miss an unknown id and another workspace's row", async () => {
@@ -77,13 +77,13 @@ describeEachDialect<Bundle>(
       await repo.insert(taxonomy("t1"));
       const other = taxonomyRepoFor(ctx.kernel, OTHER);
       for (const target of [repo, other]) {
-        assert.equal(await target.findById("nope"), null);
-        assert.equal(await target.findByIdFull("nope"), null);
+        assert.equal(await target.findById({ id: "nope" }), null);
+        assert.equal(await target.findByIdFull({ id: "nope" }), null);
         assert.equal(await target.findAnyById("nope"), null);
         assert.equal(await target.findForTrash("nope"), null);
       }
-      assert.equal(await other.findById("t1"), null);
-      assert.equal(await other.findByIdFull("t1"), null);
+      assert.equal(await other.findById({ id: "t1" }), null);
+      assert.equal(await other.findByIdFull({ id: "t1" }), null);
       assert.equal(await other.findAnyById("t1"), null);
       assert.equal(await other.findForTrash("t1"), null);
       assert.deepEqual(await other.list(), []);
@@ -93,8 +93,8 @@ describeEachDialect<Bundle>(
       const repo = makeRepo();
       await repo.insert(taxonomy("gone", { status: "trash" }));
       await repo.insert(taxonomy("live"));
-      assert.equal(await repo.findById("gone"), null);
-      assert.equal(await repo.findByIdFull("gone"), null);
+      assert.equal(await repo.findById({ id: "gone" }), null);
+      assert.equal(await repo.findByIdFull({ id: "gone" }), null);
       assert.equal(await repo.findForTrash("gone"), null);
       assert.equal((await repo.findAnyById("gone"))?.status, "trash");
       assert.deepEqual((await repo.list()).map((r) => r.id), ["live"]);
@@ -107,13 +107,13 @@ describeEachDialect<Bundle>(
       await repo.insert(taxonomy("dead", { status: "trash", name: "kept" }));
       const changed = taxonomy("t1", { name: "Renamed", hierarchical: true, version: 2, updatedAt: "2026-09-29T00:00:00.000Z" });
       await repo.update(changed);
-      assert.deepEqual(await repo.findByIdFull("t1"), changed);
+      assert.deepEqual(await repo.findByIdFull({ id: "t1" }), changed);
       await repo.update(taxonomy("dead", { name: "revived", status: "active" }));
       const dead = await repo.findAnyById("dead");
       assert.equal(dead?.status, "trash");
       assert.equal(dead?.name, "kept");
       await taxonomyRepoFor(ctx.kernel, OTHER).update(taxonomy("t1", { name: "hijacked" }));
-      assert.equal((await repo.findByIdFull("t1"))?.name, "Renamed");
+      assert.equal((await repo.findByIdFull({ id: "t1" }))?.name, "Renamed");
     });
 
     test("delete removes only this workspace's row", async () => {
@@ -121,32 +121,32 @@ describeEachDialect<Bundle>(
       const other = taxonomyRepoFor(ctx.kernel, OTHER);
       await repo.insert(taxonomy("t1"));
       await other.insert(taxonomy("o1"));
-      await other.delete("t1");
+      await other.delete({ id: "t1" });
       assert.equal((await repo.findAnyById("t1"))?.id, "t1");
-      await repo.delete("o1");
+      await repo.delete({ id: "o1" });
       assert.equal((await other.findAnyById("o1"))?.id, "o1");
-      await repo.delete("t1");
+      await repo.delete({ id: "t1" });
       assert.equal(await repo.findAnyById("t1"), null);
-      await repo.delete("absent");
+      await repo.delete({ id: "absent" });
     });
 
     test("transaction commits its writes, rolls them all back on a throw, and nested calls join", async () => {
       const repo = makeRepo();
-      const result = await repo.transaction(async () => {
+      const result = await repo.transaction({ fn: async () => {
         await repo.insert(taxonomy("a"));
-        return repo.transaction(async () => {
+        return repo.transaction({ fn: async () => {
           await repo.insert(taxonomy("b"));
           return "ok";
-        });
-      });
+        } });
+      } });
       assert.equal(result, "ok");
       assert.equal((await repo.list()).length, 2);
       await assert.rejects(
-        repo.transaction(async () => {
+        repo.transaction({ fn: async () => {
           await repo.insert(taxonomy("c"));
-          await repo.transaction(async () => { await repo.insert(taxonomy("inner")); });
+          await repo.transaction({ fn: async () => { await repo.insert(taxonomy("inner")); } });
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await repo.findAnyById("c"), null);
@@ -171,8 +171,8 @@ describeEachDialect<Bundle>(
       await seedTaxonomy("tx");
       const child = term("child", "tx", { parentId: "root", version: 4 });
       assert.deepEqual(await repo.insert(child), child);
-      assert.deepEqual(await repo.findByIdFull("child"), child);
-      assert.deepEqual(await repo.findById("child"), { id: "child", taxonomyId: "tx", name: "Term child" });
+      assert.deepEqual(await repo.findByIdFull({ id: "child" }), child);
+      assert.deepEqual(await repo.findById({ id: "child" }), { id: "child", taxonomyId: "tx", name: "Term child" });
       assert.deepEqual(await repo.findAnyById("child"), child);
       assert.equal(await repo.getParentId("child"), "root");
     });
@@ -182,16 +182,16 @@ describeEachDialect<Bundle>(
       await seedTaxonomy("tx");
       await repo.insert(term("a", "tx"));
       const other = termRepoFor(ctx.kernel, OTHER);
-      assert.equal(await repo.findById("nope"), null);
-      assert.equal(await repo.findByIdFull("nope"), null);
+      assert.equal(await repo.findById({ id: "nope" }), null);
+      assert.equal(await repo.findByIdFull({ id: "nope" }), null);
       assert.equal(await repo.findAnyById("nope"), null);
       assert.equal(await repo.findForTrash("nope"), null);
       assert.equal(await repo.findForPurgeAudit("nope"), null);
       assert.equal(await repo.getParentId("nope"), null);
       assert.equal(await repo.getParentId("a"), null);
       for (const read of [
-        other.findById("a"),
-        other.findByIdFull("a"),
+        other.findById({ id: "a" }),
+        other.findByIdFull({ id: "a" }),
         other.findAnyById("a"),
         other.findForTrash("a"),
         other.findForPurgeAudit("a"),
@@ -213,8 +213,8 @@ describeEachDialect<Bundle>(
       assert.deepEqual((await repo.listByTaxonomy({ taxonomyId: "live-tx" })).map((t) => t.id), ["ok"]);
       assert.deepEqual(await repo.listByTaxonomy({ taxonomyId: "dead-tx" }), []);
       for (const id of ["own-trash", "under-trash"]) {
-        assert.equal(await repo.findById(id), null);
-        assert.equal(await repo.findByIdFull(id), null);
+        assert.equal(await repo.findById({ id: id }), null);
+        assert.equal(await repo.findByIdFull({ id: id }), null);
         assert.equal(await repo.findForTrash(id), null);
         assert.ok(await repo.findAnyById(id));
         assert.ok(await repo.findForPurgeAudit(id));
@@ -246,14 +246,14 @@ describeEachDialect<Bundle>(
       await repo.insert(term("under", "dead-tx", { name: "kept" }));
       const changed = term("a", "tx", { name: "Renamed", parentId: "p", version: 2, updatedAt: "2026-09-29T00:00:00.000Z" });
       await repo.update(changed);
-      assert.deepEqual(await repo.findByIdFull("a"), changed);
+      assert.deepEqual(await repo.findByIdFull({ id: "a" }), changed);
       await repo.update(term("own", "tx", { name: "revived", status: "active" }));
       await repo.update(term("under", "dead-tx", { name: "revived" }));
       assert.equal((await repo.findAnyById("own"))?.name, "kept");
       assert.equal((await repo.findAnyById("own"))?.status, "trash");
       assert.equal((await repo.findAnyById("under"))?.name, "kept");
       await termRepoFor(ctx.kernel, OTHER).update(term("a", "tx", { name: "hijacked" }));
-      assert.equal((await repo.findByIdFull("a"))?.name, "Renamed");
+      assert.equal((await repo.findByIdFull({ id: "a" }))?.name, "Renamed");
     });
 
     test("countChildren counts direct children only, whatever their status", async () => {
@@ -275,13 +275,13 @@ describeEachDialect<Bundle>(
       await seedTaxonomy("otx", "active", OTHER);
       await repo.insert(term("a", "tx"));
       await other.insert(term("o", "otx"));
-      await other.delete("a");
+      await other.delete({ id: "a" });
       assert.ok(await repo.findAnyById("a"));
-      await repo.delete("o");
+      await repo.delete({ id: "o" });
       assert.ok(await other.findAnyById("o"));
-      await repo.delete("a");
+      await repo.delete({ id: "a" });
       assert.equal(await repo.findAnyById("a"), null);
-      await repo.delete("absent");
+      await repo.delete({ id: "absent" });
     });
 
     test("a failed insert inside a taxonomy transaction rolls the earlier insert back", async () => {
@@ -290,10 +290,10 @@ describeEachDialect<Bundle>(
       await seedTaxonomy("tx");
       await repo.insert(term("dup", "tx"));
       await assert.rejects(
-        taxonomies.transaction(async () => {
+        taxonomies.transaction({ fn: async () => {
           await repo.insert(term("fresh", "tx"));
           await repo.insert(term("dup", "tx"));
-        })
+        } })
       );
       assert.equal(await repo.findAnyById("fresh"), null);
       assert.ok(await repo.findAnyById("dup"));
@@ -454,10 +454,10 @@ describeEachDialect<Bundle>(
     test("an insert inside a rolled-back transaction leaves no revision", async () => {
       const repo = makeRepo();
       await assert.rejects(
-        taxonomyRepoFor(ctx.kernel, WS).transaction(async () => {
+        taxonomyRepoFor(ctx.kernel, WS).transaction({ fn: async () => {
           await repo.insert(revision("t1", "create", null));
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.deepEqual(await repo.listForTests("t1"), []);

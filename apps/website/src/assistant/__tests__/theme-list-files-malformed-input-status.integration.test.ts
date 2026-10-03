@@ -59,10 +59,10 @@ async function buildDelegatedToolDeps() {
 test("theme_list_files called with a wrong parameter name ('theme_id' instead of 'themeId') is a 400 BAD_REQUEST end to end, not a 500", async () => {
   const { run, lifecycle, toolExecutor, resolvePrincipal } = await buildDelegatedToolDeps();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { theme_id: "plain" } },
-    { lifecycle, toolExecutor, resolvePrincipal },
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { theme_id: "plain" } },
+    deps: { lifecycle, toolExecutor, resolvePrincipal },
+  });
 
   assert.deepEqual(result, {
     ok: false,
@@ -73,10 +73,10 @@ test("theme_list_files called with a wrong parameter name ('theme_id' instead of
 test("theme_list_files called with themeId missing entirely is also a 400 BAD_REQUEST, not a 500", async () => {
   const { run, lifecycle, toolExecutor, resolvePrincipal } = await buildDelegatedToolDeps();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
-    { lifecycle, toolExecutor, resolvePrincipal },
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
+    deps: { lifecycle, toolExecutor, resolvePrincipal },
+  });
 
   assert.deepEqual(result, {
     ok: false,
@@ -87,10 +87,10 @@ test("theme_list_files called with themeId missing entirely is also a 400 BAD_RE
 test("a well-formed theme_list_files call still succeeds end to end (the fix does not break the golden path)", async () => {
   const { run, lifecycle, toolExecutor, resolvePrincipal } = await buildDelegatedToolDeps();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "plain" } },
-    { lifecycle, toolExecutor, resolvePrincipal },
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "plain" } },
+    deps: { lifecycle, toolExecutor, resolvePrincipal },
+  });
 
   assert.equal(result.ok, true);
   if (result.ok) {
@@ -106,10 +106,10 @@ test("a well-formed theme_list_files call still succeeds end to end (the fix doe
 test("an unknown themeId (a shape rejection decorated with the tool's schema) is ALSO a 400 BAD_REQUEST, not a 500", async () => {
   const { run, lifecycle, toolExecutor, resolvePrincipal } = await buildDelegatedToolDeps();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "nope" } },
-    { lifecycle, toolExecutor, resolvePrincipal },
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "nope" } },
+    deps: { lifecycle, toolExecutor, resolvePrincipal },
+  });
 
   assert.equal(result.ok, false);
   if (!result.ok) {

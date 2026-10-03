@@ -41,7 +41,7 @@ test("name-only and slug-only PATCH preserve the other field in storage and subs
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own] });
   const invoke = harness(repo);
   assert.equal((await invoke("patch", base + "/:workspaceId", { name: "Renamed Site" })).statusCode, 200);
-  assert.deepEqual(await repo.findById("ws-7"), { id: "ws-7", name: "Renamed Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z" });
+  assert.deepEqual(await repo.findById({ id: "ws-7" }), { id: "ws-7", name: "Renamed Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z" });
   assert.equal((await invoke("patch", base + "/:workspaceId", { slug: "new-slug" })).statusCode, 200);
   assert.deepEqual(await invoke("get", base + "/:workspaceId"), { statusCode: 200, jsonBody: { workspace: {
     id: "ws-7", name: "Renamed Site", slug: "new-slug", createdAt: "2026-09-01T00:00:00Z",
@@ -62,10 +62,10 @@ test("empty PATCH maps validation to 400 and slug collision maps conflict to 409
     assert.deepEqual(await invoke("patch", base + "/:workspaceId", body), { statusCode: 400, jsonBody: {
       error: "at least one of name or slug is required", code: "VALIDATION_ERROR",
     } });
-    assert.deepEqual(await repo.findById("ws-7"), own);
+    assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
   }
   assert.deepEqual(await invoke("patch", base + "/:workspaceId", { slug: "taken-slug" }), { statusCode: 409, jsonBody: {
     error: "slug 'taken-slug' already exists", code: "RESOURCE_CONFLICT", details: { field: "slug" },
   } });
-  assert.deepEqual(await repo.findById("ws-7"), own);
+  assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
 });

@@ -7,8 +7,8 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "../../agent-tools.js";
-import { SITE_EVIDENCE_LIMITS } from "../../collect-page-evidence.js";
-import type { ObservePageRequest, PageObservation, SiteEvidenceBrowserFactory } from "../../browser-port.js";
+import { SITE_EVIDENCE_LIMITS } from "@jini-ai/diagnostics/web-evidence";
+import type { ObservePageRequest, PageObservation, SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 import {
   buildSiteEvidenceRegistrations,
   readOptionalEvidenceArguments,
@@ -128,15 +128,15 @@ test("readOptionalEvidenceArguments's rejection is a ToolInputError (400), not a
 
 test("the handler refuses a caller the authorizer denies", async () => {
   const requests: unknown[] = [];
-  const registrations = buildSiteEvidenceRegistrations(
-    toolDeps({
+  const registrations = buildSiteEvidenceRegistrations(toolDeps({
       authorize: async (request) => {
-        requests.push(request);
+        // Optional entity scope may be omitted by the package adapter; record its semantic value.
+        requests.push({ ...request, entityId: request.entityId });
         return { allowed: request.permission === "content.write", reason: "read denied" } as never;
       },
       originRegistry: { ...originRegistry(), canonicalOrigin: async () => { assert.fail("origin lookup before authorization"); } },
       siteEvidenceBrowser: async () => { assert.fail("browser opened before authorization"); },
-    }),
+    })
   );
   const registration = registrations.find((entry) => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
   assert.ok(registration);
@@ -160,8 +160,7 @@ test("the handler returns evidence-shaped data when the browser is unavailable, 
 });
 
 test("a workspace with no verified origin returns an explicit 'cannot collect' payload, not a stack trace", async () => {
-  const registration = buildSiteEvidenceRegistrations(
-    toolDeps({ originRegistry: originRegistry(new OriginNotVerifiedError({ message: "no verified origin registered" })) }),
+  const registration = buildSiteEvidenceRegistrations(toolDeps({ originRegistry: originRegistry(new OriginNotVerifiedError({ message: "no verified origin registered" })) })
   ).find((entry) => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
   assert.ok(registration);
 
@@ -181,8 +180,8 @@ test("the available-browser handler forwards optional inputs, returns same-origi
   const registration = buildSiteEvidenceRegistrations(toolDeps({
     authorize: async (request) => ({ allowed: request.permission === "content.read" && request.principalId === PRINCIPAL_ID && request.workspaceId === WORKSPACE_ID }) as never,
     siteEvidenceBrowser: async () => ({ available: true, browser: {
-      observe: async (request) => {
-        requests.push(request);
+      observe: async (request, options) => {
+        requests.push({ ...request, ...options });
         if (request.url.endsWith("/broken")) throw new Error("navigation failed");
         return { ok: true, observation: request.url.endsWith("/away")
           ? { ...observed, document: { ...observed.document, finalUrl: "https://other.test/private?secret=canary" } }

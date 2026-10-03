@@ -108,7 +108,7 @@ async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: stri
   const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
-  const pending = deleteTool.handler({ ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
+  const pending = invokeFixtureHandler(deleteTool, { ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
@@ -219,7 +219,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const { deps, authorizeCalls } = fakeRouteDeps();
     authorizeCalls.length = 0;
 
-    await wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId]));
+    await invokeFixtureHandler(wired(deps, toolId), executionContext(TOOL_INPUTS[toolId]));
 
     assert.ok(authorizeCalls.length >= 1);
     assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
@@ -232,7 +232,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const before = await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID });
 
     await assert.rejects(
-      () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
+      () => invokeFixtureHandler(wired(deps, toolId), executionContext(TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof Error, `expected an Error, got ${String(error)}`);
         assert.match((error as Error).message, /is not authorized for/);
@@ -248,7 +248,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 test("webhooks_create_subscription: rejects a non-https target the same way the domain function does", async () => {
   const { deps, webhookSubscriptionRepo } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "http://example.test", topics: ["post.published"] })),
+    () => invokeFixtureHandler(wired(deps, "webhooks_create_subscription"), executionContext({ label: "x", targetUrl: "http://example.test", topics: ["post.published"] })),
     { message: "WEBHOOKS_VALIDATION_FAILED: target_url must use https://" },
   );
   assert.deepEqual(await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
@@ -257,7 +257,7 @@ test("webhooks_create_subscription: rejects a non-https target the same way the 
 test("webhooks_create_subscription: rejects a target the egress allowlist disallows", async () => {
   const { deps, webhookSubscriptionRepo } = fakeRouteDeps({ allowedTarget: false });
   await assert.rejects(
-    () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "https://example.test", topics: ["post.published"] })),
+    () => invokeFixtureHandler(wired(deps, "webhooks_create_subscription"), executionContext({ label: "x", targetUrl: "https://example.test", topics: ["post.published"] })),
     { message: "WEBHOOKS_VALIDATION_FAILED: target_url 'https://example.test' is not an allowed egress target" },
   );
   assert.deepEqual(await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
@@ -266,14 +266,14 @@ test("webhooks_create_subscription: rejects a target the egress allowlist disall
 test("webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: "no-such-id" })),
+    () => invokeFixtureHandler(wired(deps, "webhooks_get_deliveries"), executionContext({ subscriptionId: "no-such-id" })),
     /was not found/,
   );
 });
 
 test("webhooks_get_deliveries returns recent delivery details in newest-first order with a limit, and listing reports the latest delivery", async () => {
   const { deps, webhookDeliveryRepo } = fakeRouteDeps();
-  const created = await wired(deps, "webhooks_create_subscription").handler(executionContext(TOOL_INPUTS.webhooks_create_subscription)) as {
+  const created = await invokeFixtureHandler(wired(deps, "webhooks_create_subscription"), executionContext(TOOL_INPUTS.webhooks_create_subscription)) as {
     subscription: { id: string };
   };
   const delivery = (id: string, createdAt: string): WebhookDeliveryRecord => ({
@@ -291,11 +291,11 @@ test("webhooks_get_deliveries returns recent delivery details in newest-first or
   await webhookDeliveryRepo.enqueue({ ...newest, id: "foreign-subscription", subscriptionId: "other-sub" });
   const view = ({ workspaceId: _workspaceId, ...row }: WebhookDeliveryRecord) => row;
 
-  const all = await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id })) as { deliveries: unknown[] };
+  const all = await invokeFixtureHandler(wired(deps, "webhooks_get_deliveries"), executionContext({ subscriptionId: created.subscription.id })) as { deliveries: unknown[] };
   assert.deepEqual(all.deliveries, [newest, middle, oldest].map(view));
-  const limited = await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id, limit: 2 })) as { deliveries: unknown[] };
+  const limited = await invokeFixtureHandler(wired(deps, "webhooks_get_deliveries"), executionContext({ subscriptionId: created.subscription.id, limit: 2 })) as { deliveries: unknown[] };
   assert.deepEqual(limited.deliveries, [newest, middle].map(view));
-  const listed = await wired(deps, "content_read.webhook_subscription").handler(executionContext({})) as { subscriptions: Array<{ lastDelivery: unknown }> };
+  const listed = await invokeFixtureHandler(wired(deps, "content_read.webhook_subscription"), executionContext({})) as { subscriptions: Array<{ lastDelivery: unknown }> };
   assert.deepEqual(listed.subscriptions[0]?.lastDelivery, view(newest));
 });
 
@@ -306,15 +306,13 @@ test("webhooks_get_deliveries returns recent delivery details in newest-first or
 test("workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it", async () => {
   const { deps, webhookSubscriptionRepo } = fakeRouteDeps();
 
-  const created = (await wired(deps, "webhooks_create_subscription").handler(
-    executionContext({ label: "  My Endpoint  ", targetUrl: "https://example.test/hooks", topics: ["post.published", "post.published"] }),
-  )) as { subscription: { id: string; label: string; topics: string[]; status: string; secretVersion: number } };
+  const created = (await invokeFixtureHandler(wired(deps, "webhooks_create_subscription"), executionContext({ label: "  My Endpoint  ", targetUrl: "https://example.test/hooks", topics: ["post.published", "post.published"] }))) as { subscription: { id: string; label: string; topics: string[]; status: string; secretVersion: number } };
   assert.equal(created.subscription.label, "My Endpoint");
   assert.deepEqual(created.subscription.topics, ["post.published"]);
   assert.equal(created.subscription.status, "active");
   assert.equal(created.subscription.secretVersion, 1);
 
-  const afterCreateList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
+  const afterCreateList = (await invokeFixtureHandler(wired(deps, "content_read.webhook_subscription"), executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string; lastDelivery: unknown }>;
   };
   assert.equal(afterCreateList.subscriptions.length, 1);
@@ -322,17 +320,17 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(afterCreateList.subscriptions[0].status, "active");
   assert.equal(afterCreateList.subscriptions[0].lastDelivery, null, "no deliveries have fired yet");
 
-  const paused = (await wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
+  const paused = (await invokeFixtureHandler(wired(deps, "webhooks_pause_subscription"), executionContext({ subscriptionId: created.subscription.id }))) as {
     subscription: { status: string };
   };
   assert.equal(paused.subscription.status, "paused");
 
-  const afterPauseList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
+  const afterPauseList = (await invokeFixtureHandler(wired(deps, "content_read.webhook_subscription"), executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterPauseList.subscriptions[0].status, "paused", "list reflects the pause");
 
-  const deliveries = (await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
+  const deliveries = (await invokeFixtureHandler(wired(deps, "webhooks_get_deliveries"), executionContext({ subscriptionId: created.subscription.id }))) as {
     deliveries: unknown[];
   };
   assert.deepEqual(deliveries.deliveries, [], "no deliveries have fired yet");
@@ -341,7 +339,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(removed.subscription.status, "disabled");
   assert.ok(removed.subscription.disabledAt);
 
-  const afterRemoveList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
+  const afterRemoveList = (await invokeFixtureHandler(wired(deps, "content_read.webhook_subscription"), executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterRemoveList.subscriptions.length, 1, "soft-delete keeps the row, for audit durability");
@@ -350,8 +348,17 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   // A disabled subscription is terminal — resuming it is refused, not silently accepted.
   const beforeDeniedResume = structuredClone(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: created.subscription.id }));
   await assert.rejects(
-    () => wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id, paused: false })),
+    () => invokeFixtureHandler(wired(deps, "webhooks_pause_subscription"), executionContext({ subscriptionId: created.subscription.id, paused: false })),
     { message: `WEBHOOKS_VALIDATION_FAILED: webhook subscription '${created.subscription.id}' is disabled and cannot be paused or resumed` },
   );
   assert.deepEqual(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: created.subscription.id }), beforeDeniedResume);
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

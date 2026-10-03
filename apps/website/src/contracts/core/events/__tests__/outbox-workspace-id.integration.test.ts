@@ -78,7 +78,10 @@ function readOutboxEventName(db: ReturnType<typeof openContentDb>, eventId: stri
   return row ? (JSON.parse(row.eventJson) as { name?: unknown }).name : undefined;
 }
 
-const CLOCK = { nowIso: () => "2026-08-03T00:00:00.000Z" };
+const CLOCK = {
+  nowIso: () => "2026-08-03T00:00:00.000Z",
+  nowMs() { return Date.parse(this.nowIso()); },
+};
 const ALWAYS_ALLOW = async () => ({ allowed: true, reason: "test: always allow" });
 
 test("entries chokepoint: createEntry through toEntryOutbox persists workspace_id on the real SqliteOutboxAdapter", async () => {
@@ -258,6 +261,8 @@ test("taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspac
   await terms.insert({ id: "term-seed-1", taxonomyId: "tax-seed-1", parentId: null, name: "Old name", status: "active", updatedAt: CLOCK.nowIso(), version: 1 });
 
   const deps: TaxonomyWriteServiceDeps = {
+    // This success-path fixture uses memory repositories; rollback behavior has separate contracts.
+    transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => fn(),
     authorize: ALWAYS_ALLOW,
     clock: CLOCK,
     idGen: { newId: () => "unused" },
@@ -297,7 +302,7 @@ test("taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspa
   // `assignTerms` throws `TaxonomyNotApplicableError` for any contentType NOT on that allow-list
   // (validation-chain.ts's `validateContentJoin`), so the content lookup must resolve for this
   // call to reach its own `outbox.enqueue` at all.
-  const contentLookup = new InMemoryContentLookup({}, { initialRows: [{ contentType: "post", contentId: "post-1", workspaceId, kind: "post" }] });
+  const contentLookup = new InMemoryContentLookup({}, { seed: [{ contentType: "post", contentId: "post-1", workspaceId, kind: "post" }] });
 
   const deps: TaxonomyWriteServiceDeps = {
     authorize: ALWAYS_ALLOW,

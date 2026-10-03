@@ -32,6 +32,7 @@ async function buildIdentity(workspaceId: string): Promise<{ identity: AuthServi
   const ownerPrincipalId = await wiring.ownerPrincipalId;
   const identity: AuthServiceDeps = {
     repos: {
+      transactions: wiring.transactions,
       principals: wiring.principalRepo,
       users: wiring.userRepo,
       sessions: wiring.sessionRepo,

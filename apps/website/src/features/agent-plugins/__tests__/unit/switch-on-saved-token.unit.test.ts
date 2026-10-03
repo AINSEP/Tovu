@@ -42,7 +42,7 @@ async function withAgentPluginsDir(fn: (workspaceRoot: string) => Promise<void>)
 async function operatorEnabledRow() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
   await saveExternalMcpServer(
     { repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock },
     {
@@ -98,7 +98,7 @@ test("the production fallback enables an untouched saved-token row with the inst
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
-    const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
     await saveExternalMcpServer({ repo, sealer, keyring, clock }, {
       workspaceId: WORKSPACE, serverId: "supabase", transport: "streamable_http", authMode: "static_env",
       enabled: false, command: "", url: "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging",

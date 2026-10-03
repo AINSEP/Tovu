@@ -110,6 +110,10 @@ async function mountLoaded(opts: Parameters<typeof queueLoad>[0]) {
   queueLoad(opts);
   const view = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: opts.entryId }), { wrapper });
   await waitFor(() => expect(view.result.current.loaded).toBe(true));
+  await waitFor(() => expect(view.result.current.editor).not.toBeNull());
+  await waitFor(() => expect(view.result.current.entry).toEqual(
+    opts.entries?.find((entry) => entry.id === opts.entryId || entry.slug === opts.entryId) ?? null,
+  ));
   return view;
 }
 
@@ -177,6 +181,7 @@ describe("save — new entry", () => {
   it("is a no-op (no fetch call) when contentType hasn't resolved yet", async () => {
     fetchMock.mockResolvedValueOnce(new Promise(() => {})); // listContentTypes never resolves
     const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }), { wrapper });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const callsBefore = fetchMock.mock.calls.length;
     await act(async () => {
       await result.current.save();
@@ -423,6 +428,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
         useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
       , { wrapper });
       await waitFor(() => expect(result.current.loaded).toBe(true));
+      await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+      await waitFor(() => expect(result.current.editor).not.toBeNull());
 
       expect(result.current.contentType).toEqual(RECIPE_TYPE);
       expect(result.current.entry).toEqual(ENTRY);
@@ -440,6 +447,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle("Updated Title"));
     await act(async () => {
@@ -459,6 +468,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle("Brand New"));
     act(() => result.current.setSlug("brand-new"));
@@ -482,6 +492,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.slug }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     expect(result.current.entry).toEqual(ENTRY);
     expect(navigateSpy).not.toHaveBeenCalled();
@@ -498,6 +510,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY_UUID }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual({ ...ENTRY, id: ENTRY_UUID, slug: "hello-recipe" }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     expect(navigateSpy).toHaveBeenCalledWith("/collections/recipe/hello-recipe", { replace: true });
   });
@@ -508,6 +522,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     await act(async () => {
       await result.current.save();
@@ -522,6 +538,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
 
     await act(async () => {
       await result.current.toggleLifecycle("publish");
@@ -540,6 +558,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle("Edited title"));
     const editedBody = {
@@ -570,6 +590,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
 
     await act(async () => {
       await result.current.toggleLifecycle("publish");
@@ -587,6 +609,8 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setFieldValidity("meta", false));
     act(() => result.current.setTitle("X"));
@@ -616,6 +640,8 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
       useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     , { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setFieldValidity("meta", false));
     await act(async () => {

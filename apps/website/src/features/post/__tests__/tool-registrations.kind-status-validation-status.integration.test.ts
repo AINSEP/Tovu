@@ -73,10 +73,10 @@ async function delegatedHarness() {
 test("content_post_get called with 'kind' omitted is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1" } },
-    routeDeps as never
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1" } },
+    deps: routeDeps as never,
+  });
 
   assert.deepEqual(result, {
     ok: false,
@@ -87,10 +87,10 @@ test("content_post_get called with 'kind' omitted is a 400 BAD_REQUEST end to en
 test("content_post_list called with 'kind' omitted is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "content_post_list", input: {} },
-    routeDeps as never
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_list", input: {} },
+    deps: routeDeps as never,
+  });
 
   assert.deepEqual(result, {
     ok: false,
@@ -101,15 +101,15 @@ test("content_post_list called with 'kind' omitted is a 400 BAD_REQUEST end to e
 test("content_post_update called with an invalid 'status' is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    {
+  const result = await delegatedToolExecuteRoute.handle({
+    input: {
       runId: run.id,
       toolUseId: "tu-1",
       toolId: "content_post_update",
       input: { id: "p1", kind: "post", title: "Existing Post", slug: "existing-post", bodyJson: EMPTY_DOC, status: "archived" },
     },
-    routeDeps as never
-  );
+    deps: routeDeps as never,
+  });
 
   assert.deepEqual(result, {
     ok: false,
@@ -120,10 +120,10 @@ test("content_post_update called with an invalid 'status' is a 400 BAD_REQUEST e
 test("a well-formed content_post_get call still succeeds end to end (the fix does not break the golden path)", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1", kind: "post" } },
-    routeDeps as never
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1", kind: "post" } },
+    deps: routeDeps as never,
+  });
 
   assert.equal(result.ok, true, JSON.stringify(result));
 });

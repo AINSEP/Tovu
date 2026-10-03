@@ -38,6 +38,7 @@ import { WorkspaceRedirect } from "../../features/workspace";
 import { AiAssistant } from "../../features/ai-assistant";
 import { Playground } from "../../features/playground";
 import { Sites } from "../../features/sites";
+import { Skills } from "../../features/skills/Skills";
 
 /**
  * @file Coverage for `panels.tsx`'s `ADMIN_PANELS` (4/45 funcs — one `render` thunk per panel).
@@ -90,7 +91,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "roles", component: Roles },
   { id: "members", component: Members },
   { id: "comments", component: Comments },
-  { id: "skills", component: Placeholder, extraProps: { sectionId: "skills" } },
+  { id: "skills", component: Skills },
   { id: "design-system", component: Placeholder, extraProps: { sectionId: "design-system" } },
   { id: "admin-appearance", component: Placeholder, extraProps: { sectionId: "admin-appearance" } },
   { id: "playground", component: Playground },

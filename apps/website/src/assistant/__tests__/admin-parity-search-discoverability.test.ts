@@ -46,7 +46,7 @@ test("admin parity tools rank in the top 3 of the real catalog", async () => {
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(CASES)) {
     for (const query of queries) {
-      const hits = catalog.search(query, 3).map(hit => hit.id);
+      const hits = catalog.search({ query }, { limit: 3 }).map(hit => hit.id);
       if (!hits.includes(id)) misses.push(`${id}: "${query}" -> ${hits.join(", ")}`);
     }
   }

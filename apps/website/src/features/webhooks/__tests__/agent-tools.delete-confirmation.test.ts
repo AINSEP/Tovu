@@ -81,9 +81,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     run: { id: "run-1" },
     input: options.input ?? {},
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
 }
 
 async function raiseDialog(deleteTool: ToolRegistration, subscriptionId: string, signal?: AbortSignal) {

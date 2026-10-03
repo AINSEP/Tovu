@@ -25,13 +25,12 @@ for (const scenario of [
       executionId: 'execution-7',
       principal: { id: 'operator-7' },
       signal: controller.signal,
-      emitSurface: async (surface: SurfaceEmission) => { emitted.push(surface); },
     } as ToolExecutionContext;
-    const pending = requireHumanConfirm(ctx, { surfaceExchanges: store }, {
+    const pending = requireHumanConfirm({ ctx, surfaces: { surfaceExchanges: store }, spec: {
       toolId: 'fixture_confirm', errorCode: 'FIXTURE', title: 'Approve this call?',
       details: [{ label: 'Action', value: 'Send the selected message' }], confirmLabel: 'Allow',
       ...(scenario.alternatives ? { alternatives: [{ id: 'allow-chat', label: 'Allow for this chat', choice: 'chat' }] } : {}),
-    });
+    } }, { emitSurface: async (surface: SurfaceEmission) => { emitted.push(surface); } });
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.equal(emitted.length, 1, 'the real dialog must be emitted before answering');
     assert.equal(emitted[0].channel, 'mcp-ui');

@@ -38,9 +38,9 @@ async function makeHarness(row: {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   await saveExternalMcpServer(
-    { repo, sealer, keyring, clock: { nowIso: () => "2026-09-01T00:00:00.000Z" } },
+    { repo, sealer, keyring, clock: { nowMs: () => Date.parse("2026-09-01T00:00:00.000Z"), nowIso: () => "2026-09-01T00:00:00.000Z" } },
     {
       workspaceId: WORKSPACE,
       serverId: SERVER,
@@ -172,7 +172,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
     {
       workspaceId: WORKSPACE,
       externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-      clock: { nowIso: () => NOW },
+      clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
       listPlugins: async () => {
         throw new Error("package store unreadable");
       },

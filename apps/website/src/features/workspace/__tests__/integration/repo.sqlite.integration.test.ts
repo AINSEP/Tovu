@@ -34,7 +34,7 @@ test("insert -> restart-simulated (fresh repo instance against the same file) ->
 
     const dbAfterRestart = openContentDb(filePath);
     const repoAfterRestart = new SqliteWorkspaceRepo(dbAfterRestart);
-    const found = await repoAfterRestart.findById("ws-1");
+    const found = await repoAfterRestart.findById({ id: "ws-1" });
     assert.ok(found);
     assert.equal(found?.name, "Acme");
     assert.equal(found?.slug, "acme");
@@ -50,15 +50,15 @@ test("findBySlug finds by slug, not by id, and returns null for an unknown slug"
     const repo = new SqliteWorkspaceRepo(db);
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
 
-    const bySlug = await repo.findBySlug("acme");
+    const bySlug = await repo.findBySlug({ slug: "acme" });
     assert.ok(bySlug);
     assert.equal(bySlug?.id, "ws-1");
 
     // The mutation this proves: if `findBySlug` ever matched on `id` instead of `slug` (a
     // copy-paste of `findById`'s condition), searching the row's OWN id as if it were a slug would
     // wrongly resolve.
-    assert.equal(await repo.findBySlug("ws-1"), null, "the row's id must not also resolve as a slug");
-    assert.equal(await repo.findBySlug("no-such-slug"), null);
+    assert.equal(await repo.findBySlug({ slug: "ws-1" }), null, "the row's id must not also resolve as a slug");
+    assert.equal(await repo.findBySlug({ slug: "no-such-slug" }), null);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -93,11 +93,11 @@ test("update() changes only the targeted row's name/slug, leaving a sibling row 
     // dropped or mistargeted, this would rename every row (or the wrong row) instead of just ws-1.
     await repo.update({ id: "ws-1", name: "Acme Renamed", slug: "acme-renamed", createdAt: "2026-07-15T00:00:00.000Z" });
 
-    const renamed = await repo.findById("ws-1");
+    const renamed = await repo.findById({ id: "ws-1" });
     assert.equal(renamed?.name, "Acme Renamed");
     assert.equal(renamed?.slug, "acme-renamed");
 
-    const sibling = await repo.findById("ws-2");
+    const sibling = await repo.findById({ id: "ws-2" });
     assert.equal(sibling?.name, "Globex", "an update targeting ws-1 must not touch ws-2's row");
     assert.equal(sibling?.slug, "globex");
   } finally {
@@ -112,14 +112,14 @@ test("delete() removes only the targeted row from real SQLite, leaving a sibling
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" });
     await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" });
 
-    await repo.delete("ws-1");
+    await repo.delete({ id: "ws-1" });
 
     // Query a FRESH handle against the same file — proves the row is actually gone from disk, not
     // merely absent from an in-process cache.
     const dbAfterRestart = openContentDb(filePath);
     const repoAfterRestart = new SqliteWorkspaceRepo(dbAfterRestart);
-    assert.equal(await repoAfterRestart.findById("ws-1"), null, "the deleted row must not survive a restart");
-    const sibling = await repoAfterRestart.findById("ws-2");
+    assert.equal(await repoAfterRestart.findById({ id: "ws-1" }), null, "the deleted row must not survive a restart");
+    const sibling = await repoAfterRestart.findById({ id: "ws-2" });
     assert.ok(sibling, "a delete targeting ws-1 must not remove ws-2's row");
     assert.equal(sibling?.name, "Globex");
   } finally {

@@ -60,7 +60,7 @@ async function buildCatalog() {
 test("asking what is waiting to be published finds the Publish dialog capability in the top 3", async () => {
   const catalog = await buildCatalog();
   const misses = CASES.flatMap((c) => {
-    const hits = catalog.search(c.query, SEARCH_LIMIT);
+    const hits = catalog.search({ query: c.query }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((hit) => hit.id === c.expect);
     const rank = index === -1 ? null : index + 1;
     return rank !== null && rank <= TOP_N
@@ -73,6 +73,6 @@ test("asking what is waiting to be published finds the Publish dialog capability
 // The new words must not pull the dialog above the tools that own neighbouring questions.
 test("the added vocabulary does not displace the static-site dry run or the comment queue", async () => {
   const catalog = await buildCatalog();
-  assert.equal(catalog.search("do a dry run before I deploy the static site", SEARCH_LIMIT)[0]?.id, "deployment_preview_static_publish");
-  assert.equal(catalog.search("show me comments waiting for approval", SEARCH_LIMIT)[0]?.id, "content_read.comment_moderation_queue");
+  assert.equal(catalog.search({ query: "do a dry run before I deploy the static site" }, { limit: SEARCH_LIMIT })[0]?.id, "deployment_preview_static_publish");
+  assert.equal(catalog.search({ query: "show me comments waiting for approval" }, { limit: SEARCH_LIMIT })[0]?.id, "content_read.comment_moderation_queue");
 });

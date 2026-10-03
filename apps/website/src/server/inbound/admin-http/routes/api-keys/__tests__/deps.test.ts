@@ -7,11 +7,13 @@ import { apiKeyServiceDepsFrom, sendApiKeyError, type ApiKeysRouteDeps } from ".
 
 // F2.4/F4.3: distinct collaborator identities detect swaps as well as omitted adapters.
 test("API-key service composition preserves each identity repository and crypto/runtime port", () => {
-  const flatNames = ["principalRepo", "userRepo", "sessionRepo", "roleRepo", "policyRepo", "policyPermissionRepo", "rolePolicyRepo", "principalRoleRepo", "principalPolicyRepo", "passwordHasher", "apiKeyRepo", "apiKeySecretHasher", "clock", "idGen"] as const;
-  const deps = Object.fromEntries(flatNames.map((name) => [name, { name }])) as unknown as ApiKeysRouteDeps;
+  const flatNames = ["principalRepo", "userRepo", "sessionRepo", "roleRepo", "policyRepo", "policyPermissionRepo", "rolePolicyRepo", "principalRoleRepo", "principalPolicyRepo", "passwordHasher", "apiKeyRepo", "apiKeySecretHasher", "transactions", "tokens", "idGen"] as const;
+  let nowIso = "2026-10-03T12:34:56.789Z";
+  const clock = { nowIso: () => nowIso };
+  const deps = { ...Object.fromEntries(flatNames.map((name) => [name, { name }])), clock } as unknown as ApiKeysRouteDeps;
   const actual = apiKeyServiceDepsFrom(deps);
-  assert.deepEqual(Object.keys(actual).sort(), ["apiKeys", "clock", "hasher", "idGen", "repos", "secretHasher"]);
-  assert.deepEqual(Object.keys(actual.repos).sort(), ["policies", "policyPermissions", "principalPolicies", "principalRoles", "principals", "rolePolicies", "roles", "sessions", "users"]);
+  assert.deepEqual(Object.keys(actual).sort(), ["apiKeys", "clock", "hasher", "idGen", "repos", "secretHasher", "tokens"]);
+  assert.deepEqual(Object.keys(actual.repos).sort(), ["policies", "policyPermissions", "principalPolicies", "principalRoles", "principals", "rolePolicies", "roles", "sessions", "transactions", "users"]);
   const bindings = [
     [actual.repos.principals, deps.principalRepo], [actual.repos.users, deps.userRepo],
     [actual.repos.sessions, deps.sessionRepo], [actual.repos.roles, deps.roleRepo],
@@ -19,9 +21,14 @@ test("API-key service composition preserves each identity repository and crypto/
     [actual.repos.rolePolicies, deps.rolePolicyRepo], [actual.repos.principalRoles, deps.principalRoleRepo],
     [actual.repos.principalPolicies, deps.principalPolicyRepo], [actual.hasher, deps.passwordHasher],
     [actual.apiKeys, deps.apiKeyRepo], [actual.secretHasher, deps.apiKeySecretHasher],
-    [actual.clock, deps.clock], [actual.idGen, deps.idGen],
+    [actual.repos.transactions, deps.transactions], [actual.tokens, deps.tokens], [actual.idGen, deps.idGen],
   ];
   for (const [actualPort, expectedPort] of bindings) assert.equal(actualPort, expectedPort);
+  assert.deepEqual(Object.keys(actual.clock), ["nowMs"]);
+  assert.equal(actual.clock.nowMs(), 1791030896789);
+  nowIso = "2026-10-04T12:34:56.789Z";
+  assert.equal(actual.clock.nowMs(), 1791117296789);
+  assert.equal(deps.clock, clock);
 });
 
 // F4.1/F4.4/F6.2: branch-specific exact envelopes, including an unknown error containing a secret.

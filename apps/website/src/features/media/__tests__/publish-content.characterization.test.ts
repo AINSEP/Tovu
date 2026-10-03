@@ -67,7 +67,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
   let n = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-18T12:00:00.000Z" },
+    clock: { nowIso: () => "2026-09-18T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `generated-${++n}` },
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),

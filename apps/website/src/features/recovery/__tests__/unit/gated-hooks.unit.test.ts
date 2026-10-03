@@ -25,7 +25,7 @@ function harness(options: { missing?: boolean; failRestore?: boolean; restartReq
   const trace: unknown[] = [];
   let seq = 0;
   const input: BuildRestoreHooksInput = {
-    workspaceId: "ws", actorId: "operator", restorePointId: "chosen", clock: { nowIso: () => "2026-10-01T12:00:00.000Z" }, idGen: { newId: () => `id-${++seq}` },
+    workspaceId: "ws", actorId: "operator", restorePointId: "chosen", clock: { nowIso: () => "2026-10-01T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `id-${++seq}` },
     restorePointsRepo: { list: async () => options.missing ? [] : [
       { id: "decoy", createdAt: "newer", artifactRef: "/snapshots/decoy.db" },
       { id: "chosen", createdAt: "older", artifactRef: "/snapshots/chosen.db" },

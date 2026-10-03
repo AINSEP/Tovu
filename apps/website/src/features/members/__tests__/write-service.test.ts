@@ -45,7 +45,7 @@ function hashToken(rawToken: string): string {
 function makeClock(initialIso: string): ClockPort & { set(iso: string): void } {
   let current = initialIso;
   return {
-    nowIso: () => current,
+    nowMs: () => Date.parse(current), nowIso: () => current,
     set: (iso: string) => {
       current = iso;
     },

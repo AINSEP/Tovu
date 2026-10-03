@@ -84,10 +84,7 @@ async function executeImport(clientError: Error, url: string, log?: (line: strin
   const { toolExecutor, lifecycle } = buildDelegatedToolDeps(clientError, log);
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
-  return delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "media_import_from_url", input: { url } },
-    { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) }
-  );
+  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "media_import_from_url", input: { url } }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
 }
 
 test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR", async () => {

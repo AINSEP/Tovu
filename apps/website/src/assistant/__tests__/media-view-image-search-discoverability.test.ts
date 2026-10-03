@@ -56,7 +56,7 @@ test("every way an operator asks to look at an image ranks media_view_image in t
   const catalog = await realCatalog();
   const misses: string[] = [];
   for (const query of QUERIES) {
-    const hits = catalog.search(query, 3).map((hit) => hit.id);
+    const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
     if (!hits.includes(TOOL_ID)) misses.push(`"${query}" -> ${hits.join(", ") || "(none)"}`);
   }
   assert.deepEqual(misses, [], `queries that missed the top 3:\n${misses.join("\n")}`);

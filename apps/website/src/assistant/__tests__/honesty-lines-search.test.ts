@@ -33,7 +33,7 @@ async function realCatalog() {
 
 test("reset my password ranks the honest identity tool above theme_reset_file", async () => {
   const catalog = await realCatalog();
-  const hits = catalog.search("reset my password", 1000).map((hit) => hit.id);
+  const hits = catalog.search({ query: "reset my password" }, { limit: 1000 }).map((hit) => hit.id);
   const identityRank = hits.indexOf("identity_user_update_email");
   const themeRank = hits.indexOf("theme_reset_file");
   assert.ok(identityRank >= 0, `identity_user_update_email must be found: ${hits.join(", ")}`);
@@ -48,7 +48,7 @@ for (const [query, toolId] of [
 ] as const) {
   test(`${query} ranks ${toolId} in the top 3 of the real catalog`, async () => {
     const catalog = await realCatalog();
-    const hits = catalog.search(query, 3).map((hit) => hit.id);
+    const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
     assert.ok(hits.includes(toolId), `${toolId} must rank in the top 3 for "${query}": ${hits.join(", ")}`);
   });
 }

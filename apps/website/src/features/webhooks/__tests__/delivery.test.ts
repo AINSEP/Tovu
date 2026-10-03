@@ -120,8 +120,9 @@ test("enqueueDelivery enqueues one row per matching active subscription and is i
   assert.equal(all.length, 1);
 });
 
-test("processDueDeliveries signs, POSTs, and marks a successful attempt delivered", async () => {
+test("processDueDeliveries signs, POSTs, and marks a successful attempt delivered", async t => {
   const rig = makeRig();
+  t.mock.method(Date, "now", () => Date.parse(rig.clock.nowIso()));
   const secret = Buffer.from("shared-secret");
   const { subscription, signer } = await seedActiveSubscription(rig, secret);
 
@@ -479,8 +480,9 @@ test("an explicit beforeDispatch veto (send: false) also fails closed without di
   assert.match(deliveries[0].lastError ?? "", /vetoed/);
 });
 
-test("hooks run in priority order and a later hook sees an earlier hook's redacted envelope", async () => {
+test("hooks run in priority order and a later hook sees an earlier hook's redacted envelope", async t => {
   const rig = makeRig();
+  t.mock.method(Date, "now", () => Date.parse(rig.clock.nowIso()));
   const secret = Buffer.from("shared-secret");
   const { signer } = await seedActiveSubscription(rig, secret);
 

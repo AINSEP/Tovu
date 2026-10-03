@@ -43,17 +43,14 @@ async function harness(registry: ToolRegistry = createToolRegistry({})): Promise
   return {
     records,
     call: (toolId, overrides = {}, signal) =>
-      delegatedToolExecuteRoute.handle(
-        { runId: run.id, toolUseId: "tu-1", toolId, input: {} },
-        {
+      delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: {} }, deps: {
           lifecycle,
           toolExecutor,
           resolvePrincipal: () => PRINCIPAL,
           onInternalError: () => undefined,
           ...delegatedToolErrorDisclosure(toolFailures),
           ...overrides,
-        },
-        signal,
+        } }, { signal: signal }
       ),
   };
 }

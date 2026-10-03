@@ -34,6 +34,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { register } from "tsx/esm/api";
 
 import { shellStalenessFailure, type StalenessShell } from "../shell-staleness.ts";
 
@@ -83,6 +84,9 @@ test("the compiled preload exposes every current source bridge method regardless
     t.skip("preload has not been built in this checkout");
     return;
   }
+  // Source contracts use emitted .js paths; compare them using the TypeScript resolver.
+  const unregister = register();
+  t.after(unregister);
   const exposed = new Map<string, Record<string, unknown>>();
   t.mock.module("electron", {
     namedExports: {

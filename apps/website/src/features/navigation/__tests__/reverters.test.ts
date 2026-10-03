@@ -50,7 +50,7 @@ function makeRepointDeps(menuRepo: MenuRepoPort): PublishContentDeps & { changeS
   const outbox = new InMemoryOutbox();
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: (() => {
       let n = 0;
       return { newId: () => `generated-${++n}` };

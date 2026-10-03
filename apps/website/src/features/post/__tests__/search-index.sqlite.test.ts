@@ -30,7 +30,7 @@ import { removeVia } from "./remove-post-double.js";
 const WS = "ws-search";
 const OTHER_WS = "ws-other";
 
-const clock: ClockPort = { nowIso: () => "2026-07-30T00:00:00.000Z" };
+const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-07-30T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
 
 const noopOutbox: OutboxPort = {
   enqueue: async () => {},

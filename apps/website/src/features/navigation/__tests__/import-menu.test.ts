@@ -14,7 +14,7 @@ function harness() {
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
   const events: DomainEvent[] = [];
   let seq = 0;
-  const deps = { repo, bindingRepo, clock: { nowIso: () => NOW }, idGen: { newId: () => `event-${++seq}` },
+  const deps = { repo, bindingRepo, clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `event-${++seq}` },
     outbox: { enqueue: async (event: DomainEvent) => { events.push(structuredClone(event)); } } as OutboxPort };
   return { deps, events };
 }

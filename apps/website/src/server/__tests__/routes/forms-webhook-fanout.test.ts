@@ -19,8 +19,8 @@ import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
  * queued row (SPEC-010 AC-16/EC-07, REQ-11) — after an accepted submission, a matching webhook
  * subscription's delivery-worker row is queued, with zero Forms-owned dispatch code (verified by
  * inspecting `integrations`' own `WebhookDeliveryRepoPort`, not a Forms-owned code path). Mirrors
- * `server/app.ts`'s exact wiring shape: `bus.subscribe('form.submission.received', event =>
- * enqueueDelivery(...))`.
+ * `server/app.ts`'s exact wiring shape: `bus.subscribe({ eventName: 'form.submission.received',
+ * handler: event => enqueueDelivery(...) })`.
  */
 const NOW = "2026-07-13T00:00:00.000Z";
 const WORKSPACE_ID = "ws-1";
@@ -45,7 +45,7 @@ function makeHarness() {
   const submissionRepo = new InMemoryFormSubmissionRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const rateLimiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
@@ -56,7 +56,7 @@ function makeHarness() {
 
   // Mirrors server/app.ts's exact wiring line: zero Forms-owned dispatch logic, forwards verbatim
   // to `integrations`' own `enqueueDelivery`.
-  void bus.subscribe("form.submission.received", async (event) => {
+  void bus.subscribe({ eventName: "form.submission.received", handler: async (event) => {
     await enqueueDelivery({
       deps: {
         subscriptionRepo: webhookSubscriptionRepo,
@@ -75,7 +75,7 @@ function makeHarness() {
         },
       },
     });
-  });
+  } });
 
   return {
     definitionRepo,

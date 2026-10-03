@@ -33,7 +33,7 @@ test("External MCP setup and live diagnostics rank in the top 3 of the productio
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(QUERIES)) for (const query of queries) {
-    const hits = catalog.search(query, 3).map(h => h.id);
+    const hits = catalog.search({ query: query }, { limit: 3 }).map(h => h.id);
     if (!hits.includes(id)) misses.push(`${id}: ${query} -> ${hits.join(", ")}`);
   }
   assert.deepEqual(misses, []);

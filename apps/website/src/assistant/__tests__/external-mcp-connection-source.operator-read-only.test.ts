@@ -20,7 +20,7 @@ async function harness() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-10-01T12:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-10-01T12:00:00.000Z"), nowIso: () => "2026-10-01T12:00:00.000Z" };
   const deps = { repo, keyring, sealer, clock };
   await saveExternalMcpServer(deps, { workspaceId, serverId: "remote", label: "Remote", transport: "streamable_http", authMode: "none",
     enabled: true, url, command: "", args: "", allowedToolNames: "inspect", writeAllowedToolNames: "", principalId: "owner", provisionedByPluginId: pluginId });

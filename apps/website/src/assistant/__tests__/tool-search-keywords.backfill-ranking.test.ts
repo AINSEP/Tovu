@@ -125,7 +125,7 @@ test("CRUX: every newly-backfilled tool ranks in the top 3 for a realistic opera
   const { after } = await buildBeforeAndAfterCatalogs();
 
   for (const c of CASES) {
-    const hits = after.search(c.query, SEARCH_LIMIT);
+    const hits = after.search({ query: c.query }, { limit: SEARCH_LIMIT });
     const rank = rankOf(hits, c);
     console.log(`[backfill-ranking] "${c.query}" -> rank ${rank ?? "MISS"} (top hit: ${hits[0]?.id ?? "(none)"}), wanted ${c.expect}`);
     assert.ok(
@@ -139,7 +139,7 @@ test("the backfill measurably improves top-3 ranking for these cases versus the 
   const { before, after } = await buildBeforeAndAfterCatalogs();
 
   const top3Rate = (catalog: typeof before) => {
-    const hits = CASES.map((c) => rankOf(catalog.search(c.query, SEARCH_LIMIT), c));
+    const hits = CASES.map((c) => rankOf(catalog.search({ query: c.query }, { limit: SEARCH_LIMIT }), c));
     const top3 = hits.filter((rank) => rank !== null && rank <= TOP_N).length;
     return { top3, total: hits.length };
   };

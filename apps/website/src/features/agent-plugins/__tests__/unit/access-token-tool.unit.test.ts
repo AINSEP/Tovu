@@ -60,7 +60,7 @@ async function setup(
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-13T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-13T00:00:00.000Z"), nowIso: () => "2026-09-13T00:00:00.000Z" };
   const http = new FakeVendorApi(probeOk);
   const connected: string[] = [];
   // Exactly what federate-mcp.ts provisions when the plugin is enabled: disabled, oauth, no write grants.
@@ -120,7 +120,7 @@ function call(registration: ToolRegistration | undefined, options: { input?: unk
     signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return invokeFixtureHandler(registration, ctx);
 }
 
 async function raise(tools: Map<string, ToolRegistration>, signal?: AbortSignal) {
@@ -359,4 +359,13 @@ for (const ending of ["expired", "abandoned", "abort"] as const) {
     assert.deepEqual(env.http.requests, []);
     assert.deepEqual(await env.readRow(), before);
   });
+}
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
 }

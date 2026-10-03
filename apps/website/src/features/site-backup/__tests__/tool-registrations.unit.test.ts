@@ -267,7 +267,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     repo,
     sealer,
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

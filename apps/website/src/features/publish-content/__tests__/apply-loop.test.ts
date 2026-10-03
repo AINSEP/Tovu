@@ -82,7 +82,7 @@ function makeCounterIdGen(prefix: string) {
 }
 
 function makeClock(iso = "2026-09-19T00:00:00.000Z") {
-  return { nowIso: () => iso };
+  return { nowIso: () => iso, nowMs() { return Date.parse(this.nowIso()); } };
 }
 
 function makePost(overrides: Partial<PostRecord> & { id: string }): PostRecord {
@@ -213,7 +213,7 @@ test("the per-item idempotency key is stable for one exact version and changes w
 
 async function stage(
   bundleRepo: InstanceType<typeof InMemoryPublishContentBundleRepo>,
-  clock: { nowIso(): string },
+  clock: { nowIso(): string; nowMs(): number },
   entities: readonly PackedEntity[],
   sourcePrincipalId: string = SOURCE_PRINCIPAL_ID
 ): Promise<string> {

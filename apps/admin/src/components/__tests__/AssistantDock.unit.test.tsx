@@ -21,8 +21,11 @@ import type { FrontendSessionBridge } from "@jini-ai/chat/react";
  */
 
 const chatPaneSpy = vi.hoisted(() => vi.fn());
+const mcpUiFetch = vi.hoisted(() => vi.fn<typeof globalThis.fetch>());
 
-vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
+vi.mock("@jini-ai/chat/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@jini-ai/chat/react")>();
+  return {
   JiniChatProvider: ({ children }: { children: ReactNode }) => children,
   ChatPane: (props: {
     executionMode: string;
@@ -59,7 +62,10 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
   ConversationList: () => null,
   A2uiSurfaceCard: () => null,
   createDaemonAttachmentUploader: () => vi.fn(),
-  createMcpUiToolCaller: (await importOriginal<typeof import("@jini-ai/chat/react")>()).createMcpUiToolCaller,
+  // The caller captures its transport at composition time. Inject the fake before constructing it
+  // while retaining the real package's request construction and response handling.
+  createMcpUiToolCaller: (required: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[0], optional: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[1]) =>
+    actual.createMcpUiToolCaller({ ...required, fetch: mcpUiFetch }, optional),
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
   // Module-scope value, not a function: `AssistantDock.tsx` reads it at import time for its
@@ -71,7 +77,8 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
   // Same trap: passed at module scope as the MCP-UI renderer's `slotKey` (one transcript slot per
   // `ui://` URI), so a factory without it fails the whole file at import.
   mcpUiSurfaceSlotKey: () => undefined,
-}));
+  };
+});
 
 vi.mock("../../lib/execution-settings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/execution-settings")>();
@@ -229,6 +236,7 @@ beforeEach(() => {
   mockLoadAdminExecutionCredential.mockReset().mockResolvedValue(storedCredential(false));
   vi.mocked(navigate).mockReset();
   chatPaneSpy.mockReset();
+  mcpUiFetch.mockReset();
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -764,7 +772,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
   });
 
   it("relays a rendered MCP tool call to the admin endpoint with the session cookie and payload", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ deleted: true })));
+    const fetchSpy = mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ deleted: true })));
     try {
       const element = renderedElement(rendererFor(MCP_UI_EXT_EVENT_NAME)(extEventProps({})));
       const onToolCall = element.props.onToolCall as (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown>;
@@ -776,7 +784,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
         body: JSON.stringify({ toolName: "content_post_delete", params: { id: "post-1", confirmationToken: "confirm-1" } }),
       }));
     } finally {
-      fetchSpy.mockRestore();
+      fetchSpy.mockReset();
     }
   });
 

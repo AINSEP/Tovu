@@ -118,7 +118,7 @@ function wiredMediaUploadAsset(deps: RouteDeps): ToolRegistration {
 describe("resolveChatAttachmentBytes", () => {
   test("reads bytes through the store's resolved path and returns the attachment's name", async () => {
     const store: ChatAttachmentLookup = {
-      resolveForRun: async (ref, runId) => {
+      resolveForRun: async ({ ref, runId }) => {
         assert.equal(ref, "attachment:abc");
         assert.equal(runId, "run-1");
         return { path: "/fake/path/ai-caps.avif", name: "ai-caps.avif", kind: "file" };
@@ -180,10 +180,10 @@ describe("media_promote_chat_attachment (end to end)", () => {
   test("promotes a real AVIF chat attachment into the media library, recording image/avif — not video/mp4 — via the SAME gate media_upload_asset uses", async () => {
     await withRealStore(async (store) => {
       const { deps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore } = fakeRouteDeps();
-      const batchDirectory = await store.createBatchDirectory("batch-e2e-1");
+      const batchDirectory = await store.createBatchDirectory({ batchId: "batch-e2e-1" });
       const filePath = resolve(batchDirectory, "raw-upload-name.bin");
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
-      const registered = await store.register({ batchId: "batch-e2e-1", path: filePath, name: "ai-caps.avif", kind: "file", size: AVIF_BYTES.length });
+      const registered = await store.register({ input: { batchId: "batch-e2e-1", path: filePath, name: "ai-caps.avif", kind: "file", size: AVIF_BYTES.length } });
 
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
@@ -212,10 +212,10 @@ describe("media_promote_chat_attachment (end to end)", () => {
   test("promotes a real, non-image (video/mp4) chat attachment through the SAME path — the bridge is generic over content type, not AVIF-specific", async () => {
     await withRealStore(async (store) => {
       const { deps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore } = fakeRouteDeps();
-      const batchDirectory = await store.createBatchDirectory("batch-e2e-video");
+      const batchDirectory = await store.createBatchDirectory({ batchId: "batch-e2e-video" });
       const filePath = resolve(batchDirectory, "raw-upload-name.bin");
       await writeFile(filePath, MP4_BYTES, { mode: 0o600 });
-      const registered = await store.register({ batchId: "batch-e2e-video", path: filePath, name: "clip.mp4", kind: "file", size: MP4_BYTES.length });
+      const registered = await store.register({ input: { batchId: "batch-e2e-video", path: filePath, name: "clip.mp4", kind: "file", size: MP4_BYTES.length } });
 
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
@@ -238,10 +238,10 @@ describe("media_promote_chat_attachment (end to end)", () => {
   test("resolves by the real absolute path too, not only the opaque attachment id", async () => {
     await withRealStore(async (store) => {
       const { deps } = fakeRouteDeps();
-      const batchDirectory = await store.createBatchDirectory("batch-e2e-2");
+      const batchDirectory = await store.createBatchDirectory({ batchId: "batch-e2e-2" });
       const filePath = resolve(batchDirectory, "photo.bin");
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
-      await store.register({ batchId: "batch-e2e-2", path: filePath, name: "photo.avif", kind: "file", size: AVIF_BYTES.length });
+      await store.register({ input: { batchId: "batch-e2e-2", path: filePath, name: "photo.avif", kind: "file", size: AVIF_BYTES.length } });
 
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
@@ -259,12 +259,12 @@ describe("media_promote_chat_attachment (end to end)", () => {
   test("refuses to promote an attachment a DIFFERENT run already claimed — the authorization scoping this bridge adds", async () => {
     await withRealStore(async (store) => {
       const { deps, mediaRepo } = fakeRouteDeps();
-      const batchDirectory = await store.createBatchDirectory("batch-e2e-3");
+      const batchDirectory = await store.createBatchDirectory({ batchId: "batch-e2e-3" });
       const filePath = resolve(batchDirectory, "other.bin");
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
-      const registered = await store.register({ batchId: "batch-e2e-3", path: filePath, name: "other.avif", kind: "file", size: AVIF_BYTES.length });
+      const registered = await store.register({ input: { batchId: "batch-e2e-3", path: filePath, name: "other.avif", kind: "file", size: AVIF_BYTES.length } });
       // A different chat session's run claims it first.
-      await store.claim([registered], "run-owner");
+      await store.claim({ attachments: [registered], runId: "run-owner" });
 
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,

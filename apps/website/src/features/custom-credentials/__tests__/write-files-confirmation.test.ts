@@ -89,7 +89,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -106,7 +106,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
     repo,
     sealer,
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

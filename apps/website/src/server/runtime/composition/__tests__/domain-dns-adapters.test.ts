@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpRequest } from "#src/platform/http/index";
 
 let resolvedAddress = "8.8.8.8";
 let dnsLookups = 0;
-mock.module("node:dns/promises", { namedExports: { lookup: async () => { dnsLookups++; return [{ address: resolvedAddress, family: 4 }]; } } });
+const dns = { resolve: async () => { dnsLookups++; return [resolvedAddress]; } };
 const { createHttpClient } = await import("#src/platform/http/client");
 const { createPublicDnsResolver, createTlsProbe, listSavedHostingHosts, DOMAIN_DNS_EGRESS_POLICY } = await import("../domain-dns-adapters.js");
 
@@ -79,7 +79,7 @@ test("egress refusal uses only the caller-safe message", async () => {
 });
 test("production policy blocks all non-public addresses before transport and rechecks subsequent lookups", async () => {
   let connected = 0;
-  const client = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY, transport: { requestPinned: async (request, peer) => { connected++; assert.equal(peer.ip, "8.8.8.8"); return { status: 302, headers: { location: "https://other.example/" }, bodyText: "" }; } } });
+  const client = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY, transport: { requestPinned: async (request, peer) => { connected++; assert.equal(peer.ip, "8.8.8.8"); return { status: 302, headers: { location: "https://other.example/" }, bodyText: "" }; } } }, { dns });
   assert.deepEqual(DOMAIN_DNS_EGRESS_POLICY, { allowedSchemes: ["https"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0, connectTimeoutMs: 15000, maxResponseBytes: 65536, maxDecompressedBytes: 65536 });
   resolvedAddress = "8.8.8.8";
   assert.deepEqual(await createTlsProbe(client)({ domain: "example.com" }), { status: "verified", httpStatus: 302 });
@@ -133,7 +133,7 @@ test("outbound diagnostics report successful and failed outcomes without DNS/cer
 
 test("an expired injected deadline stops the guarded TLS probe before DNS or transport", async () => {
   let connections = 0;
-  const client = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY, transport: { requestPinned: async () => { connections++; throw new Error("must not connect"); } } });
+  const client = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY, transport: { requestPinned: async () => { connections++; throw new Error("must not connect"); } } }, { dns });
   const signal = AbortSignal.abort(new Error("deadline"));
   const lookupsBefore = dnsLookups;
   assert.deepEqual(await createTlsProbe(client, { createDeadline: () => signal })({ domain: "example.com" }), { status: "unavailable", httpStatus: null });

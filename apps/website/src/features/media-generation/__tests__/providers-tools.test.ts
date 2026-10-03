@@ -67,13 +67,13 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
   const sealer = new AesGcmSecretSealer(keyring);
   const auth: unknown[] = [];
   const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer,
-    siteAssistantSecretKeyring: keyring, clock: { nowIso: () => '2026-10-01T00:00:00.000Z' },
+    siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ ...exchangeOptions, newExchangeId: () => 'exchange-t10' });
   const registrations = buildMediaProviderRegistrations(deps, { surfaceExchanges: surfaces });
   function tool(id: string) { const found = registrations.find(r => r.descriptor.id === id); assert.ok(found, `expected '${id}' to be wired`); return found; }
   function call(id: string, input: unknown, extra: Partial<ToolExecutionContext> = {}) {
-    return tool(id).handler({ executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input,
+    return invokeFixtureHandler(tool(id), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input,
       signal: new AbortController().signal, ...extra });
   }
   const writeDeps = { repo, sealer, keyring, clock: deps.clock };
@@ -223,7 +223,7 @@ test('t10 media generation missing key names the human setup tool in its refusal
   const f = fixture();
   const deps = { ...f.deps, env: {}, generateMedia: async () => assert.fail('missing credential must not call a vendor') } as unknown as MediaGenerationToolDeps;
   const registration = buildMediaGenerationRegistrations(deps).find(r => r.descriptor.id === 'media_generate_asset'); assert.ok(registration);
-  await assert.rejects(registration.handler({ executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+  await assert.rejects(invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { prompt: 'Cover image', model: 'gpt-image-2' }, signal: new AbortController().signal }),
     { message: 'media_generate_asset: no OpenAI media-provider credential is configured for this workspace (also checked OPENAI_API_KEY in this process\'s environment — none were set). Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> "Media providers" (Access Tokens\' counterpart for generation vendors) before this tool can generate an image with this model. Do not retry — this will not resolve without that credential being added.' });
 });
@@ -240,3 +240,12 @@ test('t10 media saving while a different provider rotates preserves the latest c
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://new-images.example.com', model: 'latest-model' });
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

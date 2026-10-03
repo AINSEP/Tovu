@@ -37,7 +37,7 @@ function makeRouteDeps(options: { allow?: boolean; readOnly?: boolean } = {}): N
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs: () => Date.parse(NOW) },
+    clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as NewsletterToolDeps["outbox"],
     bus: { publish: async () => undefined, subscribe: () => undefined } as unknown as NewsletterToolDeps["bus"],
@@ -69,7 +69,7 @@ async function buildHarness(routeDeps: NewsletterToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, harness);
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
 }
 
 test("newsletter_get_campaign for an unknown campaign is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

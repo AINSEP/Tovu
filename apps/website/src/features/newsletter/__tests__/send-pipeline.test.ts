@@ -47,7 +47,7 @@ import { SqliteNewsletterCampaignRepo, SqliteNewsletterSendRepo } from "../repo.
 import type { CampaignRecord, SendRow, SubscriptionRow } from "../types.js";
 
 const WS = "ws-1";
-const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z"), nowIso: () => "2026-08-21T00:00:00.000Z" };
 let idCounter = 0;
 const ids = { newId: () => `id-${++idCounter}` };
 
@@ -331,7 +331,7 @@ test("freezeAudience: zero subscribed subscribers -- empty snapshot, no send-row
   const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
   assert.equal(result.snapshot.recipientCount, 0);
   assert.deepEqual(result.sendIds, []);
-  const outboxRows = await rig.outbox.claimPending(100, clock.nowIso());
+  const outboxRows = await rig.outbox.claimPending({ batchSize: 100, nowIso: clock.nowIso() });
   assert.equal(outboxRows.length, 0);
 });
 
@@ -362,7 +362,7 @@ test("freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 
   const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
   assert.equal(result.sendIds.length, 25);
 
-  const claimed = await rig.outbox.claimPending(100, clock.nowIso());
+  const claimed = await rig.outbox.claimPending({ batchSize: 100, nowIso: clock.nowIso() });
   assert.equal(claimed.length, 2);
   const job1 = claimed[0].event.payload as SendBatchJob;
   const job2 = claimed[1].event.payload as SendBatchJob;
@@ -373,9 +373,9 @@ test("freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 
     assert.equal(row.event.workspaceId, WS);
     assert.deepEqual(row.event.payload, { workspaceId: WS, campaignId: "camp-1", audienceSnapshotId: result.snapshot.id, sendIds: result.sendIds.slice(i * 20, (i + 1) * 20) });
   }
-  await rig.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+  await rig.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => {
     await handleSendBatchClaimed({ deps: rig.deps, job: event.payload as SendBatchJob });
-  });
+  } });
   for (const row of claimed) await rig.bus.publish(row.event);
   assert.deepEqual([...mailer.sentTo].sort(), contacts.map((c) => c.email).sort());
   const rows = await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 100 });
@@ -404,7 +404,7 @@ test("claimBatch: delegates to processOutbox with the default batchSize=20", asy
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const received: string[] = [];
-  await bus.subscribe("test.event", async (event) => { received.push(event.id); });
+  await bus.subscribe({ eventName: "test.event", handler: async (event) => { received.push(event.id); } });
   for (let i = 0; i < 25; i++) await outbox.enqueue(makeOutboxEvent(`evt-${i}`) as never);
   const claimedCount = await claimBatch({ deps: { outbox, bus, clock } });
   assert.equal(claimedCount, 20);
@@ -875,9 +875,9 @@ test("pause stops remaining recipients in an in-flight batch; resume requeues pe
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "pending");
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "paused");
   await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
-  rig.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+  rig.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => {
     await handleSendBatchClaimed({ deps: rig.deps, job: event.payload as SendBatchJob });
-  });
+  } });
   rig.deps.mailer = makeMailer();
   await claimBatch({ deps: rig.deps });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "delivered");
@@ -1166,7 +1166,7 @@ test("handleSendBatchClaimed: a row leased by a run that threw is claimable agai
     return lookUp(args);
   });
   let nowIso = clock.nowIso();
-  const deps: SendPipelineDeps = { ...rig.deps, clock: { nowIso: () => nowIso } };
+  const deps: SendPipelineDeps = { ...rig.deps, clock: { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso } };
 
   await assert.rejects(handleSendBatchClaimed({ deps, job: makeJob() }), { message: "database is locked" });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");

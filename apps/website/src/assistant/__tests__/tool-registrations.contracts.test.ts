@@ -135,7 +135,7 @@ function fakeRouteDeps(existing?: ContentTypeRecord) {
       appendRevision: async () => {},
       findByKey: async () => existing ?? null,
       listByWorkspace: async () => (existing ? [existing] : []),
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }) => fn(),
     },
     contentTypeIndexProvisioner: {
       provisionIndexesForNewContentType: async () => {},
@@ -674,13 +674,13 @@ test("both tools are discoverable through the real search_tools/describe_tool ca
   // `describe()` is an exact id lookup against `buildToolCatalogQuery`'s FTS5 seed
   // (`registry.list({})` — see that function's own doc), not a fuzzy `.search()` match that could
   // pass by coincidentally matching an unrelated tool's description.
-  const execute = catalog.describe("deployment_execute_static_publish");
-  const capabilities = catalog.describe("deployment_get_static_publish_capabilities");
+  const execute = catalog.describe({ id: "deployment_execute_static_publish" });
+  const capabilities = catalog.describe({ id: "deployment_get_static_publish_capabilities" });
   assert.ok(execute, "deployment_execute_static_publish must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
   assert.ok(capabilities, "deployment_get_static_publish_capabilities must be describable for the same reason");
   assert.match(execute!.description, /Publishes a fresh static export/);
 
-  const hits = catalog.search("publish the site to a host", 25);
+  const hits = catalog.search({ query: "publish the site to a host" }, { limit: 25 });
   assert.ok(hits.some((hit) => hit.id === "deployment_execute_static_publish"), `expected deployment_execute_static_publish among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
 });
 
@@ -733,13 +733,13 @@ test("search_components and describe_component are present in the REAL ToolRegis
 test("both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them", async () => {
   const { catalog } = await buildRealAssembledSurface();
 
-  const search = catalog.describe("search_components");
-  const describe = catalog.describe("describe_component");
+  const search = catalog.describe({ id: "search_components" });
+  const describe = catalog.describe({ id: "describe_component" });
   assert.ok(search, "search_components must be describable via describe_tool");
   assert.ok(describe, "describe_component must be describable via describe_tool");
   assert.match(search!.description, /interactive-UI component catalog/);
 
-  const hits = catalog.search("find a UI component to render a chart", 25);
+  const hits = catalog.search({ query: "find a UI component to render a chart" }, { limit: 25 });
   assert.ok(
     hits.some((hit) => hit.id === "search_components"),
     `expected search_components among search hits: ${JSON.stringify(hits.map((h) => h.id))}`,
@@ -821,11 +821,11 @@ test("plugins_uninstall is present in the REAL ToolRegistry built the same way a
 test("plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog", async () => {
   const { catalog } = await buildRealAssembledSurface();
 
-  const described = catalog.describe("plugins_uninstall");
+  const described = catalog.describe({ id: "plugins_uninstall" });
   assert.ok(described, "plugins_uninstall must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
   assert.match(described!.description, /PERMANENTLY removes the Agent Plugin/);
 
-  const hits = catalog.search("uninstall an agent plugin", 25);
+  const hits = catalog.search({ query: "uninstall an agent plugin" }, { limit: 25 });
   assert.ok(hits.some((hit) => hit.id === "plugins_uninstall"), `expected plugins_uninstall among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
 });
 

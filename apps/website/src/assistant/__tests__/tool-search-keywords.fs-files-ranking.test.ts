@@ -63,7 +63,7 @@ async function buildCatalog() {
 test("an operator asking about a dropped or local folder finds the fs-files tools in the top 3", async () => {
   const catalog = await buildCatalog();
   const misses = CASES.flatMap((c) => {
-    const hits = catalog.search(c.query, SEARCH_LIMIT);
+    const hits = catalog.search({ query: c.query }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((hit) => hit.id === c.expect);
     const rank = index === -1 ? null : index + 1;
     return rank !== null && rank <= TOP_N

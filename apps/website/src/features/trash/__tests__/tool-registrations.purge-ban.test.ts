@@ -68,13 +68,13 @@ for (const [id, input] of [
     const ctx = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal };
     await assert.rejects(registration.handler(ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
     assert.equal(purges, 0);
-    assert.deepEqual(await registration.handler({ ...ctx, emitSurface: async () => {
+    assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
       assert.equal(purges, 0);
       const exchangeId = store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
       store.deliver({ exchangeId, principalId: "owner", toolId: id, params: { decision: "cancel" } });
     } }), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
     assert.equal(purges, 0);
-    assert.deepEqual(await registration.handler({ ...ctx, emitSurface: async () => {
+    assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
       assert.equal(purges, 0);
       const exchangeId = store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
       store.deliver({ exchangeId, principalId: "owner", toolId: id, params: { decision: "confirm" } });

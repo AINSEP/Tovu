@@ -3,10 +3,10 @@ import test from "node:test";
 
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { createNoopObservabilityPort } from "../../noop.js";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createOtelObservabilityPort } from "../../otel.js";
-import type { ObservabilityConfigEnabled } from "../../config.js";
-import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "../../ports.js";
+import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file Table-driven proof that every adapter satisfies `ObservabilityPort`'s CONTRACT (not just
@@ -18,6 +18,8 @@ import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } 
 const OTEL_CONFIG: ObservabilityConfigEnabled = {
   enabled: true,
   serviceName: "tovu-test",
+  tracerName: "tovu.observability",
+  endpoint: "http://collector.test/v1/traces",
 };
 
 interface AdapterUnderTest {
@@ -26,10 +28,10 @@ interface AdapterUnderTest {
 }
 
 const ADAPTERS: AdapterUnderTest[] = [
-  { name: "noop", build: () => createNoopObservabilityPort() },
+  { name: "noop", build: () => createNoopObservabilityPort({ }) },
   {
     name: "otel",
-    build: () => createOtelObservabilityPort(OTEL_CONFIG, { spanProcessors: [new SimpleSpanProcessor(new InMemorySpanExporter())] }),
+    build: () => createOtelObservabilityPort({ config: OTEL_CONFIG }, { spanProcessors: [new SimpleSpanProcessor(new InMemorySpanExporter())] }),
   },
 ];
 

@@ -82,7 +82,7 @@ test("the fixture names only tools that exist, and every known gap is a scored r
 test("every operator request with a tool finds it in the top 3 of search_tools", async () => {
   const { catalog } = await buildCatalog();
   const misses = REQUESTS.filter((r) => r.expect.length > 0 && !KNOWN_GAPS.has(r.id)).flatMap((r) => {
-    const hits = catalog.search(r.query, SEARCH_LIMIT).map((hit) => hit.id);
+    const hits = catalog.search({ query: r.query }, { limit: SEARCH_LIMIT }).map((hit) => hit.id);
     const ranks = r.expect.map((id) => hits.indexOf(id)).filter((i) => i >= 0);
     const best = ranks.length > 0 ? Math.min(...ranks) + 1 : null;
     return best !== null && best <= TOP_N

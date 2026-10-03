@@ -20,10 +20,10 @@ const WORKSPACE_ID = "ws-1";
 const MEMBER_ID = "member-1";
 const PURPOSE = "newsletter:list-1";
 
-function makeClock(initialIso: string): ClockPort & { set(iso: string): void } {
+function makeClock(initialIso: string): ClockPort & { nowMs(): number; set(iso: string): void } {
   let current = initialIso;
   return {
-    nowIso: () => current,
+    nowIso: () => current, nowMs() { return Date.parse(this.nowIso()); },
     set: (iso: string) => {
       current = iso;
     },

@@ -65,7 +65,7 @@ test("bounds are written on close, guarded against a destroyed or full-screen wi
   assert.ok(closeHandler, "expected a window.on(\"close\", ...) handler near the sites-home window");
   assert.match(closeHandler![0], /isDestroyed\(\)/);
   assert.match(closeHandler![0], /isFullScreen\(\)/);
-  assert.match(closeHandler![0], /writeWindowBounds\(boundsPath, window\.getBounds\(\)\)/);
+  assert.match(closeHandler![0], /writeWindowBounds\(\{ boundsPath, bounds: window\.getBounds\(\) \}\)/);
   const registrations = homeRegistrations("close");
   assert.equal(registrations.length, 1);
   const registration = registrations[0];
@@ -83,15 +83,15 @@ test("bounds are written on close, guarded against a destroyed or full-screen wi
     };
     const handler = new Function("window", "boundsPath", "writeWindowBounds", `${callback}; return handler;`)(window, "/bounds.json", (...args: unknown[]) => writes.push(args));
     handler();
-    assert.deepEqual(writes, state === "normal" ? [["/bounds.json", bounds]] : [], state);
+    assert.deepEqual(writes, state === "normal" ? [[{ boundsPath: "/bounds.json", bounds }]] : [], state);
   }
 });
 
 test("registerSpellCheckContextMenu is wired for BOTH the top-level window and every attached guest", () => {
-  assert.match(source, /registerSpellCheckContextMenu\(window\.webContents, Menu\)/, "top-level Projects screen");
+  assert.match(source, /registerSpellCheckContextMenu\(\{ webContents: window\.webContents, menuBuilder: Menu \}\)/, "top-level Projects screen");
   const didAttach = source.match(/window\.webContents\.on\("did-attach-webview", \(_event, contents\) => \{[\s\S]{0,200}?\}\);/);
   assert.ok(didAttach, 'expected a did-attach-webview handler wiring the guest\'s own context menu');
-  assert.match(didAttach![0], /registerSpellCheckContextMenu\(contents, Menu\)/, "project tab guest");
+  assert.match(didAttach![0], /registerSpellCheckContextMenu\(\{ webContents: contents, menuBuilder: Menu \}\)/, "project tab guest");
 });
 
 test("did-attach-webview is registered on the SAME window as will-attach-webview, not a different one", () => {

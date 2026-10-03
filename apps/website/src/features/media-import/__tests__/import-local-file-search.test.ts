@@ -37,7 +37,7 @@ test("local file owner requests rank media_import_local_file in the top 3 of the
     "Put hero.mp4 from my computer on the site.",
     "my Downloads folder",
   ]) {
-    const hits = catalog.search(query, 20).map((hit) => hit.id);
+    const hits = catalog.search({ query }, { limit: 20 }).map((hit) => hit.id);
     const rank = hits.indexOf("media_import_local_file");
     assert.ok(rank >= 0 && rank < 3, `${JSON.stringify(query)} must rank media_import_local_file top 3; got ${hits.slice(0, 3).join(", ")}`);
     if (query.includes("Downloads")) {
@@ -57,8 +57,8 @@ test("adding the local importer introduces no misses in the 127 operator request
   const existingMisses: string[] = [];
   let compared = 0;
   for (const request of requests.filter((entry) => entry.expect.length > 0)) {
-    const priorHits = before.search(request.query, 3).map((hit) => hit.id);
-    const afterHits = catalog.search(request.query, 3).map((hit) => hit.id);
+    const priorHits = before.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
+    const afterHits = catalog.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
     if (!request.expect.some((id) => priorHits.includes(id))) {
       existingMisses.push(request.id);
       continue;

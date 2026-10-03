@@ -240,8 +240,13 @@ export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFe
       principalId: context.principal.id, permission,
     }, { entityType, entityId }),
     ...(deps.assertConnectionUsable ? { assertConnectionUsable: ({ connectionId, call }: { connectionId: string; call: FederatedCallTarget }) => deps.assertConnectionUsable!(connectionId, call) } : {}),
-    ...(deps.onAuthFailed ? { onAuthFailed: ({ connectionId, error }: Parameters<NonNullable<JiniFederationDeps["onAuthFailed"]>>[0]) =>
-      deps.onAuthFailed!(connectionId, new McpAuthFailedError(error.message, { cause: error })) } : {}),
+    onAuthFailed: async ({ connectionId, error }) => {
+      // The session bridge retains the host error as its cause; preserve that identity on return.
+      const hostError = error.cause instanceof McpAuthFailedError
+        ? error.cause : new McpAuthFailedError(error.message, { cause: error });
+      if (deps.onAuthFailed) return deps.onAuthFailed(connectionId, hostError);
+      throw hostError;
+    },
     ...(deps.confirmCall ? { confirmCall: ({ context, request }: Parameters<NonNullable<JiniFederationDeps["confirmCall"]>>[0]) => deps.confirmCall!(context, request) } : {}),
   };
 }

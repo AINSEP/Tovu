@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { collectPageStructure, type PageStructureCapture, type PageStructureLimits } from "../../page-structure-script.js";
+import { collectPageStructure, type PageStructureCapture, type PageStructureLimits } from "@jini-ai/diagnostics/web-evidence";
 
 /**
  * @file `collectPageStructure()` exercised directly, through a hand-built DOM/CSSOM double.

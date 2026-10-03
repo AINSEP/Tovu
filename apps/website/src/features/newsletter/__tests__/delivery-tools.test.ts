@@ -18,7 +18,7 @@ async function fixture(driver = "smtp", status = "draft") {
   const messages: unknown[] = [];
   const deps: NewsletterDeliveryToolDeps = {
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowMs: () => Date.parse(NOW) }, idGen: { newId: () => `id-${++id}` },
+    clock: { nowIso: () => NOW }, idGen: { newId: () => `id-${++id}` },
     outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),
     mailer: { capabilities: () => ({ driver, maxBatchSize: 1, supportsAttachments: false, supportsIdempotencyKey: true, supportsWebhookFeedback: false }), sendBatch: async () => [], send: async (message) => { messages.push(message); return { ok: true, providerMessageId: "provider-1", acceptedAt: NOW }; } },
     originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "example.com", port: 443 }), isAllowedEgressTarget: async () => true } as NewsletterDeliveryToolDeps["originRegistry"],
@@ -155,7 +155,7 @@ test("confirmed send freezes an audience and uses the existing outbox pipeline o
   await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "subscribed", source: "admin", subscribedAt: NOW, unsubscribedAt: null, consentRevisionIdAtSubscribe: "consent", createdAt: NOW, updatedAt: NOW });
   h.deps.newsletterSubscriberDirectory.getContacts = async () => [{ workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true }];
   const { toNewsletterSendPipelineDeps } = await import("../tool-registrations.js");
-  await h.deps.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => handleSendBatchClaimed({ deps: toNewsletterSendPipelineDeps(h.deps), job: event.payload as SendBatchJob }));
+  await h.deps.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => handleSendBatchClaimed({ deps: toNewsletterSendPipelineDeps(h.deps), job: event.payload as SendBatchJob }) });
   const raised = await h.raise("newsletter_send_campaign");
   assert.deepEqual(h.messages, []);
   raised.answer({ decision: "confirm" });
@@ -200,7 +200,7 @@ test("confirmed resume dispatches only pending rows from the frozen audience", a
   await h.deps.newsletterSendRepo.save(pending);
   await h.deps.newsletterSendRepo.save({ ...pending, id: "already-delivered", status: "delivered", idempotencyKey: "done-key", providerMessageId: "original-provider" });
   const { toNewsletterSendPipelineDeps } = await import("../tool-registrations.js");
-  await h.deps.bus.subscribe(SEND_BATCH_CLAIMED_EVENT, async (event) => handleSendBatchClaimed({ deps: toNewsletterSendPipelineDeps(h.deps), job: event.payload as SendBatchJob }));
+  await h.deps.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => handleSendBatchClaimed({ deps: toNewsletterSendPipelineDeps(h.deps), job: event.payload as SendBatchJob }) });
   const raised = await h.raise("newsletter_resume_campaign");
   assert.deepEqual(h.messages, []);
   raised.answer({ decision: "confirm" });

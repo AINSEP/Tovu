@@ -31,11 +31,11 @@ test("plan and execute pulls are reachable through the real catalog and rank in 
     ["publish_content_plan_pull", ["Pull the live site's content down to my computer.", "Sync my local site with what's live.", "download live content", "bring back changes from live site"]],
     ["publish_content_execute_pull", ["apply pull", "overwrite local with live", "confirm sync", "apply planned pull"]],
   ] as const) {
-    assert.notEqual(c.describe(id), null, `${id} must be wired`);
-    for (const query of queries) assert.equal(c.search(query, 3).some(h => h.id === id), true, `${query}: ${c.search(query, 3).map(h => h.id).join(", ")}`);
+    assert.notEqual(c.describe({ id }), null, `${id} must be wired`);
+    for (const query of queries) assert.equal(c.search({ query }, { limit: 3 }).some(h => h.id === id), true, `${query}: ${c.search({ query }, { limit: 3 }).map(h => h.id).join(", ")}`);
   }
 });
 test("publishing setup still ranks status first", async () => {
   const c = await catalog();
-  assert.equal(c.search("is my site set up to publish", 3)[0]?.id, "publish_content_status");
+  assert.equal(c.search({ query: "is my site set up to publish" }, { limit: 3 })[0]?.id, "publish_content_status");
 });

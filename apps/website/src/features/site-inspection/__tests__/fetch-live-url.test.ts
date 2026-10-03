@@ -165,12 +165,11 @@ test("deadline expiry between redirect hops is also a model-visible timeout", as
 });
 test("the REAL guarded client refuses non-public DNS answers and a rebound redirect before connect", async t => {
   let addresses = ['8.8.8.8'];
-  t.mock.module('node:dns/promises', { namedExports: { lookup: async () => addresses.map(address => ({ address, family: address.includes(':') ? 6 : 4 })) } });
   const { createHttpClient } = await import('../../../platform/http/client.js?live-url-dns');
   const connected: string[] = [];
   const client = createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY, transport: { requestPinned: async (req, peer) => {
     connected.push(peer.ip); addresses = ['10.0.0.1']; return { status: 302, headers: { location: '/next' }, bodyText: '' };
-  } } });
+  } } }, { dns: { resolve: async () => addresses } });
   for (const [address, range] of [['169.254.169.254', 'link-local'], ['127.0.0.1', 'loopback'], ['10.0.0.1', 'private'], ['::1', 'loopback'], ['0:0:0:0:0:0:0:1', 'loopback'], ['0:0:0:0:0:0:0:0', 'reserved'], ['fc00::1', 'private'], ['fd00::1', 'private'], ['100.64.0.1', 'private'], ['224.0.0.1', 'reserved'], ['fe80::1', 'link-local'], ['ff00::1', 'reserved']] as const) {
     addresses = [address];
     await assert.rejects(fetchLiveUrl({ listKnownOrigins: async () => [origin], httpClient: client }, { path: '/' }), { message: `fetch_live_url: egress to 'site.example' rejected: resolved address is ${range}` }); assert.deepEqual(connected, []);

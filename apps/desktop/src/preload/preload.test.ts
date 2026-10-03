@@ -8,6 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { register } from "tsx/esm/api";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
 import { fileURLToPath } from "node:url";
@@ -30,6 +31,9 @@ test("preload.mts exposes both bridges — dropping either is what the port had 
 
 // PARITY: both renderer bridges remain exposed and the ESM voice bridge preserves positional IPC.
 test("the ESM preload exposes runner and voice and forwards the exact speech payload", async (t) => {
+  // Resolve the preload's emitted .js contract paths back to TypeScript source under Node.
+  const unregister = register();
+  t.after(unregister);
   const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
   const invokes: unknown[][] = [];
   const availability = { available: true };

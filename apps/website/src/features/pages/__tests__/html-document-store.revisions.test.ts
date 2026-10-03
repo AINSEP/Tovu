@@ -19,7 +19,7 @@ import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-docu
  */
 
 const WS = "ws-pages-rev";
-const clock: ClockPort = { nowIso: () => "2026-09-24T00:00:00.000Z" };
+const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
 
 
 const ORIGINAL_DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] };

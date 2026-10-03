@@ -29,7 +29,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
     repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
     loadDeployTargets: loadBundledDeployTargets,
   };

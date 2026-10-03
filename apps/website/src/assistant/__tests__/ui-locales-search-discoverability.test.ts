@@ -46,7 +46,7 @@ test("supported language and code questions rank settings_list_ui_locales in the
     "translate to german",
   ];
   const misses = queries.flatMap((query) => {
-    const hits = catalog.search(query, 3).map((hit) => hit.id);
+    const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
     return hits.includes("settings_list_ui_locales") ? [] : [`${query} -> ${hits.join(", ")}`];
   });
   assert.deepEqual(misses, [], "language discovery must not require shell access");
@@ -58,8 +58,8 @@ test("supported language and code questions rank settings_list_ui_locales in the
     readFileSync(path.join(import.meta.dirname, "fixtures", "tool-search-operator-requests.json"), "utf8"),
   );
   const regressions = requests.flatMap((request) => {
-    const earlierHits = before.search(request.query, 3).map((hit) => hit.id);
-    const currentHits = catalog.search(request.query, 3).map((hit) => hit.id);
+    const earlierHits = before.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
+    const currentHits = catalog.search({ query: request.query }, { limit: 3 }).map((hit) => hit.id);
     const foundBefore = request.expect.some((id) => earlierHits.includes(id));
     const foundNow = request.expect.some((id) => currentHits.includes(id));
     return foundBefore && !foundNow ? [`${request.id}: ${earlierHits.join(", ")} -> ${currentHits.join(", ")}`] : [];

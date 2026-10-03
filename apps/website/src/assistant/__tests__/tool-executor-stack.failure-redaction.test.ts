@@ -96,15 +96,13 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   const loggedArgs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} },
-    { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL },
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
   );
 
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "INTERNAL_ERROR");
 
-  const replayed = await eventLog.replay(run.id, null);
+  const replayed = await eventLog.replay({ runId: run.id, afterCursor: null });
   assert.equal(replayed.kind, "ok");
   const toolResult = replayed.kind === "ok" ? replayed.entries.find((e) => (e.data as { type?: string }).type === "tool_result") : undefined;
   assert.ok(toolResult, "a tool_result event must have been persisted");
@@ -129,9 +127,7 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} },
-    { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: isRedactedToolFailure },
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure(result) } }
   );
 
   assert.equal(result.ok, false);
@@ -149,15 +145,13 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} },
-    {
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: {
       lifecycle,
       toolExecutor,
       resolvePrincipal: () => PRINCIPAL,
-      isModelSafeToolFailure: isRedactedToolFailure,
+      isModelSafeToolFailure: ({ result }) => isRedactedToolFailure(result),
       onInternalError: () => undefined,
-    },
+    } }
   );
 
   assert.equal(result.ok, false);

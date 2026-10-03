@@ -86,7 +86,7 @@ async function buildHarness(options: HarnessOptions = {}) {
   const realSealer = new AesGcmSecretSealer(seedKeyring);
   let counter = 0;
   const idGen = { newId: () => `cred-${++counter}` };
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
 
   // Seeded with a working sealer: only the handler under test sees the failing one.
   const seeded = await createCustomCredential(
@@ -140,10 +140,7 @@ let toolUseCounter = 0;
  * human, and returns the wire result plus everything the run emitted (the outcome resource included).
  */
 async function submitForm(harness: Harness, toolId: string, input: unknown, params: Record<string, unknown>) {
-  const pending = delegatedToolExecuteRoute.handle(
-    { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never
-  );
+  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   for (let tick = 0; tick < 200 && harness.openedExchangeIds.length === 0; tick++) {
     await new Promise((resolve) => setImmediate(resolve));
   }

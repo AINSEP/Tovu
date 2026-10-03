@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 
-import { buildAuthorizationHeader } from "#src/features/custom-credentials/credentialed-request";
+import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { CustomProviderConnectionInput } from "#src/features/custom-credentials/types";
 import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
 import type { CommitBackupTreeInput, SourceControlProvider } from "#src/features/source-control/provider-module";
@@ -24,7 +24,7 @@ function githubProvider(httpClient: HttpClientPort): SourceControlProvider {
 /** Core hands the provider the `Authorization` header it built from the saved connection. */
 function withAuthorization<T extends { connection: CustomProviderConnectionInput }>(input: T): Omit<T, "connection"> & { authorization: string } {
   const { connection, ...rest } = input;
-  return { ...rest, authorization: buildAuthorizationHeader(connection) };
+  return { ...rest, authorization: buildAuthorizationHeader({ connection, schemes: [] }) };
 }
 
 const inspectBackupRepository = (deps: { httpClient: HttpClientPort }, input: Omit<Parameters<SourceControlProvider["inspectBackupRepository"]>[0], "authorization"> & { connection: CustomProviderConnectionInput }) =>

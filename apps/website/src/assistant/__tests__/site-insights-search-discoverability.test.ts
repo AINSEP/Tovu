@@ -33,7 +33,7 @@ test("four site-insight tools rank top three through the full production FTS cat
   for (const [id, queries] of Object.entries(questions)) {
     assert.equal(registry.has({ toolId: id }), true, `missing production tool ${id}`);
     for (const query of queries) {
-      const hits = catalog.search(query, 3).map((hit) => hit.id);
+      const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
       if (!hits.includes(id)) misses.push(`${id}: '${query}' -> ${hits.join(", ")}`);
     }
   }

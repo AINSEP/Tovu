@@ -19,7 +19,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/cont
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
+import { runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../manifest.js";
 
@@ -33,7 +33,7 @@ import type { McpServerConfig } from "../../manifest.js";
 
 const WORKSPACE_ID = "77777777-7777-4777-8777-777777777777";
 const PRINCIPAL_ID = "principal-1";
-const CLOCK = { nowIso: () => "2026-09-27T00:00:00.000Z" };
+const CLOCK = { nowMs: () => Date.parse("2026-09-27T00:00:00.000Z"), nowIso: () => "2026-09-27T00:00:00.000Z" };
 
 const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "oauth" };
 
@@ -402,3 +402,14 @@ test("agent_plugin_connect aborts during the polling sleep and cleans up promptl
   assert.deepEqual(await pending, { status: "waiting-for-sign-in" });
   assert.equal(exchanges.size(), 0);
 });
+
+/** Moves the test context emitter into the host helper’s optional execution ports. */
+function runAgentPluginConnect(
+  deps: Parameters<typeof runConnectWithOptions>[0],
+  surfaces: Parameters<typeof runConnectWithOptions>[1],
+  context: ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+  pluginId: string,
+) {
+  const { emitSurface, ...required } = context;
+  return runConnectWithOptions(deps, surfaces, required, pluginId, emitSurface ? { emitSurface } : {});
+}

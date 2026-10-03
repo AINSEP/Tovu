@@ -23,7 +23,7 @@ function fakeDeps(transformRepo: TransformDefinitionRepoPort = new InMemoryTrans
   let counter = 0;
   return {
     transformRepo,
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
+    clock: { nowIso: () => "2026-08-05T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `id-${++counter}` },
   };
 }

@@ -279,7 +279,7 @@ for (const mode of ["veto", "throw"] as const) {
     assert.deepEqual(await makePolicy({ hooks, repo, outbox }).submit(makeSubmission()), { ok: false, reason: "invalid" });
     assert.equal(laterHookRan, false, "must stop after rejection");
     for (const status of ["pending", "approved", "spam"] as const) assert.equal(await repo.countByStatus({ workspaceId: WORKSPACE_ID, status }), 0);
-    assert.deepEqual(await outbox.claimPending(10, "2026-07-16T00:00:00.000Z"), []);
+    assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:00.000Z" }), []);
   });
 }
 
@@ -290,7 +290,7 @@ test("successful submissions enqueue a scoped comments.submitted event with thei
     const result = await policy.submit(makeSubmission());
     assert.equal(result.ok, true);
     if (!result.ok) continue;
-    const events = (await outbox.claimPending(10, "2026-07-16T00:00:00.000Z")).map((row) => row.event);
+    const events = (await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:00.000Z" })).map((row) => row.event);
     assert.equal(events.length, 1);
     assert.equal(events[0].name, "comments.submitted");
     assert.equal(events[0].workspaceId, WORKSPACE_ID);

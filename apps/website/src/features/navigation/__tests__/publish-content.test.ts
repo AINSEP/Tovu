@@ -31,13 +31,13 @@ const WORKSPACE_ID = "workspace-1";
 function makePublishDeps(input: {
   menuRepo?: MenuRepoPort;
   navLocationBindingRepo?: NavLocationBindingRepoPort;
-  clock?: { nowIso(): string };
+  clock?: { nowIso(): string; nowMs(): number };
   idGen?: { newId(): string };
   outbox?: InMemoryOutbox;
 }): PublishContentDeps {
   return {
     workspaceId: WORKSPACE_ID,
-    clock: input.clock ?? { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: input.clock ?? { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: input.idGen ?? { newId: () => "unused-in-these-tests" },
     outbox: input.outbox ?? new InMemoryOutbox(),
     ports: {
@@ -151,7 +151,7 @@ test("apply() updates an existing destination row under OCC, re-resolved by its 
   assert.equal((await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "primary" }))?.menuId, "menu-header-nav");
   assert.deepEqual(await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "reassigned" }), other);
   assert.deepEqual(await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "sidebar" }), unrelated);
-  const events = (await outbox.claimPending(10, "2026-09-24T00:00:00.000Z")).map((row) => row.event);
+  const events = (await outbox.claimPending({ batchSize: 10, nowIso: "2026-09-24T00:00:00.000Z" })).map((row) => row.event);
   assert.deepEqual(events.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
     { name: "navigation.menu.updated", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { menuId: "menu-header-nav", slug: "header-nav" } },
     { name: "navigation.location.assigned", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { locationKey: "primary", menuId: "menu-header-nav" } },
@@ -183,7 +183,7 @@ test("apply() rebinds a location away from whatever destination menu previously 
   const displaced = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-old-header" });
   assert.deepEqual(displaced?.locations, [], "the displaced menu must lose the location from its own locations field");
   assert.equal(displaced?.version, 2);
-  const events = (await outbox.claimPending(10, "2026-09-24T00:00:00.000Z")).map((row) => row.event);
+  const events = (await outbox.claimPending({ batchSize: 10, nowIso: "2026-09-24T00:00:00.000Z" })).map((row) => row.event);
   assert.deepEqual(events.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
     { name: "navigation.menu.created", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { menuId: "menu-header-nav", slug: "header-nav" } },
     { name: "navigation.location.unassigned", aggregateId: "menu-old-header", workspaceId: WORKSPACE_ID, payload: { locationKey: "primary", menuId: "menu-old-header" } },
@@ -403,7 +403,7 @@ test("repointReferences() rewrites a live menu's entryRef and records one revert
   assert.equal(recorded?.items[0]?.entityType, "menu");
   assert.equal(recorded?.items[0]?.operation, "update");
   assert.deepEqual(recorded?.items[0]?.inversePayload, { items: [entryRefItem("item-1", "post-about")] });
-  const events = await deps.outbox!.claimPending(10, "2026-09-24T00:00:00.000Z");
+  const events = await deps.outbox!.claimPending({ batchSize: 10, nowIso: "2026-09-24T00:00:00.000Z" });
   const updates = events.filter((row) => row.event.name === "navigation.menu.updated").map((row) => row.event);
   assert.equal(updates.length, 1);
   assert.equal(updates[0].workspaceId, WORKSPACE_ID);

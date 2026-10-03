@@ -612,7 +612,11 @@ test("a crash between the temp write and the rename leaves the previous file who
   const filePath = instanceFilePath(registryDir);
   writeRegistry(filePath, { sites: [ROW_A] });
   const before = fs.readFileSync(filePath, "utf8");
-  const crash = t.mock.method(fs, "renameSync", () => {
+  let replacement: unknown;
+  const crash = t.mock.method(fs, "renameSync", (from, to) => {
+    assert.equal(from, tempPathFor(filePath));
+    assert.equal(to, filePath);
+    replacement = JSON.parse(fs.readFileSync(from, "utf8"));
     throw new Error("simulated crash before rename");
   });
 
@@ -621,7 +625,9 @@ test("a crash between the temp write and the rename leaves the previous file who
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(filePath, "utf8"), before);
-  assert.deepEqual(JSON.parse(fs.readFileSync(tempPathFor(filePath), "utf8")), { sites: [ROW_A, ROW_B] }, "the complete new state was fsynced to the temp file, not the real one");
+  assert.deepEqual(replacement, { sites: [ROW_A, ROW_B] }, "the complete new state reached the temp file before rename, not the real one");
+  // Shared atomic-write hardening cleans an owned temp when rename throws (arch-02 § BEHAVIOR-CHANGES).
+  assert.equal(fs.existsSync(tempPathFor(filePath)), false, "failed replacement must clean its owned temp file");
   assert.deepEqual(readRegistry(registryDir), { sites: [ROW_A], unreadable: [] });
 });
 

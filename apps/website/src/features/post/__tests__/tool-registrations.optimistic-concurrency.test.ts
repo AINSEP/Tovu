@@ -217,16 +217,16 @@ async function delegatedHarness() {
 test("a version conflict reaches the model as an actionable BAD_REQUEST, NOT a redacted INTERNAL_ERROR", async () => {
   const { postRepo, routeDeps, run } = await delegatedHarness();
 
-  const first = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Operator A's document", bodyJson: BODY_A, expectedVersion: 1 }) },
-    routeDeps as never
-  );
+  const first = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Operator A's document", bodyJson: BODY_A, expectedVersion: 1 }) },
+    deps: routeDeps as never,
+  });
   assert.equal(first.ok, true, JSON.stringify(first));
 
-  const stale = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-2", toolId: "content_post_update", input: updateInput({ title: "Operator B's document", bodyJson: BODY_B, expectedVersion: 1 }) },
-    routeDeps as never
-  );
+  const stale = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-2", toolId: "content_post_update", input: updateInput({ title: "Operator B's document", bodyJson: BODY_B, expectedVersion: 1 }) },
+    deps: routeDeps as never,
+  });
 
   assert.equal(stale.ok, false, JSON.stringify(stale));
   if (stale.ok) return;
@@ -245,10 +245,10 @@ test("a version conflict reaches the model as an actionable BAD_REQUEST, NOT a r
 test("a malformed expectedVersion reaches the model as a DIFFERENT, shape-flavoured BAD_REQUEST — the two are tellable apart", async () => {
   const { postRepo, routeDeps, run } = await delegatedHarness();
 
-  const res = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Should Not Land", expectedVersion: "1" }) },
-    routeDeps as never
-  );
+  const res = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Should Not Land", expectedVersion: "1" }) },
+    deps: routeDeps as never,
+  });
 
   assert.equal(res.ok, false, JSON.stringify(res));
   if (res.ok) return;

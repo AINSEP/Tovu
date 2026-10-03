@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { registerFormNotifySubscriber } from "#src/features/forms/notify-subscriber";
@@ -30,7 +31,8 @@ const MEMBERS_WRITE_SERVICE = fs.readFileSync(
   "utf8"
 );
 const FORMS_NOTIFY_SUBSCRIBER = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "forms", "notify-subscriber.ts"),
+  // The send-options construction moved into the package; inspect the implementation loaded by its adapter.
+  path.join(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms-forms"))), "notify-subscriber.js"),
   "utf8"
 );
 
@@ -87,7 +89,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
   let completed = false;
   let id = 0;
   const signIn = requestSignInLink({ deps: {
-    clock: { nowIso: () => now }, ids: { newId: () => `id-${++id}` },
+    clock: { nowMs: () => Date.parse(now), nowIso: () => now }, ids: { newId: () => `id-${++id}` },
     members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(), mailer,

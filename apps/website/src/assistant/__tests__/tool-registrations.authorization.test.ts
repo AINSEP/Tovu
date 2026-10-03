@@ -93,7 +93,7 @@ function fakeRouteDeps(options: { allow: boolean; existing?: ContentTypeRecord }
         order.push("repo.listByWorkspace");
         return options.existing ? [options.existing] : [];
       },
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }) => fn(),
     },
     contentTypeIndexProvisioner: {
       provisionIndexesForNewContentType: async () => {

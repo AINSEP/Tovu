@@ -156,7 +156,7 @@ test("the skill tool IS present in registry.list({}) and describable by exact id
       "one installed skill must add exactly ONE tool to the real catalog",
     );
 
-    const described = catalog.describe("skill_incident_response");
+    const described = catalog.describe({ id: "skill_incident_response" });
     assert.ok(described, "skill_incident_response must be describable via the real FTS-backed catalog");
     assert.equal(described.id, "skill_incident_response");
     assert.equal(described.source, "skill");
@@ -186,7 +186,7 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
 
     let everyQueryRankedTop3 = true;
     for (const query of queries) {
-      const hits = catalog.search(query, 10);
+      const hits = catalog.search({ query }, { limit: 10 });
       logHits(query, hits);
       const rank = hits.findIndex((hit) => hit.id === SKILL_TOOL_ID);
       if (rank === -1 || rank > 2) everyQueryRankedTop3 = false;
@@ -200,7 +200,7 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
 
     // Preserve the broad discoverability check alongside the explicit capability ranks above:
     // top 10 is the window a model actually sees from `search_tools`.
-    const anyQueryFoundItInTop10 = queries.some((query) => catalog.search(query, 10).some((hit) => hit.id === SKILL_TOOL_ID));
+    const anyQueryFoundItInTop10 = queries.some((query) => catalog.search({ query }, { limit: 10 }).some((hit) => hit.id === SKILL_TOOL_ID));
     assert.ok(
       anyQueryFoundItInTop10,
       "no realistic operator query surfaced the skill tool in the top 10 — see the console output above for every query's actual ranked hits",

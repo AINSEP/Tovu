@@ -37,8 +37,9 @@ function assertSafeUrl(raw: string, kind: "provider endpoint" | "provider-suppli
       : guard.assertSafeUrl({ raw, label: "provider endpoint" });
   } catch (error) {
     if (!(error instanceof JiniOAuthError)) throw error;
-    // The old endpoint wrapper adds its own label. Strip only the duplicate fixed subject prefix.
-    const message = error.message.replace("provider endpoint: provider endpoint", "provider endpoint");
+    // Legacy wrappers name their own subject. Strip only the fixed duplicate subject prefixes.
+    const message = error.message.replace("provider endpoint: provider endpoint", "provider endpoint")
+      .replace("provider-supplied link: provider endpoint", "provider-supplied link");
     throw new OAuthError(error.code, message, { operatorAction: error.operatorAction, cause: error.cause });
   }
 }
@@ -137,6 +138,8 @@ export function createTovuOAuthHttpPorts(
 /** Tovu copy; the protocol and reserved-parameter protections live in Jini's OAuth package. */
 export const tovuOAuthMessages = {
   ...defaultOAuthMessages,
+  reservedAuthorizationParameter: ({ parameter }: { readonly parameter: string }) =>
+    `'${parameter}' is set by Tovu and cannot be overridden for this provider`,
   registrationRejectedAction: "This server refused to register Tovu as a client — check its OAuth requirements, or supply a client id by hand.",
 };
 

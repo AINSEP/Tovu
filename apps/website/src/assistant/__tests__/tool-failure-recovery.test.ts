@@ -36,7 +36,7 @@ function routedExecutor(handlers: Record<string, (input: unknown) => ToolExecuti
   const calls: Array<{ toolId: string; input: unknown }> = [];
   return {
     calls,
-    execute: async (_principal: Principal, _run: RunRef, toolId: string, input: unknown): Promise<ToolExecutionResult> => {
+    execute: async ({ toolId, input }): Promise<ToolExecutionResult> => {
       calls.push({ toolId, input });
       const handler = handlers[toolId];
       if (!handler) throw new Error(`unknown tool "${toolId}"`);
@@ -118,7 +118,7 @@ function exchangeIdFromSurface(surface: unknown): string {
 async function runOriginal(executor: ToolExecutor, options: { input?: unknown; signal?: AbortSignal } = {}) {
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (s) => void emitted.push(s);
-  const pending = executor.execute(PRINCIPAL, RUN, ORIGINAL_TOOL_ID, options.input ?? ORIGINAL_INPUT, options.signal, emitSurface);
+  const pending = executor.execute({ principal: PRINCIPAL, run: RUN, toolId: ORIGINAL_TOOL_ID, input: options.input ?? ORIGINAL_INPUT }, { signal: options.signal, emitSurface: emitSurface });
   await new Promise((resolve) => setImmediate(resolve));
   return { pending, emitted };
 }
@@ -207,7 +207,7 @@ test("SILENCE: a diagnostic can be nested arbitrarily deep or inside an array an
   const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
 
   // No `emitSurface` on this call — a headless/synthetic caller.
-  const result = await executor.execute(PRINCIPAL, RUN, ORIGINAL_TOOL_ID, ORIGINAL_INPUT, undefined, undefined);
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT }, { signal: undefined, emitSurface: undefined });
 
   assert.deepEqual(result.output, nested, "with no channel to ask through, the loop must never guess — original result returned untouched");
   assert.equal(surfaceExchanges.size(), 0);
@@ -282,7 +282,7 @@ test("HAPPY PATH: asks for the one missing field, applies the answer via the rem
   // The original tool returns the 401 on its FIRST invocation and the success on its SECOND (the
   // retry) — a stateful fake, since this test is specifically about that call happening twice.
   let originalCallCount = 0;
-  inner.execute = async (_p, _r, toolId, input) => {
+  inner.execute = async ({ toolId, input }) => {
     inner.calls.push({ toolId, input });
     if (toolId === ORIGINAL_TOOL_ID) {
       originalCallCount += 1;
@@ -361,7 +361,7 @@ test("DECLINE: an unanswered recovery surface expires and returns the ORIGINAL f
   const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
   const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
 
-  const result = await executor.execute(PRINCIPAL, RUN, ORIGINAL_TOOL_ID, ORIGINAL_INPUT, undefined, async () => undefined);
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT }, { signal: undefined, emitSurface: async () => undefined });
 
   assert.equal((result.output as Record<string, unknown>)["status"], 401);
   assert.equal(inner.calls.length, 1);
@@ -391,7 +391,7 @@ test("the fix itself failing to complete (e.g. the remedy tool is denied) never 
 test("the remedy tool completing but reporting {saved: false} (a declined/expired/invalid human-gated write) never triggers a retry — a completed execution status is not proof the fix was actually applied", async () => {
   let originalCallCount = 0;
   const inner = routedExecutor({});
-  inner.execute = async (_p, _r, toolId, input) => {
+  inner.execute = async ({ toolId, input }) => {
     inner.calls.push({ toolId, input });
     if (toolId === ORIGINAL_TOOL_ID) {
       originalCallCount += 1;
@@ -456,7 +456,7 @@ test("ADVERSARIAL: a remedy tool needing nothing beyond what is already known (t
 test("ONE-CYCLE GUARD: even when the retried call ALSO returns a fresh hint+remedyToolId, no second recovery cycle runs", async () => {
   let originalCallCount = 0;
   const inner = routedExecutor({});
-  inner.execute = async (_p, _r, toolId, input) => {
+  inner.execute = async ({ toolId, input }) => {
     inner.calls.push({ toolId, input });
     if (toolId === ORIGINAL_TOOL_ID) {
       originalCallCount += 1;
@@ -520,17 +520,17 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through to
   const record = { executionId: "exec-7", toolId: "t", principalId: "p", runId: "r", events: [] };
   const inner: ToolExecutor = {
     execute: async () => ({ executionId: "e", status: "completed" as const }),
-    resumeConfirmation: (id, decision) => calls.push(`resume:${id}:${decision}`),
-    cancel: (id) => calls.push(`cancel:${id}`),
-    getAuditRecord: (id) => {
+    resumeConfirmation: ({ executionId: id, decision }) => calls.push(`resume:${id}:${decision}`),
+    cancel: ({ executionId: id }) => calls.push(`cancel:${id}`),
+    getAuditRecord: ({ executionId: id }) => {
       calls.push(`get:${id}`);
       return record;
     },
   };
   const executor = withToolFailureRecovery(inner, { surfaceExchanges: createSurfaceExchangeStore(), registry: fakeRegistry([]) });
 
-  executor.resumeConfirmation("exec-7", "confirm");
-  executor.cancel("exec-7");
-  assert.equal(executor.getAuditRecord("exec-7"), record);
+  executor.resumeConfirmation({ executionId: "exec-7", decision: "confirm" });
+  executor.cancel({ executionId: "exec-7" });
+  assert.equal(executor.getAuditRecord({ executionId: "exec-7" }), record);
   assert.deepEqual(calls, ["resume:exec-7:confirm", "cancel:exec-7", "get:exec-7"]);
 });

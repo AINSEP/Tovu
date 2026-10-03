@@ -1313,13 +1313,13 @@ describe("useAssistantTransport", () => {
 
 describe("useAttachmentUploader", () => {
   it("returns a callable uploader — the real createDaemonAttachmentUploader output", async () => {
-    const { result } = renderHook(() => useAttachmentUploader());
-
-    expect(typeof result.current).toBe("function");
     const file = new File(["attachment bytes"], "notes.txt", { type: "text/plain" });
     const attachment = { path: "attachments/notes.txt", name: "notes.txt", mimeType: "text/plain", size: file.size };
     const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ attachment }), { status: 200 }));
     vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderHook(() => useAttachmentUploader());
+
+    expect(typeof result.current).toBe("function");
     const signal = new AbortController().signal;
 
     await expect(result.current([file], { batchId: "turn-1", signal })).resolves.toEqual([attachment]);

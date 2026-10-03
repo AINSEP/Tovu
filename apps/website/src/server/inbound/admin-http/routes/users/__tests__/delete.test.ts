@@ -104,6 +104,8 @@ async function buildApp(
     principalRoleRepo: wiring.principalRoleRepo,
     principalPolicyRepo: wiring.principalPolicyRepo,
     passwordHasher: wiring.passwordHasher,
+    transactions: wiring.transactions,
+    tokens: wiring.tokens,
     ownerPrincipalId: wiring.ownerPrincipalId,
     removeUser: bindRemoveEntity(trash, USER_ENTITY_TYPE),
     isInTrash: async (principalIdToCheck: string) =>

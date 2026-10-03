@@ -76,10 +76,10 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 let toolUseCounter = 0;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle(
-    { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    harness as never
-  );
+  return delegatedToolExecuteRoute.handle({
+    input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
+    deps: harness as never,
+  });
 }
 
 async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, unknown> = {}) {

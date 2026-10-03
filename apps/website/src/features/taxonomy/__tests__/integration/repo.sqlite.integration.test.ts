@@ -44,7 +44,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
   const taxonomies = new SqliteTaxonomyRepo({ db, workspaceId });
   return {
     authorize: alwaysAllow(),
-    clock: { nowIso: () => "2026-07-15T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") },
     idGen: { newId: () => `${idPrefix}-${++counter}` },
     taxonomies,
     terms: new SqliteTermRepo({ db, workspaceId }),
@@ -59,7 +59,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     contentLookup: new InMemoryContentLookup({}),
     // `SqliteTaxonomyRepo.transaction` — real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the
     // same connection every other adapter above shares (all constructed with this same `db`).
-    transaction: <T>(fn: () => Promise<T>) => taxonomies.transaction(fn),
+    transaction: taxonomies.transaction.bind(taxonomies),
   };
 }
 
@@ -74,7 +74,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     const taxonomyRepoAfterRestart = new SqliteTaxonomyRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
     const termRepoAfterRestart = new SqliteTermRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
 
-    const foundTaxonomy = await taxonomyRepoAfterRestart.findById(taxonomy.id);
+    const foundTaxonomy = await taxonomyRepoAfterRestart.findById({ id: taxonomy.id });
     assert.ok(foundTaxonomy);
     assert.equal(foundTaxonomy?.hierarchical, true);
 
@@ -93,7 +93,7 @@ test("workspace-scoping boundary: a taxonomy created for ws-1 is invisible to ws
     const taxonomy = await createTaxonomy({ deps: ws1Deps, principalId: "user-1", name: "Category", hierarchical: true });
 
     const ws2TaxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: "ws-2" });
-    const crossWorkspace = await ws2TaxonomyRepo.findById(taxonomy.id);
+    const crossWorkspace = await ws2TaxonomyRepo.findById({ id: taxonomy.id });
     assert.equal(crossWorkspace, null, "a taxonomy created under ws-1 must not resolve through a ws-2-scoped adapter");
 
     const ws1List = await ws1Deps.taxonomies.list();
@@ -161,8 +161,8 @@ test("guard queries are workspace-scoped: countByTerm/countChildren/delete on a 
     // and correctly NOT see when queried from ws-1's.
     const ws2Tax = await createTaxonomy({ deps: ws2Deps, principalId: "user-2", name: "Category", hierarchical: true });
     const ws2Term = await createTerm({ deps: ws2Deps, principalId: "user-2", taxonomyId: ws2Tax.id, name: "ws2-term" });
-    const ws2Child = await createTerm({ deps: ws2Deps, principalId: "user-2", taxonomyId: ws2Tax.id, name: "ws2-child", parentId: ws2Term.id });
-    (ws2Deps.contentLookup as InMemoryContentLookup).set("post", "post-ws2", { workspaceId: "ws-2", kind: "post" });
+    const ws2Child = await createTerm({ deps: ws2Deps, principalId: "user-2", taxonomyId: ws2Tax.id, name: "ws2-child" }, { parentId: ws2Term.id });
+    (ws2Deps.contentLookup as InMemoryContentLookup).set({ contentType: "post", contentId: "post-ws2", value: { workspaceId: "ws-2", kind: "post" } });
     await assignTerms({ deps: ws2Deps, principalId: "user-2", contentType: "post", contentId: "post-ws2", termIds: [ws2Term.id] });
 
     // The mutation this proves: if `SqliteEntryTermRepo.countByTerm`/`SqliteTermRepo.countChildren`
@@ -187,12 +187,12 @@ test("guard queries are workspace-scoped: countByTerm/countChildren/delete on a 
     // The delete calls themselves, not just the counts: a ws-1-scoped `delete()` targeting ws-2's
     // real row ids must be a no-op (the `WHERE workspaceId = ... AND id = ...` matches nothing),
     // never a cross-tenant deletion.
-    await ws1Deps.terms.delete(ws2Term.id);
-    await ws1Deps.terms.delete(ws2Child.id);
-    await ws1Deps.taxonomies.delete(ws2Tax.id);
-    assert.ok(await ws2Deps.terms.findById(ws2Term.id), "ws-2's term must survive a ws-1-scoped delete call");
-    assert.ok(await ws2Deps.terms.findById(ws2Child.id), "ws-2's child term must survive a ws-1-scoped delete call");
-    assert.ok(await ws2Deps.taxonomies.findById(ws2Tax.id), "ws-2's taxonomy must survive a ws-1-scoped delete call");
+    await ws1Deps.terms.delete({ id: ws2Term.id });
+    await ws1Deps.terms.delete({ id: ws2Child.id });
+    await ws1Deps.taxonomies.delete({ id: ws2Tax.id });
+    assert.ok(await ws2Deps.terms.findById({ id: ws2Term.id }), "ws-2's term must survive a ws-1-scoped delete call");
+    assert.ok(await ws2Deps.terms.findById({ id: ws2Child.id }), "ws-2's child term must survive a ws-1-scoped delete call");
+    assert.ok(await ws2Deps.taxonomies.findById({ id: ws2Tax.id }), "ws-2's taxonomy must survive a ws-1-scoped delete call");
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -204,9 +204,9 @@ test("deleteTerm/deleteTaxonomy against real SQLite: the guarded refusal paths h
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: true });
     const parent = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Parent" });
-    await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Child", parentId: parent.id });
+    await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Child" }, { parentId: parent.id });
     const leaf = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Leaf" });
-    (deps.contentLookup as InMemoryContentLookup).set("post", "post-1", { workspaceId: "ws-1", kind: "post" });
+    (deps.contentLookup as InMemoryContentLookup).set({ contentType: "post", contentId: "post-1", value: { workspaceId: "ws-1", kind: "post" } });
     await assignTerms({ deps, principalId: "user-1", contentType: "post", contentId: "post-1", termIds: [leaf.id] });
 
     await assert.rejects(deleteTerm({ deps, principalId: "user-1", termId: parent.id }), /child term/);
@@ -214,9 +214,9 @@ test("deleteTerm/deleteTaxonomy against real SQLite: the guarded refusal paths h
     await assert.rejects(deleteTaxonomy({ deps, principalId: "user-1", taxonomyId: taxonomy.id }), /content assignment/);
 
     // Nothing was actually removed by any of the three refused calls.
-    assert.ok(await deps.terms.findById(parent.id));
-    assert.ok(await deps.terms.findById(leaf.id));
-    assert.ok(await deps.taxonomies.findById(taxonomy.id));
+    assert.ok(await deps.terms.findById({ id: parent.id }));
+    assert.ok(await deps.terms.findById({ id: leaf.id }));
+    assert.ok(await deps.taxonomies.findById({ id: taxonomy.id }));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -238,8 +238,8 @@ test("a trashed taxonomy drops out of findById and list, a live sibling does not
     const live = await createTaxonomy({ deps, principalId: "user-1", name: "Live", hierarchical: false });
     db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(trashed.id);
 
-    assert.equal(await deps.taxonomies.findById(trashed.id), null);
-    assert.ok(await deps.taxonomies.findById(live.id));
+    assert.equal(await deps.taxonomies.findById({ id: trashed.id }), null);
+    assert.ok(await deps.taxonomies.findById({ id: live.id }));
     const names = (await deps.taxonomies.list()).map((t) => t.name);
     assert.deepEqual(names, ["Live"]);
   } finally {
@@ -256,8 +256,8 @@ test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live s
     const live = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Live" });
     db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(trashed.id);
 
-    assert.equal(await deps.terms.findById(trashed.id), null);
-    assert.ok(await deps.terms.findById(live.id));
+    assert.equal(await deps.terms.findById({ id: trashed.id }), null);
+    assert.ok(await deps.terms.findById({ id: live.id }));
     const names = (await deps.terms.listByTaxonomy({ taxonomyId: taxonomy.id })).map((t) => t.name);
     assert.deepEqual(names, ["Live"]);
 
@@ -279,14 +279,14 @@ test("hiddenWithParent: a LIVE term whose taxonomy is trashed reads as gone too,
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
     const term = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Member" });
-    assert.ok(await deps.terms.findById(term.id), "sanity: visible before the taxonomy is trashed");
+    assert.ok(await deps.terms.findById({ id: term.id }), "sanity: visible before the taxonomy is trashed");
 
     db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
-    assert.equal(await deps.terms.findById(term.id), null, "the term's OWN status is still 'active' — only its parent is trashed");
+    assert.equal(await deps.terms.findById({ id: term.id }), null, "the term's OWN status is still 'active' — only its parent is trashed");
     assert.deepEqual(await deps.terms.listByTaxonomy({ taxonomyId: taxonomy.id }), []);
 
     db.$client.prepare("UPDATE taxonomies SET status = 'active' WHERE id = ?").run(taxonomy.id);
-    assert.ok(await deps.terms.findById(term.id), "restoring the taxonomy makes the never-touched term visible again, no second write");
+    assert.ok(await deps.terms.findById({ id: term.id }), "restoring the taxonomy makes the never-touched term visible again, no second write");
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -299,7 +299,7 @@ test("listForContent excludes a trashed term's assignment and a live term's assi
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Tags", hierarchical: false });
     const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
     const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
-    (deps.contentLookup as InMemoryContentLookup).set("post", "post-1", { workspaceId: "ws-1", kind: "post" });
+    (deps.contentLookup as InMemoryContentLookup).set({ contentType: "post", contentId: "post-1", value: { workspaceId: "ws-1", kind: "post" } });
     await assignTerms({ deps, principalId: "user-1", contentType: "post", contentId: "post-1", termIds: [termA.id, termB.id] });
 
     const entryTermRepo = deps.entryTerms as SqliteEntryTermRepo;
@@ -402,12 +402,12 @@ test("atomicity: a mid-cascade failure in deleteTaxonomy is genuinely undone by 
       update: deps.terms.update.bind(deps.terms),
       listByTaxonomy: deps.terms.listByTaxonomy.bind(deps.terms),
       countChildren: deps.terms.countChildren.bind(deps.terms),
-      delete: async (id: string) => {
+      delete: async ({ id }: { id: string }) => {
         deleteCalls += 1;
         if (deleteCalls === 2) {
           throw new Error("simulated disk failure mid-cascade");
         }
-        return deps.terms.delete(id);
+        return deps.terms.delete({ id: id });
       },
     };
 

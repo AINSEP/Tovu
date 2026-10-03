@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
-import { createToolRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import type { AssistantToolContributions } from "#src/assistant/tool-contribution-registry";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
@@ -54,14 +55,18 @@ describe("site_describe_capabilities registry wiring in the agent daemon", () =>
 });
 
 test("the daemon's actual catalog reader exposes a tool registered after composition", async () => {
-  installFirstPartyToolContributors();
+  const contributions: AssistantToolContributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const ownerId = await routeDeps.ownerPrincipalId;
   const registry = createToolRegistry({});
   const registrations = evaluateDaemonExpression<ReturnType<typeof buildAssistantToolRegistrations>>(
     daemonInitializer("assistantRegistrations"),
-    { routeDeps, registry, listToolCatalogEntries, buildAssistantToolRegistrations,
+    { routeDeps, registry, contributions, listToolCatalogEntries, buildAssistantToolRegistrations,
       magicLinkPerEmailLimiter: {}, surfaceExchanges: createSurfaceExchangeStore() },
   );
   for (const registration of registrations) registry.register(registration);

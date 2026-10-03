@@ -35,7 +35,7 @@ function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; med
   const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     removeMedia,

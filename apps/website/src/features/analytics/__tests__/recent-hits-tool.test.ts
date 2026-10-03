@@ -9,7 +9,7 @@ const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", 
 const hit = (path: string, overrides: Partial<NormalizedHit> = {}): NormalizedHit => ({ workspaceId: "ws", occurredAt: "2026-10-01T00:00:00Z", kind: "pageview", path, referrerHost: null, deviceClass: "desktop", browserFamily: "Firefox", eventName: null, eventProps: null, utm: { source: null, medium: null, campaign: null, term: null, content: null }, visitorHash: "secret", sessionId: "session", osFamily: null, country: null, region: null, ...overrides });
 function harness(allow = true) {
   const sink = new LocalBufferSink([hit("/old"), hit("/a"), hit("/b", { referrerHost: "google.com", deviceClass: "mobile" }), hit("/a", { referrerHost: "google.com", kind: "event", eventName: "click" })]);
-  const deps = { workspaceId: "ws", analyticsSink: sink, authorize: async (request: any) => { assert.deepEqual(request, { principalId: "owner", workspaceId: "ws", permission: "analytics.read", entityType: "analytics-hit", entityId: undefined }); return { allowed: allow, reason: "fixture grant" }; } };
+  const deps = { workspaceId: "ws", analyticsSink: sink, authorize: async (request: any) => { assert.deepEqual(request, { principalId: "owner", workspaceId: "ws", permission: "analytics.read", entityType: "analytics-hit" }); return { allowed: allow, reason: "fixture grant" }; } };
   return { deps, tool: buildAnalyticsRegistrations(deps)[0]! };
 }
 

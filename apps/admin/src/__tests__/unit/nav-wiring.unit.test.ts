@@ -64,12 +64,12 @@ describe("Add-Ons nav section", () => {
   // narrowed from four rows to three — `providers` and `integrations` (four tabs total between
   // them) collapsed into one row, `providers`, now labelled "Integrations". See `panels.tsx`'s own
   // comment on the `providers`/`integrations` panels for the full reasoning and rename history.
-  it("exists with exactly Plugins, Agent Plugins, Integrations in that order", () => {
+  it("exists with exactly Plugins, Agent Plugins, Skills, Integrations in that order", () => {
     const addOns = getNav().find((group) => group.label === "Add-Ons");
     expect(addOns).toBeDefined();
 
     const ids = addOns!.items.map((item) => item.id);
-    expect(ids).toEqual(["plugins", "agent-plugins", "providers"]);
+    expect(ids).toEqual(["plugins", "agent-plugins", "skills", "providers"]);
   });
 
   // Regression guard: this exact row (route id `providers`) was labelled "Providers", then briefly

@@ -4,12 +4,19 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test, { beforeEach, mock } from "node:test";
 import * as gateway from "../../../contracts/core/gated-mutations/gateway.js";
-import { fixture, packed, peerRow, context, tool, OWNER } from "./pull-tool-fixture.js";
+import { fixture as createFixture, packed, peerRow, context, tool, OWNER } from "./pull-tool-fixture.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
+/** The extracted staging contract reads milliseconds from the same advancing fixture clock. */
+async function fixture(...args: Parameters<typeof createFixture>) {
+  const f = await createFixture(...args);
+  const clock = f.deps.clock;
+  f.deps.clock = { ...clock, nowMs: () => Date.parse(clock.nowIso()) };
+  return f;
+}
 const plans: Parameters<typeof gateway.plan>[0][] = [];
 beforeEach(() => { plans.length = 0; });
 mock.module("../../../contracts/core/gated-mutations/gateway.js", { namedExports: { ...gateway, plan: async (args: Parameters<typeof gateway.plan>[0]) => { plans.push(args); return gateway.plan(args); } } });

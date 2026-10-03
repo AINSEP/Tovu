@@ -65,7 +65,7 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
   const repo = new InMemorySourceControlCredentialSetRepo(); const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring); const auth: unknown[] = [];
   const deps = { workspaceId: 'ws-t10', sourceControlCredentialSetRepo: repo, siteAssistantSecretSealer: sealer,
-    siteAssistantSecretKeyring: keyring, clock: { nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential-t10' },
+    siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential-t10' },
     sourceControlExportRootDir: '/unused', exportSiteBound: async () => assert.fail('setup must not export'),
     loadSourceControlProviders: githubFromSource,
     fetchFn: (async (url: string | URL | Request, init?: RequestInit) => {
@@ -77,7 +77,7 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
   const surfaces = createSurfaceExchangeStore({ ...exchangeOptions, newExchangeId: () => 'source-exchange-t10' });
   const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces });
   function tool() { const found = registrations.find(r => r.descriptor.id === ID); assert.ok(found, `expected '${ID}' to be wired`); return found; }
-  function call(input: unknown, extra: Partial<ToolExecutionContext> = {}) { return tool().handler({ executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }); }
+  function call(input: unknown, extra: Partial<ToolExecutionContext> = {}) { return invokeFixtureHandler(tool(), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }); }
   return { repo, sealer, deps, surfaces, call, auth, tool };
 }
 async function form(f: ReturnType<typeof fixture>, extra: Partial<ToolExecutionContext> = {}) {
@@ -184,7 +184,7 @@ test('t10 source raw save errors containing the secret never reach model or surf
 test('t10 source commit without a credential names the setup tool', async () => {
   const f = fixture();
   const registration = buildSourceControlRegistrations(f.deps, { surfaceExchanges: f.surfaces }).find(r => r.descriptor.id === 'source_control_execute_commit'); assert.ok(registration);
-  assert.deepEqual(await registration.handler({ executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+  assert.deepEqual(await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { provider: 'github', owner: 't10-owner', repo: 'site', commitMessage: 'Backup' }, signal: new AbortController().signal }),
     { committed: false, reason: 'no-credential', message: 'No GitHub source control credential is configured for this workspace. Call source_control_propose_credential to open a human credential form before committing.' });
 });
@@ -201,3 +201,12 @@ test('t10 source initial emission failure releases the exchange', async () => {
   await assert.rejects(f.call({ provider: 'github' }, { emitSurface: async () => { throw new Error('surface unavailable'); } }), { message: 'surface unavailable' });
   assert.equal(f.surfaces.size(), 0); assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

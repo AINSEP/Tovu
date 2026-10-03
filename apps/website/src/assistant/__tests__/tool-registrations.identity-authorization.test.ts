@@ -89,7 +89,7 @@ async function buildHarness(): Promise<Harness> {
 
   const { ownerPrincipalId } = await seedIdentity({
     deps: { repos, hasher: HASHER, clock, idGen },
-    input: { workspaceId: WORKSPACE_ID, ownerPassword: SEED_OWNER_PASSWORD },
+    input: { workspaceId: WORKSPACE_ID, ownerPassword: SEED_OWNER_PASSWORD, ownerUsername: "admin" },
   });
 
   const deps = {
@@ -167,9 +167,9 @@ const autoAnswer: SurfaceEmitter = async (emission) => {
 /** The principal of the call in flight — `deliver` must name the one that opened the exchange. */
 const CURRENT_CALLER = { id: "" };
 
-function executionContext(principalId: string, input: Record<string, unknown>): ToolExecutionContext {
+function executionContext(principalId: string, input: Record<string, unknown>): [ToolExecutionContext, { emitSurface: SurfaceEmitter }] {
   CURRENT_CALLER.id = principalId;
-  return { executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal, emitSurface: autoAnswer };
+  return [{ executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal }, { emitSurface: autoAnswer }];
 }
 
 const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.map((tool) => tool.name));
@@ -377,7 +377,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const caller = await addPrincipal(repos, "ungranted-caller");
 
     await assert.rejects(
-      () => wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId])),
+      () => wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof IdentityForbiddenError, `expected IdentityForbiddenError, got ${String(error)}`);
         assert.match((error as Error).message, new RegExp(caller));
@@ -393,7 +393,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
     const before = await stateFingerprint(repos);
     await wired(deps, identityWiredId(toolId))
-      .handler(executionContext(caller, TOOL_INPUTS[toolId]))
+      .handler(...executionContext(caller, TOOL_INPUTS[toolId]))
       .catch(() => undefined);
 
     assert.equal(await stateFingerprint(repos), before, "the permission gate must run ahead of every durable effect, not alongside it");
@@ -406,7 +406,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     await grant(repos, caller, declaredPermissions(toolId));
 
     await prepareSuccessTarget(repos, toolId);
-    const result = await wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId]));
+    const result = await wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, TOOL_INPUTS[toolId]));
     await assertSuccessfulResult(repos, toolId, result);
   });
 }
@@ -429,7 +429,7 @@ for (const toolId of OR_GATED_TOOL_IDS) {
       const caller = await addPrincipal(repos, `caller-${permission}`);
       await grant(repos, caller, [permission]);
 
-      const result = await wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId]));
+      const result = await wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, TOOL_INPUTS[toolId]));
       await assertSuccessfulResult(repos, toolId, result);
     });
   }
@@ -442,7 +442,7 @@ test("a tool with no declared OR really is single-permission — role.manage hol
   await grant(repos, caller, ["role.manage"]);
 
   await assert.rejects(
-    () => wired(deps, "identity_user_disable").handler(executionContext(caller, TOOL_INPUTS.identity_user_disable)),
+    () => wired(deps, "identity_user_disable").handler(...executionContext(caller, TOOL_INPUTS.identity_user_disable)),
     IdentityForbiddenError,
     "role.manage must not open the user-lifecycle tools",
   );
@@ -463,7 +463,7 @@ test("identity_role_assign: a non-owner caller cannot assign the built-in owner 
   assert.ok(ownerRole, "the seed must provide a built-in owner role for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_role_assign").handler(executionContext(caller, { principalId: target, roleId: ownerRole.id })),
+    () => wired(deps, "identity_role_assign").handler(...executionContext(caller, { principalId: target, roleId: ownerRole.id })),
     GrantExceedsIssuerError,
     "a role.manage holder that does not itself hold '*' must not be able to confer it through an agent tool",
   );
@@ -480,7 +480,7 @@ test("identity_role_assign: the OWNER can assign the owner role — the clamp is
   const ownerRole = roles.find((role) => role.name === "owner");
   assert.ok(ownerRole);
 
-  await wired(deps, "identity_role_assign").handler(executionContext(ownerPrincipalId, { principalId: target, roleId: ownerRole.id }));
+  await wired(deps, "identity_role_assign").handler(...executionContext(ownerPrincipalId, { principalId: target, roleId: ownerRole.id }));
 
   const assignments = await repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target });
   assert.deepEqual(assignments.map((a) => a.roleId), [ownerRole.id]);
@@ -497,7 +497,7 @@ test("identity_policy_attach: a non-owner caller cannot attach the built-in owne
   assert.ok(ownerPolicy, "the seed must provide at least one built-in policy for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_policy_attach").handler(executionContext(caller, { principalId: target, policyId: ownerPolicy.id })),
+    () => wired(deps, "identity_policy_attach").handler(...executionContext(caller, { principalId: target, policyId: ownerPolicy.id })),
     GrantExceedsIssuerError,
     "a role.manage holder that does not itself hold the policy's permissions unconstrained must not be able to confer them through an agent tool",
   );
@@ -513,11 +513,11 @@ test("identity_policy_delete / identity_policy_update: built-in policies are ref
   assert.ok(builtin, "the seed must provide at least one built-in policy for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_policy_update").handler(executionContext(ownerPrincipalId, { policyId: builtin.id, name: "Trusted Admin" })),
+    () => wired(deps, "identity_policy_update").handler(...executionContext(ownerPrincipalId, { policyId: builtin.id, name: "Trusted Admin" })),
     /built-in/,
   );
   await assert.rejects(
-    () => wired(deps, "identity_policy_delete").handler(executionContext(ownerPrincipalId, { policyId: builtin.id })),
+    () => wired(deps, "identity_policy_delete").handler(...executionContext(ownerPrincipalId, { policyId: builtin.id })),
     /built-in/,
   );
 
@@ -529,7 +529,7 @@ test("identity_user_disable: the seeded owner cannot be disabled through a tool,
   const { deps, ownerPrincipalId } = await buildHarness();
 
   await assert.rejects(
-    () => wired(deps, "identity_user_disable").handler(executionContext(ownerPrincipalId, { principalId: ownerPrincipalId })),
+    () => wired(deps, "identity_user_disable").handler(...executionContext(ownerPrincipalId, { principalId: ownerPrincipalId })),
     /seeded owner principal can never be disabled/,
     "locking the workspace out of its own management plane must not be an agent-reachable outcome",
   );
@@ -542,11 +542,11 @@ test("identity_role_rename / identity_role_delete: built-in roles are refused, s
   assert.ok(viewer?.isBuiltin, "viewer must be seeded built-in for this test to mean anything");
 
   await assert.rejects(
-    () => wired(deps, "identity_role_rename").handler(executionContext(ownerPrincipalId, { roleId: viewer.id, name: "Trusted Admin" })),
+    () => wired(deps, "identity_role_rename").handler(...executionContext(ownerPrincipalId, { roleId: viewer.id, name: "Trusted Admin" })),
     /built-in role cannot be renamed/,
   );
   await assert.rejects(
-    () => wired(deps, "identity_role_delete").handler(executionContext(ownerPrincipalId, { roleId: viewer.id })),
+    () => wired(deps, "identity_role_delete").handler(...executionContext(ownerPrincipalId, { roleId: viewer.id })),
     /built-in role cannot be deleted/,
   );
 

@@ -48,7 +48,7 @@ const PINNED_HASHES: Record<string, string> = {
 function deps(wired = true): PublishContentDeps {
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => "unused" },
     outbox: new InMemoryOutbox(),
     ports: wired ? { menu: { repo: new InMemoryMenuRepo({}, { initialRows: structuredClone(ROWS) }), bindingRepo: new InMemoryNavLocationBindingRepo({}) } } : {},

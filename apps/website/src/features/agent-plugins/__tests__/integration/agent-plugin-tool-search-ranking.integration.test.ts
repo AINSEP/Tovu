@@ -199,7 +199,7 @@ test("the plugin tool IS present in registry.list({}) and describable by exact i
       "one installed plugin must add exactly ONE tool to the real catalog, not seven",
     );
 
-    const described = catalog.describe("agent_plugin_ui_ux_design");
+    const described = catalog.describe({ id: "agent_plugin_ui_ux_design" });
     assert.ok(described, "agent_plugin_ui_ux_design must be describable via the real FTS-backed catalog");
   });
 });
@@ -221,7 +221,7 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
     ];
     const PLUGIN_TOOL_ID = "agent_plugin_ui_ux_design";
     for (const { query, maxRank } of supportedQueries) {
-      const hits = catalog.search(query, 10);
+      const hits = catalog.search({ query: query }, { limit: 10 });
       logHits(query, hits);
       const index = hits.findIndex((hit) => hit.id === PLUGIN_TOOL_ID);
       assert.ok(index >= 0, `${query}: the plugin must be discoverable`);
@@ -229,6 +229,6 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
     }
     // Known unsupported phrasing: FTS5 does not stem "accessible" to "accessibility".
     // Keep this diagnostic without asserting that discovery must remain broken.
-    logHits("how do I make this page more accessible", catalog.search("how do I make this page more accessible", 10));
+    logHits("how do I make this page more accessible", catalog.search({ query: "how do I make this page more accessible" }, { limit: 10 }));
   });
 });

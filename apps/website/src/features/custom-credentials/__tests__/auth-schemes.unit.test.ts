@@ -1,3 +1,4 @@
+import { detectSelfDescribingAuthScheme, parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -13,10 +14,8 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
 import {
   CREDENTIAL_SCHEMES_FILENAME,
-  detectSelfDescribingAuthScheme,
   loadCredentialSchemeRegistry,
   loadCredentialSchemeRegistryFromSource,
-  parseCredentialSchemesFile,
   type CredentialSchemeRule,
 } from "../auth-schemes.js";
 import { BUNDLED_DEPLOY_PLUGIN_ROOT, loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
@@ -35,27 +34,27 @@ import { BUNDLED_DEPLOY_PLUGIN_ROOT, loadBundledAuthSchemes } from "./bundled-au
 // ---------------------------------------------------------------------------------------------
 
 test("detect: a token starting with FlyV1 splits into scheme 'FlyV1' and everything after it as the value", async () => {
-  assert.deepEqual(detectSelfDescribingAuthScheme("FlyV1fake_test_token_value", await loadBundledAuthSchemes()), { scheme: "FlyV1", value: "fake_test_token_value" });
+  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "FlyV1fake_test_token_value", rules: await loadBundledAuthSchemes() }), { scheme: "FlyV1", value: "fake_test_token_value" });
 });
 
 test("detect: a token that IS exactly 'FlyV1', with nothing following it, does not match — there is no credential value left to send", async () => {
-  assert.equal(detectSelfDescribingAuthScheme("FlyV1", await loadBundledAuthSchemes()), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "FlyV1", rules: await loadBundledAuthSchemes() }), null);
 });
 
 test("detect: a token that merely CONTAINS 'FlyV1' later in the string, not as a leading prefix, does not match", async () => {
-  assert.equal(detectSelfDescribingAuthScheme("opaque_FlyV1_in_the_middle", await loadBundledAuthSchemes()), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque_FlyV1_in_the_middle", rules: await loadBundledAuthSchemes() }), null);
 });
 
 test("detect: an ordinary opaque token does not match — the overwhelming majority of tokens", async () => {
-  assert.equal(detectSelfDescribingAuthScheme("opaque-secret-token", await loadBundledAuthSchemes()), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque-secret-token", rules: await loadBundledAuthSchemes() }), null);
 });
 
 test("detect: the match is case-sensitive — a lowercase 'flyv1' prefix does not match", async () => {
-  assert.equal(detectSelfDescribingAuthScheme("flyv1fake_test_token_value", await loadBundledAuthSchemes()), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "flyv1fake_test_token_value", rules: await loadBundledAuthSchemes() }), null);
 });
 
 test("detect: with no rules loaded, nothing matches", () => {
-  assert.equal(detectSelfDescribingAuthScheme("FlyV1fake_test_token_value", []), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "FlyV1fake_test_token_value", rules: [] }), null);
 });
 
 test("detect: first matching rule wins, in declared order", () => {
@@ -63,12 +62,12 @@ test("detect: first matching rule wins, in declared order", () => {
     { id: "long", prefix: "AbcDef", scheme: "Long" },
     { id: "short", prefix: "Abc", scheme: "Short" },
   ];
-  assert.deepEqual(detectSelfDescribingAuthScheme("AbcDef_rest", rules), { scheme: "Long", value: "_rest" });
-  assert.deepEqual(detectSelfDescribingAuthScheme("Abc_rest", rules), { scheme: "Short", value: "_rest" });
+  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "AbcDef_rest", rules: rules }), { scheme: "Long", value: "_rest" });
+  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "Abc_rest", rules: rules }), { scheme: "Short", value: "_rest" });
 });
 
 test("detect: the scheme sent may differ from the prefix matched", () => {
-  assert.deepEqual(detectSelfDescribingAuthScheme("pfx_value", [{ id: "x", prefix: "pfx_", scheme: "Custom" }]), { scheme: "Custom", value: "value" });
+  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "pfx_value", rules: [{ id: "x", prefix: "pfx_", scheme: "Custom" }] }), { scheme: "Custom", value: "value" });
 });
 
 // ---------------------------------------------------------------------------------------------

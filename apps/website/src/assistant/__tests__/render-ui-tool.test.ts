@@ -62,8 +62,9 @@ function call(handler: ReturnType<typeof buildHandler>, options: CallOptions = {
     run: { id: "run-1" },
     input: options.input ?? { components: [{ id: "root", component: "Text", text: "hi" }] },
     signal: new AbortController().signal,
+  } as Parameters<typeof handler>[0], {
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
-  } as Parameters<typeof handler>[0]);
+  });
 }
 
 /** Pulls the surfaceId the tool minted (== the exchange id it opened) out of its own createSurface send. */

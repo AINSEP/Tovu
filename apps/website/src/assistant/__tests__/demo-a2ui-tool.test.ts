@@ -34,8 +34,9 @@ function call(handler: ReturnType<typeof buildHandler>, options: CallOptions = {
     run: { id: "run-1" },
     input: {},
     signal: options.signal ?? new AbortController().signal,
+  } as Parameters<typeof handler>[0], {
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
-  } as Parameters<typeof handler>[0]);
+  });
 }
 
 function surfaceIdOf(emission: SurfaceEmission): string {

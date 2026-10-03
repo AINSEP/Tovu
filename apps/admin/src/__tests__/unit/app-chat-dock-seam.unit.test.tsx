@@ -122,7 +122,12 @@ it("a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capt
   expect(handleDockDropCapture).toHaveBeenCalledTimes(1);
   expect(notPrevented).toBe(false);
   await waitFor(() => expect(publishDropCapture).toHaveBeenCalledWith(expect.any(Function)));
-  expect(publishDropCapture).toHaveBeenCalledWith(folderDrop.handleDropCapture);
+  // Skill installation wraps the folder handler; ordinary drops must still reach that handler
+  // with the original event (SPEC-053 AC-01), rather than requiring the wrapper's identity.
+  const published = publishDropCapture.mock.calls[0]![0] as (event: DragEvent<HTMLElement>) => void;
+  const event = { dataTransfer: { items: [], files: [] } } as unknown as DragEvent<HTMLElement>;
+  published(event);
+  expect(folderDrop.handleDropCapture).toHaveBeenCalledExactlyOnceWith(event);
 });
 
 /** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render

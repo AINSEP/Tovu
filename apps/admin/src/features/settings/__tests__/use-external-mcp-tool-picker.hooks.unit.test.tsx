@@ -43,7 +43,7 @@ describe("MCP picker transport and draft lifecycle", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.refreshing).toBe(false);
     rerender(initial);
-    expect(probe).toHaveBeenCalledExactlyOnceWith("atlas");
+    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith("atlas"));
     expect(result.current.loading).toBe(true);
     expect(result.current.refreshing).toBe(true);
     await act(async () => { pending.resolve({ tools }); await pending.promise; });
@@ -213,6 +213,7 @@ describe("MCP picker transport and draft lifecycle", () => {
     });
     const { result, rerender } = mount({ probe });
     expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith("atlas"));
     rerender({ ...initial, serverId: "boreal", allowedToolNames: "boreal.read", writeAllowedToolNames: "" });
     await waitFor(() => expect(result.current.fieldValues()).toEqual({ allowedToolNames: "boreal.read", writeAllowedToolNames: "" }));
     await waitFor(() => expect(result.current.advertisedCount).toBe(1));

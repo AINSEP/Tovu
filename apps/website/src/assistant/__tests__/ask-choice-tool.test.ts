@@ -43,8 +43,9 @@ function call(handler: ReturnType<typeof buildHandler>, options: CallOptions = {
     run: { id: "run-1" },
     input: options.input ?? {},
     signal: options.signal ?? new AbortController().signal,
+  } as Parameters<typeof handler>[0], {
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
-  } as Parameters<typeof handler>[0]);
+  });
 }
 
 /** Pulls the exchange id out of the emitted surface's HTML, the way the rendered iframe would. */

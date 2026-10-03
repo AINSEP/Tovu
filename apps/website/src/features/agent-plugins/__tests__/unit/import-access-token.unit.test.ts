@@ -53,7 +53,7 @@ async function setup() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const clock = { nowIso: () => "2026-09-29T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
     {

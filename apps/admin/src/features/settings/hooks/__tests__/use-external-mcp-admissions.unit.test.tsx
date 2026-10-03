@@ -265,14 +265,18 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
 
       await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS * (UNAVAILABLE_RETRY_ATTEMPTS + 5));
-      });
+      // Advance one interval per act so successive retry effects commit before the next interval.
+      // Keep the original full window and exact bound, including five intervals after exhaustion.
+      for (let attempt = 0; attempt < UNAVAILABLE_RETRY_ATTEMPTS + 5; attempt += 1) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS);
+        });
+      }
 
-      expect(result.current.waitingForAssistant).toBe(false);
-      expect(result.current.unavailable).toBe("the agent daemon is not reachable — the assistant may not be running");
       // One mount read plus exactly the bounded retries — never an unbounded poll.
       expect(getAdmissions).toHaveBeenCalledTimes(UNAVAILABLE_RETRY_ATTEMPTS + 1);
+      expect(result.current.waitingForAssistant).toBe(false);
+      expect(result.current.unavailable).toBe("the agent daemon is not reachable — the assistant may not be running");
     } finally {
       vi.useRealTimers();
     }

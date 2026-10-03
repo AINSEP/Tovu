@@ -306,10 +306,10 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
   const { run } = await lifecycle.start({ contextRef: "ctx-view-image" });
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 
-  const result = await delegatedToolExecuteRoute.handle(
-    { runId: run.id, toolUseId: "tu-view-1", toolId: MEDIA_VIEW_IMAGE_TOOL_ID, input: { mediaId: asset.id }, requireReadOnly: true },
-    routeDeps as never,
-  );
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-view-1", toolId: MEDIA_VIEW_IMAGE_TOOL_ID, input: { mediaId: asset.id }, requireReadOnly: true },
+    deps: routeDeps as never,
+  });
 
   assert.equal(result.ok, true, JSON.stringify(result).slice(0, 300));
   if (!result.ok) return;

@@ -19,7 +19,7 @@ import { setEntrySeoOverrides } from "../write-service.js";
  */
 
 const WORKSPACE = "workspace-invalidation-1";
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-13T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
 let idCounter = 0;
 const ids = { newId: () => `invalidation-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
@@ -76,9 +76,9 @@ async function makeHarness(posts: PostRecord[]) {
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const subscriptions = createSeoEventSubscriptions();
-  await bus.subscribe("entry.published", (event) => subscriptions.onEntryPublished(event as never));
-  await bus.subscribe("entry.updated", (event) => subscriptions.onEntryUpdated(event as never));
-  await bus.subscribe("entry.unpublished", (event) => subscriptions.onEntryUnpublished(event as never));
+  await bus.subscribe({ eventName: "entry.published", handler: (event) => subscriptions.onEntryPublished(event as never) });
+  await bus.subscribe({ eventName: "entry.updated", handler: (event) => subscriptions.onEntryUpdated(event as never) });
+  await bus.subscribe({ eventName: "entry.unpublished", handler: (event) => subscriptions.onEntryUnpublished(event as never) });
 
   return { deps, postRepo, outbox, bus };
 }

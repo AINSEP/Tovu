@@ -28,7 +28,7 @@ async function realCatalog() {
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
-  for (const definition of domainDnsAgentToolCatalog) assert.equal(catalog.describe(definition.name)?.id, definition.name);
+  for (const definition of domainDnsAgentToolCatalog) assert.equal(catalog.describe({ id: definition.name })?.id, definition.name);
   return catalog;
 }
 
@@ -42,7 +42,7 @@ test("domain diagnostics rank in the top three of the real production catalog", 
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(CASES)) {
     for (const query of queries) {
-      const hits = catalog.search(query, 3).map(hit => hit.id);
+      const hits = catalog.search({ query }, { limit: 3 }).map(hit => hit.id);
       if (!hits.includes(id)) misses.push(`${id}: ${query} -> ${hits.join(", ")}`);
     }
   }

@@ -69,7 +69,7 @@ for (const id of Object.keys(modules) as Id[]) {
     assert.equal(a.checks.length, 1);
     assert.deepEqual(a.checks[0], {
       principalId: "operator", permission: permissions[id], workspaceId: ws,
-      entityType: entities[id], entityId: undefined,
+      ...(entities[id] === undefined ? {} : { entityType: entities[id] }),
     });
   });
 }

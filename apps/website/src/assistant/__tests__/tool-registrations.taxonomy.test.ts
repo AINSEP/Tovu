@@ -541,7 +541,7 @@ async function startMerge(deps: RouteDeps, input: Record<string, unknown>) {
   const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
   const emitted: unknown[] = [];
-  const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+  const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(emitted.length, 1, "exactly one confirm dialog is shown");
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
@@ -601,12 +601,12 @@ test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click —
   const { deps } = fakeRouteDeps();
   const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool);
 
   for (const key of ["confirm", "confirmationToken"]) {
     await assert.rejects(
-      () => tool.handler({ ...executionContext({ fromTermId, intoTermId, [key]: key === "confirm" ? true : "tok" }), emitSurface: async () => undefined }),
+      () => tool.handler(executionContext({ fromTermId, intoTermId, [key]: key === "confirm" ? true : "tok" }), { emitSurface: async () => undefined }),
       { message: `'${key}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` },
     );
   }

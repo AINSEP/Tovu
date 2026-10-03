@@ -25,7 +25,7 @@ const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://m
 const SSE_SERVER: McpServerConfig = { type: "sse", url: "https://mcp.example.com/sse" };
 const HEADERED_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", headers: { "X-Tenant": "acme" } };
 
-const clock = { nowIso: () => "2026-09-10T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-10T00:00:00.000Z"), nowIso: () => "2026-09-10T00:00:00.000Z" };
 
 function makeDeps(): ExternalMcpStoreDeps {
   const repo = new InMemoryExternalMcpServerRepo();

@@ -27,13 +27,17 @@ function renderScreen(node: React.ReactElement) {
   return render(<FetchQueryProvider>{node}</FetchQueryProvider>);
 }
 
+let holdOverview = false;
+
 beforeEach(() => {
+  holdOverview = false;
   vi.stubGlobal("fetch", (url: string) => {
     const href = String(url);
     if (href.includes("/settings/effective") && href.includes("namespace=core.language")) {
       return Promise.resolve(jsonResponse({ data: [] }));
     }
     if (href.includes("/system/deployment-overview")) {
+      if (holdOverview) return new Promise<Response>(() => {});
       return Promise.resolve(
         jsonResponse({
           mode: "local",
@@ -74,6 +78,7 @@ describe("tab bar", () => {
   });
 
   it("defaults to Overview when no tabId is supplied", async () => {
+    holdOverview = true;
     renderScreen(<Deployment />);
     // Proven by the loading copy, not the resolved fetch — this test asserts which tab MOUNTED,
     // not that its data finished loading (that's `OverviewTab.unit.test.tsx`'s job).
@@ -89,6 +94,7 @@ describe("?tab= deep linking", () => {
   });
 
   it("falls back to Overview for an id that names no real tab, instead of blanking the panel", async () => {
+    holdOverview = true;
     renderScreen(<Deployment tabId="not-a-real-tab" />);
     expect(await screen.findByText("Loading deployment status…")).toBeInTheDocument();
   });

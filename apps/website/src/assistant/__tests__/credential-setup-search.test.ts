@@ -28,6 +28,6 @@ for (const [id, queries] of Object.entries(cases)) test(`t10 ${id} ranks top 3 f
   for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, undefined, { contributions })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   assert.ok(registry.list({}).some(d => d.id === id), `${id} missing from production catalog`);
-  const misses = queries.flatMap(query => { const hits = catalog.search(query, 3).map(h => h.id); return hits.includes(id) ? [] : [`${query}: ${hits.join(', ')}`]; });
+  const misses = queries.flatMap(query => { const hits = catalog.search({ query }, { limit: 3 }).map(h => h.id); return hits.includes(id) ? [] : [`${query}: ${hits.join(', ')}`]; });
   assert.deepEqual(misses, [], `${id} search misses: ${misses.join('; ')}`);
 });

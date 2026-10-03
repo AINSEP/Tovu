@@ -284,10 +284,10 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     const { run } = await lifecycle.start({ contextRef: "ctx-1" });
     const internalErrors: unknown[] = [];
 
-    const wire = await delegatedToolExecuteRoute.handle(
-      { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: "operator-plugin" } },
-      { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
-    );
+    const wire = await delegatedToolExecuteRoute.handle({
+      input: { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: "operator-plugin" } },
+      deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
+    });
 
     assert.ok(wire.ok, `the model must get a result it can relay, got ${JSON.stringify(wire)}`);
     assert.equal(wire.value.result.status, "completed");

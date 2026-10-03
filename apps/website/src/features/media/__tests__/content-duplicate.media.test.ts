@@ -54,7 +54,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["media.upload"]) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `media-${++counter}` },
     mediaRepo,
     assetBlobRepo,

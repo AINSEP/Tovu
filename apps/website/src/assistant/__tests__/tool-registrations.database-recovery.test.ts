@@ -700,7 +700,7 @@ async function startExecute(deps: RouteDeps, toolId: string, input: Record<strin
   const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
-  const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+  const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(emitted.length, 1, "exactly one confirm dialog is shown");
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
@@ -810,7 +810,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
 
     for (const key of ["confirm", "confirmationToken"]) {
       await assert.rejects(
-        () => tool.handler({ ...executionContext({ ...EXECUTE_TOOL_INPUTS[toolId](seededId), [key]: key === "confirm" ? true : "tok" }), emitSurface: async () => undefined }),
+        () => tool.handler(executionContext({ ...EXECUTE_TOOL_INPUTS[toolId](seededId), [key]: key === "confirm" ? true : "tok" }), { emitSurface: async () => undefined }),
         { message: `'${key}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` },
       );
     }
@@ -845,7 +845,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     assert.ok(tool);
 
     await assert.rejects(
-      () => tool.handler({ ...executionContext(EXECUTE_TOOL_INPUTS[toolId](seededId)), emitSurface: async () => undefined }),
+      () => tool.handler(executionContext(EXECUTE_TOOL_INPUTS[toolId](seededId)), { emitSurface: async () => undefined }),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         assert.match(error.message, /is not authorized for/);

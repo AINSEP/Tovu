@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { buildAuthorizationHeader } from "#src/features/custom-credentials/credentialed-request";
+import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { CustomProviderConnectionInput } from "#src/features/custom-credentials/types";
 import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
 import type { FileWritePlan as GitHubWriteFilesPlan, SourceControlProvider } from "#src/features/source-control/provider-module";
@@ -24,7 +24,7 @@ function githubProvider(httpClient: HttpClientPort): SourceControlProvider {
 /** Core hands the provider the `Authorization` header it built from the saved connection. */
 function withAuthorization<T extends { connection: CustomProviderConnectionInput }>(input: T): Omit<T, "connection"> & { authorization: string } {
   const { connection, ...rest } = input;
-  return { ...rest, authorization: buildAuthorizationHeader(connection) };
+  return { ...rest, authorization: buildAuthorizationHeader({ connection, schemes: [] }) };
 }
 
 const planGitHubFileWrite = (deps: { httpClient: HttpClientPort }, input: Omit<Parameters<SourceControlProvider["planFileWrite"]>[0], "authorization"> & { connection: CustomProviderConnectionInput }) =>
@@ -109,7 +109,7 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
       ],
     },
   });
-  assert.equal(client.calls[0]!.headers.Authorization, buildAuthorizationHeader(CONNECTION));
+  assert.equal(client.calls[0]!.headers.Authorization, buildAuthorizationHeader({ connection: CONNECTION, schemes: [] }));
   assert.equal(client.remainingCount(), 0);
 });
 
@@ -239,7 +239,7 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
   ]);
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "app = 'demo'" }]), PLAN);
   assert.deepEqual(result, { ok: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha" });
-  for (const call of client.calls) assert.equal(call.headers.Authorization, buildAuthorizationHeader(CONNECTION));
+  for (const call of client.calls) assert.equal(call.headers.Authorization, buildAuthorizationHeader({ connection: CONNECTION, schemes: [] }));
   const blobBody = JSON.parse(client.calls[0]!.body!);
   assert.equal(blobBody.encoding, "base64");
   assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), "app = 'demo'");

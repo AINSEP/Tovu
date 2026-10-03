@@ -79,7 +79,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     repo: new InMemorySourceControlCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
     fetchFn: neverCallRealNetwork(),
     loadSourceControlProviders: githubFromSource,
@@ -203,7 +203,7 @@ test("isDefault group invariant: setting a new default clears the previous one, 
 
 test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
   let now = NOW;
-  const deps = makeDeps({ clock: { nowIso: () => now } });
+  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now), nowIso: () => now } });
   const first = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "one", connection: { providerId: "github", token: "t1" } });
   now = "2026-08-16T00:00:00.000Z";
   const second = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "two", connection: { providerId: "github", token: "t2" } });

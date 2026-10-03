@@ -107,7 +107,7 @@ test("a BYOK turn finds site_backup_plan in the top 3 for how an owner asks for 
   const catalog = buildToolCatalogQuery(registry);
 
   for (const query of ["back up my site to github", "save a copy of my site and database to a private repo"]) {
-    const hits = catalog.search(query, 10).map((hit) => hit.id);
+    const hits = catalog.search({ query }, { limit: 10 }).map((hit) => hit.id);
     const rank = hits.indexOf("site_backup_plan") + 1;
     assert.ok(rank >= 1 && rank <= 3, `"${query}" must rank site_backup_plan in the top 3; got ${rank === 0 ? "a miss" : rank}: ${hits.slice(0, 5).join(", ")}`);
   }

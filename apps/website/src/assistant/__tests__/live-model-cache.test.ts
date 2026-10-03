@@ -28,7 +28,7 @@ import { getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from 
 
 const WORKSPACE = "workspace-1";
 const ADMIN_A = "principal-admin-a";
-const clock = { nowIso: () => "2026-08-05T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" };
 /** Mirrors `live-model-cache.ts`'s internal `LIVE_MODEL_CACHE_TTL_MS` — not exported (callers
  *  should not need to know the exact number), so this is restated here rather than imported. If
  *  the module's TTL ever changes, the cache-expiry test below is the one place that needs updating

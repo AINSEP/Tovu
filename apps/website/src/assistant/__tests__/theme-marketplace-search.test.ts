@@ -42,7 +42,7 @@ for (const [toolId, queries] of Object.entries(QUERIES)) {
   test(`${toolId} ranks in the top 3 for owner requests`, async () => {
     const catalog = await realCatalog();
     const misses = queries.flatMap((query) => {
-      const hits = catalog.search(query, 3).map((hit) => hit.id);
+      const hits = catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id);
       return hits.includes(toolId) ? [] : [`"${query}" -> ${hits.join(", ") || "(none)"}`];
     });
     assert.deepEqual(misses, [], `queries that missed the top 3:\n${misses.join("\n")}`);
@@ -51,5 +51,5 @@ for (const [toolId, queries] of Object.entries(QUERIES)) {
 
 test("switch my site to theme X still ranks theme_set_active first", async () => {
   const catalog = await realCatalog();
-  assert.equal(catalog.search("switch my site to theme X", 3)[0]?.id, "theme_set_active");
+  assert.equal(catalog.search({ query: "switch my site to theme X" }, { limit: 3 })[0]?.id, "theme_set_active");
 });

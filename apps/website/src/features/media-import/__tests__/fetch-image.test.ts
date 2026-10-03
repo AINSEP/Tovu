@@ -1,3 +1,4 @@
+import { buildImportFilename, MediaImportValidationError, parseImportUrl } from "@jini-ai/cms/media/import";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -5,13 +6,10 @@ import sharp from "sharp";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import {
-  buildImportFilename,
   fetchImage,
   IMPORTABLE_CONTENT_TYPES,
   MEDIA_IMPORT_MAX_BYTES,
   MEDIA_IMPORT_TIMEOUT_MS,
-  MediaImportValidationError,
-  parseImportUrl,
   validateImageBytes,
 } from "../fetch-image.js";
 
@@ -115,7 +113,7 @@ function sha256(bytes: Uint8Array): string {
 test("a real PNG round-trips byte-for-byte: the bytes fetchImage returns are the exact bytes the client returned, hash included", async () => {
   const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG, "the returned bytes must be identical to the response bytes, not a re-encoding of them");
   assert.equal(fetched.bytes.byteLength, REAL_PNG.byteLength);
@@ -136,7 +134,7 @@ test("the PNG fixture's bytes are NOT recoverable through a UTF-8 round trip —
 test("the outbound request is a bounded GET that asks for an image and nothing else", async () => {
   const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
 
-  await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.equal(client.calls.length, 1);
   assert.equal(client.calls[0]!.method, "GET");
@@ -158,10 +156,10 @@ test("a truncated response is REFUSED even though its magic bytes are a perfectl
     Buffer.from(REAL_PNG.subarray(0, 8)),
     "the clipped fixture must still carry the PNG signature, or this test proves nothing about truncation-before-sniffing"
   );
-  const client = new FakeHttpClient([imageResponse(clipped, { bodyTruncated: true })]);
+  const client = new FakeHttpClient([imageResponse(clipped, { bodyTruncated: true, bodyBytesTruncated: true })]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError, `expected MediaImportValidationError, got ${String(error)}`);
       assert.match(error.message, /Nothing was saved/);
@@ -173,7 +171,7 @@ test("a truncated response is REFUSED even though its magic bytes are a perfectl
 
 test("truncation is checked BEFORE sniffing — a whole, valid PNG flagged truncated is still rejected", () => {
   assert.throws(
-    () => validateImageBytes(new URL(URL_UNDER_TEST), REAL_PNG, true),
+    () => validateImageBytes({ source: new URL(URL_UNDER_TEST), bytes: REAL_PNG, bytesTruncated: true }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /import limit/);
@@ -190,7 +188,7 @@ test("Content-Type: image/png over an HTML body is rejected — the served heade
   const client = new FakeHttpClient([imageResponse(HTML_BODY, { headers: { "content-type": "image/png" } })]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /its actual bytes are 'text\/html'/);
@@ -203,7 +201,7 @@ test("Content-Type: image/png over an HTML body is rejected — the served heade
 test("an MP4 served as image/png round-trips byte-for-byte — the header is still ignored, the bytes still decide, and video is now an importable shape", async () => {
   const client = new FakeHttpClient([imageResponse(MP4_HEADER, { headers: { "content-type": "image/png" } })]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.deepStrictEqual(Buffer.from(fetched.bytes), MP4_HEADER);
   assert.equal(fetched.contentType, "video/mp4");
@@ -212,7 +210,7 @@ test("an MP4 served as image/png round-trips byte-for-byte — the header is sti
 test("a WebM served with no content-type header round-trips byte-for-byte and sniffs as video/webm", async () => {
   const client = new FakeHttpClient([imageResponse(WEBM_HEADER, { headers: {} })]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.deepStrictEqual(Buffer.from(fetched.bytes), WEBM_HEADER);
   assert.equal(fetched.contentType, "video/webm");
@@ -221,13 +219,13 @@ test("a WebM served with no content-type header round-trips byte-for-byte and sn
 test("an SVG served as image/png is rejected — SVG has no ingest sanitizer, so it is not importable regardless of the header", async () => {
   const client = new FakeHttpClient([imageResponse(SVG_BODY, { headers: { "content-type": "image/png" } })]);
 
-  await assert.rejects(() => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }), /its actual bytes are 'image\/svg\+xml'/);
+  await assert.rejects(() => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }), /its actual bytes are 'image\/svg\+xml'/);
 });
 
 test("a '.png.html' double-extension URL is decided by its bytes, not by either extension", async () => {
   const client = new FakeHttpClient([imageResponse(HTML_BODY)]);
 
-  await assert.rejects(() => fetchImage({ httpClient: client }, { url: "https://cdn.example.com/a/photo.png.html" }), /its actual bytes are 'text\/html'/);
+  await assert.rejects(() => fetchImage({ deps: { httpClient: client }, url: "https://cdn.example.com/a/photo.png.html" }), /its actual bytes are 'text\/html'/);
 });
 
 test("IMPORTABLE_CONTENT_TYPES is exactly the five still-image types plus video/mp4 and video/webm — the same set uploadMedia's own DEFAULT_ALLOWED_MIME_TYPES accepts, never silently widened beyond it (e.g. to SVG)", () => {
@@ -247,7 +245,7 @@ test("a body one byte over MEDIA_IMPORT_MAX_BYTES is rejected", async () => {
   const client = new FakeHttpClient([imageResponse(oversized)]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, new RegExp(`${MEDIA_IMPORT_MAX_BYTES}-byte import limit`));
@@ -259,14 +257,14 @@ test("a body one byte over MEDIA_IMPORT_MAX_BYTES is rejected", async () => {
 test("a body exactly AT the cap is accepted — the boundary is inclusive, so the check is not off by one in the rejecting direction", () => {
   const atCap = Buffer.alloc(MEDIA_IMPORT_MAX_BYTES);
   REAL_PNG.copy(atCap, 0);
-  assert.equal(validateImageBytes(new URL(URL_UNDER_TEST), atCap, false), "image/png");
+  assert.equal(validateImageBytes({ source: new URL(URL_UNDER_TEST), bytes: atCap, bytesTruncated: false }), "image/png");
 });
 
 test("an empty body is rejected with its own message, not mistaken for an unknown format", async () => {
   const client = new FakeHttpClient([imageResponse(Buffer.alloc(0))]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /returned an empty response body/);
@@ -289,7 +287,7 @@ for (const [label, badUrl] of [
     const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
 
     await assert.rejects(
-      () => fetchImage({ httpClient: client }, { url: badUrl }),
+      () => fetchImage({ deps: { httpClient: client }, url: badUrl }),
       (error: unknown) => {
         assert.ok(error instanceof MediaImportValidationError, `expected MediaImportValidationError, got ${String(error)}`);
         assert.match((error as Error).message, /must use https/);
@@ -310,7 +308,7 @@ for (const [label, badUrl] of [
     const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
 
     await assert.rejects(
-      () => fetchImage({ httpClient: client }, { url: badUrl }),
+      () => fetchImage({ deps: { httpClient: client }, url: badUrl }),
       (error: unknown) => {
         assert.ok(error instanceof MediaImportValidationError);
         assert.match((error as Error).message, /must be an absolute URL including the scheme/);
@@ -325,7 +323,7 @@ test("a URL embedding credentials is rejected before the network — no token is
   const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: "https://user:hunter2@cdn.example.com/fox.png" }),
+    () => fetchImage({ deps: { httpClient: client }, url: "https://user:hunter2@cdn.example.com/fox.png" }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /must not embed credentials/);
@@ -336,11 +334,11 @@ test("a URL embedding credentials is rejected before the network — no token is
 });
 
 test("a password-only URL (no username) is rejected too", () => {
-  assert.throws(() => parseImportUrl("https://:hunter2@cdn.example.com/fox.png"), /must not embed credentials/);
+  assert.throws(() => parseImportUrl({ raw: "https://:hunter2@cdn.example.com/fox.png" }), /must not embed credentials/);
 });
 
 test("parseImportUrl accepts an ordinary https URL and returns it normalized", () => {
-  assert.equal(parseImportUrl("https://CDN.Example.com/a/fox.png?sig=abc").href, "https://cdn.example.com/a/fox.png?sig=abc");
+  assert.equal(parseImportUrl({ raw: "https://CDN.Example.com/a/fox.png?sig=abc" }).href, "https://cdn.example.com/a/fox.png?sig=abc");
 });
 
 // ---------------------------------------------------------------------------
@@ -352,7 +350,7 @@ for (const status of [403, 404] as const) {
     const client = new FakeHttpClient([{ status, headers: {}, bodyText: "", bodyBytes: new Uint8Array(0) }]);
 
     await assert.rejects(
-      () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+      () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
       (error: unknown) => {
         assert.ok(error instanceof MediaImportValidationError);
         assert.match((error as Error).message, new RegExp(`returned HTTP ${status}, not an image`));
@@ -367,7 +365,7 @@ test("HTTP 500 is rejected WITHOUT the expiry hint — a broken host is not an e
   const client = new FakeHttpClient([{ status: 500, headers: {}, bodyText: "boom", bodyBytes: Buffer.from("boom") }]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /returned HTTP 500, not an image\.$/);
@@ -379,14 +377,14 @@ test("HTTP 500 is rejected WITHOUT the expiry hint — a broken host is not an e
 test("a 3xx that reached this layer (redirects exhausted inside the client) is rejected, not treated as a body", async () => {
   const client = new FakeHttpClient([{ status: 302, headers: { location: "https://elsewhere.example.com/fox.png" }, bodyText: "", bodyBytes: new Uint8Array(0) }]);
 
-  await assert.rejects(() => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }), /returned HTTP 302, not an image/);
+  await assert.rejects(() => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }), /returned HTTP 302, not an image/);
 });
 
 test("a transport-level failure (an EgressPolicy/SSRF refusal) propagates as itself and is NOT relabelled a shape problem", async () => {
   const refusal = new Error("egress to 'metadata.internal' (169.254.169.254) rejected: resolved address is link-local");
   const client = new FakeHttpClient([refusal]);
 
-  const error = await fetchImage({ httpClient: client }, { url: "https://metadata.internal/latest/meta-data/" }).then(
+  const error = await fetchImage({ deps: { httpClient: client }, url: "https://metadata.internal/latest/meta-data/" }).then(
     () => null,
     (e: unknown) => e as Error
   );
@@ -405,7 +403,7 @@ test("a client that returns no bodyBytes is REFUSED — the bytes are never reco
   const client = new FakeHttpClient([legacy]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /returned no raw bytes/);
@@ -417,7 +415,7 @@ test("a client that returns no bodyBytes is REFUSED — the bytes are never reco
 
 test("an absent bodyTruncated is simply no signal — it does not trigger the truncation rejection, and it is not read as a positive 'complete'", async () => {
   const noFlag: HttpResponse = { status: 200, headers: {}, bodyText: "", bodyBytes: REAL_PNG };
-  const fetched = await fetchImage({ httpClient: new FakeHttpClient([noFlag]) }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: new FakeHttpClient([noFlag]) }, url: URL_UNDER_TEST });
   assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG);
 });
 
@@ -426,31 +424,31 @@ test("an absent bodyTruncated is simply no signal — it does not trigger the tr
 // ---------------------------------------------------------------------------
 
 test("the extension comes from the SNIFFED type, never from the URL", () => {
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/jpeg"), "fox.jpg");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.exe"), "image/png"), "fox.png");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/webp"), "fox.webp");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox"), "image/avif"), "fox.avif");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/gif"), "fox.gif");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.mov"), "video/mp4"), "fox.mp4");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox"), "video/webm"), "fox.webm");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/jpeg" }), "fox.jpg");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.exe"), contentType: "image/png" }), "fox.png");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/webp" }), "fox.webp");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox"), contentType: "image/avif" }), "fox.avif");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/gif" }), "fox.gif");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.mov"), contentType: "video/mp4" }), "fox.mp4");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/fox"), contentType: "video/webm" }), "fox.webm");
 });
 
 test("a path-traversal segment cannot survive into the filename", () => {
-  const built = buildImportFilename(new URL("https://cdn.example.com/x/%2e%2e%2f%2e%2e%2fetc%2fpasswd"), "image/png");
+  const built = buildImportFilename({ url: new URL("https://cdn.example.com/x/%2e%2e%2f%2e%2e%2fetc%2fpasswd"), contentType: "image/png" });
   assert.ok(!built.includes("/"), `no separators may survive: got '${built}'`);
   assert.ok(!built.includes(".."), `no dot-dot may survive: got '${built}'`);
   assert.ok(built.endsWith(".png"));
 });
 
 test("an explicit '../../etc/passwd' override cannot escape either", () => {
-  const built = buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/png", "../../etc/passwd");
+  const built = buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/png" }, { override: "../../etc/passwd" });
   assert.ok(!built.includes("/"));
   assert.ok(!built.includes(".."));
   assert.ok(built.endsWith(".png"));
 });
 
 test("control characters are stripped rather than carried into the stored name", () => {
-  const built = buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/png", "ev\u0000il\nna\tme");
+  const built = buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/png" }, { override: "ev\u0000il\nna\tme" });
   assert.ok(
     [...built].every((character) => character.codePointAt(0)! >= 0x20 && character.codePointAt(0) !== 0x7f),
     `control characters must not survive: got ${JSON.stringify(built)}`
@@ -459,22 +457,22 @@ test("control characters are stripped rather than carried into the stored name",
 });
 
 test("a 400-character name is length-bounded", () => {
-  const built = buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/png", "a".repeat(400));
+  const built = buildImportFilename({ url: new URL("https://cdn.example.com/a/fox.png"), contentType: "image/png" }, { override: "a".repeat(400) });
   assert.ok(built.length <= 64, `expected a bounded name, got ${built.length} characters`);
   assert.equal(built, `${"a".repeat(60)}.png`);
 });
 
 test("the filename override wins for the STEM but never for the extension", () => {
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/8f3ac91b0e.png"), "image/png", "red fox in snow.jpeg"), "red-fox-in-snow.png");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/8f3ac91b0e.png"), contentType: "image/png" }, { override: "red fox in snow.jpeg" }), "red-fox-in-snow.png");
 });
 
 test("a URL with no usable last segment still produces a real name", () => {
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/"), "image/png"), "imported-image.png");
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/---"), "image/png"), "imported-image.png");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/"), contentType: "image/png" }), "imported-image.png");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/---"), contentType: "image/png" }), "imported-image.png");
 });
 
 test("a percent-encoded human name decodes before sanitizing", () => {
-  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/red%20fox%20dawn.png"), "image/png"), "red-fox-dawn.png");
+  assert.equal(buildImportFilename({ url: new URL("https://cdn.example.com/a/red%20fox%20dawn.png"), contentType: "image/png" }), "red-fox-dawn.png");
 });
 
 // ---------------------------------------------------------------------------
@@ -492,7 +490,7 @@ test("an image whose BYTES are complete is imported even though the response's l
   // data decodes ~1.8x larger through UTF-8, so the text half trips a cap the bytes never reach.
   const client = new FakeHttpClient([imageResponse(REAL_PNG, { bodyTruncated: true, bodyBytesTruncated: false })]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG, "the whole image was there and must be imported whole");
   assert.equal(sha256(fetched.bytes), sha256(REAL_PNG), "and byte-identical — not a text round trip that happened to succeed");
@@ -504,7 +502,7 @@ test("bodyBytesTruncated:true is still refused with the exact import-limit messa
   const client = new FakeHttpClient([imageResponse(clipped, { bodyTruncated: false, bodyBytesTruncated: true })]);
 
   await assert.rejects(
-    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    () => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError, `expected MediaImportValidationError, got ${String(error)}`);
       assert.equal(
@@ -519,14 +517,14 @@ test("bodyBytesTruncated:true is still refused with the exact import-limit messa
 
 test("validateImageBytes' third argument is the BYTE half's verdict — a whole PNG flagged there is still rejected", () => {
   assert.throws(
-    () => validateImageBytes(new URL(URL_UNDER_TEST), REAL_PNG, true),
+    () => validateImageBytes({ source: new URL(URL_UNDER_TEST), bytes: REAL_PNG, bytesTruncated: true }),
     (error: unknown) => {
       assert.ok(error instanceof MediaImportValidationError);
       assert.match((error as Error).message, /corrupt file, not a smaller one/);
       return true;
     }
   );
-  assert.equal(validateImageBytes(new URL(URL_UNDER_TEST), REAL_PNG, false), "image/png", "and a whole PNG NOT flagged there sniffs normally");
+  assert.equal(validateImageBytes({ source: new URL(URL_UNDER_TEST), bytes: REAL_PNG, bytesTruncated: false }), "image/png", "and a whole PNG NOT flagged there sniffs normally");
 });
 
 // ---------------------------------------------------------------------------
@@ -537,17 +535,17 @@ test("after a redirect the recorded URL is the hop that served the bytes, not th
   const finalUrl = "https://files.example.net/signed/abc123.png";
   const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl })]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.equal(fetched.url.href, finalUrl, "provenance is the point of this field");
   assert.equal(client.calls[0]!.url, URL_UNDER_TEST, "the request still goes to what was asked for — only the RECORD changes");
-  assert.equal(buildImportFilename(fetched.url, fetched.contentType), "abc123.png", "and the default filename follows the bytes, not the request");
+  assert.equal(buildImportFilename({ url: fetched.url, contentType: fetched.contentType }), "abc123.png", "and the default filename follows the bytes, not the request");
 });
 
 test("an absent finalUrl falls back to the requested URL — a client that does not report the final hop must not blank the provenance", async () => {
   const noFinalUrl: HttpResponse = { status: 200, headers: {}, bodyText: "", bodyBytes: REAL_PNG };
 
-  const fetched = await fetchImage({ httpClient: new FakeHttpClient([noFinalUrl]) }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: new FakeHttpClient([noFinalUrl]) }, url: URL_UNDER_TEST });
 
   assert.equal(fetched.url.href, URL_UNDER_TEST);
 });
@@ -555,7 +553,7 @@ test("an absent finalUrl falls back to the requested URL — a client that does 
 test("a finalUrl that does not parse is ignored rather than crashing an otherwise-good import", async () => {
   const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl: "not a url at all" })]);
 
-  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
 
   assert.equal(fetched.url.href, URL_UNDER_TEST, "falling back beats throwing: the bytes are fine, only the label was unusable");
   assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG);
@@ -565,7 +563,7 @@ for (const [format, contentType] of [["jpeg", "image/jpeg"], ["gif", "image/gif"
   test(`fetchImage accepts real ${contentType} bytes independently of the served type`, async () => {
     const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).toFormat(format).toBuffer();
     const client = new FakeHttpClient([imageResponse(bytes)]);
-    const result = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+    const result = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
     assert.equal(client.calls.length, 1);
     assert.equal(result.contentType, contentType);
     assert.deepEqual(Buffer.from(result.bytes), bytes);
@@ -575,7 +573,7 @@ for (const [format, contentType] of [["jpeg", "image/jpeg"], ["gif", "image/gif"
 test("parseable HTTP finalUrl is kept as provenance for already-fetched bytes", async () => {
   const finalUrl = "http://cdn.example.net/actual-hop.png";
   const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl })]);
-  const result = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+  const result = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
   assert.equal(result.url.href, finalUrl);
   assert.deepEqual(Buffer.from(result.bytes), REAL_PNG);
   assert.equal(client.calls.length, 1);

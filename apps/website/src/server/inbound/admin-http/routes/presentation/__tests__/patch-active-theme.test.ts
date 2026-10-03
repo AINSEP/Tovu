@@ -107,8 +107,8 @@ test("presentation patch: a theme that vanishes from `deps.themes` between valid
     // `{ ...base.presentationRepo, findByWorkspaceId: ... }` would silently drop `save`/`listAll` --
     // every method below explicitly calls through to the real instance instead.
     presentationRepo: {
-      findByWorkspaceId: async (workspaceId: string) => {
-        const existing = await base.presentationRepo.findByWorkspaceId(workspaceId);
+      findByWorkspaceId: async ({ workspaceId }: { workspaceId: string }) => {
+        const existing = await base.presentationRepo.findByWorkspaceId({ workspaceId });
         // Simulates a concurrent `POST .../themes/rescan` (rescan-themes.ts's `rescanThemes` mutates
         // this exact array in place via `themes.length = 0; themes.push(...)`) landing mid-request,
         // after `setActiveTheme`'s synchronous `allowed.includes(...)` check already passed but
@@ -146,12 +146,12 @@ test("presentation patch: switching valid themes persists the new id and refresh
   assert.equal(body.settings.activeThemeId, second.manifest.id);
   assert.deepEqual(body.activeThemeTemplates, ["article", "landing"]);
   assert.deepEqual(body.activeThemeStaticPageIds, ["home", "about"]);
-  assert.equal((await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID))?.activeThemeId, second.manifest.id);
+  assert.equal((await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.activeThemeId, second.manifest.id);
 });
 
 test("presentation patch: denied theme.set preserves the stored active theme", async (t) => {
   const base = createRouteDeps();
-  const before = await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID);
+  const before = await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID });
   assert.ok(before);
   const app = buildApp({ presentationRepo: base.presentationRepo, authorize: async (input) => {
     assert.equal(input.permission, "theme.set");
@@ -162,7 +162,7 @@ test("presentation patch: denied theme.set preserves the stored active theme", a
   const body = json as { code: string; details: { permission: string } };
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details.permission, "theme.set");
-  assert.deepEqual(await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID), before);
+  assert.deepEqual(await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), before);
 });
 
 test("presentation patch: an unexpected repo failure 500s", async (t) => {
@@ -172,7 +172,7 @@ test("presentation patch: an unexpected repo failure 500s", async (t) => {
     // drop `findByWorkspaceId` (a prototype method) and 500 for the wrong reason (a missing method,
     // not the `save` failure this test claims to exercise).
     presentationRepo: {
-      findByWorkspaceId: (workspaceId: string) => base.presentationRepo.findByWorkspaceId(workspaceId),
+      findByWorkspaceId: ({ workspaceId }: { workspaceId: string }) => base.presentationRepo.findByWorkspaceId({ workspaceId }),
       save: async () => {
         throw new Error("boom");
       },
@@ -215,7 +215,7 @@ test("presentation patch: the no-theme sentinel is ACCEPTED — this is the writ
 
   assert.equal(status, 200, "turning the theme off must be a permitted write, not a 400");
   assert.equal((json as { settings?: { activeThemeId?: string } }).settings?.activeThemeId, NO_THEME_ID);
-  assert.equal((await base.presentationRepo.findByWorkspaceId(WORKSPACE_ID))?.activeThemeId, NO_THEME_ID);
+  assert.equal((await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.activeThemeId, NO_THEME_ID);
 });
 
 test("presentation patch: the sentinel is NOT echoed into availableThemeIds — that list is the picker's catalogue", async (t) => {

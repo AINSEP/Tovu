@@ -22,6 +22,21 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Assistant permissions: maybe gate the AI agent separately LATER (owner call, 2026-10-03; NOT now)
+
+**Today, and kept deliberately:** the assistant acts with the full authority of the logged-in person. Every native mutating tool calls `authorize()` against that person. API-key runs also run fully. The owner said limiting anyone now is "unnecessary and just preemptive".
+
+**Possible later work** (option 3, spec 006 OQ-01): the assistant becomes its own `kind='agent'` principal delegated from the human, with effective permissions = agent grants ∩ the human's live grants, enforced in one branch of `authorize()`, plus an optional default-limits profile. The full design and a 12-job plan are in `ADS-memory/.local-artifacts/handoffs/2026-10-03-agent-permissions-audit.md`.
+
+**Audit findings parked with it** (decide when this is picked up):
+- local CLI agents in daemon mode run with auto-approve flags, so their own shell/file tools bypass `authorize()` (non-production)
+- `/api/runs` needs only an admin session, not `admin.assistant.use`
+- the federated MCP "may write" list is computed but not enforced
+- `custom_credential_write_files` commits to a third-party repo without the confirmation its comment promises
+- AI browser clicks are indistinguishable from the human's
+
+---
+
 ## Admin motifs: swap the whole admin look with one theme (owner call, 2026-10-02; NOT before the Tovu→Jini re-architecture lands)
 
 Swap one CSS + design-token set and the whole admin restyles live: glassmorphic, or wildly different designs. Use it

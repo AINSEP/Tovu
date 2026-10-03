@@ -8,7 +8,7 @@ import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
 import { createFormDefinition } from "../write-service.js";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 /**
@@ -24,12 +24,12 @@ const ACTOR = { id: "principal-1", kind: "user" as const };
 
 function makeWriteDeps() {
   const repo = new InMemoryFormDefinitionRepo();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const changeSets = new InMemoryChangeSetRepo();
   const authorize = async () => ({ allowed: true, reason: "ok" });
-  return { repo, clock, idGen, changeSets, authorize };
+  return { repo, clock, idGen, changeSets, authorize, executeCommand };
 }
 
 test("behavior.spec.md §7 — notify.recipients at exactly 10 is accepted", async () => {
@@ -93,7 +93,7 @@ function makeSubmitDeps() {
   const submissionRepo = new InMemoryFormSubmissionRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
-  const clock = { nowIso: () => NOW };
+  const clock = { nowIso: () => NOW, nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const rateLimiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });

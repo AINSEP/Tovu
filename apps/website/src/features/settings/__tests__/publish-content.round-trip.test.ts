@@ -79,7 +79,7 @@ async function write(site: Site, id: string, value: JsonValue): Promise<void> {
   await set({
     deps: {
       repo: site.settings,
-      clock: { nowIso: () => "2026-09-02T00:00:00.000Z" },
+      clock: { nowIso: () => "2026-09-02T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
       ids: { newId: () => `rev-${Math.random()}` },
       authorize: async () => ({ allowed: true, reason: "test" }),
       principals: {} as never,
@@ -93,7 +93,7 @@ async function clearValue(site: Site, id: string): Promise<void> {
   await clear({
     deps: {
       repo: site.settings,
-      clock: { nowIso: () => "2026-09-03T00:00:00.000Z" },
+      clock: { nowIso: () => "2026-09-03T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
       ids: { newId: () => `rev-${Math.random()}` },
       authorize: async () => ({ allowed: true, reason: "test" }),
       principals: {} as never,
@@ -277,12 +277,12 @@ test("active theme: a missing theme folder is refused; once it is there the swit
     assert.equal(friendlyPublishReason(err.message), "This theme isn't on the live site yet. Publish the theme too.");
     return true;
   });
-  assert.equal((await destination.presentation.findByWorkspaceId(WORKSPACE_ID))!.activeThemeId, "paper");
+  assert.equal((await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))!.activeThemeId, "paper");
 
   // An older destination holding only the retired `basic` folder.
   destination.themes.push(theme("static", "basic"));
   await applyReport(forced, entities, destinationDeps);
-  assert.equal((await destination.presentation.findByWorkspaceId(WORKSPACE_ID))!.activeThemeId, "basic");
+  assert.equal((await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))!.activeThemeId, "basic");
   assert.deepEqual((await plan(entities, destinationDeps)).rows.map((r) => r.outcome), ["unchanged"]);
 
   // Once the renamed folder arrives too, the current name wins.
@@ -290,7 +290,7 @@ test("active theme: a missing theme folder is refused; once it is there the swit
   await destination.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
   const again = await plan(entities, destinationDeps, ["active-theme:site"]);
   await applyReport(again, entities, destinationDeps);
-  assert.equal((await destination.presentation.findByWorkspaceId(WORKSPACE_ID))!.activeThemeId, "tovu-theme");
+  assert.equal((await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))!.activeThemeId, "tovu-theme");
 });
 
 test("active theme: the row is named by the theme's theme.json name, without touching its state or hash", async () => {
@@ -325,5 +325,5 @@ test("active theme: a destination with no presentation row is refused cleanly", 
     applyReport(report, entities, destinationDeps),
     (err: unknown) => err instanceof PublishContentApplyRowError && err.rowOutcome === "blocked"
   );
-  assert.equal(await destination.presentation.findByWorkspaceId(WORKSPACE_ID), null);
+  assert.equal(await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), null);
 });

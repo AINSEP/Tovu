@@ -9,7 +9,7 @@ import { fetchDaemonAdmissions } from "../external-mcp-admissions.js";
 const NOW = "2026-10-01T00:00:00.000Z";
 async function fixture(overrides: Record<string, unknown> = {}) {
   const keyring = new InMemoryKeyring();
-  const deps = { workspaceId: "ws-n04", clock: { nowIso: () => NOW }, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
+  const deps = { workspaceId: "ws-n04", clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW }, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
   await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring, clock: deps.clock }, {
     workspaceId: deps.workspaceId, serverId: "hosted", transport: "streamable_http", url: "https://hosted.example/mcp", command: "", args: "", authMode: "none", enabled: true, allowedToolNames: "read_thing", writeAllowedToolNames: "", principalId: "owner", ...overrides,
   });

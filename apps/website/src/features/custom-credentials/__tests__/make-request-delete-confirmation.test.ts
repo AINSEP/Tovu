@@ -152,9 +152,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     run: { id: "run-1" },
     input: options.input ?? { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/my-app" },
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — mirrors

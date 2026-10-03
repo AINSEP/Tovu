@@ -190,17 +190,22 @@ test("a gate that passes lets the call through unchanged, and is asked about THI
 
 test("with no onAuthFailed configured, a live auth failure propagates unchanged", async () => {
   const { deps } = fakeDeps();
+  const refused = new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
   const session = new InMemoryMcpSession({
     tools: REMOTE_TOOLS,
     onCall: () => {
-      throw new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
+      throw refused;
     },
   });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   await assert.rejects(
     () => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})),
-    (error: unknown) => error instanceof McpAuthFailedError,
+    (error: unknown) => {
+      assert.ok(error instanceof McpAuthFailedError);
+      assert.equal(error, refused);
+      return true;
+    },
   );
 });
 

@@ -71,7 +71,7 @@ async function buildHarness(steps: Step[]) {
   const sealer = new AesGcmSecretSealer(keyring);
   let counter = 0;
   const idGen = { newId: () => `cred-${++counter}` };
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   await createCustomCredential(
     { repo, sealer, keyring, clock, idGen },
     { workspaceId: WORKSPACE_ID, label: "github", category: "source-control", baseUrl: "https://api.github.com", connection: { token: SAVED_TOKEN } }
@@ -114,10 +114,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 /** Calls write_files through the real transport, confirms the dialog as the human, and returns what the model and the run saw. */
 async function confirmWrite(harness: Harness) {
-  const pending = delegatedToolExecuteRoute.handle(
-    { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT },
-    { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never
-  );
+  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   for (let tick = 0; tick < 200 && harness.openedExchangeIds.length === 0; tick++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
@@ -132,10 +129,7 @@ async function confirmWrite(harness: Harness) {
 
 /** Calls write_files through the real transport when the plan phase fails, so no confirmation is ever raised. */
 async function callUnconfirmed(harness: Harness) {
-  const wire = await delegatedToolExecuteRoute.handle(
-    { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT },
-    { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never
-  );
+  const wire = await delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   const events = await harness.eventLog.replay(harness.run.id, null);
   return { wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };
 }

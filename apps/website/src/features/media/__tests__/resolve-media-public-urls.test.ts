@@ -41,7 +41,7 @@ function fakeAsset(overrides: Partial<MediaRecord> = {}): MediaRecord {
 
 function transformRegistryDeps(transformDefinitionRepo: InMemoryTransformDefinitionRepo) {
   let counter = 0;
-  return { clock: { nowIso: () => NOW }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo };
+  return { clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo };
 }
 
 async function registerCoreTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo, params: TransformParams) {
@@ -191,7 +191,7 @@ test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a tran
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   await registerTransform({
-    deps: { clock: { nowIso: () => NOW }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo },
+    deps: { clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo },
     input: { workspaceId: OTHER_WORKSPACE_ID, name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "png" }, owner: "core" },
   });
   const asset = fakeAsset();

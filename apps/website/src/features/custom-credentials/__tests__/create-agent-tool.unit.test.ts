@@ -62,7 +62,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -81,7 +81,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     repo,
     sealer,
     keyring,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };
@@ -117,9 +117,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     run: { id: "run-1" },
     input: options.input ?? {},
     signal: options.signal ?? new AbortController().signal,
-    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
 }
 
 function exchangeIdFromSurface(surface: unknown): string {

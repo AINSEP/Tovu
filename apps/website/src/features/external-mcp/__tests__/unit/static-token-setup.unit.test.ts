@@ -21,12 +21,12 @@ test("hosted static token entered through the form is sealed, used as bearer aut
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const surfaces = createSurfaceExchangeStore();
-  const deps = { workspaceId: "ws-n04-token", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
+  const deps = { workspaceId: "ws-n04-token", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
   const regs = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces });
   const secret = "n04-human-secret";
   for (const accessToken of [secret, ""]) {
     let surface: unknown;
-    const pending = regs.find(r => r.descriptor.id === "external_mcp_save")!.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "hosted", transport: "streamable_http", authMode: "static_env", url: "https://hosted.example/mcp" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
+    const pending = invokeFixtureHandler(regs.find(r => r.descriptor.id === "external_mcp_save")!, { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "hosted", transport: "streamable_http", authMode: "static_env", url: "https://hosted.example/mcp" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
     await new Promise(resolve => setImmediate(resolve));
     const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
     assert.equal(html.includes(secret), false);
@@ -66,10 +66,10 @@ for (const [env, message] of [
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const surfaces = createSurfaceExchangeStore();
-  const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
+  const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
   const save = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === "external_mcp_save")!;
   let surface: unknown;
-  const pending = save.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "local", transport: "stdio", command: "node", authMode: "static_env" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
+  const pending = invokeFixtureHandler(save, { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "local", transport: "stdio", command: "node", authMode: "static_env" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
   await new Promise(resolve => setImmediate(resolve));
   const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
@@ -78,3 +78,12 @@ for (const [env, message] of [
   assert.deepEqual(await pending, { saved: false, cancelled: false, reason: "invalid", message, field: "env" });
   assert.deepEqual(await repo.listByWorkspaceId(deps.workspaceId), []);
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

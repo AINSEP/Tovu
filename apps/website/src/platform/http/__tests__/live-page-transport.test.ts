@@ -43,13 +43,12 @@ test('real transport pins the validated IP, preserves cookies, caps reads and fo
 
 test('a DNS deadline expires without dialing or dialing later when DNS eventually completes', async t => {
   let resolveDns: ((value: unknown) => void) | undefined; let connects = 0;
-  t.mock.module('node:dns/promises', { namedExports: { lookup: async () => new Promise(resolve => { resolveDns = resolve; }) } });
   const { createHttpClient } = await import('../client.js?dns-timeout');
-  const client = createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY, transport: { requestPinned: async () => { connects++; return { status: 200, headers: {}, bodyText: '' }; } } });
+  const client = createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY, transport: { requestPinned: async () => { connects++; return { status: 200, headers: {}, bodyText: '' }; } } }, { dns: { resolve: async () => new Promise<string[]>(resolve => { resolveDns = resolve as (value: unknown) => void; }) } });
   const controller = new AbortController();
   const work = client.send({ method: 'GET', url: 'https://site.example/', headers: {}, timeoutMs: 15000, signal: controller.signal });
   controller.abort(new Error('test deadline'));
   await assert.rejects(work, { message: 'test deadline' });
-  resolveDns!([{ address: '8.8.8.8', family: 4 }]);
+  resolveDns!(['8.8.8.8']);
   await Promise.resolve(); await Promise.resolve(); assert.equal(connects, 0);
 });

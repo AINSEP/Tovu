@@ -21,7 +21,7 @@ import { setEntrySeoOverrides } from "../write-service.js";
  */
 
 const WORKSPACE = "workspace-1";
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowIso: () => "2026-07-13T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
 let idCounter = 0;
 const ids = { newId: () => `seo-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });

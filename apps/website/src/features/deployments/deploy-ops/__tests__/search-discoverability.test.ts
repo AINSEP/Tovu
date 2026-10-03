@@ -25,9 +25,9 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   const catalog = buildToolCatalogQuery(registry);
   for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait", "deployment_ops_list_targets"]) {
     assert.equal((DOC2QUERY[id] ?? []).length >= 4, true, `missing questions for ${id}`);
-    for (const query of DOC2QUERY[id]!) assert.equal(catalog.search(query, 3).some(hit => hit.id === id), true, `${id}: ${query}: ${JSON.stringify(catalog.search(query, 3).map(h => h.id))}`);
+    for (const query of DOC2QUERY[id]!) assert.equal(catalog.search({ query }, { limit: 3 }).some(hit => hit.id === id), true, `${id}: ${query}: ${JSON.stringify(catalog.search({ query }, { limit: 3 }).map(h => h.id))}`);
   }
-  const hits = catalog.search("is my fly app up", 100).map(h => h.id);
+  const hits = catalog.search({ query: "is my fly app up" }, { limit: 100 }).map(h => h.id);
   assert.equal(hits.includes("deployment_ops_status"), true);
   const withoutOps = createToolRegistry({});
   for (const registration of registrations) if (!registration.descriptor.id.startsWith("deployment_ops_")) withoutOps.register(registration);
@@ -35,8 +35,8 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   const requests = JSON.parse(readFileSync(path.resolve("apps/website/src/assistant/__tests__/fixtures/tool-search-operator-requests.json"), "utf8")) as Array<{ id: string; query: string; expect: string[] }>;
   const regressions: string[] = [];
   for (const request of requests) {
-    const previouslyFound = baseline.search(request.query, 3).some(h => request.expect.includes(h.id));
-    const nowFound = catalog.search(request.query, 3).some(h => request.expect.includes(h.id));
+    const previouslyFound = baseline.search({ query: request.query }, { limit: 3 }).some(h => request.expect.includes(h.id));
+    const nowFound = catalog.search({ query: request.query }, { limit: 3 }).some(h => request.expect.includes(h.id));
     if (previouslyFound && !nowFound) regressions.push(request.id);
   }
   assert.deepEqual(regressions, [], "new deploy ops registrations must not displace existing operator requests");

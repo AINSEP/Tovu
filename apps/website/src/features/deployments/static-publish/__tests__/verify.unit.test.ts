@@ -28,7 +28,7 @@ import type { DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegist
 
 const WORKSPACE = "ws-verify";
 const NOW = "2026-08-16T00:00:00.000Z";
-const clock = { nowIso: () => NOW };
+const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
 
 function makeWriteDeps(): PublishCredentialWriteDeps {
   const keyring = new InMemoryKeyring();

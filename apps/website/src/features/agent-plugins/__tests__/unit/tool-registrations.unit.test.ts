@@ -242,7 +242,7 @@ test("calling with no 'skill' argument returns the plugin's own eponymous skill 
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
-    const result = (await registration.handler(fakeCtx(undefined))) as {
+    const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as {
       pluginId: string;
       skillName: string;
       guidance: string;
@@ -271,7 +271,7 @@ test("when a plugin has no eponymous skill folder, the default falls back to its
 
     const [registration] = buildAgentPluginToolRegistrations([source], gate());
     assert.ok(registration);
-    const result = (await registration.handler(fakeCtx(undefined))) as { skillName: string };
+    const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as { skillName: string };
     assert.equal(result.skillName, "frontend-accessibility");
   });
 });
@@ -289,7 +289,7 @@ test("an explicit, recognized 'skill' argument returns that skill's own guidance
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
-    const result = (await registration.handler(fakeCtx({ skill: "frontend-accessibility" }))) as {
+    const result = (await invokeFixtureHandler(registration, fakeCtx({ skill: "frontend-accessibility" }))) as {
       pluginId: string;
       skillName: string;
       guidance: string;
@@ -314,7 +314,7 @@ test("an unrecognized 'skill' argument falls back to the default skill gracefull
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
-    const result = (await registration.handler(fakeCtx({ skill: "does-not-exist" }))) as {
+    const result = (await invokeFixtureHandler(registration, fakeCtx({ skill: "does-not-exist" }))) as {
       skillName: string;
       note: string;
     };
@@ -333,8 +333,8 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
-    await assert.rejects(() => registration.handler(fakeCtx({ skill: 123 })), error => { assert.ok(error instanceof ToolInputError); assert.equal(error.message, "'skill' must be a string"); return true; });
-    await assert.rejects(() => registration.handler(fakeCtx({ notASkillField: "x" })), { name: "Error", message: "this tool accepts only an optional 'skill' argument — unexpected field(s): notASkillField" });
+    await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ skill: 123 })), error => { assert.ok(error instanceof ToolInputError); assert.equal(error.message, "'skill' must be a string"); return true; });
+    await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ notASkillField: "x" })), { name: "Error", message: "this tool accepts only an optional 'skill' argument — unexpected field(s): notASkillField" });
   });
 });
 
@@ -348,7 +348,7 @@ test("the handler returns the exact same guidance markdown readInstalledSkillMar
 
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
-    const result = (await registration.handler(fakeCtx(undefined))) as { pluginId: string; skillName: string; guidance: string };
+    const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as { pluginId: string; skillName: string; guidance: string };
 
     assert.equal(result.pluginId, "coffee-roastery");
     assert.equal(result.skillName, "roast-profiles");
@@ -385,7 +385,7 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
       assert.doesNotMatch(registration.descriptor.description ?? "", new RegExp(escapeRegExp(installed.packageRoot)));
 
       for (const input of [undefined, { skill: "frontend-accessibility" }, { skill: "not-a-real-skill" }]) {
-        const result = (await registration.handler(fakeCtx(input))) as Record<string, unknown>;
+        const result = (await invokeFixtureHandler(registration, fakeCtx(input))) as Record<string, unknown>;
         const serialized = JSON.stringify(result);
         assert.doesNotMatch(serialized, new RegExp(escapeRegExp(agentPluginsDir)), `${registration.descriptor.id}'s handler output leaked the install dir`);
         assert.doesNotMatch(serialized, new RegExp(escapeRegExp(installed.packageRoot)), `${registration.descriptor.id}'s handler output leaked packageRoot`);
@@ -454,7 +454,7 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
       const registry = createToolRegistry({});
       await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
       const executor = createToolExecutor({ registry });
-      const invoke = () => executor.execute({ id: "principal-1" }, { id: "run-1" }, "agent_plugin_coffee_roastery", {});
+      const invoke = () => executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input: {} });
       assert.equal((await invoke()).status, "completed");
       const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
       if (revocation === "disable") await setAgentPluginActivation({ workspaceRoot, pluginId: "coffee-roastery", enabled: false, actor: "owner" });
@@ -487,6 +487,15 @@ test("the registered connect handler resolves a real installed plugin and recogn
     }, { surfaceExchanges: createSurfaceExchangeStore() });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);
-    assert.deepEqual(await connect.handler(fakeCtx({ pluginId: "supabase" })), { status: "connected" });
+    assert.deepEqual(await invokeFixtureHandler(connect, fakeCtx({ pluginId: "supabase" })), { status: "connected" });
   });
 });
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
+}

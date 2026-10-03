@@ -189,7 +189,7 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
     signal: new AbortController().signal,
     ...(emitSurface ? { emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return invokeFixtureHandler(registration, ctx);
 }
 
 /** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe
@@ -630,4 +630,13 @@ for (const enabled of [true, false]) {
       assert.equal(await readFile(activationsPath, "utf8"), before, "denial must preserve the existing activation file byte for byte");
     });
   });
+}
+
+/** Supplies the fixture emitter through the canonical handler options, including headless calls. */
+function invokeFixtureHandler(
+  registration: import("@jini-ai/core").ToolRegistration,
+  context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
+) {
+  const { emitSurface, ...required } = context;
+  return registration.handler(required, emitSurface ? { emitSurface } : {});
 }

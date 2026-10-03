@@ -81,7 +81,7 @@ async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<To
 /** The one real invocation path — the same `ToolExecutor` `assistant/tool-executor-stack.ts` wraps. */
 async function callCapabilityTool(registry: ToolRegistry) {
   const executor = createToolExecutor({ registry });
-  return executor.execute(PRINCIPAL, { id: "run-1" }, TOOL_ID, { postId: "post-1" });
+  return executor.execute({ principal: PRINCIPAL, run: { id: "run-1" }, toolId: TOOL_ID, input: { postId: "post-1" } });
 }
 
 test("a site plugin disabled through setPluginEnabled — the composition both the admin route and plugins_set_enabled use — is refused in the already-running daemon, with no restart", async () => {

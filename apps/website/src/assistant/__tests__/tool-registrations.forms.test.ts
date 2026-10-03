@@ -12,6 +12,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
  *
  * See APPLY-5 for the two small edits the pre-existing shared test files need.
  */
+import { executeCommand } from "#src/contracts/core/commands/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -56,6 +57,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   let counter = 0;
   const deps = {
+    executeCommand,
     workspaceId: WORKSPACE_ID,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },

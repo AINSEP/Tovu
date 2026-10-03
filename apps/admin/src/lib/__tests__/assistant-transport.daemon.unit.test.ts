@@ -596,13 +596,20 @@ describe("subscribeToRun — EventSource frame handling", () => {
     expect(h.errors[0]?.message).toBe("agent crashed");
   });
 
-  test("a bare connection error (no data) reports a generic connection-error message", async () => {
+  test("a bare connection error probes the run and permits reconnection without failing it", async () => {
     const { h, source } = await openRun();
 
+    // n08 restart acceptance: a transient transport drop must not make success sticky-failed.
     source.emit("error", "");
+    await Promise.resolve();
 
-    expect(h.errors).toHaveLength(1);
-    expect(h.errors[0]?.message).toBe("assistant stream connection error");
+    expect(fetchMock.mock.calls[1]).toEqual(["/api/runs/run-1", { credentials: "same-origin" }]);
+    expect(h.errors).toEqual([]);
+    expect(h.onDone).not.toHaveBeenCalled();
+    expect(source.closed).toBe(false);
+    source.emit("end", JSON.stringify({ status: "succeeded", code: 0 }));
+    expect(h.onDone).toHaveBeenCalledExactlyOnceWith([]);
+    expect(h.errors).toEqual([]);
   });
 
   test("'end' only calls onDone once even if fired twice — settled guard", async () => {

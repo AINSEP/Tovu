@@ -34,8 +34,8 @@ test("settings writes and reads rank in the real catalog for owner questions", a
     ["settings_set_value", ["Change the site's timezone to Pacific.", "change the site timezone", "Turn off comments on new posts.", "Set the date format to day-month-year.", "Change a site setting", "Update configuration option"]],
     ["settings_clear_value", ["Put that setting back to its default.", "Clear a setting override", "Undo that setting", "Reset one setting to default"]],
   ] as const) {
-    for (const query of queries) assert.equal(catalog.search(query, 3).some((hit) => hit.id === toolId), true, `${query}: ${catalog.search(query, 3).map((hit) => hit.id).join(", ")}`);
+    for (const query of queries) assert.equal(catalog.search({ query: query }, { limit: 3 }).some((hit) => hit.id === toolId), true, `${query}: ${catalog.search({ query: query }, { limit: 3 }).map((hit) => hit.id).join(", ")}`);
   }
-  assert.equal(catalog.search("Change the site's timezone to Pacific.", 1)[0]?.id, "settings_set_value");
-  assert.equal(catalog.search("what are my site settings", 1)[0]?.id, "settings_get_effective");
+  assert.equal(catalog.search({ query: "Change the site's timezone to Pacific." }, { limit: 1 })[0]?.id, "settings_set_value");
+  assert.equal(catalog.search({ query: "what are my site settings" }, { limit: 1 })[0]?.id, "settings_get_effective");
 });

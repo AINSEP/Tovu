@@ -37,7 +37,7 @@ import { createRespawnPolicy, AGENT_DAEMON_EXIT_CODE } from "#src/assistant/inde
 // instead of this test process ever sending a real signal to a real process group.
 const FAKE_PID = 987_654_321;
 
-function createFakeDaemonProcess(): {
+function createFakeDaemonProcess({ spawned = true }: { spawned?: boolean } = {}): {
   handle: SpawnedDaemonProcess;
   emitExit: (code: number | null, signal?: NodeJS.Signals | null) => void;
   /** Simulates a spawn-level failure (e.g. `spawn()` itself couldn't find the daemon script) —
@@ -49,7 +49,7 @@ function createFakeDaemonProcess(): {
   const emitter = new EventEmitter();
   const killedSignals: (NodeJS.Signals | undefined)[] = [];
   const handle: SpawnedDaemonProcess = {
-    pid: FAKE_PID,
+    pid: spawned ? FAKE_PID : undefined,
     on: (event, listener) => emitter.on(event, listener as (...args: unknown[]) => void),
     kill: (signal) => {
       killedSignals.push(signal);
@@ -239,7 +239,7 @@ test("restart() spawns a replacement immediately after a spawn-level error, inst
   // marking `childHasExited = true`, `restart()`'s "wait for the stale child's actual exit before
   // spawning the replacement" branch (see the test above) would wait on an "exit" event this kind
   // of child can never emit — a permanent hang, not merely a slow recovery.
-  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  const children = [createFakeDaemonProcess({ spawned: false }), createFakeDaemonProcess()];
   let spawnCount = 0;
   const supervisor = createDaemonSupervisor({
     spawnDaemonProcess: () => children[spawnCount++].handle,
@@ -381,7 +381,7 @@ test("ensureStarted() reports ok without spawning when a retry is already schedu
 });
 
 test("ensureStarted() triggers a fresh spawn when nothing is running and nothing is scheduled — the never-started/spawn-error case", () => {
-  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  const children = [createFakeDaemonProcess({ spawned: false }), createFakeDaemonProcess()];
   let spawnCount = 0;
   const supervisor = createDaemonSupervisor({
     spawnDaemonProcess: () => children[spawnCount++].handle,

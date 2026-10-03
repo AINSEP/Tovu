@@ -297,8 +297,7 @@ async function enableWithDecision(
     run: { id: "run-1" },
     input,
     signal: new AbortController().signal,
-    emitSurface,
-  } as ToolExecutionContext);
+  } as ToolExecutionContext, { emitSurface });
 
   await new Promise((resolve) => setImmediate(resolve));
   if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it

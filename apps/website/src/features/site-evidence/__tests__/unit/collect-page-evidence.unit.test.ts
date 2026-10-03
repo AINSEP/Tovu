@@ -3,8 +3,9 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { ObservePageRequest, ObservePageResult, PageObservation, SiteEvidenceBrowserFactory } from "../../browser-port.js";
-import { collectPageEvidence, SITE_EVIDENCE_LIMITS, type CollectPageEvidenceDeps } from "../../collect-page-evidence.js";
+import type { ObservePageRequest, ObservePageResult, PageObservation, SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
+import { SITE_EVIDENCE_LIMITS, type ObservePageOptions } from "@jini-ai/diagnostics/web-evidence";
+import { collectPageEvidence, type CollectPageEvidenceDeps } from "../../collect-page-evidence.js";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 
 /**
@@ -66,16 +67,16 @@ interface FakeBrowser {
   closed: number;
 }
 
-function fakeBrowser(respond: (request: ObservePageRequest) => ObservePageResult = () => ({ ok: true, observation: observation() })): FakeBrowser {
+function fakeBrowser(respond: (request: ObservePageRequest, options?: ObservePageOptions) => ObservePageResult = () => ({ ok: true, observation: observation() })): FakeBrowser {
   const state: FakeBrowser = {
     visited: [],
     closed: 0,
     factory: async () => ({
       available: true,
       browser: {
-        async observe(request) {
+        async observe(request, options) {
           state.visited.push(request.url);
-          return respond(request);
+          return respond(request, options);
         },
         async close() {
           state.closed += 1;
@@ -86,13 +87,13 @@ function fakeBrowser(respond: (request: ObservePageRequest) => ObservePageResult
   return state;
 }
 
-function deps(browser: SiteEvidenceBrowserFactory, overrides: Partial<CollectPageEvidenceDeps> = {}): CollectPageEvidenceDeps {
+function deps(browser: SiteEvidenceBrowserFactory, overrides: Partial<Omit<CollectPageEvidenceDeps, "paths">> = {}): Omit<CollectPageEvidenceDeps, "paths"> {
   return { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(), openBrowser: browser, ...overrides };
 }
 
 test("only this workspace's own verified origin is ever visited", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/", "/pricing"] });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/", "/pricing"] });
 
   assert.deepEqual(browser.visited, ["https://example.test/", "https://example.test/pricing"]);
   assert.equal(result.origin, "https://example.test");
@@ -100,9 +101,7 @@ test("only this workspace's own verified origin is ever visited", async () => {
 
 test("an off-origin input never reaches the browser at all — it is refused before navigation", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), {
-    paths: ["https://evil.example/steal", "//evil.example/steal", "\\\\evil.example", "/ok"],
-  });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["https://evil.example/steal", "//evil.example/steal", "\\\\evil.example", "/ok"] });
 
   assert.deepEqual(browser.visited, ["https://example.test/ok"], "no hostile input may produce a navigation");
   assert.deepEqual(
@@ -119,7 +118,7 @@ test("a server-side redirect off the origin is recorded as evidence and its cont
       : { ok: true, observation: observation() },
   );
 
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/redirects-away", "/ok"] });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/redirects-away", "/ok"] });
 
   assert.deepEqual(result.pages.map((page) => page.path), ["/ok"]);
   const skipped = result.skipped.find((entry) => entry.path === "/redirects-away");
@@ -134,7 +133,7 @@ test("a server-side redirect off the origin is recorded as evidence and its cont
 test("the page cap is enforced, and the excess is REPORTED rather than silently dropped", async () => {
   const browser = fakeBrowser();
   const paths = ["/a", "/b", "/c", "/d", "/e", "/f", "/g"];
-  const result = await collectPageEvidence(deps(browser.factory), { paths });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths });
 
   assert.equal(browser.visited.length, SITE_EVIDENCE_LIMITS.maxPagesPerCall);
   assert.equal(result.pages.length, SITE_EVIDENCE_LIMITS.maxPagesPerCall);
@@ -146,9 +145,7 @@ test("the page cap is enforced, and the excess is REPORTED rather than silently 
 
 test("an invalid path is reported as invalid even when it comes after the cap is reached", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), {
-    paths: ["/a", "/b", "/c", "/d", "/e", "https://evil.example/steal"],
-  });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/a", "/b", "/c", "/d", "/e", "https://evil.example/steal"] });
 
   const hostile = result.skipped.find((entry) => entry.path === "https://evil.example/steal");
   assert.equal(hostile?.reason, "invalid-path", "a refused origin must never be masked as a mere cap overflow");
@@ -160,9 +157,7 @@ test("the whole-call deadline stops further page loads and names the reason", as
   // budget; by the second, the whole-call deadline has passed.
   const ticks = [1_000, 1_000, 1_000 + SITE_EVIDENCE_LIMITS.maxTotalMs];
   let call = 0;
-  const result = await collectPageEvidence(
-    deps(browser.factory, { now: () => ticks[Math.min(call++, ticks.length - 1)] as number }),
-    { paths: ["/a", "/b", "/c"] },
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/a", "/b", "/c"] }, { clock: { nowMs: () => ticks[Math.min(call++, ticks.length - 1)] as number } }
   );
 
   assert.equal(browser.visited.length, 1, "the deadline must stop the run, not merely be reported afterwards");
@@ -175,7 +170,7 @@ test("the per-page budget handed to the browser is the collector's own constant,
     seen.push(request);
     return { ok: true, observation: observation() };
   });
-  await collectPageEvidence(deps(browser.factory), { paths: ["/"] });
+  await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] });
 
   const request = seen[0];
   assert.equal(request?.timeoutMs, SITE_EVIDENCE_LIMITS.maxPageLoadMs);
@@ -187,13 +182,13 @@ test("the per-page budget handed to the browser is the collector's own constant,
 
 test("the browser is always closed — including when a page load fails", async () => {
   const browser = fakeBrowser(() => ({ ok: false, reason: "boom" }));
-  await collectPageEvidence(deps(browser.factory), { paths: ["/a", "/b"] });
+  await collectPageEvidence({ ...deps(browser.factory), paths: ["/a", "/b"] });
   assert.equal(browser.closed, 1);
 });
 
 test("an unavailable browser degrades to explicit skips — never to a config-derived guess", async () => {
   const factory: SiteEvidenceBrowserFactory = async () => ({ available: false, reason: "no chromium in this deployment" });
-  const result = await collectPageEvidence(deps(factory), { paths: ["/", "/pricing"] });
+  const result = await collectPageEvidence({ ...deps(factory), paths: ["/", "/pricing"] });
 
   assert.deepEqual(result.pages, [], "no browser means no observations, not partial ones");
   assert.equal(result.browser.status, "unavailable");
@@ -209,7 +204,7 @@ test("an unavailable browser degrades to explicit skips — never to a config-de
 
 test("a navigation failure skips one page without ending the run", async () => {
   const browser = fakeBrowser((request) => (request.url.endsWith("/dead") ? { ok: false, reason: "timed out" } : { ok: true, observation: observation() }));
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/dead", "/alive"] });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/dead", "/alive"] });
 
   assert.deepEqual(result.pages.map((page) => page.path), ["/alive"]);
   const skipped = result.skipped.find((entry) => entry.path === "/dead");
@@ -239,7 +234,7 @@ test("a page load that THROWS (not merely returns ok: false) skips that one page
     },
   });
 
-  const result = await collectPageEvidence(deps(browser), { paths: ["/", "/about", "/after-error"] });
+  const result = await collectPageEvidence({ ...deps(browser), paths: ["/", "/about", "/after-error"] });
 
   assert.deepEqual(visited, ["https://example.test/", "https://example.test/about", "https://example.test/after-error"], "the throw must not stop the loop from reaching the next page");
   assert.equal(result.pages.length, 2);
@@ -253,7 +248,7 @@ test("a page load that THROWS (not merely returns ok: false) skips that one page
 
 test("with no consent selector, the result SAYS no consent transition was performed", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/"] });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] });
 
   assert.equal(result.consentTransition.attempted, false);
   assert.ok(
@@ -263,12 +258,12 @@ test("with no consent selector, the result SAYS no consent transition was perfor
 });
 
 test("a consent selector is passed through and reported", async () => {
-  const seen: ObservePageRequest[] = [];
-  const browser = fakeBrowser((request) => {
-    seen.push(request);
+  const seen: ObservePageOptions[] = [];
+  const browser = fakeBrowser((_request, options) => {
+    seen.push(options ?? {});
     return { ok: true, observation: observation() };
   });
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/"], consentAcceptSelector: "#accept" });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] }, { consentAcceptSelector: "#accept" });
 
   assert.equal(seen[0]?.consentAcceptSelector, "#accept");
   assert.deepEqual(result.consentTransition, { attempted: true, selector: "#accept" });
@@ -276,13 +271,13 @@ test("a consent selector is passed through and reported", async () => {
 
 test("the result carries the limits it enforced, so a truncated list is distinguishable from a complete one", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/"] });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] });
   assert.deepEqual(result.limits, SITE_EVIDENCE_LIMITS);
 });
 
 test("the result contains NO verdict-shaped field anywhere", async () => {
   const browser = fakeBrowser();
-  const result = await collectPageEvidence(deps(browser.factory), { paths: ["/"], consentAcceptSelector: "#accept" });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] }, { consentAcceptSelector: "#accept" });
 
   // Asserted over the serialized result rather than field by field: a future field named `passed`
   // or `score` nested three levels down would slip past a shallow key check.
@@ -297,9 +292,7 @@ test("a workspace with no verified origin propagates OriginNotVerifiedError rath
   const browser = fakeBrowser();
   await assert.rejects(
     () =>
-      collectPageEvidence(
-        { workspaceId: WORKSPACE_ID, originRegistry: originRegistry(new OriginNotVerifiedError({ message: "none registered" })), openBrowser: browser.factory },
-        { paths: ["/"] },
+      collectPageEvidence({ ...{ workspaceId: WORKSPACE_ID, originRegistry: originRegistry(new OriginNotVerifiedError({ message: "none registered" })), openBrowser: browser.factory }, paths: ["/"] }
       ),
     OriginNotVerifiedError,
   );

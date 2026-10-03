@@ -16,10 +16,10 @@ describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"
     const repo = makeRepo();
     await repo.insert(ACME);
     await repo.insert(GLOBEX);
-    assert.deepEqual(await repo.findById("ws-1"), ACME);
-    assert.deepEqual(await repo.findBySlug("globex"), GLOBEX);
-    assert.equal(await repo.findBySlug("ws-1"), null);
-    assert.equal(await repo.findById("nope"), null);
+    assert.deepEqual(await repo.findById({ id: "ws-1" }), ACME);
+    assert.deepEqual(await repo.findBySlug({ slug: "globex" }), GLOBEX);
+    assert.equal(await repo.findBySlug({ slug: "ws-1" }), null);
+    assert.equal(await repo.findById({ id: "nope" }), null);
     assert.deepEqual((await repo.list()).map((w) => w.id).sort(), ["ws-1", "ws-2"]);
   });
 
@@ -28,10 +28,10 @@ describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"
     await repo.insert(ACME);
     await repo.insert(GLOBEX);
     await repo.update({ ...ACME, name: "Acme 2", slug: "acme-2", createdAt: "ignored" });
-    assert.deepEqual(await repo.findById("ws-1"), { ...ACME, name: "Acme 2", slug: "acme-2" });
-    await repo.delete("ws-1");
-    assert.equal(await repo.findById("ws-1"), null);
-    assert.deepEqual(await repo.findById("ws-2"), GLOBEX);
+    assert.deepEqual(await repo.findById({ id: "ws-1" }), { ...ACME, name: "Acme 2", slug: "acme-2" });
+    await repo.delete({ id: "ws-1" });
+    assert.equal(await repo.findById({ id: "ws-1" }), null);
+    assert.deepEqual(await repo.findById({ id: "ws-2" }), GLOBEX);
   });
 
   test("a duplicate slug is rejected by the database", async () => {

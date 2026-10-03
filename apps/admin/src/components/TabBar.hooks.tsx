@@ -1,5 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { agentHandle } from "@jini-ai/agentic";
+import { resolveTabBarTabIndex as resolvePackageTabIndex } from "@jini-ai/ui/tab-strip";
 import type { TabBarTab } from "./TabBar";
 
 /**
@@ -79,14 +80,12 @@ export function resolveTabBarKeyTarget(tabs: readonly TabBarTab[], activeId: str
  * @param tabs - The tab row in DOM order.
  * @param activeId - The currently active tab's id.
  * @param tab - The tab being rendered.
- * @returns `0` for the active tab, or for `tab` itself when `activeId` matches no tab and `tab` is
- *   the first enabled one; `-1` otherwise.
+ * @returns `0` for the enabled active tab, or for the first enabled tab when `activeId` matches
+ *   no enabled tab; `-1` otherwise, including every disabled tab.
  * @complexity O(n) in `tabs.length`.
  */
 export function resolveTabBarTabIndex(tabs: readonly TabBarTab[], activeId: string, tab: TabBarTab): 0 | -1 {
-  if (tabs.some((t) => t.id === activeId)) return tab.id === activeId ? 0 : -1;
-  const firstEnabled = tabs.find((t) => !t.disabled);
-  return firstEnabled?.id === tab.id ? 0 : -1;
+  return resolvePackageTabIndex({ tabs, activeId, tab });
 }
 
 export interface TabBarKeyboardHandlers {

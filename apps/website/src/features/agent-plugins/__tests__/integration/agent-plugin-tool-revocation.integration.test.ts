@@ -119,7 +119,7 @@ async function bootDaemonToolSurface(): Promise<ToolRegistry> {
 /** The one real invocation path — the same `ToolExecutor` `assistant/tool-executor-stack.ts` wraps. */
 async function callPluginTool(registry: ToolRegistry) {
   const executor = createToolExecutor({ registry });
-  return executor.execute(PRINCIPAL, { id: "run-1" }, TOOL_ID, {});
+  return executor.execute({ principal: PRINCIPAL, run: { id: "run-1" }, toolId: TOOL_ID, input: {} });
 }
 
 test("a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart", async () => {

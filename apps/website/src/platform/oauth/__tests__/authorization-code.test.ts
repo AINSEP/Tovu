@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import test from "node:test";
 
 import { beginAuthorizationCode, completeAuthorizationCode } from "@jini-ai/oauth";
+import { tovuOAuthMessages } from "../endpoint-safety.js";
 import { createPendingAuthorizationStore } from "@jini-ai/oauth";
 import type { OAuthProviderDescriptor } from "../ports.js";
 import {
@@ -709,7 +710,7 @@ for (const parameter of ["response_type", "client_id", "redirect_uri", "scope", 
             client: TEST_CLIENT,
             redirectUri: REDIRECT_URI,
           },
-          { extraAuthorizationParams: { [parameter]: "attacker-chosen" } },
+          { extraAuthorizationParams: { [parameter]: "attacker-chosen" }, messages: tovuOAuthMessages },
         ),
       "OAUTH_INVALID_REQUEST",
     );
