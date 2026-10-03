@@ -20,6 +20,8 @@
  *    shipped thing against itself. A doc comment cannot prevent that; the test below can, because
  *    deleting the option makes this file stop compiling and the assertions below go red.
  */
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -29,7 +31,11 @@ import { RETIRED_READ_TOOL_TO_CARD, currentToolIdFor } from "../content-read-too
 import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 
-installFirstPartyToolContributors();
+const contributions = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+};
+installFirstPartyToolContributors({ contributions });
 
 /** The 36 Tier-1 read tools the collapse retires, transcribed from the eval's own `TIER1_CLEAN`. */
 const RETIRED_TIER1_IDS: readonly string[] = [
@@ -107,7 +113,7 @@ const EXPECTED_CARD_IDS: readonly string[] = [
 ];
 
 function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set<string> {
-  return new Set(buildAssistantToolRegistrations(createRouteDeps(), undefined, options).map((r) => r.descriptor.id));
+  return new Set(buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
 }
 
 test("the real composition publishes exactly the 29 content_read cards", () => {
@@ -157,7 +163,7 @@ test("every retired member's SEARCH VOCABULARY survives into its card's indexed 
   // own vocabulary into the card's indexed text through that key. Those keys look like stranded
   // references to a retired id — they are the opposite, and re-keying them onto the card ids would
   // silently drop every one of these words from the FTS index with no error anywhere.
-  const byId = new Map(buildAssistantToolRegistrations(createRouteDeps()).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
   const checked: string[] = [];
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
