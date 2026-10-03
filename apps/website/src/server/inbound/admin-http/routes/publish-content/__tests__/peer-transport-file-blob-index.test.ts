@@ -52,7 +52,7 @@ function buildApp(options: {
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z"), nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => `peer-${++n}` },
     publishContentPeerRepo: repo,
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),

@@ -46,7 +46,7 @@ function buildApp(
       askedPermissions.push(permission);
       return { allowed: options.allowedPermissions ? options.allowedPermissions.includes(permission) : options.allow ?? true, reason: "matched" };
     },
-    clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z"), nowIso: () => "2026-09-18T00:00:00.000Z" },
     idGen: { newId: () => `peer-${++n}` },
     publishContentPeerRepo: repo,
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),

@@ -119,9 +119,11 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   const body = (await res.json()) as { ok: boolean; message: string };
   assert.equal(body.ok, true);
   assert.equal(body.message, "Mocked CLI 3.1.4 is installed and authenticated, and offers 'model-a'.");
-  // Proves the route reached the mock rather than a real PATH scan: exactly one call, with no args.
+  // Proves the route reached the mock rather than a real PATH scan: exactly one call, with no
+  // configuration -- Jini's `(required, optional)` shape makes that an empty required object and no
+  // options argument (no configured env, no AMR profile resolver).
   assert.equal(detectAgents.mock.callCount(), 1);
-  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, []);
+  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{}]);
 
   available = false;
   const unavailable = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli", model: "model-a" });

@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { and, eq } from "drizzle-orm";
+import type { Clock } from "@jini-ai/core/primitives";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -45,9 +46,10 @@ function tmpDbPath(): string {
 /** A clock the test moves by hand — same shape as `platform/oauth/__tests__/helpers.ts`'s, restated
  *  here rather than imported so this file has no test-only dependency on a sibling module's test
  *  helpers. */
-function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): OAuthClock & { advance(ms: number): void } {
+function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): OAuthClock & Clock & { advance(ms: number): void } {
   let nowMs = Date.parse(startIso);
   return {
+    nowMs: () => nowMs,
     nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms) => {
       nowMs += ms;

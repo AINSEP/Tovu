@@ -57,7 +57,7 @@ function makeDeps(dbPath: string, idPrefix: string) {
     repo: new SqlitePublishContentPeerRepo(openContentDb(dbPath)),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
     idGen: { newId: () => `${idPrefix}-${++n}` },
   };
 }

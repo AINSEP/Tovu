@@ -15,7 +15,7 @@ function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Expr
     workspaceId: "ws-1",
     workspaceRepo: new InMemoryWorkspaceRepo({}),
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { now: () => new Date("2026-01-01T00:00:00Z"), nowIso: () => "2026-01-01T00:00:00.000Z" } as any,
+    clock: { now: () => new Date("2026-01-01T00:00:00Z"), nowMs: () => Date.parse("2026-01-01T00:00:00.000Z"), nowIso: () => "2026-01-01T00:00:00.000Z" } as any,
     idGen: { generate: () => "id-1", newId: () => "id-1" } as any,
     outbox: new InMemoryOutbox(),
     bus: new InMemoryEventBus(),
@@ -38,7 +38,7 @@ test("create: returns 201 with id on success", async (t) => {
   const outbox = new InMemoryOutbox();
   const events: DomainEvent[] = [];
   const authorizationCalls: unknown[] = [];
-  await bus.subscribeAll(async (event) => { events.push(event); });
+  await bus.subscribeAll({ handler: async (event) => { events.push(event); } });
   const app = buildApp({
     workspaceRepo, bus, outbox,
     authorize: async (input) => {
@@ -56,14 +56,14 @@ test("create: returns 201 with id on success", async (t) => {
   const body = await res.json();
   assert.equal(body.id, "id-1");
   assert.deepEqual(authorizationCalls, [{ principalId: "test-principal", workspaceId: "ws-1", permission: "workspace.manage" }]);
-  assert.deepEqual(await workspaceRepo.findBySlug("acme"), {
+  assert.deepEqual(await workspaceRepo.findBySlug({ slug: "acme" }), {
     id: body.id, name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z",
   });
   assert.deepEqual(events, [{
     id: "id-1", name: "workspace.created", occurredAt: "2026-01-01T00:00:00.000Z",
     aggregateId: body.id, workspaceId: body.id, payload: { workspaceId: body.id, slug: "acme" },
   }]);
-  assert.deepEqual(await outbox.claimPending(20, "2026-01-02T00:00:00.000Z"), [], "the creation event was delivered, not merely enqueued");
+  assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: "2026-01-02T00:00:00.000Z" }), [], "the creation event was delivered, not merely enqueued");
 });
 
 test("create: returns 403 when principal is not authorized", async (t) => {
@@ -137,10 +137,10 @@ test("create: a failed event delivery returns 201 and retains the event for retr
   const bus = new InMemoryEventBus();
   const outbox = new InMemoryOutbox();
   let attempts = 0;
-  await bus.subscribe("workspace.created", async () => {
+  await bus.subscribe({ eventName: "workspace.created", handler: async () => {
     attempts++;
     throw new Error("subscriber unavailable");
-  });
+  } });
   const app = buildApp({ workspaceRepo, bus, outbox });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
@@ -149,10 +149,10 @@ test("create: a failed event delivery returns 201 and retains the event for retr
   });
   assert.equal(res.status, 201);
   assert.equal((await res.json()).id, "id-1");
-  assert.equal((await workspaceRepo.findBySlug("acme"))?.id, "id-1");
+  assert.equal((await workspaceRepo.findBySlug({ slug: "acme" }))?.id, "id-1");
   assert.equal(attempts, 1);
-  assert.deepEqual(await outbox.claimPending(20, "2026-01-01T00:00:00.000Z"), []);
-  const retry = await outbox.claimPending(20, "2026-01-01T00:01:00.000Z");
+  assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: "2026-01-01T00:00:00.000Z" }), []);
+  const retry = await outbox.claimPending({ batchSize: 20, nowIso: "2026-01-01T00:01:00.000Z" });
   assert.equal(retry.length, 1);
   assert.equal(retry[0].event.name, "workspace.created");
   assert.equal(retry[0].lastError, "subscriber unavailable");

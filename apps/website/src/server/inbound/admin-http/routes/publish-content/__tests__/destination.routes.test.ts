@@ -33,7 +33,7 @@ import { registerPublishContentDestinationRoutes } from "../destination.js";
 
 const WORKSPACE_ID = "workspace-local";
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/publish-content/destination`;
-const CLOCK = { nowIso: () => "2026-10-01T00:00:00.000Z" };
+const CLOCK = { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" };
 
 interface Harness {
   readonly url: string;

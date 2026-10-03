@@ -261,7 +261,7 @@ describeEachDialect(
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
       const sealer = new AesGcmSecretSealer(keyring);
-      const deps = { repo, keyring, sealer, clock: { nowIso: () => NOW } };
+      const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
       await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } });
       let release!: () => void;
       let entered!: () => void;

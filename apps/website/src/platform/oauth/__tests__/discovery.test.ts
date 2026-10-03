@@ -358,6 +358,7 @@ test("a resource at /mcp is asked for the PATH-INSERTED protected-resource docum
 
 test("the bare protected-resource path is a FALLBACK, tried only after the path-inserted one", async () => {
   const seen: string[] = [];
+  let origin = "";
   const server = await startLoopbackServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0] ?? "/";
     seen.push(path);

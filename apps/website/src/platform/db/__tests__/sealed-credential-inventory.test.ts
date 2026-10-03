@@ -379,7 +379,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     const kernel = each.make();
     await seedWorkspaces(kernel, [WS]);
     const repo = new SqlSiteAssistantCredentialRepo(kernel);
-    await setSiteAssistantCredential({ repo, sealer, keyring, clock: { nowIso: () => NOW } } as Parameters<typeof setSiteAssistantCredential>[0], {
+    await setSiteAssistantCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.parse(NOW) } } as Parameters<typeof setSiteAssistantCredential>[0], {
       workspaceId: WS as UUID,
       apiKey: `${LEAK}real-store-api-key`,
       provider: "anthropic",
