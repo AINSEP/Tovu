@@ -139,12 +139,19 @@ test("GET /llms.txt is reachable through the real running app, unauthenticated, 
   assert.match(body, /- \[Welcome to Tovu\]\(http:\/\/localhost:3000\/welcome\): .+/);
 });
 
-test("T045: the real home-page render includes SEO's folded <title> tag, not just the raw shell default", async (t) => {
+// REGRESSION: fails if the head contributor stops supplying the configured home title to getEntryMeta.
+test("T045: the real home-page title uses the site setting while preserving explicit SEO overrides", async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
   await deps.siteTitleReady;
+  const homePage = await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "/" });
+  assert.ok(homePage, "must exercise the content-owned homepage, not an entry-less theme fallback");
+  assert.equal(homePage.title, "Home");
+  const unset = await fetch(`${baseUrl}/`);
+  assert.equal(unset.status, 200);
+  assert.match(await unset.text(), /<title>Home<\/title>/, "no owner-set site title falls back to the page title");
   const cookie = await loginAsOwner(baseUrl);
   const settings = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`, {
     method: "PUT", headers: { "content-type": "application/json", cookie },
@@ -164,6 +171,21 @@ test("T045: the real home-page render includes SEO's folded <title> tag, not jus
   assert.match(html, /<link rel="canonical"/);
   assert.match(html, /<title>Home SEO fold proof<\/title>/);
   assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/"/);
+
+  const otherPage = await fetch(`${baseUrl}/how-themes-work`);
+  assert.equal(otherPage.status, 200);
+  assert.match(await otherPage.text(), /<title>How Themes Work<\/title>/);
+
+  const seo = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${homePage.id}`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Explicit Home SEO Title" }),
+  });
+  assert.equal(seo.status, 200, await seo.text());
+  const overridden = await fetch(`${baseUrl}/`);
+  assert.equal(overridden.status, 200);
+  const overriddenHtml = await overridden.text();
+  assert.equal(countRealTitleTags(overriddenHtml), 1);
+  assert.match(overriddenHtml, /<title>Explicit Home SEO Title<\/title>/);
 });
 
 /**

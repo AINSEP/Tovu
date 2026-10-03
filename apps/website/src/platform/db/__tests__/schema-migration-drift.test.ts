@@ -23,8 +23,8 @@
  *   SQL that actually runs against the database.
  *
  * This file is the missing third thing: it applies the real migrations to a throwaway SQLite file
- * with the SAME migrator the product uses (`sqlite/content-db.ts`'s `better-sqlite3` +
- * `migrate(db, { migrationsFolder })`) and compares the resulting physical shape against
+ * with the SAME migrator the product uses (`sqlite/content-db.ts`'s connection opener +
+ * `migrateSqliteContentFile`) and compares the resulting physical shape against
  * `schema.sqlite.ts`'s declared shape IN BOTH DIRECTIONS.
  *
  * Why a test and not a `check:*` script: ten of this repo's nineteen `check:*` scripts are invoked
@@ -42,15 +42,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { openSqliteContentConnection, migrateSqliteContentFile } from "../sqlite/content-db.js";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables, DERIVED_OBJECTS } from "../migration/manifest.js";
-
-/** Same folder `sqlite/content-db.ts` points its own `migrate()` at, resolved the same way. */
-const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../drizzle");
 
 /** `{ sql_table_name -> sorted sql column names }` — the shape both sides of the comparison take. */
 type TableShape = ReadonlyMap<string, readonly string[]>;
@@ -94,9 +89,9 @@ function declaredShape(): TableShape {
  *    which already carries the reviewed rationale for each: both are raw-SQL objects from
  *    `0022_posts_fts_search_index.sql` with no Drizzle representation by construction. Naming them
  *    again here would be the mirror-drift failure mode this file's own `declaredShape()` doc rejects.
- * 2. `__drizzle_migrations` — created by drizzle's migrator itself, not by any migration in the
- *    folder. Derived in the only sense available: it is a fact about the migrator, so it is asserted
- *    against reality by `MIGRATOR_BOOKKEEPING_TABLE`'s own presence check below rather than trusted.
+ * 2. `__drizzle_migrations` and `tovu_migrations` — the frozen legacy journal and the current
+ *    runner's ledger, rather than application tables. These facts about the migrators are asserted
+ *    against reality by the presence checks below rather than trusted.
  * 3. FTS5's shadow tables. **This is the one part that genuinely cannot be derived**, and the reason
  *    is worth stating rather than waving at: SQLite's FTS5 extension creates them itself, at
  *    `CREATE VIRTUAL TABLE` time, from its own internal storage design. Their names appear in no
@@ -111,38 +106,18 @@ const FTS5_SHADOW_SUFFIXES = ["data", "idx", "content", "docsize", "config"] as 
 
 const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
 
-/**
- * A FOURTH group, found by this guard's own first run against the untouched tree rather than known
- * in advance: tables a migration creates as raw SQL and the product reads through raw prepared
- * statements, deliberately never declared as a `sqliteTable`. Structurally identical to
- * `DERIVED_OBJECTS` (raw-SQL migration object, no Drizzle declaration) but NOT eligible to live
- * there — `DERIVED_OBJECTS` carries `copyPolicy: "never-copy-rows"`, which is a claim about
- * rebuildable search indexes and is flatly wrong about these three: they hold real authored data a
- * Postgres copier must carry across, not rebuild.
- *
- * Deliberately a hand-reviewed ALLOWLIST WITH RATIONALE rather than a bare name list or a heuristic,
- * following `manifest.ts`'s `REVIEWED_JSON_COLUMNS` precedent exactly — including its gates. The two
- * tests below assert every entry here still names a table the migrations really create AND that no
- * entry has since acquired a `sqliteTable` declaration, so this registry cannot rot into a blanket
- * excuse the way an unpoliced allowlist would. This is the one place in this file where nothing
- * upstream can be derived from: no existing registry in this repo names these tables at all.
- *
- * NOTE FOR THE POSTGRES MIGRATION (not this guard's job to fix): because these three are invisible
- * to `collectCoreTables()`, they are equally invisible to `computeCoreTableCopyOrder()` and to every
- * classification in `manifest.ts`. A bulk copier that walks that order would silently omit all three.
+/** Raw-SQL authored tables need explicit rationale because they are invisible to the schema
+ * catalog and its copy order; derived search objects instead belong in DERIVED_OBJECTS.
+ * The legacy chat entries were retired from content.db by step 0002 (they live in chat.db now).
  */
-const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
-  ai_chats: "0023_ai_chat_history.sql — Jini's chat-history DDL copied verbatim into a Tovu migration so @jini-ai/sqlite-chat does not run a second migrator against content.db. Read/written through @jini-ai/sqlite-chat's own store, never through Drizzle; drift against the package constant is guarded separately by assistant/persistence/__tests__/ddl-parity.test.ts.",
-  ai_chat_messages: "0023_ai_chat_history.sql — the message table of the same Jini-mirrored chat-history DDL as ai_chats, with the same owner and the same separate ddl-parity.test.ts guard.",
-  assistant_agent_sessions: "0051_assistant_agent_sessions.sql — the (conversation, agent) -> agent-CLI session id map, read and written exclusively through raw prepared statements in assistant/persistence/agent-session-store.ts. Kept out of schema.sqlite.ts on purpose; see that migration's own header for why it is separate from the Jini-mirrored tables above.",
-};
+const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {};
 
 function fts5ShadowPrefixes(): string[] {
   return DERIVED_OBJECTS.filter((o) => o.kind === "fts5-virtual-table").map((o) => `${o.name}_`);
 }
 
 function isNotDrift(tableName: string): boolean {
-  if (tableName === MIGRATOR_BOOKKEEPING_TABLE) return true;
+  if (tableName === MIGRATOR_BOOKKEEPING_TABLE || tableName === "tovu_migrations") return true;
   if (tableName.startsWith("sqlite_")) return true; // SQLite's own internal catalog objects
   if (DERIVED_OBJECTS.some((o) => o.name === tableName)) return true;
   if (Object.hasOwn(RAW_SQL_MANAGED_TABLES, tableName)) return true;
@@ -158,20 +133,20 @@ interface MigratedDatabase {
 }
 
 /**
- * Applies every migration in `../drizzle` to a fresh throwaway file and reads back the PHYSICAL
+ * Applies the complete content migration history to a fresh throwaway file and reads back the PHYSICAL
  * shape. Mirrors `sqlite/content-db.ts`'s own open sequence (same driver, same pragmas, same
- * migrator, same folder) so what is measured here is what the product actually gets — not a
+ * migration runner) so what is measured here is what the product actually gets — not a
  * reimplementation that could diverge from it.
  */
-function migratedDatabase(): MigratedDatabase {
+async function migratedDatabase(): Promise<MigratedDatabase> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-schema-drift-"));
   const file = path.join(dir, "probe.db");
   try {
-    const sqlite = new Database(file);
+    const sqlite = openSqliteContentConnection(file);
     try {
       sqlite.pragma("journal_mode = WAL");
       sqlite.pragma("foreign_keys = ON");
-      migrate(drizzle(sqlite), { migrationsFolder: MIGRATIONS_DIR });
+      await migrateSqliteContentFile(sqlite, file);
 
       const rows = sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>;
       const allTableNames = rows.map((r) => r.name).sort();
@@ -252,8 +227,8 @@ const OUTAGE_REMINDER =
 // End-to-end gates against the real schema and the real migrations
 // ---------------------------------------------------------------------------
 
-test("schema.sqlite.ts declares no COLUMN that the migrations on disk do not create", () => {
-  const report = diffShapes(declaredShape(), migratedDatabase().shape);
+test("schema.sqlite.ts declares no COLUMN that the migrations on disk do not create", async () => {
+  const report = diffShapes(declaredShape(), (await migratedDatabase()).shape);
   assert.deepEqual(
     report.missingColumns,
     [],
@@ -262,8 +237,8 @@ test("schema.sqlite.ts declares no COLUMN that the migrations on disk do not cre
   );
 });
 
-test("the migrations on disk create no COLUMN that schema.sqlite.ts has dropped", () => {
-  const report = diffShapes(declaredShape(), migratedDatabase().shape);
+test("the migrations on disk create no COLUMN that schema.sqlite.ts has dropped", async () => {
+  const report = diffShapes(declaredShape(), (await migratedDatabase()).shape);
   assert.deepEqual(
     report.extraColumns,
     [],
@@ -274,8 +249,8 @@ test("the migrations on disk create no COLUMN that schema.sqlite.ts has dropped"
   );
 });
 
-test("schema.sqlite.ts declares no TABLE that the migrations on disk do not create", () => {
-  const report = diffShapes(declaredShape(), migratedDatabase().shape);
+test("schema.sqlite.ts declares no TABLE that the migrations on disk do not create", async () => {
+  const report = diffShapes(declaredShape(), (await migratedDatabase()).shape);
   assert.deepEqual(
     report.missingTables,
     [],
@@ -284,8 +259,8 @@ test("schema.sqlite.ts declares no TABLE that the migrations on disk do not crea
   );
 });
 
-test("the migrations on disk create no TABLE that schema.sqlite.ts has dropped", () => {
-  const report = diffShapes(declaredShape(), migratedDatabase().shape);
+test("the migrations on disk create no TABLE that schema.sqlite.ts has dropped", async () => {
+  const report = diffShapes(declaredShape(), (await migratedDatabase()).shape);
   assert.deepEqual(
     report.extraTables,
     [],
@@ -303,8 +278,8 @@ test("the migrations on disk create no TABLE that schema.sqlite.ts has dropped",
 // goes vacuous. Each of these fails if the thing it excuses is no longer really there.
 // ---------------------------------------------------------------------------
 
-test("every allowlisted non-drift object is actually present in the migrated database", () => {
-  const { allTableNames } = migratedDatabase();
+test("every allowlisted non-drift object is actually present in the migrated database", async () => {
+  const { allTableNames } = await migratedDatabase();
   const present = new Set(allTableNames);
 
   assert.ok(
@@ -312,6 +287,7 @@ test("every allowlisted non-drift object is actually present in the migrated dat
     `"${MIGRATOR_BOOKKEEPING_TABLE}" is allowlisted as the migrator's own bookkeeping table but does not exist ` +
       `after migration — the allowlist is excusing something that is not there. Tables found: ${allTableNames.join(", ")}`
   );
+  assert.ok(present.has("tovu_migrations"), "the current migration runner's ledger is present");
   for (const derived of DERIVED_OBJECTS) {
     assert.ok(
       present.has(derived.name),
@@ -353,8 +329,8 @@ test("no RAW_SQL_MANAGED_TABLES entry has since acquired a schema.sqlite.ts decl
  * whose suffix this list does not know, it must surface HERE, naming the suffix, instead of being
  * misreported by the table gate above as schema drift.
  */
-test("FTS5 shadow-table suffixes are exhaustive — an unknown one is a stale allowlist, not drift", () => {
-  const { allTableNames } = migratedDatabase();
+test("FTS5 shadow-table suffixes are exhaustive — an unknown one is a stale allowlist, not drift", async () => {
+  const { allTableNames } = await migratedDatabase();
   const prefixes = fts5ShadowPrefixes();
   assert.ok(prefixes.length > 0, "DERIVED_OBJECTS no longer names any fts5-virtual-table; the prefix rule derives from it");
 
@@ -375,9 +351,9 @@ test("FTS5 shadow-table suffixes are exhaustive — an unknown one is a stale al
   );
 });
 
-test("the derived shape is non-trivial — a guard comparing two empty sets proves nothing", () => {
+test("the derived shape is non-trivial — a guard comparing two empty sets proves nothing", async () => {
   const declared = declaredShape();
-  const { shape: migrated } = migratedDatabase();
+  const { shape: migrated } = await migratedDatabase();
   assert.ok(declared.size > 50, `expected schema.sqlite.ts to declare dozens of tables, got ${declared.size}`);
   assert.ok(migrated.size > 50, `expected the migrations to create dozens of tables, got ${migrated.size}`);
   const postsColumns = migrated.get("posts");

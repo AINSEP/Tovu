@@ -981,70 +981,7 @@ export interface AdminCustomCredentialsSnapshot {
   credentials: AdminCustomCredentialSummary[];
 }
 
-/** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
-export interface AdminDeploymentEnvironment {
-  workspaceId: string;
-  id: string;
-  name: string;
-  slug: string;
-  isProduction: boolean;
-  createdAtIso: string;
-  version: number;
-}
-
-/** Mirrors `features/deployments/types.ts`'s `DeploymentTargetRecord`. `config` is non-secret
- *  provider config only (repo owner/name, environment name) — credentials are not stored here and
- *  never will be reachable through this read-only route. */
-export interface AdminDeploymentTarget {
-  workspaceId: string;
-  id: string;
-  environmentId: string;
-  providerId: string;
-  label: string;
-  config: Record<string, unknown>;
-  enabled: boolean;
-  createdAtIso: string;
-  version: number;
-}
-
-/** Mirrors `features/deployments/types.ts`'s `ReleaseRecord`/`ReleaseSource`. */
-export interface AdminDeploymentRelease {
-  workspaceId: string;
-  id: string;
-  label: string;
-  source: { kind: "git-revision"; repoUrl: string; commitSha: string } | { kind: "external-artifact"; uri: string; checksum?: string };
-  createdByPrincipalId: string;
-  createdAtIso: string;
-  version: number;
-}
-
-/** Mirrors `features/deployments/types.ts`'s `DeploymentRunRecord`. */
-export interface AdminDeploymentRun {
-  workspaceId: string;
-  id: string;
-  providerId: string;
-  targetId: string | null;
-  environmentId: string | null;
-  releaseId: string | null;
-  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
-  providerRunRef: string | null;
-  reconciliation: "poll" | "callback" | "manual";
-  requestedByPrincipalId: string;
-  requestedAtIso: string;
-  startedAtIso: string | null;
-  finishedAtIso: string | null;
-  errorSummary: string | null;
-  version: number;
-}
-
-/** Mirrors `AdminDeploymentsSnapshot` in `src/server/routes/admin/deployments/list.ts` — the Full
- *  Site tab's real-state read. */
-export interface AdminDeploymentsSnapshot {
-  environments: AdminDeploymentEnvironment[];
-  targets: AdminDeploymentTarget[];
-  releases: AdminDeploymentRelease[];
-  runs: AdminDeploymentRun[];
-}
+// Deployment snapshot types retired with the never-written deployment tables (2026-10-03).
 
 /** Mirrors `PublishDestinationView` in `src/server/inbound/admin-http/routes/publish-content/
  *  destination.ts` — the zero-setup connect action's own response shape. Defined here rather than
@@ -2431,6 +2368,18 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
   }
   onOk?.(res);
   return body as T;
+}
+
+/** Authenticated package adapters share cookies, bounded requests and session invalidation
+ * with every native screen; paths are relative to the existing admin API prefix. */
+export function authenticatedAdminRequest<T>(
+  { path, method, body }: { path: string; method: string; body?: unknown },
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<T> {
+  return request<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(signal ? { signal } : {}) });
+}
+export function authenticatedAdminUrl({ path }: { path: string }, _optional: Record<string, never> = {}): string {
+  return `${BASE}${path}`;
 }
 
 /**
@@ -4179,9 +4128,7 @@ export const api = {
   /** `204`, idempotent. */
   deleteCustomCredential: (id: string) => request<void>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
-   *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
-  getDeployments: () => request<AdminDeploymentsSnapshot>(`/workspaces/${WORKSPACE_ID}/deployments`),
+  // getDeployments retired with the never-written deployment tables (2026-10-03).
 
   // Publish Content — the peer push ceremony behind the Dashboard's "Publish Content"
   // button (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).

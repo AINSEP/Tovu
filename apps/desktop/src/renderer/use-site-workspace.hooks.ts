@@ -25,6 +25,7 @@ import { useEffect, useReducer, type Dispatch } from 'react';
 import { useWebviewLoadFailure } from './App.hooks.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
+import { sitePortPresentation } from './site-port.rules.js';
 
 /** Whether the guest's own session history has an entry either side of the current one. */
 export interface SiteHistory {
@@ -95,9 +96,17 @@ export function loadResetKey(state: SiteWorkspaceState): string {
   return `${state.reloadNonce}:${state.view}:${state.softLoads}`;
 }
 
-/** Trailing slash on `/admin/` on purpose: `/admin` answers 301, a visible flash on every open. */
-export function siteSurfaceUrl(port: number, view: SiteSurface): string {
-  return `http://127.0.0.1:${port}${view === 'site' ? '/' : '/admin/'}`;
+/**
+ * A surface URL, or blank when no server is running. Trailing slash on `/admin/` on purpose:
+ * `/admin` answers 301, a visible flash on every open. Pure; no effects or errors.
+ * @complexity O(1) time and space.
+ */
+export function siteSurfaceUrl(
+  input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status'] },
+  _optional: Record<string, never> = {},
+): string {
+  const { origin } = sitePortPresentation(input);
+  return origin ? `${origin}${input.view === 'site' ? '/' : '/admin/'}` : '';
 }
 
 /** Which surface a guest url belongs to: the admin by its path, everything else is the site. */
@@ -230,7 +239,9 @@ export function createWorkspaceActions(input: {
       // A different `src` is the navigation. The same `src` would navigate nowhere, so load it.
       if (option !== state.view) return;
       // `loadURL` rejects when a newer navigation aborts it, which is ordinary, not a failure.
-      loadOrRemount((target) => void target.loadURL(siteSurfaceUrl(input.port, option)).catch(() => undefined));
+      const url = siteSurfaceUrl({ port: input.port, view: option });
+      if (!url) return;
+      loadOrRemount((target) => void target.loadURL(url).catch(() => undefined));
     },
     // An id and a surface, never a url: main rebuilds the url from the registry row. A rejection
     // means the project stopped existing, and the next poll takes the tab away.
@@ -239,6 +250,8 @@ export function createWorkspaceActions(input: {
 }
 
 export interface SiteWorkspace extends WorkspaceActions {
+  /** Running status with a real port; a port-zero record never mounts a guest. */
+  running: boolean;
   /** The guest's `src`: the requested surface's root. */
   src: string;
   /** The url to show: where the guest is, or where it was sent until it says. */
@@ -273,7 +286,7 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
 
   useEffect(() => subscribeSiteHistory({ bridge: runnerInventoryBridge(), hidden, guest }), [hidden, guest]);
 
-  const src = siteSurfaceUrl(project.port, state.view);
+  const src = siteSurfaceUrl({ port: project.port, view: state.view, status: project.status });
   const actions = createWorkspaceActions({
     guest,
     failed,
@@ -286,8 +299,10 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
   });
   return {
     ...actions,
+    running: src !== '',
     src,
-    displayUrl: state.liveUrl ?? src,
+    // A stopped tab can still remember the last guest URL until its ref effect runs. Hide it now.
+    displayUrl: src ? state.liveUrl ?? src : '',
     surface: liveSurface(state),
     history: state.history,
     reloadNonce: state.reloadNonce,

@@ -390,7 +390,11 @@ interface BuildServeEnvInput {
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
  * `<dir>` are the only authority over those. `TOVU_HOST` is overwritten to `127.0.0.1` for the
- * same reason — see the LAN-bind plan note above the identity-seeding paragraph. `TOVU_ADMIN_USER`/
+ * same reason — see the LAN-bind plan note above the identity-seeding paragraph.
+ * `TOVU_PUBLIC_URL` is dropped because desktop development loads the repo-root
+ * `.env`: its public origin belongs to that site, not each spawned site's loopback server.
+ * `TOVU_INTEGRATIONS_ROOT_KEY` and the rest of the inherited environment remain available.
+ * `TOVU_ADMIN_USER`/
  * `TOVU_ADMIN_PASSWORD` are ALREADY a random, never-shown pair by the time this function runs —
  * {@link buildCliEnv} above seeds them unconditionally — so a caller that passes no
  * `desktopCredential` (every existing caller before this dispatch) no longer leaves a brand-new
@@ -408,6 +412,7 @@ interface BuildServeEnvInput {
 function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
   const env = buildCliEnv(input.baseEnv, input.siteDir);
+  delete env.TOVU_PUBLIC_URL;
 
   if (!env.TOVU_AGENT_DAEMON_TOKEN) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");

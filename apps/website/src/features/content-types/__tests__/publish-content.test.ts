@@ -32,6 +32,32 @@ async function sites(sourceRows: ContentTypeRecord[]) {
   };
 }
 
+// REGRESSION: fails if publish-content.ts reverts `authorize: adaptLegacyAuthorize({ authorize: gateway.authorize })` to `authorize: gateway.authorize`.
+test("content-type publishing: scoped grants survive create, field update and lifecycle re-checks", async () => {
+  const { source, dest, sourceRepo, destRepo } = await sites([contentType()]);
+  const scopedDest: typeof dest = {
+    ...dest,
+    authorize: async (params) =>
+      params.entityType === "content-type" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" },
+  };
+  await roundTrip(source, scopedDest);
+  assert.equal((await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" }))?.status, "active");
+
+  const fields = [...contentType().fields, { name: "cuisine", kind: "text", required: false, queryable: false } as const];
+  await sourceRepo.save(contentType({ label: "Dishes", fields, status: "deprecated", version: 4 }));
+  let entities = await packAll(source);
+  await applyReport(await plan(entities, scopedDest, ["content-type:recipe"]), entities, scopedDest);
+  const landed = await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
+  assert.equal(landed?.label, "Dishes");
+  assert.deepEqual(landed?.fields, fields);
+  assert.equal(landed?.status, "deprecated");
+
+  await sourceRepo.save(contentType({ label: "Dishes", fields, status: "active", version: 5 }));
+  entities = await packAll(source);
+  await applyReport(await plan(entities, scopedDest, ["content-type:recipe"]), entities, scopedDest);
+  assert.equal((await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" }))?.status, "active");
+});
+
 test("content-type round trip: created, then unchanged; seeded widget keys and tombstones never pack", async () => {
   const { source, dest, destRepo } = await sites([
     contentType(),

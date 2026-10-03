@@ -4,6 +4,7 @@ import { legacyBaseline } from "./0000_legacy_baseline.js";
 import { postSearch } from "./0001_post_search.js";
 import { dropEmptyLegacyChatTables } from "./0002_drop_empty_legacy_chat_tables.js";
 import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
+import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
@@ -33,6 +34,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   postSearch(pinned("0001_post_search")),
   dropEmptyLegacyChatTables(pinned("0002_drop_empty_legacy_chat_tables")),
   coercionJsonAsJson(pinned("0003_coercion_json_as_json")),
+  dropUnusedDeploymentTables({ checksum: pinned("0004_drop_unused_deployment_tables") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

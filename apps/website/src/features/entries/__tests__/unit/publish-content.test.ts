@@ -60,6 +60,25 @@ async function sites() {
   return { src, dst, source: site(src, "src"), dest: site(dst, "dst") };
 }
 
+// REGRESSION: fails if publish-content.ts reverts `authorize: adaptLegacyAuthorize({ authorize: gateway.authorize })` to `authorize: gateway.authorize`.
+test("collection-entry publishing: scoped grants survive the entry import re-check", async () => {
+  const { src, dst, source, dest } = await sites();
+  const scopedDest: typeof dest = {
+    ...dest,
+    authorize: async (params) =>
+      params.entityType === "collection-entry" || params.entityType === "entry"
+        ? { allowed: true, reason: "matched" }
+        : { allowed: false, reason: "resource_scope_mismatch" },
+  };
+  await roundTrip(source, scopedDest);
+  assert.equal((await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "e-soup" }))?.status, "published");
+
+  await src.entries.save(entry({ id: "e-soup", slug: "soup", title: "Tomato soup", version: 4 }));
+  const entities = await packAll(source);
+  await applyReport(await plan(entities, scopedDest, ["collection-entry:e-soup"]), entities, scopedDest);
+  assert.equal((await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "e-soup" }))?.title, "Tomato soup");
+});
+
 test("collection-entry round trip: ids, status and publishedAt kept; widgets and trashed rows never pack; then unchanged", async () => {
   const { dst, source, dest } = await sites();
   const { first, second, entities, destinationPack } = await roundTrip(source, dest);

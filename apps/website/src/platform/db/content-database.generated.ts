@@ -29,10 +29,6 @@ export interface ContentDatabase {
   custom_credential_sets: CustomCredentialSetsTable;
   database_transfer_destinations: DatabaseTransferDestinationsTable;
   database_write_watermark: DatabaseWriteWatermarkTable;
-  deployment_environments: DeploymentEnvironmentsTable;
-  deployment_run_events: DeploymentRunEventsTable;
-  deployment_runs: DeploymentRunsTable;
-  deployment_targets: DeploymentTargetsTable;
   entries: EntriesTable;
   entry_refs: EntryRefsTable;
   entry_revisions: EntryRevisionsTable;
@@ -80,7 +76,6 @@ export interface ContentDatabase {
   redirect_hits: RedirectHitsTable;
   redirect_revisions: RedirectRevisionsTable;
   redirects: RedirectsTable;
-  releases: ReleasesTable;
   role_policies: RolePoliciesTable;
   roles: RolesTable;
   sessions: SessionsTable;
@@ -360,55 +355,6 @@ export interface DatabaseWriteWatermarkTable {
   id: number;
   value: Generated<number>;
   last_stamped_at: string | null;
-}
-
-export interface DeploymentEnvironmentsTable {
-  id: string;
-  workspace_id: string;
-  name: string;
-  slug: string;
-  is_production: number;
-  created_at: string;
-  version: Generated<number>;
-}
-
-export interface DeploymentRunEventsTable {
-  id: string;
-  workspace_id: string;
-  run_id: string;
-  at: string;
-  level: string;
-  message: string;
-}
-
-export interface DeploymentRunsTable {
-  id: string;
-  workspace_id: string;
-  provider_id: string;
-  target_id: string | null;
-  environment_id: string | null;
-  release_id: string | null;
-  status: string;
-  provider_run_ref: string | null;
-  reconciliation: string;
-  requested_by_principal_id: string;
-  requested_at: string;
-  started_at: string | null;
-  finished_at: string | null;
-  error_summary: string | null;
-  version: Generated<number>;
-}
-
-export interface DeploymentTargetsTable {
-  id: string;
-  workspace_id: string;
-  environment_id: string;
-  provider_id: string;
-  label: string;
-  config_json: string;
-  enabled: number;
-  created_at: string;
-  version: Generated<number>;
 }
 
 export interface EntriesTable {
@@ -1021,20 +967,6 @@ export interface RedirectsTable {
   created_at: string;
   updated_at: string;
   version: number;
-}
-
-export interface ReleasesTable {
-  id: string;
-  workspace_id: string;
-  label: string;
-  source_kind: string;
-  source_repo_url: string | null;
-  source_commit_sha: string | null;
-  source_uri: string | null;
-  source_checksum: string | null;
-  created_by_principal_id: string;
-  created_at: string;
-  version: Generated<number>;
 }
 
 export interface RolePoliciesTable {

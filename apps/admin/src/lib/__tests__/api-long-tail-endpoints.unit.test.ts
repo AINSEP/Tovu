@@ -129,13 +129,7 @@ test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
 
 // --- Deployments -----------------------------------------------------------------
 
-test("getDeployments hits GET /deployments", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getDeployments();
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/deployments`);
-});
-
-// --- External MCP admissions -----------------------------------------------------------------
+// getDeployments assertions retired with the deployment table reader (2026-10-03).
 
 test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();

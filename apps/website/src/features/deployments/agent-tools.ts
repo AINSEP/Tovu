@@ -1,11 +1,12 @@
 /**
  * @file The Deployments domain's agent-tool catalog (2026-08-15 — closes the "the owner can deploy
  * by typing CLI commands, but cannot ask the assistant to do it" gap: none of the 21 existing
- * `assistant/tool-registrations.ts` domains covered the Deployment panel's three tabs at all).
+ * `assistant/tool-registrations.ts` domains covered the Deployment panel's export and Dockerfile
+ * actions at all).
  *
  * Purpose:
  * A static catalog describing every agent-callable tool this domain exposes and the permission each
- * one carries. All five entries here are wired (`tool-registrations.ts` in this directory) — unlike
+ * one carries. All four entries here are wired (`tool-registrations.ts` in this directory) — unlike
  * `features/recovery/agent-tools.ts` or `features/database/agent-tools.ts`, this catalog has no
  * excluded, token-gated, or otherwise-dangerous entry: an export writes a static COPY (never touches
  * the running site's own database or content), and a Dockerfile edit writes one build file that
@@ -15,9 +16,8 @@
  * How it relates to the project:
  * The server-side tool filter (ADR-014) consumes this catalog to decide which tool names an agent
  * session may see at all; `tool-registrations.ts`'s handlers, each wrapping an existing HTTP route's
- * own domain logic (`features/deployments/export-run.ts`, `features/deployments/dockerfile.ts`,
- * `features/deployments/read-repo.ts`), enforce the actual permission checks at call time — this
- * module declares shape only, no I/O.
+ * own domain logic (`features/deployments/export-run.ts`, `features/deployments/dockerfile.ts`),
+ * enforce the actual permission checks at call time — this module declares shape only, no I/O.
  *
  * Architectural role:
  * `features/deployments` domain logic. No dependencies.
@@ -121,14 +121,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
     authorization: { permission: "system.read" },
     inputSchema: NO_INPUT_SCHEMA,
   },
-  {
-    name: "deployment_list",
-    description:
-      "Lists this workspace's configured deployment environments (e.g. staging/production), deployment targets (connected external hosting providers), releases, and past deployment runs — a read-only snapshot exactly as stored. This is unrelated to the static export tools above: it reports what has been configured/recorded for provider-driven deployments, and does not trigger, poll, or affect any export.",
-    sideEffects: "none",
-    authorization: { permission: "deployments.read" },
-    inputSchema: NO_INPUT_SCHEMA,
-  },
+  // deployment_list retired with the never-written deployment tables (2026-10-03).
   {
     name: "deployment_get_dockerfile",
     description:

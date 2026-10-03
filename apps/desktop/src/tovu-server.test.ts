@@ -263,6 +263,23 @@ test("buildServeEnv drops inherited PORT, TOVU_DB and TOVU_CONTENT_DB", () => {
   assert.equal("TOVU_CONTENT_DB" in env, false);
 });
 
+// REGRESSION: fails if `delete env.TOVU_PUBLIC_URL` is removed from buildServeEnv.
+test("buildServeEnv drops only the inherited public origin while preserving credentials and other vars", () => {
+  const baseEnv = {
+    TOVU_PUBLIC_URL: "https://localhost:3000",
+    TOVU_INTEGRATIONS_ROOT_KEY: "test-root-key",
+    TOVU_AGENT_DAEMON_TOKEN: "test-daemon-token",
+    CUSTOM_SITE_VAR: "keep-me",
+    PATH: "/usr/bin",
+  };
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv });
+  assert.equal(Object.hasOwn(env, "TOVU_PUBLIC_URL"), false);
+  for (const [key, value] of Object.entries(baseEnv)) {
+    if (key !== "TOVU_PUBLIC_URL") assert.equal(env[key], value, `${key} must still reach the site`);
+  }
+  assert.equal(baseEnv.TOVU_PUBLIC_URL, "https://localhost:3000", "the desktop's own env must not be mutated");
+});
+
 test("buildServeEnv points TOVU_ADMIN_DIST at the built admin, working around app.ts's dist off-by-one", () => {
   const root = makeTempRepo();
   const env = buildServeEnv({ repoRoot: root, baseEnv: {} });

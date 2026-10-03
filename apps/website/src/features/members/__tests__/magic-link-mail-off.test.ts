@@ -6,7 +6,7 @@ import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "../../../contracts/core
 import { ConsoleMailerAdapter } from "../mailer.console.js";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 
-const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider using the Resend agent plugin and save its key in Access Tokens to send real email.";
+const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
 const NOW = "2026-10-01T00:00:00Z";
 function harness(driver = "console", allowed = true) {
   let next = 0;

@@ -114,7 +114,7 @@ test('rendered toolbar buttons pair each accessible name with its own command an
   const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   for (const history of [{ canGoBack: true, canGoForward: false }, { canGoBack: false, canGoForward: true }]) {
     const calls: string[] = [];
-    const workspace = { history, goBack: () => calls.push('back'), goForward: () => calls.push('forward'), reload: () => calls.push('reload'),
+    const workspace = { running: true, history, goBack: () => calls.push('back'), goForward: () => calls.push('forward'), reload: () => calls.push('reload'),
       failed: false, loaded: true, stalled: false, surface: 'admin', displayUrl: 'http://localhost/admin/', src: 'http://localhost/admin/', guestRef: () => {}, reloadNonce: 0 };
     const deps = { React, useSiteWorkspace: () => workspace, useComposedGuestRef: () => () => {},
       SITE_SURFACES: ['admin', 'site'], NavIcon: () => null, ExpandToggle: () => null, Spinner: () => null, SiteStartPanel: () => null };

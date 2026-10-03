@@ -3,7 +3,7 @@ import { isMailDeliveryAvailable as isJiniMailDeliveryAvailable } from "@jini-ai
 import type { MailerPort } from "./ports.js";
 import { toJiniMailer } from "./purpose-scoped-mailer.js";
 
-export const MAIL_DELIVERY_UNAVAILABLE_NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider using the Resend agent plugin and save its key in Access Tokens to send real email.";
+export const MAIL_DELIVERY_UNAVAILABLE_NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
 
 /** Reads capabilities synchronously and sends no message. */
 /** Boot hydrates the mailer asynchronously, so an early capability read can still report the

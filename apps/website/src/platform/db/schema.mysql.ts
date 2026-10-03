@@ -8,7 +8,7 @@
  *
  * FTS5 search objects are absent on purpose — see the generator's module doc.
  *
- * Tables: 92
+ * Tables: 87
  */
 import { sql } from "drizzle-orm";
 import {
@@ -361,78 +361,6 @@ export const databaseWriteWatermark = mysqlTable("database_write_watermark", {
   value: bigint("value", { mode: "number" }).notNull().default(0),
   lastStampedAt: text("last_stamped_at"),
 });
-
-export const deploymentEnvironments = mysqlTable("deployment_environments", {
-  id: varchar("id", { length: 191 }).primaryKey(),
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  name: text("name").notNull(),
-  slug: varchar("slug", { length: 191 }).notNull(),
-  isProduction: bigint("is_production", { mode: "number" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    check("deployment_environments_is_production_check", sql`is_production IN (0, 1)`),
-    uniqueIndex("idx_deployment_environments_workspace_slug").on(t.workspaceId, t.slug),
-  ]);
-
-export const deploymentRunEvents = mysqlTable("deployment_run_events", {
-  id: varchar("id", { length: 191 }).primaryKey(),
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  runId: varchar("run_id", { length: 191 }).notNull(),
-  at: varchar("at", { length: 191 }).notNull(),
-  level: text("level").notNull(),
-  message: text("message").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.runId], foreignColumns: [deploymentRuns.id] }).onDelete("restrict"),
-    check("deployment_run_events_level_check", sql`level IN ('info', 'warning', 'error')`),
-    index("idx_deployment_run_events_run").on(t.runId, t.at),
-  ]);
-
-export const deploymentRuns = mysqlTable("deployment_runs", {
-  id: varchar("id", { length: 191 }).primaryKey(),
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  providerId: varchar("provider_id", { length: 191 }).notNull(),
-  targetId: varchar("target_id", { length: 191 }),
-  environmentId: varchar("environment_id", { length: 191 }),
-  releaseId: varchar("release_id", { length: 191 }),
-  status: text("status").notNull(),
-  providerRunRef: varchar("provider_run_ref", { length: 191 }),
-  reconciliation: text("reconciliation").notNull(),
-  requestedByPrincipalId: text("requested_by_principal_id").notNull(),
-  requestedAt: varchar("requested_at", { length: 191 }).notNull(),
-  startedAt: text("started_at"),
-  finishedAt: text("finished_at"),
-  errorSummary: text("error_summary"),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.targetId], foreignColumns: [deploymentTargets.id] }).onDelete("set null"),
-    foreignKey({ columns: [t.environmentId], foreignColumns: [deploymentEnvironments.id] }).onDelete("set null"),
-    foreignKey({ columns: [t.releaseId], foreignColumns: [releases.id] }).onDelete("set null"),
-    check("deployment_runs_status_check", sql`status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`),
-    check("deployment_runs_reconciliation_check", sql`reconciliation IN ('poll', 'callback', 'manual')`),
-    uniqueIndex("idx_deployment_runs_provider_ref").on(t.providerId, t.providerRunRef),
-    index("idx_deployment_runs_workspace").on(t.workspaceId, t.requestedAt),
-  ]);
-
-export const deploymentTargets = mysqlTable("deployment_targets", {
-  id: varchar("id", { length: 191 }).primaryKey(),
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  environmentId: varchar("environment_id", { length: 191 }).notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
-  configJson: jsonText("config_json").notNull(),
-  enabled: bigint("enabled", { mode: "number" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.environmentId], foreignColumns: [deploymentEnvironments.id] }).onDelete("restrict"),
-    check("deployment_targets_enabled_check", sql`enabled IN (0, 1)`),
-    index("idx_deployment_targets_workspace_env").on(t.workspaceId, t.environmentId),
-  ]);
 
 export const entries = mysqlTable("entries", {
   id: varchar("id", { length: 191 }).primaryKey(),
@@ -1151,24 +1079,6 @@ export const redirects = mysqlTable("redirects", {
 }, (t) => [
     index("idx_redirects_workspace_frompattern").on(t.workspaceId, t.fromPattern),
     index("idx_redirects_workspace_status").on(t.workspaceId, t.status),
-  ]);
-
-export const releases = mysqlTable("releases", {
-  id: varchar("id", { length: 191 }).primaryKey(),
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  label: text("label").notNull(),
-  sourceKind: text("source_kind").notNull(),
-  sourceRepoUrl: text("source_repo_url"),
-  sourceCommitSha: text("source_commit_sha"),
-  sourceUri: text("source_uri"),
-  sourceChecksum: text("source_checksum"),
-  createdByPrincipalId: text("created_by_principal_id").notNull(),
-  createdAt: varchar("created_at", { length: 191 }).notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    check("releases_source_kind_check", sql`source_kind IN ('git-revision', 'external-artifact')`),
-    index("idx_releases_workspace_created").on(t.workspaceId, t.createdAt),
   ]);
 
 export const rolePolicies = mysqlTable("role_policies", {

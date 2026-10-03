@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminPublishCredentialSummary } from "@/lib/api";
 import {
-  FULL_SITE_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
   buildStaticPublishConfig,
@@ -149,22 +148,7 @@ describe("deploymentEnvVarNoteKey", () => {
   });
 });
 
-describe("FULL_SITE_PROVIDERS", () => {
-  it("lists exactly the six providers named in the brief, each planned and each with unique id/description", () => {
-    expect(FULL_SITE_PROVIDERS).toHaveLength(6);
-    expect(FULL_SITE_PROVIDERS.map(({ id, name }) => [id, name])).toEqual([
-      ["aws", "AWS"], ["fly", "Fly.io"], ["railway", "Railway"],
-      ["render", "Render"], ["digitalocean", "DigitalOcean"], ["vps", "VPS (SSH)"],
-    ]);
-    expect(FULL_SITE_PROVIDERS.every((p) => p.status === "planned")).toBe(true);
-    expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.id)).size).toBe(6);
-    expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.descriptionKey)).size).toBe(6);
-  });
-
-  it("puts AWS first — owner's own call, since it's expected to be the most popular provider", () => {
-    expect(FULL_SITE_PROVIDERS[0]!.id).toBe("aws");
-  });
-});
+// Full Site provider-list assertions retired with that tab (2026-10-03).
 
 describe("runStatusTone", () => {
   it("maps idle to neutral, running to warning, errored to error", () => {

@@ -76,7 +76,7 @@ export interface CommentRecord {
   bodyText: string;
   /** Last spam verdict score in [0,1], or `null` if never checked. */
   spamScore: number | null;
-  /** Provider that produced `spamScore` (`heuristic`, `akismet`, …), or `null`. */
+  /** Provider that produced `spamScore` (e.g. `heuristic`), or `null`. */
   spamProvider: string | null;
   /** ISO creation timestamp. */
   createdAt: ISODateTime;

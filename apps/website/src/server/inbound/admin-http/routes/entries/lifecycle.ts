@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ContentTypeNotActiveError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/entries/index";
 import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
@@ -59,7 +60,8 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
           entryRepo: deps.entryRepo,
           contentTypeRepo: deps.contentTypeRepo,
           clock: deps.clock,
-          authorize: deps.authorize,
+          // Jini passes entity scope separately; merge it into the host evaluator's request.
+          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
           outbox: toEntryOutbox(deps),
         },
         input: {

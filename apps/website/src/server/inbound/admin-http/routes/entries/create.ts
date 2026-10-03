@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import {
   ContentTypeNotActiveError,
   ContentTypeNotFoundError,
@@ -68,7 +69,8 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
           contentTypeRepo: deps.contentTypeRepo,
           clock: deps.clock,
           ids: deps.idGen,
-          authorize: deps.authorize,
+          // Jini passes entity scope separately; merge it into the host evaluator's request.
+          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
           outbox: toEntryOutbox(deps),
         },
         input: {

@@ -44,6 +44,7 @@ import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
+import { sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SiteActions } from './use-site-actions.hooks.js';
@@ -172,19 +173,20 @@ function SiteCard({
   // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
   const status = power.statusOf(project);
   const powerError = power.errorOf(project.id);
+  const connection = sitePortPresentation({ port: project.port, status });
 
   return (
     <article className={`card is-${status} ${openable ? 'is-openable' : ''}`} {...openProps}>
       <div className="card__tile">
         {/* A capture exists once this site has been opened at least once, this run or a prior one.
             Until then — and forever as the fallback if a capture ever failed — the tile carries the
-            port instead: the project's real address, the thing you would type to reach it, which is
-            more useful than a placeholder glyph. See `use-site-preview.hooks.ts` and
+            port instead when running: the project's real address, the thing you would type to
+            reach it. A stopped site has no address to show. See `use-site-preview.hooks.ts` and
             `site-preview-store.ts` for why the record carries only a version token, never bytes. */}
         {previewUrl ? (
           <img className="card__preview" src={previewUrl} alt="" />
         ) : (
-          <span className="card__port">{project.port}</span>
+          <span className="card__port">{connection.portLabel}</span>
         )}
       </div>
       <div className="card__body">

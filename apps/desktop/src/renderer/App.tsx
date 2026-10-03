@@ -28,7 +28,7 @@ import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest
 import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
-import { STATUS_LABEL } from './site-status.js';
+import { sitePortPresentation } from './site-port.rules.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
 import { createdTokensNote } from './use-create-site-plugin-tokens.hooks.js';
 
@@ -604,7 +604,7 @@ function SiteWorkspace({
   // — see `useComposedGuestRef`.
   const { guestRef } = workspace;
   const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => registerZoomGuest(project.id, node));
-  const running = project.status === 'running';
+  const running = workspace.running;
 
   return (
     <section
@@ -822,7 +822,7 @@ function SiteStartPanel({
       <p className="empty__body">
         {starting
           ? 'Starting the server. This can take up to a minute.'
-          : (body ?? `${STATUS_LABEL[project.status]} on port ${project.port}.`)}
+          : (body ?? sitePortPresentation(project).statusDescription)}
       </p>
       {/* A blocked project is waiting on database-provider support Tovu does not have, so the
           only honest affordance is none — starting it would fail every time. Every project this
@@ -1160,9 +1160,9 @@ function MainContent({
           {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.ts`) only
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
-              could act on (there is no server listening on port 0). Port 0 is otherwise
-              unreachable: `buildSiteRecord` only ever reports a real port for an open project. */}
-          {lastCreated.port === 0 ? (
+              could act on (there is no server listening on port 0). Stopped records use the same
+              sentinel; `sitePortPresentation` applies that rule across the renderer. */}
+          {!sitePortPresentation(lastCreated).running ? (
             <>
               <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
             </>

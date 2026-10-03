@@ -31,6 +31,44 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
+// REGRESSION: fails if any content-type mutation route reverts `authorize: adaptLegacyAuthorize({ authorize: deps.authorize })` to `authorize: deps.authorize`.
+test("content-types routes: scoped grants survive register, field update and every lifecycle re-check", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.authorize = async (params) =>
+    params.entityType === "content-type" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+  assert.equal(created.status, 201);
+  let version = (await created.json()).contentType.version;
+  const fields = [{ name: "servings", kind: "integer", required: false, queryable: false }];
+  const updated = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields, expectedVersion: version }),
+  });
+  assert.equal(updated.status, 200);
+  version = (await updated.json()).contentType.version;
+  assert.deepEqual((await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: "recipe" }))?.fields, fields);
+
+  for (const [op, status] of [["deprecate", "deprecated"], ["reactivate", "active"], ["deprecate", "deprecated"], ["tombstone", "tombstone"]] as const) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/lifecycle`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ op, expectedVersion: version }),
+    });
+    assert.equal(res.status, 200, op);
+    const body = await res.json();
+    version = body.contentType.version;
+    assert.equal(body.contentType.status, status);
+    assert.equal((await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: "recipe" }))?.status, status);
+  }
+});
+
 test("content-types routes: register -> list -> update-fields -> lifecycle golden path", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

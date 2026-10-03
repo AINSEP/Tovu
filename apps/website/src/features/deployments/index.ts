@@ -1,22 +1,11 @@
 /**
- * @file Public surface for the `deployments` feature (ADR-009 §1 — a module's public contract is
- * its `index.ts`).
- *
- * 2026-08-15: the READ side of the "no repository ports, no admin routes" gap the first-slice
- * header used to describe here is now closed — `DeploymentsReadRepoPort` +
- * `SqliteDeploymentsReadRepo`/`InMemoryDeploymentsReadRepo` are wired into `RouteDeps` and read by
- * `server/routes/admin/deployments/list.ts`. Still not built: any WRITE path (create
- * environment/target, start a run — blocked on the credential storage `./ports.ts`'s header
- * discloses), the webhook route, worker/reconciliation loop, and the `startRun`/`pollRun` provider
- * calls actually being invoked by anything.
+ * @file Public surface for deployments (ADR-009 §1). Export, publish and plugin deploy paths stay
+ * live; the never-written deployment table reader was retired on 2026-10-03.
  */
 export type {
   DeploymentProviderId,
   DeploymentRunStatus,
-  DeploymentRunEventRecord,
-  DeploymentRunRecord,
   DeploymentTargetRecord,
-  EnvironmentRecord,
   ReleaseRecord,
   ReleaseSource,
 } from "./types.js";
@@ -35,9 +24,7 @@ export type {
 
 export { GITHUB_DEPLOYMENT_PROVIDER_ID, createGitHubDeploymentProvider, mapGitHubDeploymentStatus } from "./providers/github.js";
 
-export { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo.js";
-export { SqliteDeploymentsReadRepo } from "./repo.sqlite.js";
-export { InMemoryDeploymentsReadRepo } from "./repo.memory.js";
+// Deployment read repositories removed with the unused tables (2026-10-03).
 
 // `sendPinned` is intentionally NOT re-exported here — it is an internal chokepoint, exported from
 // `./providers/github.ts` only so its own test can call it directly (see that file's doc comment).
@@ -48,7 +35,7 @@ export { InMemoryDeploymentsReadRepo } from "./repo.memory.js";
 // nested modules, not loose internal files. Re-exporting their content through this file too was
 // tried (2026-08-17 no-deep-imports:features/deployments triage) and reverted: it moved
 // `check:architecture`'s propagation cost (all-import) from 11.56% to 15.36% (+3.89pts), because
-// every one of this barrel's OTHER consumers — anyone reaching only `DeploymentsReadRepoPort`, say
+// every one of this barrel's OTHER consumers — anyone reaching only `ExportEngine`, say
 // — would have inherited both sub-features' entire transitive graph too. `static-publish/index.ts`
 // and `publish-credentials/index.ts` are registered as their own doors in `EXTRA_TO_EXEMPT` in
 // `.dependency-cruiser.mjs` instead — the `no-deep-imports:features/deployments` generator only

@@ -134,6 +134,21 @@ test("entries routes: create requires type, slug, and title", async (t) => {
   }
 });
 
+// REGRESSION: fails if create.ts reverts `authorize: adaptLegacyAuthorize({ authorize: deps.authorize })` to `authorize: deps.authorize`.
+test("entries routes: create preserves an entry-scoped grant through the write-service re-check", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  deps.authorize = async (params) =>
+    params.entityType === "entry" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+
+  const created = await createRecipeEntry(baseUrl, cookie);
+  const persisted = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: created.id });
+  assert.equal(persisted?.title, "Eggs");
+  assert.equal(persisted?.status, "draft");
+});
+
 test("entries routes: create -> list -> update -> publish golden path (REQ-13/14/19/28)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -660,6 +675,33 @@ test("entries routes: lifecycle's write-service chokepoint re-check no longer di
   assert.equal(res.status, 200, "an entry-scoped grant must be allowed by both the route pre-check AND the chokepoint re-check");
   const body = (await res.json()) as { entry: { status: string } };
   assert.equal(body.entry.status, "published");
+});
+
+// REGRESSION: fails if lifecycle.ts reverts `authorize: adaptLegacyAuthorize({ authorize: deps.authorize })` to `authorize: deps.authorize`.
+test("entries routes: unpublish preserves an entry-scoped grant through the write-service re-check", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+  const publish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(publish.status, 200);
+  const published = await publish.json();
+
+  deps.authorize = async (params) =>
+    params.entityType === "entry" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "unpublish", expectedVersion: published.entry.version }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).entry.status, "draft");
+  assert.equal((await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: entry.id }))?.status, "draft");
 });
 
 test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {

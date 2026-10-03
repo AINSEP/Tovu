@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { EntityNotLiveError } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, EntityNotLiveError } from "@jini-ai/cms/core";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
 import {
   ContentTypeAlreadyExistsError,
@@ -85,7 +85,8 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
           repo: deps.contentTypeRepo,
           clock: deps.clock,
           ids: deps.idGen,
-          authorize: deps.authorize,
+          // Jini passes entity scope separately; merge it into the host evaluator's request.
+          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
           indexProvisioner: deps.contentTypeIndexProvisioner,
           outbox: toContentTypeOutbox(deps),
         },

@@ -37,74 +37,7 @@ import {
  *  draft-clobber risk that guard prevents — see that hook's own file header. */
 export const DEPLOYMENT_EXPORT_RESOURCE = "deployment-export";
 
-/** One row in the Full Site tab's provider list. `name` is a proper noun and is never translated
- *  (matches how a webhook's own `label` or a connector's own name renders verbatim elsewhere in
- *  this app); `descriptionKey` and `costKey` are looked up in `deployment-i18n`. `status` is always
- *  `"planned"` — there is no backend to store credentials yet, so nothing here can honestly claim
- *  `"connected"`. */
-export interface FullSiteProviderRow {
-  readonly id: string;
-  readonly name: string;
-  readonly descriptionKey: string;
-  /** What the host costs, as its own field rather than a clause buried at the end of
-   *  `descriptionKey`. Six rows whose only visible difference is a sentence of prose all read the
-   *  same at a glance; pulling the one value that actually differs into its own right-hand column
-   *  is what makes the list scannable. Not a number — "AWS pricing" and "Already paid for" are the
-   *  honest values for the two rows that have no published figure, and inventing one for them
-   *  would be worse than an uneven column. */
-  readonly costKey: string;
-  readonly status: "planned";
-}
-
-/** The six self-hosted-server providers named in the brief, in display order. AWS leads the list
- *  (owner's own call: "it's going to be most popular") — every other row keeps its prior relative
- *  order, so this is purely a reordering, not a re-ranking of anything else. The wording is the same
- *  copy this tab already shipped, split at its own em-dash into what-it-is and what-it-costs — no
- *  new claim about any provider is introduced here. See `deployment-i18n.tsx` for translations. */
-export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
-  {
-    id: "aws",
-    name: "AWS",
-    status: "planned",
-    costKey: "AWS pricing",
-    descriptionKey: "Full control over the machine, at AWS's own complexity.",
-  },
-  {
-    id: "fly",
-    name: "Fly.io",
-    status: "planned",
-    costKey: "~$2–9/mo",
-    descriptionKey: "A small always-on machine close to your visitors.",
-  },
-  {
-    id: "railway",
-    name: "Railway",
-    status: "planned",
-    costKey: "From $5/mo",
-    descriptionKey: "A managed container platform with a simple deploy flow — Hobby plan.",
-  },
-  {
-    id: "render",
-    name: "Render",
-    status: "planned",
-    costKey: "From $7/mo",
-    descriptionKey: "A managed container platform with persistent disks — Starter plan, one service per disk.",
-  },
-  {
-    id: "digitalocean",
-    name: "DigitalOcean",
-    status: "planned",
-    costKey: "~$4–6/mo",
-    descriptionKey: "A straightforward virtual machine (Droplet), on a basic plan.",
-  },
-  {
-    id: "vps",
-    name: "VPS (SSH)",
-    status: "planned",
-    costKey: "Already paid for",
-    descriptionKey: "Any server you already have SSH access to.",
-  },
-] as const;
+// Full Site informational provider rows retired with that tab (2026-10-03).
 
 /**
  * The single fixed label every connection saved through the flat per-provider credential list uses
@@ -404,10 +337,8 @@ export const STATIC_SITE_CAPABILITIES: readonly DeploymentCapability[] = [
  * showing them side by side: the difference between the two paths becomes a shape you can see
  * rather than two sentences you have to hold in your head and diff.
  *
- * "Everything works" is a claim about the SOFTWARE, which is true and is the copy this tab already
- * shipped. What does not exist yet is provisioning — no route on this instance can reach
- * `features/deployments/`, which is why the path card's own footer says so and why the Providers
- * list below carries a `"planned"` status on every row.
+ * This describes the full server's capabilities for the Overview comparison. Deployment
+ * provisioning is handled by the deploy plugin; the old Full Site provider list was retired.
  */
 export const FULL_SITE_CAPABILITIES: readonly DeploymentCapability[] = STATIC_SITE_CAPABILITIES.map((row) => ({
   ...row,

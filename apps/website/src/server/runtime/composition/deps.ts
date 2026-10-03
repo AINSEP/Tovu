@@ -18,7 +18,6 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, postSearchIndexFor, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
@@ -2161,9 +2160,7 @@ async function composeSiteRouteDeps(
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     pluginRuntimeReady,
-    // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
-    // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
-    deploymentsReadRepo: new SqliteDeploymentsReadRepo(kernel),
+    // Deployment read model retired with its unused tables (2026-10-03).
     // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
     // `publishContentBundleRepo` doc. Real, DB-backed (hoisted above so Task 8's
     // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s

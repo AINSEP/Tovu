@@ -5,9 +5,8 @@ import { HistoryIcon } from "./deployment-visuals";
 
 /**
  * @file History tab — a real empty state, no fake data. There is no builds/deploys backend this
- * screen can reach (`development/docs/deployment/deployment-constraints.md` §3, and see
- * `FullSiteTab.tsx`'s header for the direct check that `src/features/deployments/` has no route
- * importing it), so this tab has nothing to fetch and no hook.
+ * screen can reach. The Full Site tab and never-written deployment table reader were retired
+ * on 2026-10-03; this placeholder does not fetch plugin deploys or static publish history.
  *
  * ## Second pass (2026-08-15) — what changed and why
  *

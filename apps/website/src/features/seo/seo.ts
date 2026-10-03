@@ -13,10 +13,12 @@ import type { OpenGraphType, SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from
 /**
  * @file `getEntryMeta`/`analyzeEntry` (ADR-PIPE-008 Decision, C-001/C-002) —
  * the pure effective-meta evaluator, per-field precedence (behavior.spec.md
- * §1.1): override ▸ site default ▸ derived. Consumed identically by the
+ * §1.1): override ▸ site default ▸ derived. Consumed by the
  * admin preview, the public render (via `page-head-contributor.ts`), and
  * `analyzeEntry` — the one evaluator, no back door (INV-09). Never writes
  * anything — reads only, via injected deps.
+ * The public home render supplies its configured site title as a fallback below explicit SEO
+ * overrides; consumers without that render context retain the entry-title template.
  */
 
 const SEO_NAMESPACE = "site.seo";
@@ -94,6 +96,8 @@ export interface GetEntryMetaDeps {
 export interface GetEntryMetaInput {
   workspaceId: string;
   entryId: string;
+  /** Public home render only: configured site title, below an explicit SEO title and above the page-title template. */
+  homeTitle?: string;
 }
 
 type ResolvedSeoSettings = Awaited<ReturnType<typeof getSeoSettings>>;
@@ -246,6 +250,8 @@ function buildJsonLdEntry(post: PostRecord, schemaType: string, title: string, d
 /**
  * Resolves the effective `SeoMeta` for one entry (override ▸ site default ▸
  * derived, per field — behavior.spec.md §1.1). Never partial.
+ * The public head contributor can supply `homeTitle` for the root page; callers that omit it
+ * retain the entry-title template. Explicit SEO/share-title overrides still win.
  *
  * @complexity O(1) — one post read, one settings resolution (8 bounded
  * `getEffective` reads), up to 2 media lookups, one origin lookup (2026-09-03,
@@ -261,7 +267,8 @@ export async function getEntryMeta(deps: GetEntryMetaDeps, input: GetEntryMetaIn
   });
 
   const origin = await resolveWorkspaceOrigin(deps.originRegistry, input.workspaceId);
-  const { title, description } = resolveTitleAndDescription(post, overrides, settings);
+  const { title: entryTitle, description } = resolveTitleAndDescription(post, overrides, settings);
+  const title = overrides.title ?? input.homeTitle ?? entryTitle;
   const canonical = await resolveCanonical(deps, post, overrides, input.workspaceId, origin);
   const { noindex, nofollow } = await resolveRobots(deps, post, overrides, settings, input.workspaceId);
   const { ogImage, twitterImage } = await resolveShareImages(deps, overrides, settings, input.workspaceId, origin);

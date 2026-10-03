@@ -71,10 +71,10 @@ afterEach(() => {
 });
 
 describe("tab bar", () => {
-  it("lists all five tabs, in order", () => {
+  it("lists all four tabs, in order", () => {
     renderScreen(<Deployment />);
     const tabs = screen.getAllByRole("tab").map((el) => el.textContent);
-    expect(tabs).toEqual(["Overview", "Static Site", "Full Site", "Dockerfile", "History"]);
+    expect(tabs).toEqual(["Overview", "Static Site", "Dockerfile", "History"]);
   });
 
   it("defaults to Overview when no tabId is supplied", async () => {
@@ -110,10 +110,12 @@ describe("?tab= deep linking", () => {
 
   // The URL-click test above only proves `?tab=` changes — it never re-renders `<Deployment>` with
   // the new `tabId` prop (that's `panels.tsx`'s job in the real app), so `deploymentTabPanel`'s
-  // full-site/dockerfile/history branches were never actually reached by opening directly on them.
-  it("opens directly on Full Site when given that tabId", () => {
+  // dockerfile/history branches were never actually reached by opening directly on them.
+  // REGRESSION: fails if full-site is restored as a supported tab.
+  it("falls back to Overview for the retired Full Site deep link", async () => {
+    holdOverview = true;
     renderScreen(<Deployment tabId="full-site" />);
-    expect(screen.getByText("What Full Site gives you")).toBeInTheDocument();
+    expect(await screen.findByText("Loading deployment status…")).toBeInTheDocument();
   });
 
   it("opens directly on Dockerfile when given that tabId", async () => {
@@ -131,16 +133,15 @@ describe("agent handles", () => {
   // Pins the ids the AI assistant relies on to see and drive this panel's header and tab bar — same
   // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses. Guards against a
   // handle silently rotting (renamed, removed, or a typo) with nothing catching it.
-  it("tags the header, the tab bar container, and all five tabs", () => {
+  it("tags the header, the tab bar container, and all four tabs", () => {
     renderScreen(<Deployment />);
     expect(document.querySelector('[data-agent-element="deployment-header"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-bar"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-overview"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-static-site"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-tab-full-site"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-dockerfile"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-tab-history"]')).toBeInTheDocument();
-    for (const [name, id] of [["Overview", "overview"], ["Static Site", "static-site"], ["Full Site", "full-site"], ["Dockerfile", "dockerfile"], ["History", "history"]]) {
+    for (const [name, id] of [["Overview", "overview"], ["Static Site", "static-site"], ["Dockerfile", "dockerfile"], ["History", "history"]]) {
       expect(screen.getByRole("tab", { name })).toHaveAttribute("data-agent-element", `deployment-tab-${id}`);
     }
   });

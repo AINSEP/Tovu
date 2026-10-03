@@ -9,12 +9,11 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile.js";
-import { InMemoryDeploymentsReadRepo } from "../../repo.memory.js";
 import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../tool-registrations.js";
 
 /**
  * @file The Deployments domain's agent tools — the assistant's own path to triggering/polling a
- * static export, reading the deployments read-model, and reading/writing the repo-root Dockerfile.
+ * static export and reading/writing the repo-root Dockerfile.
  *
  * "Integration" (mirrors `features/plugin-runtime/__tests__/integration/activation.integration.test.ts`'s
  * precedent for this naming) because `DeploymentsToolDeps` cannot be a small hand-built fixture the
@@ -22,7 +21,7 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * needs the full composition-root deps bag `exportSite` boots a real in-process app from (see
  * `tool-registrations.ts`'s own file header for why), so every test here starts from the real
  * `createRouteDeps()` hermetic fixture `server/app.ts`'s own route tests already use, overriding only
- * `authorize`/`deploymentsReadRepo` where a test needs to.
+ * `authorize` where a test needs to.
  *
  * `RouteDeps.exportOutputRootDir` is pointed at a throwaway temp directory for this whole file (via
  * {@link grantingDeps}, module-level, not per-test), mirroring `export-site-route.test.ts` exactly
@@ -57,7 +56,7 @@ function ctx(input: unknown) {
 /** The real hermetic fixture, with `authorize` overridden to grant everything — the same division
  *  of labor `features/pages/__tests__/tool-registrations.test.ts`'s harness comment states: real
  *  authorize()/403 behavior is exercised by each wrapped route's own HTTP test
- *  (`export-site-route.test.ts`, `dockerfile-source-route.test.ts`, `deployments-list-route.test.ts`);
+ *  (`export-site-route.test.ts`, `dockerfile-source-route.test.ts`);
  *  these assertions are about the tools' own wrapping. `exportOutputRootDir` is redirected to this
  *  file's own throwaway temp dir — `startExportRun` reads that `RouteDeps` field instead of
  *  `process.env.TOVU_EXPORT_DIR` (export-run.ts no longer reads env vars at all). */
@@ -65,13 +64,12 @@ function grantingDeps(): DeploymentsToolDeps {
   return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, authorize: async () => ({ allowed: true }) };
 }
 
-test("all 5 deployments tools are registered with input schemas the model needs", () => {
+test("all 4 deployments tools are registered with input schemas the model needs", () => {
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const ids = registrations.map((r) => r.descriptor.id).sort();
   assert.deepEqual(ids, [
     "deployment_get_dockerfile",
     "deployment_get_export_status",
-    "deployment_list",
     "deployment_set_dockerfile",
     "deployment_trigger_export",
   ]);
@@ -80,33 +78,7 @@ test("all 5 deployments tools are registered with input schemas the model needs"
   }
 });
 
-test("deployment_list returns this workspace's rows from the deployments read-model, scoped to it", async () => {
-  const base = grantingDeps();
-  const repo = new InMemoryDeploymentsReadRepo({
-    environments: [
-      { workspaceId: base.workspaceId, id: "env-1", name: "production", slug: "production", isProduction: true, createdAtIso: "2026-08-01T00:00:00.000Z", version: 1 },
-      { workspaceId: "some-other-workspace", id: "env-2", name: "not-mine", slug: "not-mine", isProduction: false, createdAtIso: "2026-08-01T00:00:00.000Z", version: 1 },
-    ],
-  });
-  const deps: DeploymentsToolDeps = { ...base, deploymentsReadRepo: repo };
-  const registrations = buildDeploymentsRegistrations(deps);
-  const tool = registrations.find((r) => r.descriptor.id === "deployment_list")!;
-
-  const result = (await tool.handler(ctx(undefined) as never)) as {
-    environments: { id: string }[];
-    targets: unknown[];
-    releases: unknown[];
-    runs: unknown[];
-  };
-  assert.deepEqual(
-    result.environments.map((e) => e.id),
-    ["env-1"],
-    "only this workspace's environment, never the other workspace's row"
-  );
-  assert.deepEqual(result.targets, []);
-  assert.deepEqual(result.releases, []);
-  assert.deepEqual(result.runs, []);
-});
+// deployment_list assertions retired with the never-written deployment tables (2026-10-03).
 
 test("deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file", async (t) => {
   const before = readDockerfileSource();

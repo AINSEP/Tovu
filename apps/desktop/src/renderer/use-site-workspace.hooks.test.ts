@@ -285,8 +285,18 @@ test('surfaceOfUrl reads the admin from its path and everything else as the site
   assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin/posts?id=1'), 'admin');
   assert.equal(surfaceOfUrl('http://127.0.0.1:4100/'), 'site');
   assert.equal(surfaceOfUrl('http://127.0.0.1:4100/administrators'), 'site');
-  assert.equal(siteSurfaceUrl(4100, 'admin'), 'http://127.0.0.1:4100/admin/');
-  assert.equal(siteSurfaceUrl(4100, 'site'), 'http://127.0.0.1:4100/');
+  assert.equal(siteSurfaceUrl({ port: 4100, view: 'admin' }), 'http://127.0.0.1:4100/admin/');
+  assert.equal(siteSurfaceUrl({ port: 4100, view: 'site' }), 'http://127.0.0.1:4100/');
+});
+
+// REGRESSION: fails if siteSurfaceUrl interpolates the raw port without sitePortPresentation.
+test('neither surface invents an address for zero, missing or stopped ports', () => {
+  for (const view of ['admin', 'site'] as const) {
+    for (const port of [0, undefined, null]) {
+      assert.equal(siteSurfaceUrl({ port, view }), '');
+    }
+    assert.equal(siteSurfaceUrl({ port: 4100, view, status: 'stopped' }), '');
+  }
 });
 
 test('choosing the surface already on screen does nothing', () => {

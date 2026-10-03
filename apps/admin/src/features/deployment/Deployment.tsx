@@ -6,18 +6,17 @@ import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./deployment-i18n";
 import { OverviewTab } from "./OverviewTab";
 import { StaticSiteTab } from "./StaticSiteTab";
-import { FullSiteTab } from "./FullSiteTab";
 import { DockerfileTab } from "./DockerfileTab";
 import { HistoryTab } from "./HistoryTab";
-import { FullSiteIcon, HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
+import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
 
 /**
- * @file The Deployment panel (`/admin/deployment`) — five tabs: Overview, Static Site, Full Site,
+ * @file The Deployment panel (`/admin/deployment`) — four tabs: Overview, Static Site,
  * Dockerfile, History. Replaces the earlier `PlaceholderTabs` stub (Home/GitHub/AWS), which was
  * shaped for the self-hosted-developer audience while the panel's `soon`-scaffolded copy still
  * described the not-yet-built hosted-SaaS product — see `development/docs/deployment/
  * deployment-constraints.md` §9 for that history. The owner has since decided self-hosted-for-
- * developers ships first, which is what these five tabs are built for.
+ * developers ships first, which is what these four tabs are built for.
  *
  * `TabBar` (`components/TabBar.tsx`), not `@jini-ai/ui`'s `SettingsDialogShell` — this is a
  * full-page screen, not a dialog-shaped surface. `SettingsDialogShell` bundles its own vertical
@@ -34,10 +33,10 @@ import { FullSiteIcon, HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } f
  *
  * Each tab is its own top-level component/file (`OverviewTab.tsx`, `StaticSiteTab.tsx`, etc.) — kept
  * separate from the start per this app's per-scope ESLint complexity gate, rather than one large
- * component with five inline branches.
+ * component with four inline branches.
  */
 
-const DEPLOYMENT_TAB_IDS = ["overview", "static-site", "full-site", "dockerfile", "history"] as const;
+const DEPLOYMENT_TAB_IDS = ["overview", "static-site", "dockerfile", "history"] as const;
 type DeploymentTabId = (typeof DEPLOYMENT_TAB_IDS)[number];
 
 /** Falls back to the first tab for an absent or unrecognized `?tab=` value. Delegates to the
@@ -53,11 +52,10 @@ function resolveDeploymentTabId(tabId: string | null | undefined): DeploymentTab
  *  `ThemeExploreMainPane`/`Database.tsx`'s `migrateForwardStep` use for the identical complexity-gate
  *  reason: a component's OWN cyclomatic/cognitive score counts a ternary or `&&` written directly in
  *  its JSX, not one delegated to a plain function like this.
- *  @complexity O(1) — five mutually exclusive branches, no iteration. */
+ *  @complexity O(1) — four mutually exclusive branches, no iteration. */
 function deploymentTabPanel(activeTabId: DeploymentTabId) {
   if (activeTabId === "overview") return <OverviewTab />;
   if (activeTabId === "static-site") return <StaticSiteTab />;
-  if (activeTabId === "full-site") return <FullSiteTab />;
   if (activeTabId === "dockerfile") return <DockerfileTab />;
   return <HistoryTab />;
 }
@@ -89,13 +87,7 @@ export function Deployment(props: DeploymentProps) {
       handle: "deployment-tab-static-site",
       handleLabel: "Switch to the Static Site tab — export a read-only copy of this site's published pages",
     },
-    {
-      id: "full-site",
-      label: t(locale, "Full Site"),
-      icon: <FullSiteIcon size={16} />,
-      handle: "deployment-tab-full-site",
-      handleLabel: "Switch to the Full Site tab — the complete Tovu server, host provider options",
-    },
+    // Full Site tab retired with the never-written deployment model (2026-10-03).
     {
       id: "dockerfile",
       label: t(locale, "Dockerfile"),

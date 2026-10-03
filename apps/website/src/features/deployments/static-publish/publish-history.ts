@@ -9,9 +9,8 @@ import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-hist
  * still had nowhere to look that up. `publish-run.ts`'s own `currentRun` snapshot answers "is a
  * publish running right now", not "what did the last SUCCESSFUL one produce" — it resets to
  * `IDLE_RUN` on every process restart, and even mid-process it only remembers the single most recent
- * run for the whole server, not one entry per target. `deployment_list` (`../agent-tools.ts`) is a
- * genuinely different subsystem — provider-driven continuous-deployment records, not this feature's
- * one-shot static publishes — and says so in its own tool description.
+ * run for the whole server, not one entry per target. The unrelated deployment_list table
+ * reader was retired with the never-written deployment model (2026-10-03).
  *
  * REWORK (2026-08-16, owner-requested): the original fix for Defect 2 shipped a flat JSON file under
  * `infra/publish-history/`, one file per workspace, one entry per `(workspace, target)` — "last

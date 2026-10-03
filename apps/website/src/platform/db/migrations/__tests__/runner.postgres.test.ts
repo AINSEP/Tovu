@@ -54,13 +54,13 @@ test("two connections migrating at once apply a step exactly once", async () => 
   assert.deepEqual([...a.alreadyApplied, ...b.alreadyApplied], ["0001_slow"]);
 });
 
-test("the content history (frozen baseline + 0001_post_search + 0002 + 0003) applies on real Postgres", async () => {
+test("the content history (frozen baseline + 0001_post_search + 0002 + 0003 + 0004) applies on real Postgres", async () => {
   const report = await migrateContentDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
+  assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'`
   );
-  assert.equal(n, 94, "92 content tables + post_search_document + tovu_migrations");
+  assert.equal(n, 89, "87 content tables after dropping 5 unused deployment tables + post_search_document + tovu_migrations");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");

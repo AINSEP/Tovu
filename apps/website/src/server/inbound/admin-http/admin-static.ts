@@ -78,7 +78,7 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.get(["/admin", "/admin/*"], createAdminDevProxyRequestHandler(devProxyUrl));
+    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler(devProxyUrl));
     return;
   }
 

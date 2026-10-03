@@ -16,6 +16,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable } from "./SiteGrid.hooks.js";
 import { powerControl } from "./use-site-power.hooks.js";
 import { STATUS_LABEL } from "./site-status.js";
+import { sitePortPresentation } from "./site-port.rules.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -137,7 +138,7 @@ test("a running record with a local stopping status omits Open in browser throug
   }).join("\n");
   const executable = ts.transpileModule(declarations, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const deps = {
-    React, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL,
+    React, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation,
     useSitePreview: () => null,
     useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
     MissingFolderNotice: () => null,

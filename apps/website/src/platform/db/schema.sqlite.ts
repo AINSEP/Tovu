@@ -166,8 +166,8 @@ export const posts = sqliteTable(
      * Authorship attribution (2026-09-18) — the id of the {@link principals} row that created this
      * post/page, or `NULL` when that is genuinely unknown. Plain `text`, deliberately NOT a
      * `.references(() => principals.id, ...)` foreign key: this mirrors `redirects.createdByPrincipal`/
-     * `newsletterCampaigns.createdByPrincipal`/`webhookSubscriptions.createdByPrincipalId`/
-     * `releases.createdByPrincipalId` above — every existing "who created this row" column in this
+     * `newsletterCampaigns.createdByPrincipal`/`webhookSubscriptions.createdByPrincipalId`
+     * — every existing "who created this row" column in this
      * schema is an unenforced reference, not a live FK, because a "created by" fact must survive the
      * referenced principal being deleted (the one place this schema DOES use a real FK on
      * `principal_id`, `adminExecutionCredentials`, is a live per-admin credential meant to be
@@ -2931,166 +2931,7 @@ export const commerceWebhookEvents = sqliteTable(
   ]
 );
 
-// ---------------------------------------------------------------------------
-// Deployments (ADS-memory swarm-consensus debate 6, 2026-08-12) — FIRST VERTICAL SLICE.
-// `src/features/deployments/` domain types map 1:1 to these five tables. No repository or route
-// wiring reads/writes them yet (see that feature's `index.ts` header for what remains).
-// ---------------------------------------------------------------------------
-
-/** A named promotion slot within a workspace — "staging", "production". Holds no content of its
- * own; a `deploymentTargets` row is what points one at a provider. */
-export const deploymentEnvironments = sqliteTable(
-  "deployment_environments",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    slug: text("slug").notNull(),
-    isProduction: integer("is_production").notNull(),
-    createdAt: text("created_at").notNull(),
-    version: integer("version").notNull().default(1),
-  },
-  (table) => [
-    uniqueIndex("idx_deployment_environments_workspace_slug").on(table.workspaceId, table.slug),
-    check("deployment_environments_is_production_check", sql`${table.isProduction} IN (0, 1)`),
-  ]
-);
-
-/** One provider connection, scoped to a single environment. `configJson` carries non-secret
- * provider config only (repo owner/name, GitHub environment name) — credential storage is not
- * wired up in this slice. */
-export const deploymentTargets = sqliteTable(
-  "deployment_targets",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    environmentId: text("environment_id")
-      .notNull()
-      .references(() => deploymentEnvironments.id, { onDelete: "restrict" }),
-    providerId: text("provider_id").notNull(),
-    label: text("label").notNull(),
-    configJson: text("config_json").notNull(),
-    enabled: integer("enabled").notNull(),
-    createdAt: text("created_at").notNull(),
-    version: integer("version").notNull().default(1),
-  },
-  (table) => [
-    index("idx_deployment_targets_workspace_env").on(table.workspaceId, table.environmentId),
-    check("deployment_targets_enabled_check", sql`${table.enabled} IN (0, 1)`),
-  ]
-);
-
-/** An immutable, workspace-scoped artifact IDENTITY — "this is the thing that gets promoted". It
- * records a reference to an artifact that already exists; Tovu's CLI (`init`/`serve`/`introspect`
- * only) has no build or export command, so this table never represents something Tovu constructed. */
-export const releases = sqliteTable(
-  "releases",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    label: text("label").notNull(),
-    sourceKind: text("source_kind").notNull(),
-    sourceRepoUrl: text("source_repo_url"),
-    sourceCommitSha: text("source_commit_sha"),
-    sourceUri: text("source_uri"),
-    sourceChecksum: text("source_checksum"),
-    createdByPrincipalId: text("created_by_principal_id").notNull(),
-    createdAt: text("created_at").notNull(),
-    version: integer("version").notNull().default(1),
-  },
-  (table) => [
-    index("idx_releases_workspace_created").on(table.workspaceId, table.createdAt),
-    check("releases_source_kind_check", sql`${table.sourceKind} IN ('git-revision', 'external-artifact')`),
-  ]
-);
-
-/**
- * One attempt to promote a `releases` row to a `deploymentEnvironments` row through a
- * `deploymentTargets` row — the durable execution record. `system/module-status.ts` is a
- * boot-readiness snapshot (one row, overwritten every boot), not a per-run table; this is not that.
- *
- * `providerId` is MATERIALIZED here rather than resolved by joining through `targetId` — the
- * busiest lookup path (an inbound provider callback, or a poll-worker pass) must resolve
- * `(providerId, providerRunRef)` to a row in one indexed lookup, without depending on
- * `deploymentTargets`'s current state.
- *
- * `targetId`/`environmentId`/`releaseId` ARE foreign-keyed, but with `ON DELETE SET NULL` rather
- * than the `restrict` used everywhere else in this file — deliberately, not an oversight.
- * `restrict` would block deleting a target/environment/release for as long as any run references
- * it, which is the opposite of what a run history needs (a run is a standalone historical record
- * of what was requested and what happened, and must remain queryable even after the thing it
- * targeted is gone). No FK at all would lose the one guarantee worth keeping: that a run can never
- * be created pointing at a target/environment/release that never existed. `SET NULL` gives both —
- * creation is validated, deletion is permitted, and the row survives with `providerId` +
- * `providerRunRef` intact, which is exactly what the callback/poll path needs. `workspaceId` stays
- * a hard `restrict` FK — workspace deletion is an intentional, cascading admin operation, not
- * something a run needs to survive.
- */
-export const deploymentRuns = sqliteTable(
-  "deployment_runs",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    providerId: text("provider_id").notNull(),
-    targetId: text("target_id").references(() => deploymentTargets.id, { onDelete: "set null" }),
-    environmentId: text("environment_id").references(() => deploymentEnvironments.id, { onDelete: "set null" }),
-    releaseId: text("release_id").references(() => releases.id, { onDelete: "set null" }),
-    status: text("status").notNull(),
-    /** The provider's own identifier for this run. `NULL` until the provider accepts it. The ONLY
-     * key an inbound callback or poll pass may use to find this row — never a caller-supplied
-     * `workspaceId` (a webhook payload has no notion of a Tovu workspace). */
-    providerRunRef: text("provider_run_ref"),
-    reconciliation: text("reconciliation").notNull(),
-    requestedByPrincipalId: text("requested_by_principal_id").notNull(),
-    requestedAt: text("requested_at").notNull(),
-    startedAt: text("started_at"),
-    finishedAt: text("finished_at"),
-    /** Sanitized only — never raw provider response text (may contain reflected request fragments). */
-    errorSummary: text("error_summary"),
-    version: integer("version").notNull().default(1),
-  },
-  (table) => [
-    // SQLite treats each NULL as distinct in a UNIQUE index, so multiple not-yet-submitted runs
-    // (providerRunRef IS NULL) never collide here.
-    uniqueIndex("idx_deployment_runs_provider_ref").on(table.providerId, table.providerRunRef),
-    index("idx_deployment_runs_workspace").on(table.workspaceId, table.requestedAt),
-    check(
-      "deployment_runs_status_check",
-      sql`${table.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`
-    ),
-    check("deployment_runs_reconciliation_check", sql`${table.reconciliation} IN ('poll', 'callback', 'manual')`),
-  ]
-);
-
-/** One log line on a `deploymentRuns` row, for a future run-detail view. */
-export const deploymentRunEvents = sqliteTable(
-  "deployment_run_events",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    runId: text("run_id")
-      .notNull()
-      .references(() => deploymentRuns.id, { onDelete: "restrict" }),
-    at: text("at").notNull(),
-    level: text("level").notNull(),
-    /** Sanitized before insert — same discipline as `deploymentRuns.errorSummary`. */
-    message: text("message").notNull(),
-  },
-  (table) => [
-    index("idx_deployment_run_events_run").on(table.runId, table.at),
-    check("deployment_run_events_level_check", sql`${table.level} IN ('info', 'warning', 'error')`),
-  ]
-);
+// Deployment tables from migration 0037 were retired by 0004_drop_unused_deployment_tables; deploy plugins own live deploys.
 
 /**
  * Destination-side publishing denials. A row survives exactly as long as this site's content: it
@@ -3131,7 +2972,7 @@ export const publishTrustRevocations = sqliteTable("publish_trust_revocations", 
  * No `id`/primary key: `(workspaceId, peerPrincipalId, entityType, entityId)` is the natural key
  * every read and write goes through, so a surrogate key would only be a second name for the same
  * row. `workspaceId` deliberately plain `text`, not a `workspaces` FK — matches `posts`/
- * `postRevisions`/`entryRevisions` above, not `publishCredentialSets`/`deploymentRuns`: this table
+ * `postRevisions`/`entryRevisions` above, not `publishCredentialSets`: this table
  * is per-peer sync bookkeeping, not a referential config row a workspace delete should cascade
  * through in the same transaction.
  */

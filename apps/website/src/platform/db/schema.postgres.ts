@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 92
+ * Tables: 87
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -350,78 +350,6 @@ export const databaseWriteWatermark = pgTable("database_write_watermark", {
   value: bigint("value", { mode: "number" }).notNull().default(0),
   lastStampedAt: text("last_stamped_at"),
 });
-
-export const deploymentEnvironments = pgTable("deployment_environments", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull(),
-  isProduction: bigint("is_production", { mode: "number" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    check("deployment_environments_is_production_check", sql`is_production IN (0, 1)`),
-    uniqueIndex("idx_deployment_environments_workspace_slug").on(t.workspaceId, t.slug),
-  ]);
-
-export const deploymentRunEvents = pgTable("deployment_run_events", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  runId: text("run_id").notNull(),
-  at: text("at").notNull(),
-  level: text("level").notNull(),
-  message: text("message").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.runId], foreignColumns: [deploymentRuns.id] }).onDelete("restrict"),
-    check("deployment_run_events_level_check", sql`level IN ('info', 'warning', 'error')`),
-    index("idx_deployment_run_events_run").on(t.runId, t.at),
-  ]);
-
-export const deploymentRuns = pgTable("deployment_runs", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  targetId: text("target_id"),
-  environmentId: text("environment_id"),
-  releaseId: text("release_id"),
-  status: text("status").notNull(),
-  providerRunRef: text("provider_run_ref"),
-  reconciliation: text("reconciliation").notNull(),
-  requestedByPrincipalId: text("requested_by_principal_id").notNull(),
-  requestedAt: text("requested_at").notNull(),
-  startedAt: text("started_at"),
-  finishedAt: text("finished_at"),
-  errorSummary: text("error_summary"),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.targetId], foreignColumns: [deploymentTargets.id] }).onDelete("set null"),
-    foreignKey({ columns: [t.environmentId], foreignColumns: [deploymentEnvironments.id] }).onDelete("set null"),
-    foreignKey({ columns: [t.releaseId], foreignColumns: [releases.id] }).onDelete("set null"),
-    check("deployment_runs_status_check", sql`status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`),
-    check("deployment_runs_reconciliation_check", sql`reconciliation IN ('poll', 'callback', 'manual')`),
-    uniqueIndex("idx_deployment_runs_provider_ref").on(t.providerId, t.providerRunRef),
-    index("idx_deployment_runs_workspace").on(t.workspaceId, t.requestedAt),
-  ]);
-
-export const deploymentTargets = pgTable("deployment_targets", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  environmentId: text("environment_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
-  configJson: jsonText("config_json").notNull(),
-  enabled: bigint("enabled", { mode: "number" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.environmentId], foreignColumns: [deploymentEnvironments.id] }).onDelete("restrict"),
-    check("deployment_targets_enabled_check", sql`enabled IN (0, 1)`),
-    index("idx_deployment_targets_workspace_env").on(t.workspaceId, t.environmentId),
-  ]);
 
 export const entries = pgTable("entries", {
   id: text("id").primaryKey(),
@@ -1140,24 +1068,6 @@ export const redirects = pgTable("redirects", {
 }, (t) => [
     index("idx_redirects_workspace_frompattern").on(t.workspaceId, t.fromPattern),
     index("idx_redirects_workspace_status").on(t.workspaceId, t.status),
-  ]);
-
-export const releases = pgTable("releases", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  label: text("label").notNull(),
-  sourceKind: text("source_kind").notNull(),
-  sourceRepoUrl: text("source_repo_url"),
-  sourceCommitSha: text("source_commit_sha"),
-  sourceUri: text("source_uri"),
-  sourceChecksum: text("source_checksum"),
-  createdByPrincipalId: text("created_by_principal_id").notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull().default(1),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    check("releases_source_kind_check", sql`source_kind IN ('git-revision', 'external-artifact')`),
-    index("idx_releases_workspace_created").on(t.workspaceId, t.createdAt),
   ]);
 
 export const rolePolicies = pgTable("role_policies", {

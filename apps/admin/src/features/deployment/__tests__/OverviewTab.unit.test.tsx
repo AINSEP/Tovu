@@ -232,6 +232,8 @@ describe("agent handles", () => {
     expect(document.querySelector('[data-agent-element="deployment-overview-instance-facts"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-overview-env-vars"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View Static Site details" })).toHaveAttribute("data-agent-element", "deployment-overview-static-details-link");
-    expect(screen.getByRole("link", { name: "View Full Site details" })).toHaveAttribute("data-agent-element", "deployment-overview-full-details-link");
+    // REGRESSION: fails if the link targets the retired full-site tab again.
+    expect(screen.getByRole("link", { name: "View the Dockerfile" })).toHaveAttribute("href", "/admin/deployment?tab=dockerfile");
+    expect(screen.getByRole("link", { name: "View the Dockerfile" })).toHaveAttribute("data-agent-element", "deployment-overview-full-details-link");
   });
 });

@@ -100,9 +100,9 @@ command gateway with flat `comments.*` strings (§6).
 
 Spam checking is a **port with two plausible adapters, one built now** (ADR-006): a **local heuristic
 adapter** (keyword/link-ratio/rate signals — no network, ships now) and an **external-service adapter**
-(Akismet/OOPSpam-style, plausible next). `check()` is async + serializable (ADR-024 §3); a network-backed
+(plausible next). `check()` is async + serializable (ADR-024 §3); a network-backed
 adapter's egress is a **core-mediated capability, never a raw `fetch` from plugin code** (ADR-025 §3).
-The port also carries an optional `report()` for moderator ham/spam corrections (Akismet feedback; no-op
+The port also carries an optional `report()` for moderator ham/spam corrections (classifier feedback; no-op
 locally). Classification attaches at the `comments.beforeSubmit` hook so it composes with other filters.
 
 ### 6. Authorization — flat `comments.*` strings (ADR-021 §3), one catalog
@@ -240,14 +240,9 @@ it live is a separate, larger change to `server/middleware/rate-limit.ts`. **OQ-
 PARTIALLY resolved**: `admin-sitemap.md`'s stale Comments row now carries a reconciliation note
 pointing here; `admin-section-architecture-outline.md` was investigated and found to contain zero
 mentions of "comment" anywhere in its current text — this ADR's own OQ-2 claim about that second
-file does not hold today, recorded rather than silently assumed or fabricated. **The external
-`SpamCheckPort` adapter is built** (`comments/spam.external.ts`, `AkismetSpamCheck`) — a real,
-correctly-structured adapter against Akismet's documented API shape, calling exclusively through
-the guarded `HttpClientPort` (ADR-038) per §5's own instruction, fail-open on any transport error
-or outage. Deliberately NOT wired into a live composition root (no real Akismet credential exists
-in this environment; `comments/index.ts` still hardcodes `HeuristicSpamCheck`) — disclosed-unwired,
-the same status `webhookSigner`/the webhook delivery worker already carry elsewhere in this
-codebase. Full record: `ADS-memory/specs/035-comments-follow-up/feature.spec.md`.
+file does not hold today, recorded rather than silently assumed or fabricated.
+**Owner update (2026-10-03): AkismetSpamCheck and its dedicated tests were deleted as unwired; SpamCheckPort and the injected HeuristicSpamCheck remain live.** See [DELETED-CODE.md](../../../development/DELETED-CODE.md); SPEC-035's external-adapter requirements are retired.
+Full historical record: `ADS-memory/specs/035-comments-follow-up/feature.spec.md`.
 
 ---
 

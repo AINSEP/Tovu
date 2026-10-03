@@ -136,7 +136,7 @@ import type { PluginActivationRepoPort } from "../../features/plugin-runtime/act
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
-import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
+import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
@@ -796,7 +796,7 @@ export interface DatabaseRecoveryDeps {
  * `resolveStorefrontProducts` stay flat because their own types reference `RouteDeps` itself —
  * moving any of them into a named sub-interface closes a real circular-type reference TypeScript
  * rejects (a concrete `tsc` contravariance failure, confirmed before this slice started).
- * `exportOutputRootDir`/`deploymentsReadRepo`/`publishHistoryStore`/`publishExecutionMode`/
+ * `exportOutputRootDir`/`publishHistoryStore`/`publishExecutionMode`/
  * `publishOutputRootDir`/`publishCredentialVerificationCache`/`sourceControlExportRootDir` stay
  * flat too — out of scope for this slice alongside `features/deployments/`/`features/
  * source-control/`, which carry 7 already-diagnosed, unrelated violations this slice does not
@@ -1522,15 +1522,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `modules/site-assistant.ts`.
    */
   siteAssistantRateLimiter: RateLimiter;
-  /**
-   * 2026-08-15 — the deployments feature's READ side (`features/deployments/read-repo.ts`),
-   * backing the admin Full Site tab's `GET .../deployments` route
-   * (`routes/admin/deployments/list.ts`). Real `SqliteDeploymentsReadRepo` in `server/deps.ts`
-   * (migration `0037` already applied — see that repo's own doc); `InMemoryDeploymentsReadRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows.
-   * No write methods on the port yet — see `features/deployments/index.ts`'s header for why.
-   */
-  deploymentsReadRepo: DeploymentsReadRepoPort;
+  // Deployment read port retired with the never-written tables (2026-10-03).
   /**
    * Task 6 of the publish-content (Publish Content) feature (`ADS-memory/reports/
    * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 6) — staged-bundle storage for

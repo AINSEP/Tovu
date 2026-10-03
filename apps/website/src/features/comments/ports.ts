@@ -5,7 +5,7 @@
  *   1. `CommentRepoPort`  — in-memory (now) + SQLite-over-dataModule (now). The typed, core-owned
  *      write path ADR-023 §7 mandates for plugin tables: no raw plugin write SQL, so the ADR-022
  *      write chokepoint (revision + `pluginId` attribution) is preserved.
- *   2. `SpamCheckPort`    — heuristic/local (built now) + external service e.g. Akismet (plausible
+ *   2. `SpamCheckPort`    — heuristic/local (built now) + external service (plausible
  *      next). This is the brief's anti-spam seam.
  *
  * `CommentIngressPolicy` is the core-mediated public-submission boundary (NOT a rule-of-two port —
@@ -109,10 +109,10 @@ export interface CommentRepoPort {
  * adapter is a core-mediated capability, never a raw `fetch` from plugin code (ADR-025 §3).
  */
 export interface SpamCheckPort {
-  /** Classify a submission. Adapters: local heuristic (now) / Akismet-style service (next). */
+  /** Classify a submission. Adapters: local heuristic (now) / external service (plausible next). */
   check(submission: CommentSubmission): Promise<SpamVerdict>;
 
-  /** Feed a moderator correction back to the classifier (Akismet submit-ham/spam); no-op locally. */
+  /** Feed a moderator ham/spam correction back to the classifier; no-op locally. */
   report?(required: {
     workspaceId: UUID;
     comment: CommentRecord;

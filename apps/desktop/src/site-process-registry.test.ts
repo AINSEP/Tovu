@@ -613,7 +613,7 @@ test("a crash between the temp write and the rename leaves the previous file who
   writeRegistry(filePath, { sites: [ROW_A] });
   const before = fs.readFileSync(filePath, "utf8");
   let replacement: unknown;
-  const crash = t.mock.method(fs, "renameSync", (from, to) => {
+  const crash = t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
     assert.equal(from, tempPathFor(filePath));
     assert.equal(to, filePath);
     replacement = JSON.parse(fs.readFileSync(from, "utf8"));

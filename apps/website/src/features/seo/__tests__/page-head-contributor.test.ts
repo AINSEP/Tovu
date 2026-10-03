@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
-import { InMemorySettingsRepo } from "../../settings/index.js";
+import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "../../post/index.js";
+import { InMemorySettingsRepo, set } from "../../settings/index.js";
+import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../../settings/site-title.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import type { HeadElement, PageHeadContext } from "../types.js";
@@ -94,6 +95,56 @@ function baseCtx(entryId: string): PageHeadContext {
     },
   };
 }
+
+// REGRESSION: fails if the head contributor stops supplying the configured home title to getEntryMeta.
+test("seoPageHeadHook: the content-owned homepage uses the configured site title without the SEO title template", async () => {
+  const deps = await makeDeps([seedPost({ kind: "page", slug: ROOT_SLUG, title: "Home" })]);
+  await ensureSiteTitleSettingDefinition(deps.settingsDeps, { systemPrincipalId: "system-seo" });
+  await set({
+    deps: { repo: deps.settingsRepo, clock, ids, authorize: alwaysAllow, principals: deps.settingsDeps.principals },
+    input: { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scope: "workspace", workspaceId: WORKSPACE, value: "Owner Site", callerPrincipalId: "caller-1" },
+  });
+  await setSeoSettings(deps.settingsDeps, { workspaceId: WORKSPACE, callerPrincipalId: "caller-1", patch: { titleTemplate: "%s — template" } });
+  const ctx = baseCtx("post-1");
+  ctx.entry = { ...ctx.entry!, type: "page", slug: ROOT_SLUG, title: "Home" };
+  // Production currently renders this content-owned home through the same "post" seam as pages.
+  ctx.route = "post";
+
+  const elements = await createSeoPageHeadHook(deps).handle(ctx);
+  assert.deepEqual(elements.find((element) => element.kind === "title"), { kind: "title", text: "Owner Site", priority: 100 });
+  assert.deepEqual(elements.find((element) => element.kind === "og" && element.property === "og:title"), { kind: "og", property: "og:title", content: "Owner Site", priority: 140 });
+});
+
+// PARITY: missing settings, registered defaults, explicit SEO overrides, and non-home titles retain their behavior.
+test("seoPageHeadHook: home-title fallback preserves explicit SEO titles and non-home pages", async () => {
+  const deps = await makeDeps([
+    seedPost({ kind: "page", slug: ROOT_SLUG, title: "Home" }),
+    seedPost({ id: "about", kind: "page", slug: "about", title: "About" }),
+  ]);
+  const hook = createSeoPageHeadHook(deps);
+  const ctx = baseCtx("post-1");
+  ctx.entry = { ...ctx.entry!, type: "page", slug: ROOT_SLUG, title: "Home" };
+  await setSeoSettings(deps.settingsDeps, { workspaceId: WORKSPACE, callerPrincipalId: "caller-1", patch: { titleTemplate: "%s — template" } });
+
+  const withoutDefinition = await hook.handle(ctx);
+  assert.deepEqual(withoutDefinition.find((element) => element.kind === "title"), { kind: "title", text: "Home — template", priority: 100 });
+  await ensureSiteTitleSettingDefinition(deps.settingsDeps, { systemPrincipalId: "system-seo" });
+  const withoutOwnerValue = await hook.handle(ctx);
+  assert.deepEqual(withoutOwnerValue.find((element) => element.kind === "title"), { kind: "title", text: "Home — template", priority: 100 });
+
+  await set({
+    deps: { repo: deps.settingsRepo, clock, ids, authorize: alwaysAllow, principals: deps.settingsDeps.principals },
+    input: { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scope: "workspace", workspaceId: WORKSPACE, value: "Owner Site", callerPrincipalId: "caller-1" },
+  });
+  await deps.postRepo.save(seedPost({ kind: "page", slug: ROOT_SLUG, title: "Home", seoExtJson: JSON.stringify({ title: "Home SEO override", ogTitle: "Home OG override", twitterTitle: "Home Twitter override" }) }));
+  const explicit = await hook.handle(ctx);
+  assert.deepEqual(explicit.find((element) => element.kind === "title"), { kind: "title", text: "Home SEO override", priority: 100 });
+  assert.deepEqual(explicit.find((element) => element.kind === "og" && element.property === "og:title"), { kind: "og", property: "og:title", content: "Home OG override", priority: 140 });
+  assert.deepEqual(explicit.find((element) => element.kind === "meta" && element.name === "twitter:title"), { kind: "meta", name: "twitter:title", content: "Home Twitter override", priority: 151 });
+
+  const otherPage = await hook.handle(baseCtx("about"));
+  assert.deepEqual(otherPage.find((element) => element.kind === "title"), { kind: "title", text: "About — template", priority: 100 });
+});
 
 test("seoPageHeadHook: maps SeoMeta into HeadElement[] per the fixed priority bands", async () => {
   const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({

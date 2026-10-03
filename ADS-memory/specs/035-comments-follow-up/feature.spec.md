@@ -1,5 +1,7 @@
 # Feature Spec: Comments (ADR-031) Follow-Up — OQ-3, Settings Ledger, Doc Reconciliation, External SpamCheckPort
 
+> Owner update (2026-10-03): AkismetSpamCheck and its dedicated tests were deleted as unwired; REQ-13–15 and AC-06 are retired. SpamCheckPort and HeuristicSpamCheck remain live. The original implementation record below is historical; see [DELETED-CODE.md](../../../development/DELETED-CODE.md).
+
 ## Header Metadata
 
 | Field | Value |

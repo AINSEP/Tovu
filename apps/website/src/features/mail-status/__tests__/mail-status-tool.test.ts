@@ -5,7 +5,7 @@ import { ConsoleMailerAdapter } from "../../members/index.js";
 import { SmtpMailerAdapter, type MailerPort } from "../../../platform/mail/index.js";
 import { buildMailStatusRegistrations, mailStatusDerivedRisk } from "../tool-registrations.js";
 
-const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider using the Resend agent plugin and save its key in Access Tokens to send real email.";
+const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
 const ctx: ToolExecutionContext = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal };
 function tool(mailer: MailerPort, allow = true) {
   return buildMailStatusRegistrations({ workspaceId: "ws", mailer, authorize: async (request) => { assert.deepEqual(request, { principalId: "owner", permission: "admin.forms.manage", workspaceId: "ws", entityType: "mail" }); return { allowed: allow, reason: "fixture grant" }; } })[0]!;

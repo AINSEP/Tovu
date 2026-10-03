@@ -486,7 +486,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces:
       const mailOff = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
       const driver = deps.mailer.capabilities().driver;
       if (driver === "console" || driver === "memory") return mailOff;
-      const decision = await confirmNewsletterDelivery({ ctx, surfaces, toolId: "newsletter_resend_confirmation", title: "Resend a subscription confirmation email?", details: [{ label: "Subscription", value: subscriptionId }] }, optional);
+      const decision = await confirmNewsletterDelivery({ ctx, surfaces, toolId: "newsletter_resend_confirmation", title: "Send the subscription confirmation email again?", details: [{ label: "Subscription", value: subscriptionId }] }, optional);
       if (!decision.confirmed) return { ...decision, delivered: false, mailDeliveryAvailable: true };
       if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });

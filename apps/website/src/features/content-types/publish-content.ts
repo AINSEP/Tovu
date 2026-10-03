@@ -1,3 +1,4 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
@@ -56,7 +57,8 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       if (seeded) throw new PublishContentApplyRowError("blocked", seeded);
       const gateway = gatewayDeps(deps, "content-type");
       const outbox = toContentTypeOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId });
-      const writeDeps = { repo: ports.repo, clock: deps.clock, ids: deps.idGen, authorize: gateway.authorize, indexProvisioner: ports.indexProvisioner, outbox };
+      // Preserve Jini's content-type scope along with the gateway's publish-type stamp.
+      const writeDeps = { repo: ports.repo, clock: deps.clock, ids: deps.idGen, authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }), indexProvisioner: ports.indexProvisioner, outbox };
       const label = state.label as string;
       const fields = state.fields as ContentTypeFieldDef[];
       let current = existing

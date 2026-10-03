@@ -1,3 +1,5 @@
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
@@ -120,7 +122,8 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
             entryRepo: ports.entries,
             contentTypeRepo: ports.contentTypes,
             clock: deps.clock,
-            authorize: gateway.authorize,
+            // Preserve Jini's entry scope along with the gateway's publish-type stamp.
+            authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }),
             outbox: toEntryOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId }),
           },
           input: {

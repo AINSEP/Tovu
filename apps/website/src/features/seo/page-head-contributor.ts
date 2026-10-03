@@ -1,4 +1,7 @@
 import type { HeadElement, PageHeadContext, PageHeadEntryRef, PageHeadHook, SeoMeta } from "./types.js";
+import { ROOT_SLUG } from "../post/index.js";
+import { getEffective } from "../settings/index.js";
+import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/site-title.js";
 import { FEED_PATH } from "./feed.js";
 import { getEntryMeta, type GetEntryMetaDeps } from "./seo.js";
 
@@ -70,7 +73,12 @@ function feedAlternateLink(siteTitle: string): HeadElement {
   return { kind: "link", rel: "alternate", type: "application/rss+xml", title: siteTitle, href: FEED_PATH, priority: 125 };
 }
 
-/** Builds SEO's own `PageHeadHook`, closing over the deps `getEntryMeta` needs. */
+/** Builds SEO's own `PageHeadHook`, closing over the deps `getEntryMeta` needs.
+ * The reserved root slug identifies the content-owned home across template, generic, and bare
+ * renders, which all arrive through the same entry-bearing seam. Only a workspace title value
+ * counts: the setting's default and `ctx.siteTitle`'s display-name fallback are not owner-set titles.
+ * @complexity O(1) bounded reads, including one additional settings read for the root entry.
+ */
 export function createSeoPageHeadHook(
   deps: GetEntryMetaDeps,
   priority: number = DEFAULT_CONTRIBUTOR_PRIORITY
@@ -87,7 +95,15 @@ export function createSeoPageHeadHook(
         ];
       }
 
-      const resolved = await getEntryMeta(deps, { workspaceId: ctx.workspaceId, entryId: ctx.entry.id });
+      let homeTitle: string | undefined;
+      if (ctx.entry.slug === ROOT_SLUG) {
+        const setting = await getEffective(
+          { repo: deps.settingsRepo },
+          { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: ctx.workspaceId } }
+        );
+        if (setting?.sourceLayer === "workspace") homeTitle = normalizeSiteTitle(setting.value);
+      }
+      const resolved = await getEntryMeta(deps, { workspaceId: ctx.workspaceId, entryId: ctx.entry.id, homeTitle });
       const elements: HeadElement[] = [{ kind: "title", text: resolved.title, priority: 100 }];
 
       if (resolved.description) {

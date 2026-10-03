@@ -1,7 +1,7 @@
 /**
  * @file ADR-031 §5 — the local heuristic `SpamCheckPort` adapter (ADR-006 rule-of-two "built
- * now" half; an external service adapter, e.g. Akismet-style, is the plausible-next second
- * adapter — not built this pass, see SPEC-033 Non-Goals). No network I/O.
+ * now" half; an external service adapter remains a plausible second adapter).
+ * No network I/O.
  *
  * Signals, combined into a `[0,1]` score:
  * - link density in the body (a common comment-spam signal — many URLs per short body);

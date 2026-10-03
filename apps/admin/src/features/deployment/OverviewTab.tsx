@@ -106,7 +106,7 @@ function OverviewPathCard({
         <a
           className="btn-secondary"
           href={detailsHref}
-          {...agentHandle({ handle: detailsHandleId }, { role: "link", label: `Open the ${heading} tab for full details` })}
+          {...agentHandle({ handle: detailsHandleId }, { role: "link", label: `Open details for ${heading}` })}
         >
           {detailsLabel}
         </a>
@@ -122,6 +122,7 @@ function OverviewPathCard({
  *  warning`; the words carry the difference, which is also what keeps the distinction legible
  *  without color perception. */
 function OverviewPathChoice({ t }: { t: Translate }) {
+  // Full Site tab retired; Dockerfile remains the live server packaging surface.
   return (
     <div className="deployment-path-grid">
       <OverviewPathCard
@@ -144,8 +145,8 @@ function OverviewPathChoice({ t }: { t: Translate }) {
         getLine={t("The complete Tovu server — admin, assistant, checkout, everything works.")}
         capabilities={FULL_SITE_CAPABILITIES}
         costLine={t("Needs a host to run on — provider setup is planned, not wired up yet.")}
-        detailsHref="/admin/deployment?tab=full-site"
-        detailsLabel={t("View Full Site details")}
+        detailsHref="/admin/deployment?tab=dockerfile"
+        detailsLabel={t("View the Dockerfile")}
         cardHandleId="deployment-overview-full-path-card"
         detailsHandleId="deployment-overview-full-details-link"
         t={t}

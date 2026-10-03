@@ -38,7 +38,6 @@ import {
   withFollowUps,
 } from "#src/features/trash/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
@@ -283,7 +282,6 @@ import { registerAdminSiteTokenRoutes } from "../../inbound/admin-http/routes/sy
 import { siteTokenRecovery } from "./site-token-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
-import { registerAdminDeploymentsListRoute } from "../../inbound/admin-http/routes/deployments/list.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createRedirectsModule } from "./modules/redirects.js";
@@ -1217,11 +1215,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
     // mirrors `commentsReady`'s identical hermetic-vs-real split.
     pluginRuntimeReady: Promise.resolve(),
-    // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
-    // by default; a test that needs seeded rows constructs its own `InMemoryDeploymentsReadRepo`
-    // and overrides this field, the same way other tests override a single `createRouteDeps()`
-    // field rather than this composition root taking on fixture-authoring for every case.
-    deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
+    // Deployment read model retired with its unused tables (2026-10-03).
     // Task 6 of the publish-content (Publish Content) feature — hermetic double for
     // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. Hoisted above
     // (not constructed inline) so Task 8's `publishContentApplyPort` reads the SAME store. See
@@ -1713,10 +1707,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.
   registerAdminFsFilesCustomRootRoutes(app, routeDeps);
-  // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
-  // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
-  // file's own header for why this one gets its own permission.
-  registerAdminDeploymentsListRoute(app, routeDeps);
+  // GET deployments retired with its never-written tables (2026-10-03).
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,

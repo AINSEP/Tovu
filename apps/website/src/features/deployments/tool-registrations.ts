@@ -9,18 +9,17 @@ import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
-import type { DeploymentsReadRepoPort } from "./read-repo.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
 import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps
- * `agent-tools.ts`'s five catalog entries onto the same domain logic the admin HTTP routes already
- * use, as `ToolRegistration`s. All five are wired; none is excluded (see `agent-tools.ts`'s file
+ * `agent-tools.ts`'s four catalog entries onto the same domain logic the admin HTTP routes already
+ * use, as `ToolRegistration`s. All four are wired; none is excluded (see `agent-tools.ts`'s file
  * header for why this domain, unlike Recovery/Database, has no token-gated/human-only entry).
  *
  * Authorization shape: none of `startExportRun`/`getExportRunSnapshot`/`readDockerfileSource`/
- * `writeDockerfileSourceWithIfMatch`/`DeploymentsReadRepoPort`'s methods call `authorize()`
+ * `writeDockerfileSourceWithIfMatch` call `authorize()`
  * internally (they mirror the plain domain functions the admin routes already call inline), so
  * every handler below calls the kit's `requireToolPermission` itself — the same shape
  * `recovery`/`database` already use.
@@ -62,7 +61,6 @@ export interface DeploymentsToolDeps {
   readonly workspaceId: string;
   readonly clock: Clock;
   readonly exportOutputRootDir: string;
-  readonly deploymentsReadRepo: DeploymentsReadRepoPort;
   /**
    * The pre-bound export call this domain uses for `deployment_trigger_export` — see this
    * interface's own doc above for the fuller design reasoning, and `routes/types.ts`'s
@@ -90,8 +88,6 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["deployment_trigger_export", "mutates-durable-state"],
   // -> getExportRunSnapshot(): reads a process-local in-memory variable. No I/O of any kind.
   ["deployment_get_export_status", "none"],
-  // -> DeploymentsReadRepoPort's four list methods: read-only repo queries.
-  ["deployment_list", "none"],
   // -> readDockerfileSource (dockerfile.ts): one existence check, one file read. No write.
   ["deployment_get_dockerfile", "none"],
   // -> writeDockerfileSource (dockerfile.ts): one file write to the repo-root Dockerfile.
@@ -134,19 +130,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       return getExportRunSnapshot();
     },
 
-    deployment_list: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "deployment-target" });
-
-      const workspaceId = routeDeps.workspaceId;
-      const [environments, targets, releases, runs] = await Promise.all([
-        routeDeps.deploymentsReadRepo.listEnvironments({ workspaceId }),
-        routeDeps.deploymentsReadRepo.listTargets({ workspaceId }),
-        routeDeps.deploymentsReadRepo.listReleases({ workspaceId }),
-        routeDeps.deploymentsReadRepo.listRuns({ workspaceId }),
-      ]);
-      return { environments, targets, releases, runs };
-    },
+    // deployment_list retired with the never-written deployment tables (2026-10-03).
 
     deployment_get_dockerfile: async (ctx) => {
       requireNoInput({ input: ctx.input });

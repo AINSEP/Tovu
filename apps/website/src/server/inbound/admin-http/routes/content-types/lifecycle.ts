@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/content-types/index";
 import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "#src/features/content-types/index";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
@@ -61,7 +62,8 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
         deps: {
           repo: deps.contentTypeRepo,
           clock: deps.clock,
-          authorize: deps.authorize,
+          // Jini passes entity scope separately; merge it into the host evaluator's request.
+          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
           outbox: toContentTypeOutbox(deps),
           indexProvisioner: deps.contentTypeIndexProvisioner,
         },

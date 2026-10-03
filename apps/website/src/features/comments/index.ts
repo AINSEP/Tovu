@@ -93,9 +93,9 @@ export interface CommentsModuleDeps {
   outbox: OutboxPort;
   clock: ClockPort;
   idGen: IdGeneratorPort;
-  /** The spam-check adapter the caller has chosen (`HeuristicSpamCheck` by default in both real
-   * composition roots, `AkismetSpamCheck` when an operator configures it) — this module never picks
-   * one on its own, so the choice is a real DI seam, not a hardcoded default. */
+  /** Caller-chosen spam-check adapter; both real composition roots use `HeuristicSpamCheck`.
+   * This module never picks one on its own, so the choice remains a real DI seam. */
+  // AkismetSpamCheck deleted as unwired (owner, 2026-10-03); see development/DELETED-CODE.md.
   spamCheck: SpamCheckPort;
   /** Fixed fallback settings, used only when `settingsRepo` is omitted. */
   settings?: CommentsSettings;
