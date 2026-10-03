@@ -11,6 +11,7 @@ import {
   isRecommendedByDefault,
   isToolPickerDirty,
   isToolRowLocked,
+  refreshToolRowDeclarations,
   seedToolPickerRows,
   setToolRowEnabled,
   setToolRowMayWrite,
@@ -363,5 +364,41 @@ describe("describeProbeUnreachable — the local-command refusal points at where
   it("translates the generic unreachable fallback for a non-English locale", () => {
     const message = describeProbeUnreachable("not an Error instance", driftCopyFor("es"));
     expect(message).toBe("No se pudo contactar con este servidor. Aún puedes escribir los nombres de las herramientas a mano.");
+  });
+});
+
+describe("refreshToolRowDeclarations — a re-probe updates declarations without re-seeding the draft", () => {
+  it("locks a tool that turns destructive and drops its UNSAVED grant back to the saved value", () => {
+    // Saved: nothing on "erase". Draft: the operator ticked it with write before the refresh.
+    const draft = [row({ remoteName: "erase", enabled: true, mayWrite: true, writeDeclared: true })];
+    const refreshed = refreshToolRowDeclarations(draft, [tool({ remoteName: "erase", writeDeclared: true, destructiveDeclared: true })], "", "");
+    expect(refreshed).toEqual([row({ remoteName: "erase", enabled: false, mayWrite: false, writeDeclared: true, destructiveDeclared: true })]);
+    expect(isToolRowLocked(refreshed[0]!)).toBe(true);
+    expect(toolPickerFieldValues(refreshed)).toEqual({ allowedToolNames: "", writeAllowedToolNames: "" });
+  });
+
+  it("keeps a SAVED grant on a tool that turns destructive — the lock does not rewrite saved state", () => {
+    const draft = [row({ remoteName: "erase", enabled: true, mayWrite: true })];
+    const refreshed = refreshToolRowDeclarations(draft, [tool({ remoteName: "erase", destructiveDeclared: true })], "erase", "erase");
+    expect(refreshed).toEqual([row({ remoteName: "erase", enabled: true, mayWrite: true, destructiveDeclared: true })]);
+  });
+
+  it("keeps every unrelated draft choice, refreshes descriptions, and leaves absent rows alone", () => {
+    const draft = [
+      row({ remoteName: "read", enabled: true, mayWrite: true }),
+      row({ remoteName: "legacy", description: "", enabled: true, kind: "absent" }),
+    ];
+    const refreshed = refreshToolRowDeclarations(draft, [tool({ remoteName: "read", description: "new", hintsAbsent: true })], "read", "");
+    expect(refreshed).toEqual([
+      row({ remoteName: "read", description: "new", enabled: true, mayWrite: true, hintsAbsent: true }),
+      row({ remoteName: "legacy", description: "", enabled: true, kind: "absent" }),
+    ]);
+  });
+
+  it("does not re-apply a lock revert to a row that was already destructive", () => {
+    // A saved-elsewhere grant on an already-destructive row stays as the draft has it.
+    const draft = [row({ remoteName: "erase", enabled: true, destructiveDeclared: true })];
+    const refreshed = refreshToolRowDeclarations(draft, [tool({ remoteName: "erase", destructiveDeclared: true })], "", "");
+    expect(refreshed[0]!.enabled).toBe(true);
   });
 });

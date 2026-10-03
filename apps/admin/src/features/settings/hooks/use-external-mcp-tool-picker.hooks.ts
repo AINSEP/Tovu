@@ -8,6 +8,7 @@ import {
   countEnabledToolRows,
   describeProbeUnreachable,
   isToolPickerDirty,
+  refreshToolRowDeclarations,
   seedToolPickerRows,
   setToolRowEnabled,
   setToolRowMayWrite,
@@ -96,6 +97,13 @@ function toolSurfaceSignature(
   return JSON.stringify([tools.map((tool) => tool.remoteName), allowedToolNames ?? "", writeAllowedToolNames ?? ""]);
 }
 
+/** What the declarations pass keys on: every server-declared field of every advertised tool, so a
+ *  vendor flipping `destructiveHint` on an existing name is seen even though {@link
+ *  toolSurfaceSignature} (names only, on purpose) does not change. */
+function toolDeclarationsSignature(tools: readonly AdminRemoteToolSurfaceEntry[]): string {
+  return JSON.stringify(tools.map((tool) => [tool.remoteName, tool.description, tool.writeDeclared, tool.destructiveDeclared, tool.hintsAbsent]));
+}
+
 /**
  * @param deps.port - See {@link ExternalMcpToolPickerPort}.
  * @param deps.serverId - The roster row's own id, as the probe route's path parameter.
@@ -139,6 +147,16 @@ export function useExternalMcpToolPicker(deps: {
     const seed = seedRef.current;
     setRows(seedToolPickerRows(seed.tools, seed.allowedToolNames, seed.writeAllowedToolNames));
   }, [signature]);
+
+  // A refresh that changes a tool's annotations but not its name leaves `signature` alone, so the
+  // draft is not re-seeded — but the rows must still pick up the new declarations, or a tool that
+  // turns destructive keeps a stale unlocked row (`refreshToolRowDeclarations`'s doc). Declared after
+  // the seed effect so, when both fire in one commit, this runs on the freshly seeded rows.
+  const declarations = toolDeclarationsSignature(tools);
+  useEffect(() => {
+    const seed = seedRef.current;
+    setRows((current) => refreshToolRowDeclarations(current, seed.tools, seed.allowedToolNames, seed.writeAllowedToolNames));
+  }, [declarations]);
 
   const reset = useCallback(() => {
     const seed = seedRef.current;

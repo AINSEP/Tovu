@@ -230,6 +230,60 @@ export function seedToolPickerRows(
   return [...advertised, ...absent];
 }
 
+/** One draft row brought up to date with what a re-probe now declares about the same tool. The
+ *  operator's draft choice survives, EXCEPT on a row the refresh has just locked: there the draft
+ *  falls back to the saved value, because an unsaved grant on a tool that only now declares
+ *  `destructiveHint` is exactly the state the lock exists to stop the picker creating (this module's
+ *  header), and leaving it in the draft would let the next Save persist it. */
+function refreshedRow(
+  row: ToolPickerRow,
+  tool: AdminRemoteToolSurfaceEntry,
+  allowed: ReadonlySet<string>,
+  write: ReadonlySet<string>,
+): ToolPickerRow {
+  const newlyLocked = tool.destructiveDeclared && !row.destructiveDeclared;
+  return {
+    ...row,
+    description: tool.description,
+    writeDeclared: tool.writeDeclared,
+    destructiveDeclared: tool.destructiveDeclared,
+    hintsAbsent: tool.hintsAbsent,
+    enabled: newlyLocked ? allowed.has(row.remoteName) : row.enabled,
+    mayWrite: newlyLocked ? write.has(row.remoteName) : row.mayWrite,
+  };
+}
+
+/**
+ * Applies a re-probe's declarations to an existing draft without re-seeding it.
+ *
+ * A vendor can change a tool's annotations without renaming it, and the hook's re-seed signature
+ * deliberately keys on names only (so a refresh does not discard a selection in progress). Without
+ * this pass a tool that becomes destructive on refresh would keep its stale, unlocked row — offering
+ * a grant `trust.ts` refuses (INV-003 / D-1). Every row keeps its draft choice; only a row the
+ * refresh newly locks falls back to its saved value (see {@link refreshedRow}). Rows the probe does
+ * not advertise (`absent`) are left as they are.
+ *
+ * @param rows - The current draft.
+ * @param tools - The re-probe's advertised surface.
+ * @param allowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
+ * @param writeAllowedToolNames - The roster card's own `writeAllowedToolNames` field, verbatim.
+ * @complexity O(n + t) in row count and advertised tools.
+ */
+export function refreshToolRowDeclarations(
+  rows: readonly ToolPickerRow[],
+  tools: readonly AdminRemoteToolSurfaceEntry[],
+  allowedToolNames: string | undefined,
+  writeAllowedToolNames: string | undefined,
+): ToolPickerRow[] {
+  const byName = new Map(tools.map((tool) => [tool.remoteName, tool]));
+  const allowed = new Set(parseSavedToolNames(allowedToolNames));
+  const write = new Set(parseSavedToolNames(writeAllowedToolNames));
+  return rows.map((row) => {
+    const tool = row.kind === "advertised" ? byName.get(row.remoteName) : undefined;
+    return tool ? refreshedRow(row, tool, allowed, write) : row;
+  });
+}
+
 /**
  * Ticking or unticking one row's allowlist box.
  *
