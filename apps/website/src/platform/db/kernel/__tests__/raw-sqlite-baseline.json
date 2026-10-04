@@ -2,12 +2,14 @@
   "apps/website/src/assistant/tool-catalog-query.ts": {
     "better-sqlite3-import": 1
   },
+  "apps/website/src/contracts/core/human-confirm.ts": {
+    "prepare": 1
+  },
   "apps/website/src/features/database-transfer/sqlite-source.ts": {
-    "better-sqlite3-import": 1,
-    "pragma": 5,
-    "prepare": 9,
-    "sqlite-catalog": 2,
-    "sync-terminal": 7
+    "better-sqlite3-import": 1
+  },
+  "apps/website/src/features/permanent-delete/tool-registrations.ts": {
+    "prepare": 1
   },
   "apps/website/src/features/post/search-index.sqlite.ts": {
     "fts5": 1
@@ -15,6 +17,9 @@
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
+  },
+  "apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts": {
+    "sqlite-json": 2
   },
   "apps/website/src/platform/db/schema.sqlite.ts": {
     "autoincrement": 12
