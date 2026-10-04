@@ -385,6 +385,12 @@ function textColumnDeclarations(source: string = SCHEMA_SOURCE): ScannedColumn[]
   return scanSchemaTables(source).declarations;
 }
 
+// Exclude individual non-storage mentions, not whole comments: a genuine JSON storage mention
+// later in the same comment must still trigger the tripwire. These four narrow phrases are the
+// known false positives recorded in development/todos.md's 2026-08-12 audit; filenames and JS
+// serialization API exclusions retain their original rationale in the tripwire test below.
+const jsonMentionInOwnComment = /(?<!\.)(?<!non-)(?<!not parsed )\bjson\b(?!\.(?:stringify|parse)\b|\s+web\s+token\b|:api\b)/i;
+
 function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: ScannedColumn[]; unresolved: string[] } {
   const sf = ts.createSourceFile("schema.sqlite.ts", source, ts.ScriptTarget.Latest, /* setParentNodes */ true);
   const out: ScannedColumn[] = [];
@@ -464,10 +470,21 @@ function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: Scann
             continue;
           }
 
-          // The compiler's own notion of "the comment attached to this property" — no backward line
-          // walk, so a blank line, a section header, or a sibling's trailing comment cannot be
-          // misattributed here.
-          const docComment = (ts.getLeadingCommentRanges(source, prop.getFullStart()) ?? [])
+          // Use compiler comment ranges, not a backward line walk. Same-line trailing comments
+          // belong to THIS column, never the next sibling. A section header still belongs only
+          // to the immediately following column: this scanner cannot infer a prose group's scope.
+          const previousEnd = columns.properties[columns.properties.indexOf(prop) - 1]?.end;
+          const previousEndLine = previousEnd === undefined ? -1 : sf.getLineAndCharacterOfPosition(previousEnd).line;
+          const endLine = sf.getLineAndCharacterOfPosition(prop.end).line;
+          // AST property.end excludes the comma that precedes the usual `, // JSON blob` spelling.
+          let afterComma = prop.end;
+          while (source[afterComma] === " " || source[afterComma] === "\t") afterComma++;
+          if (source[afterComma] === ",") afterComma++;
+          const leading = (ts.getLeadingCommentRanges(source, prop.getFullStart()) ?? [])
+            .filter((range) => sf.getLineAndCharacterOfPosition(range.pos).line > previousEndLine);
+          const trailing = (ts.getTrailingCommentRanges(source, afterComma) ?? [])
+            .filter((range) => sf.getLineAndCharacterOfPosition(range.pos).line === endLine);
+          const docComment = [...leading, ...trailing]
             .map((r) => source.slice(r.pos, r.end))
             .join("\n");
 
@@ -522,6 +539,29 @@ test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto 
   assert.match(by("single_quoted")?.declLine ?? "", /\.default\('\{\}'\)/, "single-quoted default must be carried too");
   assert.match(by("lower_case")?.docComment ?? "", /json/, "the lowercase doc comment must be attached to its own column");
   assert.match(by("filename_only")?.docComment ?? "", /theme\.json/, "the filename comment must attach to its own column");
+});
+
+test("JSON tripwire sees same-line comments after the comma and on the final property, without assigning them to a sibling", () => {
+  const fixture = [
+    'export const probes = sqliteTable("probes", {',
+    '  first: text("first"), // JSON blob',
+    '  plain: text("plain"),',
+    '  third: text("third"), /* JSON array */',
+    '  last: text("last") // JSON object',
+    '});',
+  ].join("\n");
+  const declarations = textColumnDeclarations(fixture);
+  assert.deepEqual(declarations.filter((column) => jsonMentionInOwnComment.test(column.docComment)).map((column) => column.qualifiedName), ["probes.first", "probes.third", "probes.last"]);
+  assert.equal(declarations.find((column) => column.sqlColumnName === "plain")?.docComment, "");
+});
+
+test("JSON tripwire narrowly excludes non-JSON, JWT, JSON:API and NOT parsed JSON descriptions while retaining storage signals", () => {
+  for (const comment of ["non-JSON text", "NON-JSON bytes", "JSON Web Token (JWT)", "JSON:API identifier", "GeoJSON-style text, NOT parsed JSON"]) {
+    assert.equal(jsonMentionInOwnComment.test(comment), false, comment);
+  }
+  for (const comment of ["JSON object", "non-JSON prefix with a JSON payload", "JSON object containing a JSON Web Token", "JSON array sent through JSON:API"]) {
+    assert.equal(jsonMentionInOwnComment.test(comment), true, comment);
+  }
 });
 
 test("sanity: the AST scan silently drops no text() column that is textually visible in schema.sqlite.ts", () => {
@@ -637,7 +677,6 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
   //                                 encrypting the OUTPUT of JSON.stringify and store base64, not JSON.
   // `seo_ext_json` and friends need no exclusion: `_` is a word character, so `\bjson\b` never matches
   // inside a snake_case identifier in the first place.
-  const jsonMentionInOwnComment = /(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i;
   const jsonLiteralDefault = /\.default\(\s*(["'])(\{\}|\[\])\1\s*\)/;
 
   const offenders: string[] = [];

@@ -2969,6 +2969,14 @@ export const api = {
     });
     return res.ok ? (res.headers.get("content-type") ?? "") : "";
   },
+  importMediaFromUrl: (
+    input: { url: string },
+    options: { filename?: string; alt?: string; caption?: string; credit?: string } = {}
+  ) =>
+    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/import-url`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, ...options }),
+    }),
   uploadMedia: (
     input: { filename: string; contentType: string; dataBase64: string },
     options: { alt?: string; caption?: string; credit?: string } = {}

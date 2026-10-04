@@ -1611,10 +1611,35 @@ const MEDIA_AUDIT_STRINGS: Record<string, Record<string, string>> = {
   bn: { Close: "বন্ধ করুন", "Previous asset": "আগের অ্যাসেট", "Next asset": "পরের অ্যাসেট", Media: "মিডিয়া", "Loading media…": "মিডিয়া লোড হচ্ছে…" },
 };
 
+/** URL-import action copy in every supported feature locale. */
+const MEDIA_IMPORT_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Remote image URL": "URL de imagen remota", "Import from URL": "Importar desde URL", "Importing…": "Importando…", "Imported image alt text (optional)": "Texto alternativo de la imagen importada (opcional)", "Could not import media.": "No se pudo importar el archivo." },
+  id: { "Remote image URL": "URL gambar jarak jauh", "Import from URL": "Impor dari URL", "Importing…": "Mengimpor…", "Imported image alt text (optional)": "Teks alternatif gambar impor (opsional)", "Could not import media.": "Tidak dapat mengimpor media." },
+  de: { "Remote image URL": "URL des entfernten Bildes", "Import from URL": "Von URL importieren", "Importing…": "Wird importiert…", "Imported image alt text (optional)": "Alt-Text des importierten Bildes (optional)", "Could not import media.": "Medium konnte nicht importiert werden." },
+  "zh-CN": { "Remote image URL": "远程图片 URL", "Import from URL": "从 URL 导入", "Importing…": "正在导入…", "Imported image alt text (optional)": "导入图片的替代文本（可选）", "Could not import media.": "无法导入媒体。" },
+  "zh-TW": { "Remote image URL": "遠端圖片 URL", "Import from URL": "從 URL 匯入", "Importing…": "正在匯入…", "Imported image alt text (optional)": "匯入圖片的替代文字（選填）", "Could not import media.": "無法匯入媒體。" },
+  "pt-BR": { "Remote image URL": "URL da imagem remota", "Import from URL": "Importar da URL", "Importing…": "Importando…", "Imported image alt text (optional)": "Texto alternativo da imagem importada (opcional)", "Could not import media.": "Não foi possível importar a mídia." },
+  ru: { "Remote image URL": "URL удалённого изображения", "Import from URL": "Импортировать по URL", "Importing…": "Импорт…", "Imported image alt text (optional)": "Альтернативный текст импортированного изображения (необязательно)", "Could not import media.": "Не удалось импортировать медиа." },
+  fa: { "Remote image URL": "نشانی تصویر راه دور", "Import from URL": "وارد کردن از نشانی", "Importing…": "در حال وارد کردن…", "Imported image alt text (optional)": "متن جایگزین تصویر واردشده (اختیاری)", "Could not import media.": "وارد کردن رسانه ممکن نشد." },
+  ar: { "Remote image URL": "رابط الصورة البعيدة", "Import from URL": "استيراد من رابط", "Importing…": "جارٍ الاستيراد…", "Imported image alt text (optional)": "النص البديل للصورة المستوردة (اختياري)", "Could not import media.": "تعذر استيراد الوسائط." },
+  ja: { "Remote image URL": "リモート画像の URL", "Import from URL": "URL からインポート", "Importing…": "インポート中…", "Imported image alt text (optional)": "インポート画像の代替テキスト（任意）", "Could not import media.": "メディアをインポートできませんでした。" },
+  ko: { "Remote image URL": "원격 이미지 URL", "Import from URL": "URL에서 가져오기", "Importing…": "가져오는 중…", "Imported image alt text (optional)": "가져온 이미지의 대체 텍스트(선택 사항)", "Could not import media.": "미디어를 가져올 수 없습니다." },
+  pl: { "Remote image URL": "URL obrazu zdalnego", "Import from URL": "Importuj z URL", "Importing…": "Importowanie…", "Imported image alt text (optional)": "Tekst alternatywny importowanego obrazu (opcjonalnie)", "Could not import media.": "Nie udało się zaimportować multimediów." },
+  hu: { "Remote image URL": "Távoli kép URL-címe", "Import from URL": "Importálás URL-ről", "Importing…": "Importálás…", "Imported image alt text (optional)": "Az importált kép helyettesítő szövege (nem kötelező)", "Could not import media.": "A média importálása sikertelen." },
+  fr: { "Remote image URL": "URL de l’image distante", "Import from URL": "Importer depuis une URL", "Importing…": "Importation…", "Imported image alt text (optional)": "Texte alternatif de l’image importée (facultatif)", "Could not import media.": "Impossible d’importer le média." },
+  uk: { "Remote image URL": "URL віддаленого зображення", "Import from URL": "Імпортувати за URL", "Importing…": "Імпортування…", "Imported image alt text (optional)": "Альтернативний текст імпортованого зображення (необов’язково)", "Could not import media.": "Не вдалося імпортувати медіа." },
+  tr: { "Remote image URL": "Uzak görsel URL’si", "Import from URL": "URL’den içe aktar", "Importing…": "İçe aktarılıyor…", "Imported image alt text (optional)": "İçe aktarılan görselin alternatif metni (isteğe bağlı)", "Could not import media.": "Medya içe aktarılamadı." },
+  th: { "Remote image URL": "URL รูปภาพระยะไกล", "Import from URL": "นำเข้าจาก URL", "Importing…": "กำลังนำเข้า…", "Imported image alt text (optional)": "ข้อความแทนรูปภาพที่นำเข้า (ไม่บังคับ)", "Could not import media.": "ไม่สามารถนำเข้าสื่อได้" },
+  it: { "Remote image URL": "URL dell’immagine remota", "Import from URL": "Importa da URL", "Importing…": "Importazione…", "Imported image alt text (optional)": "Testo alternativo dell’immagine importata (facoltativo)", "Could not import media.": "Impossibile importare il contenuto multimediale." },
+  hi: { "Remote image URL": "दूरस्थ चित्र का URL", "Import from URL": "URL से आयात करें", "Importing…": "आयात हो रहा है…", "Imported image alt text (optional)": "आयातित चित्र का वैकल्पिक टेक्स्ट (वैकल्पिक)", "Could not import media.": "मीडिया आयात नहीं हो सका।" },
+  ur: { "Remote image URL": "دور دراز تصویر کا URL", "Import from URL": "URL سے درآمد کریں", "Importing…": "درآمد ہو رہا ہے…", "Imported image alt text (optional)": "درآمد شدہ تصویر کا متبادل متن (اختیاری)", "Could not import media.": "میڈیا درآمد نہیں ہو سکا۔" },
+  bn: { "Remote image URL": "দূরবর্তী ছবির URL", "Import from URL": "URL থেকে আমদানি করুন", "Importing…": "আমদানি হচ্ছে…", "Imported image alt text (optional)": "আমদানি করা ছবির বিকল্প টেক্সট (ঐচ্ছিক)", "Could not import media.": "মিডিয়া আমদানি করা যায়নি।" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
-    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}) },
+    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}), ...(MEDIA_IMPORT_STRINGS[locale] ?? {}) },
   ]),
 );
 

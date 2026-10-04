@@ -27,6 +27,7 @@ import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "../../components/TabBar";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { RemoteImageImport } from "./RemoteImageImport";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -1136,6 +1137,7 @@ function MediaLibraryPanel(
         t={t}
       />
 
+      <RemoteImageImport t={t} />
       <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
 
       {/* `key` on `EditMediaPanel` INSIDE `EditMediaModal` (2026-08-12 audit round 2, blocker F1 —
