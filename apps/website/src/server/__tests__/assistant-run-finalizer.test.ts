@@ -292,11 +292,15 @@ test("a run that goes quiet right after a frame the interval skipped still gets 
   let armed!: () => void;
   const trailingArmed = new Promise<void>((resolve) => { armed = resolve; });
   const fakeTimeout = globalThis.setTimeout;
-  const timerSpy = t.mock.method(globalThis, "setTimeout", (...args: Parameters<typeof setTimeout>) => {
+  // A plain swap, not `t.mock.method`: the test context restores its method mocks again when the
+  // test ends, AFTER `t.mock.timers.reset()` below, and that second restore puts the mock-timers
+  // `setTimeout` back on `globalThis` for every later test in this file — their reconnect `delay`
+  // then never fires and each one hangs to its timeout.
+  globalThis.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
     const timer = fakeTimeout(...args);
     if (args[1] === 40) armed();
     return timer;
-  });
+  }) as typeof setTimeout;
   try {
     stream.push(text("Still "));
     await bounded(first);
@@ -312,7 +316,7 @@ test("a run that goes quiet right after a frame the interval skipped still gets 
     assert.equal(running.runStatus, "running");
     assert.equal(running.content, "Still writ", "the quiet run's last frame must be persisted before termination");
   } finally {
-    timerSpy.mock.restore();
+    globalThis.setTimeout = fakeTimeout;
     t.mock.timers.reset();
     stream.close();
     await finalizer.idle();
@@ -412,23 +416,29 @@ test("on boot, turns stuck at running or queued are marked canceled with the pla
   // Seeded under some other admin: the repair spans every owner.
   const store = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: "another-admin" });
   await store.create({ id: "c-old" });
-  await store.appendMessage("c-old", { id: "u1", role: "user", content: "hi" });
-  await store.appendMessage("c-old", {
-    id: "a1",
-    role: "assistant",
-    content: "Partial",
-    events: [{ kind: "text", text: "Partial" }],
-    runId: "dead-run",
-    runStatus: "running",
+  await store.appendMessage({ conversationId: "c-old", message: { id: "u1", role: "user", content: "hi" } });
+  await store.appendMessage({
+    conversationId: "c-old",
+    message: {
+      id: "a1",
+      role: "assistant",
+      content: "Partial",
+      events: [{ kind: "text", text: "Partial" }],
+      runId: "dead-run",
+      runStatus: "running",
+    },
   });
-  await store.appendMessage("c-old", { id: "a2", role: "assistant", content: "", runId: "byok:x", runStatus: "queued" });
-  await store.appendMessage("c-old", {
-    id: "a3",
-    role: "assistant",
-    content: "Done",
-    events: [{ kind: "text", text: "Done" }],
-    runId: "fine-run",
-    runStatus: "succeeded",
+  await store.appendMessage({ conversationId: "c-old", message: { id: "a2", role: "assistant", content: "", runId: "byok:x", runStatus: "queued" } });
+  await store.appendMessage({
+    conversationId: "c-old",
+    message: {
+      id: "a3",
+      role: "assistant",
+      content: "Done",
+      events: [{ kind: "text", text: "Done" }],
+      runId: "fine-run",
+      runStatus: "succeeded",
+    },
   });
 
   // Building the routes is "boot" for this module; the repair must be done before anything is served.
@@ -437,7 +447,7 @@ test("on boot, turns stuck at running or queued are marked canceled with the pla
   // Any chat route answers only once the async repair has finished.
   assert.equal((await api(baseUrl, cookie, "")).status, 200);
 
-  const messages = (await store.messages("c-old")) as SavedMessage[];
+  const messages = (await store.messages({ conversationId: "c-old" })) as SavedMessage[];
   const byId = new Map(messages.map((m) => [m.id, m]));
   assert.equal(messages.length, 4, "no row may be deleted");
 
