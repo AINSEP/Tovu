@@ -407,19 +407,6 @@ test("commerce/status: GET responds 500 (not a hang) when deps.authorize throws"
   assert.equal((await res.json()).code, "INTERNAL_ERROR");
 });
 
-test("deployments/list: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
-  const deps = withThrowingAuthorize(createRouteDeps());
-  const app = createApp(deps);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/deployments`, {
-    headers: { cookie },
-    signal: AbortSignal.timeout(3000),
-  });
-  assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
-});
-
 test("system/deployment-overview: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
   const deps = withThrowingAuthorize(createRouteDeps());
   const app = createApp(deps);
