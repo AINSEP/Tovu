@@ -181,10 +181,8 @@ test("a built-in policy refuses permission removal with exact VALIDATION_ERROR t
   assert.equal(res.status, 400);
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(body.code, "VALIDATION_ERROR");
-  assert.equal(
-    body.error,
-    "cannot remove a permission from a built-in or frozen policy (INV-06/AC-26)"
-  );
+  // Jini keeps spec ids out of caller-facing text (owner decision INV-06, see 8995108cc).
+  assert.equal(body.error, "cannot remove a permission from a built-in or frozen policy");
 });
 
 test("both new policy-permission routes require authentication (401)", async (t) => {
