@@ -26,16 +26,20 @@ import { seededPosts, seededPresentation, seededWorkspace } from "../configurati
  */
 export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
   let db = openSqliteContentConnection(dbPath);
+  // Tracked here rather than read off the native handle: the restore closes it mid-sequence.
+  let open = true;
   try {
     const recovery = await recoverIncompleteDataModuleMigrations({
       store: db,
       restoreSnapshots: (entries) => {
         closeSqliteConnection(db);
+        open = false;
         restoreSqliteSnapshots(dbPath, entries);
       },
     });
     if (recovery.recovered > 0) {
       db = openSqliteContentConnection(dbPath);
+      open = true;
       for (const entry of recovery.entries) {
         console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
       }
@@ -47,7 +51,7 @@ export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.
-    if (db.$client.open) closeSqliteConnection(db);
+    if (open) closeSqliteConnection(db);
     throw error;
   }
 }
