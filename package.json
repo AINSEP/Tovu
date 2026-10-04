@@ -78,7 +78,6 @@
     "setup": "npm install && npm run admin:install && npm run admin:build",
     "theme": "tsx development/scripts/theme-tool.ts",
     "agent-plugin:package": "tsx development/scripts/package-agent-plugin.ts",
-    "agent-plugin:install": "tsx development/scripts/install-agent-plugin.ts",
     "agent-plugin:activation": "tsx development/scripts/agent-plugin-activation.ts",
     "ci:local": "bash development/scripts/ci-local.sh",
     "ci:local:tests": "bash development/scripts/ci-local.sh --with-tests",
@@ -98,6 +97,7 @@
     }
   },
   "dependencies": {
+    "@jini-ai/agent-plugins": "^0.4.0",
     "@jini-ai/oauth": "^0.2.0",
     "@ag-ui/core": "0.0.58",
     "@ag-ui/encoder": "0.0.58",
