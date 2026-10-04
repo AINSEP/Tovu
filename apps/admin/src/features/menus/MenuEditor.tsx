@@ -1,11 +1,13 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuTarget } from "../../lib/api";
+import type { AdminMenuItem, AdminMenuItemAttrs } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";
-
-type AdminMenuTargetKind = AdminMenuTarget["kind"];
+import { MenuPageLinkFields } from "./MenuPageLinkFields";
+import type { MenuPageChoice } from "./page-link-rules";
+import { useMenuTargetEditor } from "./MenuPageLinkFields.hooks";
+export { targetForKind } from "./page-link-rules";
 
 /**
  * @file Per-menu tree editor (ADR-029 whole-tree replace) — markup only.
@@ -15,9 +17,10 @@ type AdminMenuTargetKind = AdminMenuTarget["kind"];
  * No drag-and-drop.
  *
  * Every piece of state and every API call lives in `hooks/use-menu-editor.hooks.ts`; see that
- * file's header for why. What stays here is `ItemRow` and its pure helper (`targetForKind`) plus
+ * file's header for why. What stays here is `ItemRow` plus
  * `MenuItemTargetFields`/`MenuItemAttrsFields` — presentation concerns invoked directly from
- * `ItemRow`'s own markup, not part of the hook's state transitions. `ItemRow`'s Remove-button
+ * `ItemRow`'s own markup, not part of the hook's state transitions. Target reshaping now lives in
+ * `page-link-rules.ts` and `MenuPageLinkFields.hooks.ts`. `ItemRow`'s Remove-button
  * confirmation logic (`countDescendants` included) lives in the colocated `MenuEditor.hooks.tsx`
  * instead — see that file's header for why.
  *
@@ -68,25 +71,11 @@ function attrsOrDefaults(attrs: AdminMenuItemAttrs | undefined): Required<AdminM
   };
 }
 
-export function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
-  const { kind, prev } = required;
-  switch (kind) {
-    case "url":
-      return { kind, href: orEmpty(prev.href) };
-    case "route":
-      return { kind, route: orEmpty(prev.route) };
-    case "entryRef":
-      return { kind, entryId: orEmpty(prev.entryId) };
-    case "termRef":
-      return { kind, termId: orEmpty(prev.termId), taxonomy: orEmpty(prev.taxonomy) };
-  }
-}
-
 /**
  * The target-kind-specific field(s) — URL/Route/Entry each show one input, Term shows two.
  * Extracted out of `ItemRow`'s four `item.target.kind === "…" ? (...) : null` blocks (its entire
  * branch count beyond the label field and the children map) into a `switch` over the same
- * `AdminMenuTargetKind` union `targetForKind` above already switches on — same convention, and
+ * target-kind union `targetForKind` (now re-exported from rules) switches on — same convention, and
  * unlike an if/else-if chain a `switch`'s cases don't nest, which is what keeps this low under
  * cognitive complexity too. Uses {@link orEmpty} for the same reason `targetForKind` above does —
  * see that function's doc.
@@ -232,6 +221,7 @@ export function MenuItemAttrsFields({
 }
 
 function ItemRow(props: {
+  pages?: readonly MenuPageChoice[];
   item: AdminMenuItem;
   path: number[];
   onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
@@ -240,8 +230,9 @@ function ItemRow(props: {
   onMove: (path: number[], direction: -1 | 1) => void;
   t: Translate;
 }) {
-  const { item, path, onChange, onRemove, onAddChild, onMove, t } = props;
+  const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
   const { handleRemoveClick } = useMenuItemRemove(item, path, onRemove);
+  const targetController = useMenuTargetEditor({ item, path, onChange });
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
@@ -262,21 +253,19 @@ function ItemRow(props: {
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Link type")}</span>
           <select
-            value={item.target.kind}
-            onChange={(e) =>
-              onChange(path, (it) => ({
-                ...it,
-                target: targetForKind({ kind: e.target.value as AdminMenuTargetKind, prev: it.target }),
-              }))
-            }
+            value={targetController.kind}
+            onChange={targetController.selectType}
           >
             <option value="url">{t("URL")}</option>
             <option value="route">{t("Route")}</option>
+            <option value="page">{t("Page")}</option>
             <option value="entryRef">{t("Entry")}</option>
             <option value="termRef">{t("Term")}</option>
           </select>
         </label>
-        <MenuItemTargetFields item={item} path={path} onChange={onChange} t={t} />
+        {targetController.isPage
+          ? <MenuPageLinkFields item={item} path={path} pages={pages} onChange={onChange} t={t} />
+          : <MenuItemTargetFields item={item} path={path} onChange={onChange} t={t} />}
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
             and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}
         <button className="tb-btn" onClick={() => onMove(path, -1)} title={t("Move up")} aria-label={t("Move item up")}>
@@ -320,6 +309,7 @@ function ItemRow(props: {
           onAddChild={onAddChild}
           onMove={onMove}
           t={t}
+          pages={pages}
         />
       ))}
     </div>
@@ -336,6 +326,7 @@ export interface MenuEditorProps {
 
 export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: MenuEditorProps) {
   const {
+    pageChoices,
     copyHtmlEmbed,
     copyFeedback,
     isNew,
@@ -456,6 +447,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
             onAddChild={addChildAt}
             onMove={moveAt}
             t={t}
+            pages={pageChoices}
           />
         ))}
         {/* Secondary, not bare/primary — Save in the header is this screen's one primary action;

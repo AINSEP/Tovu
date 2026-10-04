@@ -193,6 +193,7 @@ import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plug
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
+import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
 import {
@@ -1540,6 +1541,8 @@ async function composeSiteRouteDeps(
   // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
   // (see `navigation/read-model.ts`'s file header).
   wireCoreResolvers({
+    // postRepo is constructed below; defer its capture until an actual widget render.
+    resolveMenuTargetHref: (required, optional = {}) => createMenuPageTargetResolver({ postRepo })(required, optional),
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo,

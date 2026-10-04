@@ -27,6 +27,7 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-a
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { adaptFormSubmissionRepo, type FormSubmissionRepoPort } from "./ports.js";
+import { htmlSubmissionDefinition } from "./html-submission-adapter.js";
 
 /** Existing host ports; the package receives an explicitly bound background dispatcher. */
 export interface SubmitFormDeps {
@@ -53,7 +54,17 @@ export function submitForm(
 ): Promise<{ status: "accepted" }> {
   return submitPackageForm({
     deps: {
-      definitionRepo: deps.definitionRepo,
+      definitionRepo: {
+        findById: (target) => deps.definitionRepo.findById(target),
+        findBySlug: async (target) => {
+          const definition = await deps.definitionRepo.findBySlug(target);
+          return definition ? htmlSubmissionDefinition({ definition, body: input.body }) : null;
+        },
+        list: (target) => deps.definitionRepo.list(target),
+        isSlugTaken: (target) => deps.definitionRepo.isSlugTaken(target),
+        create: (record) => deps.definitionRepo.create(record),
+        update: (record) => deps.definitionRepo.update(record),
+      },
       submissionRepo: adaptFormSubmissionRepo({ repo: deps.submissionRepo }),
       outbox: deps.outbox,
       clock: deps.clock,

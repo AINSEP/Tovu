@@ -9,6 +9,7 @@ import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
+import { hasPageLinks, type MenuPageChoice } from "../page-link-rules";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
@@ -130,6 +131,7 @@ interface MenuFormState {
 }
 
 export interface MenuEditorController {
+  pageChoices?: MenuPageChoice[];
   copyHtmlEmbed: () => Promise<void>;
   copyFeedback: string | null;
   isNew: boolean;
@@ -172,6 +174,16 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [items, setItems] = useState<AdminMenuItem[]>([]);
+  const [pageChoices, setPageChoices] = useState<MenuPageChoice[] | undefined>();
+  const needsPages = hasPageLinks({ items });
+  useEffect(() => {
+    setPageChoices(undefined);
+    if (!needsPages || !port.listPages) return;
+    let cancelled = false;
+    port.listPages({}).then(({ pages }) => { if (!cancelled) setPageChoices(pages); })
+      .catch(() => { if (!cancelled) setPageChoices(undefined); });
+    return () => { cancelled = true; };
+  }, [needsPages, port, menuId]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -323,6 +335,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   }
 
   return {
+    pageChoices,
     copyHtmlEmbed,
     copyFeedback,
     isNew,

@@ -1,7 +1,7 @@
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import type { EntryListPort } from "../../entries/index.js";
 import type { FormDefinitionRepoPort } from "../../forms/index.js";
-import type { NavMenuReadModel } from "../../navigation/index.js";
+import type { NavMenuReadModel, ResolveTargetHrefFn } from "../../navigation/index.js";
 import type { WidgetResolver, WidgetTypeKey } from "../types.js";
 import { createContactFormResolver } from "./contact-form.js";
 import { createMenuResolver } from "./menu.js";
@@ -18,6 +18,7 @@ import { createRecentEntriesResolver, type ContentTypeLookup } from "./recent-en
  * test would otherwise need to construct.
  */
 export interface CoreResolverDeps {
+  resolveMenuTargetHref?: ResolveTargetHrefFn;
   /** Widened by collections plan R1 with `EntryDisplayListPort` — the `recent-entries` widget's
    * "Collection list" mode shares `EntryDisplayListPort.listPublishedForDisplay` with the
    * `{"type":"collection"}` marker (C2). Widened again by review fix 3b with
@@ -35,7 +36,7 @@ export interface CoreResolverDeps {
 export function createCoreResolvers(deps: CoreResolverDeps): Partial<Record<WidgetTypeKey, WidgetResolver>> {
   return {
     "recent-entries": createRecentEntriesResolver({ entryList: deps.entryList, contentTypes: deps.contentTypes }),
-    menu: createMenuResolver({ navMenuReadModel: deps.navMenuReadModel }),
+    menu: createMenuResolver({ navMenuReadModel: deps.navMenuReadModel, resolveTargetHref: deps.resolveMenuTargetHref, publicOnly: true }),
     "contact-form": createContactFormResolver({ formDefinitionRepo: deps.formDefinitionRepo }),
   };
 }

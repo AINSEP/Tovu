@@ -726,6 +726,7 @@ function namespaceList(
           <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
             <div className="taxonomy-namespace-group-header">
               <h2>{group.taxonomy.name}</h2>
+              <div className="page-actions">
               <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
               <TaxonomyRowMenu
                 portalContainer={menuPortalContainer}
@@ -740,6 +741,7 @@ function namespaceList(
                   },
                 ]}
               />
+              </div>
             </div>
             {deleteState.deleteTaxonomyBlocked?.taxonomyId === group.taxonomy.id ? (
               <p className="notice error" role="alert">

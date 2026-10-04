@@ -16,6 +16,7 @@ import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
 import { openSiteContentDb } from "./open-site-content-db.js";
+import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
 import { resolvePostgresConnectionString } from "./storage-secret.js";
 
 /**
@@ -215,6 +216,7 @@ async function preparePgStore(required: {
     await migrateContentDatabase(base);
     await migrateChatDatabase(base);
     await prepareContentStore(content, { seed });
+    await migrateFooterPageLinks({ kernel: content });
   } catch (err) {
     await close();
     throw err;

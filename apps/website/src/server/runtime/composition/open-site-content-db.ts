@@ -8,6 +8,7 @@ import {
   openSqliteContentConnection,
 } from "#src/platform/db/sqlite/content-db";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
+import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
 
 /**
  * @file The site's content.db, opened the way every boot path of the composition root needs it:
@@ -48,6 +49,7 @@ export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
     await prepareContentStore(contentKernel(db), {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });
+    await migrateFooterPageLinks({ kernel: contentKernel(db) });
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.

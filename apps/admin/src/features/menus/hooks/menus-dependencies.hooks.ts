@@ -13,6 +13,7 @@ import type { MenusPort } from "./menus-port.hooks";
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies
  *  .hooks.ts`'s `defaultRedirectsPort`. */
 export const defaultMenusPort: MenusPort = {
+  listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status })) }),
   listMenus: () => api.listMenus(),
   getMenu: (id) => api.getMenu(id),
   createMenu: (input, options) => api.createMenu(input, options),

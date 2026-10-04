@@ -80,8 +80,9 @@ test("reserved names and multi-valued/file controls cannot become scalar submiss
 });
 
 
-test("malformed outer closers cannot terminate the server wrapper; checkbox POST uses the boolean wire value", () => {
+test("malformed outer closers cannot terminate the server wrapper; authored checkbox values survive", () => {
   const authored = deriveHtmlForm({ html: '</form><label>Accept<input type="checkbox" name="accept" value="yes"></label>' });
-  assert.doesNotMatch(authored.html, /<\/form>|value="yes"/);
+  assert.doesNotMatch(authored.html, /<\/form>/);
+  assert.match(authored.html, /value="yes"/);
   assert.equal(authored.fields[0].type, "checkbox");
 });

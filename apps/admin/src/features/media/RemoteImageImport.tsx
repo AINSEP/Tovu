@@ -14,7 +14,7 @@ export function RemoteImageImport(props: { t: (key: string) => string; dependenc
         {...agentHandle({ handle: "media-import-url" }, { role: "field", label: props.t("Remote image URL") })} />
       {/* Its own name: the upload row's alt field already owns "Alt text (optional)" on this screen. */}
       <input value={controller.alt} onChange={(event) => controller.setAlt(event.currentTarget.value)} disabled={controller.pending}
-        placeholder={props.t("Imported image alt text (optional)")} aria-label={props.t("Imported image alt text (optional)")}
+        placeholder={props.t("Alt text (optional)")} aria-label={props.t("Imported image alt text (optional)")}
         {...agentHandle({ handle: "media-import-alt" }, { role: "field", label: props.t("Imported image alt text (optional)") })} />
       <button type="button" onClick={controller.submit} disabled={!controller.canSubmit}
         {...agentHandle({ handle: "media-import-submit" }, { role: "button", label: props.t("Import from URL") })}>

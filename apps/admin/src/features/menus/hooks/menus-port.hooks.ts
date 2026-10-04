@@ -1,4 +1,5 @@
 import type { AdminMenu, AdminMenuItem } from "@/lib/api";
+import type { MenuPageChoice } from "../page-link-rules";
 
 /**
  * @file What `use-menu-editor.hooks.ts` and `use-menus.hooks.ts` need from the outside world, as
@@ -21,6 +22,7 @@ import type { AdminMenu, AdminMenuItem } from "@/lib/api";
  * here.
  */
 export interface MenusPort {
+  listPages?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<{ pages: MenuPageChoice[] }>;
   listMenus(): Promise<{ menus: AdminMenu[] }>;
   getMenu(id: string): Promise<{ menu: AdminMenu }>;
   createMenu(input: { title: string; slug: string }, options: { items?: AdminMenuItem[] }): Promise<{ menu: AdminMenu }>;

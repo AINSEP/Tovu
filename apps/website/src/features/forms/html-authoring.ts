@@ -1,6 +1,6 @@
 /** HTML authoring adapter. Unsanitized, admin/owner trusted markup, like HTML Pages.
  * parse5 supplies real HTML semantics (comments/scripts are never mistaken for inputs).
- * Prototype belongs in @jini-ai/cms-forms later; Jini is read-only for this dispatch. */
+ * Prototype belongs in @jini-ai/cms-forms later; its published release lacks HTML authoring. */
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
 import { FormFieldValidationError, type FieldDescriptor, type FormDefinitionRecord } from "@jini-ai/cms-forms";
 
@@ -8,6 +8,7 @@ type Node = DefaultTreeAdapterMap["childNode"];
 type Element = DefaultTreeAdapterMap["element"];
 export type FormAuthoring = { mode?: "builder" | "html"; html?: string };
 export type HtmlFormDefinitionRecord = FormDefinitionRecord & FormAuthoring;
+type HtmlFieldDescriptor = FieldDescriptor & { checkboxValue?: string };
 
 function invalid(reason: string): never {
   throw new FormFieldValidationError({ message: reason, fieldErrors: [{ field: "html", reason }] });
@@ -43,6 +44,23 @@ function labelText(node: Element): string {
   return text.trim();
 }
 
+/** Keep the author's required-attribute spelling while retaining parser normalization that
+ * discards dangling outer form closers. Both attribute ranges come from parse5, not a regex
+ * that could mistake a script string for a control. No attribute value is synthesized here. */
+function serializeAuthoredRequired({ fragment, html }: { fragment: DefaultTreeAdapterMap["documentFragment"]; html: string }): string {
+  const required = elements(fragment.childNodes).filter((element) => attr(element, "required") !== undefined)
+    .map((element) => element.sourceCodeLocation?.attrs?.required)
+    .map((location) => location ? html.slice(location.startOffset, location.endOffset) : undefined);
+  let output = serialize(fragment);
+  const generated = elements(parseFragment(output, { sourceCodeLocationInfo: true }).childNodes)
+    .filter((element) => attr(element, "required") !== undefined);
+  for (let index = generated.length - 1; index >= 0; index--) {
+    const location = generated[index].sourceCodeLocation?.attrs?.required;
+    if (location && required[index]) output = output.slice(0, location.startOffset) + required[index] + output.slice(location.endOffset);
+  }
+  return output;
+}
+
 /** Derives the submission allowlist at save time and removes server-owned transport overrides.
  * Parsing normalizes HTML syntax; scripts and authored styling remain unsanitized. */
 export function deriveHtmlForm(
@@ -50,7 +68,7 @@ export function deriveHtmlForm(
   _optional: Record<string, never> = {},
 ): { mode: "html"; html: string; fields: FieldDescriptor[] } {
   if (typeof html !== "string" || html.length > 200_000) invalid("HTML must be a string of at most 200000 characters");
-  const fragment = parseFragment(html);
+  const fragment = parseFragment(html, { sourceCodeLocationInfo: true });
   const all = elements(fragment.childNodes);
   const forms = all.filter((element) => element.tagName === "form");
   if (forms.length > 1) invalid("Use a form body or one outer form wrapper");
@@ -61,7 +79,7 @@ export function deriveHtmlForm(
     parent.childNodes.splice(index, 1, ...form.childNodes);
     for (const child of form.childNodes) child.parentNode = parent;
   }
-  const fields = new Map<string, FieldDescriptor>();
+  const fields = new Map<string, HtmlFieldDescriptor>();
   const labels = all.filter((element) => element.tagName === "label");
   for (const element of all) {
     // A submit button's overrides or a control's `form` attribute must not bypass our endpoint.
@@ -91,10 +109,9 @@ export function deriveHtmlForm(
       }
       invalid(`Duplicate field name '${name}'`);
     }
-    if (inputType === "checkbox") {
-      // Jini stores checkboxes as booleans; native POST must use its accepted "on" wire value.
-      element.attrs = element.attrs.filter((attribute) => attribute.name !== "value");
-    }
+    // Earlier Jini releases stored only boolean checkboxes and forced the native "on" wire value.
+    // Record attribute presence instead: authored strings survive while no-value boxes stay boolean.
+    const checkboxValue = inputType === "checkbox" ? attr(element, "value") : undefined;
     const id = attr(element, "id");
     const parentLabel = element.parentNode && "tagName" in element.parentNode && element.parentNode.tagName === "label"
       ? element.parentNode : undefined;
@@ -105,12 +122,13 @@ export function deriveHtmlForm(
       label: label ? labelText(label) || name : attr(element, "aria-label") || name,
       type: element.tagName === "textarea" ? "textarea" : inputType === "email" ? "email" : inputType === "checkbox" ? "checkbox" : "text",
       required: attr(element, "required") !== undefined,
+      ...(checkboxValue !== undefined ? { checkboxValue } : {}),
       ...(maxLength !== undefined ? { maxLength: Number(maxLength) } : {}),
     });
   }
   // Re-serialization also discards ignored/dangling </form> tokens: they must never close our
   // server-owned wrapper early. Raw-text script contents are preserved by the HTML serializer.
-  return { mode: "html", html: serialize(fragment), fields: [...fields.values()] };
+  return { mode: "html", html: serializeAuthoredRequired({ fragment, html }), fields: [...fields.values()] };
 }
 
 /** Old rows remain arrays; authored forms use the same JSON-in-text column, without a migration. */

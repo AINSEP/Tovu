@@ -1156,4 +1156,32 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
  *  feature's own hook/`Menus.tsx` header), but the fallback this fixed still matters for every key
  *  this dict doesn't carry per-locale. `createDictionaryTranslator` falls through to `COMMON_I18N`
  *  before the raw English key, same as `trash-i18n.ts`. */
+/** Page references reuse entryRef; these labels expose pages by title rather than their ids. */
+const PAGE_LINK_COPY: Record<string, readonly [string, string, string]> = {
+  "es": ["Página","Elige una página…","Página no publicada"],
+  "id": ["Halaman","Pilih halaman…","Halaman belum diterbitkan"],
+  "de": ["Seite","Seite auswählen…","Seite nicht veröffentlicht"],
+  "zh-CN": ["页面","选择页面…","页面未发布"],
+  "zh-TW": ["頁面","選擇頁面…","頁面未發佈"],
+  "pt-BR": ["Página","Escolha uma página…","Página não publicada"],
+  "ru": ["Страница","Выберите страницу…","Страница не опубликована"],
+  "fa": ["صفحه","یک صفحه انتخاب کنید…","صفحه منتشر نشده است"],
+  "ar": ["صفحة","اختر صفحة…","الصفحة غير منشورة"],
+  "ja": ["ページ","ページを選択…","ページは未公開です"],
+  "ko": ["페이지","페이지 선택…","게시되지 않은 페이지"],
+  "pl": ["Strona","Wybierz stronę…","Strona nieopublikowana"],
+  "hu": ["Oldal","Válasszon oldalt…","Az oldal nincs közzétéve"],
+  "fr": ["Page","Choisissez une page…","Page non publiée"],
+  "uk": ["Сторінка","Виберіть сторінку…","Сторінка не опублікована"],
+  "tr": ["Sayfa","Bir sayfa seçin…","Sayfa yayımlanmamış"],
+  "th": ["หน้า","เลือกหน้า…","หน้ายังไม่ได้เผยแพร่"],
+  "it": ["Pagina","Scegli una pagina…","Pagina non pubblicata"],
+  "hi": ["पृष्ठ","कोई पृष्ठ चुनें…","पृष्ठ प्रकाशित नहीं है"],
+  "ur": ["صفحہ","ایک صفحہ منتخب کریں…","صفحہ شائع نہیں ہوا"],
+  "bn": ["পৃষ্ঠা","একটি পৃষ্ঠা বেছে নিন…","পৃষ্ঠা প্রকাশিত হয়নি"],
+};
+for (const [locale, copy] of Object.entries(PAGE_LINK_COPY)) {
+  const [page, choosePage, unpublished] = copy;
+  Object.assign(MENUS_DICT[locale], { "Page": page, "Choose a page…": choosePage, "Page not published": unpublished });
+}
 export const t = createDictionaryTranslator(MENUS_DICT);

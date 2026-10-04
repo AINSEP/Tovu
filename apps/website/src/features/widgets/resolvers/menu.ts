@@ -16,7 +16,7 @@ import type { WidgetResolveResult, WidgetResolver } from "../types.js";
  * is the one exported entry point to their behavior, added specifically so this resolver would not
  * need either an export-widening of those internals or a location-shaped call it doesn't have.
  *
- * DISCLOSED REMAINING LIMITATION: real href resolution for non-`url` targets (`entryRef`/`termRef`/
+ * Historical limitation (retained to explain the fallback): real href resolution for non-`url` targets (`entryRef`/`termRef`/
  * `route`) needs `src/platform/routing` (ADR-039), which is being built in parallel and is not running code
  * yet anywhere in this codebase — not even `navigation`'s own production callers have a real
  * `ResolveTargetHrefFn` today (`resolveForLocation` takes it as an injected dependency precisely so
@@ -28,20 +28,29 @@ import type { WidgetResolveResult, WidgetResolver } from "../types.js";
  * `navigation/resolver.ts`'s own doc describes for "cannot resolve" — swap the placeholder for the
  * real routing-backed implementation in one place (`DEFAULT_RESOLVE_TARGET_HREF` below) once
  * `src/platform/routing` ships; no other change needed here.
+ * 2026-10-04: runtime roots now inject the routing-backed page/entry resolver. The default remains
+ * useful for diagnostics; public widget assembly omits unavailable leaves while retaining parents
+ * that still contain visible descendants, matching the static menu's availability contract.
  */
 export interface MenuResolverDeps {
   navMenuReadModel: NavMenuReadModel;
-  /** Overridable for tests / once `src/platform/routing` (ADR-039) lands; defaults to the honest placeholder documented above. */
+  /** Public widgets omit unavailable leaves; diagnostics may retain the complete resolved tree. */
+  publicOnly?: boolean;
+  /** Host routing injection; callers without it retain the diagnostic placeholder documented above. */
   resolveTargetHref?: ResolveTargetHrefFn;
 }
 
-/** `src/platform/routing` (ADR-039) is not running code yet — every non-`url` target is "cannot resolve" today, system-wide. */
+/** Before host routing was wired every non-URL target was unresolved; retain that safe null fallback. */
 const DEFAULT_RESOLVE_TARGET_HREF: ResolveTargetHrefFn = async () => null;
 
-function toMenuItemProps(items: readonly ResolvedNavItem[]): JsonObject {
+function toMenuItemProps(items: readonly ResolvedNavItem[], publicOnly: boolean): JsonObject {
   // Cast: ResolvedNavItem is a plain, JSON-serializable read model (navigation/types.ts) with no
   // index signature of its own — the resolved IR contract only requires structural JSON-compatibility.
-  return items as unknown as JsonObject;
+  const visible = publicOnly ? items.flatMap((item) => {
+    const children = toMenuItemProps(item.children, true) as unknown as ResolvedNavItem[];
+    return item.available || children.length ? [{ ...item, children }] : [];
+  }) : items;
+  return visible as unknown as JsonObject;
 }
 
 export function createMenuResolver(deps: MenuResolverDeps): WidgetResolver {
@@ -71,7 +80,7 @@ export function createMenuResolver(deps: MenuResolverDeps): WidgetResolver {
 
         results.set(instance.id, {
           ok: true,
-          ir: { componentId: "menu", props: { title: menu.title, items: toMenuItemProps(items) } },
+          ir: { componentId: "menu", props: { title: menu.title, items: toMenuItemProps(items, deps.publicOnly === true) } },
           dependencyKeys: [menu.id],
         });
       }

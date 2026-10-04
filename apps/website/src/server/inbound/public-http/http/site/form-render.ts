@@ -23,6 +23,7 @@
  */
 
 import { escapeHtml } from "#src/platform/html/escape";
+import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
@@ -349,11 +350,11 @@ function showFormErrorSummary(formHtml: string, slugPattern: string, message: st
  *  a partial-corruption risk. `.widget-form-field`/`.widget-form-field-error` are already
  *  form-generic class names (not `contact-form`-specific), so no change was needed here for the
  *  2026-08-31 generalization beyond moving the function. */
-function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: string; reason: string }>): string {
-  return fieldErrors.reduce((updated, { field, reason }) => {
+function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: string; message: string }>): string {
+  return fieldErrors.reduce((updated, { field, message }) => {
     const fieldPattern = escapeForRegExp(escapeHtml(field));
     const fieldErrorRegex = new RegExp(`(<div class="widget-form-field-error" data-field="${fieldPattern}"[^>]*) hidden></div>`, "i");
-    return updated.replace(fieldErrorRegex, (_match, openTag: string) => `${openTag}>${escapeHtml(reason)}</div>`);
+    return updated.replace(fieldErrorRegex, (_match, openTag: string) => `${openTag}>${escapeHtml(message)}</div>`);
   }, formHtml);
 }
 
@@ -469,12 +470,14 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
   if (result.kind === "success") {
     updatedForm = hideFormElement(originalForm);
   } else if (result.kind === "validation") {
+    const authored = originalForm.includes("data-tovu-form=");
+    const messages = authored
+      ? formValidationMessages({ formHtml: originalForm, errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }], locale: formDocumentLocale({ html }) })
+      : result.fieldErrors.map(({ field, reason }) => ({ field, message: reason }));
     updatedForm = showFormErrorSummary(
-      showFieldValues(showFieldErrors(originalForm, result.fieldErrors), result.values),
+      showFieldValues(showFieldErrors(originalForm, messages), result.values),
       slugPattern,
-      originalForm.includes("data-tovu-form=")
-        ? "Please check your answers. " + result.fieldErrors.map(({ field, reason }) => `${escapeHtml(field)}: ${escapeHtml(reason)}`).join("; ")
-        : "Please fix the highlighted fields below."
+      authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below."
     );
   } else if (result.kind === "rate-limited") {
     const plural = result.retryAfterSeconds === 1 ? "" : "s";
