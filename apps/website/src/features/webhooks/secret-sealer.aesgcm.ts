@@ -100,10 +100,13 @@ export class AesGcmSecretSealer implements SecretSealerPort {
 
   /** Real stores provide their row AAD. Empty AAD retains the historical unbound host-port format;
    * GCM with zero AAD bytes produces the same tag as the original omitted-AAD implementation.
+   * Fields are forwarded explicitly, not spread, so `check:seal-aad`'s AST scan can see this
+   * delegation's `aad` (a spread is fail-closed as unresolved there) and nothing beyond the port's
+   * own three fields ever reaches Jini.
    * @complexity O(plaintext bytes), delegated to Jini AES-GCM.
    */
   seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret> {
-    return this.sealer.seal({ ...input, aad: input.aad ?? "" });
+    return this.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad ?? "" });
   }
 
   /** Move the host AAD field into Jini's optional object; absent AAD opens historical records.
