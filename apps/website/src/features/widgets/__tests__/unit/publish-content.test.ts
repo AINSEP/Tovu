@@ -131,5 +131,6 @@ test("widget-area: a placement naming a widget the destination lacks is blocked 
 
   await assert.rejects(applyReport(report, entities, dst.site), (err: Error & { rowOutcome?: string }) => err.rowOutcome === "blocked");
   assert.equal(await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" }), null);
-  assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID, type: "widget_area" }), []);
+  assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: "widget_area" }), []);
+  assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }), [], "a blocked apply must leave no entries of any type");
 });

@@ -35,6 +35,91 @@ const WORKSPACE_ID = "ws-1";
 const ACTOR = { principalId: "user-1" };
 const HOST_CONTENT_TYPE = "article";
 
+function nestedEmbedDoc({ leaf, depth }: { leaf: unknown; depth: number }, _optional = {}): unknown {
+  let node = leaf;
+  for (let i = 0; i < depth; i++) node = { type: "blockquote", attrs: { level: i }, content: [node] };
+  return { type: "doc", content: [node] };
+}
+
+function nestedLeaf({ body, depth }: { body: unknown; depth: number }, _optional = {}): unknown {
+  let node = (body as { content: unknown[] }).content[0];
+  for (let i = 0; i < depth; i++) {
+    const block = node as { type: string; attrs: { level: number }; content: unknown[] };
+    assert.equal(block.type, "blockquote");
+    assert.deepEqual(block.attrs, { level: depth - i - 1 });
+    assert.equal(block.content.length, 1);
+    node = block.content[0];
+  }
+  return node;
+}
+
+test("containsEmbedWithPlacementId scans a 10000-deep host completely before refusing a missing placement", async () => {
+  const repos = makeSharedRepos();
+  const leaf = { type: "widgetEmbed", attrs: { placementId: "present", widgetEntryId: "widget-leaf" } };
+  const body = nestedEmbedDoc({ leaf, depth: 10000 });
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, body);
+  await assert.rejects(removeWidgetEmbed({ deps: makeDeps(repos), input: {
+    workspaceId: WORKSPACE_ID, actor: { ...ACTOR, kind: "user" }, hostEntryId: host.id,
+    baseVersion: host.version, placementId: "missing",
+  } }), (error: unknown) => error instanceof WidgetEmbedPlacementNotFoundError);
+  const stored = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  assert.equal(stored?.version, host.version);
+  assert.equal(stored?.bodyJson, body, "missing placement never writes or copies the body");
+});
+
+test("removeEmbedByPlacementId removes a deep placement while preserving shape, siblings and the original document", async () => {
+  const repos = makeSharedRepos();
+  const depth = 10000;
+  const paragraph = { type: "paragraph", content: [{ type: "text", text: "keep me" }] };
+  const leaf = { type: "doc", content: [
+    { type: "widgetEmbed", attrs: { placementId: "remove", widgetEntryId: "removed-widget" } },
+    paragraph,
+    { type: "widgetEmbed", attrs: { placementId: "keep", widgetEntryId: "kept-widget" } },
+  ] };
+  const body = nestedEmbedDoc({ leaf, depth });
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, body);
+  const { entry } = await removeWidgetEmbed({ deps: makeDeps(repos), input: {
+    workspaceId: WORKSPACE_ID, actor: { ...ACTOR, kind: "user" }, hostEntryId: host.id,
+    baseVersion: host.version, placementId: "remove",
+  } });
+  assert.equal(entry.version, host.version + 1);
+  assert.deepEqual(nestedLeaf({ body: entry.bodyJson, depth }), { type: "doc", content: [paragraph, leaf.content[2]] });
+  assert.equal(nestedLeaf({ body, depth }), leaf);
+  assert.equal(leaf.content.length, 3, "inverse/revision input must remain unchanged");
+  const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
+  assert.deepEqual(refs.map((ref) => ref.targetId), ["kept-widget"]);
+});
+
+test("reorderEmbedSlots walks a 10000-deep host in document order and keeps every surrounding node", async () => {
+  const repos = makeSharedRepos();
+  const depth = 10000;
+  const first = await makeWidgetInstance(repos);
+  const second = await makeWidgetInstance(repos);
+  const paragraph = { type: "paragraph", content: [{ type: "text", text: "keep me" }] };
+  const leaf = { type: "doc", content: [
+    { type: "widgetEmbed", attrs: { placementId: "old-first", widgetEntryId: first } },
+    paragraph,
+    { type: "widgetEmbed", attrs: { placementId: "old-second", widgetEntryId: second } },
+  ] };
+  const body = nestedEmbedDoc({ leaf, depth });
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, body);
+  let placement = 0;
+  const { entry } = await reorderWidgetEmbeds({ deps: makeDeps(repos, { ids: { newId: () => `new-placement-${++placement}` } }), input: {
+    workspaceId: WORKSPACE_ID, actor: { ...ACTOR, kind: "user" }, hostEntryId: host.id,
+    baseVersion: host.version, orderedWidgetEntryIds: [second, first],
+  } });
+  assert.equal(entry.version, host.version + 1);
+  assert.deepEqual(nestedLeaf({ body: entry.bodyJson, depth }), { type: "doc", content: [
+    { type: "widgetEmbed", attrs: { placementId: "new-placement-1", widgetEntryId: second } },
+    paragraph,
+    { type: "widgetEmbed", attrs: { placementId: "new-placement-2", widgetEntryId: first } },
+  ] });
+  assert.equal(nestedLeaf({ body, depth }), leaf);
+  assert.deepEqual(leaf.content[0], { type: "widgetEmbed", attrs: { placementId: "old-first", widgetEntryId: first } });
+  const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
+  assert.deepEqual(refs.map((ref) => ref.targetId), [second, first]);
+});
+
 function makeSharedRepos() {
   const trash = memoryWidgetTrash();
   return {

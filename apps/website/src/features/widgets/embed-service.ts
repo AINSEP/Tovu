@@ -150,21 +150,47 @@ function isEmbedWithPlacementId(node: unknown, placementId: UUID): boolean {
 }
 
 /** Whether `removeEmbedByPlacementId` would remove anything — same match, so the two never disagree. */
-function containsEmbedWithPlacementId(node: unknown, placementId: UUID): boolean {
-  if (Array.isArray(node)) return node.some((child) => containsEmbedWithPlacementId(child, placementId));
-  if (isEmbedWithPlacementId(node, placementId)) return true;
-  return isPlainObject(node) && Array.isArray(node.content) && containsEmbedWithPlacementId(node.content, placementId);
+function containsEmbedWithPlacementId({ node: root, placementId }: { node: unknown; placementId: UUID }, _optional = {}): boolean {
+  // Stored/imported nesting is unbounded; keep the complete walk off the JavaScript call stack.
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+    } else if (isEmbedWithPlacementId(node, placementId)) {
+      return true;
+    } else if (isPlainObject(node) && Array.isArray(node.content)) {
+      stack.push(node.content);
+    }
+  }
+  return false;
 }
 
-function removeEmbedByPlacementId(node: unknown, placementId: UUID): unknown {
-  if (Array.isArray(node)) {
-    return node
-      .filter((child) => !isEmbedWithPlacementId(child, placementId))
-      .map((child) => removeEmbedByPlacementId(child, placementId));
+function removeEmbedByPlacementId({ node: root, placementId }: { node: unknown; placementId: UUID }, _optional = {}): unknown {
+  let result: unknown;
+  // Each task assigns one transformed child to its copied parent; no recursive reconstruction
+  // or mutation of the original document (which is also the write's inverse/revision state).
+  const stack: Array<{ node: unknown; assign: (value: unknown) => void }> = [
+    { node: root, assign: (value) => { result = value; } },
+  ];
+  while (stack.length > 0) {
+    const { node, assign } = stack.pop()!;
+    if (Array.isArray(node)) {
+      const children = node.filter((child) => !isEmbedWithPlacementId(child, placementId));
+      const copy: unknown[] = new Array(children.length);
+      assign(copy);
+      for (let i = children.length - 1; i >= 0; i--) {
+        stack.push({ node: children[i], assign: (value) => { copy[i] = value; } });
+      }
+    } else if (isPlainObject(node) && Array.isArray(node.content)) {
+      const copy = { ...node };
+      assign(copy);
+      stack.push({ node: node.content, assign: (value) => { copy.content = value; } });
+    } else {
+      assign(node);
+    }
   }
-  if (!isPlainObject(node)) return node;
-  if (!Array.isArray(node.content)) return node;
-  return { ...node, content: removeEmbedByPlacementId(node.content, placementId) };
+  return result;
 }
 
 /** Reassigns which widget occupies which EXISTING embed slot, in document order, per
@@ -173,18 +199,36 @@ function removeEmbedByPlacementId(node: unknown, placementId: UUID): unknown {
  * their new `widgetEntryId` (a fresh placement identity per REQ-44's "reorder" being a distinct
  * operation from "insert") so `entry_refs` re-extraction after the write reflects the new mapping
  * cleanly rather than aliasing stale target ids to a slot that no longer represents them. */
-function reorderEmbedSlots(node: unknown, cursor: { index: number }, newIds: () => UUID, orderedWidgetEntryIds: readonly UUID[]): unknown {
-  if (Array.isArray(node)) {
-    return node.map((child) => reorderEmbedSlots(child, cursor, newIds, orderedWidgetEntryIds));
+function reorderEmbedSlots({ node: root, newIds, orderedWidgetEntryIds }: {
+  node: unknown;
+  newIds: () => UUID;
+  orderedWidgetEntryIds: readonly UUID[];
+}, _optional = {}): unknown {
+  let result: unknown;
+  let index = 0;
+  const stack: Array<{ node: unknown; assign: (value: unknown) => void }> = [
+    { node: root, assign: (value) => { result = value; } },
+  ];
+  while (stack.length > 0) {
+    const { node, assign } = stack.pop()!;
+    if (Array.isArray(node)) {
+      const copy: unknown[] = new Array(node.length);
+      assign(copy);
+      // Reverse push preserves pre-order, including new placement-id allocation order.
+      for (let i = node.length - 1; i >= 0; i--) {
+        stack.push({ node: node[i], assign: (value) => { copy[i] = value; } });
+      }
+    } else if (isPlainObject(node) && node.type === "widgetEmbed" && isPlainObject(node.attrs)) {
+      assign(widgetEmbedNode(newIds(), orderedWidgetEntryIds[index++]));
+    } else if (isPlainObject(node) && Array.isArray(node.content)) {
+      const copy = { ...node };
+      assign(copy);
+      stack.push({ node: node.content, assign: (value) => { copy.content = value; } });
+    } else {
+      assign(node);
+    }
   }
-  if (!isPlainObject(node)) return node;
-  if (node.type === "widgetEmbed" && isPlainObject(node.attrs)) {
-    const widgetEntryId = orderedWidgetEntryIds[cursor.index];
-    cursor.index += 1;
-    return widgetEmbedNode(newIds(), widgetEntryId);
-  }
-  if (Array.isArray(node.content)) return { ...node, content: reorderEmbedSlots(node.content, cursor, newIds, orderedWidgetEntryIds) };
-  return node;
+  return result;
 }
 
 async function extractAndStoreEmbedRefs(
@@ -510,7 +554,7 @@ export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Pr
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
-    if (!containsEmbedWithPlacementId(host.record.bodyJson, input.placementId)) {
+    if (!containsEmbedWithPlacementId({ node: host.record.bodyJson, placementId: input.placementId })) {
       // C4d fix: `removeEmbedByPlacementId` is a no-op filter — without this check a stale/bogus
       // placementId fell through to `writeHostBody` unchanged and reported success while writing
       // nothing.
@@ -518,7 +562,7 @@ export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Pr
         `no widget embed with placementId '${input.placementId}' was found in host '${input.hostEntryId}'`
       );
     }
-    const nextBodyJson = removeEmbedByPlacementId(host.record.bodyJson, input.placementId);
+    const nextBodyJson = removeEmbedByPlacementId({ node: host.record.bodyJson, placementId: input.placementId });
     assertGuardrails(deps, hostBodyType(host), nextBodyJson);
     const entry =
       host.kind === "entry"
@@ -592,8 +636,7 @@ export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired)
       await assertEmbedTargetIsLiveWidget(deps, input.workspaceId, widgetEntryId);
     }
 
-    const cursor = { index: 0 };
-    const nextBodyJson = reorderEmbedSlots(host.record.bodyJson, cursor, () => deps.ids.newId(), input.orderedWidgetEntryIds);
+    const nextBodyJson = reorderEmbedSlots({ node: host.record.bodyJson, newIds: () => deps.ids.newId(), orderedWidgetEntryIds: input.orderedWidgetEntryIds });
     assertGuardrails(deps, hostBodyType(host), nextBodyJson);
     const entry =
       host.kind === "entry"

@@ -183,6 +183,22 @@ interface SourceRow {
   readonly updatedAt: string;
 }
 
+/** A frozen legacy map is a runtime boundary too: storage can contain an unknown provider even
+ * when the old TypeScript union could not. Refuse it before decryption, backup or any row write,
+ * matching this migration's existing stop-at-first-failure policy. */
+function requireLegacyVendor({ providerId, origin, workspaceId, id, mapping }: {
+  providerId: string;
+  origin: Origin;
+  workspaceId: string;
+  id: string;
+  mapping: Readonly<Record<string, VendorId>>;
+}, _optional = {}): VendorId {
+  if (!Object.hasOwn(mapping, providerId)) {
+    throw new Error(`vendor-credential backfill: unknown legacy provider '${providerId}' for origin=${origin} workspace=${workspaceId} id=${id} — refusing to guess a vendor`);
+  }
+  return mapping[providerId];
+}
+
 /**
  * Every row from both source tables, normalized and merged — `publish_credential_sets` rows FIRST,
  * `source_control_credential_sets` rows second. That order is load-bearing, not incidental: it is
@@ -201,8 +217,8 @@ function loadSourceRows(db: ContentDb): SourceRow[] {
       origin: "publish" as const,
       workspaceId: row.workspaceId,
       id: row.id,
-      // `PublishProviderId` is an open `string` now; this frozen legacy table only ever holds the keys above.
-      vendorId: PUBLISH_PROVIDER_TO_VENDOR[row.providerId as keyof typeof PUBLISH_PROVIDER_TO_VENDOR],
+      // `PublishProviderId` is an open `string` now; validate against this frozen legacy map.
+      vendorId: requireLegacyVendor({ providerId: row.providerId, origin: "publish", workspaceId: row.workspaceId, id: row.id, mapping: PUBLISH_PROVIDER_TO_VENDOR }),
       label: row.label,
       sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
       oldAad: buildPublishCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId as PublishProviderId, id: row.id }),
@@ -220,7 +236,7 @@ function loadSourceRows(db: ContentDb): SourceRow[] {
       origin: "source-control" as const,
       workspaceId: row.workspaceId,
       id: row.id,
-      vendorId: SOURCE_CONTROL_PROVIDER_TO_VENDOR[row.providerId as SourceControlProviderId],
+      vendorId: requireLegacyVendor({ providerId: row.providerId, origin: "source-control", workspaceId: row.workspaceId, id: row.id, mapping: SOURCE_CONTROL_PROVIDER_TO_VENDOR }),
       label: row.label,
       sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
       oldAad: buildSourceControlCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId as SourceControlProviderId, id: row.id }),

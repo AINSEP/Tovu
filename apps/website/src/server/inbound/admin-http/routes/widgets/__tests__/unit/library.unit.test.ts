@@ -107,7 +107,8 @@ test("create rejects missing title or type with the validation envelope and no e
     assert.deepEqual(await invoke("post", "", { body }), { statusCode: 400, jsonBody: {
       error: "widgetType and title are required strings", code: "VALIDATION_ERROR",
     } });
-    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7", type: "widget" }), []);
+    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget" }), []);
+    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }), [], "invalid input must leave no entries of any type");
   }
 });
 test("list and get repository failures map to generic 500", async () => {
@@ -241,5 +242,6 @@ test("remove tool returns WIDGETS_AREA_NOT_FOUND for a binding whose area no lon
     error: "region area entry for 'footer' was not found", code: "WIDGETS_AREA_NOT_FOUND",
   } });
   assert.deepEqual(await deps.widgetBindingRepo.findByRegion({ workspaceId: "ws-7", regionKey: "footer" }), binding);
-  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7", type: "widget_area" }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget_area" }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }), [], "a missing area must leave no entries of any type");
 });

@@ -87,7 +87,8 @@ test("AC-02/REQ-02: creating a recent-entries widget with maxItems above the reg
       }),
     /WidgetConfigValidationError/
   );
-  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: WIDGET_CONTENT_TYPE }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), [], "invalid config must leave no entries of any type");
 });
 
 test("AC-03/REQ-03: creating a widget of an unregistered type is rejected, nothing persisted", async () => {
@@ -107,7 +108,8 @@ test("AC-03/REQ-03: creating a widget of an unregistered type is rejected, nothi
       }),
     /WidgetTypeUnregisteredError/
   );
-  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: WIDGET_CONTENT_TYPE }), []);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), [], "an unregistered widget must leave no entries of any type");
 });
 
 test("AC-04/REQ-06: two concurrent updates against the same baseVersion — exactly one succeeds, the other gets a typed conflict", async () => {
@@ -321,7 +323,10 @@ for (const permission of ["widgets.create", "widgets.update", "widgets.place"] a
     const beforeWidget = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id });
     const beforeArea = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id });
     const beforeBindings = await regionDeps.bindingRepo.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "footer" });
-    const beforeEntries = await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE });
+    const beforeEntries = await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: WIDGET_CONTENT_TYPE });
+    assert.deepEqual(beforeEntries.map((row) => [row.id, row.type]), [[instance.id, WIDGET_CONTENT_TYPE]]);
+    // Keep the original all-types no-write check as well as the intended widget-only check.
+    const beforeAllEntries = await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID });
     const beforeRefs = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: instance.id });
     const calls: unknown[] = [];
     const outboxWrites: unknown[] = [];
@@ -345,7 +350,10 @@ for (const permission of ["widgets.create", "widgets.update", "widgets.place"] a
     assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id }), beforeWidget);
     assert.deepEqual(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id }), beforeArea);
     assert.deepEqual(await regionDeps.bindingRepo.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "footer" }), beforeBindings);
-    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID, type: WIDGET_CONTENT_TYPE }), beforeEntries);
+    const afterEntries = await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: WIDGET_CONTENT_TYPE });
+    assert.deepEqual(afterEntries.map((row) => [row.id, row.type]), [[instance.id, WIDGET_CONTENT_TYPE]]);
+    assert.deepEqual(afterEntries, beforeEntries);
+    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeAllEntries);
     assert.deepEqual(await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: instance.id }), beforeRefs);
     assert.deepEqual(outboxWrites, []);
   });

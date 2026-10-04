@@ -1037,6 +1037,25 @@ function postRecordWithImage(overrides: Partial<PostRecord> = {}): PostRecord {
   });
 }
 
+test("collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing", async () => {
+  let deep: unknown = { type: "media", attrs: { assetId: "asset-1", transformName: CORE_PUBLIC_TRANSFORM_NAME } };
+  for (let i = 0; i < 10000; i++) deep = { type: "blockquote", content: [deep] };
+  const postRepo = new InMemoryPostRepo([postRecordWithImage({ bodyJson: { type: "doc", content: [deep] } as PostRecord["bodyJson"] })]);
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "deep-asset" })] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo: new InMemoryEntryRepo(), postRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.equal(ir.componentId, "post-content");
+  assert.deepEqual(ir.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 3 });
+  assert.deepEqual(ir.props.mediaAssetMetadata, {
+    "asset-1": { width: 900, height: 600, cssClass: "deep-asset", htmlAttributes: null, slug: null, contentType: null },
+  });
+});
+
 test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecordWithImage()]);

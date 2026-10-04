@@ -8,6 +8,41 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+test("backfill-vendor-credentials: unknown legacy providers fail explicitly before dry-run success or writes", (t) => {
+  const scratch = tmpDir("backfill-vendor-credentials-unknown-");
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  for (const origin of ["publish", "source-control"] as const) {
+    for (const providerId of ["unknown-provider", "__proto__", "toString"]) {
+      const dbPath = path.join(scratch, `${origin}-${providerId}.db`);
+      const db = openContentDb(dbPath);
+      db.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+      // Use raw persisted values: a corrupt/legacy row need not obey today's provider union.
+      const table = origin === "publish" ? "publish_credential_sets" : "source_control_credential_sets";
+      db.$client.prepare(`INSERT INTO ${table}
+        (id, workspace_id, provider_id, label, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, is_default, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run("unknown-row", WORKSPACE, providerId, "default", "key", "not-decryptable", "nonce", "aes-256-gcm", 1, NOW, NOW);
+      db.$client.close();
+      for (const extraArgs of [[], ["--apply"]]) {
+        assert.throws(() => runScript(dbPath, undefined, extraArgs), (error: unknown) => {
+          const failure = error as { status?: number; stderr?: string; stdout?: string };
+          assert.equal(failure.status, 1);
+          assert.ok(String(failure.stderr).includes(`unknown legacy provider '${providerId}' for origin=${origin} workspace=${WORKSPACE} id=unknown-row`));
+          assert.doesNotMatch(String(failure.stdout), /vendor=undefined|DRY RUN: would migrate|MIGRATED:|RESTORE POINT CAPTURED/);
+          return true;
+        });
+        const read = new Database(dbPath, { readonly: true });
+        try {
+          assert.equal((read.prepare("SELECT count(*) AS n FROM vendor_credential_sets").get() as { n: number }).n, 0);
+          assert.equal((read.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n, 1, "the source row is retained for repair");
+        } finally {
+          read.close();
+        }
+      }
+    }
+  }
+});
+
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";

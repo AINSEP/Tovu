@@ -23,6 +23,9 @@ import { registerThemePreviewStatic } from "../theme-preview-static.js";
 function withTempApp(fn: (baseUrl: string) => Promise<void>, themesStaticDir: string): Promise<void> {
   const app = express();
   registerThemePreviewStatic(app, { themesStaticDir });
+  // Express's default finalhandler supplies its own CSP on 404 and overwrites the mount's CSP.
+  // End fallthrough explicitly so these assertions measure the preview middleware's headers.
+  app.use((_req, res) => { res.status(404).end(); });
   const server = createServer(app);
   return new Promise((resolve, reject) => {
     server.listen(0, async () => {
