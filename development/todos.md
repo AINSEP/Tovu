@@ -60,14 +60,9 @@ Not repeated here because other work owns them today: test-rigor waves 11–19 +
 plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 
 ### Desktop
-- **Cmd+W quits the whole app and stops every site** (09-18, L2177/L2243): `apps/desktop/main.ts:1737` `window-all-closed` → `app.quit()` with no darwin guard. Most user-visible desktop bug.
-- **Site Restart control** (09-16, L2098): Stop now exists (`use-site-power.hooks.ts`); confirm a one-click Restart exists or add it.
 - **Session/tab restore on launch, Cmd+K quick open, native notification when a long run finishes** (09-18, L2171–2175): none built (audit estimates: restore ~half a day, notifications 2–3 days + an ownership call).
 - **Committed desktop UI test harness** (09-19, L2474): owner: "this needs to be automatic for testing later! completely automated". Per-feature `apps/desktop/scripts/verify-*.ts` launch Electron; no generic launch-with-CDP + Playwright + teardown harness any agent can use.
 - **Measure card-preview timing** (09-12, L51): `PREVIEW_PAINT_SETTLE_MS=1200` / `PREVIEW_CAPTURE_DEBOUNCE_MS=1500` are guesses.
-- **minWidth on the site/admin window** (09-12, L52): `createWindow` sets only width/height.
-- **Vendor Google Fonts** (09-24, L3053): `apps/desktop/src/renderer/app.css:1` still imports fonts.googleapis.com; then tighten CSP `style-src`/`font-src` to `'self'`.
-- **Auto-update on/off preference** (09-24, L3042): updater exists, no user toggle.
 - **First-run Agree screen** (legal, 09-24, L3042): not built.
 - **Third-party notices + Electron license files in the package** (09-24, L3038/L3042): no THIRD_PARTY_NOTICES generator; `LICENSES.chromium.html` reported dropped.
 - **Browser-server ZIP launchers (Mac/Win/Linux) + release assets** (09-23, L2990–2996): run-from-zip plan S3–S5 left (`ADS-memory/.local-artifacts/run-from-zip-plan-2026-09-23.md`); Download page still has a `ZIP_URL` placeholder.
@@ -82,7 +77,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 
 ### Publish
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
-- **Advanced manual publish "YOLO" backstop BS1–BS6** (09-24, L3101–3102): design in `ADS-memory/.local-artifacts/publish-backstop-design-2026-09-24.md`, nothing built. Owner questions B1 (admins too?), B2 (ship switched off on live?), B3 (allow plugin `p_*` tables?) unanswered.
+- **Advanced manual publish "YOLO" backstop — BS6 + schema install left** (09-24, L3101–3102): BS1–BS5 landed `445575f6c` (see Done). Left: (1) install the staged audit-table schema (`ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/staged/publish-backstop/INSTALL.md`; dev server stopped, backups first) — until then every send returns `BACKSTOP_NOT_INSTALLED`; (2) BS6 admin UI (selection, before/after plan, typed-host + reason confirm, result + Undo, localized) — follow-up prompt `codex-waves/features-2026-10-04/followups/backstop-bs6-ui.md`. Only the read-only gaps tool/endpoint exists.
 
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
 - **wm S1→S2** (L3314): listed as remaining on 09-24; confirm state before starting.
@@ -171,6 +166,12 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **jl C3** rotation keeps a sealed-only username (L3318) — `bebc5736f`.
 - **Media card size + upload date in Jini `MediaCard`** (L2712–2724/L3494) — Jini `587ebf0b`; live page still legacy, see Media above.
 - **Legal owner inputs + web AI disclosure/report link** (L3042/L3303): $0 cap, California / Los Angeles County, tovu.dev, contact form instead of email, 90-day form-IP line — `a0336c0dc`.
+- **Desktop: Cmd+W keeps sites running on macOS** (L2177/L2243): window close keeps the server, Dock reopens it, Cmd+Q quits — `ee199361f`.
+- **Desktop: site Restart control** (L2098): awaits Stop before Start, shows failures — `ee199361f`.
+- **Desktop: minWidth/minHeight 1024×700 on site/admin windows** (L52) — `ee199361f`.
+- **Desktop: Google Fonts vendored + CSP `style-src`/`font-src 'self'`** (L3053) — `ee199361f`.
+- **Desktop: auto-update on/off** (L3042): Settings → Automatically update Tovu, default on — `ee199361f`.
+- **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 + schema install still open under Publish.
 
 ---
 
