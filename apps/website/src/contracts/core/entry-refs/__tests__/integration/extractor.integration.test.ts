@@ -193,3 +193,28 @@ test("extractHtmlEntryRefs: an unregistered/future embed type is scanned but not
 
   assert.deepEqual(refs, []);
 });
+
+test("a 5000-deep bodyJson extracts every widgetEmbed ref in document order instead of overflowing the call stack (save path; same class as f646ba397's GET-path walkers)", () => {
+  const depth = 5000;
+  let deep: unknown = { type: "widgetEmbed", attrs: { placementId: "plc-deep", widgetEntryId: "widget-deep" } };
+  for (let i = 0; i < depth; i++) deep = { type: "blockquote", content: [deep] };
+  const bodyJson = {
+    type: "doc",
+    content: [
+      { type: "widgetEmbed", attrs: { placementId: "plc-first", widgetEntryId: "widget-first" } },
+      deep,
+      { type: "widgetEmbed", attrs: { placementId: "plc-last", widgetEntryId: "widget-last" } },
+    ],
+  };
+
+  const refs = extractEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-deep", sourceEntryType: "page", bodyJson, fieldsExt: {} });
+
+  assert.deepEqual(
+    refs.map((r) => [r.sourceKind, r.targetId, r.fieldPath]),
+    [
+      ["widget-embed", "widget-first", "bodyJson.content[0]"],
+      ["widget-embed", "widget-deep", `bodyJson.content[1]${".content[0]".repeat(depth)}`],
+      ["widget-embed", "widget-last", "bodyJson.content[2]"],
+    ],
+  );
+});

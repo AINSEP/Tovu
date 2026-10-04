@@ -103,21 +103,29 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Walks a TipTap-shaped `bodyJson` tree collecting every `widgetEmbed` node, in document order. */
-function collectEmbeds(node: unknown, out: WidgetEmbedNode[]): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectEmbeds(child, out);
-    return;
+function collectEmbeds(root: unknown, out: WidgetEmbedNode[]): void {
+  // An explicit stack, not recursion: a host body's nesting depth is caller/import-controlled and a
+  // 5000-deep body overflowed the call stack here on every embed save (same class as f646ba397's
+  // GET-path walkers). Children are pushed in reverse so the walk stays pre-order — document order,
+  // which `reorderWidgetEmbeds` relies on.
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      continue;
+    }
+    if (!isPlainObject(node)) continue;
+    if (
+      node.type === "widgetEmbed" &&
+      isPlainObject(node.attrs) &&
+      typeof node.attrs.placementId === "string" &&
+      typeof node.attrs.widgetEntryId === "string"
+    ) {
+      out.push({ type: "widgetEmbed", placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
+    }
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  if (!isPlainObject(node)) return;
-  if (
-    node.type === "widgetEmbed" &&
-    isPlainObject(node.attrs) &&
-    typeof node.attrs.placementId === "string" &&
-    typeof node.attrs.widgetEntryId === "string"
-  ) {
-    out.push({ type: "widgetEmbed", placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
-  }
-  if (Array.isArray(node.content)) collectEmbeds(node.content, out);
 }
 
 function widgetEmbedNode(placementId: UUID, widgetEntryId: UUID): JsonValue {

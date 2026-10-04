@@ -42,16 +42,41 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function walk(node: unknown, newPlacementId: () => string): unknown {
-  if (Array.isArray(node)) return node.map((child) => walk(child, newPlacementId));
-  if (!isPlainObject(node)) return node;
+function walk(root: unknown, newPlacementId: () => string): unknown {
+  // An explicit stack, not recursion: a duplicated page's nesting depth is caller/import-controlled
+  // and a 5000-deep body overflowed the call stack here (same class as f646ba397's GET-path
+  // walkers). Each frame carries where its copied value goes; children are pushed in reverse so
+  // the walk stays pre-order and `newPlacementId` is called in document order, exactly as the
+  // recursive version did.
+  let result: unknown;
+  const stack: Array<{ node: unknown; place: (value: unknown) => void }> = [{ node: root, place: (value) => { result = value; } }];
+  while (stack.length > 0) {
+    const { node, place } = stack.pop()!;
+    if (Array.isArray(node)) {
+      const copy: unknown[] = new Array(node.length);
+      place(copy);
+      for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], place: (value) => { copy[i] = value; } });
+      continue;
+    }
+    if (!isPlainObject(node)) {
+      place(node);
+      continue;
+    }
 
-  if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string") {
-    return { ...node, attrs: { ...node.attrs, placementId: newPlacementId() } };
+    if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string") {
+      place({ ...node, attrs: { ...node.attrs, placementId: newPlacementId() } });
+      continue;
+    }
+
+    if (Array.isArray(node.content)) {
+      const copy: Record<string, unknown> = { ...node };
+      place(copy);
+      stack.push({ node: node.content, place: (value) => { copy.content = value; } });
+      continue;
+    }
+    place(node);
   }
-
-  if (Array.isArray(node.content)) return { ...node, content: walk(node.content, newPlacementId) };
-  return node;
+  return result;
 }
 
 /**
@@ -63,7 +88,7 @@ function walk(node: unknown, newPlacementId: () => string): unknown {
  * A document with no `widgetEmbed` nodes at all (the common case) round-trips as a plain structural
  * clone with no minted ids spent.
  *
- * @complexity O(n) in the size of `bodyJson` — one recursive walk, no repeated work, no backtracking.
+ * @complexity O(n) in the size of `bodyJson` — one iterative walk, no repeated work, no backtracking.
  */
 export function copyBodyJsonWithFreshEmbedPlacements(bodyJson: JsonObject, newPlacementId: () => string): JsonObject {
   return walk(bodyJson, newPlacementId) as JsonObject;

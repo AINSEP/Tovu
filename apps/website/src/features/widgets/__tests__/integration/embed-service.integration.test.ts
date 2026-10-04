@@ -445,3 +445,23 @@ test("REQ-44/AC-30 spirit: insert works with no live editor session involved —
   const reread = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
   assert.deepEqual(reread?.bodyJson, entry.bodyJson, "a subsequent read of the page shows the new embed");
 });
+
+test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead of overflowing the call stack in the guardrail's embed walk", async () => {
+  const repos = makeSharedRepos();
+  const deepWidgetId = await makeWidgetInstance(repos);
+  let deep: unknown = { type: "widgetEmbed", attrs: { placementId: "plc-deep", widgetEntryId: deepWidgetId } };
+  for (let i = 0; i < 5000; i++) deep = { type: "blockquote", content: [deep] };
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, { type: "doc", content: [deep] });
+  const widgetId = await makeWidgetInstance(repos);
+
+  const { entry, placementId } = await insertWidgetEmbed({
+    deps: makeDeps(repos, { maxEmbedsPerDocument: 2 }),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: widgetId },
+  });
+
+  assert.equal(entry.version, host.version + 1);
+  const content = (entry.bodyJson as { content: unknown[] }).content;
+  assert.deepEqual(content[1], { type: "widgetEmbed", attrs: { placementId, widgetEntryId: widgetId } });
+  const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
+  assert.deepEqual(refs.map((r) => r.targetId), [deepWidgetId, widgetId], "both the deep embed and the new one are extracted, in document order");
+});

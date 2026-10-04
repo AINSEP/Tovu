@@ -58,35 +58,39 @@ function classifyRefFieldKey(key: string): EntryRefTargetKind | null {
 }
 
 /**
- * Recursively walks a TipTap-shaped document tree (`{ type, content: [...] }`, arrays of such
+ * Walks a TipTap-shaped document tree (`{ type, content: [...] }`, arrays of such
  * nodes) looking for `widgetEmbed` atoms (REQ-18/30), regardless of nesting depth — matches
  * `embed-validation.ts`'s INV-04 stance that nesting depth never matters, only presence.
  *
  * @complexity O(n) over the document's total node count.
  * @overallScore 100
  */
-function collectWidgetEmbedRefs(node: unknown, path: string, input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
-  if (Array.isArray(node)) {
-    node.forEach((child, index) => {
-      collectWidgetEmbedRefs(child, `${path}[${index}]`, input, refs);
-    });
-    return;
-  }
-  if (!isPlainObject(node)) return;
+function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+  // An explicit stack, not recursion: a saved document's nesting depth is caller/import-controlled
+  // and a 5000-deep body overflowed the call stack here on save (same class as f646ba397's GET-path
+  // walkers). Children are pushed in reverse so the walk stays pre-order — the same ref order and
+  // `fieldPath` strings the recursive version produced.
+  const stack: Array<{ node: unknown; path: string }> = [{ node: root, path: rootPath }];
+  while (stack.length > 0) {
+    const { node, path } = stack.pop()!;
+    if (Array.isArray(node)) {
+      for (let index = node.length - 1; index >= 0; index--) stack.push({ node: node[index], path: `${path}[${index}]` });
+      continue;
+    }
+    if (!isPlainObject(node)) continue;
 
-  if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string") {
-    refs.push({
-      workspaceId: input.workspaceId,
-      sourceEntryId: input.sourceEntryId,
-      sourceKind: "widget-embed",
-      fieldPath: path,
-      targetKind: "entry",
-      targetId: node.attrs.widgetEntryId,
-    });
-  }
+    if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string") {
+      refs.push({
+        workspaceId: input.workspaceId,
+        sourceEntryId: input.sourceEntryId,
+        sourceKind: "widget-embed",
+        fieldPath: path,
+        targetKind: "entry",
+        targetId: node.attrs.widgetEntryId,
+      });
+    }
 
-  if (Array.isArray(node.content)) {
-    collectWidgetEmbedRefs(node.content, `${path}.content`, input, refs);
+    if (Array.isArray(node.content)) stack.push({ node: node.content, path: `${path}.content` });
   }
 }
 

@@ -92,3 +92,31 @@ test("a malformed widgetEmbed node (non-string placementId, or missing attrs) is
   const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => "should-not-be-called");
   assert.deepEqual(copy, doc);
 });
+
+test("a 5000-deep document is copied with fresh placementIds minted in document order instead of overflowing the call stack", () => {
+  const depth = 5000;
+  let deep: Record<string, unknown> = { type: "widgetEmbed", attrs: { placementId: "old-deep", widgetEntryId: "w-deep" } };
+  for (let i = 0; i < depth; i++) deep = { type: "blockquote", content: [deep] };
+  const doc = {
+    type: "doc",
+    content: [
+      { type: "widgetEmbed", attrs: { placementId: "old-first", widgetEntryId: "w-first" } },
+      deep,
+      { type: "widgetEmbed", attrs: { placementId: "old-last", widgetEntryId: "w-last" } },
+    ],
+  };
+  let minted = 0;
+
+  const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => `new-${++minted}`) as { content: Array<Record<string, unknown>> };
+
+  assert.deepEqual(copy.content[0], { type: "widgetEmbed", attrs: { placementId: "new-1", widgetEntryId: "w-first" } });
+  assert.deepEqual(copy.content[2], { type: "widgetEmbed", attrs: { placementId: "new-3", widgetEntryId: "w-last" } });
+  let node = copy.content[1];
+  for (let i = 0; i < depth; i++) {
+    assert.equal(node.type, "blockquote");
+    node = (node.content as Array<Record<string, unknown>>)[0];
+  }
+  assert.deepEqual(node, { type: "widgetEmbed", attrs: { placementId: "new-2", widgetEntryId: "w-deep" } });
+  assert.equal(minted, 3);
+  assert.equal((doc.content[0].attrs as { placementId: string }).placementId, "old-first", "the source document must not be mutated");
+});
