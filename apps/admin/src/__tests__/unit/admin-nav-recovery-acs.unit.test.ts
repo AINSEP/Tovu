@@ -1,8 +1,11 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { createElement } from "react";
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "../../panels";
+import { Recovery, type RecoveryProps } from "../../features/recovery/Recovery";
+import { t } from "../../features/recovery/recovery-i18n";
+import type { RecoveryController } from "../../features/recovery/hooks/use-recovery.hooks";
 
 /**
  * @file REQ-01/REQ-22/REQ-27 (SPEC-019) — re-homed from
@@ -32,9 +35,7 @@ import { ADMIN_PANELS } from "../../panels";
  * could not fail in any way the original AC cared about. `features/recovery/Recovery.tsx` does carry a real,
  * rendered equivalent, though: the `<Recovery />` screen's own `page-description` copy (its actual
  * `/admin/recovery` page-header text) is the live analog of the deleted field. Ported AC-32 against
- * that string instead, as a source-text check (same pattern `nav-wiring.unit.test.ts`'s `RT-008`
- * case already uses) rather than a full render + API-mock test, since `Recovery`'s own render only
- * reaches that markup after two awaited `api.*` calls resolve.
+ * the visible, translated description using the component's loaded-controller seam.
  */
 
 describe("REQ-01/REQ-22/REQ-27: recovery and database stay distinct, single, raw-console-free sections", () => {
@@ -70,12 +71,16 @@ describe("REQ-01/REQ-22/REQ-27: recovery and database stay distinct, single, raw
   });
 
   it("AC-32: the Recovery screen's own rendered page-description copy carries no raw row-edit/SQL-console language", () => {
-    const recoverySource = readFileSync(path.resolve(__dirname, "../../features/recovery/Recovery.tsx"), "utf8");
-
-    const match = recoverySource.match(/className="page-description">([^<]*)</);
-    expect(match).not.toBeNull();
-
-    const pageDescription = match![1];
+    const useRecoveryHook = (): RecoveryController => ({
+      status: { costClass: "cheap", banner: null }, points: [], error: null, creating: false,
+      createRestorePoint: async () => {}, selected: null, setSelected: () => {},
+      locale: "en", t: (key) => t("en", key),
+    });
+    const { container } = render(createElement<RecoveryProps>(Recovery, { useRecoveryHook }));
+    const description = container.querySelector(".page-description");
+    expect(description).toBeVisible();
+    expect(description).toHaveTextContent("Restore this site to a previous point in time using a captured restore point.");
+    const pageDescription = description!.textContent!;
     expect(pageDescription.length).toBeGreaterThan(0);
     expect(/sql console|row.?edit|database.?first/i.test(pageDescription)).toBe(false);
   });
