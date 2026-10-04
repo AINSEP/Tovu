@@ -9,7 +9,7 @@ import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
-import { hasPageLinks, type MenuPageChoice } from "../page-link-rules";
+import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
@@ -305,14 +305,15 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     setMessage(null);
     setError(null);
     try {
+      const saveItems = pageItemsForSave({ items, pages: pageChoices });
       if (isNew) {
-        const { menu: created } = await port.createMenu({ title, slug }, { items });
+        const { menu: created } = await port.createMenu({ title, slug }, { items: saveItems });
         navigate(`/menus/${created.slug}`);
         return;
       }
       if (!menu) return;
       const { menu: saved } = await port.updateMenuTree(
-        { id: menu.id, expectedVersion: menu.version, items },
+        { id: menu.id, expectedVersion: menu.version, items: saveItems },
         { title, slug }
       );
       if (activeMenuIdRef.current !== savingForMenuId) return;

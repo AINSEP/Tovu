@@ -1,5 +1,6 @@
 import { api, type AdminMenu } from "@/lib/api";
 import type { MenusPort } from "./menus-port.hooks";
+import { pagePublicPath } from "../../pages/rules";
 
 /**
  * @file The only place under `features/menus` that reaches `lib/api` for the five `MenusPort`
@@ -13,7 +14,7 @@ import type { MenusPort } from "./menus-port.hooks";
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies
  *  .hooks.ts`'s `defaultRedirectsPort`. */
 export const defaultMenusPort: MenusPort = {
-  listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status })) }),
+  listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath(post.slug) })) }),
   listMenus: () => api.listMenus(),
   getMenu: (id) => api.getMenu(id),
   createMenu: (input, options) => api.createMenu(input, options),

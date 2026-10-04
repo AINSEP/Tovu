@@ -71,7 +71,7 @@ function repointItem(
   if (target.kind === "entryRef") {
     const replacement = replacements.get(target.entryId);
     if (replacement) {
-      target = { kind: "entryRef", entryId: replacement.newId };
+      target = { ...target, entryId: replacement.newId };
       count += 1;
     }
   }

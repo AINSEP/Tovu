@@ -232,7 +232,7 @@ function ItemRow(props: {
 }) {
   const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
   const { handleRemoveClick } = useMenuItemRemove(item, path, onRemove);
-  const targetController = useMenuTargetEditor({ item, path, onChange });
+  const targetController = useMenuTargetEditor({ item, path, onChange, pages });
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>

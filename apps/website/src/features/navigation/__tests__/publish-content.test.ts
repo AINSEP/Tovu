@@ -78,6 +78,17 @@ test("pack() yields nothing when menuRepo is absent", async () => {
   assert.deepEqual(entities, []);
 });
 
+test("pack() keeps both the page reference and last-known URL for a destination without that page", async () => {
+  const target = { kind: "entryRef" as const, entryId: "page-about", entryType: "page", lastKnownHref: "/about" };
+  const doc = { type: "menu" as const, version: 1 as const, items: [{ id: "about", target }] };
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [{ id: "footer", workspaceId: WORKSPACE_ID,
+    ...menuState({ doc }), updatedAt: "2026-10-04", version: 1 } as NavMenuEntry] });
+  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const entities: PackedEntity[] = [];
+  for await (const entity of handler.pack()) entities.push(entity);
+  assert.deepEqual(entities[0].state.doc, doc);
+});
+
 test("pack() skips a trashed menu and packs a live one, keyed by the menu's own id", async () => {
   const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-live", workspaceId: WORKSPACE_ID, ...menuState({ slug: "live-nav" }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },

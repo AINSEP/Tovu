@@ -4,13 +4,19 @@ import { postPublicPath } from "#src/platform/routing/routing";
 
 /** Only the seeded footer menus participate. Unmatched/external links stay author-controlled.
  * Menus already persist JSON-in-text/jsonb; this data repair needs no schema migration. */
-function pageItems(items: readonly NavItemNode[], pages: ReadonlyMap<string, string>): { items: NavItemNode[]; converted: number } {
+function pageItems(items: readonly NavItemNode[], pages: ReadonlyMap<string, string>, paths: ReadonlyMap<string, string>): { items: NavItemNode[]; converted: number } {
   let converted = 0;
   const updated = items.map((item) => {
-    const pageId = item.target.kind === "url" ? pages.get(item.target.href) : undefined;
-    const children = item.children ? pageItems(item.children, pages) : undefined;
-    converted += (pageId ? 1 : 0) + (children?.converted ?? 0);
-    return { ...item, ...(pageId ? { target: { kind: "entryRef" as const, entryId: pageId, entryType: "page" } } : {}),
+    const current = item.target as NavItemNode["target"] & { entryType?: string; lastKnownHref?: string };
+    const pageId = current.kind === "url" ? pages.get(current.href)
+      : current.kind === "entryRef" && paths.has(current.entryId) ? current.entryId : undefined;
+    // Earlier boots converted URLs without a URL snapshot; repair those refs too. Keep an
+    // existing snapshot across renames, since it records the last URL known to its author.
+    const repair = Boolean(pageId && (current.kind === "url" || current.entryType !== "page" || !current.lastKnownHref));
+    const lastKnownHref = current.kind === "url" ? current.href : current.lastKnownHref || (pageId ? paths.get(pageId) : undefined);
+    const children = item.children ? pageItems(item.children, pages, paths) : undefined;
+    converted += (repair ? 1 : 0) + (children?.converted ?? 0);
+    return { ...item, ...(repair ? { target: { kind: "entryRef" as const, entryId: pageId!, entryType: "page", lastKnownHref } } : {}),
       ...(children ? { children: children.items } : {}) };
   });
   return { items: updated, converted };
@@ -32,8 +38,9 @@ export async function migrateFooterPageLinks(
       const pages = await kernel.run((db) => db.selectFrom("posts").select(["id", "slug"])
         .where("workspace_id", "=", menu.workspace_id).where("kind", "=", "page").execute());
       const byPath = new Map(pages.map((page) => [postPublicPath(page.slug), page.id]));
+      const byId = new Map(pages.map((page) => [page.id, postPublicPath(page.slug)]));
       const doc = JSON.parse(menu.doc_json) as NavMenuDoc;
-      const result = pageItems(doc.items, byPath);
+      const result = pageItems(doc.items, byPath, byId);
       if (!result.converted) continue;
       const written = await kernel.run((db) => db.updateTable("menus")
         .set({ doc_json: JSON.stringify({ ...doc, items: result.items }), version: menu.version + 1, updated_at: now() })

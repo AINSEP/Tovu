@@ -1,12 +1,12 @@
 import type { ChangeEvent } from "react";
 import type { AdminMenuItem } from "@/lib/api";
-import { pageLinkState, menuTargetEditorKind, targetForKind, type MenuPageChoice, type MenuTargetEditorKind } from "./page-link-rules";
+import { pageLinkState, pageTargetForChoice, menuTargetEditorKind, targetForKind, type MenuPageChoice, type MenuTargetEditorKind } from "./page-link-rules";
 
 export function useMenuTargetEditor(
-  { item, path, onChange }: { item: AdminMenuItem; path: number[]; onChange: (path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => void },
+  { item, path, onChange, pages }: { item: AdminMenuItem; path: number[]; pages?: readonly MenuPageChoice[]; onChange: (path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => void },
   _optional = {},
 ) {
-  const kind = menuTargetEditorKind({ target: item.target });
+  const kind = menuTargetEditorKind({ target: item.target, pages });
   return { kind, isPage: kind === "page", selectType: (event: ChangeEvent<HTMLSelectElement>) => {
     const selected = event.currentTarget.value as MenuTargetEditorKind;
     onChange(path, (previous) => ({ ...previous, target: targetForKind({ kind: selected, prev: previous.target }) }));
@@ -24,7 +24,7 @@ export function useMenuPageLinkFields(
   return { ...pageLinkState({ entryId: item.target.entryId, label: item.label, pages, t }),
     selectPage: (event: ChangeEvent<HTMLSelectElement>) => {
       const entryId = event.currentTarget.value;
-      onChange(path, (previous) => ({ ...previous, target: { kind: "entryRef", entryId, entryType: "page" } }));
+      onChange(path, (previous) => ({ ...previous, target: pageTargetForChoice({ entryId, pages }) }));
     },
   };
 }

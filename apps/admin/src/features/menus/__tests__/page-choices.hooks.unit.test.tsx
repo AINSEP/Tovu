@@ -10,7 +10,7 @@ const menu: AdminMenu = { id: "footer", workspaceId: "ws", slug: "footer-nav", t
 };
 
 it("loads the page catalogue when a URL item is switched to Page, and saves a stable reference", async () => {
-  const pages = [{ id: "about-page", title: "About us", status: "published" as const }];
+  const pages = [{ id: "about-page", title: "About us", status: "published" as const, publicPath: "/about" }];
   const listPages = vi.fn().mockResolvedValue({ pages });
   const fake = createFakeMenusPort({ menus: [menu] });
   const port = { ...fake, listPages };
@@ -21,7 +21,24 @@ it("loads the page catalogue when a URL item is switched to Page, and saves a st
   await waitFor(() => expect(result.current.pageChoices).toEqual(pages));
   expect(listPages).toHaveBeenCalledTimes(1);
   await act(() => result.current.save());
-  expect(fake.menus[0].items[0].target).toEqual({ kind: "entryRef", entryId: "about-page", entryType: "page" });
+  expect(fake.menus[0].items[0].target).toEqual({ kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" });
+});
+
+it("loads pages for legacy unhinted refs and saves nested page metadata while preserving generic entries", async () => {
+  const legacy: AdminMenu = { ...menu, items: [{ id: "parent", target: { kind: "url", href: "/" }, children: [
+    { id: "about", target: { kind: "entryRef", entryId: "about-page" } },
+    { id: "post", target: { kind: "entryRef", entryId: "post-1" } },
+  ] }] };
+  const fake = createFakeMenusPort({ menus: [legacy] });
+  const pages = [{ id: "about-page", title: "About", status: "published" as const, publicPath: "/our-story" }];
+  const port = { ...fake, listPages: vi.fn().mockResolvedValue({ pages }) };
+  const { result } = renderHook(() => useMenuEditor("footer", { port, navigate: () => {}, t: (key) => key }));
+  await waitFor(() => expect(result.current.pageChoices).toEqual(pages));
+  await act(() => result.current.save());
+  expect(fake.menus[0].items[0].children?.map((item) => item.target)).toEqual([
+    { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/our-story" },
+    { kind: "entryRef", entryId: "post-1" },
+  ]);
 });
 
 it("drops an old page catalogue after the editor navigates to a URL-only menu", async () => {

@@ -76,6 +76,12 @@ test("repointMenuItems() repoints a top-level entryRef target", () => {
   assert.equal((result.items[0].target as { entryId: string }).entryId, "post-new");
 });
 
+test("repointMenuItems() retains the page hint and last-known URL when ids change on import", () => {
+  const target = { kind: "entryRef" as const, entryId: "page-old", entryType: "page", lastKnownHref: "/about" };
+  const result = repointMenuItems([{ id: "about", target }], replacementMap({ "page-old": { newId: "page-new", entityType: "page" } }));
+  assert.deepEqual(result.items[0].target, { ...target, entryId: "page-new" });
+});
+
 test("repointMenuItems() repoints a nested children grandchild", () => {
   const items = [
     {
