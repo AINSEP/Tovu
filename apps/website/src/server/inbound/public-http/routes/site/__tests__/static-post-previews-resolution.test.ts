@@ -95,6 +95,7 @@ function activeMemberSession(): MemberSessionRecord {
  *  (REQ 2), rather than merely asserting on rendered output. */
 class CountingPostRepo implements PostRepoPort {
   listPublishedPreviewsCalls = 0;
+  previewRequests: { workspaceId: string; limit: number }[] = [];
   constructor(private readonly inner: PostRepoPort) {}
   findById(required: { workspaceId: string; id: string }) {
     return this.inner.findById(required);
@@ -107,6 +108,7 @@ class CountingPostRepo implements PostRepoPort {
   }
   listPublishedPreviews(required: { workspaceId: string; limit: number }) {
     this.listPublishedPreviewsCalls += 1;
+    this.previewRequests.push(required);
     return this.inner.listPublishedPreviews(required);
   }
   save(record: PostRecord) {
@@ -213,6 +215,39 @@ test("GET /blog: the marker's own limit bounds how many posts render", async (t)
   assert.match(html, /Limit Test Post 3/);
   assert.match(html, /Limit Test Post 2/);
   assert.doesNotMatch(html, /Limit Test Post 1/, "a marker with limit=2 must show only its two most recent posts");
+});
+
+test("GET /blog: malformed, oversized and distinct marker limits stay bounded independently", async (t) => {
+  const posts = Array.from({ length: 30 }, (_, i) => publishedPost({ id: `bounded-${i}`, slug: `bounded-${i}`, title: `Bounded Post ${i}`, updatedAt: new Date(Date.UTC(2026, 0, i + 1)).toISOString() }));
+  const repo = new CountingPostRepo(new InMemoryPostRepo(posts));
+  const theme = themeWithPostPreviewsMarker();
+  theme.pages.blog = '<html><body><section id="small" data-embed-config=\'{"type":"post-previews","limit":2}\'>small fallback</section><section id="invalid" data-embed-config=\'{"type":"post-previews","limit":"bad"}\'>invalid fallback</section><section id="large" data-embed-config=\'{"type":"post-previews","limit":999999}\'>large fallback</section></body></html>';
+  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: repo });
+  t.after(() => closeServer(server));
+  const res = await fetch(`${baseUrl}/blog`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  for (const [id, count] of [["small", 2], ["invalid", 6], ["large", 24]] as const) {
+    const section = new RegExp(`<section id="${id}"[^>]*>([\\s\\S]*?)<\\/section>`).exec(html);
+    assert.ok(section, `${id} marker must render`);
+    const slugs = [...section[1].matchAll(/href="\/(bounded-\d+)"/g)].map((match) => match[1]);
+    assert.deepEqual(slugs, Array.from({ length: count }, (_, i) => `bounded-${29 - i}`));
+  }
+  assert.deepEqual(repo.previewRequests, [{ workspaceId: WORKSPACE_ID, limit: 24 }]);
+});
+
+test("GET /blog: zero visible previews preserve the authored fallback", async (t) => {
+  const repo = new CountingPostRepo(new InMemoryPostRepo([
+    publishedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) }),
+  ]));
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: repo });
+  t.after(() => closeServer(server));
+  const res = await fetch(`${baseUrl}/blog`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<div class="grid"[^>]*>fallback card<\/div>/);
+  assert.doesNotMatch(html, /class="post-card"|A real published post/);
+  assert.deepEqual(repo.previewRequests, [{ workspaceId: WORKSPACE_ID, limit: 6 }]);
 });
 
 test("GET /about: a page WITHOUT the post-previews marker triggers NO bounded query and renders unaffected", async (t) => {

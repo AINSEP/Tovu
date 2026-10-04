@@ -86,6 +86,22 @@ test("GET /llms.txt: a published, publicly-visible page appears, linked with an 
   );
 });
 
+test("GET /llms.txt: titles sort independently of insertion order and empty bodies have no fabricated description", async (t) => {
+  const postRepo = new InMemoryPostRepo([
+    pagePost({ id: "z", slug: "zebra", title: "Zebra Guide" }),
+    pagePost({ id: "a", slug: "alpha", title: "Alpha Guide", bodyJson: { type: "doc", content: [] } }),
+    pagePost({ id: "m", slug: "middle", title: "Middle Guide" }),
+  ]);
+  const baseUrl = await startTestServer(buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() }), t);
+  const res = await fetch(`${baseUrl}/llms.txt`);
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.text()).split("\n").filter((line) => line.startsWith("- ")), [
+    "- [Alpha Guide](/alpha)",
+    "- [Middle Guide](/middle): A real page about real things.",
+    "- [Zebra Guide](/zebra): A real page about real things.",
+  ]);
+});
+
 test("GET /llms.txt: a draft page does not appear", async (t) => {
   const postRepo = new InMemoryPostRepo([pagePost({ status: "draft" })]);
   const app = buildLlmsOnlyApp({ postRepo });

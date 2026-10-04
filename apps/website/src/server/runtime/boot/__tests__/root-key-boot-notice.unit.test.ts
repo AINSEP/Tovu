@@ -45,7 +45,7 @@ function run(over: {
     mode: over.mode ?? (() => "local"),
     inspect: over.inspect ?? (() => status()),
     log: over.log ?? ((line) => lines.push(line)),
-    env: over.env,
+    env: over.env ?? {},
   });
   return lines;
 }
@@ -64,7 +64,9 @@ test("the warning names the env var, the key file, and the launcher that loads .
 });
 
 test("the warning says the failure will arrive far from this cause", () => {
-  assert.match(run().join("\n"), /credential/i);
+  const text = run().join("\n").replace(/\s+/g, " ");
+  assert.match(text, /THIS SERVER HAS NO USABLE ROOT KEY/);
+  assert.ok(text.includes("Anything that READS a stored credential — a deploy, a saved API key, a custom credential request — will fail, far from this cause."), "the missing boot key must be connected to later credential failures");
 });
 
 test("the warning does not promise that a new key recovers old credentials", () => {
@@ -147,6 +149,7 @@ test("a probe that throws is reported, never propagated onto the boot path", () 
 test("a log sink that throws cannot take the boot down with it", () => {
   assert.doesNotThrow(() =>
     warnIfNoRootKeyAtBoot({
+      env: {},
       mode: () => "local",
       inspect: () => status(),
       log: () => {
@@ -212,12 +215,16 @@ for (const [label, parts] of [
 
 test("with no injected mode, production is read from the REAL runtime mode", () => {
   const before = process.env.TOVU_RUNTIME_MODE;
+  const beforeNotice = process.env.TOVU_ROOT_KEY_NOTICE;
   const lines: string[] = [];
   try {
+    delete process.env.TOVU_ROOT_KEY_NOTICE;
     process.env.TOVU_RUNTIME_MODE = "production";
     warnIfNoRootKeyAtBoot({ inspect: () => status(), log: (l) => lines.push(l) });
     assert.deepEqual(lines, [], "the real resolveRuntimeMode must be what silences production");
   } finally {
+    if (beforeNotice === undefined) delete process.env.TOVU_ROOT_KEY_NOTICE;
+    else process.env.TOVU_ROOT_KEY_NOTICE = beforeNotice;
     if (before === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = before;
   }
@@ -225,8 +232,10 @@ test("with no injected mode, production is read from the REAL runtime mode", () 
 
 test("with no injected probe, the REAL inspectRootKeyMaterial is what decides", () => {
   const before = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const beforeNotice = process.env.TOVU_ROOT_KEY_NOTICE;
   const lines: string[] = [];
   try {
+    delete process.env.TOVU_ROOT_KEY_NOTICE;
     // Throwaway synthetic material, never written to disk — only its presence is asserted on.
     process.env.TOVU_INTEGRATIONS_ROOT_KEY = "a".repeat(64);
     warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
@@ -238,6 +247,8 @@ test("with no injected probe, the REAL inspectRootKeyMaterial is what decides", 
     warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
     assert.notEqual(lines.length, 0, "a real, unusable key must warn");
   } finally {
+    if (beforeNotice === undefined) delete process.env.TOVU_ROOT_KEY_NOTICE;
+    else process.env.TOVU_ROOT_KEY_NOTICE = beforeNotice;
     if (before === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
     else process.env.TOVU_INTEGRATIONS_ROOT_KEY = before;
   }

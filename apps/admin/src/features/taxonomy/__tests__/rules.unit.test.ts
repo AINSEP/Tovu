@@ -60,6 +60,14 @@ describe("termDepth", () => {
     // number, and the guard trips on revisiting "a" or "b" long before the 32-deep bound would.
     expect(termDepth({ term: a, byId })).toBeLessThan(32);
     expect(Number.isFinite(termDepth({ term: a, byId }))).toBe(true);
+    expect(termDepth({ term: a, byId })).toBe(2);
+  });
+
+  it("stops a 40-link acyclic chain when the defensive bound of 32 is exceeded", () => {
+    const terms = Array.from({ length: 41 }, (_, i) => term({ id: `t${i}`, parentId: i === 0 ? null : `t${i - 1}` }));
+    const byId = new Map(terms.map((t) => [t.id, t]));
+    // Characterize today's depth > 32 guard: one final link is counted before stopping.
+    expect(termDepth({ term: terms[40], byId })).toBe(33);
   });
 });
 

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { Liquid } from "liquidjs";
 
 import type { PostRecord } from "#src/features/post/index";
 import { renderLiquidInSandbox } from "../liquid-sandbox.js";
@@ -59,6 +62,20 @@ test("a disallowed tag is rejected by the worker's defensive re-lint even when i
   await assert.rejects(
     renderLiquidInSandbox({ source: '{% include "leak" %}', ctx: baseCtx() }),
     /disallowed Liquid usage.*disallowed tag "include"/
+  );
+});
+
+test("trusted Liquid templates still cannot include an existing filesystem file", async (t) => {
+  const dir = mkdtempSync(join(process.cwd(), ".tovu-liquid-no-fs-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, "private.liquid");
+  writeFileSync(file, "PRIVATE_FILE_CONTENT");
+  const source = `{% include '${file}' %}`;
+  assert.equal(await new Liquid().parseAndRender(source), "PRIVATE_FILE_CONTENT", "control: the ordinary filesystem adapter can resolve and read this exact include");
+  assert.equal(await renderLiquidInSandbox({ source: "{{ site.title }}", ctx: baseCtx(), skipLiquidAllowlist: true }), "Test Site");
+  await assert.rejects(
+    renderLiquidInSandbox({ source, ctx: baseCtx(), skipLiquidAllowlist: true }),
+    /ENOENT|filesystem access disabled/
   );
 });
 

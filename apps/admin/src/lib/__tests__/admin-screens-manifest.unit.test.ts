@@ -62,6 +62,7 @@ describe("admin-screens.generated.ts (the server-side copy)", () => {
   it("matches listAdminAgentScreens() exactly", async () => {
     const expected = listAdminAgentScreens();
     if (process.env.UPDATE_ADMIN_SCREENS_MANIFEST === "1") {
+      expect(process.env.CI, "UPDATE_ADMIN_SCREENS_MANIFEST=1 is forbidden in CI; check drift without rewriting the manifest").toBeFalsy();
       writeFileSync(MANIFEST_PATH, renderAdminScreensManifest(expected));
     }
 

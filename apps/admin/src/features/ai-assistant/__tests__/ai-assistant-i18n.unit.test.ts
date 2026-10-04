@@ -40,6 +40,9 @@ describe("AI_ASSISTANT_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       for (const [key, value] of Object.entries(AI_ASSISTANT_DICT[locale])) {
         expect(value.length, `${locale} value for ${JSON.stringify(key)} should not be empty`).toBeGreaterThan(0);
+        // German/Portuguese use the established technical noun "Gateways" unchanged.
+        if (key === "Gateways" && ["de", "pt-BR"].includes(locale)) continue;
+        expect(value, `${locale} must translate ${JSON.stringify(key)}`).not.toBe(key);
       }
     }
   });

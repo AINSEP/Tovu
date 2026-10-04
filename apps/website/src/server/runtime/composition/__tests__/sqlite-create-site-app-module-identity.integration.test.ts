@@ -18,6 +18,7 @@ import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/
 import type { RedirectRecord, RedirectRevision } from "#src/features/redirects/types";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createSubscription } from "#src/features/webhooks/subscriptions";
 
 /**
  * @file Behavioral regression for t91 F4.1-A: a SQLite composition's `createSiteApp()`/`runExportSite`
@@ -170,4 +171,30 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
     servedOnce,
     "createSiteApp() must reuse this process's own busesWithSiteEventHandlers guard, not a second copy's empty WeakSet"
   );
+
+  const sentTo: string[] = [];
+  t.mock.method(deps.mailer, "send", async (message) => {
+    sentTo.push(message.to.email);
+    return { ok: true, providerMessageId: "module-identity-mail" };
+  });
+  const now = deps.clock.nowIso();
+  await deps.formDefinitionRepo.create({ id: "module-identity-form", workspaceId: deps.workspaceId,
+    name: "Module Identity Contact", slug: "module-identity-contact", fields: [],
+    notify: { enabled: true, recipients: ["module-owner@example.test"] }, status: "active", createdAt: now, updatedAt: now });
+  await deps.formSubmissionRepo.create({ id: "module-identity-submission", workspaceId: deps.workspaceId,
+    formDefinitionId: "module-identity-form", data: { message: "One composed delivery" }, sourceIp: "127.0.0.1", submittedAt: now });
+  const owner = await deps.ownerPrincipalId;
+  const { subscription } = await createSubscription({
+    deps: { repo: deps.webhookSubscriptionRepo, clock: deps.clock, idGenerator: deps.idGen,
+      isAllowedTarget: async (url) => url === "https://module-owner.example.test/hook" },
+    input: { workspaceId: deps.workspaceId, ownerPrincipalId: owner, createdByPrincipalId: owner,
+      label: "Module identity hook", targetUrl: "https://module-owner.example.test/hook", topics: ["form.submission.received"] },
+  });
+  await bus.publish({ id: "module-identity-event", name: "form.submission.received", workspaceId: deps.workspaceId,
+    occurredAt: now, payload: { workspaceId: deps.workspaceId, formDefinitionId: "module-identity-form", submissionId: "module-identity-submission" } });
+  assert.deepEqual(sentTo, ["module-owner@example.test"]);
+  const deliveries = await deps.webhookDeliveryRepo.listBySubscription({ workspaceId: deps.workspaceId, subscriptionId: subscription.id, limit: 10 });
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].eventId, "module-identity-event");
+  assert.equal(deliveries[0].status, "pending");
 });

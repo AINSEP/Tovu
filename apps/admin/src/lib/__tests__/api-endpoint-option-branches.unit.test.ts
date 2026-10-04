@@ -660,6 +660,20 @@ test("setDockerfileSource keeps Content-Type: application/json alongside its cus
   expect(calls[0].init?.credentials).toBe("same-origin");
 });
 
+test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body", async () => {
+  const current = { exists: true, contents: "FROM node:24\n", etag: '"new"' };
+  const fetchMock = vi.fn(async () => Response.json({
+    error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
+  }, { status: 412 }));
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(api.setDockerfileSource("FROM node:22\n", '"old"')).rejects.toMatchObject({
+    status: 412, code: "DOCKERFILE_CONFLICT", body: {
+      error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
+    },
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
 test("triggerSiteExport sends an empty body when called with no options at all", async () => {
   const { body } = stubFetchCapturing();
   await api.triggerSiteExport();

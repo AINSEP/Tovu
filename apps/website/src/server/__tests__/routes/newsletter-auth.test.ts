@@ -190,6 +190,29 @@ test("AC-42: every one of the 19 admin newsletter routes is denied 403 FORBIDDEN
 
   assert.equal(cases.length, 19, "this list must cover exactly the 19 admin routes api.spec.md registers");
 
+  // F4.2: derive completeness from the router, so a new route cannot escape the denial matrix.
+  const router = (app as unknown as { _router: { stack: Array<{
+    route?: { path: string; methods: Record<string, boolean> };
+  }> } })._router;
+  const registered = router.stack.flatMap(({ route }) =>
+    route && route.path.startsWith("/api/admin/") && route.path.includes("/newsletter/")
+      ? Object.keys(route.methods).filter((method) => route.methods[method]).map((method) => ({ method, path: route.path }))
+      : []
+  );
+  assert.ok(registered.length > 0, "the router scan must discover newsletter routes");
+  const coveredRoutes = cases.map((c) => {
+    const matches = registered.filter((route) => {
+      const pattern = route.path.split("/");
+      const actual = c.path.split("/");
+      return route.method === c.method.toLowerCase() && pattern.length === actual.length &&
+        pattern.every((part, index) => part.startsWith(":") || part === actual[index]);
+    });
+    assert.equal(matches.length, 1, `${c.method} ${c.path} must identify one registered route`);
+    return `${matches[0].method} ${matches[0].path}`;
+  });
+  assert.deepEqual(new Set(coveredRoutes), new Set(registered.map((route) => `${route.method} ${route.path}`)));
+
+
   for (const c of cases) {
     const res = await fetch(`${baseUrl}${c.path}`, {
       method: c.method,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { hkdfSync } from "node:crypto";
 import { once } from "node:events";
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, request as requestOverSocket, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,7 +31,6 @@ const TARGET_ORIGIN = "https://destination.test";
 const CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
 const A_SHA = "a".repeat(64);
 const NOW = "2026-09-19T12:00:00.000Z";
-const SOURCE_DB = join(process.cwd(), "sites", "tovu-dev", "content.db");
 
 function testKeyring(rootKeyHex: string): KeyringPort {
   const rootKey = Buffer.from(rootKeyHex, "hex");
@@ -74,10 +73,9 @@ function grantDocument(publicKeyB64u: string): string {
   ]);
 }
 
-async function copiedContentDb(): Promise<{ dir: string; db: ContentDb }> {
+async function freshContentDb(): Promise<{ dir: string; db: ContentDb }> {
   const dir = await mkdtemp(join(tmpdir(), "tovu-publish-trust-db-"));
   const dbPath = join(dir, "content.db");
-  await copyFile(SOURCE_DB, dbPath);
   return { dir, db: openContentDb(dbPath) };
 }
 
@@ -156,7 +154,7 @@ async function stop(server: Server): Promise<void> {
 }
 
 test("a database disconnect refuses the next real publish request even with its already-minted valid token", async () => {
-  const { dir, db } = await copiedContentDb();
+  const { dir, db } = await freshContentDb();
   let server: Server | undefined;
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
@@ -200,7 +198,7 @@ test("a database disconnect refuses the next real publish request even with its 
 });
 
 test("the SQLite deny store fails loudly at boot when its migration table is unavailable", async () => {
-  const { dir, db } = await copiedContentDb();
+  const { dir, db } = await freshContentDb();
   try {
     db.$client.exec("DROP TABLE publish_trust_revocations");
     await assert.rejects(
@@ -213,8 +211,8 @@ test("the SQLite deny store fails loudly at boot when its migration table is una
   }
 });
 
-test("a disconnect row survives reopening the copied site content database", async () => {
-  const { dir, db } = await copiedContentDb();
+test("a disconnect row survives reopening the fresh site content database", async () => {
+  const { dir, db } = await freshContentDb();
   let reopened: ContentDb | undefined;
   try {
     const store = await publishTrustRevocationStoreFor(contentKernel(db));

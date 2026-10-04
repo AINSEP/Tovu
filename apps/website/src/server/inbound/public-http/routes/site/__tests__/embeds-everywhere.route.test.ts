@@ -397,6 +397,50 @@ test("GET /:slug (template branch): a bare collection marker in a Post's OWN bod
   assert.ok(gammaIndex < betaIndex && betaIndex < alphaIndex, "default sort is newest-published-first");
 });
 
+test("collection markers with absent or unknown type keys retain their authored fallback", async (t) => {
+  const post = templatedPost({ bodyHtml: '<section data-embed-config=\'{"type":"collection"}\'>Missing type fallback</section><section data-embed-config=\'{"type":"collection","typeKey":"missing-type"}\'>Unknown type fallback</section>' });
+  const entryRepo = await seededEntryRepo(threePublishedGadgetsPlusOneDraft());
+  entryRepo.listPublishedForDisplay = async () => { assert.fail("an invalid type must never query entries"); };
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
+  t.after(() => closeServer(server));
+  const res = await fetch(`${baseUrl}/${post.slug}`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /Missing type fallback/);
+  assert.match(html, /Unknown type fallback/);
+});
+
+test("collection markers cap distinct repository queries at ten and leave excess fallbacks", async (t) => {
+  const entryRepo = await seededEntryRepo(threePublishedGadgetsPlusOneDraft());
+  const originalList = entryRepo.listPublishedForDisplay.bind(entryRepo);
+  const requestedLimits: number[] = [];
+  entryRepo.listPublishedForDisplay = async (input) => { requestedLimits.push(input.query.limit); return originalList(input); };
+  const post = templatedPost({ bodyHtml: Array.from({ length: 12 }, (_, i) => `<section data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}","limit":${i + 1}}'>Fallback ${i + 1}</section>`).join("") });
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
+  t.after(() => closeServer(server));
+  const res = await fetch(`${baseUrl}/${post.slug}`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.deepEqual(requestedLimits.sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.match(html, /Widget Gamma/);
+  assert.match(html, /Fallback 11/);
+  assert.match(html, /Fallback 12/);
+  assert.doesNotMatch(html, /Fallback (?:[1-9]|10)<\/section>/);
+});
+
+test("a collection marker's authored item template renders the actual custom field", async (t) => {
+  const post = templatedPost({ bodyHtml: `<section data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}"}'><template><p class="custom-gadget">{{title}}: {{fields.price}}</p></template>No custom gadgets</section>` });
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo: await seededEntryRepo(threePublishedGadgetsPlusOneDraft()) });
+  t.after(() => closeServer(server));
+  const res = await fetch(`${baseUrl}/${post.slug}`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<p class="custom-gadget">Widget Gamma: 30<\/p>/);
+  assert.match(html, /<p class="custom-gadget">Widget Beta: 20<\/p>/);
+  assert.match(html, /<p class="custom-gadget">Widget Alpha: 10<\/p>/);
+  assert.doesNotMatch(html, /No custom gadgets|\{\{fields\.price\}\}/);
+});
+
 test("GET /:slug (template branch): a collection marker's `where` filter excludes non-matching entries", async (t) => {
   const contentTypeRepo = await seededContentTypeRepo([gadgetContentType()]);
   const entryRepo = await seededEntryRepo(threePublishedGadgetsPlusOneDraft());

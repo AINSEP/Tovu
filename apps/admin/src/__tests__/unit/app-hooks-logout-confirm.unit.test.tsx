@@ -77,4 +77,24 @@ describe("useLogoutConfirm", () => {
     await waitFor(() => expect(confirmSettled).toBe(true));
     expect(result.current.pending).toBe(false);
   });
+
+  it("clears pending and closes the dialog when logout rejects", async () => {
+    let rejectLogout!: (error: Error) => void;
+    const logout = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectLogout = reject; }));
+    const { result } = renderHook(() => useLogoutConfirm(logout));
+    act(() => result.current.request());
+    let confirmation!: Promise<void>;
+    act(() => { confirmation = result.current.confirm(); });
+    expect(result.current.open).toBe(true);
+    expect(result.current.pending).toBe(true);
+    const error = new Error("logout unavailable");
+    await act(async () => {
+      const rejected = expect(confirmation).rejects.toBe(error);
+      rejectLogout(error);
+      await rejected;
+    });
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(result.current.open).toBe(false);
+    expect(result.current.pending).toBe(false);
+  });
 });

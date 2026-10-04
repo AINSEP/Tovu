@@ -19,12 +19,37 @@ const LOCALES = [
   "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
 ];
 
+const EXPECTED_STARTUP_COPY: Record<string, string> = {
+  es: "La clave se crea automáticamente cuando este sitio se inicia.",
+  de: "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.",
+  fr: "Une clé est créée automatiquement au démarrage de ce site.",
+  it: "Una chiave viene creata automaticamente all'avvio di questo sito.",
+  "pt-BR": "Uma chave é criada automaticamente quando este site é iniciado.",
+  pl: "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.",
+  hu: "A kulcs automatikusan létrejön, amikor ez a webhely elindul.",
+  tr: "Bu site başladığında bir anahtar otomatik olarak oluşturulur.",
+  ru: "Ключ создаётся автоматически при запуске этого сайта.",
+  uk: "Ключ створюється автоматично під час запуску цього сайту.",
+  id: "Kunci dibuat secara otomatis saat situs ini dimulai.",
+  ar: "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.",
+  fa: "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.",
+  hi: "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।",
+  bn: "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।",
+  ur: "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔",
+  ja: "このサイトが起動すると、キーが自動的に作成されます。",
+  ko: "이 사이트가 시작되면 키가 자동으로 생성됩니다.",
+  th: "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน",
+  "zh-CN": "此站点启动时会自动创建密钥。",
+  "zh-TW": "此網站啟動時會自動建立金鑰。",
+};
+
 describe('t(locale, "A key is created automatically when this site starts.")', () => {
   for (const locale of LOCALES) {
     it(`translates for ${locale}`, () => {
       const translated = t(locale, "A key is created automatically when this site starts.");
       expect(translated.length).toBeGreaterThan(0);
       expect(translated).not.toBe("A key is created automatically when this site starts.");
+      expect(translated).toBe(EXPECTED_STARTUP_COPY[locale]);
     });
   }
 

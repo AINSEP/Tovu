@@ -53,6 +53,23 @@ test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with
   assert.doesNotMatch(body, /<lastmod>/);
 });
 
+test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod serialization", async (t) => {
+  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
+  invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  registerSitemapCollectHook({ priority: 0, handle: async () => [{ loc: "/hook-entry" }, { loc: "/dated-hook?x=1&y=2", lastmod: "2026-09-03T12:34:56.000Z" }] });
+  t.after(() => {
+    resetSitemapCollectHooksForTests();
+    invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  });
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/sitemap.xml`);
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.match(body, /<url><loc>\/hook-entry<\/loc><\/url>/);
+  assert.match(body, /<url><loc>\/dated-hook\?x=1&amp;y=2<\/loc><lastmod>2026-09-03T12:34:56\.000Z<\/lastmod><\/url>/);
+  assert.equal((body.match(/<lastmod>/g) ?? []).length, 1);
+});
+
 test("GET /sitemap.xml: no published posts and no collect-hook entries -> an empty <urlset>, no stray blank line", async (t) => {
   const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
   invalidateSitemapCache({ workspaceId: deps.workspaceId });

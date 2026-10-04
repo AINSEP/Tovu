@@ -125,6 +125,28 @@ test("DELETE_POLICY route: 400 VALIDATION_ERROR when target is a built-in policy
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("DELETE_POLICY route: a frozen custom policy and a role-referenced policy survive refusal", async (t) => {
+  const { app, deps } = await buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const role = { id: "policy-reference-role", workspaceId: WORKSPACE_ID, name: "policy-reference-role", isBuiltin: false };
+  await deps.roleRepo.save(role);
+  for (const frozen of [true, false]) {
+    const policy = { id: frozen ? "frozen-custom" : "role-referenced", workspaceId: WORKSPACE_ID, name: frozen ? "frozen-custom" : "role-referenced", isBuiltin: false, isFrozen: frozen };
+    await deps.policyRepo.save(policy);
+    const permission = { id: `permission-${policy.id}`, workspaceId: WORKSPACE_ID, policyId: policy.id, permission: "member.manage", resourceType: null, constraintJson: null };
+    await deps.policyPermissionRepo.save(permission);
+    const link = { id: "role-policy-reference", workspaceId: WORKSPACE_ID, roleId: role.id, policyId: policy.id };
+    // The frozen case has no references, so its own guard must refuse it.
+    if (!frozen) await deps.rolePolicyRepo.save(link);
+    const res = await fetch(`${baseUrl}${urlFor(policy.id)}`, { method: "DELETE" });
+    assert.equal(res.status, frozen ? 400 : 409);
+    assert.equal(((await res.json()) as { code: string }).code, frozen ? "VALIDATION_ERROR" : "RESOURCE_CONFLICT");
+    assert.deepEqual(await deps.policyRepo.findById({ workspaceId: WORKSPACE_ID, id: policy.id }), policy);
+    assert.deepEqual(await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: policy.id }), [permission]);
+    assert.deepEqual(await deps.rolePolicyRepo.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: policy.id }), frozen ? [] : [link]);
+  }
+});
+
 /**
  * RBAC audit note (not a bug, verified): there is no exposed mutation anywhere in this codebase
  * that detaches a policy from a principal or role once attached (grepped

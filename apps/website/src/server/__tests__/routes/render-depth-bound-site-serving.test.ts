@@ -24,7 +24,11 @@ function deepBulletChain(depth: number) {
   for (let i = 0; i < depth; i++) {
     node = { type: "bulletList", content: [{ type: "listItem", content: [node] }] };
   }
-  return { type: "doc", content: [node] };
+  return { type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "Before bounded subtree" }] },
+    node,
+    { type: "paragraph", content: [{ type: "text", text: "After bounded subtree" }] },
+  ] };
 }
 
 test("worklist #5 regression: a real HTTP request for a too-deep post serves 200 with a placeholder, not a 500", async (t) => {
@@ -55,6 +59,13 @@ test("worklist #5 regression: a real HTTP request for a too-deep post serves 200
 
   assert.equal(res.status, 200, "the page must serve successfully, not 500, once the render is bounded");
   assert.ok(html.includes("content-ph"), "the bounded page must show the depth placeholder somewhere in the body");
+  const placeholder = '<div class="content-ph"><span class="content-ph__label">Content too deeply nested to render</span></div>';
+  assert.ok(html.includes(placeholder), "the placeholder must specifically identify the depth limit");
+  assert.ok(html.includes("<p>Before bounded subtree</p>"));
+  assert.ok(html.includes("<p>After bounded subtree</p>"));
+  assert.ok(html.indexOf("Before bounded subtree") < html.indexOf(placeholder));
+  assert.ok(html.indexOf(placeholder) < html.indexOf("After bounded subtree"));
+
   assert.ok(!html.includes("leaf-marker"), "content past the bound was never reached, not truncated mid-render");
 });
 

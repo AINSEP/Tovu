@@ -13,6 +13,7 @@ import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content
 afterEach(() => {
   vi.restoreAllMocks();
   resetContentRefreshBus();
+  window.history.replaceState({}, "", "/admin");
 });
 
 describe("ADMIN_AGENT_PAGE_PATHS", () => {
@@ -75,7 +76,8 @@ describe("buildAdminAgentPages", () => {
   });
 
   it("calling a page's navigate function calls router.navigate with exactly that page's route path", () => {
-    const navigateSpy = vi.spyOn(router, "navigate").mockImplementation(() => {});
+    window.history.replaceState({}, "", "/admin/unrelated");
+    const navigateSpy = vi.spyOn(router, "navigate");
     const [pageId, routePath] = Object.entries(ADMIN_AGENT_PAGE_PATHS)[0]!;
     const pages = buildAdminAgentPages();
 
@@ -83,21 +85,23 @@ describe("buildAdminAgentPages", () => {
 
     expect(navigateSpy).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(routePath);
+    expect(router.currentRoutePath()).toBe(routePath);
   });
 
   it("each page's navigate function is independent — invoking one does not navigate any other page's route", () => {
-    const navigateSpy = vi.spyOn(router, "navigate").mockImplementation(() => {});
+    window.history.replaceState({}, "", "/admin/unrelated");
+    const navigateSpy = vi.spyOn(router, "navigate");
     const entries = Object.entries(ADMIN_AGENT_PAGE_PATHS);
-    // Only meaningful with at least two distinct pages; if the allowlist ever shrinks to one, this
-    // assertion has nothing to distinguish and is skipped rather than made to lie.
-    if (entries.length < 2) return;
+    expect(entries.length).toBeGreaterThanOrEqual(2);
     const [, secondRoutePath] = entries[1]!;
-    const [firstPageId] = entries[0]!;
+    const [firstPageId, firstRoutePath] = entries[0]!;
     const pages = buildAdminAgentPages();
 
     pages[firstPageId]!.navigate({});
 
     expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
+    expect(navigateSpy).toHaveBeenCalledExactlyOnceWith(firstRoutePath);
+    expect(router.currentRoutePath()).toBe(firstRoutePath);
   });
 
   it("publishes a content refresh when the agent navigates to the route already displayed", () => {

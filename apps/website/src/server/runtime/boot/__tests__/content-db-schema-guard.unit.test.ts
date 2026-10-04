@@ -86,11 +86,9 @@ test("checkContentDbSchema(): a db whose latest applied migration matches no ent
   );
 });
 
-test("checkContentDbSchema(): never throws SiteNewerThanRuntimeError past its own boundary — a real throw from compareSchemaVersion is always converted to a 'refuse' result", async () => {
+test("checkContentDbSchema(): divergent migration lineage returns a refusal without throwing", async () => {
   // Same fixture as the divergent-lineage test above; asserted from a different angle: whatever
-  // internal path produces the refusal, the exported function's contract is a returned result, not
-  // a thrown error, so a caller (`index.ts`) can decide what "refuse" means without a try/catch of
-  // its own.
+  // divergent-lineage refusal is returned, so a caller can decide what it means without a catch.
   const dbPath = mkTempDbPath();
   const db = openContentDb(dbPath);
   // `created_at` must be LARGER than every real applied row's epoch-millis timestamp so

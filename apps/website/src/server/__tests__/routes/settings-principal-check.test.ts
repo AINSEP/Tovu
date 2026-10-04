@@ -7,6 +7,7 @@ import express from "express";
 
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
 import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
 import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
@@ -32,6 +33,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   registerAdminSettingsRegisterDefinitionsRoute(app, deps);
   registerAdminSettingsSetRoute(app, deps);
   registerAdminSettingsClearRoute(app, deps);
+  registerAdminSettingsGetEffectiveRoute(app, deps);
   return { app, deps };
 }
 
@@ -147,7 +149,7 @@ test("SETTINGS_CLEAR at scope=user targeting a principalId from a different work
   assert.equal(body.code, "PRINCIPAL_NOT_FOUND");
 });
 
-test("SETTINGS_SET at scope=user targeting a real principal in the SAME workspace succeeds (control case), real SQLite adapter", async (t) => {
+test("SETTINGS_SET and SETTINGS_CLEAR for a same-workspace user persist an override and restore its effective fallback, real SQLite adapter", async (t) => {
   const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -179,4 +181,29 @@ test("SETTINGS_SET at scope=user targeting a real principal in the SAME workspac
   assert.equal(res.status, 200);
   const body = (await res.json()) as { value: string };
   assert.equal(body.value, "atlas");
+  const definition = await deps.settingsRepo.findActiveDefinition({ namespace: "site.testing", key: "demoKey", workspaceId: deps.workspaceId });
+  assert.ok(definition);
+  const userTarget = { workspaceId: deps.workspaceId, principalId: samePrincipalId, settingId: definition.settingId };
+  assert.equal((await deps.settingsRepo.getUserValue(userTarget))?.valueJson, "atlas");
+  const workspaceSet = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ namespace: "site.testing", key: "demoKey", scope: "workspace", valueJson: "workspace fallback" }),
+  });
+  assert.equal(workspaceSet.status, 200);
+  const effectiveUrl = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/effective?namespace=site.testing&principalId=${samePrincipalId}`;
+  const before = await fetch(effectiveUrl, { headers: { cookie } });
+  assert.equal(before.status, 200);
+  assert.equal((await before.json()).data.find((row: { key: string }) => row.key === "demoKey")?.value, "atlas");
+  const cleared = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "DELETE", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ namespace: "site.testing", key: "demoKey", scope: "user", principalId: samePrincipalId }),
+  });
+  assert.equal(cleared.status, 200);
+  const raw = await deps.settingsRepo.getUserValue(userTarget);
+  assert.equal(raw?.state, "cleared");
+  assert.equal(raw?.valueJson, null);
+  const effective = await fetch(effectiveUrl, { headers: { cookie } });
+  assert.equal(effective.status, 200);
+  assert.equal((await effective.json()).data.find((row: { key: string }) => row.key === "demoKey")?.value, "workspace fallback");
+
 });

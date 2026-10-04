@@ -120,7 +120,8 @@ test("get() throws FileBlobUnavailableError when a same-tick file mutation races
     index.set(sha256, { absPath: filePath, size: original.length });
     const source = createCompositePeerBlobSource({ blobStore: fakeBlobStore(new Set()), fileBlobIndex: index });
 
-    writeFileSync(filePath, "body { color: green; }"); // mutate directly, skipping any exists() call
+    assert.equal(await source.exists({ sha256, storageKey: "k" }), true);
+    writeFileSync(filePath, "body { color: green; }"); // replace after the successful probe
     await assert.rejects(() => source.get({ sha256, storageKey: "k" }), FileBlobUnavailableError);
   } finally {
     rmSync(dir, { recursive: true, force: true });

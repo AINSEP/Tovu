@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { SHARED_COMPONENTS_DICT } from "../shared-components-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import ts from "typescript";
 
 /**
  * @file `SHARED_COMPONENTS_DICT` cross-locale coverage, mirroring `features/trash/trash-i18n.unit
@@ -33,9 +36,19 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
   });
 
   it("has a non-empty translation for every key in every locale", () => {
+    // Cognates, established technical terms, and URL syntax can legitimately equal English.
+    const identical: Record<string, string[]> = {
+      "Widget…": ["es", "id", "de", "pt-BR", "hu", "fr", "it"],
+      spam: ["es", "id", "pt-BR", "pl", "fr", "it"], Platform: ["id", "hu", "tr"],
+      Filter: ["id", "de"], Menu: ["id", "pt-BR", "pl", "fr", "it"], Media: ["id", "pl", "it"],
+      valid: ["id"], Text: ["de"], "Link {n}": ["de", "pt-BR", "pl", "it"],
+      Layout: ["de", "pt-BR", "it"], site: ["pt-BR", "fr", "tr"], Collection: ["fr"], exact: ["fr"], Form: ["tr"],
+    };
     for (const locale of locales) {
       for (const [key, value] of Object.entries(SHARED_COMPONENTS_DICT[locale])) {
         expect(value.length, `${locale} value for ${JSON.stringify(key)} should not be empty`).toBeGreaterThan(0);
+        if (["URL", "https://…"].includes(key) || identical[key]?.includes(locale)) continue;
+        expect(value, `${locale} must translate ${JSON.stringify(key)}`).not.toBe(key);
       }
     }
   });
@@ -178,5 +191,27 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     const commonKeys = new Set(Object.keys(COMMON_I18N[locales[0]]));
     const referenceKeys = Object.keys(SHARED_COMPONENTS_DICT[locales[0]]).sort();
     expect(CALL_SITE_KEYS.filter((key) => !commonKeys.has(key)).sort()).toEqual(referenceKeys);
+  });
+
+  it("covers literal t() keys read from the components and hooks that use this dictionary", () => {
+    const used = new Set<string>();
+    for (const directory of ["Select", "WidgetPickerDialog", "WidgetConfigFields", "MediaPickerDialog", "EmbedInsertControl"]) {
+      const dir = path.resolve(__dirname, "..", directory);
+      for (const file of readdirSync(dir).filter((name) => /\.tsx?$/.test(name))) {
+        const source = ts.createSourceFile(file, readFileSync(path.join(dir, file), "utf8"), ts.ScriptTarget.Latest, true,
+          file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+        const visit = (node: ts.Node) => {
+          if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t"
+            && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) used.add(node.arguments[0].text);
+          ts.forEachChild(node, visit);
+        };
+        visit(source);
+      }
+    }
+    expect(used).toContain("Place a {typeLabel} widget");
+    expect(used).toContain('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.');
+    for (const locale of locales) {
+      expect([...used].filter((key) => !(SHARED_COMPONENTS_DICT[locale][key] ?? COMMON_I18N[locale]?.[key])), locale).toEqual([]);
+    }
   });
 });

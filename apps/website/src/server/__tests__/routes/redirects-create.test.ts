@@ -62,21 +62,22 @@ test("admin redirects create route: every parseRedirectCreateBody rejection bran
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const cases: Array<[string, unknown]> = [
-    ["missing matchType", { fromPattern: "/a", toTarget: "/b", statusCode: 301 }],
-    ["invalid matchType", { matchType: "nonsense", fromPattern: "/a", toTarget: "/b", statusCode: 301 }],
-    ["fromPattern not a string", { matchType: "exact", fromPattern: 123, toTarget: "/b", statusCode: 301 }],
-    ["toTarget not a string", { matchType: "exact", fromPattern: "/a", toTarget: 123, statusCode: 301 }],
-    ["missing statusCode", { matchType: "exact", fromPattern: "/a", toTarget: "/b" }],
-    ["invalid statusCode", { matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 200 }],
+  const cases: Array<[string, unknown, string]> = [
+    ["missing matchType", { fromPattern: "/a", toTarget: "/b", statusCode: 301 }, "matchType must be one of exact/prefix/wildcard/regex"],
+    ["invalid matchType", { matchType: "nonsense", fromPattern: "/a", toTarget: "/b", statusCode: 301 }, "matchType must be one of exact/prefix/wildcard/regex"],
+    ["fromPattern not a string", { matchType: "exact", fromPattern: 123, toTarget: "/b", statusCode: 301 }, "fromPattern and toTarget are required strings"],
+    ["toTarget not a string", { matchType: "exact", fromPattern: "/a", toTarget: 123, statusCode: 301 }, "fromPattern and toTarget are required strings"],
+    ["missing statusCode", { matchType: "exact", fromPattern: "/a", toTarget: "/b" }, "statusCode must be one of 301/302/307/308"],
+    ["invalid statusCode", { matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 200 }, "statusCode must be one of 301/302/307/308"],
   ];
 
-  for (const [label, body] of cases) {
+  for (const [label, body, error] of cases) {
     const res = await post(baseUrl, cookie, body);
     assert.equal(res.status, 400, `${label} should be 400`);
     const json = (await res.json()) as { code: string; error: string };
     assert.equal(json.code, "VALIDATION_ERROR", label);
     assert.ok(json.error.length > 0, label);
+    assert.equal(json.error, error, label);
   }
 });
 

@@ -181,7 +181,7 @@ describe("lifecycle buttons — Publish/Unpublish", () => {
     expect(screen.getByRole("button", { name: "Unpublish" })).toBeInTheDocument();
   });
 
-  it("shows neither for an unpublished entry that was previously published (status: unpublished, not draft)", () => {
+  it("shows Publish, not Unpublish, for an unpublished entry that was previously published", () => {
     renderEditor({ entry: { ...ENTRY, status: "unpublished" } });
     expect(screen.getByRole("button", { name: "Publish" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Unpublish" })).not.toBeInTheDocument();

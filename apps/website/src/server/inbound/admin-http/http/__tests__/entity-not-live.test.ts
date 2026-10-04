@@ -25,3 +25,12 @@ test("entityNotLiveResponse: an EntityNotLiveError maps to 409 with its code and
 test("entityNotLiveResponse: any other error is left unhandled (returns null)", () => {
   assert.equal(entityNotLiveResponse(new Error("x")), null);
 });
+
+
+test("entityNotLiveResponse: a permanently deleted entity retains ENTITY_TOMBSTONED and its own message", () => {
+  const err = new EntityNotLiveError({ entityType: "menu", entityId: "m2", state: "tombstoned" });
+  assert.deepEqual(entityNotLiveResponse(err), {
+    status: 409,
+    body: { error: "ENTITY_TOMBSTONED: menu 'm2' was permanently deleted and can't be changed.", code: "ENTITY_TOMBSTONED" },
+  });
+});

@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../dev-tls.js";
 
@@ -26,6 +30,25 @@ test("resolveDevTls: active with loaded credentials when both cert and key exist
   assert.equal(result.active, true);
   assert.equal(result.credentials?.cert.toString(), "content of /repo/.certs/localhost.pem");
   assert.equal(result.credentials?.key.toString(), "content of /repo/.certs/localhost-key.pem");
+});
+
+test("resolveDevTls production defaults read real files and obey the subprocess environment", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-dev-tls-defaults-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const paths = { certPath: join(dir, "cert.pem"), keyPath: join(dir, "key.pem") };
+  writeFileSync(paths.certPath, "distinct-cert-bytes");
+  writeFileSync(paths.keyPath, "distinct-key-bytes");
+  const script = `import { resolveDevTls } from ${JSON.stringify(new URL("../dev-tls.ts", import.meta.url).href)};
+    const out = resolveDevTls(${JSON.stringify(paths)});
+    process.stdout.write(JSON.stringify({ active: out.active, ...(out.credentials ? { cert: out.credentials.cert.toString(), key: out.credentials.key.toString() } : {}) }));`;
+  for (const optOut of [undefined, "true", "false"]) {
+    const env = { ...process.env };
+    delete env.TOVU_DISABLE_DEV_TLS;
+    if (optOut !== undefined) env.TOVU_DISABLE_DEV_TLS = optOut;
+    const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], { env, encoding: "utf8", timeout: 10_000 });
+    assert.equal(child.status, 0, child.stderr);
+    assert.deepEqual(JSON.parse(child.stdout), optOut === "true" ? { active: false } : { active: true, cert: "distinct-cert-bytes", key: "distinct-key-bytes" });
+  }
 });
 
 test("resolveDevTls: inactive, no credentials, when the cert file is missing", () => {

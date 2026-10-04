@@ -72,22 +72,22 @@ test("renderHtmlPageBody: marker class is appended after the asset cssClass, nev
 });
 
 test("renderHtmlPageBody: a marker attribute beats the asset htmlAttributes value of the same name", () => {
-  const html = `<img data-embed-config='{"type":"media","id":"asset-1"}' loading="eager"></img>`;
+  const html = `<img data-embed-config='{"type":"media","id":"asset-1"}' alt="Marker &amp; caption" width="320" height="240" loading="eager"></img>`;
   const ir: WidgetRenderIR = {
     componentId: "media-image",
     props: {
       assetId: "asset-1",
       transformName: "public",
       version: 3,
-      alt: "",
-      width: null,
-      height: null,
+      alt: "Asset caption",
+      width: 640,
+      height: 480,
       cssClass: null,
       htmlAttributes: 'loading="lazy"',
     },
   };
   const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
-  assert.equal(out, `<img src="/m/asset-1/public.v3/image.jpg" alt="" loading="eager">`);
+  assert.equal(out, `<img src="/m/asset-1/public.v3/image.jpg" alt="Marker &amp; caption" width="320" height="240" loading="eager">`);
   assert.equal((out.match(/loading=/g) ?? []).length, 1, "loading must appear exactly once, not twice");
 });
 

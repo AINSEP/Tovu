@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import sharp from "sharp";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 
 import type { PostRecord } from "#src/features/post/index";
-import { registerTransform, uploadMedia } from "#src/features/media/index";
+import { registerTransform, uploadMedia, SharpImageTransformer } from "#src/features/media/index";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
@@ -36,8 +38,23 @@ import { startTestServer } from "../helpers/http-test-server.js";
 
 const OG_TRANSFORM_NAME = "public";
 
-function imageBytes(content: string): Uint8Array {
-  return new TextEncoder().encode(content);
+async function imageBytes(): Promise<Uint8Array> {
+  return sharp({ create: { width: 12, height: 8, channels: 3, background: { r: 17, g: 83, b: 151 } } }).png().toBuffer();
+}
+
+function configureCrawlerOrigin(deps: ReturnType<typeof createRouteDeps>) {
+  let repo = new InMemoryOriginSettingRepo();
+  deps.originRegistry = new OriginRegistry({ repo: {
+    findByWorkspaceId: (workspaceId) => repo.findByWorkspaceId(workspaceId),
+    findRedirectAllowlist: (workspaceId) => repo.findRedirectAllowlist(workspaceId),
+    findEgressAllowlist: (workspaceId) => repo.findEgressAllowlist(workspaceId),
+  } });
+  return (baseUrl: string) => {
+    const url = new URL(baseUrl);
+    repo = new InMemoryOriginSettingRepo([{ workspaceId: deps.workspaceId, origin: createVerifiedOrigin({
+      scheme: "http", host: url.hostname, port: Number(url.port), verifiedAt: "2026-09-05T00:00:00.000Z", source: "dev-capability",
+    }) }]);
+  };
 }
 
 /** Same `blobRepo`/`renditionRepo` field-naming mapping every sibling media-rendition suite uses —
@@ -92,7 +109,9 @@ function extractOgImage(html: string): string | undefined {
 
 test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type", async (t) => {
   const deps = createRouteDeps();
-  const { media } = await uploadOne(deps, imageBytes("dedicated-og-image-never-embedded"), "cover.png");
+  deps.imageTransformer = new SharpImageTransformer();
+  const setOrigin = configureCrawlerOrigin(deps);
+  const { media } = await uploadOne(deps, await imageBytes(), "cover.png");
   const { definition } = await registerOgTransform(deps);
   // No rendition generated yet -- nobody's browser has ever requested this asset+transform combo,
   // since it is only ever referenced via `seoExtJson.ogImage`, never placed in any entry body. Before
@@ -108,6 +127,7 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
 
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
+  setOrigin(baseUrl);
   await deps.seoReady;
 
   const page = await fetch(`${baseUrl}/post-with-unwarmed-og-image`);
@@ -121,13 +141,9 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
     `og:image path must be keyed by the asset's readable slug (readable-slugs S4), got: ${ogImage}`
   );
 
-  // The load-bearing proof: fetch the EXACT path the page just published, anonymously -- no cookies,
-  // no Authorization header. A tag pointing at a 404 would be worse than no tag at all. Refetched
-  // against `baseUrl` rather than `ogImage` verbatim, same as the sibling test below: the verified
-  // origin this test's deps resolve to is a fixed placeholder, not this test server's real ephemeral
-  // port, so the absolute URL's ORIGIN is not meaningful here -- only its path is.
-  const ogImagePath = new URL(ogImage!).pathname;
-  const crawlerFetch = await fetch(`${baseUrl}${ogImagePath}`);
+  // Fetch the published URL verbatim; a wrong origin or query must not be repaired by the test.
+  assert.equal(new URL(ogImage!).origin, baseUrl);
+  const crawlerFetch = await fetch(ogImage!);
   assert.equal(
     crawlerFetch.status,
     200,
@@ -138,6 +154,17 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
     /^image\//,
     "the fetched og:image URL must actually serve image bytes, not just exist as a string in the markup"
   );
+  assert.equal(crawlerFetch.headers.get("content-type"), "image/webp");
+  const responseBytes = Buffer.from(await crawlerFetch.arrayBuffer());
+  const image = sharp(responseBytes);
+  const decoded = await image.metadata();
+  const pixels = await image.raw().toBuffer({ resolveWithObject: true });
+  assert.equal(pixels.info.width, 12);
+  assert.equal(pixels.info.height, 8);
+  assert.equal(pixels.data.length, 12 * 8 * pixels.info.channels);
+  assert.equal(decoded.format, "webp");
+  assert.equal(decoded.width, 12);
+  assert.equal(decoded.height, 8);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
     "public, max-age=3600",
@@ -147,7 +174,9 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
 
 test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies", async (t) => {
   const deps = createRouteDeps();
-  const { media } = await uploadOne(deps, imageBytes("dedicated-og-image-warmed"), "cover2.png");
+  deps.imageTransformer = new SharpImageTransformer();
+  const setOrigin = configureCrawlerOrigin(deps);
+  const { media } = await uploadOne(deps, await imageBytes(), "cover2.png");
   const { definition } = await registerOgTransform(deps);
   await deps.postRepo.save(
     publishedPostWithOgImageRef({
@@ -160,6 +189,7 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
 
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
+  setOrigin(baseUrl);
   await deps.seoReady;
 
   // Simulate the one-time warm-up (an admin's own preview visit, or a first crawler retry).
@@ -172,9 +202,20 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   assert.ok(ogImage, "og:image must now be present -- the rendition exists, so resolveSeoImageRef resolves it");
   assert.match(ogImage!, /^https?:\/\//, "og:image must be an ABSOLUTE URL -- crawlers do not resolve relative image URLs");
 
-  const ogImagePath = new URL(ogImage!).pathname;
-  const crawlerFetch = await fetch(`${baseUrl}${ogImagePath}`);
+  assert.equal(new URL(ogImage!).origin, baseUrl);
+  const crawlerFetch = await fetch(ogImage!);
   assert.equal(crawlerFetch.status, 200, "the exact URL published in og:image must itself be publicly fetchable");
+  assert.equal(crawlerFetch.headers.get("content-type"), "image/webp");
+  const responseBytes = Buffer.from(await crawlerFetch.arrayBuffer());
+  const image = sharp(responseBytes);
+  const decoded = await image.metadata();
+  const pixels = await image.raw().toBuffer({ resolveWithObject: true });
+  assert.equal(pixels.info.width, 12);
+  assert.equal(pixels.info.height, 8);
+  assert.equal(pixels.data.length, 12 * 8 * pixels.info.channels);
+  assert.equal(decoded.format, "webp");
+  assert.equal(decoded.width, 12);
+  assert.equal(decoded.height, 8);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
     "public, max-age=3600",

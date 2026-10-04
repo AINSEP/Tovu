@@ -272,6 +272,10 @@ test("WRITE_POLICY_PERMISSION route: 201 on success, with resourceType and const
 
   const rows = await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId });
   assert.equal(rows.length, 1);
+  assert.equal(rows[0].policyId, policyId);
+  assert.equal(rows[0].permission, "member.manage");
+  assert.equal(rows[0].resourceType, "member");
+  assert.equal(rows[0].constraintJson, '{"tierId":"tier-1"}');
 });
 
 test("WRITE_POLICY_PERMISSION route: 500 internal error when an unexpected error is thrown", async (t) => {

@@ -441,10 +441,12 @@ describe("buildExternalMcpRemoveConfirmCopy", () => {
     const copy = buildExternalMcpRemoveConfirmCopy({ name: "higgsfield", isOAuth: true });
     expect(copy.body).toMatch(/sealed/i);
     expect(copy.body).toMatch(/cannot be recovered/i);
+    expect(copy.body).toBe("This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again.");
   });
 
   it("a non-OAuth connection's body does not claim a sealed credential is lost", () => {
     const copy = buildExternalMcpRemoveConfirmCopy({ name: "higgsfield", isOAuth: false });
     expect(copy.body).not.toMatch(/sealed/i);
+    expect(copy.body).toBe("This connection will stop working immediately. You'll need to re-enter its configuration to use it again.");
   });
 });

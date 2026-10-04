@@ -25,7 +25,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserDeleteRoute } from "../delete.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { assignRole, createUser, resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
+import { assignRole, createUser, createSessionForPrincipal, validateSession, resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser } from "#src/features/identity/delete-user-service";
 
@@ -146,10 +146,15 @@ test("DELETE_USER route: 204 trashes an existing user", async (t) => {
     input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "departing-route", password: "correct-horse-battery" },
   });
 
+  const svcDeps = identityServiceDepsFrom(deps);
+  const active = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId: target.id } }, { sessionTtlMs: 60_000 });
+  assert.equal((await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }))?.principal.id, target.id);
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 204);
   assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "disabled");
   assert.equal(await deps.isInTrash!(target.id), true);
+  assert.equal(await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: active.session.id }), null);
+  assert.equal(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }), null);
 });
 
 test("DELETE_USER route: 204 is idempotent when the target is already in the Trash", async (t) => {
@@ -178,6 +183,8 @@ test("DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor 
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "FORBIDDEN");
+  assert.equal(await deps.isInTrash!(target.id), false);
+  assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "active");
 });
 
 test("DELETE_USER route: 204 when the caller holds the built-in admin role (not owner) — OWNER DECISION 2026-09-24", async (t) => {

@@ -93,6 +93,9 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
     const msg = result.ok
       ? `Purchased — order ${result.orderId}, ${result.remainingStock} left.`
       : `Could not buy: ${result.reason}.`;
-    res.redirect(`${returnTo}?msg=${encodeURIComponent(msg)}`);
+    const target = new URL(returnTo, "http://store-return.invalid");
+    // Keep the established message encoding while preserving authored query and fragment parts.
+    const query = target.search ? `${target.search}&` : "?";
+    res.redirect(`${target.pathname}${query}msg=${encodeURIComponent(msg)}${target.hash}`);
   });
 }

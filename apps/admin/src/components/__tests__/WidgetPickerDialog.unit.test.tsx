@@ -305,4 +305,16 @@ describe("WidgetPickerDialog — focus trap", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(first);
   });
+
+  it("wraps Shift+Tab from the first dialog control to the last", async () => {
+    const user = userEvent.setup();
+    render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
+    await screen.findByRole("button", { name: "Use this widget" });
+    const first = screen.getByRole("combobox", { name: /existing text widgets/i });
+    const last = screen.getByRole("button", { name: "Cancel" });
+    first.focus();
+    expect(first).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+  });
 });

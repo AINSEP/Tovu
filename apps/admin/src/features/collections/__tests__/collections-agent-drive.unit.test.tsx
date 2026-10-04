@@ -77,6 +77,30 @@ afterEach(() => {
 });
 
 describe("driving a new entry's editor through page.* verbs", () => {
+  it.each([
+    ["draft", "Publish", "entry-publish", "entry-unpublish"],
+    ["published", "Unpublish", "entry-unpublish", "entry-publish"],
+  ])("discovers the %s entry's lifecycle button through its agent handle", async (status, label, handle, absent) => {
+    stubLocaleAndRoute(fetchMock);
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/content-types")) return Promise.resolve(jsonResponse({ items: [ARTICLE_TYPE] }));
+      if (String(url).includes("/entries?")) return Promise.resolve(jsonResponse({ items: [{
+        id: "e1", workspaceId: "w1", type: "articles", slug: "saved", title: "Saved entry",
+        status, bodyJson: null, fieldsJson: {}, version: 1,
+        publishedAt: status === "published" ? "2026-07-01T09:00:00.000Z" : null,
+        createdAt: "2026-07-01T09:00:00.000Z", updatedAt: "2026-07-01T09:00:00.000Z",
+      }] }));
+      return Promise.reject(new Error(`unmocked route: ${url}`));
+    });
+    const { container } = render(<FetchQueryProvider>
+      <CollectionEntryEditor contentTypeKey="articles" entryId="e1" />
+    </FetchQueryProvider>);
+    expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
+    const handles = await handlesOf(createDomPageDriver({ root: container, pages: {} }), { role: "button" });
+    expect(handles).toContain(handle);
+    expect(handles).not.toContain(absent);
+  });
+
   it("page.fill on the title and slug fields reaches React state", async () => {
     stubLocaleAndRoute(fetchMock);
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] })); // listContentTypes

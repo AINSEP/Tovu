@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TemplateSourceModal } from "../TemplateSourceModal";
 import type { TemplateSourceFetchState } from "../use-template-source.hooks";
 import { navigate } from "@/lib/router";
+import { resolveRequestedThemeExploreSelection } from "@/features/themes/hooks/theme-explore-url.hooks";
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
@@ -249,6 +250,13 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
     expect(navigate).toHaveBeenCalledWith("/themes/explore?theme=basic&page=posts-default");
+    const url = new URL(vi.mocked(navigate).mock.calls[0][0], window.location.origin);
+    expect(url.searchParams.get("theme")).toBe("basic");
+    expect(resolveRequestedThemeExploreSelection([
+      { path: "render/pages/index.html", label: "index", kind: "page" },
+      { path: "render/pages/posts-default.html", label: "posts-default", kind: "page" },
+    ], { fileId: url.searchParams.get("file") ?? undefined, pageId: url.searchParams.get("page") ?? undefined }))
+      .toEqual({ path: "render/pages/posts-default.html", missed: null });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
+import { registerAdminRedirectUpdateRoute } from "../../inbound/admin-http/routes/redirects/update.js";
 import { registerAdminRedirectCreateRoute } from "../../inbound/admin-http/routes/redirects/create.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
@@ -31,6 +32,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRedirectCreateRoute(app, deps);
+  registerAdminRedirectUpdateRoute(app, deps);
   registerSiteRoutes(app, deps);
   return { app, deps };
 }
@@ -119,4 +121,40 @@ test("security characterization: a redirect rule whose target is a disallowed cr
 
   assert.equal(visit.status, 404, "the disallowed cross-origin target must never reach a 3xx response");
   assert.equal(visit.headers.get("location"), null, "no Location header may point anywhere, let alone at the disallowed origin");
+});
+
+
+test("ordinary redirects serve content misses, while override controls precedence over a published page", async (t) => {
+  const { app, deps } = buildTestApp();
+  const [seed] = await deps.postRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(seed);
+  await deps.postRepo.save({ ...seed, id: "precedence-page", slug: "precedence-page", kind: "page", status: "published",
+    bodyFormat: "doc", bodyHtml: null, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Existing page wins" }] }] },
+  });
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+  const create = async (fromPattern: string) => {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
+      method: "POST", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ matchType: "exact", fromPattern, toTarget: "/precedence-target", statusCode: 302, override: false }),
+    });
+    assert.equal(res.status, 201, await res.clone().text());
+    return (await res.json()).data.id as string;
+  };
+  await create("/content-miss");
+  const miss = await fetch(`${baseUrl}/content-miss`, { redirect: "manual" });
+  assert.equal(miss.status, 302);
+  assert.equal(miss.headers.get("location"), "/precedence-target");
+  const redirectId = await create("/precedence-page");
+  const content = await fetch(`${baseUrl}/precedence-page`, { redirect: "manual" });
+  assert.equal(content.status, 200);
+  assert.equal(content.headers.get("location"), null);
+  assert.ok((await content.text()).includes("<p>Existing page wins</p>"));
+  const override = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/${redirectId}`, {
+    method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ override: true }),
+  });
+  assert.equal(override.status, 200, await override.text());
+  const redirected = await fetch(`${baseUrl}/precedence-page`, { redirect: "manual" });
+  assert.equal(redirected.status, 302);
+  assert.equal(redirected.headers.get("location"), "/precedence-target");
 });

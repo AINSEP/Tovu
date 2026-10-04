@@ -7,6 +7,8 @@ import express from "express";
 
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
+import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
 import type { RouteDeps } from "../../routes/types.js";
 
@@ -27,6 +29,8 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminSettingsRegisterDefinitionsRoute(app, deps);
+  registerAdminSettingsSetRoute(app, deps);
+  registerAdminSettingsGetEffectiveRoute(app, deps);
   return { app, deps };
 }
 
@@ -49,5 +53,51 @@ for (const op of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {
     assert.equal(res.status, 400, `op='${op}' must be rejected 400, not silently dispatched`);
     const body = (await res.json()) as { code?: string };
     assert.equal(body.code, "VALIDATION_ERROR");
+  });
+}
+
+
+for (const op of ["rename", "retype", "deprecate", "tombstone"] as const) {
+  test(`SETTINGS_REGISTER_DEFINITIONS: ${op} persists its definition transition and retains the stored value`, async (t) => {
+    const { app, deps } = await buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings`;
+    const namespace = "site.lifecycle";
+    const headers = { "content-type": "application/json", cookie };
+    const post = (item: object) => fetch(`${base}/definitions`, { method: "POST", headers, body: JSON.stringify({ definitions: [item] }) });
+    const registered = await post({ ownerKind: "site", namespace, key: op, schemaJson: { type: "string" }, defaultJson: "initial default", scopes: 2 });
+    assert.equal(registered.status, 200, await registered.text());
+    const original = await deps.settingsRepo.findActiveDefinition({ namespace, key: op, workspaceId: deps.workspaceId });
+    assert.ok(original);
+    const seeded = await fetch(`${base}/value`, { method: "PUT", headers, body: JSON.stringify({ namespace, key: op, scope: "workspace", valueJson: "saved override" }) });
+    assert.equal(seeded.status, 200, await seeded.text());
+    const applied = await post({ op, ownerKind: "site", namespace, key: op,
+      ...(op === "rename" ? { newNamespace: namespace, newKey: "renamed" } : {}),
+      ...(op === "retype" ? { schemaJson: { type: "string", nullable: true }, defaultJson: "new default", coercionJson: { tag: "identity" } } : {}),
+    });
+    assert.equal(applied.status, 200, await applied.clone().text());
+    assert.deepEqual((await applied.json()).applied, [{ key: `${namespace}.${op}`, op, status: "applied" }]);
+    const stored = await deps.settingsRepo.findDefinitionBySettingId({ settingId: original.settingId });
+    assert.ok(stored);
+    assert.equal(stored.status, op === "deprecate" ? "deprecated" : op === "tombstone" ? "tombstone" : "active");
+    assert.equal(stored.key, op === "rename" ? "renamed" : op);
+    assert.equal(stored.version, op === "retype" ? 2 : 1);
+    if (op === "rename") {
+      const alias = await deps.settingsRepo.findActiveDefinition({ namespace, key: op, workspaceId: deps.workspaceId });
+      assert.equal(alias?.status, "alias");
+      assert.equal(alias?.aliasOfNamespace, namespace);
+      assert.equal(alias?.aliasOfKey, "renamed");
+    }
+    if (op === "retype") {
+      assert.deepEqual(stored.schema, { type: "string", nullable: true });
+      assert.equal(stored.defaultValue, "new default");
+      assert.equal(stored.coercionTag, "identity");
+    }
+    assert.equal((await deps.settingsRepo.getWorkspaceValue({ workspaceId: deps.workspaceId, settingId: original.settingId }))?.valueJson, "saved override");
+    if (op === "rename" || op === "retype") {
+      const effective = await fetch(`${base}/effective?namespace=${namespace}`, { headers: { cookie } });
+      assert.equal(effective.status, 200);
+      assert.equal((await effective.json()).data.find((row: { key: string }) => row.key === stored.key)?.value, "saved override");
+    }
   });
 }

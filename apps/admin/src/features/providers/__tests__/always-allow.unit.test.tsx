@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminExternalMcpToolApproval } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
@@ -17,6 +17,9 @@ import { useAlwaysAllow } from "../hooks/use-always-allow.hooks";
  */
 
 const fakeT = (key: string): string => key;
+
+beforeAll(() => vi.stubEnv("TZ", "UTC"));
+afterAll(() => vi.unstubAllEnvs());
 
 function approval(serverId: string, toolName: string): AdminExternalMcpToolApproval {
   return { serverId, toolName, grantedByPrincipalId: "owner", grantedAt: "2026-09-28T10:00:00.000Z" };

@@ -121,3 +121,39 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   assert.deepEqual(sent.body, { error: "the publishing handshake failed", code: "INTERNAL_ERROR" });
   assert.equal(logged.length, 1);
 });
+
+test("a keyed instance refuses malformed responses and expired grants with the fixed envelope", async () => {
+  const handlers = routes({
+    targetInstallationId: Promise.resolve("dest-1"),
+    grants: async () => ({ state: "configured", origin: "env", grants: [{ ...ACTIVE_GRANT, notAfter: "2026-09-25T00:00:00.000Z" }], reason: null }) as PublishTrustResolution,
+  });
+  for (const body of [null, { nonce: "n" }, { nonce: "n", sourceInstallationId: "src-1", generation: 1.5, capabilities: [], signatureB64u: "s" }, { nonce: "n", sourceInstallationId: "src-1", generation: 1, capabilities: [1], signatureB64u: "s" }, { nonce: "n", sourceInstallationId: "src-1", generation: 1, capabilities: ["publish_content.apply"], signatureB64u: "s" }]) {
+    const { res, sent } = fakeRes();
+    await handlers.get("POST /api/publish-trust/v1/session")!(fakeReq(body), res);
+    assert.equal(sent.status, 401);
+    assert.deepEqual(sent.body, { error: "the publishing handshake was refused", code: "UNAUTHENTICATED" });
+  }
+});
+
+test("keyed challenge requests hit the per-IP ceiling without minting another nonce", async () => {
+  let minted = 0;
+  const store = new InMemoryPublishChallengeStore(clock);
+  const handlers = routes({ targetInstallationId: Promise.resolve("dest-1"), challengeStore: store, idGen: { newId: () => `rate-nonce-${++minted}` } });
+  const handler = handlers.get("POST /api/publish-trust/v1/challenge")!;
+  for (let i = 1; i <= 40; i++) {
+    const { res, sent } = fakeRes();
+    await handler(fakeReq(), res);
+    assert.equal(sent.status, 200);
+    assert.deepEqual(sent.body, { nonce: `rate-nonce-${i}`, targetInstallationId: "dest-1", expiresAt: "2026-09-26T00:01:00.000Z" });
+  }
+  const { res, sent } = fakeRes();
+  const headers: Record<string, unknown> = {};
+  res.setHeader = (name: string, value: unknown) => { headers[name] = value; return res; };
+  await handler(fakeReq(), res);
+  assert.equal(sent.status, 429);
+  assert.deepEqual(sent.body, { error: "too many publishing handshake attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
+  assert.equal(headers["Retry-After"], "60");
+  assert.equal(minted, 40);
+  assert.equal((await store.takeOnce("rate-nonce-40"))?.targetInstallationId, "dest-1");
+  assert.equal(await store.takeOnce("rate-nonce-41"), null);
+});

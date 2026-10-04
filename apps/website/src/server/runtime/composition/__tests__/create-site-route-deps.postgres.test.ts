@@ -112,9 +112,10 @@ async function json<T>(res: Response, status: number): Promise<T> {
   return (text === "" ? undefined : JSON.parse(text)) as T;
 }
 
+test("Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots", async (t) => {
 let firstBootLedger = "";
 
-test("first boot (secretRef env): the composition migrates the database and every route family works on it", async (t) => {
+await t.test("first boot (secretRef env): the composition migrates the database and every route family works on it", async (t) => {
   writeStorage({ kind: "postgres", secretRef: { env: URL_ENV } });
   const deps = await bootPostgresSite(t);
 
@@ -209,7 +210,7 @@ test("first boot (secretRef env): the composition migrates the database and ever
   assert.equal(query("SELECT count(*) FROM public.agent_tool_attempts WHERE attempt_id = 'attempt-r1f-pg-1'"), "1");
 });
 
-test("second boot (sealed .storage-secret.json): same database, no migration re-runs, data still there", async (t) => {
+await t.test("second boot (sealed .storage-secret.json): same database, no migration re-runs, data still there", async (t) => {
   assert.ok(firstBootLedger !== "", "runs after the first boot");
   await writeSealedConnectionString({ siteDir, connectionString });
   const secretPath = path.join(siteDir, STORAGE_SECRET_FILENAME);
@@ -248,7 +249,7 @@ test("second boot (sealed .storage-secret.json): same database, no migration re-
   }
 });
 
-test("a sealed secret that does not open with the site key refuses to boot, naming the file, never the value", async () => {
+await t.test("a sealed secret that does not open with the site key refuses to boot, naming the file, never the value", async () => {
   writeStorage({ kind: "postgres", secretRef: "site" });
   const key = process.env.TOVU_SITE_KEY;
   process.env.TOVU_SITE_KEY = randomBytes(32).toString("hex");
@@ -269,4 +270,5 @@ test("a sealed secret that does not open with the site key refuses to boot, nami
   } finally {
     process.env.TOVU_SITE_KEY = key;
   }
+});
 });

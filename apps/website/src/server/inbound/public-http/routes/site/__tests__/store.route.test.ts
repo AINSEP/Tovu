@@ -98,3 +98,42 @@ test("GET /store/buy honors an on-site returnTo: /products and /store?x=1", asyn
     `/products?msg=${encodeURIComponent("Purchased — order order-1, 4 left.")}`
   );
 });
+
+test("GET /store renders prices, escapes hostile text, and keeps sold-out products unpurchasable", async (t) => {
+  const app = express();
+  registerStoreRoutes(app, { store: {
+    listProducts: () => [
+      { id: "available&1", slug: "available", title: '<script>alert("product")</script>', price: 4200, stock: 2, version: 1 },
+      { id: "sold", slug: "sold", title: "Sold product", price: 999, stock: 0, version: 1 },
+    ], checkout: purchasingStore.checkout,
+  } } as RouteDeps);
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/store?msg=${encodeURIComponent('<img src=x onerror="bad">')}`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /&lt;script&gt;alert\(&quot;product&quot;\)&lt;\/script&gt;/);
+  assert.match(html, /&lt;img src=x onerror=&quot;bad&quot;&gt;/);
+  assert.doesNotMatch(html, /<script>|<img/);
+  assert.match(html, /\$42\.00 · 2 in stock/);
+  assert.match(html, /href="\/store\/buy\?productId=available%261"/);
+  const sold = html.match(/<li><strong>Sold product<\/strong>[\s\S]*?<\/li>/)?.[0];
+  assert.ok(sold);
+  assert.match(sold, /\$9\.99 · 0 in stock · <span>sold out<\/span>/);
+  assert.doesNotMatch(sold, /<a /);
+});
+
+test("store listing/checkout failures complete with a fixed 500, and refused purchases redirect with a reason", async (t) => {
+  for (const failure of ["listing", "checkout"] as const) {
+    const app = express();
+    registerStoreRoutes(app, { store: {
+      listProducts: () => { if (failure === "listing") throw new Error("private storage details"); return []; },
+      checkout: () => { throw new Error("private checkout details"); },
+    } } as RouteDeps);
+    const baseUrl = await startTestServer(app, t);
+    const res = await fetch(`${baseUrl}${failure === "listing" ? "/store" : "/store/buy?productId=p1"}`, { redirect: "manual", signal: AbortSignal.timeout(3000) });
+    assert.equal(res.status, 500);
+    assert.equal(await res.text(), "<h1>Store error</h1>");
+  }
+  const buy = await bootStore(t, { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) });
+  assert.deepEqual(await buy("/products"), { status: 302, location: `/products?msg=${encodeURIComponent("Could not buy: not-found.")}` });
+});

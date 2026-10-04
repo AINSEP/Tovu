@@ -77,8 +77,9 @@ describe("a prototype-chain key in the URL is not a section", () => {
 
       // Would throw during render before the fix, so the render call itself is the assertion for
       // the `constructor`/`valueOf`/`__proto__` cases.
-      render(<App />);
+      const { container } = render(<App />);
       await screen.findByText(/dashboard/i, {}, { timeout: 3000 });
+      expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "dashboard");
 
       // And these catch the two that rendered garbage rather than throwing.
       expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();

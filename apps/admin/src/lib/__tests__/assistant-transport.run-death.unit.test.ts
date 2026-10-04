@@ -64,6 +64,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("terminalOutcomeNotice", () => {
@@ -192,8 +193,7 @@ describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
     const source = FakeEventSource.instances[0]!;
 
     source.emit("error", "");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(h.done).not.toBeNull());
 
     expect(h.errors.map((e) => e.message)).toEqual([
       "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.",
@@ -213,28 +213,33 @@ describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
 
     source.emit("agent", JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "text_delta", delta: "Half" } }));
     source.emit("error", "");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(h.done).toEqual([
+    await vi.waitFor(() => expect(h.done).toEqual([
       { kind: "text", text: "Half" },
       {
         kind: "status",
         label: "The assistant restarted while this answer was running, so it stopped.",
         detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
       },
-    ]);
+    ]));
   });
 
   test("a bare stream drop while the daemon still knows the run leaves it running (EventSource reconnects)", async () => {
-    vi.stubGlobal("fetch", routeFetch(() => 200));
+    const probeResponse = new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status: 200 });
+    const probeStatus = vi.spyOn(probeResponse, "status", "get");
+    const fetchMock = routeFetch(() => 200);
+    fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+      ? new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status: 200 })
+      : probeResponse);
+    vi.stubGlobal("fetch", fetchMock);
     const h = handlers();
     await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
     const source = FakeEventSource.instances[0]!;
 
+    expect(probeStatus).not.toHaveBeenCalled();
     source.emit("error", "");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Witness that the resumed probe consumed its response before checking the negative outcome.
+    await vi.waitFor(() => expect(probeStatus).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/runs/run-1", { credentials: "same-origin" });
 
     expect(h.errors.map((e) => e.message)).toEqual([]);
     expect(h.done).toBeNull();

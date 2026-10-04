@@ -120,6 +120,7 @@ describe("describeConnectionDrift", () => {
     expect(drift?.entries).toHaveLength(1);
     expect(drift?.entries[0]?.remoteName).toBe("surprise");
     expect(drift?.entries[0]?.messageKey.length).toBeGreaterThan(10);
+    expect(drift?.entries[0]?.messageKey).toBe("The assistant refused this tool at startup.");
   });
 });
 

@@ -133,3 +133,24 @@ test("marketplace list: handles undefined workspaceId param", async (t) => {
   assert.equal(status, 404);
   assert.deepEqual(jsonBody, { error: "workspace was not found" });
 });
+
+
+test("marketplace list: ordered complete records preserve tiers and installed ID collisions", async (t) => {
+  const root = makeThemesRoot();
+  for (const [id, tier, name] of [["zeta", "static", "Zeta"], ["alpha", "templated", "Alpha"]]) {
+    const dir = path.join(root, MARKETPLACE_CATALOG_DIR, tier, id);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id, name, version: "1.0.0", tier, engine: 1, description: `${name} description`, tags: [id, "catalog"] }));
+  }
+  fs.mkdirSync(path.join(root, "templated", "alpha"), { recursive: true });
+  const { app, cleanup } = buildApp({}, root);
+  t.after(cleanup);
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/marketplace/themes`);
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).themes, [
+    { id: "alpha", name: "Alpha", tier: "templated", description: "Alpha description", tags: ["alpha", "catalog"], idTaken: true },
+    { id: "basic", name: "Basic Marketplace", tier: "static", idTaken: false },
+    { id: "zeta", name: "Zeta", tier: "static", description: "Zeta description", tags: ["zeta", "catalog"], idTaken: false },
+  ]);
+});

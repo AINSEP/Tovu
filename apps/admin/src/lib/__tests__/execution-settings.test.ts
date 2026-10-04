@@ -375,6 +375,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     };
     await saveExecutionConfig(next, previous);
 
+    expect(setSetting).toHaveBeenCalled();
     for (const call of setSetting.mock.calls) {
       const body = call[0] as { key: string; valueJson: unknown };
       expect(body.key).not.toMatch(/apiKey/i);

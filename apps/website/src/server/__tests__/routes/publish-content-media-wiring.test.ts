@@ -209,7 +209,7 @@ class CapturingPeerClient implements HttpClientPort {
     if (request.url.endsWith("/publish-content/capabilities")) {
       return json({ entityTypes: ["post", "page", "media", "redirect", "menu"], schemaVersions: {} });
     }
-    if (request.url.includes("/blobs/probe")) return json({ missing: [] });
+    if (request.url.includes("/blobs/probe")) return json({ missing: [PHOTO_SHA256] });
     if (request.url.includes("/publish-content/blobs/")) return json({ stored: true });
     if (request.url.endsWith("/publish-content/bundles")) return json({ bundleId: "peer-bundle-1" });
     if (request.url.endsWith("/publish-content/import/plan")) {
@@ -255,6 +255,12 @@ test("publish-content media: a PUSH to a peer carries the media entity and names
     await fetch(`${peersBase}/${peer.id}/push/plan`, { method: "POST", headers: { "content-type": "application/json", cookie }, body: "{}" }),
     200
   );
+
+  const uploads = peerClient.calls.filter((call) => call.method === "PUT" && call.url.endsWith(`/publish-content/blobs/${PHOTO_SHA256}`));
+  assert.equal(uploads.length, 1, "a missing media blob must be uploaded exactly once");
+  assert.equal(uploads[0].url, `https://peer.example.com/api/admin/v1/workspaces/remote-ws-9/publish-content/blobs/${PHOTO_SHA256}`);
+  assert.deepEqual(JSON.parse(uploads[0].body as string), { dataBase64: Buffer.from(PHOTO_BYTES).toString("base64") });
+  assert.equal(uploads[0].headers?.authorization, "Bearer tovu_live_0123456789abcdef");
 
   const staged = peerClient.stagedBundle();
   const pushed = staged.entities.find((entity) => entity.entityType === "media" && entity.id === record.id);

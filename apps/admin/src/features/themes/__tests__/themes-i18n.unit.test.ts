@@ -62,6 +62,15 @@ describe("THEMES_DICT: cross-locale key parity", () => {
       }
     }
   });
+
+  it("preserves every interpolation placeholder in each translation", () => {
+    const placeholders = (value: string) => (value.match(/\{[A-Za-z]\w*\}/g) ?? []).sort();
+    for (const locale of locales) {
+      for (const [key, value] of Object.entries(THEMES_DICT[locale])) {
+        expect(placeholders(value), `${locale}: ${key}`).toEqual(placeholders(key));
+      }
+    }
+  });
 });
 
 describe("THEMES_DICT: t() falls back to COMMON_I18N", () => {

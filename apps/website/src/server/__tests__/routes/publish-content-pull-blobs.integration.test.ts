@@ -70,30 +70,43 @@ function sha256Of(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Forwards a peer call to the real source server by PATH, carrying the source's own session cookie
- *  in place of the peer bearer key (this composition has no issued API key to authenticate as).
- *  `/export` is answered locally — see this file's header for both substitutions. */
-function forwardingPeerClient(source: { baseUrl: string; cookie: string }, envelope: unknown): HttpClientPort & { paths: string[] } {
+/** Forwards authentication unchanged; only a successfully authorized export's entity body is replaced. */
+function forwardingPeerClient(source: { baseUrl: string }, envelope: unknown): HttpClientPort & { paths: string[] } {
   const paths: string[] = [];
   return {
     paths,
     async send(request: HttpRequest): Promise<HttpResponse> {
       const path = new URL(request.url).pathname;
       paths.push(path);
-      if (path.endsWith("/publish-content/export")) {
-        return { status: 200, headers: {}, bodyText: JSON.stringify(envelope) };
-      }
       const forwarded = await fetch(`${source.baseUrl}${path}`, {
         method: request.method,
-        headers: { cookie: source.cookie, ...(request.body === undefined ? {} : { "content-type": "application/json" }) },
+        headers: request.headers,
         ...(request.body === undefined ? {} : { body: request.body as string }),
       });
-      return { status: forwarded.status, headers: {}, bodyText: await forwarded.text() };
+      const bodyText = await forwarded.text();
+      return { status: forwarded.status, headers: {}, bodyText: forwarded.status === 200 && path.endsWith("/publish-content/export") ? JSON.stringify(envelope) : bodyText };
     },
   };
 }
 
-async function createPeer(baseUrl: string, cookie: string): Promise<string> {
+async function issueSourceReadKey(source: Awaited<ReturnType<typeof startServer>>, cookie: string): Promise<string> {
+  const policyId = "pull-reader-policy";
+  await source.deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: "Pull reader", isBuiltin: false, isFrozen: false });
+  await source.deps.policyPermissionRepo.save({ id: "pull-reader-grant", workspaceId: WORKSPACE, policyId, permission: "publish_content.read", resourceType: null, constraintJson: null });
+  const principalRes = await fetch(`${source.baseUrl}/api/admin/v1/api-keys/principals`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ displayName: "Pull reader" }),
+  });
+  assert.equal(principalRes.status, 201, await principalRes.clone().text());
+  const { principal } = await principalRes.json() as { principal: { id: string } };
+  const keyRes = await fetch(`${source.baseUrl}/api/admin/v1/api-keys`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ principalId: principal.id, label: "Pull", policyIds: [policyId] }),
+  });
+  assert.equal(keyRes.status, 201, await keyRes.clone().text());
+  return (await keyRes.json() as { apiKey: { rawKey: string } }).apiKey.rawKey;
+}
+
+async function createPeer(baseUrl: string, cookie: string, apiKey = "tovu_live_0123456789abcdef"): Promise<string> {
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/peers`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -101,7 +114,7 @@ async function createPeer(baseUrl: string, cookie: string): Promise<string> {
       label: "source-of-truth",
       baseUrl: "https://source.example.com",
       remoteWorkspaceId: WORKSPACE,
-      apiKey: "tovu_live_0123456789abcdef",
+      apiKey,
     }),
   });
   const raw = await res.text();
@@ -135,17 +148,14 @@ test("a pull carries blob BYTES from the source instance into the destination's 
   });
   assert.equal(upload.status, 200, await upload.text());
 
+  const missingSha = sha256Of(Buffer.from("source does not hold these bytes"));
+  const sourceKey = await issueSourceReadKey(source, sourceCookie);
   const destDeps = createRouteDeps();
-  const client = forwardingPeerClient(
-    { baseUrl: source.baseUrl, cookie: sourceCookie },
-    {
-      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-      hashVersion: 1,
-      sourceLabel: "Source Site",
-      entities: [],
-      blobManifest: [sha],
-    }
-  );
+  const envelope = {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+    hashVersion: 1, sourceLabel: "Source Site", entities: [], blobManifest: [sha],
+  };
+  const client = forwardingPeerClient({ baseUrl: source.baseUrl }, envelope);
   destDeps.publishContentPeerHttpClient = client;
   const dest = await startServer(destDeps);
   t.after(() => new Promise<void>((resolve) => dest.server.close(() => resolve())));
@@ -154,11 +164,19 @@ test("a pull carries blob BYTES from the source instance into the destination's 
   const storageKey = computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha });
   assert.equal(await destDeps.blobStore.exists({ storageKey }), false, "the destination must start without these bytes");
 
-  const peerId = await createPeer(dest.baseUrl, destCookie);
+  const peerId = await createPeer(dest.baseUrl, destCookie, sourceKey);
   const first = await pull(dest.baseUrl, destCookie, peerId);
   assert.equal(first.status, 201, first.raw);
   assert.deepEqual(first.body.blobsDownloaded, [sha]);
   assert.deepEqual(first.body.blobsUnavailable, []);
+  assert.ok(typeof first.body.bundleId === "string");
+  const staged = await destDeps.publishContentBundleRepo.findById({ workspaceId: WORKSPACE, id: first.body.bundleId });
+  assert.ok(staged, "the returned local bundle ID must address a persisted bundle");
+  assert.equal(staged.artifactFormatVersion, 1);
+  assert.equal(staged.hashVersion, 1);
+  assert.deepEqual(JSON.parse(staged.entitiesJson), []);
+  assert.deepEqual(JSON.parse(staged.blobManifestJson), [sha]);
+  assert.equal(await destDeps.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: missingSha }) }), false);
   assert.ok(
     client.paths.includes(`/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha}`),
     `the driver must have called the peer's blob GET route; called: ${client.paths.join(", ")}`
@@ -184,11 +202,30 @@ test("a pull carries blob BYTES from the source instance into the destination's 
   assert.equal(second.status, 201, second.raw);
   assert.deepEqual(second.body.blobsAlreadyPresent, [sha]);
   assert.deepEqual(second.body.blobsDownloaded, []);
+  assert.deepEqual(second.body.blobsUnavailable, []);
   assert.equal(
     client.paths.slice(callsAfterFirst).filter((path) => path.includes("/blobs/")).length,
     0,
     "a blob already held must cost no second fetch"
   );
+
+  // The same authorized source now names a blob it cannot serve (404): stage the bundle anyway.
+  envelope.blobManifest.push(missingSha);
+  const callsBeforeMissing = client.paths.length;
+  const missing = await pull(dest.baseUrl, destCookie, peerId);
+  assert.equal(missing.status, 201, missing.raw);
+  assert.deepEqual(missing.body.blobsDownloaded, []);
+  assert.deepEqual(missing.body.blobsAlreadyPresent, [sha]);
+  assert.deepEqual(missing.body.blobsUnavailable, [missingSha]);
+  assert.deepEqual(client.paths.slice(callsBeforeMissing).filter((path) => path.includes("/blobs/")), [
+    `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${missingSha}`,
+  ]);
+  assert.ok(typeof missing.body.bundleId === "string");
+  const partial = await destDeps.publishContentBundleRepo.findById({ workspaceId: WORKSPACE, id: missing.body.bundleId });
+  assert.ok(partial);
+  assert.deepEqual(JSON.parse(partial.blobManifestJson), [sha, missingSha]);
+  assert.equal(await destDeps.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: missingSha }) }), false);
+
 });
 
 test("a pull whose peer serves bytes that do not hash to the requested sha fails 502 and stores NOTHING", async (t) => {
@@ -237,10 +274,31 @@ test("a pull whose peer serves bytes that do not hash to the requested sha fails
 
   assert.equal(result.status, 502, result.raw);
   assert.equal(result.body.code, "PEER_RESPONSE_INVALID");
-  assert.match(String(result.body.error), /do not hash to it/);
+  assert.equal(result.body.error, `the peer's bytes for blob '${victimSha}' do not hash to it — refusing to store them under that sha256, because the hash IS the identity this feature addresses content by`);
 
   const poisoned = computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: victimSha });
   assert.equal(await destDeps.blobStore.exists({ storageKey: poisoned }), false, "mismatched bytes must never be stored");
   // And the failed pull staged no bundle either — nothing half-applied.
   assert.equal(result.body.bundleId, undefined);
+});
+
+
+test("a pull with an invalid source API key is refused before staging a bundle", async (t) => {
+  const source = await startServer(createRouteDeps());
+  t.after(() => new Promise<void>((resolve) => source.server.close(() => resolve())));
+  const destDeps = createRouteDeps();
+  const sha = sha256Of(Buffer.from("unavailable to an invalid credential"));
+  destDeps.publishContentPeerHttpClient = forwardingPeerClient(source, {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: 1,
+    sourceLabel: "Source", entities: [], blobManifest: [sha],
+  });
+  const dest = await startServer(destDeps);
+  t.after(() => new Promise<void>((resolve) => dest.server.close(() => resolve())));
+  const cookie = await loginAsOwner(dest.baseUrl);
+  const peerId = await createPeer(dest.baseUrl, cookie, `tovu_ak_000000000000.${"A".repeat(43)}`);
+  const result = await pull(dest.baseUrl, cookie, peerId);
+  assert.equal(result.status, 502, result.raw);
+  assert.equal(result.body.code, "PEER_REJECTED");
+  assert.equal(result.body.bundleId, undefined);
+  assert.equal(await destDeps.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha }) }), false);
 });

@@ -173,3 +173,22 @@ test("create-list: undefined workspaceId fallback via direct handler invocation"
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
+
+
+test("create-list: empty and whitespace-only fields are refused without storing a list", async (t) => {
+  const { app, deps } = buildApp();
+  await deps.newsletterReady;
+  const before = await deps.newsletterListRepo.list({ workspaceId: WORKSPACE_ID });
+  const baseUrl = await startTestServer(app, t);
+  for (const [field, value] of [["name", ""], ["name", " \t "], ["slug", ""], ["slug", " \t "]] as const) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/lists`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Digest", slug: "digest", [field]: value }),
+    });
+    assert.equal(res.status, 400, `${field}=${JSON.stringify(value)}`);
+    const body = await res.json();
+    assert.equal(body.code, "NEWSLETTER_VALIDATION_ERROR");
+    assert.equal(body.error, `${field} must not be empty`);
+    assert.deepEqual(await deps.newsletterListRepo.list({ workspaceId: WORKSPACE_ID }), before);
+  }
+});

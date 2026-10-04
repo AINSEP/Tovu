@@ -99,9 +99,32 @@ test("a 500 response from a matched route is recorded with its real status code"
 
 test("two concurrent in-flight requests are tracked independently — one request's outcome never contaminates another's", async (t) => {
   const { port, calls } = createSpyObservabilityPort();
-  const baseUrl = await startTestServer(buildTestApp(port), t);
-
-  const [welcomeRes, errorRes] = await Promise.all([fetch(`${baseUrl}/welcome`), fetch(`${baseUrl}/error`, { method: "POST" })]);
+  const firstStarted = Promise.withResolvers<void>();
+  const secondStarted = Promise.withResolvers<void>();
+  let welcomeResponse: express.Response | undefined;
+  let errorResponse: express.Response | undefined;
+  const app = express();
+  applyRequestTracking(app, { observability: port });
+  app.get("/welcome", (_req, res) => { welcomeResponse = res; firstStarted.resolve(); });
+  app.post("/error", (_req, res) => { errorResponse = res; secondStarted.resolve(); });
+  t.after(() => {
+    if (welcomeResponse && !welcomeResponse.writableEnded) welcomeResponse.end();
+    if (errorResponse && !errorResponse.writableEnded) errorResponse.end();
+  });
+  const baseUrl = await startTestServer(app, t);
+  const signal = AbortSignal.timeout(3000);
+  const first = fetch(`${baseUrl}/welcome`, { signal });
+  await Promise.race([firstStarted.promise, first.then(() => assert.fail("first handler must hold its response"))]);
+  const second = fetch(`${baseUrl}/error`, { method: "POST", signal });
+  await Promise.race([secondStarted.promise, second.then(() => assert.fail("second handler must hold its response"))]);
+  assert.deepEqual(calls, [], "both spans must remain open before either response finishes");
+  errorResponse!.status(500).json({ ok: false });
+  const errorRes = await second;
+  await errorRes.text();
+  assert.deepEqual(calls, [{ input: { method: "POST", path: "/error" }, outcome: { statusCode: 500, routePattern: "/error" } }]);
+  welcomeResponse!.status(200).send("ok");
+  const welcomeRes = await first;
+  await welcomeRes.text();
   assert.equal(welcomeRes.status, 200);
   assert.equal(errorRes.status, 500);
 
@@ -110,4 +133,8 @@ test("two concurrent in-flight requests are tracked independently — one reques
   const errorCall = calls.find((c) => c.outcome.routePattern === "/error");
   assert.equal(welcomeCall?.outcome.statusCode, 200);
   assert.equal(errorCall?.outcome.statusCode, 500);
+  assert.deepEqual(calls, [
+    { input: { method: "POST", path: "/error" }, outcome: { statusCode: 500, routePattern: "/error" } },
+    { input: { method: "GET", path: "/welcome" }, outcome: { statusCode: 200, routePattern: "/welcome" } },
+  ]);
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * @file The shared read/diff-write machinery every settings-dialog tab adapter
@@ -44,6 +44,10 @@ vi.mock("../api", () => ({
 }));
 
 import { loadNamespaceValues, readBoolean, readNumber, readString, saveChangedEntries, type LedgerCandidate } from "../ledger-slice";
+
+beforeEach(() => {
+  setSetting.mockClear();
+});
 
 describe("loadNamespaceValues", () => {
   it("returns an empty Map on a cold-start 404, not an error", async () => {

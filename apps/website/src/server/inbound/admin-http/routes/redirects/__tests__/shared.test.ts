@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Response } from "express";
+import { EntityNotLiveError } from "@jini-ai/cms/core";
 
 import {
   RedirectConflictError,
@@ -77,4 +78,12 @@ test("respondToRedirectError: handles non-Error thrown objects with custom mappi
   respondToRedirectError(res, "custom string failure", customMappings);
   assert.equal(result.status, 418);
   assert.deepEqual(result.body, { error: "custom string failure", code: "TEAPOT" });
+});
+
+
+test("REDIRECT_WRITE_ERROR_MAPPINGS: maps a trashed redirect to 409 ENTITY_IN_TRASH", () => {
+  const { res, result } = createMockResponse();
+  respondToRedirectError(res, new EntityNotLiveError({ entityType: "redirect", entityId: "r-trash", state: "trashed" }), REDIRECT_WRITE_ERROR_MAPPINGS);
+  assert.equal(result.status, 409);
+  assert.deepEqual(result.body, { error: "ENTITY_IN_TRASH: redirect 'r-trash' is in the Trash. Restore it from the Trash before changing it.", code: "ENTITY_IN_TRASH" });
 });

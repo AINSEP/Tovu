@@ -44,6 +44,10 @@ describe("COLLECTIONS_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       for (const [key, value] of Object.entries(COLLECTIONS_DICT[locale])) {
         expect(value.length, `${locale} value for ${JSON.stringify(key)} should not be empty`).toBeGreaterThan(0);
+        // "Collections" is French too; these Spanish entries are literal lifecycle op codes.
+        if (locale === "fr" && key === "Collections") continue;
+        if (locale === "es" && ["deprecate", "reactivate", "tombstone"].includes(key)) continue;
+        expect(value, `${locale} must translate ${JSON.stringify(key)}`).not.toBe(key);
       }
     }
   });

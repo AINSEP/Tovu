@@ -136,7 +136,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "tovu-deploy-fly", enabled: false, actor: "test" });
 
-    const { app } = buildTestApp();
+    const { app, agentPluginsDeps } = buildTestApp();
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
@@ -161,6 +161,15 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     assert.equal(byId.get("site-compliance")?.version, "1.0.0");
     assert.deepEqual(byId.get("site-compliance")?.keywords, ["compliance", "gdpr"]);
     assert.ok(byId.get("site-compliance")?.skills.some((s) => s.name === "site-compliance"));
+    agentPluginsDeps.authorize = async () => ({ allowed: false, reason: "no_grant" });
+    const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+    assert.equal(denied.status, 403);
+    const denial = await denied.json();
+    assert.equal(denial.code, "FORBIDDEN");
+    assert.deepEqual(denial.details, { permission: "admin.plugins.read", reason: "no_grant" });
+    assert.equal(denial.agentPlugins, undefined);
+    assert.ok(!JSON.stringify(denial).includes("site-compliance"));
+
   });
 });
 

@@ -81,6 +81,7 @@ test("saving a theme file is visible in the very next preview render, not just o
   // Disk first, so a failure here says "the write broke" rather than "the refresh broke".
   const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "index.html"), "utf8");
   assert.ok(onDisk.includes(MARKER_AFTER), "the write must reach disk");
+  assert.equal(onDisk, `<!doctype html><html><body><p>${MARKER_AFTER}</p></body></html>`);
 
   // The one that actually regressed. No restart, no explicit rescan call from the client — the save
   // itself has to leave the in-memory theme consistent with disk.
@@ -94,12 +95,14 @@ test("reading a theme file back after saving returns what was written, not the b
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
-  await fetch(fileUrl(baseUrl, deps.workspaceId, "scratch"), {
+  const saved = await fetch(fileUrl(baseUrl, deps.workspaceId, "scratch"), {
     method: "PUT",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ path: "pages/index.html", content: `<p>${MARKER_AFTER}</p>` }),
   });
 
+  assert.equal(saved.status, 200);
+  assert.equal(fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "index.html"), "utf8"), `<p>${MARKER_AFTER}</p>`);
   const read = await fetch(
     `${fileUrl(baseUrl, deps.workspaceId, "scratch")}?path=${encodeURIComponent("pages/index.html")}`,
     { headers: { cookie } }
@@ -107,4 +110,5 @@ test("reading a theme file back after saving returns what was written, not the b
   const body = (await read.json()) as { content: string };
   assert.equal(read.status, 200);
   assert.ok(body.content.includes(MARKER_AFTER));
+  assert.equal(body.content, `<p>${MARKER_AFTER}</p>`);
 });

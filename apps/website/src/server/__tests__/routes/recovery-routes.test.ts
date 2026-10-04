@@ -367,3 +367,41 @@ test("recovery routes (ADR-041/043/044/045 re-audit, 2026-07-16, TM-adr041-043-0
   const afterBody = (await afterRelease.json()) as { banner: { kind: string } | null };
   assert.equal(afterBody.banner?.kind, "watermark-baseline-unavailable", "releasing the lock must clear operationInFlight, falling back to the next banner in precedence");
 });
+
+
+test("recovery status refuses a signed-in caller without backup.read", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/status`, { headers: { cookie } });
+  assert.equal(res.status, 403);
+  const body = await res.json();
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "backup.read", reason: "test_denied" });
+  assert.equal(body.banner, undefined);
+  assert.equal(body.costClass, undefined);
+});
+
+test("recovery status prioritizes blocked and pending migration banners over a held operation", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const acquired = await acquireOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, operationKind: "restore" } });
+  assert.equal(acquired.ok, true);
+  if (!acquired.ok) throw new Error("operation lock was not acquired");
+  try {
+    for (const [status, kind, actionKind] of [
+      ["BLOCKED_PENDING_RECOVERY", "migration-interrupted", "unblock-interrupted-migration"],
+      ["PENDING_MIGRATION", "pending-migration", "deep-link-to-database-migration"],
+    ] as const) {
+      await deps.siteStatusRepo.set(deps.workspaceId, status);
+      const res = await fetch(`${baseUrl}/api/admin/v1/recovery/status`, { headers: { cookie } });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.equal(body.costClass, "cheap");
+      assert.equal(body.banner.kind, kind);
+      assert.equal(body.banner.actionKind, actionKind);
+    }
+  } finally {
+    await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: acquired.value } });
+  }
+});

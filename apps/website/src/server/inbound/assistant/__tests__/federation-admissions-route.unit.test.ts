@@ -114,6 +114,23 @@ test("an empty snapshot (no connections reached admission) is served as an empty
   assert.deepEqual(await res.json(), { connections: [] });
 });
 
+test("re-reads reports and config failures after a reload replaces both arrays", async (t) => {
+  let reports = [{ connectionId: "before", report: SAMPLE_REPORT, isPreset: false }];
+  let configFailures = [{ connectionId: "broken", reason: "credentials unavailable" }];
+  const app = express();
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
+  registerFederationAdmissionsRoute(app, { reports: () => reports, configFailures: () => configFailures });
+  const baseUrl = await startTestServer(app, t);
+  const first = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
+  assert.equal(first.status, 200);
+  assert.deepEqual(await first.json(), { connections: reports, configFailures });
+  reports = [{ connectionId: "after", report: { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] }, isPreset: true }];
+  configFailures = [];
+  const second = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
+  assert.equal(second.status, 200);
+  assert.deepEqual(await second.json(), { connections: [{ connectionId: "after", report: { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] }, isPreset: true }], configFailures: [] });
+});
+
 /**
  * A saved, enabled external-MCP row can fail before it ever reaches `attachFederatedMcpTools` at
  * all — most commonly a sealed env block that cannot be decrypted because the site token is not

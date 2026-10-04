@@ -37,6 +37,11 @@ describe("Observability — Overview tab", () => {
 
     expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Providers" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button")
+      .filter((button) => button.textContent === "Overview" || button.textContent === "Providers")
+      .map((button) => button.textContent)).toEqual(["Overview", "Providers"]);
+    expect(screen.getByRole("region", { name: "Observability Overview" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Observability Providers" })).not.toBeInTheDocument();
     expect(screen.getByText(/OpenTelemetry is the open standard Tovu uses/)).toBeInTheDocument();
     expect(screen.getByText(/A "provider" is that monitoring tool/)).toBeInTheDocument();
   });
@@ -91,11 +96,23 @@ describe("Observability — Overview tab", () => {
     const { container, unmount } = renderObservability({ status: { enabled: true, serviceName: "tovu" } });
     expect(container.querySelector(".observability-status-card--on")).not.toBeNull();
     expect(container.querySelector(".observability-status-card--off")).toBeNull();
+    expect(screen.getByRole("status")).toHaveClass("observability-status-card--on");
+    expect(screen.getByRole("status")).toHaveTextContent("OpenTelemetry is ON — traces are being recorded.");
     unmount();
 
     const off = renderObservability({ status: { enabled: false, serviceName: null } });
     expect(off.container.querySelector(".observability-status-card--off")).not.toBeNull();
     expect(off.container.querySelector(".observability-status-card--on")).toBeNull();
+    expect(screen.getByRole("status")).toHaveClass("observability-status-card--off");
+    expect(screen.getByRole("status")).toHaveTextContent("OpenTelemetry is OFF (the default) — nothing is being recorded.");
+  });
+
+  it("opens the OpenTelemetry documentation in a new tab without sending a referrer", () => {
+    renderObservability();
+    const link = screen.getByRole("link", { name: "Read the OpenTelemetry documentation" });
+    expect(link).toHaveAttribute("href", "https://opentelemetry.io/docs/");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
   });
 
   it("renders no status card and no loading copy while only an error is present", () => {

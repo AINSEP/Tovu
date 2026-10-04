@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { listPublishContentContributors, registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 
 import { registerPublishContentExportRoute } from "../export.js";
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -84,4 +85,39 @@ test("GET .../publish-content/export: a null workspaceId param is normalized to 
 
   assert.equal(state.status, 404);
   assert.deepEqual(state.body, { error: "workspace was not found" });
+});
+
+
+test("export ends a failed partial stream without claiming a complete JSON bundle", async (t) => {
+  const contributors = listPublishContentContributors();
+  resetPublishContentContributorsForTests();
+  t.after(() => {
+    resetPublishContentContributorsForTests();
+    for (const contributor of contributors) registerPublishContentContributor(contributor);
+  });
+  const entity = { entityType: "stream-fixture", id: "first", schemaVersion: 1, hashVersion: 1, contentHash: "a".repeat(64), requiredBlobs: [], state: { title: "First entity" } };
+  let failed = false;
+  registerPublishContentContributor({ entityType: "stream-fixture", dependsOn: [], build: () => ({
+    entityType: "stream-fixture", schemaVersion: 1, permission: "content.write",
+    pack: async function* () { yield entity; failed = true; throw new Error("contributor failed after first entity"); },
+  } as any) });
+  const handler = buildHandler({ workspaceId: "ws-stream", authorize: async () => ({ allowed: true, reason: "matched" }), workspaceRepo: { findById: async () => ({ name: "Stream fixture" }) } as any });
+  const chunks: string[] = [];
+  let ended = 0;
+  const res = {
+    locals: { principal: { id: "owner" } }, headersSent: false,
+    setHeader: () => {},
+    write: (chunk: string) => { res.headersSent = true; chunks.push(chunk); },
+    end: () => { ended++; },
+    status: () => { assert.fail("a partial stream cannot become a new error response"); },
+    json: () => { assert.fail("a partial stream cannot append an error envelope"); },
+  };
+  await handler({ params: { workspaceId: "ws-stream" } }, res);
+  assert.equal(failed, true, "packing must advance past the first persisted output to the failure");
+  assert.deepEqual(chunks, [
+    '{"artifactFormatVersion":1,"hashVersion":1,"sourceLabel":"Stream fixture","entities":[',
+    JSON.stringify(entity),
+  ]);
+  assert.equal(ended, 1);
+  assert.throws(() => JSON.parse(chunks.join("")), SyntaxError);
 });

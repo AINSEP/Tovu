@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { syncBuiltinESMExports } from "node:module";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -127,15 +128,27 @@ test("reset on a file present live but absent from an otherwise-real catalog -> 
 test("a catalog read failure OTHER than ThemePathError, during a per-file reset, propagates to the route's outer catch -> 500, not 409", async (t) => {
   // The per-file reset maps only "the catalog has no regular file here" (`resetThemeFileToOriginal`
   // returning null) to 409 NOT_IN_ORIGINAL. Anything that function throws goes to the route's outer
-  // `catch (err) { sendThemeFileError(res, err) }` -- exercised here by denying read permission on
-  // the CATALOG copy, so opening it throws a raw EACCES -> 500 instead.
+  // `catch (err) { sendThemeFileError(res, err) }` -- exercised here by making the open of the
+  // CATALOG copy throw a raw EIO -> 500 instead.
   const themesDir = makeAuthoredPartialCatalogRoot();
-  const catalogTarget = path.join(themesDir, "__original-themes__", "static", "partial", "tokens.json");
-  fs.chmodSync(catalogTarget, 0o000);
-  t.after(() => fs.chmodSync(catalogTarget, 0o644));
-
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  // Containment resolves symlinked temp roots (e.g. macOS /var) before opening the catalog.
+  const catalogTarget = fs.realpathSync(path.join(themesDir, THEME_CATALOG_DIR, "static", "partial", "tokens.json"));
+  const liveTarget = path.join(themesDir, "static", "partial", "tokens.json");
+  const before = fs.readFileSync(liveTarget, "utf8");
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
+  const openSync = fs.openSync;
+  let failures = 0;
+  t.mock.method(fs, "openSync", (target: fs.PathLike, ...args: any[]) => {
+    if (target === catalogTarget) {
+      failures++;
+      throw Object.assign(new Error("catalog read unavailable"), { code: "EIO" });
+    }
+    return (openSync as any)(target, ...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
 
   const res = await fetch(`${baseUrl}${BASE("partial")}/file/reset`, {
     method: "POST",
@@ -143,21 +156,19 @@ test("a catalog read failure OTHER than ThemePathError, during a per-file reset,
     body: JSON.stringify({ path: "tokens.json" }),
   });
   const body = (await res.json()) as { error?: string; code?: string };
-  if (process.getuid && process.getuid() === 0) {
-    t.skip("running as root: chmod 000 does not deny root a read, so EACCES cannot be forced here");
-    return;
-  }
   assert.equal(res.status, 500, `expected a permission-denied catalog read to 500, got ${res.status}: ${JSON.stringify(body)}`);
   assert.equal(body.error, "internal error");
+  assert.equal(failures, 1);
+  assert.equal(fs.readFileSync(liveTarget, "utf8"), before);
 });
 
 test("a generated-tree restore failure OTHER than ThemePathError propagates to the route's outer catch -> 500, not 409", async (t) => {
   // Same shape as the catalog-read case above, but for the `writeScope.kind === 'generated-readonly'`
-  // branch's own inner try/catch around `restoreBuiltThemeGeneratedTree`: denying WRITE permission on
-  // the live theme folder (removing an existing generated file needs unlink permission on its parent
-  // directory) makes `rmSync` throw a raw EACCES, which that inner catch's `instanceof ThemePathError`
+  // branch's own inner try/catch around `restoreBuiltThemeGeneratedTree`: making `rmSync` of an
+  // existing generated file throw a raw EIO, which that inner catch's `instanceof ThemePathError`
   // check does not match, so it rethrows to the route's outer catch instead of mapping to 409.
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-reset-restore-eacces-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-reset-restore-eio-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const manifest = JSON.stringify({
     id: "compiled",
     name: "Compiled",
@@ -180,12 +191,21 @@ test("a generated-tree restore failure OTHER than ThemePathError propagates to t
   fs.writeFileSync(path.join(catalog, "src", "Header.tsx"), "catalog source", "utf8");
   fs.writeFileSync(path.join(catalog, "theme.json"), manifest, "utf8");
 
-  const pagesDir = path.join(live, "pages");
-  fs.chmodSync(pagesDir, 0o555);
-  t.after(() => fs.chmodSync(pagesDir, 0o755));
-
   const app = buildTestApp(root);
   const baseUrl = await startTestServer(app, t);
+  const target = path.join(live, "pages", "index.html");
+  const before = fs.readFileSync(target, "utf8");
+  const rmSync = fs.rmSync;
+  let failures = 0;
+  t.mock.method(fs, "rmSync", (candidate: fs.PathLike, options: fs.RmOptions) => {
+    if (candidate === target) {
+      failures++;
+      throw Object.assign(new Error("generated file removal unavailable"), { code: "EIO" });
+    }
+    return rmSync(candidate, options);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
 
   const res = await fetch(`${baseUrl}${BASE("compiled")}/file/reset`, {
     method: "POST",
@@ -193,10 +213,8 @@ test("a generated-tree restore failure OTHER than ThemePathError propagates to t
     body: JSON.stringify({ path: "pages/index.html" }),
   });
   const body = (await res.json()) as { error?: string; code?: string };
-  if (process.getuid && process.getuid() === 0) {
-    t.skip("running as root: chmod 555 does not deny root an unlink, so EACCES cannot be forced here");
-    return;
-  }
   assert.equal(res.status, 500, `expected a permission-denied generated-tree restore to 500, got ${res.status}: ${JSON.stringify(body)}`);
   assert.equal(body.error, "internal error");
+  assert.equal(failures, 1);
+  assert.equal(fs.readFileSync(target, "utf8"), before);
 });

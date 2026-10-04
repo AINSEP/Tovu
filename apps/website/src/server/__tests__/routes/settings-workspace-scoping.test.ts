@@ -69,6 +69,25 @@ async function seedDefinition(baseUrl: string, deps: RouteDeps, cookie: string, 
   assert.equal(res.status, 200);
 }
 
+async function seedTenantOverrides(deps: RouteDeps, key: string) {
+  const definition = await deps.settingsRepo.findActiveDefinition({ namespace: "site.scoping", key, workspaceId: deps.workspaceId });
+  assert.ok(definition);
+  for (const [workspaceId, valueJson] of [[deps.workspaceId, "own override"], [OTHER_WORKSPACE, "foreign override"]]) {
+    await deps.settingsRepo.saveWorkspaceValue({ settingId: definition.settingId, scope: "workspace", workspaceId, principalId: null,
+      valueJson, state: "set", defVersion: definition.version, seq: 1, updatedBy: "system", updatedAt: "2026-09-30T00:00:00.000Z", originPluginId: null });
+  }
+  return definition.settingId;
+}
+
+async function assertTenantOverrides(deps: RouteDeps, settingId: string) {
+  for (const [workspaceId, value] of [[deps.workspaceId, "own override"], [OTHER_WORKSPACE, "foreign override"]]) {
+    const stored = await deps.settingsRepo.getWorkspaceValue({ workspaceId, settingId });
+    assert.equal(stored?.state, "set");
+    assert.equal(stored?.valueJson, value);
+    assert.equal(stored?.seq, 1);
+  }
+}
+
 test("SETTINGS_SET: a body workspaceId naming another workspace is rejected, and writes nothing", async (t) => {
   const { app, deps } = buildTestApp();
   await deps.settingsReady;
@@ -104,6 +123,8 @@ test("SETTINGS_CLEAR: a body workspaceId naming another workspace is rejected", 
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await seedDefinition(baseUrl, deps, cookie, "locale");
+  const settingId = await seedTenantOverrides(deps, "locale");
+  await assertTenantOverrides(deps, settingId);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "DELETE",
@@ -119,6 +140,7 @@ test("SETTINGS_CLEAR: a body workspaceId naming another workspace is rejected", 
   assert.equal(res.status, 400);
   const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: OTHER_WORKSPACE });
   assert.equal(leaked.filter((r) => r.workspaceId === OTHER_WORKSPACE).length, 0);
+  await assertTenantOverrides(deps, settingId);
 });
 
 test("SETTINGS_RESET: a body workspaceId naming another workspace is rejected before any key is cleared", async (t) => {
@@ -126,6 +148,8 @@ test("SETTINGS_RESET: a body workspaceId naming another workspace is rejected be
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await seedDefinition(baseUrl, deps, cookie, "accent");
+  const settingId = await seedTenantOverrides(deps, "accent");
+  await assertTenantOverrides(deps, settingId);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/reset`, {
     method: "POST",
@@ -140,6 +164,7 @@ test("SETTINGS_RESET: a body workspaceId naming another workspace is rejected be
   assert.equal(res.status, 400, "reset is the worst case — one request would wipe another tenant's namespace");
   const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: OTHER_WORKSPACE });
   assert.equal(leaked.filter((r) => r.workspaceId === OTHER_WORKSPACE).length, 0);
+  await assertTenantOverrides(deps, settingId);
 });
 
 test("SETTINGS_SET: a body workspaceId equal to the route's workspace is still accepted", async (t) => {

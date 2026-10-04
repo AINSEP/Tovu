@@ -13,9 +13,9 @@ import type { ContentTypesRouteDeps } from "../deps.js";
  * S9 (web-high fix plan, 2026-09-24): registering an existing or tombstoned key, and updating a
  * tombstoned type's fields, each answer 409 with a stable code instead of overwriting the row.
  */
-async function buildApp(t: import("node:test").TestContext, status: ContentTypeRecord["status"]) {
+async function buildApp(t: import("node:test").TestContext, status?: ContentTypeRecord["status"]) {
   const repo = new InMemoryContentTypeRepo();
-  await repo.save({
+  if (status) await repo.save({
     workspaceId: "ws-1",
     key: "recipe",
     label: "Recipe",
@@ -24,14 +24,18 @@ async function buildApp(t: import("node:test").TestContext, status: ContentTypeR
     status,
     tombstonedAt: status === "tombstone" ? "2026-09-24T00:00:00.000Z" : null,
   } as ContentTypeRecord);
+  const indexCalls: unknown[] = [];
   const deps: ContentTypesRouteDeps = {
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" } as any,
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") },
     idGen: { newId: () => "id-1" } as any,
     outbox: { enqueue: async () => {} } as any,
     contentTypeRepo: repo,
-    contentTypeIndexProvisioner: {} as any,
+    contentTypeIndexProvisioner: {
+      provisionIndexesForNewContentType: async (input: unknown) => { indexCalls.push({ op: "register", input }); },
+      applyFieldIndexTransitions: async (input: unknown) => { indexCalls.push({ op: "update", input }); },
+    } as any,
     entryRepo: {} as any,
   };
   const app = express();
@@ -42,7 +46,7 @@ async function buildApp(t: import("node:test").TestContext, status: ContentTypeR
   });
   registerAdminContentTypeRegisterRoute(app, deps);
   registerAdminContentTypeUpdateFieldsRoute(app, deps);
-  return { baseUrl: await startTestServer(app, t), repo };
+  return { baseUrl: await startTestServer(app, t), repo, deps, indexCalls };
 }
 
 const FIELDS = [{ name: "title", kind: "text", required: false, queryable: false }];
@@ -78,4 +82,34 @@ test("update-fields: a tombstoned type is refused with 409 ENTITY_TOMBSTONED", a
   assert.equal(status, 409);
   assert.equal(json.code, "ENTITY_TOMBSTONED");
   assert.equal(json.error, "ENTITY_TOMBSTONED: content type 'recipe' was permanently deleted and can't be changed.");
+});
+
+
+test("register and update-fields persist definitions and forward exact index effects", async (t) => {
+  const { baseUrl, repo, deps, indexCalls } = await buildApp(t);
+  const created = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
+  assert.equal(created.status, 201);
+  const initial = await repo.findByKey({ workspaceId: "ws-1", key: "recipe" });
+  assert.ok(initial);
+  assert.equal(initial.status, "active");
+  assert.equal(initial.label, "Recipe");
+  assert.equal(initial.version, 1);
+  assert.deepEqual(initial.fields, FIELDS);
+  assert.deepEqual(indexCalls, [{ op: "register", input: { workspaceId: "ws-1", contentTypeKey: "recipe", fields: FIELDS } }]);
+  const fields = [{ name: "title", kind: "text", required: false, queryable: true }];
+  const updated = await send(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, "PUT", { expectedVersion: 1, fields });
+  assert.equal(updated.status, 200);
+  const persisted = await repo.findByKey({ workspaceId: "ws-1", key: "recipe" });
+  assert.deepEqual(persisted, { ...initial, fields, version: 2 });
+  assert.deepEqual(indexCalls[1], { op: "update", input: { workspaceId: "ws-1", contentTypeKey: "recipe", transitions: [{ fieldName: "title", action: "provision" }] } });
+  const effects = structuredClone(indexCalls);
+  const stale = await send(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, "PUT", { expectedVersion: 1, fields: FIELDS });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.json.code, "VERSION_CONFLICT");
+  deps.authorize = async () => ({ allowed: false, reason: "no_grant" });
+  const denied = await send(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, "PUT", { expectedVersion: 2, fields: FIELDS });
+  assert.equal(denied.status, 403);
+  assert.equal(denied.json.code, "FORBIDDEN");
+  assert.deepEqual(await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }), persisted);
+  assert.deepEqual(indexCalls, effects);
 });

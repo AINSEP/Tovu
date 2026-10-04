@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
 
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -26,6 +27,37 @@ import {
  */
 
 const URL = "postgresql://owner:PW-SENTINEL-51c3@db.example.test:5432/site";
+
+test("new-site sealing prepares its identified key file and the default reader reopens it", (t) => {
+  const dir = siteDir(t);
+  const isolatedHome = path.join(dir, "isolated-home");
+  const siteKeyId = "storage-secret-audit-site";
+  fs.mkdirSync(isolatedHome);
+  const script = `
+    import assert from "node:assert/strict";
+    import fs from "node:fs";
+    import os from "node:os";
+    import { mock } from "node:test";
+    mock.module("node:os", { defaultExport: { ...os, homedir: () => ${JSON.stringify(isolatedHome)} },
+      namedExports: { ...os, homedir: () => ${JSON.stringify(isolatedHome)} } });
+    const { sealConnectionStringForNewSite, readSealedConnectionString } =
+      await import(${JSON.stringify(new globalThis.URL("../storage-secret.ts", import.meta.url).href)});
+    await sealConnectionStringForNewSite({ siteDir: ${JSON.stringify(dir)}, siteKeyId: ${JSON.stringify(siteKeyId)}, connectionString: ${JSON.stringify(URL)} });
+    fs.writeFileSync(${JSON.stringify(path.join(dir, ".site-meta.json"))}, JSON.stringify({ siteKeyId: ${JSON.stringify(siteKeyId)} }));
+    assert.equal(await readSealedConnectionString({ siteDir: ${JSON.stringify(dir)} }), ${JSON.stringify(URL)});
+  `;
+  const env = { ...process.env, TOVU_RUNTIME_MODE: "local" };
+  delete env.TOVU_SITE_KEY;
+  delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "--eval", script],
+    { env, encoding: "utf8", timeout: 15_000 });
+  assert.equal(child.status, 0, child.stderr || child.error?.message);
+  const keyFile = path.join(isolatedHome, ".tovu/site-keys", `${siteKeyId}.hex`);
+  assert.match(fs.readFileSync(keyFile, "utf8").trim(), /^[a-f0-9]{64}$/);
+  assert.equal(fs.statSync(keyFile).mode & 0o777, 0o600);
+  const raw = fs.readFileSync(path.join(dir, STORAGE_SECRET_FILENAME), "utf8");
+  assert.ok(!raw.includes("PW-SENTINEL-51c3") && !raw.includes("db.example.test"));
+});
 
 function siteDir(t: test.TestContext): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-storage-secret-"));

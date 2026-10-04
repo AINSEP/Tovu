@@ -59,4 +59,16 @@ describe("logFrontendSessionError", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith("[admin] frontend session stream closed", event);
   });
+
+  it.each([FakeEventSource.OPEN, null])("does not log an Event with readyState %s", (readyState) => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const event = new Event("error");
+    if (readyState !== null) Object.defineProperty(event, "target", { value: { readyState } });
+
+    logFrontendSessionError(event);
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });

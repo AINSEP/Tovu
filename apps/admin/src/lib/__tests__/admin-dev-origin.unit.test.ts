@@ -36,5 +36,6 @@ describe("ADMIN_DEV_SERVER_PORT", () => {
   it("is a non-empty string", () => {
     expect(typeof ADMIN_DEV_SERVER_PORT).toBe("string");
     expect(ADMIN_DEV_SERVER_PORT.length).toBeGreaterThan(0);
+    expect(ADMIN_DEV_SERVER_PORT).toMatch(/^\d+$/);
   });
 });

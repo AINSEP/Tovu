@@ -117,6 +117,7 @@ test("all 7 admin redirects endpoints deny 403 FORBIDDEN without admin.redirects
     },
   });
   void seeded;
+  const beforeDenials = await deps.redirectRepo.findById({ workspaceId: WORKSPACE_ID, id: "seed-1" });
 
   const checks: Array<[string, string, string?]> = [
     ["GET", `/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`],
@@ -141,6 +142,7 @@ test("all 7 admin redirects endpoints deny 403 FORBIDDEN without admin.redirects
     assert.equal(res.status, 403, `${method} ${path} should be 403`);
     const json = await res.json();
     assert.equal(json.code, "FORBIDDEN");
+    assert.deepEqual(await deps.redirectRepo.findById({ workspaceId: WORKSPACE_ID, id: "seed-1" }), beforeDenials);
   }
 });
 
@@ -235,6 +237,20 @@ test("admin redirects update route: workspace mismatch, update happy path, undef
   assert.equal(patchRes2.status, 200);
   const patchedJson2 = (await patchRes2.json()) as { data: { toTarget: string } };
   assert.equal(patchedJson2.data.toTarget, "/updated-target-2");
+  const readRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/up-1`, { headers: { cookie } });
+  assert.equal(readRes.status, 200);
+  const stored = (await readRes.json()).data;
+  assert.equal(stored.toTarget, "/updated-target-2");
+  assert.equal(stored.statusCode, 302);
+  assert.equal(stored.status, "disabled");
+  assert.equal(stored.override, true);
+  assert.equal(stored.priority, 5);
+  assert.equal(stored.matchType, "exact");
+  assert.equal(stored.fromPattern, "/old-path");
+  assert.equal(stored.source, "manual");
+  assert.equal(stored.createdByPrincipal, "system");
+  assert.equal(stored.version, 3);
+
 
   // 4. Not found -> 404
   const notFoundRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/non-existent`, {
@@ -530,6 +546,9 @@ test("admin redirects tombstone route: workspace mismatch, happy path, not found
   const delJson = (await delRes.json()) as { data: { id: string; status: string } };
   assert.equal(delJson.data.id, "del-1");
   assert.equal(delJson.data.status, "disabled");
+  assert.equal((await deps.redirectRepo.findById({ workspaceId: WORKSPACE_ID, id: "del-1" }))?.status, "disabled");
+  assert.equal(await deps.redirectRepo.lookupExact({ workspaceId: WORKSPACE_ID, path: "/del-path", includeOverrideOnly: false }), null);
+
 
   // 3. Not found -> 404
   const notFoundRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/non-existent-del`, {

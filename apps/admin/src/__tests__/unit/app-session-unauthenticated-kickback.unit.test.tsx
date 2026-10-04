@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
 import { api } from "../../lib/api";
+import * as apiModule from "../../lib/api";
 
 /**
  * @file The live bug, 2026-08-17: `useAdminSession` only ever checked auth ONCE, at boot
@@ -27,6 +28,7 @@ import { api } from "../../lib/api";
  */
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -83,11 +85,7 @@ it("a 403 (authenticated but forbidden) does NOT clear the session — a real pe
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await api.listPosts().catch(() => undefined);
-
-  // No waitFor here on purpose — asserting a NEGATIVE (nothing changed) needs a settled read, not
-  // a race against whatever `onUnauthenticated` would have done if it (wrongly) fired on 403.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { await expect(api.listPosts()).rejects.toMatchObject({ status: 403 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 
@@ -113,9 +111,26 @@ it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed third-party 401) does NOT
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await api.listExternalMcpServers().catch(() => undefined);
-
-  // Same reasoning as the 403 case above — a settled read, not a race.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { await expect(api.listExternalMcpServers()).rejects.toMatchObject({ status: 401 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
+});
+
+it("unsubscribes on unmount so a later 401 cannot notify the removed session", async () => {
+  const subscribe = apiModule.onUnauthenticated;
+  const notified = vi.fn();
+  const unsubscribe = vi.fn();
+  const registration = vi.spyOn(apiModule, "onUnauthenticated").mockImplementation((listener) => {
+    const remove = subscribe(() => { notified(); listener(); });
+    return () => { unsubscribe(); remove(); };
+  });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+    user: { id: "u1", username: "admin" },
+  }))).mockResolvedValueOnce(new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), { status: 401 })));
+  const { result, unmount } = renderHook(() => useAdminSession());
+  await waitFor(() => expect(result.current.user?.id).toBe("u1"));
+  expect(registration).toHaveBeenCalledTimes(1);
+  unmount();
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+  await expect(api.listPosts()).rejects.toMatchObject({ status: 401 });
+  expect(notified).not.toHaveBeenCalled();
 });

@@ -110,6 +110,13 @@ describe("sourceControlCredentialRowReadyToSave", () => {
     const unlisted = sourceControlProviders([], [credential({ providerId: "gitlab" })])[0]!;
     expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat" }, unlisted)).toBe(false);
   });
+
+  it("ignores an optional field while still requiring the host's required field", () => {
+    const provider = { ...FORGE, fields: [...FORGE.fields, { name: "accountId", label: "Account ID", required: false }] };
+    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: {} }, provider)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, provider)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice", accountId: "  " } }, provider)).toBe(true);
+  });
 });
 
 describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialForProvider", () => {

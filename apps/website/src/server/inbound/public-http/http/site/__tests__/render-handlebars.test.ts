@@ -68,6 +68,13 @@ test("renderSite renders the live themes/handlebars/ledger home page: header/foo
   assert.match(html, /Second Post/);
   // `{{#if @first}}` — loop data actually resolved, so only the first row is flagged.
   assert.equal(html.match(/class="row__flag">latest</g)?.length, 1);
+  const rows = html.match(/<li class="row[^"]*">[\s\S]*?<\/li>/g) ?? [];
+  const first = rows.find((row) => row.includes('href="/welcome"'));
+  const second = rows.find((row) => row.includes('href="/second"'));
+  assert.ok(first, "the welcome entry must have its own row");
+  assert.ok(second, "the second entry must have its own row");
+  assert.match(first, /class="row__flag">latest</);
+  assert.doesNotMatch(second, /class="row__flag">latest</);
   // The precomputed short date is used (the tier has no date filter/helper by design).
   assert.match(html, />2026-07-01</);
   // No unrendered Handlebars syntax leaked into the output.

@@ -36,6 +36,12 @@ describe("defaultThemeCanvasPort.fetchThemeTokens", () => {
       "the theme server responded with 404",
     );
   });
+
+  it("surfaces invalid JSON from a successful tokens response", async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response("{invalid", { status: 200 })) as typeof fetch;
+    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.json")).rejects.toBeInstanceOf(SyntaxError);
+    expect(global.fetch).toHaveBeenCalledWith("/theme-assets/basic/tokens.json");
+  });
 });
 
 describe("defaultThemeCanvasPort.fetchTemplateMarkup", () => {

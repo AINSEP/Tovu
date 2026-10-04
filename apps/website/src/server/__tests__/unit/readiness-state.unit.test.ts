@@ -48,11 +48,23 @@ test("recordAssistantDaemonFailure latches a visible, optional, failed module en
 });
 
 test("recordAssistantDaemonFailure never flips the rest of the app's own readiness to false", () => {
-  setReadinessSnapshot({ ok: true, modules: [{ name: "identity", owner: "core", criticality: "critical", lifecycle: { status: "ready" } }] });
+  const otherModules = [
+    { name: "identity", owner: "core", criticality: "critical" as const, lifecycle: { status: "ready" as const } },
+    { name: "search", owner: "search", criticality: "optional" as const, lifecycle: { status: "failed" as const, reasonCode: "index unavailable", remediationHint: "rebuild index" } },
+  ];
+  const expected = structuredClone(otherModules);
+  setReadinessSnapshot({ ok: true, modules: otherModules });
 
-  recordAssistantDaemonFailure("agent daemon exited unexpectedly (code 1, signal none)");
-
-  assert.equal(getReadinessSnapshot().ok, true, "an optional daemon failure must not make the rest of the app read as down");
+  for (const reason of ["first failure", "replacement failure"]) {
+    recordAssistantDaemonFailure(reason);
+    assert.equal(getReadinessSnapshot().ok, true, "an optional daemon failure must not make the rest of the app read as down");
+    assert.deepEqual(getReadinessSnapshot().modules.filter((m) => m.name !== "assistant-daemon"), expected);
+    assert.equal(getAssistantDaemonFailureReasonCode(), reason);
+  }
+  clearAssistantDaemonFailure();
+  assert.deepEqual(getReadinessSnapshot(), { ok: true, modules: expected });
+  clearAssistantDaemonFailure();
+  assert.deepEqual(getReadinessSnapshot(), { ok: true, modules: expected });
 });
 
 test("recordAssistantDaemonFailure called twice replaces the entry rather than duplicating it", () => {

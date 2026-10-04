@@ -10,6 +10,7 @@ vi.mock("@/lib/settings-refresh-bus", () => ({ publishSettingsRefresh: vi.fn() }
 
 import { DEFAULT_EXECUTION_CONFIG, saveExecutionConfig } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import * as retry from "@/lib/retry-unreachable";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";
 
 const mockSave = vi.mocked(saveExecutionConfig);
@@ -23,7 +24,7 @@ function doubleRunningSetter(current: ExecutionConfig) {
   });
 }
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => { vi.clearAllMocks(); vi.restoreAllMocks(); });
 
 describe("applyExecutionConfigChange", () => {
   it("reports the change once even when the updater runs twice", () => {
@@ -66,12 +67,15 @@ describe("persistExecutionConfigWrite", () => {
 
   it("stays quiet about a cancelled save", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    mockSave.mockRejectedValue(new DOMException("The operation was aborted.", "AbortError"));
+    const abort = new DOMException("The operation was aborted.", "AbortError");
+    const handled = vi.spyOn(retry, "isAbortError");
+    mockSave.mockRejectedValue(abort);
 
     persistExecutionConfigWrite(write, "[test] failed");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(handled).toHaveBeenCalledWith(abort));
 
     expect(consoleError).not.toHaveBeenCalled();
+    expect(publishSettingsRefresh).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 });

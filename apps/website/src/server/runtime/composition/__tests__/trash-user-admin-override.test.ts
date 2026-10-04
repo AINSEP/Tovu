@@ -66,17 +66,29 @@ async function assignBuiltinAdmin(identity: AuthServiceDeps, workspaceId: string
 
 const denyReason = { allowed: false as const, reason: "no_grant" };
 
-test("withUserTrashAdminOverride: an already-allowed base decision passes through unchanged (owner never pays the role lookup)", async () => {
+test("withUserTrashAdminOverride: an already-allowed base decision passes through unchanged (owner never pays the role lookup)", async (t) => {
   const workspaceId = "ws-passthrough-allowed";
   const { identity } = await buildIdentity(workspaceId);
+  const params = { principalId: "anyone", permission: "*", workspaceId, entityType: USER_ENTITY_TYPE };
+  const decision = { allowed: true, reason: "owner" };
+  let baseCalls = 0;
+  t.mock.method(identity.repos.principalRoles, "listByPrincipalId", async () => {
+    assert.fail("an allowed base decision must bypass role lookup");
+  });
   const wrapped = withUserTrashAdminOverride({
-    base: async () => ({ allowed: true, reason: "owner" }),
+    base: async (received) => {
+      baseCalls++;
+      assert.deepEqual(received, params);
+      return decision;
+    },
     identity,
     workspaceId,
   });
 
-  const result = await wrapped({ principalId: "anyone", permission: "*", workspaceId, entityType: USER_ENTITY_TYPE });
+  const result = await wrapped(params);
   assert.deepEqual(result, { allowed: true, reason: "owner" });
+  assert.equal(result, decision);
+  assert.equal(baseCalls, 1);
 });
 
 test("withUserTrashAdminOverride: a denied non-user entityType is never overridden — does not widen any other trashable kind", async () => {

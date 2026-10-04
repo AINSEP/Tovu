@@ -28,6 +28,9 @@ import { createApp } from "#src/server/runtime/composition/app";
 function withTempApp(fn: (baseUrl: string) => Promise<void>, roots: readonly string[]): Promise<void> {
   const app = express();
   registerThemeStaticAssets(app, { themeRoots: roots });
+  // Answer static fallthrough without changing headers, as the middleware contract allows.
+  // Express's default finalhandler replaces CSP with its own policy for its error document.
+  app.use((_req, res) => res.status(404).type("text/plain").send("not found"));
   const server = createServer(app);
   return new Promise((resolve, reject) => {
     server.listen(0, async () => {
@@ -241,6 +244,51 @@ test("registerThemeStaticAssets: a .liquid template source file serves, but NOT 
     );
     assert.equal(await res.text(), "<h1>{{ product.title }}</h1>");
   }, [rootA]);
+});
+
+test("registerThemeStaticAssets: executable assets, missing files and conditional responses keep exact security headers", async (t) => {
+  const root = makeThemeFixture("security", {
+    "my-theme/script.svg": '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    "my-theme/page.html": "<script>alert(1)</script>",
+    "my-theme/template.liquid": "<h1>{{ title }}</h1>",
+  });
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  await withTempApp(async (baseUrl) => {
+    for (const file of ["script.svg", "page.html", "template.liquid", "missing.html"]) {
+      const url = `${baseUrl}/theme-assets/my-theme/${file}`;
+      const res = await fetch(url);
+      assert.equal(res.status, file === "missing.html" ? 404 : 200, file);
+      assert.equal(res.headers.get("x-content-type-options"), "nosniff", file);
+      assert.equal(res.headers.get("content-security-policy"), "default-src 'none'; sandbox", file);
+      const body = await res.text();
+      if (file === "missing.html") assert.equal(body, "not found");
+      if (file === "script.svg") {
+        const etag = res.headers.get("etag");
+        assert.ok(etag);
+        // Default fetch with If-None-Match switches to no-store and adds no-cache,
+        // which deliberately forces Express to send 200 instead of the 304 under test.
+        const cached = await fetch(url, { cache: "no-cache", headers: { "if-none-match": etag } });
+        assert.equal(cached.status, 304);
+        assert.equal(cached.headers.get("x-content-type-options"), "nosniff");
+        assert.equal(cached.headers.get("content-security-policy"), "default-src 'none'; sandbox");
+        assert.equal(await cached.text(), "");
+      }
+    }
+  }, [root]);
+});
+
+test("registerThemeStaticAssets: a theme installed after registration serves without a restart", async (t) => {
+  const root = makeThemeFixture("late-install", {});
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  await withTempApp(async (baseUrl) => {
+    const url = `${baseUrl}/theme-assets/installed-later/style.css`;
+    assert.equal((await fetch(url)).status, 404);
+    mkdirSync(path.join(root, "installed-later"));
+    writeFileSync(path.join(root, "installed-later/style.css"), "body{color:purple}");
+    const res = await fetch(url);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), "body{color:purple}");
+  }, [root]);
 });
 
 test("registerThemeStaticAssets: font files carry `Access-Control-Allow-Origin: *` without credentials; non-font files carry no CORS header", async (t) => {

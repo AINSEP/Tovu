@@ -45,12 +45,21 @@ describe("useComments", () => {
     expect(result.current.permissions).toBeNull();
   });
 
-  it("useWiredComments composes the real port — same controller shape, no port argument needed", () => {
-    // Not exercised end-to-end here (that's `Comments.unit.test.tsx`'s job through the mounted
-    // component) — this just proves the zero-arg wrapper type-checks and returns immediately with
-    // the loading-state shape before its real fetch settles.
-    const { result } = renderHook(() => useWiredComments(), { wrapper });
-    expect(result.current.permissions).toBeNull();
-    expect(result.current.error).toBeNull();
+  it("useWiredComments resolves permissions through the real port with no port argument", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/auth/me")) return Response.json({ effectivePermissions: ["comments.moderate"] });
+      if (String(url).includes("/settings/effective")) return Response.json({ data: [] });
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => useWiredComments(), { wrapper });
+      expect(result.current.permissions).toBeNull();
+      expect(result.current.error).toBeNull();
+      await waitFor(() => expect(result.current.permissions).toEqual(["comments.moderate"]));
+      expect(result.current.error).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -93,7 +92,13 @@ test("comments-submit: parentId/authorEmail/authorUrl present and entryId/author
   assert.equal(submitted.ingressContext.honeypotValue, "bot-filled-this", "a string `website` field is captured as the honeypot value -- the ternary's TRUE arm");
 });
 
-test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` double fallback, forced via a direct handler call with both left undefined -- still succeeds and hashes \"unknown\"", async () => {
+test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` double fallback, forced via a direct handler call with both left undefined -- still succeeds and hashes \"unknown\"", async (t) => {
+  const previousSalt = process.env.COMMENTS_IP_SALT;
+  process.env.COMMENTS_IP_SALT = "fixed-audit-salt";
+  t.after(() => {
+    if (previousSalt === undefined) delete process.env.COMMENTS_IP_SALT;
+    else process.env.COMMENTS_IP_SALT = previousSalt;
+  });
   // Only `id`/`status` are read by the route on the success path (see `registerCommentsSubmitRoute`'s
   // `res.status(201).json({ id: result.comment.id, status: result.comment.status })`) -- a minimal
   // stand-in cast to the full `CommentRecord` shape is deliberate, matching this suite's stub-policy
@@ -129,11 +134,30 @@ test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` doubl
   assert.equal(statusCode, 201);
   assert.deepEqual(jsonBody, { id: "c1", status: "approved" });
 
-  const salt = process.env.COMMENTS_IP_SALT ?? "dev-only-insecure-salt";
-  const expectedHash = createHash("sha256").update(`unknown:${salt}`).digest("hex");
   assert.equal(
     calls[0].ingressContext.authorIpHash,
-    expectedHash,
+    "27b8de53257be3e509f3debb4d628cae66f7c4a91bd23068fbcc1b075d8f485c",
     "both req.ip and req.socket.remoteAddress falling through leaves hashClientIp hashing the literal \"unknown\""
   );
+});
+
+test("comments-submit: unexpected ingress and body-conversion failures finish with a secret-free 500", async (t) => {
+  const { app } = buildApp(async () => { throw new Error("private database credentials"); });
+  const baseUrl = await startTestServer(app, t);
+  const failed = await fetch(`${baseUrl}/api/site/comments`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ entryId: "entry-1", body: "hello" }), signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  // Valid JSON with a non-coercible body value fails before ingress is called.
+  const { app: malformedApp, calls } = buildApp(async () => ({ ok: false, reason: "entry-not-found" }));
+  const malformedBaseUrl = await startTestServer(malformedApp, t);
+  const malformed = await fetch(`${malformedBaseUrl}/api/site/comments`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: '{"body":{"toString":null,"valueOf":null}}', signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(malformed.status, 500);
+  assert.deepEqual(await malformed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual(calls, []);
 });

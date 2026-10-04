@@ -55,6 +55,7 @@ describe("OverflowAwareMcpUiSurfaceCard", () => {
     );
     expect(container.querySelector(".fake-mcp-ui-surface-card")).toBeInTheDocument();
     expect(mcpUiSurfaceCardSpy).toHaveBeenCalledWith(expect.objectContaining({ name: "mcp-ui", runId: "run-1" }));
+    expect(mcpUiSurfaceCardSpy).toHaveBeenLastCalledWith(baseProps);
   });
 
   it("shows no 'Show in modal' button when the surface fits its own box", () => {
@@ -96,6 +97,7 @@ describe("OverflowAwareMcpUiSurfaceCard", () => {
     const dialog = document.querySelector("dialog.message-overflow-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
     expect(dialog.querySelector(".fake-mcp-ui-surface-card")).toBeInTheDocument();
+    expect(mcpUiSurfaceCardSpy).toHaveBeenLastCalledWith(baseProps);
     // Exactly one instance exists — the inline copy unmounted the same commit the modal's mounted.
     expect(document.querySelectorAll(".fake-mcp-ui-surface-card")).toHaveLength(1);
   });

@@ -88,7 +88,7 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
   });
 
   it("a language refresh drops the in-flight read, and its listeners share one new request", async () => {
-    const fetchMock = stubLocaleFetch(["en", "fr"]);
+    const fetchMock = stubLocaleFetch(["en", "fr", "fr", "de"]);
     const before = defaultAdminLocalePort.loadLanguage();
     const reads: Promise<string>[] = [];
     const unsubscribes = [1, 2, 3].map(() =>
@@ -100,6 +100,13 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
     await expect(before).resolves.toBe("en");
     await expect(Promise.all(reads)).resolves.toEqual(["fr", "fr", "fr"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // The first dispatch has finished its microtask; a later switch must invalidate anew.
+    const beforeSecondRefresh = defaultAdminLocalePort.loadLanguage();
+    publishSettingsRefresh(["core.language"]);
+    await expect(beforeSecondRefresh).resolves.toBe("fr");
+    await expect(Promise.all(reads.slice(3))).resolves.toEqual(["de", "de", "de"]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     for (const unsubscribe of unsubscribes) unsubscribe();
   });
 

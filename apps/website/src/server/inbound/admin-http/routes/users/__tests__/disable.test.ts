@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserDisableRoute } from "../disable.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createUser } from "@jini-ai/user-management/server";
+import { createUser, createSessionForPrincipal, validateSession } from "@jini-ai/user-management/server";
 
 /**
  * @file Route-level branch coverage for `POST .../users/:principalId/disable` (`DISABLE_PRINCIPAL`,
@@ -138,6 +138,11 @@ test("DISABLE_PRINCIPAL route: 200 disables a user, session-gate flips, and repo
   await deps.roleRepo.save({ id: roleId, workspaceId: WORKSPACE_ID, name: roleId, isBuiltin: false });
   await deps.principalRoleRepo.save({ id: `pr-${targetId}`, workspaceId: WORKSPACE_ID, principalId: targetId, roleId });
 
+  const svcDeps = identityServiceDepsFrom(deps);
+  const active = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId: targetId } }, { sessionTtlMs: 60_000 });
+  assert.equal((await deps.authorize({ principalId: targetId, permission: "member.manage", workspaceId: WORKSPACE_ID })).allowed, true);
+  assert.equal((await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }))?.principal.id, targetId);
+
   const res = await fetch(`${baseUrl}${urlFor(targetId)}`, { method: "POST" });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { user: { status: string; principalId: string; roleIds: string[]; policyIds: string[] } };
@@ -145,6 +150,7 @@ test("DISABLE_PRINCIPAL route: 200 disables a user, session-gate flips, and repo
   assert.equal(body.user.principalId, targetId);
   assert.deepEqual(body.user.roleIds, [roleId]);
   assert.equal(body.user.policyIds.length, 1);
+  assert.deepEqual(body.user.policyIds, [`member.manage-only-${targetId}`]);
 
   const stored = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId });
   assert.equal(stored?.status, "disabled");
@@ -154,8 +160,10 @@ test("DISABLE_PRINCIPAL route: 200 disables a user, session-gate flips, and repo
   // revocation call in `disablePrincipal` itself — `validateSession`'s status check is what
   // actually invalidates every session for a disabled principal; verified here at the same
   // `authorize()` seam every gated route already consults).
-  const authResult = await deps.authorize({ principalId: targetId, permission: "user.manage", workspaceId: WORKSPACE_ID });
+  const authResult = await deps.authorize({ principalId: targetId, permission: "member.manage", workspaceId: WORKSPACE_ID });
   assert.equal(authResult.allowed, false);
+  assert.equal((await deps.authorize({ principalId: targetId, permission: "user.manage", workspaceId: WORKSPACE_ID })).allowed, false);
+  assert.equal(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }), null);
 });
 
 test("DISABLE_PRINCIPAL route: 200 idempotent no-op when the target is already disabled", async (t) => {

@@ -46,7 +46,7 @@ function buildDeps(): PublishContentRouteDeps {
   return {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowIso: () => "2026-09-19T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-19T00:00:00.000Z") },
     idGen: { newId: () => "id-1" },
     publishContentPeerRepo: new InMemoryPublishContentPeerRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
@@ -121,6 +121,58 @@ test("GET .../destination falls back to process.cwd() when TOVU_REPO_ROOT is uns
   const body = (await res.json()) as { candidateUrl: string | null };
 
   assert.equal(body.candidateUrl, "https://fallback-cwd.example");
+});
+
+test("POST .../connect writes trust under TOVU_REPO_ROOT and the next request uses the saved destination", async (t) => {
+  const repoRoot = await mkdtemp(path.join(tmpdir(), "publish-connect-repo-root-"));
+  const cwd = await mkdtemp(path.join(tmpdir(), "publish-connect-cwd-"));
+  const previousCwd = process.cwd();
+  const previous = process.env.TOVU_REPO_ROOT;
+  t.after(async () => {
+    process.chdir(previousCwd);
+    if (previous === undefined) delete process.env.TOVU_REPO_ROOT;
+    else process.env.TOVU_REPO_ROOT = previous;
+    await rm(repoRoot, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
+  });
+  await writeFile(path.join(repoRoot, "fly.toml"), '[env]\n TOVU_PUBLIC_URL = "https://connected-root.example"\n');
+  await mkdir(path.join(cwd, "deploy"));
+  const cwdTrust = "[]\n";
+  await writeFile(path.join(cwd, "deploy/publish-trust.json"), cwdTrust);
+  const deps = buildDeps();
+  deps.publishContentPeerHttpClient.send = async (request) => {
+    assert.equal(request.method, "GET");
+    assert.equal(request.url, "https://connected-root.example/api/publish-trust/v1/identity");
+    return { status: 200, headers: {}, bodyText: JSON.stringify({ installationId: "destination-install", workspaceId: "destination-workspace", origin: "https://connected-root.example" }) };
+  };
+  const sourceInstallationId = await deriveInstallationId({ keyring: deps.siteAssistantSecretKeyring, workspaceId: WORKSPACE_ID });
+  process.chdir(cwd);
+  process.env.TOVU_REPO_ROOT = repoRoot;
+  const server = await startTestServer(buildApp(deps), t);
+  const connected = await fetch(`${server}${BASE}/connect`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(connected.status, 201);
+  const view = await connected.json();
+  assert.equal(view.connected, true);
+  const grants = JSON.parse(await readFile(path.join(repoRoot, "deploy/publish-trust.json"), "utf8"));
+  assert.equal(grants.length, 1);
+  assert.equal(grants[0].sourceInstallationId, sourceInstallationId);
+  assert.equal(grants[0].workspaceId, "destination-workspace");
+  assert.deepEqual(grants[0].capabilities, ["publish_content.read", "publish_content.apply"]);
+  assert.ok(grants[0].entityTypes.includes("post"));
+  assert.equal(grants[0].publicKeys[0].generation, 1);
+  assert.match(grants[0].publicKeys[0].publicKeyB64u, /^[A-Za-z0-9_-]+$/);
+  assert.equal(await readFile(path.join(cwd, "deploy/publish-trust.json"), "utf8"), cwdTrust);
+  const reread = await fetch(`${server}${BASE}`);
+  assert.equal(reread.status, 200);
+  const saved = await reread.json();
+  assert.equal(saved.connected, true);
+  assert.equal(saved.site.baseUrl, "https://connected-root.example");
+  assert.equal(saved.site.remoteWorkspaceId, "destination-workspace");
+  const disconnected = await fetch(`${server}${BASE}/disconnect`, { method: "POST" });
+  assert.equal(disconnected.status, 200);
+  await disconnected.json();
+  assert.deepEqual(JSON.parse(await readFile(path.join(repoRoot, "deploy/publish-trust.json"), "utf8")), []);
+  assert.equal(await readFile(path.join(cwd, "deploy/publish-trust.json"), "utf8"), cwdTrust);
 });
 
 test("POST .../disconnect removes this install's grant from TOVU_REPO_ROOT, leaving the cwd trust file untouched", async (t) => {

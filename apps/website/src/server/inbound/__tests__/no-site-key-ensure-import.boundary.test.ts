@@ -22,6 +22,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const INBOUND_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server", "inbound");
@@ -29,12 +30,23 @@ const INBOUND_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server", "i
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
-/**
- * Every import specifier, whatever the syntax. Matches `from "x"`, `import("x")` and `require("x")`
- * so `import`, `export ... from`, `import type`, dynamic import and CJS require are all covered by
- * one pattern rather than four that could drift apart.
- */
-const SPECIFIER_PATTERN = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)(["'])([^"']+)\1/g;
+/** Read module specifiers with TypeScript's parser, including bare side-effect imports. */
+function importSpecifiers(source: string): string[] {
+  const file = ts.createSourceFile("fixture.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const specifiers: string[] = [];
+  const add = (node: ts.Node | undefined) => {
+    if (node && ts.isStringLiteralLike(node)) specifiers.push(node.text);
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) add(node.moduleSpecifier);
+    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) add(node.moduleReference.expression);
+    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+      (ts.isIdentifier(node.expression) && node.expression.text === "require"))) add(node.arguments[0]);
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return specifiers;
+}
 
 /** `site-key-ensure`, `site-key-ensure.js`, or `site-key-ensure.ts` as the specifier's final path
  *  segment — matches both a relative import and the `#src/...` subpath-map form without also
@@ -63,9 +75,9 @@ test("no production file under server/inbound/ imports site-key-ensure (the one 
   const offenders: string[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.matchAll(SPECIFIER_PATTERN)) {
-      if (SITE_KEY_ENSURE_SPECIFIER.test(match[2])) {
-        offenders.push(`${path.relative(REPO_ROOT, file)} imports site-key-ensure: "${match[2]}"`);
+    for (const specifier of importSpecifiers(source)) {
+      if (SITE_KEY_ENSURE_SPECIFIER.test(specifier)) {
+        offenders.push(`${path.relative(REPO_ROOT, file)} imports site-key-ensure: "${specifier}"`);
       }
     }
   }
@@ -76,4 +88,26 @@ test("no production file under server/inbound/ imports site-key-ensure (the one 
     `site-key plan §A3a: nothing under server/inbound/ may import site-key-ensure.ts, the one ` +
       `writer. Offending edges:\n  ${offenders.join("\n  ")}`,
   );
+});
+
+
+test("the boundary scanner sees every supported import syntax and ignores comments and ordinary strings", () => {
+  const specifiers = importSpecifiers(`
+    import "#src/features/webhooks/site-key-ensure";
+    import { ensure } from "./site-key-ensure.js";
+    import type { Key } from "../site-key-ensure.ts";
+    export { ensure } from "../../site-key-ensure";
+    export * from "../../../site-key-ensure.js";
+    const dynamic = import("../../../../site-key-ensure.ts");
+    const cjs = require("../../../../../site-key-ensure");
+    import legacy = require("../../../../../../site-key-ensure.js");
+    // import "ignored/site-key-ensure";
+    const text = 'from "ignored/site-key-ensure"';
+    import "./site-key-ensure-utils";
+  `);
+  assert.deepEqual(specifiers.filter((specifier) => SITE_KEY_ENSURE_SPECIFIER.test(specifier)), [
+    "#src/features/webhooks/site-key-ensure", "./site-key-ensure.js", "../site-key-ensure.ts", "../../site-key-ensure",
+    "../../../site-key-ensure.js", "../../../../site-key-ensure.ts", "../../../../../site-key-ensure", "../../../../../../site-key-ensure.js",
+  ]);
+  assert.equal(specifiers.length, 9);
 });

@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 describe("defaultThemeExplorePort — real api wiring", () => {
-  it("getThemeDetail delegates to api.getThemeDetail with the theme id, narrowing the response", async () => {
-    const spy = vi.spyOn(api, "getThemeDetail").mockResolvedValue({
+  it("getThemeDetail delegates with the theme id and preserves the API response", async () => {
+    const detail = {
       id: "basic",
       name: "Basic",
       tier: "declarative",
@@ -31,8 +31,9 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       lineage: null,
       hasOriginal: true,
       files: [],
-    } as never);
-    await expect(defaultThemeExplorePort.getThemeDetail("basic")).resolves.toMatchObject({ id: "basic" });
+    };
+    const spy = vi.spyOn(api, "getThemeDetail").mockResolvedValue(detail as never);
+    await expect(defaultThemeExplorePort.getThemeDetail("basic")).resolves.toEqual(detail);
     expect(spy).toHaveBeenCalledWith("basic");
   });
 
