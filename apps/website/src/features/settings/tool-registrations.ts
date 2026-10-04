@@ -55,7 +55,8 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     ...routeDeps,
     setValue: set,
     extraConfirmationSettings: [...(routeDeps.extraConfirmationSettings ?? []), ...TOVU_CONFIRMATION_SETTINGS],
-    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }) => {
+    // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
+    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options) => {
       const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
         toolId,
         errorCode: "SETTINGS",
@@ -68,7 +69,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
           { label: "New value", value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : JSON.stringify(value ?? null) },
         ],
         confirmLabel: "Confirm change",
-      } });
+      } }, options);
       return outcome.confirmed;
     },
   });
