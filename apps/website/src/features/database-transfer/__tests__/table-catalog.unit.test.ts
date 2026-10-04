@@ -41,3 +41,18 @@ test("composite keys follow declared key order and never become row-id identitie
   assert.deepEqual(byName.get("p_b08__child")?.columns, [{ name: "id", sqlType: "bigint", notNull: true }, { name: "b", sqlType: "bigint", notNull: false }, { name: "a", sqlType: "bigint", notNull: false }]);
   assert.deepEqual(byName.get("p_b08__child")?.foreignKeys, [{ name: "p_b08__child_b_a_fkey", columns: ["b", "a"], foreignTable: "p_b08__pairs", foreignColumns: null, onDelete: "cascade", onUpdate: "set null" }]);
 });
+
+test("content.db's legacy chat tables are left out with a reason: chat.db is the one source of the conversation tables", (t) => {
+  // A pre-split install keeps chat rows in content.db (0002 drops only empty ones); copying them
+  // from both files declared each table twice and runCopy refused the whole copy.
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec(`CREATE TABLE ai_chats (id TEXT PRIMARY KEY); CREATE TABLE ai_chat_messages (id TEXT PRIMARY KEY); CREATE TABLE assistant_agent_sessions (id TEXT PRIMARY KEY);
+    INSERT INTO ai_chats VALUES ('stranded');`);
+  const source = openSqliteSnapshotSource(db.serialize());
+  t.after(() => source.close());
+  const plan = planSnapshotTables(source);
+  const chatTables = ["ai_chat_messages", "ai_chats", "assistant_agent_sessions"];
+  assert.deepEqual(plan.tables.filter((entry) => chatTables.includes(entry.name)), []);
+  assert.deepEqual(plan.leftOut.filter((entry) => chatTables.includes(entry.table)), chatTables.map((table) => ({ table, reason: "conversations are copied from chat.db; chat history still left in content.db from before the chat.db split is not copied" })));
+});

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
@@ -42,8 +42,9 @@ function harness(options: { allow?: boolean; ttl?: number; version?: string; can
   const plan = plans.save({ principalId: "owner", workspaceId: "ws", content: { connectionString: "postgresql://owner@fixture/db", destination: description, replaces: "prior-copy", snapshot: Buffer.alloc(0), snapshotAt: "x", site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [] } });
   return { tools, plan, plans, surfaces, destinations, expire: () => { now = 600001; }, captures: () => captures, targetCalls: () => targetCalls };
 }
-function call(tool: ToolRegistration, input: unknown, signal = new AbortController().signal, emitSurface: NonNullable<ToolExecutionContext["emitSurface"]> = async () => undefined) {
-  return tool.handler({ executionId: "exec", run: { id: "run" }, principal: { id: "owner" }, input, signal, emitSurface });
+// Like the daemon's ToolExecutor: emitSurface is the handler's optional second argument, not a ctx field.
+function call(tool: ToolRegistration, input: unknown, signal = new AbortController().signal, emitSurface: NonNullable<ToolExecutionOptions["emitSurface"]> = async () => undefined) {
+  return tool.handler({ executionId: "exec", run: { id: "run" }, principal: { id: "owner" }, input, signal }, { emitSurface });
 }
 
 test("every registration refuses denied permission before snapshots, forms, plan consumption or destination access", async () => {

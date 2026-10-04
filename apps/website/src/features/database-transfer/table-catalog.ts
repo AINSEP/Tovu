@@ -130,10 +130,23 @@ function coreTableNames(): Set<string> {
 export { LEFT_OUT_REASON } from "@jini-ai/db/transfer";
 /** Migration ledgers stay behind: the target's runner owns its applied history. */
 const MIGRATION_LEDGERS = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);
+/** The conversation tables chat.db owns ({@link planChatSnapshotTables} copies them, in this order). */
+const CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
+/**
+ * Legacy migrations 0023/0051 still create the chat tables in content.db, and
+ * `0002_drop_empty_legacy_chat_tables` keeps any that hold a pre-split install's rows. chat.db is
+ * the only copy source for them: declaring a table from both files makes `runCopy` refuse the whole
+ * copy, and the stranded rows are the ones the running site no longer reads (`chat-orphan-check.ts`).
+ * Their row counts are still disclosed in the plan's `leftOut`.
+ */
+const LEGACY_CONTENT_CHAT_REASON = "conversations are copied from chat.db; chat history still left in content.db from before the chat.db split is not copied";
 export function planSnapshotTables(source: TransferSource): SnapshotTablePlan {
   return planGenericSnapshot({ source, policy: {
     coreTables: collectTransferTables(), coreNames: coreTableNames(),
-    excludedTables: Object.fromEntries(Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]])),
+    excludedTables: {
+      ...Object.fromEntries(Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]])),
+      ...Object.fromEntries(CHAT_TABLES.map(name => [name, LEGACY_CONTENT_CHAT_REASON])),
+    },
     derivedNames: new Set(DERIVED_OBJECTS.map(object => object.name)), migrationLedgers: MIGRATION_LEDGERS,
     bookkeepingPrefixes: ["sqlite_", "_plugin_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
   } });
@@ -146,9 +159,8 @@ export function planChatSnapshotTables(source: TransferSource): SnapshotTablePla
     // Chat transcript/session columns are data, not credential records; copy all three raw-SQL tables.
     secretColumnPattern: /(?!)/,
   } });
-  const order = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
   return { ...plan, tables: [...plan.tables].sort((a, b) => {
-    const rank = (name: string) => order.includes(name) ? order.indexOf(name) : order.length;
+    const rank = (name: string) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
     return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
   }) };
 }
