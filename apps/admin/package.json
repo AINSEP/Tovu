@@ -22,7 +22,7 @@
     "@jini-ai/agent-runtime": "^0.4.0",
     "@jini-ai/agentic": "^0.4.0",
     "@jini-ai/chat": "^0.5.0",
-    "@jini-ai/cms": "^0.4.0",
+    "@jini-ai/cms": "^0.4.1",
     "@jini-ai/integrations": "^0.4.0",
     "@jini-ai/protocol": "^0.4.0",
     "@jini-ai/ui": "^0.4.0",
