@@ -410,3 +410,12 @@ test(
     }
   }
 );
+
+/** Audit direction must remain constrained; a count-only parity check can miss corrupted SQL. */
+test("publish backstop direction CHECK retains the exact source/destination allowlist", () => {
+  const source = getTableConfig(sqliteSchema.publishBackstopLog);
+  assert.deepEqual(source.checks.map(check => check.name), ["publish_backstop_log_direction_check"]);
+  const expected = "direction IN ('source','destination')";
+  assert.ok(GENERATED.includes('check("publish_backstop_log_direction_check", sql`' + expected + '`)'));
+  assert.deepEqual(getPgTableConfig(pgSchema.publishBackstopLog).checks.map(check => check.name), ["publish_backstop_log_direction_check"]);
+});

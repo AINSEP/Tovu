@@ -9,6 +9,7 @@ import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { mediaCreatedBy } from "./0005_media_createdby.js";
 import { submissionIpRetentionMigration } from "./0006_submission_ip_retention.js";
+import { publishBackstop } from "./0007_publish_backstop.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -39,6 +40,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   dropUnusedDeploymentTables({ checksum: pinned("0004_drop_unused_deployment_tables") }),
   mediaCreatedBy({ checksum: pinned("0005_media_createdby") }),
   submissionIpRetentionMigration({ checksum: pinned("0006_submission_ip_retention") }),
+  publishBackstop({ checksum: pinned("0007_publish_backstop") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

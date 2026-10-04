@@ -2949,6 +2949,33 @@ export const publishTrustRevocations = sqliteTable("publish_trust_revocations", 
   note: text("note"),
 });
 
+/**
+ * Manual publish audit, including the undo inverses: durable workspace-scoped data, never a
+ * rebuildable projection. Declaring it keeps the Postgres transfer catalog from dropping the
+ * audit trail. Plain workspace text matches publishContentRuns; no cascade erases undo history.
+ * JSON payloads follow the manifest's *_json convention (TEXT here, native jsonb on Postgres).
+ * The runtime SQLite adapter stays optional until migration 0007_publish_backstop is installed.
+ */
+export const publishBackstopLog = sqliteTable("publish_backstop_log", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  direction: text("direction").notNull(),
+  actorId: text("actor_id").notNull(),
+  destination: text("destination").notNull(),
+  reason: text("reason").notNull(),
+  at: text("at").notNull(),
+  itemsJson: text("items_json").notNull(),
+  gapLabelsJson: text("gap_labels_json").notNull(),
+  result: text("result").notNull(),
+  runId: text("run_id"),
+  detailsJson: text("details_json").notNull(),
+  inversesJson: text("inverses_json").notNull(),
+}, (table) => [
+  check("publish_backstop_log_direction_check", sql`${table.direction} IN ('source','destination')`),
+  index("publish_backstop_log_workspace_at").on(table.workspaceId, table.at),
+  index("publish_backstop_log_run").on(table.workspaceId, table.runId),
+]);
+
 // ---------------------------------------------------------------------------
 // Publish Content (SPEC pending) — export/import content between two Tovu instances over the
 // existing admin-http API-key auth. Four tables, all additive; no column added to, and no

@@ -22,4 +22,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0004_drop_unused_deployment_tables": "315701db702123c69de2b4f56497b191b1245f326fa6fdd2beabc01550838b3c",
   "0005_media_createdby": "81cefae555b8d577076fcc3adb42ff50be82935d4e76ed13042f9475f3346c5a",
   "0006_submission_ip_retention": "46d094a528ef15a53db38f942c1984194e203afaae931da2c1e8ce61d07f89e7",
+  "0007_publish_backstop": "2cb8d296d59a3b5c68cd66d995b8a36c6e5221cabe592e7ffb8a7fc4fabbfc5d",
 };

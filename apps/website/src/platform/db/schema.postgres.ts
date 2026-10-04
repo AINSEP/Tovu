@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 87
+ * Tables: 88
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -914,6 +914,26 @@ export const principals = pgTable("principals", {
   disabledAt: text("disabled_at"),
   createdAt: text("created_at").notNull(),
 });
+
+export const publishBackstopLog = pgTable("publish_backstop_log", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  direction: text("direction").notNull(),
+  actorId: text("actor_id").notNull(),
+  destination: text("destination").notNull(),
+  reason: text("reason").notNull(),
+  at: text("at").notNull(),
+  itemsJson: jsonText("items_json").notNull(),
+  gapLabelsJson: jsonText("gap_labels_json").notNull(),
+  result: text("result").notNull(),
+  runId: text("run_id"),
+  detailsJson: jsonText("details_json").notNull(),
+  inversesJson: jsonText("inverses_json").notNull(),
+}, (t) => [
+    check("publish_backstop_log_direction_check", sql`direction IN ('source','destination')`),
+    index("publish_backstop_log_workspace_at").on(t.workspaceId, t.at),
+    index("publish_backstop_log_run").on(t.workspaceId, t.runId),
+  ]);
 
 export const publishContentBaselines = pgTable("publish_content_baselines", {
   workspaceId: text("workspace_id").notNull(),

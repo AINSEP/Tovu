@@ -23,10 +23,11 @@ function fake({ allowed = true, ready = true } = {}): PublishBackstopPort {
   };
 }
 const t = (key: string) => key;
-async function selected(result: { current: ReturnType<typeof usePublishBackstop> }) {
+async function selected(result: { current: ReturnType<typeof usePublishBackstop> }, { choosePeer = true } = {}) {
   await waitFor(() => expect(result.current.allowed).toBe(true));
   await act(async () => { await result.current.open(); });
   act(() => {
+    if (choosePeer) result.current.selectPeer(peer.id);
     result.current.setRowTable("p_banner");
     result.current.setRowPk('{"id":"one"}');
     result.current.setReason("Footer missing a publish type");
@@ -46,8 +47,29 @@ describe("manual publishing ceremony", () => {
   it("shows missing schema and does not offer a send", async () => {
     render(<PublishBackstopSection port={fake({ ready: false })} t={t} />);
     await waitFor(() => expect(screen.getByText("Advanced: send by hand")).toBeTruthy());
-    expect(screen.getByText("Send by hand needs audit storage installed on both sites.")).toBeTruthy();
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("Send by hand needs audit storage installed on both sites.");
+    expect(notice).toHaveClass("notice", "warning");
     expect(screen.queryByRole("button", { name: "Send to live" })).toBeNull();
+  });
+  it("requires an explicit destination choice even when only one live site is connected", async () => {
+    const port = fake();
+    const { result } = renderHook(() => usePublishBackstop({ port, t }));
+    await selected(result, { choosePeer: false });
+    const { rerender } = render(<PublishBackstopSection port={port} t={t} useBackstopHook={() => result.current} />);
+    expect(screen.getByRole("combobox", { name: "Publish to" })).toHaveValue("");
+    expect(screen.getByRole("option", { name: "Choose a site…" })).toHaveProperty("selected", true);
+    expect(result.current.peerId).toBe("");
+    expect(result.current.host).toBe("");
+    expect(result.current.canCheck).toBe(false);
+    await act(async () => { await result.current.check(); });
+    expect(port.plan).not.toHaveBeenCalled();
+    act(() => result.current.selectPeer(peer.id));
+    rerender(<PublishBackstopSection port={port} t={t} useBackstopHook={() => result.current} />);
+    expect(screen.getByRole("combobox", { name: "Publish to" })).toHaveValue("live");
+    expect(result.current.canCheck).toBe(true);
+    await act(async () => { await result.current.check(); });
+    expect(port.plan).toHaveBeenCalledWith(expect.objectContaining({ peerId: "live" }));
   });
   it("checks selected addresses without filling the human confirmation, then sends the saved plan", async () => {
     const port = fake();

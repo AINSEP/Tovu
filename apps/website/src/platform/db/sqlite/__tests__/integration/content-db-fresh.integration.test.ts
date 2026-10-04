@@ -89,3 +89,41 @@ test("fresh file openContentDb preserves creator attribution on reopen and needs
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/** Explicit head contract: parity alone could miss an object absent from both constructors. */
+test("fresh openContentDb creates the publish audit table, both complete indexes and its direction CHECK", () => {
+  const db = openContentDb(":memory:");
+  try {
+    const columns = db.$client.prepare("PRAGMA table_info(publish_backstop_log)").all() as Array<{ name: string; type: string; notnull: number }>;
+    assert.deepEqual(columns.map(column => column.name), [
+      "id", "workspace_id", "direction", "actor_id", "destination", "reason", "at",
+      "items_json", "gap_labels_json", "result", "run_id", "details_json", "inverses_json",
+    ]);
+    for (const column of columns) {
+      assert.equal(column.type.toLowerCase(), "text", column.name);
+      assert.equal(column.notnull, column.name === "run_id" ? 0 : 1, column.name);
+    }
+    const indexes = db.$client.prepare("PRAGMA index_list(publish_backstop_log)").all() as Array<{ name: string; origin: string; unique: number; partial: number }>;
+    assert.deepEqual(indexes.filter(index => index.origin === "c").map(({ name, unique, partial }) => ({ name, unique, partial })).sort((a, b) => a.name.localeCompare(b.name)), [
+      { name: "publish_backstop_log_run", unique: 0, partial: 0 },
+      { name: "publish_backstop_log_workspace_at", unique: 0, partial: 0 },
+    ]);
+    for (const [name, expected] of [
+      ["publish_backstop_log_workspace_at", ["workspace_id", "at"]],
+      ["publish_backstop_log_run", ["workspace_id", "run_id"]],
+    ] as const) {
+      const indexed = db.$client.prepare("SELECT name FROM pragma_index_info(?) ORDER BY seqno").all(name) as Array<{ name: string }>;
+      assert.deepEqual(indexed.map(column => column.name), expected, name);
+    }
+    const table = db.$client.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'publish_backstop_log'").get() as { sql: string };
+    assert.match(table.sql, /CONSTRAINT publish_backstop_log_direction_check CHECK\(direction IN \('source','destination'\)\)/);
+    const insert = db.$client.prepare(`INSERT INTO publish_backstop_log
+      (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, run_id, details_json, inverses_json)
+      VALUES (?, 'ws', ?, 'owner', 'https://live.example', 'Manual fix', ?, '[]', '[]', 'success', NULL, '{}', '[]')`);
+    insert.run("source-1", "source", NOW);
+    insert.run("destination-1", "destination", NOW);
+    assert.throws(() => insert.run("invalid", "sideways", NOW), /CHECK constraint failed/);
+  } finally {
+    db.$client.close();
+  }
+});

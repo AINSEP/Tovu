@@ -76,7 +76,8 @@ export function usePublishBackstop(
     inFlight.current = true; setBusy(true); setError(null);
     try {
       const response = await port.listPeers();
-      if (mounted.current) { setPeers(response.peers); setPeerId(response.peers[0]?.id ?? ""); }
+      // Loading destinations is discovery; only the operator may choose where to send.
+      if (mounted.current) setPeers(response.peers);
       await loadGaps();
     } catch (failure) { if (mounted.current) setError(describe(failure)); }
     finally { inFlight.current = false; if (mounted.current) setBusy(false); }

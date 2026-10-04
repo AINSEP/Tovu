@@ -406,3 +406,28 @@ test("an unconfirmed first-copy plan cannot overwrite a copy created since plann
   // The fixture snapshot holds two menus; the refused copy must leave the original copy's rows as they were.
   assert.equal(await count("menus", "tovu"), menusBefore);
 });
+
+/** Owner 2026-10-04: a catalog declaration alone must not conceal lost undo data in COPY. */
+test("a Postgres site copy preserves publish backstop audit rows and their undo inverses", async () => {
+  const inverses = [{ kind: "row", table: "posts", pk: { id: "p1" }, before: { title: TRICKY_TEXT } }];
+  const snapshot = fixtureSnapshot(db => {
+    db.prepare(`INSERT INTO publish_backstop_log
+      (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, run_id, details_json, inverses_json)
+      VALUES ('audit-1', 'ws', 'destination', 'owner', 'https://live.example', ?, '2026-10-04T00:00:00.000Z',
+        '[]', '["table:posts"]', 'success', 'run-1', '{"applied":1}', ?)`).run(TRICKY_TEXT, JSON.stringify(inverses));
+    db.prepare(`INSERT INTO publish_backstop_log
+      (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, run_id, details_json, inverses_json)
+      VALUES ('audit-2', 'other', 'source', 'owner', 'https://live.example', 'Other workspace', '2026-10-04T00:00:00.000Z',
+        '[]', '[]', 'pending', NULL, '{}', '[]')`).run();
+  });
+  const { schema, result } = await copyAs(SITE, "audit-copy", snapshot);
+  assert.ok(result.ok, JSON.stringify(result));
+  assert.equal(await count("publish_backstop_log", schema), 2);
+  const raw = await sql(FIXTURE_DB, `SELECT row_to_json(a)::text FROM
+    (SELECT id, workspace_id, direction, reason, run_id, details_json, inverses_json
+     FROM "${schema}".publish_backstop_log ORDER BY id) a`);
+  assert.deepEqual(raw.trim().split("\n").map(row => JSON.parse(row)), [
+    { id: "audit-1", workspace_id: "ws", direction: "destination", reason: TRICKY_TEXT, run_id: "run-1", details_json: { applied: 1 }, inverses_json: inverses },
+    { id: "audit-2", workspace_id: "other", direction: "source", reason: "Other workspace", run_id: null, details_json: {}, inverses_json: [] },
+  ]);
+});

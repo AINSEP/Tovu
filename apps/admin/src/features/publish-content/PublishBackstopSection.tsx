@@ -27,7 +27,7 @@ export function PublishBackstopSection({ port, t, useBackstopHook = useWiredPubl
           <button id="backstop-title" type="button" className="link-button" aria-expanded={view.expanded} aria-controls="publish-backstop-body" onClick={view.toggleExpanded}>
             {translate("Advanced: send by hand")}
           </button>
-          {!view.installed && <p className="notice" role="status">{translate("Send by hand needs audit storage installed on both sites.")}</p>}
+          {!view.installed && <p className="notice warning" role="status">{translate("Send by hand needs audit storage installed on both sites.")}</p>}
           {view.expanded && (
             <div id="publish-backstop-body">
               <p>{translate("Send specific items normal publishing cannot cover. Keys, passwords and user accounts are never sent. Live keeps an undo.")}</p>

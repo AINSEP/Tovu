@@ -76,6 +76,19 @@ export function bootstrapFreshContentDb(
       for (const object of objects) client.exec(object.sql);
       client.exec("CREATE INDEX IF NOT EXISTS idx_form_submissions_ip_retention ON form_submissions(submitted_at, id) WHERE source_ip IS NOT NULL");
     },
+    "0007_publish_backstop": () => {
+      // Exact SQLite DDL from 0007. Sharing it would edit the checksum-covered step source;
+      // keep that immutable and guard this fresh-only copy against the real TS runner.
+      client.exec(`CREATE TABLE publish_backstop_log (
+    id text PRIMARY KEY NOT NULL, workspace_id text NOT NULL,
+    direction text NOT NULL CONSTRAINT publish_backstop_log_direction_check CHECK(direction IN ('source','destination')),
+    actor_id text NOT NULL, destination text NOT NULL, reason text NOT NULL,
+    at text NOT NULL, items_json text NOT NULL, gap_labels_json text NOT NULL,
+    result text NOT NULL, run_id text, details_json text NOT NULL, inverses_json text NOT NULL
+  )`);
+      client.exec(`CREATE INDEX publish_backstop_log_workspace_at ON publish_backstop_log(workspace_id, at)`);
+      client.exec(`CREATE INDEX publish_backstop_log_run ON publish_backstop_log(workspace_id, run_id)`);
+    },
   };
   if (CONTENT_MIGRATIONS.length !== Object.keys(operations).length ||
       CONTENT_MIGRATIONS.some(step => !Object.hasOwn(operations, step.id))) {

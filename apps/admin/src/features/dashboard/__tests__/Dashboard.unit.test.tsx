@@ -450,3 +450,28 @@ describe("site key banner (site-key plan §A.6)", () => {
     expect(await screen.findByText(/site's key doesn't match/i)).toBeInTheDocument();
   });
 });
+
+it("keeps the stats before the manual-send panel when the operator expands it", async () => {
+  fetchMock.mockImplementation(routeFetch({
+    ...successRoutes(),
+    "/backstop/status": () => Promise.resolve(jsonResponse({ allowed: true, installed: false })),
+    "/publish-content/peers": () => Promise.resolve(jsonResponse({ peers: [{ id: "live", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "ws-live" }] })),
+    "/backstop/gaps": () => Promise.resolve(jsonResponse({ gaps: [] })),
+  }));
+  setPublishToLiveAvailable(true);
+  const user = userEvent.setup();
+  const { container } = render(<Dashboard />);
+  const disclosure = await screen.findByRole("button", { name: "Advanced: send by hand" });
+  expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("combobox", { name: "Publish to" })).not.toBeInTheDocument();
+  await user.click(disclosure);
+  const destination = await screen.findByRole("combobox", { name: "Publish to" });
+  await waitFor(() => expect(destination).toBeEnabled());
+  const stats = container.querySelector(".dash-stats");
+  const panel = disclosure.closest(".publish-backstop");
+  expect(stats).not.toBeNull();
+  expect(panel).not.toBeNull();
+  expect(stats!.compareDocumentPosition(panel!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(statCard(container, "Posts")).getByText("3")).toBeInTheDocument();
+  expect(destination).toHaveValue("");
+});

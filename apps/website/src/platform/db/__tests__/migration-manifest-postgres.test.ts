@@ -21,7 +21,8 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
 
-import { IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest.js";
+import { classifyAllCoreColumns, collectCoreTables, computeCoreTableCopyOrder, DERIVED_OBJECTS, IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest.js";
+import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
 import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js";
 
 /** Same admin-connection target `pg-fixture.ts` uses internally for `DROP`/`CREATE DATABASE` — not
@@ -492,4 +493,23 @@ test("a plain Postgres text column silently accepts malformed JSON — proving a
 
   const readBack = psql(FIXTURE_DB, `SELECT payload FROM fx_json_gap WHERE id = 1;`);
   assert.equal(readBack.stdout.trim(), MALFORMED, "the malformed payload round-trips byte-for-byte, exactly the silent-corruption shape this manifest's classifier exists to catch downstream");
+});
+
+/** Audit rows contain the only undo inverses; never classify them as a rebuildable object. */
+test("publish backstop audit is workspace-scoped core data included once in the Postgres copy catalog", () => {
+  assert.equal(collectCoreTables().filter(table => table.exportName === "publishBackstopLog").length, 1);
+  assert.equal(computeCoreTableCopyOrder().filter(name => name === "publishBackstopLog").length, 1);
+  assert.equal(DERIVED_OBJECTS.some(object => object.name === "publish_backstop_log"), false);
+  const columns = classifyAllCoreColumns().filter(column => column.sqlTableName === "publish_backstop_log");
+  assert.equal(columns.length, 13);
+  const classes = new Map(columns.map(column => [column.sqlColumnName, column.columnClass.kind]));
+  assert.equal(classes.get("workspace_id"), "plain-text");
+  assert.equal(classes.get("at"), "utc-timestamp-text");
+  for (const name of ["items_json", "gap_labels_json", "details_json", "inverses_json"]) assert.equal(classes.get(name), "json-text", name);
+  const tables = collectTransferTables().filter(table => table.name === "publish_backstop_log");
+  assert.equal(tables.length, 1);
+  assert.equal(tables[0]!.keep, undefined, "copy every workspace's audit rows without a partial exclusion");
+  assert.deepEqual(tables[0]!.primaryKey, ["id"]);
+  assert.equal(tables[0]!.columns.find(column => column.name === "workspace_id")?.notNull, true);
+  assert.equal(tables[0]!.columns.find(column => column.name === "inverses_json")?.sqlType, "jsonb");
 });

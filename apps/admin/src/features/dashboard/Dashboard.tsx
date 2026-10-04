@@ -228,7 +228,6 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         </div>
       </div>
 
-      <PublishBackstopSection />
       {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
@@ -262,6 +261,9 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           agentHandleId="dashboard-stat-comments"
         />
       </div>
+
+      {/* Keep the overview visible even while the manual-send ceremony is expanded. */}
+      <PublishBackstopSection />
 
       <div className="dash-panels">
         <div className="dash-panel">

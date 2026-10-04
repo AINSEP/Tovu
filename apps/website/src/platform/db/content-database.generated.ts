@@ -66,6 +66,7 @@ export interface ContentDatabase {
   principal_policies: PrincipalPoliciesTable;
   principal_roles: PrincipalRolesTable;
   principals: PrincipalsTable;
+  publish_backstop_log: PublishBackstopLogTable;
   publish_content_baselines: PublishContentBaselinesTable;
   publish_content_bundles: PublishContentBundlesTable;
   publish_content_peers: PublishContentPeersTable;
@@ -833,6 +834,22 @@ export interface PrincipalsTable {
   status: string;
   disabled_at: string | null;
   created_at: string;
+}
+
+export interface PublishBackstopLogTable {
+  id: string;
+  workspace_id: string;
+  direction: string;
+  actor_id: string;
+  destination: string;
+  reason: string;
+  at: string;
+  items_json: string;
+  gap_labels_json: string;
+  result: string;
+  run_id: string | null;
+  details_json: string;
+  inverses_json: string;
 }
 
 export interface PublishContentBaselinesTable {
