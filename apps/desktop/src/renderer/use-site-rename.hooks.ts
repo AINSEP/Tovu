@@ -129,14 +129,15 @@ export function showsInvalidNameHint(draft: string): boolean {
  *
  * @param rename the grid's rename state, narrowed to what the handler reads.
  * @param id the card being renamed, handed to `submitRename`.
- * @returns the handler; its event is narrowed to `key`, so a test can pass a plain object.
+ * @returns the handler; composing key events leave the in-progress text untouched.
  * @complexity O(1).
  */
 export function renameInputKeyDown(
   rename: Pick<SiteRenameState, 'canSave' | 'cancelRename' | 'submitRename'>,
   id: string,
-): (event: { key: string }) => void {
+): (event: { key: string; isComposing?: boolean; nativeEvent?: { isComposing?: boolean }; keyCode?: number }) => void {
   return (event) => {
+    if (event.isComposing || event.nativeEvent?.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') rename.cancelRename();
     if (event.key === 'Enter' && rename.canSave) void rename.submitRename(id);
   };

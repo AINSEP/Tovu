@@ -1,18 +1,21 @@
 /**
- * @file Coverage for `use-site-rename.hooks.ts`'s pure decision logic.
+ * @file Coverage for `use-site-rename.hooks.ts`: its pure decision logic, IME key handling, and the
+ * actual `useSiteRename` submit flow.
  *
- * `useSiteRename` itself calls `useState`, so it cannot be invoked directly in this package: there
- * is no React renderer here at all (no jsdom, no testing-library, no react-test-renderer), and
- * calling a hook outside a component render throws "Invalid hook call" (verified empirically against
- * this exact React 19 install). But every DECISION the hook makes is a plain function it calls
- * rather than logic inlined in its own body — `isValidSiteName`, `canSubmitRename`,
- * `renameSubmission`, `describeRenameFailure` — pulled out for exactly the reason `folder-drop.ts`
- * was pulled out of `App.hooks.ts` (see that file's own header): so real behaviour is testable
- * without a renderer. Every test below calls one of those functions directly with real inputs and
- * asserts an exact output. Nothing here asserts against source text.
+ * There is no React renderer in this package at all (no jsdom, no testing-library, no
+ * react-test-renderer), and calling a hook outside a component render throws "Invalid hook call"
+ * (verified empirically against this exact React 19 install). So every DECISION the hook makes is a
+ * plain function it calls rather than logic inlined in its own body — `isValidSiteName`,
+ * `canSubmitRename`, `renameSubmission`, `describeRenameFailure` — pulled out for exactly the reason
+ * `folder-drop.ts` was pulled out of `App.hooks.ts` (see that file's own header): so real behaviour
+ * is testable without a renderer. Those tests call the functions directly with real inputs and assert
+ * exact outputs. The submit flow (saving, failure, retry, success) instead runs the hook's real body
+ * through the injected hook harness in `source-test-harness.ts`.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import {
   canSubmitRename,
@@ -24,6 +27,60 @@ import {
   showsInvalidNameHint,
 } from './use-site-rename.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
+
+test('submitRename preserves the draft on failure, clears saving, and closes with the returned record on retry', async () => {
+  const harness = hookHarness();
+  const calls: unknown[] = [];
+  const renamed: unknown[] = [];
+  const pending: Array<{ resolve: (record: unknown) => void; reject: (error: Error) => void }> = [];
+  const bridge = { renameSite(payload: unknown) {
+    calls.push(payload);
+    return new Promise((resolve, reject) => pending.push({ resolve, reject }));
+  } };
+  const hook = sourceFunction(readFileSync(new URL('./use-site-rename.hooks.ts', import.meta.url), 'utf8'), 'useSiteRename', {
+    ...harness.bindings, renameSubmission, describeRenameFailure, canSubmitRename, runnerInventoryBridge: () => bridge,
+  });
+  const render = () => harness.render(() => hook((record: unknown) => renamed.push(record)));
+  try {
+    render().startRename({ id: 'site-7', displayName: 'Old name' });
+    render().setDraft('New name');
+    const first = render().submitRename('site-7');
+    assert.equal(render().saving, true);
+    assert.equal(render().canSave, false);
+    assert.deepEqual(calls, [{ id: 'site-7', name: 'New name' }]);
+    pending[0]!.reject(new Error('Folder is unavailable'));
+    await first;
+    assert.equal(render().renamingId, 'site-7');
+    assert.equal(render().draft, 'New name');
+    assert.equal(render().renameError, 'Folder is unavailable');
+    assert.equal(render().saving, false);
+    assert.equal(render().canSave, true);
+    assert.deepEqual(renamed, []);
+    const second = render().submitRename('site-7');
+    assert.equal(render().renameError, null);
+    assert.equal(render().saving, true);
+    const record = { id: 'site-7', displayName: 'New name' };
+    pending[1]!.resolve(record);
+    await second;
+    assert.equal(render().renamingId, null);
+    assert.equal(render().saving, false);
+    assert.equal(render().renameError, null);
+    assert.deepEqual(renamed, [record]);
+    assert.equal(renamed[0], record);
+    assert.deepEqual(calls, [{ id: 'site-7', name: 'New name' }, { id: 'site-7', name: 'New name' }]);
+  } finally { harness.cleanup(); }
+});
+
+test('Enter that commits IME composition cannot submit; the subsequent ordinary Enter can', () => {
+  for (const composing of [{ nativeEvent: { isComposing: true } }, { isComposing: true }, { keyCode: 229 }]) {
+    const { calls, rename } = recordingRename(true);
+    const handler = renameInputKeyDown(rename, 'site-ime');
+    handler({ key: 'Enter', ...composing });
+    assert.deepEqual(calls, [], 'committing composition must leave rename open');
+    handler({ key: 'Enter', nativeEvent: { isComposing: false } });
+    assert.deepEqual(calls, ['submit:site-ime']);
+  }
+});
 
 // ---------------------------------------------------------------------------------------------
 // isValidSiteName

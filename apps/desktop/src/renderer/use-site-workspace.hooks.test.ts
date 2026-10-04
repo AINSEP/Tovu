@@ -5,11 +5,15 @@
  *
  * `useSiteWorkspace` itself calls React hooks, and this package has no React renderer (see
  * `use-site-rename.hooks.test.ts`'s header). Every decision it makes is a plain exported function,
- * so these tests call those directly with a fake `<webview>` that records its own calls. Nothing
- * here asserts against source text; `site-toolbar-wiring.test.ts` checks that `App.tsx` uses them.
+ * so most tests call those directly with a fake `<webview>` that records its own calls;
+ * `site-toolbar-wiring.test.ts` checks that `App.tsx` uses them. The hook's own effect bodies (guest
+ * attachment and replacement, history subscription cleanup) run through the injected hook harness
+ * in `source-test-harness.ts` against recording guest ports.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import {
   createWorkspaceActions,
@@ -30,6 +34,70 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand } from '../contracts/project.js';
 
 type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => void;
+
+test('workspace effects follow guest replacement and visible-tab history subscriptions', () => {
+  const harness = hookHarness();
+  const source = readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8');
+  const commands = new Set<(command: SiteHistoryCommand) => void>();
+  const bridge = { onSiteHistory(listener: (command: SiteHistoryCommand) => void) {
+    commands.add(listener);
+    return () => { commands.delete(listener); };
+  } };
+  let guest: WorkspaceGuest | null = null;
+  let hidden = false;
+  const hook = sourceFunction(source, 'useSiteWorkspace', {
+    ...harness.bindings,
+    useReducer(reducer: typeof siteWorkspaceReducer, initial: SiteWorkspaceState) {
+      const [state, setState] = harness.bindings.useState(initial);
+      return [state, (action: SiteWorkspaceAction) => setState((previous: SiteWorkspaceState) => reducer(previous, action))];
+    },
+    useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: true, guest, guestRef: () => {} }),
+    siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
+    subscribeSiteHistory, siteSurfaceUrl, createWorkspaceActions,
+    liveSurface: sourceFunction(source, 'liveSurface', { surfaceOfUrl }), runnerInventoryBridge: () => bridge,
+  });
+  const render = () => harness.render(() => hook({ id: 'site-1', port: 4100, status: 'running' }, hidden));
+  try {
+    render();
+    const first = fakeGuest({ canGoBack: true });
+    guest = first.guest;
+    assert.deepEqual(render().history, { canGoBack: true, canGoForward: false });
+    assert.equal(commands.size, 1);
+    first.fire('did-navigate', { url: 'http://127.0.0.1:4100/admin/posts' });
+    assert.equal(render().displayUrl, 'http://127.0.0.1:4100/admin/posts');
+    for (const listener of commands) listener('back');
+    assert.deepEqual(first.calls, ['goBack']);
+    const second = fakeGuest({ canGoForward: true });
+    guest = second.guest;
+    assert.deepEqual(render().history, { canGoBack: false, canGoForward: true });
+    assert.equal(render().displayUrl, 'http://127.0.0.1:4100/admin/');
+    assert.equal(first.listeners.size, 0);
+    assert.equal(second.listeners.size, 2);
+    assert.equal(commands.size, 1);
+    for (const listener of commands) listener('forward');
+    assert.deepEqual(second.calls, ['goForward']);
+    hidden = true;
+    render();
+    assert.equal(commands.size, 0);
+    hidden = false;
+    render();
+    assert.equal(commands.size, 1);
+    harness.cleanup();
+    assert.equal(second.listeners.size, 0);
+    assert.equal(commands.size, 0);
+  } finally { harness.cleanup(); }
+});
+
+test('soft-load retains populated history, the live URL, and the existing guest identity', () => {
+  const populated: SiteWorkspaceState = {
+    view: 'site', reloadNonce: 4, softLoads: 2, liveUrl: 'http://127.0.0.1:4100/about',
+    history: { canGoBack: true, canGoForward: true },
+  };
+  assert.deepEqual(siteWorkspaceReducer(populated, { type: 'soft-load' }), {
+    view: 'site', reloadNonce: 4, softLoads: 3, liveUrl: 'http://127.0.0.1:4100/about',
+    history: { canGoBack: true, canGoForward: true },
+  });
+});
 
 interface FakeGuestOptions {
   canGoBack?: boolean;

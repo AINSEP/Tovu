@@ -133,6 +133,8 @@ test("SKILL.md declares its own scope and disclaims deploy/host semantics", asyn
 test("SKILL.md: a repository secret is ALWAYS the human's step, and says WHY", async () => {
   const skill = await readSkill();
   const auth = await readReference("auth-and-tokens.md");
+  assert.ok(skill.includes("### Rule 1 — A repository secret is ALWAYS the human's step. This is not negotiable."));
+  assert.ok(skill.includes("So you never call `PUT /repos/{owner}/{repo}/actions/secrets/{name}`, you never fetch\n`.../actions/secrets/public-key` in order to encrypt something, and you never ask a human to paste\na token into the chat so you can do it for them."));
 
   // The mechanism is the whole argument — a rule with no reason gets treated as friction and
   // routed around. Encrypting against the repo's public key means holding the plaintext.
@@ -160,6 +162,7 @@ test("SKILL.md: a repository secret is ALWAYS the human's step, and says WHY", a
 
 test("SKILL.md: a 204 dispatch means QUEUED, never deployed", async () => {
   const skill = await readSkill();
+  assert.ok(skill.includes("### Rule 2 — A 204 from a workflow dispatch means QUEUED. It does not mean anything ran."));
   assert.match(skill, /204/);
   assert.match(skill, /queued/i);
   assert.match(skill, /Never report success/i);

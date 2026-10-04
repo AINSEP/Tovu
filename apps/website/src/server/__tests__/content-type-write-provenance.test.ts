@@ -157,10 +157,11 @@ test("a non-'user' principal kind is carried through verbatim — the route read
   assert.equal(revisionsOf(deps)[0].principalKind, stored?.kind);
 });
 
-test("the human update-fields and lifecycle routes stamp provenance too, not just create", async (t) => {
+for (const kind of ["user", "api_key"] as const) {
+test(`the ${kind} update-fields and lifecycle routes stamp the stored principal's provenance too, not just create`, async (t) => {
   const { app, deps } = buildApp();
   const baseUrl = await startTestServer(app, t);
-  const { cookie, principalId } = await loginAsPrincipal(deps, baseUrl, "user");
+  const { cookie, principalId } = await loginAsPrincipal(deps, baseUrl, kind);
   const headers = { cookie, "content-type": "application/json" };
 
   await fetch(`${baseUrl}/api/admin/v1/content-types`, {
@@ -183,11 +184,15 @@ test("the human update-fields and lifecycle routes stamp provenance too, not jus
 
   const revisions = revisionsOf(deps);
   assert.equal(revisions.length, 3, "register + field-change + deprecate each append one revision");
+  const stored = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
+  assert.ok(stored);
+  assert.equal(stored.kind, kind);
   for (const revision of revisions) {
     assert.equal(revision.actorId, principalId);
-    assert.equal(revision.principalKind, "user");
+    assert.equal(revision.principalKind, stored.kind);
   }
 });
+}
 
 test("an agent-tool write records principalKind 'agent' while carrying the SAME principal id — the exact distinction the audit trail needs", async (t) => {
   const { app, deps } = buildApp();
@@ -247,13 +252,22 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
     signal: new AbortController().signal,
   });
 
+  const register = byId.get("collections_content_type_define");
+  assert.ok(register);
+  await register.handler(ctx({ key: "agent_recipe", label: "Agent recipe", fields: FIELDS }));
+  const registrationRevisions = revisionsOf(deps).filter((revision) => revision.contentTypeKey === "agent_recipe");
+  assert.equal(registrationRevisions.length, 1);
+  assert.equal(registrationRevisions[0].op, "register");
+  assert.equal(registrationRevisions[0].principalKind, "agent");
+  assert.equal(registrationRevisions[0].actorId, principalId);
+
   await byId.get("collections_content_type_deprecate")!.handler(ctx({ key: "recipe", expectedVersion: 1 }));
   await byId.get("collections_content_type_reactivate")!.handler(ctx({ key: "recipe", expectedVersion: 2 }));
   await byId.get("collections_content_type_deprecate")!.handler(ctx({ key: "recipe", expectedVersion: 3 }));
   await byId.get("collections_content_type_tombstone")!.handler(ctx({ key: "recipe", expectedVersion: 4 }));
 
   const agentRevisions = revisionsOf(deps).slice(1);
-  assert.equal(agentRevisions.length, 4);
+  assert.equal(agentRevisions.length, 5);
   for (const revision of agentRevisions) {
     assert.equal(revision.principalKind, "agent");
     assert.equal(revision.actorId, principalId);

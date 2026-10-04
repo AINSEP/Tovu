@@ -95,4 +95,16 @@ test("registerRedirectHitOutboxHandler subscribes record() to the redirect.hit e
 
   const stats = await sink.getStats({ workspaceId: WORKSPACE_ID, redirectId: "r-9" });
   assert.equal(stats?.hitCount, 1);
+  assert.deepEqual(stats, { workspaceId: WORKSPACE_ID, redirectId: "r-9", hitCount: 1, lastHitAt: "2026-07-13T00:00:00.000Z" });
+
+  await bus.publish({ ...event, id: "ignored", name: "post.created", payload: { ...event.payload, redirectId: "ignored" } });
+  assert.equal(await sink.getStats({ workspaceId: WORKSPACE_ID, redirectId: "ignored" }), null);
+  await bus.publish({
+    ...event, id: "other-hit", workspaceId: "other-workspace",
+    payload: { workspaceId: "other-workspace", redirectId: "r-other", at: "2026-07-13T00:01:00.000Z" },
+  });
+  assert.deepEqual(await sink.getStats({ workspaceId: "other-workspace", redirectId: "r-other" }), {
+    workspaceId: "other-workspace", redirectId: "r-other", hitCount: 1, lastHitAt: "2026-07-13T00:01:00.000Z",
+  });
+  assert.deepEqual(await sink.listStats({ workspaceId: WORKSPACE_ID }), [stats]);
 });

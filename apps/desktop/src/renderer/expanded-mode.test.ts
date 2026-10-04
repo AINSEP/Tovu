@@ -16,6 +16,8 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import { deriveSitesHomeView } from './App.hooks.js';
 import {
@@ -34,6 +36,41 @@ function site(id: string): SiteRecord {
 }
 
 const BOTH = [false, true] as const;
+
+test('the expanded-mode effect attaches Escape handling only while expanded and detaches on collapse', () => {
+  const harness = hookHarness();
+  const target = new EventTarget();
+  const listeners = new Set<EventListener>();
+  const window = {
+    addEventListener(type: string, listener: EventListener) { listeners.add(listener); target.addEventListener(type, listener); },
+    removeEventListener(type: string, listener: EventListener) { listeners.delete(listener); target.removeEventListener(type, listener); },
+  };
+  const hook = sourceFunction(readFileSync(new URL('./App.hooks.ts', import.meta.url), 'utf8'), 'useExpandedMode', {
+    ...harness.bindings, window, expandedAfterWorkspaceChange, expandedAfterKeyDown, nextExpanded,
+  });
+  let showSiteTab = true;
+  const render = () => harness.render(() => hook(showSiteTab));
+  const key = (value: string) => target.dispatchEvent(Object.assign(new Event('keydown'), { key: value }));
+  try {
+    assert.equal(render().expanded, false);
+    assert.equal(listeners.size, 0);
+    render().toggleExpanded();
+    assert.equal(render().expanded, true);
+    assert.equal(listeners.size, 1);
+    key('Enter');
+    assert.equal(render().expanded, true);
+    key('Escape');
+    assert.equal(render().expanded, false);
+    assert.equal(listeners.size, 0);
+    // A listener left behind would apply the supplied rule to the next event.
+    render().toggleExpanded();
+    assert.equal(render().expanded, true);
+    showSiteTab = false;
+    assert.equal(render().expanded, false);
+    assert.equal(listeners.size, 0);
+  } finally { harness.cleanup(); }
+  assert.equal(listeners.size, 0);
+});
 
 // ---------------------------------------------------------------------------------------------
 // nextExpanded — the workspace bar's toggle

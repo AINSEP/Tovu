@@ -151,6 +151,10 @@ test("SKILL.md calls agent_plugin_connect before any Supabase tool", async () =>
 
 test("SKILL.md drops the old setup: no Settings trip, no restart, no pasted token, no project scoping", async () => {
   const skill = await readSkill();
+  const connectStep = skill.split("## Step 1. Connect (always first)\n")[1]?.split("## Step 2.")[0];
+  assert.ok(connectStep, "the actual first step must exist");
+  assert.ok(connectStep.includes('Call `agent_plugin_connect { pluginId: "supabase" }` before any Supabase tool, every time'));
+  assert.ok(connectStep.includes("It shows the person a card with a sign-in button."));
   const failureModes = await readFailureModes();
   for (const text of [skill, failureModes]) {
     for (const stale of [/Settings\s*→\s*External MCP/i, /restart/i, /personal access token/i, /supabase_set_access_token/, /supabase_set_project_scope/, /external_mcp_oauth_connect/]) {

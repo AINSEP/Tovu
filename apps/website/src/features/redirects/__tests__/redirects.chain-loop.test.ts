@@ -6,8 +6,8 @@ import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from 
 import { redirectMatcher } from "../matcher.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
-import { createRedirect, type RedirectsWriteDeps } from "../redirects.js";
-import { RedirectLoopError } from "../types.js";
+import { createRedirect, updateRedirect, type RedirectsWriteDeps } from "../redirects.js";
+import { RedirectConflictError, RedirectLoopError } from "../types.js";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
@@ -131,4 +131,25 @@ test("S9: a pre-existing loop that does NOT pass through the new rule's fromPatt
     },
   });
   assert.equal(created.toTarget, "/y");
+});
+
+test("updateRedirect rejects a target completing a whole-chain cycle and a duplicate fromPattern without changing the row", async () => {
+  const deps = makeDeps();
+  for (const [fromPattern, toTarget] of [["/a", "/b"], ["/b", "/c"], ["/c", "/end"]]) {
+    await createRedirect({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, matchType: "exact", statusCode: 301, fromPattern, toTarget } });
+  }
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "redirect-3" });
+  assert.ok(before);
+  const revisionsBefore = await deps.repo.listRevisions({ workspaceId: WORKSPACE_ID, redirectId: before.id });
+  await assert.rejects(
+    () => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, id: before.id, toTarget: "/a" } }),
+    RedirectLoopError,
+  );
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), before);
+  await assert.rejects(
+    () => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, id: before.id, fromPattern: "/a" } }),
+    RedirectConflictError,
+  );
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), before);
+  assert.deepEqual(await deps.repo.listRevisions({ workspaceId: WORKSPACE_ID, redirectId: before.id }), revisionsBefore);
 });

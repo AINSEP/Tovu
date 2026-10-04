@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
 import {
   FormFieldValidationError,
   FormSlugConflictError,
@@ -32,7 +33,7 @@ function makeDeps() {
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
   const changeSets = new InMemoryChangeSetRepo();
-  const authorize = async () => ({ allowed: true, reason: "ok" });
+  const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "ok" });
   return { repo, clock, idGen, changeSets, authorize, executeCommand };
 }
 
@@ -138,6 +139,69 @@ test("createFormDefinition: rejects a name outside 1-200 characters", async () =
       return true;
     }
   );
+  const fields = [{ id: "name", label: "Name", type: "text" as const, required: true }];
+  const { definition } = await createFormDefinition({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, name: "x".repeat(200), slug: "boundary", fields } });
+  assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: definition.id }))?.name, "x".repeat(200));
+  await assert.rejects(
+    () => createFormDefinition({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, name: "x".repeat(201), slug: "too-long", fields } }),
+    (error: unknown) => {
+      assert.ok(error instanceof FormFieldValidationError);
+      assert.equal(error.message, "name must be 1-200 characters");
+      return true;
+    },
+  );
+  assert.equal(await deps.repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "too-long" }), null);
+});
+
+test("createFormDefinition: the admin editor's reserved slug is rejected without persisting a definition", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () => createFormDefinition({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, name: "New", slug: "new", fields: [{ id: "name", label: "Name", type: "text", required: true }] } }),
+    (error: unknown) => {
+      assert.ok(error instanceof FormFieldValidationError);
+      assert.equal(error.message, "slug 'new' is reserved");
+      assert.deepEqual(error.fieldErrors, [{ field: "slug", reason: "'new' is reserved for the admin editor's own URL" }]);
+      return true;
+    },
+  );
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("create, update and status changes require exactly admin.forms.manage and each persist an audit item", async () => {
+  const deps = makeDeps();
+  let granted = true;
+  const permissions: string[] = [];
+  deps.authorize = async ({ permission }) => {
+    permissions.push(permission);
+    return { allowed: permission === "admin.forms.manage" ? granted : true, reason: "test-grant" };
+  };
+  const input = { workspaceId: WORKSPACE_ID, actor: ACTOR, name: "Contact", slug: "contact", fields: [{ id: "name", label: "Name", type: "text" as const, required: true }] };
+  const { definition } = await createFormDefinition({ deps, input });
+  const auditOperations = async () => {
+    const records = await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
+    const operations: string[] = [];
+    for (const record of records) {
+      const audit = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+      assert.ok(audit);
+      assert.deepEqual(audit.items.map(({ entityType, entityId }) => ({ entityType, entityId })), [{ entityType: "form_definition", entityId: definition.id }]);
+      operations.push(audit.items[0].operation);
+    }
+    return operations.sort();
+  };
+  assert.deepEqual(await auditOperations(), ["create"]);
+  await updateFormDefinition({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: definition.id, patch: { name: "Renamed" } } });
+  assert.deepEqual(await auditOperations(), ["create", "update"]);
+  await setFormDefinitionStatus({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: definition.id, status: "disabled" } });
+  assert.deepEqual(await auditOperations(), ["create", "update", "update"]);
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: definition.id });
+  granted = false;
+  await assert.rejects(() => createFormDefinition({ deps, input: { ...input, slug: "denied" } }), CommandForbiddenError);
+  await assert.rejects(() => updateFormDefinition({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: definition.id, patch: { name: "Denied" } } }), CommandForbiddenError);
+  await assert.rejects(() => setFormDefinitionStatus({ deps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: definition.id, status: "active" } }), CommandForbiddenError);
+  assert.deepEqual(permissions, Array(6).fill("admin.forms.manage"));
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: definition.id }), before);
+  assert.equal(await deps.repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "denied" }), null);
+  assert.deepEqual(await auditOperations(), ["create", "update", "update"]);
 });
 
 test("createFormDefinition: rejects a slug that doesn't match SLUG_PATTERN", async () => {

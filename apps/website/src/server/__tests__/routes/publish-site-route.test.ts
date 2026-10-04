@@ -11,6 +11,7 @@ import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/
@@ -67,6 +68,28 @@ function testRouteDeps(publishOutputRootDir: string = publishOutputDir): RouteDe
 function restoreEnvVar(name: string, previous: string | undefined): void {
   if (previous === undefined) delete process.env[name];
   else process.env[name] = previous;
+}
+
+function providerBarrier() {
+  let enter!: () => void;
+  let release!: () => void;
+  const entered = new Promise<void>((resolve) => { enter = resolve; });
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  return {
+    enter,
+    release,
+    held,
+    async waitUntilEntered() {
+      let timer!: ReturnType<typeof setTimeout>;
+      try {
+        await Promise.race([entered, new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("publish never reached the provider barrier")), 10_000);
+        })]);
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  };
 }
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
@@ -232,7 +255,7 @@ test("publish-site: trigger starts a real run (202), and — with no GITHUB_TOKE
   assert.doesNotMatch(JSON.stringify(finalStatusBody), /Bearer |ghp_|["']token["']?\s*:\s*["'][^"']{4,}/i);
 });
 
-test("publish-site: a concurrent second trigger while one is genuinely in flight gets 409 — proven via a real export's own duration, with GitHub/Vercel's API itself intercepted so no real network call ever leaves this process", async (t) => {
+test("publish-site: a concurrent second trigger gets 409 while the first provider request is held open", async (t) => {
   // Its own dedicated temp dir (never this file's shared `publishOutputDir`), so a real export
   // triggered here can't collide on-disk with any other test's own real export — set directly on
   // `deps.publishOutputRootDir` below (via `testRouteDeps(runOutputDir)`), never through
@@ -254,15 +277,17 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   // Intercepts ONLY calls to Vercel's real API host — every other fetch (this test's own calls to
   // `baseUrl`, and the real export's own real HTTP calls to its in-process `127.0.0.1` listener,
   // see `site-exporter.ts`) passes through to the real, original `fetch` unchanged. This is what
-  // lets this test observe a REAL export's own duration (the same width `export-site-route.test.ts`
-  // relies on for its own concurrency test) as the race window, while still never letting a byte
-  // reach the actual public internet.
+  // holds the provider response open until the competing caller has been refused, while the
+  // real export and HTTP entry points still run. No provider request leaves this process.
   const realFetch = globalThis.fetch;
+  const barrier = providerBarrier();
   let vercelCallCount = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
       vercelCallCount += 1;
+      barrier.enter();
+      await barrier.held;
       return new Response(JSON.stringify({ error: { message: "intercepted — no real Vercel call was made" } }), {
         status: 400,
         headers: { "content-type": "application/json" },
@@ -271,6 +296,7 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
     return realFetch(input as never, init);
   }) as typeof fetch;
   t.after(() => {
+    barrier.release();
     globalThis.fetch = realFetch;
     restoreEnvVar("VERCEL_TOKEN", previousVercelToken);
     rmSync(runOutputDir, { recursive: true, force: true });
@@ -285,17 +311,15 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   const triggerBody = await trigger.json();
   assert.equal(triggerBody.status, "running");
 
-  // Fired immediately, no delay — a real export against the hermetic fixture is still mid-flight
-  // (multiple real HTTP round trips against the in-process listener; the Vercel token check has
-  // already passed at this point, so unlike this file's OTHER trigger test, this one does not
-  // short-circuit before the slow phase even starts). Must observe "already running", never
-  // silently queue or silently drop the second request.
+  await barrier.waitUntilEntered();
+  // The provider request cannot settle until after the competing trigger is refused.
   const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(second.status, 409);
+  barrier.release();
 
   let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
   for (let attempt = 0; attempt < 200 && finalStatusBody.status === "running"; attempt++) {
@@ -335,11 +359,14 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // Same interception technique as the sibling "concurrent second trigger" test above — only calls to
   // Vercel's real API host are faked; the real export's own real in-process HTTP calls pass through.
   const realFetch = globalThis.fetch;
+  const barrier = providerBarrier();
   let vercelCallCount = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
       vercelCallCount += 1;
+      barrier.enter();
+      await barrier.held;
       return new Response(JSON.stringify({ error: { message: "intercepted — no real Vercel call was made" } }), {
         status: 400,
         headers: { "content-type": "application/json" },
@@ -348,6 +375,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     return realFetch(input as never, init);
   }) as typeof fetch;
   t.after(() => {
+    barrier.release();
     globalThis.fetch = realFetch;
     restoreEnvVar("VERCEL_TOKEN", previousVercelToken);
     rmSync(runOutputDir, { recursive: true, force: true });
@@ -369,6 +397,8 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // on its own). `getPublishRunSnapshot`/`startPublishRun`/`runPublishAndAwait` all read/write ONE
   // module-scope slot in `static-publish/publish-run.ts` regardless of which `deps` object a caller
   // passes in, so this still exercises the real shared state a single server process would have.
+  await barrier.waitUntilEntered();
+
   const toolDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
   const surfaceExchanges = createSurfaceExchangeStore();
   const registrations = new Map(buildStaticPublishRegistrations(toolDeps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
@@ -398,6 +428,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     `expected the tool call to be refused while the HTTP route's own publish was still in flight, got: ${JSON.stringify(result)}`
   );
   assert.equal(emitted.length, 0, "a refused publish must not send an outcome card");
+  barrier.release();
 
   let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
   for (let attempt = 0; attempt < 200 && finalStatusBody.status === "running"; attempt++) {
@@ -613,12 +644,13 @@ test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel t
   assert.equal(branchTrigger.status, 202);
   assert.equal((await branchTrigger.json()).target, "github-pages");
 
-  let afterBranch: { status: string } = { status: "running" };
+  let afterBranch: { status: string; result?: { code?: string } } = { status: "running" };
   for (let attempt = 0; attempt < 200 && afterBranch.status === "running"; attempt++) {
     await delay(20);
     afterBranch = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
   }
   assert.equal(afterBranch.status, "errored", `branch trigger did not settle in time: ${JSON.stringify(afterBranch)}`);
+  assert.equal(afterBranch.result?.code, "NO_CREDENTIALS_CONFIGURED");
 
   const teamIdTrigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
     method: "POST",
@@ -628,12 +660,70 @@ test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel t
   assert.equal(teamIdTrigger.status, 202);
   assert.equal((await teamIdTrigger.json()).target, "vercel");
 
-  let afterTeamId: { status: string } = { status: "running" };
+  let afterTeamId: { status: string; result?: { code?: string } } = { status: "running" };
   for (let attempt = 0; attempt < 200 && afterTeamId.status === "running"; attempt++) {
     await delay(20);
     afterTeamId = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
   }
   assert.equal(afterTeamId.status, "errored", `teamId trigger did not settle in time: ${JSON.stringify(afterTeamId)}`);
+  assert.equal(afterTeamId.result?.code, "NO_CREDENTIALS_CONFIGURED");
+});
+
+test("publish-site: branch, teamId and projectName reach the provider port and a successful run completes", async (t) => {
+  const deps = testRouteDeps();
+  const originalLoad = deps.loadDeployTargets;
+  const calls: Array<{ target: string; config: DeployTargetCreateContext["config"]; projectName: string }> = [];
+  deps.loadDeployTargets = async (workspaceId) => {
+    const registry = await originalLoad(workspaceId);
+    const targets = registry.list().map((target): LoadedDeployTarget => ({
+      ...target,
+      module: {
+        ...target.module,
+        create(context) {
+          return {
+            id: target.descriptor.id,
+            async publish(input: HostDeployPublishInput) {
+              calls.push({ target: target.descriptor.id, config: { ...context.config }, projectName: input.projectName });
+              return { targetId: target.descriptor.id, url: "https://published.example.test", status: "ready" };
+            },
+            async checkReachability() { return { reachable: true }; },
+          };
+        },
+      },
+    }));
+    return { get: (id) => targets.find((target) => target.descriptor.id === id), list: () => targets, refusals: registry.refusals };
+  };
+  const previousGithub = process.env.GITHUB_TOKEN;
+  const previousVercel = process.env.VERCEL_TOKEN;
+  t.after(() => {
+    restoreEnvVar("GITHUB_TOKEN", previousGithub);
+    restoreEnvVar("VERCEL_TOKEN", previousVercel);
+  });
+  process.env.GITHUB_TOKEN = "fake-github-route-config";
+  process.env.VERCEL_TOKEN = "fake-vercel-route-config";
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const inputs = [
+    { target: "github-pages", owner: "octo", repo: "demo-repo", branch: "release-pages", projectName: "Branch Project" },
+    { target: "vercel", teamId: "team-route-456", projectName: "Team Project" },
+  ];
+  for (const input of inputs) {
+    const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    assert.equal(trigger.status, 202);
+    let after: { status: string; result?: { ok: boolean; url?: string } } = { status: "running" };
+    for (let attempt = 0; attempt < 200 && after.status === "running"; attempt++) {
+      await delay(20);
+      after = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
+    }
+    assert.equal(after.status, "completed", JSON.stringify(after));
+    assert.equal(after.result?.ok, true);
+    assert.equal(after.result?.url, "https://published.example.test");
+  }
+  assert.deepEqual(calls, [
+    { target: "github-pages", config: { target: "github-pages", owner: "octo", repo: "demo-repo", branch: "release-pages" }, projectName: "Branch Project" },
+    { target: "vercel", config: { target: "vercel", teamId: "team-route-456" }, projectName: "Team Project" },
+  ]);
 });
 
 test("publish-site: netlify, cloudflare-pages and s3-compatible TRIGGER requests (not just their preview counterparts above) parse and start a real run (202)", async (t) => {
@@ -651,12 +741,13 @@ test("publish-site: netlify, cloudflare-pages and s3-compatible TRIGGER requests
     assert.equal(trigger.status, 202, `${target} trigger must not 400`);
     assert.equal((await trigger.json()).target, target);
 
-    let after: { status: string } = { status: "running" };
+    let after: { status: string; result?: { code?: string } } = { status: "running" };
     for (let attempt = 0; attempt < 200 && after.status === "running"; attempt++) {
       await delay(20);
       after = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
     }
     assert.equal(after.status, "errored", `${target} trigger did not settle in time: ${JSON.stringify(after)}`);
+    assert.equal(after.result?.code, "NO_CREDENTIALS_CONFIGURED", target);
   }
 });
 

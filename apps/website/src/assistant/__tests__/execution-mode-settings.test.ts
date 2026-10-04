@@ -69,3 +69,17 @@ test("ensureExecutionSettingDefinitions registers every localCli key the admin l
     assert.ok(keys.has(key), `missing registered definition for ${key}`);
   }
 });
+
+
+test("mode and every BYOK ledger key have the expected schema and default", async () => {
+  const { deps, submitted } = captureDefinitions();
+  await ensureExecutionSettingDefinitions(deps, { systemPrincipalId: "system-principal" as never });
+  assert.deepEqual(submitted().filter(({ key }) => key === "mode" || key.startsWith("byok.")).map(({ key, schema, defaultValue }) => ({ key, schema, defaultValue })), [
+    { key: "mode", schema: { type: "enum", values: ["local-cli", "byok"] }, defaultValue: "local-cli" },
+    { key: "byok.protocol", schema: { type: "enum", values: ["anthropic", "openai", "azure", "google"] }, defaultValue: "anthropic" },
+    { key: "byok.providerId", schema: { type: "string", nullable: true }, defaultValue: "anthropic" },
+    { key: "byok.baseUrl", schema: { type: "string" }, defaultValue: "https://api.anthropic.com" },
+    { key: "byok.model", schema: { type: "string" }, defaultValue: "" },
+    { key: "byok.maxTokens", schema: { type: "number" }, defaultValue: 0 },
+  ]);
+});

@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 import { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, sitesHomeMenuTemplate } from "./site-history-menu.ts";
 
@@ -81,4 +82,37 @@ test("main.ts installs the sites-home menu in the sites-home branch, before the 
   assert.notEqual(install, -1, "expected main.ts to install sitesHomeMenuTemplate");
   assert.ok(branch < install && install < open, "the menu must be installed inside the sites-home branch, before the window opens");
   assert.match(main, /import \{ sitesHomeMenuTemplate \} from "\.\/src\/site-history-menu\.ts";/);
+});
+
+test("menu installation and opening execute directly inside the sites-home branch in that order", () => {
+  const main = ts.createSourceFile("main.ts", read("..", "main.ts"), ts.ScriptTarget.Latest, true);
+  const branches: ts.IfStatement[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isIfStatement(node) && node.expression.getText(main) === "sitesUiRequested()") branches.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(main);
+  assert.equal(branches.length, 1);
+  const branch = branches[0]!;
+  assert.ok(ts.isBlock(branch.thenStatement));
+  // Execute these actual statements while omitting unrelated registry/server boot setup.
+  const statements = branch.thenStatement.statements.filter((statement) =>
+    ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) &&
+    ["Menu.setApplicationMenu", "openSitesHomeWindow"].includes(statement.expression.expression.getText(main)),
+  );
+  assert.equal(statements.length, 2, "both operations must be direct statements of the sites-home branch");
+  const body = `if (${branch.expression.getText(main)}) { ${statements.map((statement) => statement.getText(main)).join("\n")} }`;
+  const boot = new Function("Menu", "sitesUiRequested", "openSitesHomeWindow", "sitesHomeMenuTemplate", "process", body);
+  for (const requested of [true, false]) {
+    const calls: string[] = [];
+    const template = {};
+    const menu = {};
+    boot({
+      buildFromTemplate(value: unknown) { assert.equal(value, template); calls.push("build"); return menu; },
+      setApplicationMenu(value: unknown) { assert.equal(value, menu); calls.push("install"); },
+    }, () => requested, () => calls.push("open"), (options: unknown) => {
+      assert.deepEqual(options, { platform: "darwin" }); return template;
+    }, { platform: "darwin" });
+    assert.deepEqual(calls, requested ? ["build", "install", "open"] : []);
+  }
 });

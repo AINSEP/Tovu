@@ -25,28 +25,32 @@ function inlineScripts(html: string): string[] {
 /** Mounts a surface's scripts, completes the handshake, clicks the one action button, and returns what was posted. */
 async function clickOpenLink(html: string): Promise<Posted | undefined> {
   const posted: Posted[] = [];
-  const listeners: ((event: { data: unknown }) => void)[] = [];
+  const listeners: ((event: { data: unknown; source: unknown; origin: string }) => void)[] = [];
   const clicks: (() => void)[] = [];
   const button = { disabled: false, addEventListener: (_type: string, fn: () => void) => clicks.push(fn) };
   const fakeWindow: Record<string, unknown> = {
     parent: { postMessage: (message: Posted) => posted.push(message) },
-    addEventListener: (_type: string, fn: (event: { data: unknown }) => void) => listeners.push(fn),
+    addEventListener: (_type: string, fn: (event: { data: unknown; source: unknown; origin: string }) => void) => listeners.push(fn),
   };
   const fakeDocument = {
     documentElement: { scrollWidth: 320, scrollHeight: 200, setAttribute: () => {} },
     getElementById: () => ({ textContent: "", setAttribute: () => {} }),
-    querySelectorAll: () => [button],
+    querySelectorAll: (selector: string) => selector === "[data-mcpui-action]" && /<button[^>]*data-mcpui-action="open-link"/.test(html) ? [button] : [],
   };
   for (const source of inlineScripts(html)) {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     new Function("window", "document", "ResizeObserver", source)(fakeWindow, fakeDocument, undefined);
   }
   const initialize = posted.find((message) => message.method === "ui/initialize");
-  for (const fn of listeners) fn({ data: { jsonrpc: "2.0", id: initialize?.id, result: {} } });
+  assert.ok(initialize?.id, "the bridge must start a handshake");
+  assert.equal(clicks.length, 1, "the card must wire exactly one open-link button");
+  clicks[0]!();
+  assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 0, "a pre-handshake click must wait for the Host");
+  for (const fn of listeners) fn({ source: fakeWindow.parent, origin: "https://host.example", data: { jsonrpc: "2.0", id: initialize.id, result: {} } });
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(clicks.length, 1, "the card must wire exactly one open-link button");
-  clicks[0]!();
+  assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 1, "the held click must be delivered once after the handshake");
   return posted.find((message) => message.method === "ui/open-link");
 }
 

@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 import { admitGuestSource, applyGuestWebPreferences } from "./webview-guest-policy.ts";
 import type { GuestWebPreferences } from "./webview-guest-policy.ts";
@@ -125,4 +126,36 @@ test("main.ts checks the guest's src against the supervised sites before applyin
     source,
     /on\("will-attach-webview", \(event, webPreferences, params\) => \{\s*if \(!admitGuestSource\(event, params, \{ isAllowedSource: isSupervisedGuestUrl \}\)\) return;\s*applyGuestWebPreferences\(webPreferences, \{ preloadPath: SPEECH_PRELOAD_PATH \}\);/,
   );
+});
+
+
+test("the sites-home attach registration executes the admission check before granting the preload", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const ast = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
+  const home = ast.statements.find((node): node is ts.FunctionDeclaration =>
+    ts.isFunctionDeclaration(node) && node.name?.text === "openSitesHomeWindow");
+  assert.ok(home?.body);
+  const registrations = home.body.statements.filter((node) =>
+    ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) &&
+    node.expression.expression.getText(ast) === "window.webContents.on" &&
+    node.expression.arguments[0]?.getText(ast) === '"will-attach-webview"');
+  assert.equal(registrations.length, 1, "registration must execute directly in the window setup");
+  let handler: ((event: ReturnType<typeof attachEvent>, prefs: GuestWebPreferences, params: { src: string }) => void) | undefined;
+  const asked: string[] = [];
+  new Function("window", "admitGuestSource", "applyGuestWebPreferences", "isSupervisedGuestUrl", "SPEECH_PRELOAD_PATH", registrations[0].getText(ast))(
+    { webContents: { on: (channel: string, callback: typeof handler) => { assert.equal(channel, "will-attach-webview"); handler = callback; } } },
+    admitGuestSource, applyGuestWebPreferences,
+    (src: string) => { asked.push(src); return src === SUPERVISED; }, PRELOAD,
+  );
+  assert.ok(handler);
+  for (const src of ["https://attacker.example/admin", SUPERVISED]) {
+    const event = attachEvent();
+    const prefs = { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" };
+    handler(event, prefs, { src });
+    assert.equal(event.prevented, src === SUPERVISED ? 0 : 1);
+    assert.deepEqual(prefs, src === SUPERVISED
+      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD }
+      : { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" });
+  }
+  assert.deepEqual(asked, ["https://attacker.example/admin", SUPERVISED]);
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 /**
  * @file LAN-bind plan (2026-09-23), Slice 2: `index.ts` — the container/server entry point
@@ -31,6 +32,19 @@ test("index.ts resolves TOVU_HOST via resolveBindHost(process.env.TOVU_HOST, und
       "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md). index.ts has no --host flag, so it passes " +
       "the env value directly, unlike serve.ts's input.host ?? process.env.TOVU_HOST."
   );
+  // Parse the declaration itself: comments and an unused resolver call cannot satisfy it.
+  const ast = ts.createSourceFile(INDEX_TS_PATH, source, ts.ScriptTarget.Latest, true);
+  const bindings: ts.VariableDeclaration[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "bindHost") bindings.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  assert.equal(bindings.length, 1);
+  const initializer = bindings[0].initializer;
+  assert.ok(initializer && ts.isCallExpression(initializer));
+  assert.equal(initializer.expression.getText(ast), "resolveBindHost");
+  assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ["process.env.TOVU_HOST", "undefined"]);
 });
 
 test("index.ts's HTTPS listen path passes the resolved bind host through", () => {

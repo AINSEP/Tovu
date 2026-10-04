@@ -26,13 +26,33 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * could run.
  */
 
-/** Not a fixed literal: the hermetic `TOVU_DB=memory` server this config boots seeds fewer posts
- *  than a real dev-database, so the count is read back rather than assumed. Each test still
- *  confirms it got more than one row — enough to actually scroll, which is the whole premise. */
+const scrollFixtureIds = new WeakMap<Page, string[]>();
+test.afterEach(async ({ page }) => {
+  for (const id of scrollFixtureIds.get(page) ?? []) {
+    const response = await page.request.delete(`/api/admin/v1/workspaces/workspace-local/posts/${id}`);
+    expect(response.ok()).toBe(true);
+  }
+});
+
+/** Require a naturally overflowing list before opening the sheet, independent of its spacer. */
 async function expectScrollablePostsList(page: Page): Promise<void> {
+  const seededIds: string[] = [];
+  scrollFixtureIds.set(page, seededIds);
+  const postsPath = "/api/admin/v1/workspaces/workspace-local/posts";
+  // A small in-memory seed must not turn clearance into a vacuous short-list check.
+  for (let index = 0; index < 40; index++) {
+    const response = await page.request.post(postsPath, { data: { title: `Sheet scroll fixture ${index}` } });
+    expect(response.status()).toBe(201);
+    const { post } = await response.json();
+    expect(typeof post.id).toBe("string");
+    seededIds.push(post.id);
+  }
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".list-table tbody tr").first().waitFor({ state: "visible", timeout: 10_000 });
   const count = await page.locator(".list-table tbody tr").count();
   expect(count, "seed data must have more than one post to make a scrollable list").toBeGreaterThan(1);
+  const overflows = await page.locator(".admin-content").evaluate((element) => element.scrollHeight > element.clientHeight);
+  expect(overflows, "the posts list must overflow before the sheet adds any spacer").toBe(true);
 }
 
 async function openSheet(page: Page): Promise<void> {
@@ -48,10 +68,23 @@ async function expandSheet(page: Page): Promise<void> {
 /** Scrolls `.admin-content` to its max and reports whether the last table row's bottom edge
  *  cleared the sheet's top edge — the owner's own bar: "you could just scroll more up the page." */
 async function lastRowClearsSheet(page: Page): Promise<{ cleared: boolean; gap: number }> {
+  const region = await page.evaluate(() => {
+    const content = document.querySelector(".admin-content") as HTMLElement;
+    const dock = document.querySelector(".admin-chat-dock") as HTMLElement;
+    const rect = content.getBoundingClientRect();
+    const bottom = Math.min(rect.bottom, dock.getBoundingClientRect().top);
+    return { x: rect.left + rect.width / 2, y: (rect.top + bottom) / 2, exposed: bottom - rect.top,
+      before: content.scrollTop, max: content.scrollHeight - content.clientHeight };
+  });
+  expect(region.exposed, "a visitor must have exposed content to scroll above the sheet").toBeGreaterThan(0);
+  expect(region.max).toBeGreaterThan(region.before);
+  await page.mouse.move(region.x, region.y);
+  await page.mouse.wheel(0, region.max + 1000);
+  await expect.poll(() => page.locator(".admin-content").evaluate((element) => element.scrollTop)).toBeGreaterThan(region.before);
+  await expect.poll(() => page.locator(".admin-content").evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
   return page.evaluate(() => {
     const content = document.querySelector(".admin-content") as HTMLElement;
     const dock = document.querySelector(".admin-chat-dock") as HTMLElement;
-    content.scrollTop = content.scrollHeight;
     const rows = content.querySelectorAll(".list-table tbody tr");
     const lastRow = rows[rows.length - 1] as HTMLElement;
     const gap = dock.getBoundingClientRect().top - lastRow.getBoundingClientRect().bottom;

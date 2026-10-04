@@ -22,6 +22,8 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { hookHarness, sourceFunction } from "./source-test-harness.js";
 
 import {
   computeCanCreate,
@@ -40,6 +42,50 @@ import type { SetStateAction } from "react";
 function canCreateSqliteSiteNamed(name: string): boolean {
   return computeCanCreate({ slug: siteSlug(name), database: "sqlite", supabaseReady: false, customReady: false });
 }
+
+test("supabase and custom creation each require their own readiness and a nonempty slug", () => {
+  for (const database of ["supabase", "custom"] as const) {
+    for (const supabaseReady of [false, true]) for (const customReady of [false, true]) {
+      const input = { slug: "new-site", database, supabaseReady, customReady };
+      assert.equal(computeCanCreate(input), database === "supabase" ? supabaseReady : customReady);
+      assert.equal(computeCanCreate({ ...input, slug: "" }), false);
+    }
+  }
+});
+
+test("the dropdown effect closes on outside pointerdown, preserves inside clicks, and detaches", () => {
+  const harness = hookHarness();
+  const handlers = new Map<string, Set<(event: { target: unknown }) => void>>();
+  const document = {
+    addEventListener(type: string, handler: (event: { target: unknown }) => void) {
+      if (!handlers.has(type)) handlers.set(type, new Set());
+      handlers.get(type)!.add(handler);
+    },
+    removeEventListener(type: string, handler: (event: { target: unknown }) => void) { handlers.get(type)?.delete(handler); },
+  };
+  const inside = {};
+  const containerRef = { current: { contains: (target: unknown) => target === inside } };
+  const hook = sourceFunction(readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8"), "useDismissibleDropdown", {
+    ...harness.bindings, useRef: () => containerRef, document,
+  });
+  const render = () => harness.render(() => hook());
+  try {
+    assert.equal(render().open, false);
+    assert.equal(handlers.size, 0);
+    render().setOpen(true);
+    assert.equal(render().open, true);
+    assert.equal(handlers.get("pointerdown")?.size, 1);
+    for (const listener of handlers.get("pointerdown")!) listener({ target: inside });
+    assert.equal(render().open, true);
+    for (const listener of handlers.get("pointerdown")!) listener({ target: {} });
+    assert.equal(render().open, false);
+    assert.equal(handlers.get("pointerdown")?.size, 0);
+    render().setOpen(true);
+    render();
+    assert.equal(handlers.get("pointerdown")?.size, 1);
+  } finally { harness.cleanup(); }
+  assert.equal(handlers.get("pointerdown")?.size, 0);
+});
 
 test("siteSlug keeps its existing behaviour for plain ASCII names", () => {
   assert.equal(siteSlug("Hello World"), "hello-world");

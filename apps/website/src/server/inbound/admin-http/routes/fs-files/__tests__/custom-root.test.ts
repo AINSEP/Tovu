@@ -129,6 +129,54 @@ test("DELETE clears a previously-set root", async (t) => {
   assert.deepEqual(await getRes.json(), { path: null });
 });
 
+test("PUT rejects relative and regular-file paths without replacing the configured root", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-invalid-"));
+  const siteDir = freshSiteDir();
+  t.after(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(siteDir, { recursive: true, force: true });
+  });
+  const file = path.join(dir, "ordinary.txt");
+  fs.writeFileSync(file, "not a directory");
+  const app = buildApp({ storeOptional: { siteDir } });
+  const baseUrl = await startTestServer(app, t);
+  const put = (root: string) => fetch(`${baseUrl}${BASE}`, {
+    method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: root }),
+  });
+  assert.equal((await put(dir)).status, 200);
+  for (const invalid of [path.relative(process.cwd(), dir), file]) {
+    const res = await put(invalid);
+    assert.equal(res.status, 400);
+    assert.equal((await res.json()).code, "INVALID_PATH");
+    const current = await fetch(`${baseUrl}${BASE}`);
+    assert.deepEqual(await current.json(), { path: fs.realpathSync(dir) });
+  }
+});
+
+for (const method of ["PUT", "DELETE"]) {
+  test(`${method} refuses denied authorization without changing the stored root`, async (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-denied-"));
+    const siteDir = freshSiteDir();
+    t.after(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(siteDir, { recursive: true, force: true });
+    });
+    const allowed = await startTestServer(buildApp({ storeOptional: { siteDir } }), t);
+    assert.equal((await fetch(`${allowed}${BASE}`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: dir }),
+    })).status, 200);
+    const denied = await startTestServer(buildApp({
+      storeOptional: { siteDir }, authorize: async () => ({ allowed: false, reason: "no-grant" }),
+    }), t);
+    const res = await fetch(`${denied}${BASE}`, {
+      method, headers: { "content-type": "application/json" }, body: JSON.stringify({ path: os.tmpdir() }),
+    });
+    assert.equal(res.status, 403);
+    const current = await fetch(`${allowed}${BASE}`);
+    assert.deepEqual(await current.json(), { path: fs.realpathSync(dir) });
+  });
+}
+
 test("a previously-set folder survives a fresh route registration against the same siteDir (simulated restart)", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-route-"));
   const siteDir = freshSiteDir();

@@ -294,6 +294,7 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId)
         .where("member_id", "=", required.memberId)
+        .where("revoked_at", "is", null)
         .execute()
     );
   }

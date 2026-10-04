@@ -96,7 +96,7 @@ for (const [name, makeRepo] of campaignAdapters) {
       preheader: null,
       fromName: "Acme",
       fromEmail: "hello@acme.test",
-      replyTo: "hello@acme.test",
+      replyTo: "replies@acme.test",
       listId: "list-1",
       scheduledAt: null,
       sendStartedAt: null,
@@ -112,6 +112,9 @@ for (const [name, makeRepo] of campaignAdapters) {
 
     const found = await repo.findById({ workspaceId: WS, id: "camp-1" });
     assert.equal(found?.subject, "Hello");
+    assert.deepEqual(found, campaign);
+    assert.equal(await repo.findById({ workspaceId: "other-workspace", id: campaign.id }), null);
+    assert.deepEqual(await repo.list({ workspaceId: "other-workspace" }), []);
     assert.equal(found?.counters.recipients, 0);
 
     const listed = await repo.list({ workspaceId: WS });
@@ -218,6 +221,10 @@ for (const [name, makeRepo] of listAdapters) {
     };
     await repo.save(row);
     assert.equal((await repo.findById({ workspaceId: WS, id: "list-1" }))?.name, "All subscribers");
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), row);
+    assert.equal(await repo.findById({ workspaceId: "other-workspace", id: row.id }), null);
+    assert.equal(await repo.findDefault({ workspaceId: "other-workspace" }), null);
+    assert.deepEqual(await repo.list({ workspaceId: "other-workspace" }), []);
     assert.equal((await repo.findDefault({ workspaceId: WS }))?.id, "list-1");
     assert.equal((await repo.list({ workspaceId: WS })).length, 1);
     assert.equal(await repo.findById({ workspaceId: WS, id: "nope" }), null);
@@ -238,7 +245,7 @@ for (const [name, makeRepo] of subscriptionAdapters) {
       listId: "list-1",
       subscriberId: "subscriber-1",
       status: "pending",
-      source: "admin",
+      source: "signup_form",
       consentRevisionIdAtSubscribe: null,
       subscribedAt: null,
       unsubscribedAt: null,
@@ -247,6 +254,9 @@ for (const [name, makeRepo] of subscriptionAdapters) {
     };
     await repo.save(row);
     assert.equal((await repo.findById({ workspaceId: WS, id: "sub-1" }))?.status, "pending");
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), row);
+    assert.equal(await repo.findById({ workspaceId: "other-workspace", id: row.id }), null);
+    assert.equal(await repo.findBySubscriberAndList({ workspaceId: "other-workspace", listId: row.listId, subscriberId: row.subscriberId }), null);
     assert.equal(
       (await repo.findBySubscriberAndList({ workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1" }))?.id,
       "sub-1"
@@ -255,6 +265,8 @@ for (const [name, makeRepo] of subscriptionAdapters) {
 
     await repo.save({ ...row, status: "subscribed", consentRevisionIdAtSubscribe: "rev-1", subscribedAt: NOW });
     assert.equal((await repo.listSubscribed({ workspaceId: WS, listId: "list-1" })).length, 1);
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), { ...row, status: "subscribed", consentRevisionIdAtSubscribe: "rev-1", subscribedAt: NOW });
+    assert.deepEqual(await repo.listSubscribed({ workspaceId: "other-workspace", listId: row.listId }), []);
 
     await repo.remove({ workspaceId: WS, id: "sub-1" });
     assert.equal(await repo.findById({ workspaceId: WS, id: "sub-1" }), null);
@@ -450,10 +462,56 @@ for (const [name, makeRepo] of tokenAdapters) {
     };
     await repo.save(row);
     assert.equal((await repo.findById({ workspaceId: WS, id: "token-1" }))?.tokenHash, "hash-1");
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), row);
+    assert.equal(await repo.findById({ workspaceId: "other-workspace", id: row.id }), null);
+    assert.equal(await repo.findByTokenHash({ workspaceId: "other-workspace", tokenHash: row.tokenHash }), null);
+    assert.deepEqual(await repo.findUnconsumedBySubscription({ workspaceId: "other-workspace", subscriptionId: row.subscriptionId }), []);
     assert.equal((await repo.findByTokenHash({ workspaceId: WS, tokenHash: "hash-1" }))?.id, "token-1");
     assert.equal((await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" })).length, 1);
 
     await repo.save({ ...row, consumedAt: NOW });
     assert.equal((await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" })).length, 0);
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), { ...row, consumedAt: NOW });
+  });
+}
+
+// A removed cursor still defines an id boundary: it need not be a live row.
+for (const [name, makeRepo] of campaignAdapters) {
+  test(`[${name}] campaign pagination orders, limits and accepts existing or removed cursors`, async () => {
+    const repo = await makeRepo();
+    for (const id of ["page-3", "page-1", "page-5"]) await repo.saveCampaignRow(makeContractCampaign({ id }));
+    await repo.saveCampaignRow(makeContractCampaign({ id: "page-2", workspaceId: "other-workspace" }));
+    assert.deepEqual((await repo.list({ workspaceId: WS })).map((row) => row.id), ["page-1", "page-3", "page-5"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, limit: 2 })).map((row) => row.id), ["page-1", "page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, afterId: "page-1", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, afterId: "page-2", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual(await repo.list({ workspaceId: WS, afterId: "page-9", limit: 1 }), []);
+  });
+}
+for (const [name, makeRepo] of subscriptionAdapters) {
+  test(`[${name}] subscription pagination orders, limits and accepts existing or removed cursors`, async () => {
+    const repo = await makeRepo();
+    const base: SubscriptionRow = { id: "page-1", workspaceId: WS, listId: "list-1", subscriberId: "member-1", status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "rev-1", subscribedAt: NOW, unsubscribedAt: null, createdAt: NOW, updatedAt: NOW };
+    for (const id of ["page-3", "page-1", "page-5"]) await repo.save({ ...base, id, subscriberId: id });
+    await repo.save({ ...base, id: "page-2", workspaceId: "other-workspace" });
+    await repo.save({ ...base, id: "page-4", listId: "other-list" });
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1" })).map((row) => row.id), ["page-1", "page-3", "page-5"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", limit: 2 })).map((row) => row.id), ["page-1", "page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-1", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-2", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual(await repo.list({ workspaceId: WS, listId: "list-1", afterId: "page-9", limit: 1 }), []);
+  });
+}
+for (const [name, makeRepo] of sendAdapters) {
+  test(`[${name}] send pagination orders, limits and accepts existing or removed cursors`, async () => {
+    const repo = await makeRepo();
+    for (const id of ["page-3", "page-1", "page-5"]) await repo.save(makePendingSendRow({ id, subscriberId: id, idempotencyKey: id }));
+    await repo.save(makePendingSendRow({ id: "page-2", workspaceId: "other-workspace", idempotencyKey: "other-workspace" }));
+    await repo.save(makePendingSendRow({ id: "page-4", campaignId: "other-campaign", idempotencyKey: "other-campaign" }));
+    assert.deepEqual((await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1" })).map((row) => row.id), ["page-1", "page-3", "page-5"]);
+    assert.deepEqual((await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 2 })).map((row) => row.id), ["page-1", "page-3"]);
+    assert.deepEqual((await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", afterId: "page-1", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual((await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", afterId: "page-2", limit: 1 })).map((row) => row.id), ["page-3"]);
+    assert.deepEqual(await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", afterId: "page-9", limit: 1 }), []);
   });
 }

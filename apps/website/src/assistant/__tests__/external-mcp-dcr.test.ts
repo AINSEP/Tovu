@@ -805,3 +805,39 @@ test("a secret issued with no echoed method is POSTed when client_secret_post is
     await fixture.close();
   }
 });
+
+
+test("self-registration and disconnect both keep a legacy v0 OAuth payload readable", async () => {
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "legacy-client", client_secret: "legacy-secret" }] });
+  const store = makeStore();
+  const downgrade = async () => {
+    const row = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(row);
+    const payload = await openExternalMcpOAuthPayload(store.sealer, row);
+    const sealedOAuth = await store.sealer.seal({ plaintext: JSON.stringify(payload), key: await store.keyring.activeKey() });
+    await store.repo.upsert({ ...row, sealedOAuth, oauthAadVersion: 0 });
+    const legacy = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(legacy);
+    assert.deepEqual(await openExternalMcpOAuthPayload(store.sealer, legacy), payload);
+  };
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    await downgrade();
+    const service = makeService(store);
+    assert.equal(await authorizeClientId(service), "legacy-client");
+    const registered = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(registered);
+    assert.equal(registered.oauthAadVersion, 1);
+    assert.equal((await openExternalMcpOAuthPayload(store.sealer, registered)).clientSecret, "legacy-secret");
+    assert.equal(registrationCalls(fixture), 1);
+    await downgrade();
+    await service.disconnect({ serverId: SERVER });
+    const disconnected = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(disconnected);
+    assert.equal(disconnected.oauthClientId, null);
+    assert.equal(disconnected.oauthAadVersion, 1);
+    const payload = await openExternalMcpOAuthPayload(store.sealer, disconnected);
+    assert.equal(payload.clientSecret, undefined);
+    assert.equal(payload.tokens, undefined);
+  } finally { await fixture.close(); }
+});

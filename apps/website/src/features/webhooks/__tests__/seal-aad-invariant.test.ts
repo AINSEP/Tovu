@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { findSealCallsInSource, findSealCallsWithoutAad } from "../seal-aad-invariant.js";
@@ -106,4 +111,35 @@ test("REGRESSION: every real SecretSealerPort.seal() call site under apps/websit
     [],
     `expected zero seal() call sites without aad, got: ${JSON.stringify(violations, null, 2)}`,
   );
+});
+
+test("filesystem scan and CLI report a known violating file with a nonzero exit", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-seal-scan-"));
+  const fixture = "credential-violation.ts";
+  try {
+    fs.writeFileSync(path.join(root, fixture), "// fixture\ndeps.sealer.seal({ plaintext: token, key });\n");
+    const violations = findSealCallsWithoutAad(root);
+    assert.deepEqual(violations, [{ file: path.relative(process.cwd(), path.join(root, fixture)), line: 2, reason: "missing-aad", text: "deps.sealer.seal({ plaintext: token, key })" }]);
+    const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
+    const scanRoot = path.resolve(import.meta.dirname, "../../..");
+    // Redirect only the CLI's filesystem boundary to our real temp fixture. The entry guard,
+    // default scan root, parser, diagnostics and exit handling all run unchanged.
+    const script = `
+      import fs from "node:fs";
+      import { pathToFileURL } from "node:url";
+      const readdir = fs.readdirSync.bind(fs);
+      const read = fs.readFileSync.bind(fs);
+      fs.readdirSync = (dir, options) => readdir(dir === ${JSON.stringify(scanRoot)} ? ${JSON.stringify(root)} : dir, options);
+      fs.readFileSync = (file, options) => read(file === ${JSON.stringify(path.join(scanRoot, fixture))} ? ${JSON.stringify(path.join(root, fixture))} : file, options);
+      process.argv[1] = ${JSON.stringify(cli)};
+      await import(pathToFileURL(process.argv[1]).href);
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], { cwd: process.cwd(), encoding: "utf8", timeout: 20_000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /credential-violation\.ts:2 \[missing-aad\]/);
+    assert.doesNotMatch(result.stdout, /OK/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

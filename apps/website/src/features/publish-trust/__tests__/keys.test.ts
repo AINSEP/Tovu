@@ -147,8 +147,21 @@ test("the installation id is stable across key rotation, and distinct per instal
 test("the installation id is domain-separated from the signing key derivation", async () => {
   // Both derive from the same root key over the same workspace. If `purpose` were decorative in an
   // implementation, these could collide and the published installation id would leak key material.
-  const installationId = await deriveInstallationId({ keyring: testKeyring(ROOT_A), workspaceId: WORKSPACE });
-  const key = await derivePublishSigningKey(keyInput());
+  const keyring = testKeyring(ROOT_A);
+  const purposes: string[] = [];
+  const material: Uint8Array[] = [];
+  const derive = keyring.derive.bind(keyring);
+  keyring.derive = async (input) => {
+    purposes.push(input.purpose);
+    // Hold workspace/root/info constant, so only the production caller's purpose separates these.
+    const raw = await derive({ ...input, info: "same-info" });
+    material.push(raw);
+    return raw;
+  };
+  const installationId = await deriveInstallationId({ keyring, workspaceId: WORKSPACE });
+  const key = await derivePublishSigningKey(keyInput({ keyring }));
+  assert.deepEqual(purposes, ["publish-trust-installation-id", "publish-trust-signing-key"]);
+  assert.notDeepEqual(material[0], material[1]);
   assert.notEqual(installationId, key.publicKeyB64u);
   assert.ok(!key.publicKeyB64u.startsWith(installationId));
 });

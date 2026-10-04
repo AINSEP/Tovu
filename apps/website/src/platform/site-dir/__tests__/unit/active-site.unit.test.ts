@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -26,6 +27,45 @@ test("upsertEnvLine: appends without disturbing existing lines (order and conten
   const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_INTEGRATIONS_ROOT_KEY=abc\n";
   const result = upsertEnvLine(source, "TOVU_SITE", "my-site");
   assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_INTEGRATIONS_ROOT_KEY=abc\nTOVU_SITE=my-site\n");
+});
+
+test("TOVU_SITE persistence preserves prefix siblings and comments when the exact key is absent", () => {
+  const source = "TOVU_SITE_DIR=/x\n# TOVU_SITE=old\n";
+  assert.equal(readEnvLine(source, "TOVU_SITE"), null);
+  assert.equal(upsertEnvLine(source, "TOVU_SITE", "queued"), `${source}TOVU_SITE=queued\n`);
+  const cwd = mkRepoRootFixture();
+  try {
+    fs.writeFileSync(path.join(cwd, ".env"), source);
+    assert.equal(readPersistedActiveSite({ cwd }), null);
+    persistActiveSite({ name: "queued" }, { cwd });
+    assert.equal(fs.readFileSync(path.join(cwd, ".env"), "utf8"), `${source}TOVU_SITE=queued\n`);
+    assert.equal(readPersistedActiveSite({ cwd }), "queued");
+    assert.equal(readEnvLine(fs.readFileSync(path.join(cwd, ".env"), "utf8"), "TOVU_SITE_DIR"), "/x");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("persistence defaults to the child process working directory for both writes and reads", () => {
+  const cwd = mkRepoRootFixture();
+  try {
+    const moduleUrl = new URL("../../active-site.ts", import.meta.url).href;
+    const loader = import.meta.resolve("tsx");
+    // A relative TSX_TSCONFIG_PATH from the runner would resolve against the child's temp cwd.
+    const env = { ...process.env };
+    if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(env.TSX_TSCONFIG_PATH);
+    const result = spawnSync(process.execPath, ["--import", loader, "--input-type=module", "--eval", `
+      const { persistActiveSite, readPersistedActiveSite } = await import(${JSON.stringify(moduleUrl)});
+      persistActiveSite({ name: "default-cwd-site" });
+      process.stdout.write(JSON.stringify(readPersistedActiveSite()));
+    `], { cwd, env, encoding: "utf8", timeout: 20_000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '"default-cwd-site"');
+    assert.equal(fs.readFileSync(path.join(cwd, ".env"), "utf8"), "TOVU_SITE=default-cwd-site\n");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test("upsertEnvLine: replaces an existing KEY=value in place, preserving every other line verbatim", () => {

@@ -36,6 +36,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../..");
 const SRC_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
@@ -104,64 +105,37 @@ const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
-/** Matches a whole `import ... from "spec"` statement (value or type), capturing whether the
- * `type` keyword appears immediately after `import`, the import clause text (the `{...}`/default/
- * namespace binding between `import [type]` and `from`), and the specifier text. Run only against
- * comment-stripped source (see `stripComments`) — otherwise prose like "a `import type` ... `from`
- * ..." inside a doc comment can serve as a decoy: the lazy gap between `import` and `from` has no
- * semicolon to stop at, so it can span from a comment's mention of "import"/"from" all the way down
- * to the next REAL import statement's quoted specifier, misreporting that real statement's type-only
- * status. Confirmed live against this repo: `features/workspace/tool-registrations.ts` and
- * `navigation/tool-registrations.ts` both discuss "import type"/"from" in prose directly above their
- * own real `import type { ToolContributor } from "#src/assistant/index";` line. */
-const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?([^;]*?)\bfrom\s*(["'])([^"']+)\3/g;
-
-/**
- * The exported names a `{...}` named-import clause pulls in as VALUES — i.e. excluding any
- * per-specifier `type X` entry within an otherwise-mixed clause (the statement-level `import type`
- * case is already filtered out by the caller before this runs). Returns `null` for a clause with no
- * `{...}` at all (a default or namespace import, e.g. `import ns from "..."` or `import * as ns from
- * "..."`) — `EXEMPT_FILE_SYMBOLS` cannot verify a per-symbol allowlist against a binding that does
- * not name its symbols, so the caller must treat that shape as unverifiable rather than silently
- * trusting it.
- *
- * @complexity O(n) in the clause's length.
- */
-function namedValueImports(clause: string): string[] | null {
-  const braceMatch = clause.match(/{([^}]*)}/);
-  if (!braceMatch) return null;
-  const names: string[] = [];
-  for (const rawEntry of braceMatch[1].split(",")) {
-    const entry = rawEntry.trim();
-    if (!entry || /^type\s+/.test(entry)) continue; // per-specifier `type X` — not a value import
-    names.push(entry.split(/\s+as\s+/)[0].trim()); // the EXPORTED name, not a local `as` alias
-  }
-  return names;
-}
-
-/** Strips line comments and block comments so `IMPORT_STATEMENT_PATTERN`'s lazy gap can never latch onto
- * prose text discussing import syntax. Comment markers inside a string literal are rare enough in
- * this codebase's import specifiers (bare module names, `#src/*` subpaths) that a byte-for-byte
- * comment stripper is not needed — this only has to be accurate enough to find `import`/`from`
- * keywords, not to reproduce the file. */
-function stripComments(source: string): string {
-  // A single alternation, scanned once left-to-right, so precedence at each position is decided by
-  // which comment style actually starts there — not by which `.replace()` call happens to run first.
-  // Two separate passes (block comments, then line comments) is unsound: a `//` line comment whose
-  // prose contains a literal `/**` substring (e.g. discussing the glob `features/**`) gets
-  // misread by the block-comment pass as a REAL block-comment opener, before the line-comment pass
-  // ever gets a chance to consume that line — the lazy `[\s\S]*?\*\/` then swallows everything up to
-  // the next unrelated `*/` (a real JSDoc closer further down), silently deleting real code and
-  // import statements from the scan. Confirmed live: `features/external-mcp/tool-registrations.ts`
-  // has exactly this shape at its own header comment.
-  //
-  // With one alternation, at a `//` position the first alternative (`\/\*...`) fails immediately
-  // (the second character is `/`, not `*`), so the engine falls through to the line-comment
-  // alternative and consumes only that line — the `/**`-look-alike text inside it is swallowed by
-  // the already-matched line comment and never independently re-scanned as a block-comment start.
-  // At a genuine `/*` position the first alternative wins and its lazy `*/` search still works
-  // correctly across any `//` the comment body happens to contain (e.g. a URL).
-  return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, " ");
+/** Runtime module edges, including re-exports and lazy loading. Type-only declarations are exempt. */
+function runtimeEdges(source: string): Array<{ specifier: string; names: string[] | null }> {
+  const ast = ts.createSourceFile("fixture.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const edges: Array<{ specifier: string; names: string[] | null }> = [];
+  const add = (specifier: ts.Node | undefined, names: string[] | null) => {
+    if (specifier && ts.isStringLiteralLike(specifier)) edges.push({ specifier: specifier.text, names });
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause;
+      if (!clause?.isTypeOnly) {
+        const bindings = clause?.namedBindings;
+        const names = !clause?.name && bindings && ts.isNamedImports(bindings)
+          ? bindings.elements.filter((item) => !item.isTypeOnly).map((item) => (item.propertyName ?? item.name).text) : null;
+        if (names === null || names.length > 0) add(node.moduleSpecifier, names);
+      }
+    } else if (ts.isExportDeclaration(node) && !node.isTypeOnly) {
+      const clause = node.exportClause;
+      const names = clause && ts.isNamedExports(clause)
+        ? clause.elements.filter((item) => !item.isTypeOnly).map((item) => (item.propertyName ?? item.name).text) : null;
+      if (names === null || names.length > 0) add(node.moduleSpecifier, names);
+    } else if (ts.isImportEqualsDeclaration(node) && !node.isTypeOnly && ts.isExternalModuleReference(node.moduleReference)) {
+      add(node.moduleReference.expression, null);
+    } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+      (ts.isIdentifier(node.expression) && node.expression.text === "require"))) {
+      add(node.arguments[0], null);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return edges;
 }
 
 function collectProductionFiles(dir: string, out: string[]): void {
@@ -180,7 +154,7 @@ function isInside(parent: string, child: string): boolean {
 }
 
 function resolvesToAssistant(fromFile: string, specifier: string): boolean {
-  if (specifier.startsWith("#src/assistant/")) return true;
+  if (specifier === "#src/assistant" || specifier.startsWith("#src/assistant/")) return true;
   if (!specifier.startsWith(".")) return false;
   const resolved = path.resolve(path.dirname(fromFile), specifier);
   return isInside(ASSISTANT_ROOT, resolved);
@@ -200,16 +174,11 @@ test("no production file under src/{analytics,features,identity,media,navigation
   const offenders: string[] = [];
   for (const file of files) {
     const allowedSymbols = EXEMPT_FILE_SYMBOLS.get(file);
-    const source = stripComments(fs.readFileSync(file, "utf8"));
-    for (const match of source.matchAll(IMPORT_STATEMENT_PATTERN)) {
-      const isTypeOnly = match[1] !== undefined;
-      const clause = match[2];
-      const specifier = match[4];
-      if (isTypeOnly) continue;
+    const source = fs.readFileSync(file, "utf8");
+    for (const { specifier, names: valueNames } of runtimeEdges(source)) {
       if (!resolvesToAssistant(file, specifier)) continue;
 
       if (allowedSymbols) {
-        const valueNames = namedValueImports(clause);
         // A named `{...}` clause whose every imported symbol is on THIS file's own allowlist is
         // fine; anything else (an unlisted symbol, or a clause shape the allowlist cannot verify
         // per-symbol, e.g. a default/namespace import) still counts as an offense below.
@@ -233,4 +202,31 @@ test("no production file under src/{analytics,features,identity,media,navigation
     [],
     `Domain/feature modules must not call assistant's tool-contribution registry directly — only server/tool-catalog-manifest.ts may. Offending edges:\n  ${offenders.join("\n  ")}`,
   );
+});
+
+
+test("the boundary sees each runtime syntax and exempts only type-only edges", () => {
+  for (const source of [
+    'import { registerToolContributor } from "#src/assistant/index";',
+    'export { registerToolContributor as register } from "#src/assistant/index";',
+    'export * from "#src/assistant";',
+    'await import("#src/assistant/index");',
+    'require("#src/assistant");',
+    'import registry = require("#src/assistant/index");',
+    'import "#src/assistant";',
+    'import * as registry from "../assistant/index";',
+  ]) {
+    const edges = runtimeEdges(source);
+    assert.equal(edges.length, 1, source);
+    assert.equal(resolvesToAssistant(path.join(SRC_ROOT, "features", "fixture.ts"), edges[0].specifier), true, source);
+  }
+  assert.deepEqual(runtimeEdges(`
+    // await import("#src/assistant/index")
+    const text = 'require("#src/assistant")';
+    import type { ToolContributor } from "#src/assistant/index";
+    export type { ToolContributor } from "#src/assistant/index";
+    import { type ToolContributor } from "#src/assistant/index";
+  `), []);
+  assert.deepEqual(runtimeEdges('import { type ToolContributor, registerToolContributor as register } from "#src/assistant/index";'),
+    [{ specifier: "#src/assistant/index", names: ["registerToolContributor"] }]);
 });

@@ -71,6 +71,8 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
   const previousDaemonPort = process.env.JINI_AGENT_DAEMON_PORT;
   const previousRootKey = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const previousMode = process.env.TOVU_RUNTIME_MODE;
+  const previousUser = process.env.TOVU_ADMIN_USER;
   const previousHome = process.env.HOME;
   // Deliberately unset all three: proves the response reports the REAL current process state rather
   // than always claiming "set". HOME points at an empty temp dir so a root key file generated on the
@@ -78,6 +80,8 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   delete process.env.TOVU_ADMIN_PASSWORD;
   delete process.env.JINI_AGENT_DAEMON_PORT;
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env.TOVU_RUNTIME_MODE;
+  delete process.env.TOVU_ADMIN_USER;
   const home = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-route-home-"));
   process.env.HOME = home;
   clearAssistantDaemonFailure();
@@ -89,6 +93,10 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     else process.env.JINI_AGENT_DAEMON_PORT = previousDaemonPort;
     if (previousRootKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
     else process.env.TOVU_INTEGRATIONS_ROOT_KEY = previousRootKey;
+    if (previousMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
+    else process.env.TOVU_RUNTIME_MODE = previousMode;
+    if (previousUser === undefined) delete process.env.TOVU_ADMIN_USER;
+    else process.env.TOVU_ADMIN_USER = previousUser;
     // `process.env.HOME = undefined` stores the string "undefined", not an absent HOME.
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
@@ -105,7 +113,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   assert.equal(res.status, 200);
   const body = await res.json();
 
-  // `TOVU_RUNTIME_MODE` is never set in this test process, so `resolveRuntimeMode()` — the ONLY
+  // `TOVU_RUNTIME_MODE` is explicitly unset in this test, so `resolveRuntimeMode()` — the ONLY
   // source `core/runtime-mode.ts` ever consults — resolves "local", and the gate never ran.
   assert.equal(body.mode, "local");
   assert.deepEqual(body.productionReadinessGate, { applicable: false, passed: false });
@@ -118,13 +126,32 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   assert.equal(body.uploadsDir, mediaUploadsDir());
   assert.deepEqual(body.envVars, [
     { name: "TOVU_ADMIN_PASSWORD", set: false },
-    { name: "TOVU_ADMIN_USER", set: Boolean(process.env.TOVU_ADMIN_USER) },
+    { name: "TOVU_ADMIN_USER", set: false },
     { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "none" },
     { name: "JINI_AGENT_DAEMON_PORT", set: false },
   ]);
   // Never echoes a secret VALUE — only ever "set"/"not set" markers, matching every field name
   // above being paired with a boolean, never a string that could carry the real value.
   assert.equal(typeof body.envVars[0].set, "boolean");
+
+  process.env.TOVU_ADMIN_PASSWORD = "overview-presence-secret";
+  process.env.TOVU_ADMIN_USER = "overview-present-user";
+  process.env.JINI_AGENT_DAEMON_PORT = "4444";
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = "a".repeat(64);
+  process.env.TOVU_RUNTIME_MODE = "production";
+  const productionRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/deployment-overview`, { headers: { cookie } });
+  assert.equal(productionRes.status, 200);
+  const production = await productionRes.json();
+  assert.equal(production.mode, "production");
+  // A production server that can serve this route already passed its boot gate.
+  assert.deepEqual(production.productionReadinessGate, { applicable: true, passed: true });
+  assert.deepEqual(production.envVars, [
+    { name: "TOVU_ADMIN_PASSWORD", set: true },
+    { name: "TOVU_ADMIN_USER", set: true },
+    { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "env" },
+    { name: "JINI_AGENT_DAEMON_PORT", set: true },
+  ]);
+  assert.doesNotMatch(JSON.stringify(production), /overview-presence-secret|overview-present-user/);
 });
 
 /** Sets `TOVU_ADMIN_PASSWORD` for one test only, restoring the previous value (or its absence) after. */

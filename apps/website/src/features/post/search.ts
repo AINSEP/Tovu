@@ -107,8 +107,8 @@ const MAX_BODY_DEPTH = 64;
 /**
  * Splits a user query into the plain terms an FTS5 `MATCH` expression may safely be built from.
  *
- * Alphanumeric runs only — the identical rule (and identical rationale) as `@jini-ai/sqlite-chat`'s
- * `searchToolCatalog`: a term produced by this function cannot contain an FTS5 query-syntax
+ * Unicode letter and number runs only, normalized to NFC: a term produced by this function
+ * cannot contain an FTS5 query-syntax
  * operator, so no caller-supplied string is ever interpreted as anything but literal terms. This is
  * the injection boundary for every adapter, which is why it lives here and not in one of them.
  *
@@ -118,7 +118,7 @@ const MAX_BODY_DEPTH = 64;
  * @overallScore 100
  */
 export function toSearchTerms(query: string): string[] {
-  return query.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  return query.toLowerCase().normalize("NFC").match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
 /** True for a plain JSON object (not an array, not null) — the shape every TipTap node has. */

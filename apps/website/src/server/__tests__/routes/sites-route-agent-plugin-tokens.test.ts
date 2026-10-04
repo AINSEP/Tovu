@@ -100,6 +100,8 @@ test("an unreachable vendor does not block the create: the token is still stored
   const res = await create(env.deps, t, { name: "new-site", agentPluginTokens: { supabase: TOKEN } });
   assert.equal(res.status, 201);
   assert.equal(JSON.parse(res.text).agentPluginTokens.status, "saved");
+  assert.deepEqual(env.created, ["new-site"]);
+  assert.deepEqual(env.sealed, [{ siteDir: "/repo/sites/new-site", siteKeyId: "generated-id", tokens: { supabase: TOKEN } }]);
 });
 
 test("a seal failure after create is reported, not thrown: 201 with status failed, and the error names no token", async (t) => {

@@ -122,3 +122,64 @@ test("DELETE posts/:postId: the delete revision is attributed to the real authen
   assert.equal(latest.op, "delete");
   assert.equal(latest.actorId, principalId);
 });
+
+test("DELETE post: failed change-set persistence restores the row, revision ledger and Trash membership", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const post = await createPostViaRoute(baseUrl, cookie, { title: "Delete rollback", slug: "delete-rollback", status: "published" });
+  const prior = await deps.postRepo.findById({ workspaceId: WS, id: post.id });
+  assert.ok(prior);
+  let insertAttempts = 0;
+  const originalInsert = deps.changeSets.insert;
+  deps.changeSets.insert = async () => { insertAttempts += 1; throw new Error("injected persistence failure"); };
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${post.id}`, { method: "DELETE", headers: { cookie } });
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+  } finally {
+    deps.changeSets.insert = originalInsert;
+  }
+  assert.equal(insertAttempts, 1, "failure must occur after the delete, at change-set persistence");
+  const current = await deps.postRepo.findById({ workspaceId: WS, id: post.id });
+  assert.ok(current);
+  for (const field of ["title", "slug", "status", "bodyFormat", "bodyHtml", "bodyJson", "deletedAt"] as const) {
+    assert.deepEqual(current[field], prior[field], `${field} survives compensation`);
+  }
+  const trash = await deps.trash.list({ workspaceId: WS, now: deps.clock.nowIso(), limit: 100 });
+  assert.equal(trash.items.some((item) => item.entityId === post.id), false);
+  const revisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: post.id });
+  assert.deepEqual(revisions.map((revision) => revision.op), ["create", "delete", "restore"]);
+  const latest = revisions.at(-1)!;
+  assert.equal(latest.seq, current.version);
+  assert.equal(latest.stateJson.deletedAt, prior.deletedAt);
+  assert.equal(latest.stateJson.status, "published");
+  assert.equal(revisions.some((revision) => revision.seq > current.version), false);
+});
+
+for (const operation of ["create", "update", "delete"] as const) {
+  test(`pages: ${operation} revision belongs to the authenticated principal`, async (t) => {
+    const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+    const principalId = await seededAdminPrincipalId(deps);
+    const base = `${baseUrl}/api/admin/v1/workspaces/${WS}/pages`;
+    const created = await fetch(base, {
+      method: "POST", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ title: `Page ${operation}`, slug: `page-${operation}` }),
+    });
+    assert.equal(created.status, 201);
+    const { post } = await created.json() as { post: { id: string } };
+    if (operation !== "create") {
+      const changed = await fetch(`${base}/${post.id}`, {
+        method: operation === "update" ? "PUT" : "DELETE",
+        headers: { "content-type": "application/json", cookie },
+        ...(operation === "update" ? { body: JSON.stringify({ title: "Edited page", slug: "page-update", bodyJson: VALID_BODY_JSON, status: "draft" }) } : {}),
+      });
+      assert.equal(changed.status, 200, await changed.text());
+    }
+    const revisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: post.id });
+    assert.equal(revisions.length, operation === "create" ? 1 : 2);
+    const latest = revisions.at(-1)!;
+    assert.equal(latest.op, operation);
+    assert.equal(latest.actorId, principalId);
+    assert.equal(latest.delegatedByWorkspaceId, null);
+    assert.equal(latest.delegatedById, null);
+  });
+}

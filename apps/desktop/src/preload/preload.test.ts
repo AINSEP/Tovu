@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { register } from "tsx/esm/api";
+import ts from "typescript";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
 import { fileURLToPath } from "node:url";
@@ -36,12 +37,19 @@ test("the ESM preload exposes runner and voice and forwards the exact speech pay
   t.after(unregister);
   const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
   const invokes: unknown[][] = [];
+  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const availability = { available: true };
   const transcription = { text: "hello", elapsedMs: 7 };
   t.mock.module("electron", {
     namedExports: {
       contextBridge: { exposeInMainWorld: (name: string, bridge: Record<string, (...args: unknown[]) => unknown>) => exposed.set(name, bridge) },
-      ipcRenderer: { invoke: async (channel: string, ...args: unknown[]) => {
+      ipcRenderer: {
+        on(channel: string, handler: (...args: unknown[]) => void) {
+          if (!listeners.has(channel)) listeners.set(channel, new Set());
+          listeners.get(channel)!.add(handler);
+        },
+        removeListener(channel: string, handler: (...args: unknown[]) => void) { listeners.get(channel)?.delete(handler); },
+        invoke: async (channel: string, ...args: unknown[]) => {
         invokes.push([channel, ...args]);
         return channel === IPC_CHANNEL_IS_AVAILABLE ? availability : transcription;
       } },
@@ -50,6 +58,28 @@ test("the ESM preload exposes runner and voice and forwards the exact speech pay
   });
   await import("./preload.mts");
   assert.deepEqual([...exposed.keys()], ["tovuRunner", "tovuVoice"]);
+  const runner = exposed.get("tovuRunner")!;
+  const bridgeSource = ts.createSourceFile("runner-api.ts", fs.readFileSync(path.join(__dirname, "../renderer/runner-api.ts"), "utf8"), ts.ScriptTarget.Latest, true);
+  const declaration = bridgeSource.statements.find((node): node is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(node) && node.name.text === "RunnerInventoryBridge");
+  assert.ok(declaration, "the renderer's bridge contract must be found");
+  const expectedKeys = declaration.members.map((member) => member.name!.getText(bridgeSource));
+  assert.ok(expectedKeys.length > 30);
+  assert.deepEqual(Object.keys(runner).sort(), expectedKeys.sort());
+  for (const [method, channel, payload] of [
+    ["onFindToggle", "runner:find:toggle", undefined],
+    ["onSiteHistory", "runner:sites:history", "back"],
+    ["onZoomCommand", "runner:zoom:command", "in"],
+  ] as const) {
+    const received: unknown[] = [];
+    const off = runner[method]!((value: unknown) => received.push(value)) as () => void;
+    assert.equal(listeners.get(channel)?.size, 1, `${method} must subscribe to its native channel`);
+    for (const handler of listeners.get(channel)!) handler({ sender: "must not cross bridge" }, payload);
+    assert.deepEqual(received, [payload]);
+    off();
+    assert.equal(listeners.get(channel)?.size, 0, `${method} must remove its listener`);
+    for (const handler of listeners.get(channel)!) handler({}, payload);
+    assert.deepEqual(received, [payload], "no delivery after unsubscribe");
+  }
   const voice = exposed.get("tovuVoice")!;
   assert.deepEqual(Object.keys(voice), ["isAvailable", "transcribe"]);
   assert.equal(await voice.isAvailable!(), availability);

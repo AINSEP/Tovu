@@ -52,7 +52,10 @@ test("createWindow's webPreferences names a preload script", () => {
 });
 
 test("the preload path (inline or via a named constant) resolves to the compiled speech preload, dist/speech/preload-speech.cjs", () => {
-  const webPreferencesMatch = source.match(/webPreferences:\s*\{[^}]*preload:\s*([A-Za-z0-9_]+|"[^"]*"|'[^']*')/);
+  const createWindowStart = source.indexOf("function createWindow(");
+  assert.notEqual(createWindowStart, -1);
+  const createWindowSource = source.slice(createWindowStart).split(/\nfunction /)[0]!;
+  const webPreferencesMatch = createWindowSource.match(/webPreferences:\s*\{[^}]*preload:\s*([A-Za-z0-9_]+|"[^"]*"|'[^']*')/);
   assert.ok(webPreferencesMatch, "expected a preload value in webPreferences");
   const preloadValue = webPreferencesMatch[1]!; // `!`: the pattern's one capture group is not optional, so a match always sets it.
   // A bare identifier means the path is built from a constant elsewhere in the file (e.g.

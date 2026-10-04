@@ -115,6 +115,12 @@ test("toSearchTerms lowercases and splits on anything non-alphanumeric", () => {
   assert.deepEqual(toSearchTerms("Pricing & Plans, v2!"), ["pricing", "plans", "v2"]);
 });
 
+test("toSearchTerms preserves accented and non-Latin letters as searchable terms", () => {
+  assert.deepEqual(toSearchTerms("CAFÉ naïve"), ["café", "naïve"]);
+  assert.deepEqual(toSearchTerms("日本語"), ["日本語"]);
+  assert.deepEqual(toSearchTerms("cafe\u0301"), ["café"]);
+});
+
 test("toSearchTerms strips every FTS5 query operator — no caller string can reach MATCH as syntax", () => {
   // Each of these means something to FTS5: a phrase, a prefix, a boolean, a proximity operator, a
   // column filter. All must come back as plain terms or nothing at all.

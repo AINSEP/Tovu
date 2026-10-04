@@ -76,6 +76,18 @@ afterEach(() => {
 });
 
 describe("undeliveredUserPrompt — Defect 2: what a resume-capable agent is actually sent", () => {
+  test("caps undelivered turns at the newest 40, in order after the explanatory note", () => {
+    const history: ChatMessage[] = Array.from({ length: 43 }, (_, i) => [
+      { id: `u${i}`, role: "user" as const, content: `pending-${i}` },
+      { id: `a${i}`, role: "assistant" as const, content: "", runStatus: "failed" as const },
+    ]).flat();
+    const blocks = undeliveredUserPrompt(history).split("\n\n");
+    expect(blocks[0]).toBe(
+      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]",
+    );
+    expect(blocks.slice(1)).toEqual(Array.from({ length: 40 }, (_, i) => `pending-${i + 3}`));
+  });
+
   test("is just the newest turn when the previous turn was answered — the common case is unchanged", () => {
     expect(
       undeliveredUserPrompt([

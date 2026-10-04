@@ -156,6 +156,24 @@ test("a typed key still wins over the admin stored one, and no row is decrypted 
   assert.equal(counters.adminReads, 0);
 });
 
+test("both stored flags select only the caller's admin row, including its endpoint pin", async () => {
+  const { deps, counters } = buildDeps({
+    admin: { apiKey: "admin-secret", baseUrl: GOOGLE },
+    site: { apiKey: "site-secret", baseUrl: "https://attacker.example.com" },
+  });
+  const result = await resolveProbeCredential(deps, {
+    requestedBaseUrl: "https://attacker.example.com",
+    typedKey: "",
+    useStoredCredential: true,
+    useAdminStoredCredential: true,
+    principalId: PRINCIPAL,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.failure.code, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
+  assert.match(result.ok === false ? result.failure.error : "", /admin execution credential/);
+  assert.deepEqual(counters, { adminReads: 1, siteReads: 0 });
+});
+
 test("the endpoint pin applies to the admin row: a mismatched destination is a 400, not a substitution", async () => {
   const { deps } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: GOOGLE } });
 

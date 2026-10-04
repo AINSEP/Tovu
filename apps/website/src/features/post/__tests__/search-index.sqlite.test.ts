@@ -86,6 +86,14 @@ function harness(): Harness {
 
 const ids = (hits: readonly PostSearchHit[]) => hits.map((hit) => hit.id);
 
+test("accented and non-Latin title queries reach the real search index", async () => {
+  const h = harness();
+  await h.add({ id: "accented", title: "Café", text: "Coffee shop." });
+  await h.add({ id: "japanese", title: "日本語", text: "Language guide." });
+  assert.deepEqual(ids(await h.find("café")), ["accented"]);
+  assert.deepEqual(ids(await h.find("日本語")), ["japanese"]);
+});
+
 // ---------------------------------------------------------------------------
 // 1. Ranking sanity
 // ---------------------------------------------------------------------------

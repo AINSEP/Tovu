@@ -151,6 +151,11 @@ test("publish: signs and PUTs every file to a path-style object URL, then report
     assert.equal(result.url, CONFIG.publicUrl);
     assert.equal(result.status, "ready");
 
+    const probes = fake.calls.filter((call) => call.url === `${CONFIG.publicUrl}/`);
+    assert.equal(probes.length, 1, "publish must probe the configured public URL");
+    assert.equal(probes[0].method, "HEAD");
+    assert.equal(probes[0].headers.get("authorization"), null, "the public probe must be unsigned");
+
     // 4 file uploads + 1 managed-keys manifest write (always written last, see this target's own
     // CRITICAL fix note) + 1 reachability HEAD probe against publicUrl.
     const uploadCalls = fake.calls.filter((c) => c.method === "PUT" && !c.url.endsWith("managed-keys.json"));
@@ -226,12 +231,19 @@ test("publish: throws DeployError naming the failing file when a PUT is rejected
 });
 
 test("publish: reports 'link-delayed' (never throws) when every upload succeeds but the public URL is not yet reachable", async () => {
-  const fake = installFakeFetch((call) => (call.method === "PUT" ? okResponse() : new Response("Not Found", { status: 404 })));
+  const fake = installFakeFetch((call) => {
+    if (call.url === `${CONFIG.publicUrl}/`) {
+      assert.equal(call.headers.get("authorization"), null);
+      return new Response("Not Found", { status: 404 });
+    }
+    return respondIgnoringManifest(call);
+  });
   try {
     const target = new S3CompatibleDeployTarget(CONFIG);
     const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
     assert.equal(result.status, "link-delayed");
     assert.equal(result.url, CONFIG.publicUrl);
+    assert.deepEqual(fake.calls.filter((call) => call.url === `${CONFIG.publicUrl}/`).map((call) => call.method), ["HEAD", "GET"]);
   } finally {
     fake.restore();
   }

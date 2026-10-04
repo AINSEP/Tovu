@@ -26,8 +26,8 @@ import { setByokModel } from "./byok-model-field.js";
  * **The key is never captured.** `test.use({ trace: 'off', screenshot: 'off', video: 'off' })` below
  * is deliberate, not an oversight of the suite's default `trace: 'retain-on-failure'`
  * (`playwright.admin.config.ts`) — a trace or screenshot can capture live page/DOM state, and the
- * API key briefly lives in a real `<input type="password">` in this test. No assertion anywhere in
- * this file reads, logs, or compares against the key's value.
+ * API key briefly lives in a real `<input type="password">` in this test. The save-request check
+ * compares only a boolean, so failure output never includes the key's value.
  *
  * **One turn, short prompt** — this hits a real paid API per the dispatch's own constraint.
  */
@@ -70,6 +70,11 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   test.setTimeout(90_000);
 
   await loginAsAdmin(page);
+  const credentialPath = "/api/admin/v1/workspaces/workspace-local/assistant/execution-credential";
+  const cleared = await page.request.delete(credentialPath);
+  expect(cleared.ok()).toBe(true);
+  const before = await page.request.get(credentialPath);
+  expect((await before.json()).data.isSet).toBe(false);
 
   await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
   await page.getByTestId("settings-dialog-nav-execution").click();
@@ -93,7 +98,6 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   // it. `.jini-field-input-row` is the structural wrapper only the API key field's row uses, so it
   // stays unique regardless of reveal state. Standardized across every `byok-*.spec.ts` file
   // 2026-08-05 (this file was the last holdout).
-  await page.locator('.jini-byok-card .jini-field-input-row input').fill(GEMINI_API_KEY!);
   // Deliberately no "Test connection" click: that would ALSO fire live model discovery, which (with
   // a real, valid key) can switch the Model field from a plain text input to a searchable picker
   // mid-test — see `ExecutionTab.tsx`'s own comment on why discovery is not re-keyed on the API key.
@@ -111,6 +115,20 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   await setByokModel(page, LIVE_MODEL);
 
   await expect(page.locator(".settings-ui-save.is-saved")).toBeVisible({ timeout: 15_000 });
+  // Autosave replaces the settings slice and can clear an unsaved key; type it last.
+  await page.locator('.jini-byok-card .jini-field-input-row input').fill(GEMINI_API_KEY!);
+  const savedResponse = page.waitForResponse((response) => response.url().endsWith(credentialPath) && response.request().method() === "PUT");
+  await page.locator('.assistant-key-footer button:has-text("Save key")').click();
+  const saved = await savedResponse;
+  expect(saved.ok()).toBe(true);
+  // Boolean comparison avoids printing the real secret if this assertion fails.
+  expect(saved.request().postDataJSON().apiKey === GEMINI_API_KEY).toBe(true);
+  const storedResponse = await page.request.get(credentialPath);
+  const stored = (await storedResponse.json()).data;
+  expect(stored.isSet).toBe(true);
+  expect(stored.protocol).toBe("google");
+  expect(stored.baseUrl).toBe("https://generativelanguage.googleapis.com");
+  expect(stored.model).toBe(LIVE_MODEL);
 
   // Reload so `AssistantDock`'s own `useExecutionConfig` (no live subscription to the settings
   // save) picks up the just-persisted BYOK mode/credential — same reasoning as the deputy spec.
@@ -122,6 +140,8 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   const composer = dock.locator(".jini-composer-input");
   await composer.waitFor({ state: "visible", timeout: 10_000 });
   await composer.fill("Reply with exactly one short sentence confirming you can hear me.");
+  const repliesBefore = await dock.locator(".jini-message-assistant").count();
+  const turnResponse = page.waitForResponse((response) => response.url().endsWith("/api/admin/v1/assistant/ag-ui-run") && response.request().method() === "POST");
   await dock.locator(".jini-composer-send").click();
 
   const errorBubble = dock.locator(".jini-message-error");
@@ -141,6 +161,20 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
     const runFailedText = await errorBubble.first().innerText();
     expect(runFailedText, "BYOK Gemini turn failed — see the assistant pane's own error").toBe("<no error expected>");
   }
+
+  const turn = await turnResponse;
+  expect(turn.ok()).toBe(true);
+  const events = (await turn.text()).split(/\r?\n/)
+    .filter((line) => line.startsWith("data: "))
+    .map((line) => JSON.parse(line.slice(6)) as { type: string; runId?: string });
+  const starts = events.filter((event) => event.type === "RUN_STARTED");
+  const finishes = events.filter((event) => event.type === "RUN_FINISHED");
+  expect(starts).toHaveLength(1);
+  expect(finishes).toHaveLength(1);
+  expect(finishes[0].runId).toBe(starts[0].runId);
+  expect(events.filter((event) => event.type === "RUN_ERROR")).toHaveLength(0);
+  await expect(errorBubble).toHaveCount(0);
+  await expect(dock.locator(".jini-message-assistant")).toHaveCount(repliesBefore + 1);
 
   await expect(assistantReply).toBeVisible({ timeout: 5_000 });
   const replyText = await assistantReply.locator(".jini-message-content").first().innerText();

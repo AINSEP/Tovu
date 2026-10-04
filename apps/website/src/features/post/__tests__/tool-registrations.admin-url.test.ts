@@ -171,9 +171,10 @@ test("content_duplicate's 'page' resource returns adminUrl for the newly created
   );
 
   const result = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
-    post: { adminUrl: string };
+    post: { slug: string; adminUrl: string };
   };
 
   assert.notEqual(result.post.adminUrl, "/admin/pages/original");
   assert.match(result.post.adminUrl, /^\/admin\/pages\//);
+  assert.equal(result.post.adminUrl, `/admin/pages/${result.post.slug}`);
 });

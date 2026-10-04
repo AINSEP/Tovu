@@ -81,15 +81,32 @@ test("zero-network proof: an empty key never reaches a real listener, even one t
   const port = (deputy.address() as AddressInfo).port;
 
   try {
-    const res = await request.post(MODELS_PATH, {
-      data: { protocol: "openai", baseUrl: `http://127.0.0.1:${port}`, apiKey: "" },
-    });
-    const body = await res.json();
-    expect(body.ok).toBe(false);
-    expect(body.message).toBe("No API key saved on the server. Save one first.");
+    for (const path of [MODELS_PATH, TEST_CONN_PATH]) {
+      // senseaudio is not allowlisted by these HTTP routes; Azure has no models catalog.
+      const protocols = path === MODELS_PATH ? ["anthropic", "openai", "google"] : ["anthropic", "openai", "google", "azure"];
+      for (const protocol of protocols) {
+        for (const apiKey of ["", "   \t  "]) {
+          const res = await request.post(path, {
+            data: { protocol, baseUrl: `http://127.0.0.1:${port}`, apiKey, model: "some-model" },
+          });
+          const body = await res.json();
+          expect(body.ok, `${path}: ${protocol}`).toBe(false);
+          expect(body.message).toBe(path === MODELS_PATH
+            ? "No API key saved on the server. Save one first."
+            : "No API key saved. Save one to test the connection.");
+          expect(hitCount, `${path}: ${protocol} must reject before dialing`).toBe(0);
+        }
+      }
+    }
     // The measured fact: the guard fired BEFORE the SSRF-allowed loopback path was ever
     // reached, even though that path is open for a non-empty key.
     expect(hitCount).toBe(0);
+    // Positive control: the same real models route can reach this listener with a nonempty key.
+    const control = await request.post(MODELS_PATH, {
+      data: { protocol: "openai", baseUrl: `http://127.0.0.1:${port}`, apiKey: "fake-control-key" },
+    });
+    expect((await control.json()).ok).toBe(true);
+    expect(hitCount).toBeGreaterThan(0);
   } finally {
     await new Promise<void>((resolve) => deputy.close(() => resolve()));
   }

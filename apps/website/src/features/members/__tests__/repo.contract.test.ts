@@ -136,13 +136,26 @@ function runMemberTierRepoContractSuite(adapterName: string, makeRepo: () => Mem
     assert.equal((await repo.findById({ workspaceId: "ws-1", id: "t-1" }))?.slug, "gold");
     assert.equal((await repo.findBySlug({ workspaceId: "ws-1", slug: "gold" }))?.id, "t-1");
     assert.equal(await repo.findBySlug({ workspaceId: "ws-OTHER", slug: "gold" }), null);
+    const updated = {
+      id: "t-1", workspaceId: "ws-1", name: "Silver", slug: "silver", type: "free" as const,
+      status: "archived" as const, visibleInPortal: false, description: "Changed description",
+      welcomePagePath: "/welcome", monthlyPriceCents: 1250, yearlyPriceCents: 12000, currency: "USD",
+      createdAt: NOW, updatedAt: "2026-07-14T00:00:00.000Z", version: 2,
+    };
+    await repo.save(updated);
+    assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: "t-1" }), updated);
+    assert.deepEqual(await repo.findBySlug({ workspaceId: "ws-1", slug: "silver" }), updated);
+    assert.equal(await repo.findBySlug({ workspaceId: "ws-1", slug: "gold" }), null);
+    assert.deepEqual((await repo.list({ workspaceId: "ws-1" })).map((tier) => tier.id), ["t-1"]);
   });
 
   test(`[${adapterName}] MemberTierRepoPort: list scopes to workspace`, async () => {
     const repo = makeRepo();
     await repo.save({ id: "t-2", workspaceId: "ws-list-tiers", name: "Free", slug: "free", type: "free", status: "active", visibleInPortal: true, createdAt: NOW, updatedAt: NOW, version: 1 });
+    await repo.save({ id: "t-other", workspaceId: "ws-other", name: "Other", slug: "free", type: "free", status: "active", visibleInPortal: true, createdAt: NOW, updatedAt: NOW, version: 1 });
     const rows = await repo.list({ workspaceId: "ws-list-tiers" });
     assert.equal(rows.length, 1);
+    assert.deepEqual(rows.map((tier) => tier.id), ["t-2"]);
   });
 }
 
@@ -257,14 +270,17 @@ function runMemberSessionRepoContractSuite(adapterName: string, makeRepo: () => 
     await repo.save({ id: "sess-a", workspaceId: "ws-1", memberId: "m-multi", tokenHash: "hash-a", createdAt: NOW, expiresAt: NOW });
     await repo.save({ id: "sess-b", workspaceId: "ws-1", memberId: "m-multi", tokenHash: "hash-b", createdAt: NOW, expiresAt: NOW });
     await repo.save({ id: "sess-other", workspaceId: "ws-1", memberId: "m-other", tokenHash: "hash-other", createdAt: NOW, expiresAt: NOW });
+    const earlier = "2026-07-13T00:00:01.000Z";
+    const later = "2026-07-13T00:00:02.000Z";
+    await repo.revoke({ workspaceId: "ws-1", id: "sess-a", revokedAt: earlier });
 
-    await repo.revokeAllForMember({ workspaceId: "ws-1", memberId: "m-multi", revokedAt: NOW });
+    await repo.revokeAllForMember({ workspaceId: "ws-1", memberId: "m-multi", revokedAt: later });
 
     const revokedA = await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-a" });
     const revokedB = await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-b" });
     const untouched = await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-other" });
-    assert.equal(revokedA?.revokedAt, NOW);
-    assert.equal(revokedB?.revokedAt, NOW);
+    assert.equal(revokedA?.revokedAt, earlier);
+    assert.equal(revokedB?.revokedAt, later);
     assert.equal(untouched?.revokedAt, undefined);
   });
 

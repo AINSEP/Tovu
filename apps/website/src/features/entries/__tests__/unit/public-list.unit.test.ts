@@ -4,12 +4,6 @@ import test from "node:test";
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 
 import {
-  DEFAULT_COLLECTION_LIST_COLUMNS,
-  DEFAULT_COLLECTION_LIST_LIMIT,
-  MAX_COLLECTION_LIST_COLUMNS,
-  MAX_COLLECTION_LIST_LIMIT,
-  MIN_COLLECTION_LIST_COLUMNS,
-  MIN_COLLECTION_LIST_LIMIT,
   SYSTEM_CONTENT_TYPES,
   entryPublicHref,
   humanizeFieldName,
@@ -62,9 +56,9 @@ test("parseCollectionListConfig: empty config uses every documented default", ()
   assert.equal(result.query.type, "recipe");
   assert.deepEqual(result.query.where, []);
   assert.deepEqual(result.query.sort, { by: "published", dir: "desc" });
-  assert.equal(result.query.limit, DEFAULT_COLLECTION_LIST_LIMIT);
+  assert.equal(result.query.limit, 6);
 
-  assert.equal(result.display.columns, DEFAULT_COLLECTION_LIST_COLUMNS);
+  assert.equal(result.display.columns, 3);
   assert.equal(result.display.layout, "cards");
   assert.deepEqual(
     result.display.fields.map((f) => f.name),
@@ -82,11 +76,11 @@ test("parseCollectionListConfig: limit clamps into [1, 24], non-number falls bac
   const fractional = parseCollectionListConfig({ limit: 12.7 }, RECIPE_CONTENT_TYPE);
   const notANumber = parseCollectionListConfig({ limit: "lots" }, RECIPE_CONTENT_TYPE);
 
-  assert.equal(tooHigh.ok && tooHigh.query.limit, MAX_COLLECTION_LIST_LIMIT);
-  assert.equal(tooLow.ok && tooLow.query.limit, MIN_COLLECTION_LIST_LIMIT);
-  assert.equal(negative.ok && negative.query.limit, MIN_COLLECTION_LIST_LIMIT);
+  assert.equal(tooHigh.ok && tooHigh.query.limit, 24);
+  assert.equal(tooLow.ok && tooLow.query.limit, 1);
+  assert.equal(negative.ok && negative.query.limit, 1);
   assert.equal(fractional.ok && fractional.query.limit, 12);
-  assert.equal(notANumber.ok && notANumber.query.limit, DEFAULT_COLLECTION_LIST_LIMIT);
+  assert.equal(notANumber.ok && notANumber.query.limit, 6);
 });
 
 test("parseCollectionListConfig: columns clamps into [1, 6], non-number falls back to the default", () => {
@@ -94,9 +88,9 @@ test("parseCollectionListConfig: columns clamps into [1, 6], non-number falls ba
   const tooLow = parseCollectionListConfig({ columns: 0 }, RECIPE_CONTENT_TYPE);
   const notANumber = parseCollectionListConfig({ columns: "wide" }, RECIPE_CONTENT_TYPE);
 
-  assert.equal(tooHigh.ok && tooHigh.display.columns, MAX_COLLECTION_LIST_COLUMNS);
-  assert.equal(tooLow.ok && tooLow.display.columns, MIN_COLLECTION_LIST_COLUMNS);
-  assert.equal(notANumber.ok && notANumber.display.columns, DEFAULT_COLLECTION_LIST_COLUMNS);
+  assert.equal(tooHigh.ok && tooHigh.display.columns, 6);
+  assert.equal(tooLow.ok && tooLow.display.columns, 1);
+  assert.equal(notANumber.ok && notANumber.display.columns, 3);
 });
 
 test("parseCollectionListConfig: layout accepts only 'cards'/'list', else falls back to 'cards'", () => {
@@ -115,6 +109,8 @@ test("parseCollectionListConfig: sort keywords map to the documented (by, dir) p
     ["oldest", { by: "published", dir: "asc" }],
     ["updated", { by: "updated", dir: "desc" }],
     ["title", { by: "title", dir: "asc" }],
+    ["-title", { by: "title", dir: "desc" }],
+    ["-updated", { by: "updated", dir: "asc" }],
   ];
   for (const [sort, expected] of cases) {
     const result = parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE);
@@ -170,16 +166,19 @@ test("parseCollectionListConfig: where accepts equality on known fields with sca
 test("parseCollectionListConfig: rejects an unknown field in where", () => {
   const result = parseCollectionListConfig({ where: { nope: 1 } }, RECIPE_CONTENT_TYPE);
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "unknown field in where: \"nope\"" });
 });
 
 test("parseCollectionListConfig: rejects an unknown field in sort", () => {
   const result = parseCollectionListConfig({ sort: "nonexistent_field" }, RECIPE_CONTENT_TYPE);
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "unknown field in sort: \"nonexistent_field\"" });
 });
 
 test("parseCollectionListConfig: rejects an unknown field in fields", () => {
   const result = parseCollectionListConfig({ fields: ["nonexistent_field"] }, RECIPE_CONTENT_TYPE);
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "unknown field in fields: \"nonexistent_field\"" });
 });
 
 test("parseCollectionListConfig: rejects a non-scalar where value", () => {
@@ -188,23 +187,28 @@ test("parseCollectionListConfig: rejects a non-scalar where value", () => {
     RECIPE_CONTENT_TYPE,
   );
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "non-scalar value for where.vegetarian" });
 });
 
 test("parseCollectionListConfig: rejects a where value that is an array", () => {
   const result = parseCollectionListConfig({ where: { serves: [4] } }, RECIPE_CONTENT_TYPE);
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "non-scalar value for where.serves" });
 });
 
 test("parseCollectionListConfig: rejects every system content type, never returning an unfiltered query", () => {
-  for (const key of SYSTEM_CONTENT_TYPES) {
+  for (const key of new Set([...SYSTEM_CONTENT_TYPES, "widget", "widget_area", "menu"])) {
+    assert.ok(SYSTEM_CONTENT_TYPES.includes(key), `required system type "${key}" is listed`);
     const result = parseCollectionListConfig({}, widgetContentType(key));
     assert.equal(result.ok, false, `system type "${key}" must be rejected`);
+    assert.deepEqual(result, { ok: false, reason: `system content type: "${key}"` });
   }
 });
 
 test("parseCollectionListConfig: rejects a tombstoned content type", () => {
   const result = parseCollectionListConfig({}, TOMBSTONED_CONTENT_TYPE);
   assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "content type is tombstoned: \"old_recipe\"" });
 });
 
 // --- explicit fields list ---------------------------------------------------

@@ -183,7 +183,8 @@ describe("saveNotifications", () => {
       desktopEnabled: true,
     };
     await saveNotifications(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    expect(candidates.map((c) => c.key)).toEqual(["soundEnabled", "successSoundId", "failureSoundId", "desktopEnabled"]);
     expect(candidates.every((c) => c.changed)).toBe(true);
   });
 });
@@ -245,9 +246,16 @@ describe("loadPrivacy — sentinel collapse", () => {
 });
 
 describe("savePrivacy — sentinel round-trip on write", () => {
+  it("persists a new installationId without replacing it with the empty sentinel", async () => {
+    await savePrivacy({ ...DEFAULT_PRIVACY, installationId: "install-new-456" }, DEFAULT_PRIVACY);
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    expect(candidates.find((c) => c.key === "installationId")).toEqual({ key: "installationId", valueJson: "install-new-456", changed: true });
+  });
+
   it("writes nothing when both sides are the 'no decision yet' null, workspace-scoped", async () => {
     await savePrivacy(DEFAULT_PRIVACY, DEFAULT_PRIVACY);
     const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    expect(candidates.map((c) => c.key)).toEqual(["telemetry.metrics", "telemetry.content", "installationId", "decisionAt"]);
     expect(candidates.every((c) => !c.changed)).toBe(true);
     expect(saveChangedEntries).toHaveBeenCalledWith("core.privacy", "workspace", expect.anything());
   });
@@ -393,6 +401,7 @@ describe("loadAppearance", () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadAppearance();
     expect(loadNamespaceValues).toHaveBeenCalledWith(APPEARANCE_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenLastCalledWith("core.appearance");
   });
 });
 
@@ -405,9 +414,14 @@ describe("saveAppearance", () => {
       Array<{ key: string; changed: boolean }>,
     ];
     expect(namespace).toBe(APPEARANCE_NAMESPACE);
+    expect(namespace).toBe("core.appearance");
     // Per-operator, like Notifications — one admin's theme is not the workspace's.
     expect(scope).toBe("user");
     expect(candidates.find((c) => c.key === "theme")?.changed).toBe(true);
+    expect(candidates).toEqual([
+      { key: "theme", valueJson: "dark", changed: true },
+      { key: "accentColor", valueJson: "#111111", changed: false },
+    ]);
     expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(false);
   });
 
@@ -421,6 +435,10 @@ describe("saveAppearance", () => {
     await saveAppearance({ theme: "light", accentColor: "#abcdef" }, { theme: "light", accentColor: "#111111" });
     const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
     expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(true);
+    expect(candidates).toEqual([
+      { key: "theme", valueJson: "light", changed: false },
+      { key: "accentColor", valueJson: "#abcdef", changed: true },
+    ]);
     expect(candidates.find((c) => c.key === "theme")?.changed).toBe(false);
   });
 });
@@ -454,6 +472,7 @@ describe("loadLanguage", () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     await loadLanguage();
     expect(loadNamespaceValues).toHaveBeenCalledWith(LANGUAGE_NAMESPACE);
+    expect(loadNamespaceValues).toHaveBeenLastCalledWith("core.language");
   });
 });
 
@@ -466,6 +485,7 @@ describe("saveLanguage", () => {
       Array<{ key: string; valueJson: unknown; changed: boolean }>,
     ];
     expect(namespace).toBe(LANGUAGE_NAMESPACE);
+    expect(namespace).toBe("core.language");
     expect(scope).toBe("user");
     expect(candidates[0]).toMatchObject({ key: "locale", valueJson: "fr", changed: true });
   });

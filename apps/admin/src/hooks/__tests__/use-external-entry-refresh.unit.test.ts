@@ -318,6 +318,20 @@ describe("useExternalEntryRefresh — dismissExternalChange", () => {
 });
 
 describe("useExternalEntryRefresh — loadExternalChange", () => {
+  it.each(["saving", "not loaded"] as const)("does nothing while %s", async (guard) => {
+    const env = setup({ fetchLatest: async () => ({ id: "a", version: 2 }) });
+    if (guard === "saving") env.setSaving(true);
+    else env.rerender({ loaded: null });
+
+    await act(async () => { await env.result.current.loadExternalChange(); });
+
+    expect(env.fetchLatest).not.toHaveBeenCalled();
+    expect(env.discardStandingDraft).not.toHaveBeenCalled();
+    expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
+    expect(env.applyLatest).not.toHaveBeenCalled();
+    expect(env.onLoadLatestFailed).not.toHaveBeenCalled();
+  });
+
   it("discards the standing draft BEFORE applying, and clears the notice", async () => {
     const callLog: string[] = [];
     const { promise, resolve } = deferred<TestRow>();

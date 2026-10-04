@@ -146,12 +146,20 @@ test("listPlugins GETs the workspace plugins collection and resolves the parsed 
 test("a real 401 carrying code: UNAUTHENTICATED notifies every registered listener", async () => {
   stubFetchCapturing(() => jsonResponse({ error: "session expired", code: "UNAUTHENTICATED" }, 401));
   const listener = vi.fn();
+  const second = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
+  const unsubscribeSecond = onUnauthenticated(second);
   try {
     await api.getWorkspace().catch(() => {});
     expect(listener).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    await api.getWorkspace().catch(() => {});
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
   } finally {
     unsubscribe();
+    unsubscribeSecond();
   }
 });
 

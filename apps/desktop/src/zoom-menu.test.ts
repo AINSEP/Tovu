@@ -41,6 +41,10 @@ test("four items: Actual Size, Zoom In, a hidden Zoom In alias, Zoom Out", () =>
 
 test("each item sends its own direction to the focused window's renderer", () => {
   const items = zoomMenuItems({});
+  // Electron defaults this flag to true; an explicit false disables the hidden alias on macOS.
+  const alias = items.find((item) => item.accelerator === "CmdOrCtrl+=");
+  assert.ok(alias);
+  assert.notEqual((alias as typeof alias & { acceleratorWorksWhenHidden?: boolean }).acceleratorWorksWhenHidden, false);
   const window = fakeWindow();
   for (const item of items) item.click(undefined, window);
   assert.deepEqual(window.sent, [

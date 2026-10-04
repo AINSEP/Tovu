@@ -147,8 +147,8 @@ test("database migrate-forward: plan -> confirm -> execute succeeds end-to-end a
   assert.equal(ledger.items[0].outcome, "success");
 });
 
-test("database migrate-forward: a stale plan hash at confirm time is rejected before a token is minted", async (t) => {
-  const { app } = buildTestApp();
+test("database migrate-forward: a forged hash is rejected at execute without effects and releases the operation lock", async (t) => {
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const planRes = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
@@ -175,6 +175,26 @@ test("database migrate-forward: a stale plan hash at confirm time is rejected be
   assert.equal(executeRes.status, 409);
   const body = (await executeRes.json()) as { code: string };
   assert.equal(body.code, "PLAN_STALE");
+  assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  assert.deepEqual((await deps.databaseLedgerRepo.query({ limit: 10 })).items, []);
+
+  const validPlan = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
+  assert.equal(validPlan.status, 200);
+  const valid = await validPlan.json() as { planId: string; planHash: string };
+  const validConfirm = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/confirm`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ planId: valid.planId, planHash: valid.planHash }),
+  });
+  assert.equal(validConfirm.status, 200);
+  const confirmed = await validConfirm.json() as { confirmationToken: string };
+  const validExecute = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/execute`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ confirmationToken: confirmed.confirmationToken }),
+  });
+  assert.equal(validExecute.status, 200, "the rejected execution must release its lock");
+  assert.equal((await validExecute.json() as { migrated: boolean }).migrated, true);
+  assert.equal((await deps.restorePointsRepo.list()).length, 1);
+  assert.equal((await deps.databaseLedgerRepo.query({ limit: 10 })).items.length, 1);
 });
 
 test("database migrate-forward: replaying an already-redeemed confirmation token is rejected TOKEN_ALREADY_REDEEMED", async (t) => {

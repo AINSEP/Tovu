@@ -3,6 +3,8 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { Worker } from "node:worker_threads";
+import { createRequire } from "node:module";
 
 import type { SiteRenderContext } from "../render.js";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
@@ -78,6 +80,21 @@ test("a sandbox worker does not write its own V8 coverage profile into the direc
   const previous = process.env.NODE_V8_COVERAGE;
   process.env.NODE_V8_COVERAGE = probeDir;
   try {
+    // Same exit fixture and TS bootstrap, with coverage deliberately inherited: proves that
+    // this directory observes worker profiles before asserting the sandbox suppresses them.
+    const registerModulePath = createRequire(import.meta.url).resolve("tsx/cjs/api");
+    const fixture = new URL("./fixtures/exit-worker.ts", import.meta.url).pathname;
+    const control = new Worker(`require(${JSON.stringify(registerModulePath)}).register(); require(${JSON.stringify(fixture)});`, {
+      eval: true, env: { ...process.env },
+    });
+    const exitCode = await new Promise<number>((resolve, reject) => {
+      control.once("error", reject);
+      control.once("exit", resolve);
+    });
+    assert.equal(exitCode, 7);
+    const profiles = readdirSync(probeDir);
+    assert.ok(profiles.some((name) => /^coverage-.*\.json$/.test(name)), "the inherited-coverage control must produce a V8 profile");
+    for (const name of profiles) rmSync(path.join(probeDir, name));
     await assert.rejects(renderInWorkerSandbox("__tests__/fixtures/exit-worker", "Liquid", input, { timeoutMs: 3000 }));
     assert.deepEqual(
       readdirSync(probeDir),

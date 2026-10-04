@@ -59,8 +59,7 @@ test("the render_block seam resolves against the real component registry inside 
     source: '{{render_block component="tovu/site-header"}}',
     ctx: baseCtx(),
   });
-  assert.match(html, /site-header/);
-  assert.match(html, /Test Site/);
+  assert.equal(html, '<header class="site-header"><div class="wrap"><a class="wordmark" href="/">Test Site</a><nav class="site-nav"><a href="/">Home</a></nav></div></header>');
   // The helper returns a SafeString, so its markup is emitted as HTML rather than escaped —
   // without that, the seam would render visible &lt;header&gt; text.
   assert.doesNotMatch(html, /&lt;header/);

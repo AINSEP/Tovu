@@ -2,6 +2,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 
 /**
  * @file Guard: every credential-shaped `<input>` in the admin says what the browser may autofill.
@@ -72,6 +75,20 @@ function literalText(init: ts.JsxAttributeValue | undefined): string {
   return parts.join(" ");
 }
 
+/** Resolve literal alternatives; identifiers/undefined cannot prove an autofill contract. */
+function stringValues(node: ts.Node | undefined): string[] | null {
+  if (!node) return null;
+  if (ts.isStringLiteralLike(node)) return [node.text];
+  if (ts.isJsxExpression(node)) return stringValues(node.expression);
+  if (ts.isParenthesizedExpression(node)) return stringValues(node.expression);
+  if (ts.isConditionalExpression(node)) {
+    const yes = stringValues(node.whenTrue);
+    const no = stringValues(node.whenFalse);
+    return yes && no ? [...yes, ...no] : null;
+  }
+  return null;
+}
+
 /** Every `<input>`/`<Input>` in `source` that is credential-shaped. Pure, so testable on fixtures. */
 function findCredentialInputs(file: string, source: string): InputFinding[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -81,15 +98,31 @@ function findCredentialInputs(file: string, source: string): InputFinding[] {
       let passwordType = false;
       let credentialNamed = false;
       let autoComplete: string | null = null;
+      let typeExpression: ts.Expression | undefined;
+      let autoExpression: ts.Expression | undefined;
       for (const prop of node.attributes.properties) {
         if (!ts.isJsxAttribute(prop)) continue;
         const name = prop.name.getText(sf);
-        if (name === "type") passwordType = /password/.test(literalText(prop.initializer));
+        if (name === "type") {
+          passwordType = /password/.test(literalText(prop.initializer));
+          if (prop.initializer && ts.isJsxExpression(prop.initializer)) typeExpression = prop.initializer.expression;
+        }
         else if (NAMING_ATTRS.has(name)) credentialNamed ||= CREDENTIAL.test(literalText(prop.initializer));
         else if (name === "autoComplete" || name === "autocomplete") {
           const init = prop.initializer;
-          autoComplete = init && ts.isStringLiteral(init) ? init.text : literalText(init) || "<expression>";
+          autoComplete = stringValues(init)?.join(" ") ?? "<expression>";
+          if (init && ts.isJsxExpression(init)) autoExpression = init.expression;
         }
+      }
+      // Dynamic field kinds may use "off" only in the SAME branch that renders a non-password.
+      if (passwordType && typeExpression && autoExpression &&
+          ts.isConditionalExpression(typeExpression) && ts.isConditionalExpression(autoExpression) &&
+          typeExpression.condition.getText(sf) === autoExpression.condition.getText(sf)) {
+        const values: string[] = [];
+        for (const [type, auto] of [[typeExpression.whenTrue, autoExpression.whenTrue], [typeExpression.whenFalse, autoExpression.whenFalse]]) {
+          if (stringValues(type)?.includes("password")) values.push(...(stringValues(auto) ?? ["<expression>"]));
+        }
+        if (values.length) autoComplete = values.join(" ");
       }
       if (passwordType || credentialNamed) {
         out.push({ file, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, passwordType, credentialNamed, autoComplete });
@@ -107,6 +140,13 @@ function violations(findings: InputFinding[]): string[] {
     const where = `${f.file}:${f.line}`;
     if (f.autoComplete === null) hits.push(`${where}: credential input has no autoComplete`);
     else if (f.passwordType && f.autoComplete === "off") hits.push(`${where}: password input uses "off" (Chrome ignores it)`);
+    else if (!f.autoComplete.trim() || f.autoComplete.includes("<expression>")) hits.push(`${where}: credential input has unresolved or empty autoComplete`);
+    else if (f.credentialNamed && f.file !== "features/auth/Login.tsx" && f.autoComplete.split(" ").includes("current-password")) {
+      hits.push(`${where}: secret input uses sign-in autoComplete`);
+    }
+    else if (f.passwordType && f.autoComplete.split(" ").some((value) => value !== (f.file === "features/auth/Login.tsx" ? "current-password" : "new-password"))) {
+      hits.push(`${where}: password input has an inappropriate autoComplete`);
+    }
   }
   return hits;
 }
@@ -128,6 +168,26 @@ const JINI_UI_SRC = path.resolve(SRC, "../node_modules/@jini-ai/ui/src");
 const HAS_JINI_UI_SRC = existsSync(JINI_UI_SRC);
 
 describe("findCredentialInputs: the detector", () => {
+  it.each(['{undefined}', '""', '{autoComplete}', '{reveal ? "off" : "new-password"}', '"current-password"'])(
+    "rejects unproven or inappropriate password autoComplete=%s", (value) => {
+      expect(violations(findCredentialInputs("secret.tsx", `<input type="password" autoComplete=${value} />`))).toHaveLength(1);
+    },
+  );
+
+  it("rejects sign-in autocomplete on a revealed API-key field", () => {
+    expect(violations(findCredentialInputs("secret.tsx", '<input type="text" id="api-key" autoComplete="current-password" />'))).toHaveLength(1);
+  });
+
+  it("accepts literal alternatives and correlated non-password off branches", () => {
+    expect(violations(findCredentialInputs("secret.tsx", [
+      '<input type="password" autoComplete={reveal ? "new-password" : "new-password"} />',
+      '<input type={field.secret ? "password" : "text"} autoComplete={field.secret ? "new-password" : "off"} />',
+    ].join("\n")))).toEqual([]);
+    expect(violations(findCredentialInputs("secret.tsx",
+      '<input type={field.secret ? "password" : "text"} autoComplete={field.secret ? "off" : "new-password"} />',
+    ))).toHaveLength(1);
+  });
+
   it("flags a conditional password type with no autoComplete, even with an arrow function before it", () => {
     const src = `const x = <input onChange={(e) => f(e)} type={v ? "text" : "password"} />;`;
     expect(violations(findCredentialInputs("a.tsx", src))).toEqual(["a.tsx:1: credential input has no autoComplete"]);
@@ -190,5 +250,37 @@ describe.skipIf(!HAS_JINI_UI_SRC)("Jini UI credential inputs the admin renders (
 
   it("every credential-shaped input has an explicit, honored autoComplete", () => {
     expect(violations(findings)).toEqual([]);
+  });
+});
+
+
+describe("installed Jini credential components (source checkout not required)", () => {
+  const noop = () => {};
+  const components = [
+    ["ByokProviderForm", () => createElement(ByokProviderForm, {
+      config: { protocol: "openai", providerId: null, apiKey: "", baseUrl: "https://example.test/v1", model: "fixture" },
+      onConfigChange: noop, preset: null, modelDiscovery: { status: "idle" }, connectionTest: { status: "idle" }, onTestConnection: noop,
+    })],
+    ["AgentCliEnvFields", () => createElement(AgentCliEnvFields, {
+      agentId: "fixture", fields: [{ agentId: "fixture", envKey: "API_KEY", label: "API key", secret: true }],
+      config: { agentId: "fixture", modelByAgentId: {} }, onChange: noop,
+    })],
+    ["SourceConfigField", () => createElement(SourceConfigField, {
+      spec: { key: "apiKey", label: "API key", kind: "password" }, value: "", onChange: noop,
+    })],
+    ["MediaProvidersTab", () => createElement(MediaProvidersTab, {
+      catalog: [{ id: "fixture", label: "Fixture" }], initialProviders: {},
+      port: {
+        fetchMediaProviders: async () => { throw new Error("static credential render must not fetch"); },
+        saveMediaProviders: async () => { throw new Error("static credential render must not save"); },
+      },
+    })],
+  ] as const;
+  it.each(components)("%s renders an explicitly protected password input", (_name, build) => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(build());
+    const passwords = container.querySelectorAll('input[type="password"]');
+    expect(passwords).toHaveLength(1);
+    expect(passwords[0].getAttribute("autocomplete")).toBe("new-password");
   });
 });

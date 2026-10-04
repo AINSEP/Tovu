@@ -155,6 +155,29 @@ test("cancel-campaign: generic unexpected error maps to 500", async (t) => {
   assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
 });
 
+for (const [initial, allowed] of [
+  ["scheduled", true], ["sending", false], ["paused", false], ["sent", false], ["canceled", false],
+] as const) {
+  test(`cancel-campaign: ${initial} ${allowed ? "can" : "cannot"} be canceled, with durable state checked`, async (t) => {
+    const { app, deps } = buildApp();
+    const campaign = makeCampaign({ status: initial });
+    await deps.newsletterCampaignRepo.saveCampaignRow(campaign);
+    const revisionsBefore = await deps.newsletterCampaignRepo.listRevisions({ workspaceId: WORKSPACE_ID, campaignId: campaign.id });
+    const { status, json } = await post(t, app,
+      `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/cancel`);
+    assert.equal(status, allowed ? 200 : 409);
+    const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+    if (allowed) {
+      assert.equal((json as { data: CampaignRecord }).data.status, "canceled");
+      assert.equal(stored?.status, "canceled");
+    } else {
+      assert.equal((json as { code: string }).code, "NEWSLETTER_CAMPAIGN_NOT_EDITABLE");
+      assert.deepEqual(stored, campaign);
+      assert.deepEqual(await deps.newsletterCampaignRepo.listRevisions({ workspaceId: WORKSPACE_ID, campaignId: campaign.id }), revisionsBefore);
+    }
+  });
+}
+
 test("cancel-campaign: undefined workspaceId fallback via direct handler invocation", async () => {
   const { app } = buildApp();
   const handler = extractRouteHandler(

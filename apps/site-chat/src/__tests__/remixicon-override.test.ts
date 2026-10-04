@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
+import fs from "node:fs";
+import path from "node:path";
+import { REMIXICON_STYLESHEET_MARKER } from "@jini-ai/ui";
 
 import { installRemixIconOverride } from "../remixicon-override";
 
@@ -47,6 +50,11 @@ describe("installRemixIconOverride", () => {
       assert.ok(link, "expected a link element carrying the marker attribute");
       assert.equal(link?.getAttribute("rel"), "stylesheet");
       assert.equal(link?.getAttribute("href"), CSS_URL);
+      assert.equal(MARKER, REMIXICON_STYLESHEET_MARKER, "the installed icon component must recognize the override");
+      const publicDir = path.resolve(import.meta.dirname, "../../public");
+      const css = fs.readFileSync(path.join(publicDir, "remixicon.css"), "utf8");
+      assert.match(css, /url\(["']?\.\/remixicon\.woff2["']?\)/);
+      assert.ok(fs.statSync(path.join(publicDir, "remixicon.woff2")).size > 0);
       assert.equal(document.head.contains(link), true);
     });
 

@@ -84,6 +84,10 @@ test("bodyStringField: a missing field defaults to the empty string", () => {
 
 test("bodyStringField: a present field is coerced to a string", () => {
   assert.equal(bodyStringField({ path: "pages/index.html" }, "path"), "pages/index.html");
+  assert.equal(bodyStringField({ path: 42 }, "path"), "42");
+  assert.equal(bodyStringField({ path: false }, "path"), "false");
+  assert.equal(bodyStringField({ path: null }, "path"), "");
+  assert.equal(bodyStringField({ path: undefined }, "path"), "");
 });
 
 test("reloadTheme: a themeId with no matching entry in deps.themes is a silent no-op", () => {

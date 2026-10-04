@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -45,6 +45,17 @@ test("readInstalledSkillMarkdown rejects a path escaping the package root", asyn
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("readInstalledSkillMarkdown rejects an existing file symlink outside the package", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-skill-symlink-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const root = path.join(dir, "package");
+  await mkdir(path.join(root, "skills"), { recursive: true });
+  const outside = path.join(dir, "outside.md");
+  await writeFile(outside, "outside secret");
+  await symlink(outside, path.join(root, "skills", "SKILL.md"));
+  await assert.rejects(readInstalledSkillMarkdown(root, "skills/SKILL.md"), PackagePathViolation);
 });
 
 test("classifyAgentPluginMcpServerTrust: stdio requires confirmation, remote transports auto-admit", () => {

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveDefaultTimeoutMs as resolveHandlebars } from "../handlebars-sandbox.js";
-import { resolveDefaultTimeoutMs as resolveLiquid } from "../liquid-sandbox.js";
+import { renderLiquidInSandbox, resolveDefaultTimeoutMs as resolveLiquid } from "../liquid-sandbox.js";
+import type { SiteRenderContext } from "../render.js";
 import { resolveDefaultTimeoutMs } from "../worker-sandbox.js";
 
 /**
@@ -75,4 +76,23 @@ test("TOVU_THEME_RENDER_TIMEOUT_MS is parsed strictly, never by parseInt's prefi
     else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = raw;
     assert.equal(resolveDefaultTimeoutMs(), expected, `${JSON.stringify(raw)} -> ${expected}: ${why}`);
   }
+});
+
+test("a real render without explicit options uses the live environment timeout", async (t) => {
+  const previous = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+    else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = previous;
+  });
+  process.env.TOVU_THEME_RENDER_TIMEOUT_MS = "37";
+  const ctx = {
+    siteTitle: "Timeout probe", route: "home", posts: [], products: [], themeName: "test",
+    widgetRegions: {}, widgetInlineResolved: new Map(),
+  } as SiteRenderContext;
+  await assert.rejects(renderLiquidInSandbox({
+    source: "{% for i in (1..10000) %}{% for j in (1..10000) %}{{ i }}{% endfor %}{% endfor %}", ctx,
+  }), (err: Error) => {
+    assert.equal(err.message, "Liquid render exceeded 37ms timeout");
+    return true;
+  });
 });

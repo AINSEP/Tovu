@@ -237,6 +237,36 @@ describe("useAdminExecutionCredential — save success", () => {
 });
 
 describe("useAdminExecutionCredential — cross-mount staleness (Finding 2)", () => {
+  it.each(["saveSettings", "migrateLegacyKey"] as const)(
+    "%s refreshes the stored view in another mounted instance",
+    async (action) => {
+      if (action === "migrateLegacyKey") {
+        window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
+      }
+      let row = action === "saveSettings" ? setView({ model: "old-model" }) : unsetView();
+      getAdminExecutionCredential.mockImplementation(async () => ({ data: row }));
+      setAdminExecutionCredential.mockImplementation(async () => {
+        row = setView({ model: "new-model", masked: "••••gacy" });
+        return { data: row };
+      });
+      const a = renderHook(() => useWiredAdminExecutionCredential({ byok: byok({ model: "new-model" }), onByokChange: vi.fn() }));
+      const b = renderHook(() => useWiredAdminExecutionCredential({ byok: byok(), onByokChange: vi.fn() }));
+      await waitFor(() => expect(a.result.current.stored).toEqual(row));
+      await waitFor(() => expect(b.result.current.stored).toEqual(row));
+      if (action === "migrateLegacyKey") {
+        await waitFor(() => expect(a.result.current.legacyKey).toBe("sk-legacy"));
+      }
+      expect(b.result.current.stored?.model).not.toBe("new-model");
+
+      await act(async () => { await a.result.current[action](); });
+
+      await waitFor(() => expect(b.result.current.stored).toEqual(setView({ model: "new-model", masked: "••••gacy" })));
+      expect(b.result.current.apiKeyPlaceholder).toBe("••••gacy");
+      a.unmount();
+      b.unmount();
+    },
+  );
+
   it("a save in one mounted instance refreshes a SEPARATE, independently mounted instance — neither remounts", async () => {
     // Models `SettingsUi.tsx` and `AiAssistant.tsx` each mounting this hook independently over the
     // same server-side credential row — exactly the scenario the hook's own "Cross-mount staleness"

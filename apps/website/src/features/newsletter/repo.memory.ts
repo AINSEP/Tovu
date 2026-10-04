@@ -46,8 +46,7 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     let rows = this.campaigns.filter((c) => c.workspaceId === required.workspaceId);
     rows = rows.slice().sort((a, b) => a.id.localeCompare(b.id));
     if (required.afterId) {
-      const idx = rows.findIndex((c) => c.id === required.afterId);
-      rows = idx >= 0 ? rows.slice(idx + 1) : rows;
+      rows = rows.filter((c) => c.id > required.afterId!);
     }
     return rows.slice(0, limit);
   }
@@ -156,8 +155,7 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
     if (required.afterId) {
-      const idx = rows.findIndex((r) => r.id === required.afterId);
-      rows = idx >= 0 ? rows.slice(idx + 1) : rows;
+      rows = rows.filter((r) => r.id > required.afterId!);
     }
     return rows.slice(0, limit);
   }
@@ -235,8 +233,7 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
     if (required.afterId) {
-      const idx = rows.findIndex((r) => r.id === required.afterId);
-      rows = idx >= 0 ? rows.slice(idx + 1) : rows;
+      rows = rows.filter((r) => r.id > required.afterId!);
     }
     return rows.slice(0, limit);
   }

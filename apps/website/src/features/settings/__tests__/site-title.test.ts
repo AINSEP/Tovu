@@ -200,6 +200,12 @@ test("AC-17 (REQ-11, REQ-07): a pin write that throws for one of two workspaces 
     await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), { workspaceId: "ws-b" }),
     "Tovu Demo Site"
   );
+  ledger.settingsRepo.saveWorkspaceValue = saveWorkspaceValue;
+  assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: ["ws-b"], skippedWorkspaceIds: [], failedWorkspaceIds: [] });
+  assert.equal(await ledger.preservationStore.isPending("ws-b"), false);
+  assert.deepEqual(await effectiveTitle(ledger, "ws-b"), { value: "Tovu Demo Site", sourceLayer: "workspace" });
+  assert.equal((await systemPinRevisions(ledger, "ws-a")).length, 1, "retry must not repin the already successful workspace");
+  assert.equal((await systemPinRevisions(ledger, "ws-b")).length, 1);
 });
 
 test("REQ-11: with core.site/title not registered, every pending workspace is reported failed and stays pending", async (t) => {

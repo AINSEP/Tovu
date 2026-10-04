@@ -1,15 +1,79 @@
 /**
  * @file Tests for `smoke-native.ts`. Per the release plan (S3): unit-test the path resolution and
- * the result parsing, not the spawn — no real executable is ever run here, and no packaged bundle
- * is required to exist on disk. `scripts/smoke-native.ts` (untested by this suite, like
- * `scripts/verify-package.ts`'s own `resolveAsarPath`) is the thin CLI that does the actual
- * `readdirSync` + `spawnSync` against those pure functions.
+ * the result parsing, not the spawn of the packaged app — no packaged bundle is required to exist on
+ * disk. `scripts/smoke-native.ts` (untested by this suite, like `scripts/verify-package.ts`'s own
+ * `resolveAsarPath`) is the thin CLI that does the actual `readdirSync` + `spawnSync` against those
+ * pure functions. The generated script itself is executed here: in a child Node against controlled
+ * package fixtures, and in a VM against hostile paths.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import vm from "node:vm";
 
 import { buildSmokeScript, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
+
+test("the generated script executes each staged package and reports its individual failure", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "smoke-script-"));
+  const modules = path.join(root, "node_modules");
+  const fixtures = {
+    "better-sqlite3": `module.exports = class Database {
+      constructor(name) { if (name !== ':memory:') throw Error('wrong database'); this.rows = new Map(); }
+      exec(sql) { if (!sql.startsWith('CREATE TABLE smoke')) throw Error('wrong table'); }
+      prepare(sql) { return sql.startsWith('INSERT')
+        ? { run: (id, v) => this.rows.set(id, { v }) }
+        : { get: (id) => this.rows.get(id) }; }
+      close() {}
+    };`,
+    sharp: `module.exports = (bytes) => {
+      if (!Buffer.isBuffer(bytes) || bytes.readUInt32BE(0) !== 0x89504e47) throw Error('not PNG');
+      return { metadata: async () => ({ width: 1, height: 1 }) };
+    };`,
+    argon2: `module.exports = {
+      hash: async (value) => 'fixture-hash:' + value,
+      verify: async (hash, value) => hash === 'fixture-hash:' + value,
+    };`,
+  };
+  try {
+    for (const failing of [null, "better-sqlite3", "sharp", "argon2"] as const) {
+      for (const [name, source] of Object.entries(fixtures)) {
+        const folder = path.join(modules, name);
+        mkdirSync(folder, { recursive: true });
+        writeFileSync(path.join(folder, "index.js"), name === failing ? `throw Error('fixture ${name} failure');` : source);
+      }
+      const child = spawnSync(process.execPath, ["-e", buildSmokeScript(modules)], { cwd: root, encoding: "utf8", timeout: 5000 });
+      assert.equal(child.error, undefined);
+      assert.equal(child.status, failing === null ? 0 : 1, child.stderr);
+      const expected: Record<string, unknown> = { betterSqlite3: { ok: true }, sharp: { ok: true }, argon2: { ok: true } };
+      if (failing !== null) expected[failing === "better-sqlite3" ? "betterSqlite3" : failing] = { ok: false, error: `fixture ${failing} failure` };
+      assert.deepEqual(JSON.parse(child.stdout), expected);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("the generated script preserves hostile require paths exactly without executing injected statements", async () => {
+  const directory = `/tmp/quote'and\\slash"; globalThis.injected = true; //`;
+  const required: string[] = [];
+  const output: string[] = [];
+  const exits: number[] = [];
+  const context = vm.createContext({
+    Buffer,
+    require(specifier: string) { required.push(specifier); throw new Error("fixture missing"); },
+    console: { log: (value: string) => output.push(value), error: (value: string) => { throw new Error(value); } },
+    process: { exit: (code: number) => exits.push(code) },
+  });
+  await vm.runInContext(buildSmokeScript(directory), context);
+  assert.deepEqual(required, [path.join(directory, "better-sqlite3"), path.join(directory, "sharp"), path.join(directory, "argon2")]);
+  assert.equal(context.injected, undefined);
+  assert.deepEqual(exits, [1]);
+  assert.equal(output.length, 1);
+  assert.deepEqual(JSON.parse(output[0]!), {
+    betterSqlite3: { ok: false, error: "fixture missing" }, sharp: { ok: false, error: "fixture missing" }, argon2: { ok: false, error: "fixture missing" },
+  });
+});
 
 // --- resolveSmokeTargets: pure path resolution from an already-listed directory -----------------
 

@@ -436,7 +436,11 @@ const NO_EXISTING_ROW: FakeScriptStep = { status: 200, body: { servers: [] } };
 
 /** The GET reply for a site where the operator has this connection in a given state. */
 function existingRow(enabled: boolean): FakeScriptStep {
-  return { status: 200, body: { servers: [{ serverId: "tovu-desktop", enabled }] } };
+  return { status: 200, body: { servers: [
+    { serverId: "other-first", enabled: !enabled },
+    { serverId: "tovu-desktop", enabled },
+    { serverId: "other-last", enabled: !enabled },
+  ] } };
 }
 
 test("registerSitesMcpServer reads the existing row, then PUTs as the site session", async () => {

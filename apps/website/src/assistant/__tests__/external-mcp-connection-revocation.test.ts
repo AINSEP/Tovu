@@ -321,3 +321,23 @@ test("T1-10: a preset connection with no row still completes", async () => {
     ["read_thing"],
   );
 });
+
+
+for (const change of [
+  { command: "replacement-mcp" },
+  { args: "--different" },
+  { env: "REGION=other" },
+  { authMode: "static_env", accessToken: "replacement-token", accessTokenEnvName: "MCP_TOKEN" },
+]) {
+  test(`an admitted stdio connection refuses after changing ${Object.keys(change)[0]}`, async () => {
+    const { repo, sealer, deps } = makeStoreDeps(makeClock());
+    const initial = baseSaveInput({ transport: "stdio", command: "original-mcp", url: "", args: "--original", env: "REGION=original" });
+    await saveExternalMcpServer(deps, initial);
+    const { toolExecutor, session } = await boot({ repo, sealer });
+    await saveExternalMcpServer(deps, { ...initial, ...change });
+    const result = await callReadThing(toolExecutor);
+    assert.equal(result.status, "failed");
+    assert.equal(result.error, CHANGED_MESSAGE);
+    assert.deepEqual(session.calls, []);
+  });
+}

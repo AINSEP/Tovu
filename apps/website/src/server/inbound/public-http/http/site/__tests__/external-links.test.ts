@@ -13,6 +13,20 @@ import { markOffSiteLinksOpenInNewTab } from "../external-links.js";
 
 const SITE_HOST = "tovu.example";
 
+test("quoted and uppercase off-site anchors, subdomains and lookalike hosts receive the full link attributes", () => {
+  for (const [html, expected] of [
+    ["<a href='https://other.example/x'>Other</a>", "<a href='https://other.example/x' rel=\"noopener noreferrer\" target=\"_blank\">Other</a>"],
+    ['<A HREF="https://other.example/x">Other</A>', '<A HREF="https://other.example/x" rel="noopener noreferrer" target="_blank">Other</A>'],
+    ['<a href="https://blog.tovu.example/x">Blog</a>', '<a href="https://blog.tovu.example/x" rel="noopener noreferrer" target="_blank">Blog</a>'],
+    ['<a href="https://nottovu.example/x">Lookalike</a>', '<a href="https://nottovu.example/x" rel="noopener noreferrer" target="_blank">Lookalike</a>'],
+  ]) assert.equal(markOffSiteLinksOpenInNewTab(html, SITE_HOST), expected);
+});
+
+test("protocol-relative hrefs stay unchanged under the absolute-http-only policy", () => {
+  const html = '<a href="//other.example/x">Other</a>';
+  assert.equal(markOffSiteLinksOpenInNewTab(html, SITE_HOST), html);
+});
+
 test("off-site absolute http(s) link gets target=_blank and rel=noopener noreferrer", () => {
   const html = `<a href="https://agent-plugins.org/specification">Spec</a>`;
   const result = markOffSiteLinksOpenInNewTab(html, SITE_HOST);

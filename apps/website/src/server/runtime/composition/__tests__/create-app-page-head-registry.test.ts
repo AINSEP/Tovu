@@ -73,4 +73,11 @@ test("createApp(): a later call replaces an earlier call's page-head registratio
     "a second createApp() call left the first call's page-head contributor (and anything registered " +
       "after it) still folded into every subsequent request — this is the live duplicate-JSON-LD bug"
   );
+  // Entry-less home routes emit site title/canonical/feed rather than per-entry JSON-LD.
+  // An empty registry also drops the marker, so require the real SEO hook's whole output.
+  assert.deepEqual(afterSecondCall, [
+    { kind: "title", text: "Test Site", priority: 100 },
+    { kind: "link", rel: "canonical", href: "/", priority: 120 },
+    { kind: "link", rel: "alternate", type: "application/rss+xml", title: "Test Site", href: "/feed.xml", priority: 125 },
+  ]);
 });

@@ -403,14 +403,17 @@ const TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES: ToolDescriptor = {
  * without needing real SSE framing, since this test only cares about what was SENT, not the
  * (never-reached) response handling.
  */
-async function captureOutboundRequest(t: import("node:test").TestContext): Promise<{ baseUrl: string; body(): Record<string, unknown> }> {
+async function captureOutboundRequest(t: import("node:test").TestContext): Promise<{ baseUrl: string; body(): Record<string, unknown>; request(): import("../../server/__tests__/helpers/stub-provider-server.js").StubProviderRequest }> {
   let captured: Record<string, unknown> | undefined;
-  const baseUrl = await startStubProviderServer(t, (_callCount, requestBody) => {
+  let capturedRequest: import("../../server/__tests__/helpers/stub-provider-server.js").StubProviderRequest | undefined;
+  const baseUrl = await startStubProviderServer(t, (_callCount, requestBody, request) => {
+    capturedRequest = request;
     captured = requestBody;
     return { status: 400, body: "{}" };
   });
   return {
     baseUrl,
+    request() { assert.ok(capturedRequest); return capturedRequest; },
     body() {
       assert.ok(captured, "expected the stub provider server to have received a request");
       return captured as Record<string, unknown>;
@@ -425,7 +428,7 @@ function baseInput(protocol: ByokProviderTurnInput["protocol"], baseUrl: string)
     apiKey: "test-key-not-real",
     model: protocol === "google" ? "gemini-3.6-flash" : "claude-opus-4-8",
     system: "be terse",
-    messages: [{ role: "user", content: "hi" }],
+    messages: [{ role: "user", content: "earlier question" }, { role: "assistant", content: "earlier answer" }, { role: "user", content: "hi" }],
     tools: [TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES],
     executeTool: async () => {
       throw new Error("must not be called — the stub server never returns a tool call");
@@ -435,9 +438,44 @@ function baseInput(protocol: ByokProviderTurnInput["protocol"], baseUrl: string)
   } satisfies ByokProviderTurnInput;
 }
 
+
+function assertOutboundIdentity(protocol: "google" | "anthropic" | "openai", capture: Awaited<ReturnType<typeof captureOutboundRequest>>) {
+  const request = capture.request();
+  const body = capture.body();
+  assert.equal(request.method, "POST");
+  const expectedMessages = [
+    { role: "user", content: "earlier question" },
+    { role: "assistant", content: "earlier answer" },
+    { role: "user", content: "hi" },
+  ];
+  if (protocol === "google") {
+    assert.equal(request.url, "/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse");
+    assert.equal(request.headers["x-goog-api-key"], "test-key-not-real");
+    assert.deepEqual(body.systemInstruction, { parts: [{ text: "be terse" }] });
+    assert.deepEqual(body.contents, [
+      { role: "user", parts: [{ text: "earlier question" }] },
+      { role: "model", parts: [{ text: "earlier answer" }] },
+      { role: "user", parts: [{ text: "hi" }] },
+    ]);
+  } else {
+    assert.equal(body.model, "claude-opus-4-8");
+    if (protocol === "anthropic") {
+      assert.equal(request.url, "/v1/messages");
+      assert.equal(request.headers["x-api-key"], "test-key-not-real");
+      assert.equal(body.system, "be terse");
+      assert.deepEqual(body.messages, expectedMessages);
+    } else {
+      assert.equal(request.url, "/v1/chat/completions");
+      assert.equal(request.headers.authorization, "Bearer test-key-not-real");
+      assert.deepEqual(body.messages, [{ role: "system", content: "be terse" }, ...expectedMessages]);
+    }
+  }
+}
+
 test("runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested", async (t) => {
   const capture = await captureOutboundRequest(t);
   await runByokProviderTurn(baseInput("google", capture.baseUrl));
+  assertOutboundIdentity("google", capture);
 
   const body = capture.body();
   const tools = body.tools as Array<{ functionDeclarations: Array<{ parameters: Record<string, unknown> }> }>;
@@ -459,6 +497,7 @@ test("runByokProviderTurn(google): the outbound Gemini request has additionalPro
 test("runByokProviderTurn(anthropic): the SAME tool schema reaches the outbound request untouched — additionalProperties/$schema preserved", async (t) => {
   const capture = await captureOutboundRequest(t);
   await runByokProviderTurn(baseInput("anthropic", capture.baseUrl));
+  assertOutboundIdentity("anthropic", capture);
 
   const body = capture.body();
   const tools = body.tools as Array<{ input_schema: Record<string, unknown> }>;
@@ -484,7 +523,8 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
   // Real loopback stub, not `globalThis.fetch` — see `stub-provider-server.ts`'s doc: the Google
   // adapter now dials `pinnedFetch` (`node:https`/`node:http` directly), which never reads the
   // global. Scripted the same two calls as before: the tool-call turn, then the finishing reply.
-  const baseUrl = await startStubProviderServer(t, (callCount) => {
+  let secondRequestBody: Record<string, unknown> | undefined;
+  const baseUrl = await startStubProviderServer(t, (callCount, requestBody) => {
     if (callCount === 1) {
       // Simulates exactly the failure mode this test guards against: Gemini, having been told
       // `statusCode` is a string enum (this tool's sanitized schema), sends the tool call back with
@@ -492,6 +532,7 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
       // declares and the tool handler expects.
       return { status: 200, body: googleFunctionCallFrame("redirects_create", { statusCode: "301", fromPattern: "/old", toTarget: "/new", matchType: "exact" }, "call_1") };
     }
+    secondRequestBody = requestBody;
     return { status: 200, body: googleTextFrame("Created.", "STOP") };
   });
 
@@ -517,6 +558,10 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
   assert.ok(isRecordForTest(receivedInput), "expected the tool executor to have been called with an input object");
   assert.equal(receivedInput.statusCode, 301, "expected statusCode to be coerced back to a number before the tool executor saw it");
   assert.equal(typeof receivedInput.statusCode, "number");
+  assert.ok(secondRequestBody);
+  assert.deepEqual((secondRequestBody.contents as Array<{ role: string; parts: unknown[] }>).at(-1), {
+    role: "user", parts: [{ functionResponse: { name: "redirects_create", id: "call_1", response: { content: "ok", isError: false } } }],
+  });
 });
 
 function isRecordForTest(value: unknown): value is Record<string, unknown> {
@@ -587,6 +632,7 @@ test("runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUr
 test("runByokProviderTurn(openai): the outbound request carries the tool schema untouched, same as anthropic — the Google-only sanitizer must not leak into this protocol", async (t) => {
   const capture = await captureOutboundRequest(t);
   await runByokProviderTurn(baseInput("openai", capture.baseUrl));
+  assertOutboundIdentity("openai", capture);
 
   const body = capture.body();
   const tools = body.tools as Array<{ function: { parameters: Record<string, unknown> } }>;
@@ -719,3 +765,52 @@ test("runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as op
     ],
   );
 });
+
+
+for (const protocol of ["anthropic", "google"] as const) {
+  test(`${protocol} preserves success and failure in the tool-result return leg and host events`, async (t) => {
+    let secondRequestBody: Record<string, unknown> | undefined;
+    let requests = 0;
+    const anthropicFrame = (type: string, data: Record<string, unknown>) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`;
+    const baseUrl = await startStubProviderServer(t, (callCount, requestBody) => {
+      requests = callCount;
+      if (callCount === 1) {
+        const calls = [{ id: "call_ok", name: "tool_ok" }, { id: "call_bad", name: "tool_bad" }];
+        const body = protocol === "google"
+          ? googleChunk({ candidates: [{ content: { role: "model", parts: calls.map(({ id, name }) => ({ functionCall: { id, name, args: {} } })) }, finishReason: "STOP", index: 0 }] })
+          : calls.map(({ id, name }, index) =>
+            anthropicFrame("content_block_start", { index, content_block: { type: "tool_use", id, name, input: {} } }) +
+            anthropicFrame("content_block_delta", { index, delta: { type: "input_json_delta", partial_json: "{}" } }) +
+            anthropicFrame("content_block_stop", { index })).join("") +
+            anthropicFrame("message_delta", { delta: { stop_reason: "tool_use" } }) + anthropicFrame("message_stop", {});
+        return { status: 200, body };
+      }
+      secondRequestBody = requestBody;
+      return { status: 200, body: protocol === "google" ? googleTextFrame("Done.", "STOP") :
+        anthropicFrame("message_delta", { delta: { stop_reason: "end_turn" } }) + anthropicFrame("message_stop", {}) };
+    });
+    const events: Array<{ type: string; [key: string]: unknown }> = [];
+    const result = await runByokProviderTurn({
+      ...baseInput(protocol, baseUrl), tools: byokTools("tool_ok", "tool_bad"),
+      executeTool: async (call) => call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine", isError: false },
+      onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
+    });
+    assert.equal(requests, 2);
+    assert.equal(result.stopReason, "stop");
+    assert.deepEqual(events.filter((event) => event.type === "tool_result").map(({ toolUseId, content, isError }) => ({ toolUseId, content, isError })), [
+      { toolUseId: "call_ok", content: "fine", isError: false }, { toolUseId: "call_bad", content: "boom", isError: true },
+    ]);
+    assert.ok(secondRequestBody);
+    if (protocol === "google") {
+      assert.deepEqual((secondRequestBody.contents as unknown[]).at(-1), { role: "user", parts: [
+        { functionResponse: { id: "call_ok", name: "tool_ok", response: { content: "fine", isError: false } } },
+        { functionResponse: { id: "call_bad", name: "tool_bad", response: { content: "boom", isError: true } } },
+      ] });
+    } else {
+      assert.deepEqual((secondRequestBody.messages as unknown[]).at(-1), { role: "user", content: [
+        { type: "tool_result", tool_use_id: "call_ok", content: "fine", is_error: false },
+        { type: "tool_result", tool_use_id: "call_bad", content: "boom", is_error: true },
+      ] });
+    }
+  });
+}

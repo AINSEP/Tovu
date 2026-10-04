@@ -116,14 +116,32 @@ async function seedWorkspaceAndIdentity(dbPath: string): Promise<void> {
   seedDb.$client.close();
 }
 
-test("backfill-reset-admin-password: dry run reports the target user and writes nothing; --apply with no password refuses to write", async () => {
+test("backfill-reset-admin-password: dry run reports the target user and writes nothing; --apply with no password refuses to write", async (t) => {
   const scratch = tmpDir("backfill-reset-admin-password-dryrun-");
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const dbPath = path.join(scratch, "content.db");
   await seedWorkspaceAndIdentity(dbPath);
 
-  const dryRunOutput = runScript(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
+  const dryRunOutput = runScript(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: "dry-run-must-not-set-this-password" });
   assert.match(dryRunOutput, /DRY RUN: found user 'admin'/);
   assert.doesNotMatch(dryRunOutput, /RESTORE POINT CAPTURED/);
+  const db = openContentDb(dbPath);
+  try {
+    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    await identity.identityReady;
+    const repos: IdentityRepos = {
+      transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
+      sessions: identity.sessionRepo, roles: identity.roleRepo, policies: identity.policyRepo,
+      policyPermissions: identity.policyPermissionRepo, rolePolicies: identity.rolePolicyRepo,
+      principalRoles: identity.principalRoleRepo, principalPolicies: identity.principalPolicyRepo,
+    };
+    const auth: AuthServiceDeps = { tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+    const seedPassword = process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD;
+    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } }, { sessionTtlMs: 60_000 });
+    assert.ok(principal.id, "a dry run with a supplied new password must preserve the seed password");
+  } finally {
+    db.$client.close();
+  }
 
   // --apply with no TOVU_ADMIN_RESET_PASSWORD and no --password= must refuse, not silently no-op.
   let threw = false;
@@ -225,7 +243,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
   assert.ok(principal.id);
 
   await assert.rejects(
-    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: "tovu-dev" } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
+    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
     AuthInvalidCredentialsError,
     "the old seed-default password must no longer authenticate"
   );

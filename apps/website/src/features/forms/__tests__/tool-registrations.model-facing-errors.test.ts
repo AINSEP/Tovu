@@ -121,6 +121,17 @@ test("forms_create_definition at a taken slug says SLUG CONFLICT, not a 500 — 
   assert.match(result.error.message, /^FORMS_SLUG_CONFLICT: /, result.error.message);
 });
 
+test("forms_create_definition rejects the editor's reserved new slug and persists nothing", async () => {
+  const deps = makeRouteDeps();
+  const harness = await buildHarness(deps);
+  const result = await call(harness, "forms_create_definition", { name: "New", slug: "new", fields: [{ id: "name", label: "Name", type: "text", required: true }] });
+  assert.equal(result.ok, false);
+  assert.ok(!result.ok);
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.match(result.error.message, /^slug 'new' is reserved/);
+  assert.deepEqual(await deps.formDefinitionRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
 test("every Forms tool surfaces a denial with the permission named — the sibling-arm check", async () => {
   for (const [toolId, input] of [
     ["forms_list_definitions", {}],

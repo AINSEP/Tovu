@@ -275,9 +275,14 @@ test("resolves the provider's DEFAULT saved connection — never 'ambiguous' eve
 
 test("resolve() reports ok:false (not configured) with no default, never decrypts anything", async () => {
   const writeDeps = makeWriteDeps();
-  const source = createDbPublishCredentialSource(writeDeps);
+  let decryptCalls = 0;
+  const source = createDbPublishCredentialSource({
+    ...writeDeps,
+    sealer: { seal: writeDeps.sealer.seal.bind(writeDeps.sealer), open: () => { decryptCalls++; throw new Error("must not decrypt without a default"); } },
+  });
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
   assert.equal(result.ok, false);
+  assert.equal(decryptCalls, 0);
 });
 
 test("isConfigured() never decrypts — a broken sealer does not fail it", async () => {
@@ -287,6 +292,28 @@ test("isConfigured() never decrypts — a broken sealer does not fail it", async
   const source = createDbPublishCredentialSource({ repo: writeDeps.repo, sealer: { open: () => { throw new Error("must not be called"); }, seal: writeDeps.sealer.seal.bind(writeDeps.sealer) }, loadDeployTargets: loadBundledDeployTargets });
   const result = await source.isConfigured({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.configured, true);
+  assert.equal((await source.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "netlify" })).configured, false);
+});
+
+test("isConfigured: env presence is workspace-bound; composition uses DB first and env only in self-hosted-cli", async () => {
+  const writeDeps = makeWriteDeps();
+  const env = { VERCEL_TOKEN: "from-env" };
+  const envSource = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, env);
+  assert.deepEqual(await envSource.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+  assert.equal((await envSource.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "vercel" })).configured, false);
+  for (const executionMode of ["self-hosted-cli", "hosted-api-only"] as const) {
+    const source = composePublishCredentialSource({ workspaceId: WORKSPACE, executionMode, dbDeps: writeDeps, env });
+    assert.equal((await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" })).configured, executionMode === "self-hosted-cli");
+    assert.equal((await source.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "vercel" })).configured, false);
+  }
+  await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "Saved", connection: { providerId: "vercel", token: "from-db" } });
+  for (const executionMode of ["self-hosted-cli", "hosted-api-only"] as const) {
+    const source = composePublishCredentialSource({
+      workspaceId: WORKSPACE, executionMode, dbDeps: writeDeps,
+      env: new Proxy({}, { get() { throw new Error("DB hit must not consult env"); } }),
+    });
+    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+  }
 });
 
 test("resolve() carries accountId for cloudflare-pages, sourced from the credential (never the publish config)", async () => {
