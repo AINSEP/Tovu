@@ -443,8 +443,13 @@ describe("Sites — the ported database picker tells the truth about what it can
 
   it("keeps each vendor's credential fields visible but inert, and says they are stored nowhere", () => {
     renderSites({}, "new");
-    for (const label of ["Supabase project URL", "Supabase API key", "Provider name", "Connection string or API endpoint"]) {
+    for (const label of ["Provider name", "Connection string or API endpoint"]) {
       expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
+    }
+    // 564fea48e removed Supabase's inert URL/key fields: its working path is the "Connect services"
+    // token field, so a credential-shaped Supabase input here would be a regression, not a preview.
+    for (const label of ["Supabase project URL", "Supabase API key"]) {
+      expect(screen.queryByLabelText(label)).toBeNull();
     }
     expect(screen.getAllByText(/isn't stored anywhere yet/).length).toBeGreaterThan(0);
   });
