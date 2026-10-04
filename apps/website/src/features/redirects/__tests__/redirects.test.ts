@@ -8,8 +8,9 @@ import { SqliteRedirectRepo } from "../repo.sqlite.js";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
-import { createTrashService, InMemoryTrashRepo, REDIRECT_ENTITY_TYPE, createRecordStoreTrashAdapter } from "#src/features/trash/index";
-import type { TrashAdapter } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { createTrashService, InMemoryTrashRepo, createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
+import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { redirectMatcher } from "../matcher.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
@@ -65,7 +66,7 @@ function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDe
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-07-13T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") + 1000 * clockTick++ },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -468,7 +469,7 @@ test("AC-08: a failure inside the transaction wrapper leaves neither the record 
     },
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => "2026-07-13T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") },
     idGen: { newId: () => "redirect-x" },
     outbox: new InMemoryOutbox(),
   };
@@ -733,25 +734,34 @@ function makeDepsWithRealTrash(): RedirectsWriteDeps {
       redirectAllowlist: [],
     },
   ]);
-  const trashRepo = new InMemoryTrashRepo();
+  const trashRepo = new InMemoryTrashRepo({});
   const redirectTrashAdapter: TrashAdapter = createRecordStoreTrashAdapter<RedirectRecord>({
     entityType: REDIRECT_ENTITY_TYPE,
     store: {
       findById: (required) => repo.findById(required),
-      save: async (record) => {
+      save: async ({ record }) => {
         await repo.insertRedirect(record);
-      },
+      }
     },
-    isHidden: (record) => record.status === "disabled",
-    hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
-    shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+    isHidden: ({ record }) => record.status === "disabled",
+    hidden: ({ record, at }) => ({
+      ...record,
+      status: "disabled",
+      updatedAt: at
+    }),
+    shown: ({ record, at }) => ({
+      ...record,
+      status: "active",
+      updatedAt: at
+    })
   });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map([[REDIRECT_ENTITY_TYPE, redirectTrashAdapter]]),
-    idGen: { next: () => randomUUID() },
-    transaction: (fn) => fn(),
-  });
+    idGen: { newId: () => randomUUID() },
+    transaction: ({ work }) => ((fn) => fn())(work),
+    entityPolicy: ({ entityType }) => (new Map([[REDIRECT_ENTITY_TYPE, redirectTrashAdapter]])).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   let clockTick = 0;
   let idTick = 0;
@@ -779,14 +789,13 @@ function makeDepsWithRealTrash(): RedirectsWriteDeps {
         workspaceId: required.workspaceId,
         entityType: REDIRECT_ENTITY_TYPE,
         entityId: required.id,
-        at: required.at,
-        actor: required.actor,
-      }),
+        at: required.at      }, {
+        actor: required.actor      }),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-09-24T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") + 1000 * clockTick++ },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -855,7 +864,7 @@ for (const [label, overrides] of [
       statusCode: 301, actorId: ACTOR_ID, ...overrides,
     } as CreateRedirectInput }), RedirectValidationError);
     assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
-    assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+    assert.deepEqual(await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
   });
 }
 
@@ -879,7 +888,7 @@ test("AC-08: createRedirect rolls back the SQL row when revision insertion fails
   assert.equal(revisionReached, true);
   assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), []);
   assert.deepEqual(await repo.listRevisionsForTests("redirect-1"), []);
-  assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+  assert.deepEqual(await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
 });
 
 test("importRedirects rejects a 501-item batch before writing any rule", async () => {
@@ -889,7 +898,7 @@ test("importRedirects rejects a 501-item batch before writing any rule", async (
   }));
   await assert.rejects(() => importRedirects({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, rules } }), RedirectValidationError);
   assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
-  assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+  assert.deepEqual(await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
 });
 
 test("create/update/tombstone enqueue their mutation envelopes once; repeated tombstone is a no-op", async () => {
@@ -904,7 +913,7 @@ test("create/update/tombstone enqueue their mutation envelopes once; repeated to
   assert.deepEqual(await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } }), { record: disabled });
   assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), disabled);
   assert.deepEqual(repo.listRevisionsForTests(record.id), before);
-  const events = (await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event);
+  const events = (await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" })).map((row) => row.event);
   assert.deepEqual(events, ["created", "updated", "tombstoned"].map((change, index) => ({
     id: `redirect-${index + 2}`, name: `redirect.${change}`, occurredAt: `2026-07-13T00:00:0${index * 2 + 1}.000Z`,
     aggregateId: record.id, workspaceId: WORKSPACE_ID, actorId: ACTOR_ID,
@@ -925,7 +934,7 @@ for (const reason of ["not-found", "version-changed"] as const) {
       reason === "not-found" ? RedirectNotFoundError : RedirectConflictError);
     assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
     assert.deepEqual(repo.listRevisionsForTests(record.id), before);
-    assert.deepEqual((await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event.name), ["redirect.created"]);
+    assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" })).map((row) => row.event.name), ["redirect.created"]);
   });
 }
 
@@ -945,6 +954,6 @@ for (const outcome of ["not-found", "version-changed", "adapter-unavailable"] as
     assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), beforeRow);
     assert.deepEqual(repo.listRevisionsForTests(record.id), beforeRevisions);
     assert.equal(await deps.isInTrash({ workspaceId: WORKSPACE_ID, id: record.id }), true);
-    assert.deepEqual((await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event.name), ["redirect.created", "redirect.tombstoned"]);
+    assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" })).map((row) => row.event.name), ["redirect.created", "redirect.tombstoned"]);
   });
 }

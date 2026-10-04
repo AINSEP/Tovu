@@ -3,7 +3,7 @@
  * kernel. A thin shim while call sites still hold the Drizzle handle; a caller with a kernel passes
  * that instead.
  *
- * `transaction` is the kernel's: `write-service.ts` calls it from inside `TrashService.trash`/
+ * `transaction` is the kernel's: `@jini-ai/cms/trash` calls it from inside `TrashService.trash`/
  * `restore`/`purgeSelected`, which themselves run inside a domain's own already-open transaction
  * (posts and redirects both open one around "marker + revision append"); a nested kernel
  * transaction joins it.

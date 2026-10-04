@@ -21,7 +21,7 @@ import type { ContentDatabase } from "../../../platform/db/content-database.gene
 import { type ContentKernel, contentKernel } from "../../../platform/db/content-kernel.js";
 import type { SqliteConnectionSource } from "../../../platform/db/kernel/drivers/sqlite.js";
 import { loose } from "../entry-sql.js";
-import type { TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 
 /** What a marker adapter is built over: the content kernel, or (while call sites still hold one)
  *  its SQLite handle. */

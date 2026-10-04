@@ -9,7 +9,8 @@
  * Tests that care about the index half use the real service (`features/trash/__tests__/`) against
  * real SQLite. Keeping the two apart stops a second, drifting Trash implementation appearing here.
  */
-import { createRecordStoreTrashAdapter, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { RedirectsWriteDeps, RemoveRedirectFn } from "../redirects.js";
 import type { RedirectRecord } from "../types.js";
@@ -30,13 +31,21 @@ export function removeVia(repo: MinimalRedirectStore): RemoveRedirectFn {
     entityType: REDIRECT_ENTITY_TYPE,
     store: {
       findById: (required) => repo.findById(required),
-      save: async (record) => {
+      save: async ({ record }) => {
         await repo.insertRedirect(record);
-      },
+      }
     },
-    isHidden: (record) => record.status === "disabled",
-    hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
-    shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+    isHidden: ({ record }) => record.status === "disabled",
+    hidden: ({ record, at }) => ({
+      ...record,
+      status: "disabled",
+      updatedAt: at
+    }),
+    shown: ({ record, at }) => ({
+      ...record,
+      status: "active",
+      updatedAt: at
+    })
   });
   return (required) =>
     adapter.hide({
@@ -59,13 +68,21 @@ export function restoreVia(repo: MinimalRedirectStore): RedirectsWriteDeps["rest
     entityType: REDIRECT_ENTITY_TYPE,
     store: {
       findById: (required) => repo.findById(required),
-      save: async (record) => {
+      save: async ({ record }) => {
         await repo.insertRedirect(record);
-      },
+      }
     },
-    isHidden: (record) => record.status === "disabled",
-    hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
-    shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+    isHidden: ({ record }) => record.status === "disabled",
+    hidden: ({ record, at }) => ({
+      ...record,
+      status: "disabled",
+      updatedAt: at
+    }),
+    shown: ({ record, at }) => ({
+      ...record,
+      status: "active",
+      updatedAt: at
+    })
   });
   return async (required) => {
     const result = await adapter.unhide({

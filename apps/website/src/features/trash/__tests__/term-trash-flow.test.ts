@@ -10,18 +10,22 @@ import {
   SqliteTaxonomyRevisionRepo,
   SqliteTermRepo,
 } from "#src/features/taxonomy/repo.sqlite";
-import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp, type TaxonomyEventOutboxPort } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+import {
+  createTaxonomyPurgeFollowUp,
+  createTermPurgeFollowUp,
+  type TaxonomyEventOutboxPort,
+} from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { updatePost, type PostRecord } from "#src/features/post/index";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
-import { withFollowUps } from "../follow-ups.js";
+import { withFollowUps } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashEntityType, TrashPort } from "../index.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file A tag/category (`term`) and its owning taxonomy moved to the Trash through the generic path
@@ -68,7 +72,7 @@ function harness(): Harness {
   const revisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId: WS });
   const outbox = recordingOutbox();
   const trashRepo = new SqliteTrashRepo(db.$client);
-  const clock = { nowIso: () => AT };
+  const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
 
   // Same wiring `deps.ts` performs for `term`/`taxonomy` (T6 item 5): the generic table adapter is
   // wrapped with the purge-only follow-ups so a purge also writes the `taxonomy_revisions` row and
@@ -80,18 +84,28 @@ function harness(): Harness {
         return [
           entry.entityType,
           withFollowUps({
-            adapter: base,
-            hooks: createTermPurgeFollowUp({ termRepo, trash: trashRepo, revisions, outbox, clock }),
-          }),
+            adapter: base
+          }, createTermPurgeFollowUp({
+            termRepo,
+            trash: trashRepo,
+            revisions,
+            outbox,
+            clock
+          })),
         ];
       }
       if (entry.entityType === "taxonomy") {
         return [
           entry.entityType,
           withFollowUps({
-            adapter: base,
-            hooks: createTaxonomyPurgeFollowUp({ termRepo, trash: trashRepo, revisions, outbox, clock }),
-          }),
+            adapter: base
+          }, createTaxonomyPurgeFollowUp({
+            termRepo,
+            trash: trashRepo,
+            revisions,
+            outbox,
+            clock
+          })),
         ];
       }
       return [entry.entityType, base];
@@ -102,9 +116,10 @@ function harness(): Harness {
   const trash = createTrashService({
     repo: trashRepo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return {
     db,
@@ -185,7 +200,7 @@ async function trashItem(h: Harness, entityType: TrashEntityType, entityId: stri
       trash: h.trash,
       db: createSqliteTrashDb({ db: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowIso: () => AT },
+      clock: { nowMs: () => Date.parse(AT), nowIso: () => AT },
     }
   );
 }
@@ -224,7 +239,7 @@ test("a trashed tag disappears from the taxonomy's term list and from a post's a
   // The regression this test exists to catch: `updatePost` must never touch `entry_terms`, so saving
   // the post while one of its terms is trashed must not drop that assignment.
   await updatePost({
-    deps: { repo: h.posts, clock: { nowIso: () => "2026-09-21T13:00:00.000Z" }, outbox: noopOutbox },
+    deps: { repo: h.posts, clock: { nowMs: () => Date.parse("2026-09-21T13:00:00.000Z"), nowIso: () => "2026-09-21T13:00:00.000Z" }, outbox: noopOutbox },
     input: { workspaceId: WS, id: "post-1", title: "Post 1 (edited)", slug: "slug-post-1", bodyJson: { type: "doc", content: [] }, status: "draft" },
   });
   assert.equal(entryTermCount(h, "red", "post-1"), 1, "saving the post must not drop the trashed term's assignment");

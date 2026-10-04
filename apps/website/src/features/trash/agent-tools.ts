@@ -3,7 +3,7 @@ import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "./permissions.js";
-import type { TrashEntityType } from "./ports.js";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 import type { TrashRegistry } from "./registry.js";
 
 /**

@@ -11,8 +11,8 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { buildTrashRegistry, type TrashEntry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { readLiveSnapshot } from "../entry-sql.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../ports.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file `createTableTrashAdapter` against real SQLite (Batch G1b).
@@ -364,9 +364,10 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(h.client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,
@@ -422,9 +423,8 @@ test("status marker: unhide restores the recorded priorMarker rather than the en
     workspaceId: WS,
     entityId: "menu-1",
     at: AT,
-    expectedVersion: 2,
-    priorMarker: "published",
-  });
+    expectedVersion: 2}, {
+    priorMarker: "published"});
   assert.deepEqual(unhidden, { ok: true, version: 3 });
   assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "published", version: 3 });
 });
@@ -448,9 +448,10 @@ test("status marker: through createTrashService, trash records priorMarker and r
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(h.client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,
@@ -493,9 +494,8 @@ test("real menu entry: hide flips status to the entry's own 'trash' value and bu
     workspaceId: WS,
     entityId: "menu-real-1",
     at: AT,
-    expectedVersion: 2,
-    priorMarker: "draft",
-  });
+    expectedVersion: 2}, {
+    priorMarker: "draft"});
   assert.deepEqual(unhidden, { ok: true, version: 3 });
   assert.deepEqual(readMenuRow(h.client, "menu-real-1"), { status: "draft", version: 3 });
 });
@@ -538,9 +538,8 @@ test("real menu entry: hide and unhide never touch its location bindings — the
     workspaceId: WS,
     entityId: "menu-bound",
     at: AT,
-    expectedVersion: 2,
-    priorMarker: "published",
-  });
+    expectedVersion: 2}, {
+    priorMarker: "published"});
   assert.equal(unhidden.ok, true);
   assert.equal(navBindingCount(h.client, "menu-bound"), 2, "restore must leave the bindings exactly as they were");
 });
@@ -643,7 +642,7 @@ test("taxonomy: purge removes its terms' entry_terms then the terms then the tax
   // `term-a` was trashed on its own before its taxonomy — give it a Trash row, same as
   // `form-trash-flow.test.ts`'s phantom-row case, so the taxonomy purge's cleanup is provable.
   const repo = new SqliteTrashRepo(h.client);
-  await repo.insert({
+  await repo.insert({ row: {
     id: "trash-term-a",
     workspaceId: WS,
     entityType: "term",
@@ -656,7 +655,7 @@ test("taxonomy: purge removes its terms' entry_terms then the terms then the tax
     displaySubtitle: null,
     entityVersion: 1,
     priorMarker: "active",
-  });
+  } });
 
   const outcome = await h.taxonomyAdapter.purge({ workspaceId: WS, entityId: "tax-1", expectedVersion: 1 });
   assert.equal(outcome, "purged");
@@ -719,7 +718,7 @@ test("unhide: a writer that bumps the version between the read and the write mak
     db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()),
   });
 
-  const unhidden = await racing.unhide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3, priorMarker: "published" });
+  const unhidden = await racing.unhide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3}, { priorMarker: "published"});
   assert.deepEqual(unhidden, { ok: false, reason: "version-changed" });
   assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "trashed", version: 4 });
 });

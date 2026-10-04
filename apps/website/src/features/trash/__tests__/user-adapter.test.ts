@@ -13,9 +13,9 @@ import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashSweep } from "../sweeper.js";
-import { computePurgeAfter, createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../ports.js";
+import { createTrashSweep } from "@jini-ai/cms/trash";
+import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file RED-first coverage for the user `TrashAdapter` (delete-user plan v2 Slice 1) — hide/unhide
@@ -76,9 +76,10 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
     adapters,
-    idGen,
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => (idGen).next() },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return { db, wiring, identity, registry, trash, ownerPrincipalId };
 }
@@ -191,7 +192,7 @@ test("restore: brings an active-before-trash user back active, with roles intact
   });
   const restorerId = await createBareUser(f, "restorer");
 
-  const outcome = await f.trash.restore({ workspaceId: WS, entityType: USER_ENTITY_TYPE, entityId: targetId, at: AT2, actor: { principalId: restorerId } });
+  const outcome = await f.trash.restore({ workspaceId: WS, entityType: USER_ENTITY_TYPE, entityId: targetId, at: AT2 }, { actor: { principalId: restorerId } });
 
   assert.equal(outcome, "restored");
   assert.deepEqual(principalRow(f, targetId), { status: "active", disabledAt: null });
@@ -221,7 +222,7 @@ test("restore: a user who was already disabled before being trashed comes back d
     expectedVersion: null,
   });
 
-  const outcome = await f.trash.restore({ workspaceId: WS, entityType: USER_ENTITY_TYPE, entityId: targetId, at: AT2, actor: { principalId: f.ownerPrincipalId } });
+  const outcome = await f.trash.restore({ workspaceId: WS, entityType: USER_ENTITY_TYPE, entityId: targetId, at: AT2 }, { actor: { principalId: f.ownerPrincipalId } });
 
   assert.equal(outcome, "restored");
   assert.equal(principalRow(f, targetId)?.status, "disabled");
@@ -273,7 +274,7 @@ test("sweeper: purges a user past its retention window and records identity.user
     at: AT,
     expectedVersion: null,
   });
-  const purgeAfter = computePurgeAfter(AT);
+  const purgeAfter = computePurgeAfter({ at: AT });
 
   // A distinctly-prefixed id generator: `f`'s own adapter (used above for `trash()`) already
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
@@ -283,7 +284,8 @@ test("sweeper: purges a user past its retention window and records identity.user
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo(f.db.$client),
     adapters,
-    transaction: createContentDbTransactionRunner(f.db.$client),
+    transaction: ({ work }) => (createContentDbTransactionRunner(f.db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
   });
   const report = await sweep({ now: purgeAfter, leaseOwner: "sweeper-1", leaseUntil: purgeAfter, limit: 10 });
 
@@ -302,20 +304,20 @@ test("purge: an active principal (a forged/stale index row) is refused as versio
   // Forge a trashed_items row for a principal that was never actually hidden — the index and the
   // domain row have drifted apart, which purge must detect rather than trust.
   const repo = new SqliteTrashRepo(f.db.$client);
-  await repo.insert({
+  await repo.insert({ row: {
     id: "forged-row",
     workspaceId: WS,
     entityType: USER_ENTITY_TYPE,
     entityId: targetId,
     trashedAt: AT,
-    purgeAfter: computePurgeAfter(AT),
+    purgeAfter: computePurgeAfter({ at: AT }),
     actorPrincipalId: f.ownerPrincipalId,
     actorPluginId: null,
     displayTitle: "still-active",
     displaySubtitle: null,
     entityVersion: null,
     priorMarker: "active",
-  });
+  } });
 
   const report = await f.trash.purgeSelected({ workspaceId: WS, ids: ["forged-row"], actor: { principalId: f.ownerPrincipalId }, authorizeItem: async () => true });
 
@@ -419,7 +421,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
     clock: { nowIso: () => AT, nowMs: () => Date.parse(AT) },
   });
 
-  const outcome = await adapter.unhide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null, priorMarker: "disabled" });
+  const outcome = await adapter.unhide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null}, { priorMarker: "disabled"});
   assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
   assert.deepEqual(principalRow(f, targetId), { status: "active", disabledAt: null });
   assert.equal(outboxEventsNamed(f, "identity.user.restored").length, 0);

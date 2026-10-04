@@ -36,7 +36,7 @@ import type { SqliteConnectionSource } from "../../platform/db/kernel/drivers/sq
 import { createSqliteTrashDb } from "./db-port.sqlite.js";
 import type { TrashDb } from "./db-port.js";
 import { entryWhere, loose, qualified } from "./entry-sql.js";
-import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "./ports.js";
+import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import type { TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "./registry.js";
 
 /** The row shape every `hide`/`unhide`/`purge` read needs: the marker's raw value, plus the version
@@ -218,7 +218,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         }
         if (!isMarkerValueLive(entry.marker, before.marker)) {
           // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
-          // `noop: true` (ports.ts) tells `withFollowUps` nothing actually changed here.
+          // `noop: true` (@jini-ai/cms/trash) tells `withFollowUps` nothing actually changed here.
           return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
         }
         if (entry.blocker) {
@@ -257,9 +257,10 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
      *
      * @complexity O(1), same shape as `hide`.
      */
-    async unhide(unhideRequired): Promise<TrashMarkerResult> {
+    async unhide(unhideRequired, optional = {}): Promise<TrashMarkerResult> {
       return kernel().transaction(async () => {
-        const { workspaceId, entityId, at, expectedVersion, priorMarker } = unhideRequired;
+        const { workspaceId, entityId, at, expectedVersion } = unhideRequired;
+        const { priorMarker } = optional;
         await lockRow(workspaceId, entityId);
         const before = await readMarkerRow(workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };

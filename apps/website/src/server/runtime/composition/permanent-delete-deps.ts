@@ -6,7 +6,8 @@ import { deleteCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, describeCredential } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential } from "#src/features/source-control/index";
 import { deleteExternalMcpServer } from "#src/assistant/index";
-import { mayActOnEntityType, type TrashItem } from "#src/features/trash/index";
+import { mayActOnEntityType } from "#src/features/trash/index";
+import { type TrashItem } from "@jini-ai/cms/trash";
 import type { PermanentDeletePlan, PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";
 import type { PermanentDeleteToolId } from "#src/features/permanent-delete/agent-tools";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -64,7 +65,7 @@ async function* listedTrashItems(deps: Deps, entityTypes?: string[]): AsyncGener
   let cursor: string | null = null;
   const now = deps.clock.nowIso();
   do {
-    const page = await deps.trash.list({ workspaceId: deps.workspaceId, now, limit: PAGE_SIZE, cursor, ...(entityTypes ? { entityTypes } : {}) });
+    const page = await deps.trash.list({ workspaceId: deps.workspaceId, now, limit: PAGE_SIZE }, { cursor, ...(entityTypes ? { entityTypes } : {}) });
     yield* page.items;
     cursor = page.nextCursor;
   } while (cursor !== null);
@@ -109,7 +110,7 @@ async function trashPlan(deps: Deps, toolId: PermanentDeleteToolId, items: Trash
     execute: async () => {
       const report = await deps.trash.purgeSelected({
         workspaceId: deps.workspaceId, ids: [...snapshots.keys()], actor: { principalId },
-        authorizeItem: async item => isDeepStrictEqual(item, snapshots.get(item.id)) && await mayPurgeItem(deps, item, principalId),
+        authorizeItem: async ({ item }) => isDeepStrictEqual(item, snapshots.get(item.id)) && await mayPurgeItem(deps, item, principalId),
       });
       return { removed: report.purged > 0, purged: report.purged, results: report.results };
     },

@@ -15,7 +15,7 @@
 // deep import an error, and the plugin id is the ONE thing this adapter takes from that domain —
 // re-deriving the table name here instead would put the same string in two files.
 import { COMMENTS_PLUGIN_ID } from "#src/features/comments/index";
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const COMMENT_ENTITY_TYPE = "comment";

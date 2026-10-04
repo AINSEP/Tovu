@@ -10,7 +10,8 @@
  * (`server/__tests__/admin-media-routes.test.ts`, `features/trash/__tests__/`). Keeping the two
  * apart is what stops a drifting second Trash appearing in the media suites.
  */
-import { createRecordStoreTrashAdapter, MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
+import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
+import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { MediaRecord } from "../index.js";
 import type { RemoveMediaFn } from "../tool-registrations.js";
@@ -41,10 +42,21 @@ export function makeRemoveMediaDouble(mediaRepo: MinimalMediaStore): {
   const removed: RecordedMediaRemoval[] = [];
   const adapter = createRecordStoreTrashAdapter<MediaRecord>({
     entityType: MEDIA_ENTITY_TYPE,
-    store: mediaRepo,
-    isHidden: (record) => record.status === "trashed",
-    hidden: (record, at) => ({ ...record, status: "trashed", updatedAt: at }),
-    shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+    store: {
+      findById: required => (mediaRepo).findById(required),
+      save: ({ record }) => (mediaRepo).save(record)
+    },
+    isHidden: ({ record }) => record.status === "trashed",
+    hidden: ({ record, at }) => ({
+      ...record,
+      status: "trashed",
+      updatedAt: at
+    }),
+    shown: ({ record, at }) => ({
+      ...record,
+      status: "active",
+      updatedAt: at
+    })
   });
 
   return {

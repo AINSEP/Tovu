@@ -19,7 +19,7 @@
  * `hierarchical`/`status`/`updatedAt`/`version`) — verified by reading the table, not assumed from
  * the plan. `TrashDisplaySpec.subtitle` is optional for exactly this reason.
  */
-import type { TrashEntityType } from "./ports.js";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 
 /**
  * Where a domain's "trashed" state lives:

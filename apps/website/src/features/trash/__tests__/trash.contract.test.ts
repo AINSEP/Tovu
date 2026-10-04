@@ -8,8 +8,8 @@ import { parseWidgetInstancePayload } from "#src/features/widgets/entry-payload"
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "../adapters/redirect.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../ports.js";
+import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file The two contract clauses the trash design (§2.1) names, plus the atomicity clause the owner
@@ -68,7 +68,13 @@ function harness(): Harness {
     repo,
     adapters,
     ids,
-    trash: createTrashService({ repo, adapters, idGen: ids, transaction: createContentDbTransactionRunner(client) }),
+    trash: createTrashService({
+      repo,
+      adapters,
+      idGen: { newId: () => (ids).next() },
+      transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+      entityPolicy: ({ entityType }) => (adapters).has(entityType)
+    }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) }),
   };
 }
 
@@ -162,7 +168,7 @@ test("a trashed_items row whose entity row vanished still lists from its snapsho
 
 test("an entity type with no registered adapter still LISTS, and degrades honestly on restore and purge", async () => {
   const h = harness();
-  await h.repo.insert({
+  await h.repo.insert({ row: {
     id: "orphan",
     workspaceId: WS,
     entityType: "widget",
@@ -175,7 +181,7 @@ test("an entity type with no registered adapter still LISTS, and degrades honest
     displaySubtitle: null,
     entityVersion: 4,
     priorMarker: null,
-  });
+  } });
 
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 10 })).items.length, 1);
   assert.equal(
@@ -202,9 +208,10 @@ test("if the index insert fails, the marker flip rolls back — never hidden-but
       },
     }),
     adapters: h.adapters,
-    idGen: h.ids,
-    transaction: createContentDbTransactionRunner(h.client),
-  });
+    idGen: { newId: () => (h.ids).next() },
+    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    entityPolicy: ({ entityType }) => (h.adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   await assert.rejects(
     exploding.trash({
@@ -230,7 +237,10 @@ test("if the index insert fails, the marker flip rolls back — never hidden-but
 test("the transaction runner is reentrant — a domain that already opened one can still call remove", async () => {
   const h = harness();
   seedPost(h.client, "post-1", '{"type":"doc"}');
-  const remove = bindRemoveEntity(h.trash, POST_ENTITY_TYPE);
+  const remove = bindRemoveEntity({
+    trash: h.trash,
+    entityType: POST_ENTITY_TYPE
+  });
 
   // Exactly what `deletePost` does: its own BEGIN IMMEDIATE around marker + revision append.
   h.client.exec("BEGIN IMMEDIATE");
@@ -359,7 +369,7 @@ test("purgeSelected gates every row on the SERVER-SIDE row, and a denial neither
     workspaceId: WS,
     ids: ["trash-1", "trash-2"],
     actor: ACTOR,
-    authorizeItem: async (item) => {
+    authorizeItem: async ({ item }) => {
       seen.push({ id: item.id, entityType: item.entityType, entityId: item.entityId });
       return item.entityId === "post-2";
     },

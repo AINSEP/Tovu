@@ -1,13 +1,21 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import {
+  buildDomainRegistrations,
+  indexCatalogById,
+  requireInputRecord,
+  requireString,
+  type DerivedRiskByToolId,
+  type ToolHandler,
+  type ToolRegistration,
+} from "@jini-ai/core";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { PERMANENT_DELETE_SPECS, permanentDeleteAgentToolCatalog, type PermanentDeleteToolId } from "./agent-tools.js";
-import type { ForgetRemovedEntity } from "../trash/index.js";
+import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
 import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
 
 /** Extra host ports read by the injected adapter, beyond the existing domains' deps slices. */

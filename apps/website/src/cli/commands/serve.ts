@@ -410,7 +410,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
   // in `shutdown` below.
   const { app, outboxDrainer, trashSweeper } = createServingApp(deps);
-  owned.workers.push(outboxDrainer, trashSweeper);
+  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) });
 
   await new Promise<void>((resolve, reject) => {
     // Express's own `.listen()` overloads type `hostname` as a required `string`, not
@@ -508,7 +508,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
         // First, so no new outbox drain or trash sweep starts while the grace window below runs
         // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
         // re-claims them once the lease expires.
-        const workersStopped = Promise.allSettled([outboxDrainer.stop(), trashSweeper.stop()]);
+        const workersStopped = Promise.allSettled([outboxDrainer.stop(), trashSweeper.stop({})]);
         let exited = false;
         // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
         // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.

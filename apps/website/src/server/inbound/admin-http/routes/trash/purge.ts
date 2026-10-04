@@ -58,7 +58,7 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => 
         ids,
         actor: { principalId: principal.id },
         // Resolved rows only — see this file's header for why the kind never comes off the request.
-        authorizeItem: async (item) =>
+        authorizeItem: async ({ item }) =>
           (await mayActOnEntityType(deps, {
             principalId: principal.id,
             entityType: item.entityType,

@@ -6,33 +6,33 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
-import { withFollowUps, type TrashFollowUpHooks } from "../follow-ups.js";
+import { withFollowUps, type TrashFollowUpHooks } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import type { TrashEntry } from "../registry.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../ports.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file Direct test of `withFollowUps` (T1c dispatch item 3) — the decorator itself, not any one
  * type's hook. Proves the three claims its own file header makes: a hook fires on a real OK/`purged`
  * transition; it never fires on a no-op (idempotent already-trashed/already-live, or a blocked/
  * not-found/version-changed outcome); and a throwing hook rolls back the whole operation, because it
- * runs from inside the SAME transaction `write-service.ts` opens around the adapter call.
+ * runs from inside the SAME transaction `@jini-ai/cms/trash` opens around the adapter call.
  *
  * A real SQLite-backed table adapter is used (not a fake `TrashAdapter`) and driven through
  * `createTrashService` (not called bare), because the rollback claim is only true through that
- * composition: `write-service.ts`'s `trash`/`restore`/`purgeSelected` open `deps.transaction` BEFORE
+ * composition: `@jini-ai/cms/trash`'s `trash`/`restore`/`purgeSelected` open `deps.transaction` BEFORE
  * calling the adapter, so the underlying `table-adapter.ts`'s own `db.transaction` call re-enters
  * (see `db-port.sqlite.ts`'s header) rather than committing on its own — a hook that throws after the
  * marker flip is still inside that one open transaction. Calling the wrapped adapter bare (skipping
- * `write-service.ts`) would let the adapter's own transaction commit before the hook ever ran, and a
+ * `@jini-ai/cms/trash`) would let the adapter's own transaction commit before the hook ever ran, and a
  * throw at that point would prove nothing about rollback.
  *
  * Uses a test-only STATUS-marker entry over the real `menus` table (same technique
  * `table-adapter.test.ts` already uses for its `test-menu` entry) — a status marker is required to
  * exercise `afterUnhide`'s `priorMarker` at all (a timestamp marker never sets one, see
- * `follow-ups.ts`'s `UnhideFollowUp` doc), and gives `beforePurge` a real column to read.
+ * `@jini-ai/cms/trash`'s `UnhideFollowUp` doc), and gives `beforePurge` a real column to read.
  */
 
 const WS = "workspace-1";
@@ -70,16 +70,17 @@ function harness(hooks: TrashFollowUpHooks): Harness {
 
   const trashDb = createSqliteTrashDb({ db });
   const baseAdapter = createTableTrashAdapter({ entry: buildEntry(), db: trashDb });
-  const wrapped = withFollowUps({ adapter: baseAdapter, hooks });
+  const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);
   const repo = new SqliteTrashRepo(client);
   let seq = 0;
   const trash = createTrashService({
     repo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return { client, trash, repo };
 }
@@ -229,7 +230,7 @@ test("afterUnhide never fires when unhide is a no-op (the row is already live, d
   // Simulate a stale index row: something restored the domain row directly (bypassing the Trash),
   // leaving the `trashed_items` row believing it is still trashed.
   seedRow(h.client, "row-1", { status: "published", version: 1 });
-  await h.repo.insert({
+  await h.repo.insert({ row: {
     id: "trash-stale",
     workspaceId: WS,
     entityType: ENTITY_TYPE,
@@ -242,7 +243,7 @@ test("afterUnhide never fires when unhide is a no-op (the row is already live, d
     displaySubtitle: null,
     entityVersion: 1,
     priorMarker: "published",
-  });
+  } });
 
   const restored = await h.trash.restore({ workspaceId: WS, entityType: ENTITY_TYPE, entityId: "row-1", at: AT2 });
   assert.equal(restored, "restored", "unhide's idempotent branch still reports ok:true, so restore() still succeeds");
@@ -291,7 +292,7 @@ test("beforePurge reads the row's pre-purge state and afterPurge receives exactl
     afterPurge: async (required) => void afterCalls.push(required),
   });
   seedRow(h.client, "row-1", { status: "trashed", version: 2 });
-  await h.repo.insert({
+  await h.repo.insert({ row: {
     id: "trash-1",
     workspaceId: WS,
     entityType: ENTITY_TYPE,
@@ -304,7 +305,7 @@ test("beforePurge reads the row's pre-purge state and afterPurge receives exactl
     displaySubtitle: null,
     entityVersion: 2,
     priorMarker: "published",
-  });
+  } });
 
   const report = await h.trash.purgeSelected({
     workspaceId: WS,
@@ -324,7 +325,7 @@ test("afterPurge never fires on a no-op purge outcome (already-gone)", async () 
   const afterCalls: unknown[] = [];
   const h = harness({ afterPurge: async (required) => void afterCalls.push(required) });
   // No domain row seeded at all — the index row points at a row that is already gone.
-  await h.repo.insert({
+  await h.repo.insert({ row: {
     id: "trash-1",
     workspaceId: WS,
     entityType: ENTITY_TYPE,
@@ -337,7 +338,7 @@ test("afterPurge never fires on a no-op purge outcome (already-gone)", async () 
     displaySubtitle: null,
     entityVersion: 1,
     priorMarker: "published",
-  });
+  } });
 
   const report = await h.trash.purgeSelected({
     workspaceId: WS,
@@ -357,7 +358,7 @@ test("a throwing afterPurge rolls back the whole purge — the row and its index
     },
   });
   seedRow(h.client, "row-1", { status: "trashed", version: 2 });
-  await h.repo.insert({
+  await h.repo.insert({ row: {
     id: "trash-1",
     workspaceId: WS,
     entityType: ENTITY_TYPE,
@@ -370,7 +371,7 @@ test("a throwing afterPurge rolls back the whole purge — the row and its index
     displaySubtitle: null,
     entityVersion: 2,
     priorMarker: "published",
-  });
+  } });
 
   await assert.rejects(
     () =>

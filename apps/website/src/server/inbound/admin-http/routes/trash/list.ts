@@ -1,5 +1,5 @@
 import { filterVisibleTrashItems, trashDaysRemaining, TRASH_READ_PERMISSION } from "#src/features/trash/index";
-import type { TrashItem } from "#src/features/trash/index";
+import type { TrashItem } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type TrashRouteRegistrar } from "./deps.js";
 
@@ -38,10 +38,9 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
       const page = await deps.trash.list({
         workspaceId: deps.workspaceId,
         now,
+        limit: readLimit(req.query.limit)      }, {
         entityTypes: readEntityTypes(req.query.entityTypes),
-        limit: readLimit(req.query.limit),
-        cursor: readCursor(req.query.cursor),
-      });
+        cursor: readCursor(req.query.cursor)      });
 
       // Per-kind, not per-surface: a principal who can only moderate comments must not read the
       // titles of deleted posts here any more than they can through the agent tool.

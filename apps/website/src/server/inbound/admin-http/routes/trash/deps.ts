@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
-import type { TrashAuthorizeFn, TrashDb, TrashPort, TrashRegistry } from "#src/features/trash/index";
+import type { TrashAuthorizeFn, TrashDb, TrashRegistry } from "#src/features/trash/index";
+import type { TrashPort } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
 
 /**

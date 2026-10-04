@@ -1,5 +1,5 @@
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
-import type { RestoreOutcome } from "#src/features/trash/index";
+import type { RestoreOutcome } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
 
@@ -68,9 +68,8 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) =
             workspaceId: deps.workspaceId,
             entityType: item.entityType,
             entityId: item.entityId,
-            at,
-            actor: { principalId: principal.id },
-          }),
+            at          }, {
+            actor: { principalId: principal.id }          }),
         });
       }
 

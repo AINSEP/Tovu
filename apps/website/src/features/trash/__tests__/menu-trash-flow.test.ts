@@ -14,10 +14,10 @@ import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import { withFollowUps } from "../follow-ups.js";
+import { withFollowUps } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../index.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file A `menu` moved to the Trash through the generic path (`moveToTrash`), seen from every
@@ -66,7 +66,7 @@ function harness(): Harness {
   };
   let seq = 0;
   const idGen = { newId: () => `evt-${(seq += 1)}` };
-  const clock = { nowIso: () => AT2 };
+  const clock = { nowMs: () => Date.parse(AT2), nowIso: () => AT2 };
 
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
@@ -75,15 +75,21 @@ function harness(): Harness {
   // type's own hide/unhide/purge follow-up events.
   adapters.set(
     "menu",
-    withFollowUps({ adapter: adapters.get("menu")!, hooks: buildMenuTrashFollowUpHooks({ menuRepo, outbox, idGen, clock }) })
+    withFollowUps({ adapter: adapters.get("menu")! }, buildMenuTrashFollowUpHooks({
+      menuRepo,
+      outbox,
+      idGen,
+      clock
+    }))
   );
 
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
     adapters,
-    idGen: { next: () => `trash-${randomUUID()}` },
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => `trash-${randomUUID()}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const readModel = createNavMenuReadModel({ menuRepo, bindingRepo });
   return { db, registry, trash, menuRepo, bindingRepo, readModel, events };
@@ -124,7 +130,7 @@ async function trashMenu(h: Harness, id: string, expectedVersion = 1): Promise<v
       trash: h.trash,
       db: createSqliteTrashDb({ db: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowIso: () => AT2 },
+      clock: { nowMs: () => Date.parse(AT2), nowIso: () => AT2 },
     }
   );
   assert.deepEqual(outcome, { ok: true, version: expectedVersion + 1 });

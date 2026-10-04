@@ -10,7 +10,18 @@
  * already required**, resolved per row. Restoring a post is undoing `content_post_delete`;
  * anything weaker than the gate on the delete would make the Trash a way around it.
  */
-import { buildDomainRegistrations, indexCatalogById, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import {
+  buildDomainRegistrations,
+  indexCatalogById,
+  optionalNumber,
+  optionalString,
+  requireInputRecord,
+  requireString,
+  type AgentToolSideEffect,
+  type DerivedRiskByToolId,
+  type ToolHandler,
+  type ToolRegistration,
+} from "@jini-ai/core";
 import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
@@ -26,7 +37,7 @@ import {
   TRASH_PERMISSION_BY_ENTITY_TYPE,
   TRASH_READ_PERMISSION,
 } from "./permissions.js";
-import type { TrashEntityType, TrashItem, TrashPort } from "./ports.js";
+import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashRegistry } from "./registry.js";
 
 const DEFAULT_LIST_LIMIT = 25;
@@ -144,10 +155,9 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       const page = await routeDeps.trash.list({
         workspaceId: routeDeps.workspaceId,
         now,
+        limit      }, {
         entityTypes: requested,
-        limit,
-        cursor: optionalString({ input: input, key: "cursor" }) ?? null,
-      });
+        cursor: optionalString({ input: input, key: "cursor" }) ?? null      });
 
       const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
       // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
@@ -175,7 +185,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       const permission = trashPermissionFor(entityType, routeDeps);
       if (!permission) {
         throw new ToolInputError({ message: `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.` });
+          `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ") }.` });
       }
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
 
@@ -183,13 +193,12 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
         workspaceId: routeDeps.workspaceId,
         entityType,
         entityId,
-        at: routeDeps.clock.nowIso(),
+        at: routeDeps.clock.nowIso()      }, {
         // Same `principalId` shape the admin restore route passes (`routes/trash/restore.ts`), plus
         // `pluginId`: this call always came in through an agent tool, not a human clicking Restore,
         // so whatever an adapter's `restore` records as the actor should say so — same "+ AI"
         // convention `resolveActorDisplay` (above) applies to a trash-side `actorPluginId`.
-        actor: { principalId: ctx.principal.id, pluginId: "assistant" },
-      });
+        actor: { principalId: ctx.principal.id, pluginId: "assistant" }      });
       return outcome === "restored"
         ? { restored: true, entityType, entityId }
         : { restored: false, reason: outcome, entityType, entityId, note: RESTORE_FAILURE_NOTES[outcome] };

@@ -1,3 +1,4 @@
+// The local trash fork was removed; @jini-ai/cms/trash owns the shared adapter/hooks.
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
@@ -30,7 +31,7 @@ export interface MenuTrashFollowUpDeps {
   clock: ClockPort;
 }
 
-/** `features/trash/follow-ups.ts`'s `TrashFollowUpHooks` shape, declared structurally — no
+/** `@jini-ai/cms/trash`'s `TrashFollowUpHooks` shape, declared structurally — no
  *  `features/trash` import (domains never import from trash), composed at
  *  `server/runtime/composition/deps.ts`. */
 export interface MenuTrashFollowUpHooks {

@@ -75,7 +75,7 @@ describeEachDialect("user trash adapter", { tables: TABLES, make: (kernel: Conte
     await seedUser(kernel, "u-1", "departing");
     const user = adapterFor(kernel);
 
-    assert.deepEqual(await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null, actor: { principalId: "owner" } }), {
+    assert.deepEqual(await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null }, { actor: { principalId: "owner" } }), {
       ok: true,
       version: null,
       priorMarker: "active",
@@ -84,9 +84,9 @@ describeEachDialect("user trash adapter", { tables: TABLES, make: (kernel: Conte
     assert.equal(await count(kernel, "sessions"), 0);
     assert.deepEqual(await user.hide({ workspaceId: WS, entityId: "missing", at: AT, expectedVersion: null }), { ok: false, reason: "not-found" });
 
-    assert.deepEqual(await user.unhide({ workspaceId: WS, entityId: "u-1", at: LATER, expectedVersion: null, priorMarker: "active" }), { ok: true, version: null });
+    assert.deepEqual(await user.unhide({ workspaceId: WS, entityId: "u-1", at: LATER, expectedVersion: null }, { priorMarker: "active" }), { ok: true, version: null });
     assert.deepEqual(await principal(kernel, "u-1"), { status: "active", disabled_at: null });
-    assert.deepEqual(await user.unhide({ workspaceId: WS, entityId: "missing", at: LATER, expectedVersion: null, priorMarker: null }), { ok: false, reason: "not-found" });
+    assert.deepEqual(await user.unhide({ workspaceId: WS, entityId: "missing", at: LATER, expectedVersion: null }, { priorMarker: null }), { ok: false, reason: "not-found" });
 
     const [trashed, restored] = await events(kernel);
     assert.deepEqual(
@@ -106,7 +106,7 @@ describeEachDialect("user trash adapter", { tables: TABLES, make: (kernel: Conte
     const user = adapterFor(kernel);
 
     await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null });
-    await user.unhide({ workspaceId: WS, entityId: "u-1", at: LATER, expectedVersion: null, priorMarker: null });
+    await user.unhide({ workspaceId: WS, entityId: "u-1", at: LATER, expectedVersion: null }, { priorMarker: null });
 
     assert.deepEqual(await principal(kernel, "u-1"), { status: "disabled", disabled_at: AT });
     assert.deepEqual(
@@ -151,7 +151,7 @@ describeEachDialect("user trash adapter", { tables: TABLES, make: (kernel: Conte
     assert.equal(await count(kernel, "sessions"), 1, "the session revoke rolled back");
 
     await kernel.run((db) => db.updateTable("principals").set({ status: "disabled", disabled_at: AT }).execute());
-    await assert.rejects(() => user.purge({ workspaceId: WS, entityId: "u-1", expectedVersion: null, actor: { principalId: "owner" } }));
+    await assert.rejects(() => user.purge({ workspaceId: WS, entityId: "u-1", expectedVersion: null }, { actor: { principalId: "owner" } }));
     assert.equal(await count(kernel, "principals"), 1, "the principal delete rolled back");
     assert.equal(await count(kernel, "identity_users"), 1);
     assert.equal(await count(kernel, "sessions"), 1);

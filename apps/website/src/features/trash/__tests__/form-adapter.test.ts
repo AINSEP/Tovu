@@ -9,8 +9,8 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../ports.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file The `form` `TRASHABLE` entry against real SQLite (originally Batch B1, plan §B; rewritten
@@ -213,9 +213,10 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(h.client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,

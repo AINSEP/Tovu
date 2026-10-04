@@ -36,7 +36,17 @@
  * test file proves that behaviorally rather than leaving it to this sentence.
  */
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import {
+  buildDomainRegistrations,
+  indexCatalogById,
+  requireInputRecord,
+  requireString,
+  type AgentToolSideEffect,
+  type DerivedRiskByToolId,
+  type ToolHandler,
+  type ToolRegistration,
+  type AgentToolDefinition,
+} from "@jini-ai/core";
 import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
@@ -52,7 +62,7 @@ import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
 import { type EntitySnapshotRow, readLiveSnapshot } from "./entry-sql.js";
-import type { TrashActor, TrashEntityType, TrashPort } from "./ports.js";
+import type { TrashActor, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashRegistry } from "./registry.js";
 
 /** Matches `registry.ts`'s own `entityType: "widget"` literal — kept as a local literal, not an

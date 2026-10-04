@@ -7,11 +7,13 @@
  * or the media route knows a Trash exists.
  */
 export { TRASH_RETENTION_DAYS } from "./ports.js";
+export type { RemoveEntity, TransactionRunner } from "./ports.js";
+export { bindWidgetRemoval } from "./widget-removal.js";
+// Shared trash forks were removed; @jini-ai/cms/trash owns their implementation.
 export type {
   ForgetRemovedEntity,
   PurgeItemOutcome,
   PurgeReport,
-  RemoveEntity,
   RestoreOutcome,
   TrashActor,
   TrashAdapter,
@@ -25,8 +27,7 @@ export type {
   TrashPurgeOutcome,
   TrashRepoPort,
   TrashSweepClaim,
-  TransactionRunner,
-} from "./ports.js";
+} from "@jini-ai/cms/trash";
 
 export {
   bindForgetRemovedEntity,
@@ -34,8 +35,8 @@ export {
   computePurgeAfter,
   createTrashService,
   TrashAdapterMissingError,
-} from "./write-service.js";
-export type { TrashChangeEvent, TrashServiceDeps } from "./write-service.js";
+} from "@jini-ai/cms/trash";
+export type { TrashChangeEvent, TrashServiceDeps } from "@jini-ai/cms/trash";
 
 export { moveToTrash } from "./move-to-trash.js";
 export type { MoveToTrashOutcome } from "./move-to-trash.js";
@@ -56,8 +57,8 @@ export { createSqliteTrashDb } from "./db-port.sqlite.js";
 export type { TrashDb } from "./db-port.js";
 
 export { createTableTrashAdapter } from "./table-adapter.js";
-export { withFollowUps } from "./follow-ups.js";
-export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "./follow-ups.js";
+export { withFollowUps } from "@jini-ai/cms/trash";
+export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "@jini-ai/cms/trash";
 
 export { isTrashedRecord, notTrashed } from "./not-trashed.js";
 
@@ -77,13 +78,13 @@ export {
   DEFAULT_TRASH_SWEEP_INTERVAL_MS,
   DEFAULT_TRASH_SWEEP_LEASE_MS,
   startTrashSweeper,
-} from "./sweeper.js";
-export type { TrashSweepDeps, TrashSweeper, TrashSweepOnce, TrashSweepReport } from "./sweeper.js";
+} from "@jini-ai/cms/trash";
+export type { TrashSweepDeps, TrashSweeper, TrashSweepOnce, TrashSweepReport } from "@jini-ai/cms/trash";
 
 export { SqlTrashRepo } from "./repo.js";
 export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";
-export { InMemoryTrashRepo } from "./repo.memory.js";
-export { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
+export { InMemoryTrashRepo } from "@jini-ai/cms/trash";
+export { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";
 
 export {
   deriveTrashItemRegistrations,
@@ -98,8 +99,8 @@ export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comme
 export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
-export { createRecordStoreTrashAdapter } from "./adapters/record-store.js";
-export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "./adapters/record-store.js";
+export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
+export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
 export { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "./adapters/directory.js";
 export type { DirectoryTrashAdapterDeps, DirectoryTrashLocation } from "./adapters/directory.js";
 export { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";

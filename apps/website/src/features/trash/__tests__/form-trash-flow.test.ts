@@ -5,7 +5,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/submit-service";
-import { FormDefinitionNotFoundError } from "#src/features/forms/errors";
+import { FormDefinitionNotFoundError } from "#src/features/forms/index";
 import { createContactFormResolver } from "#src/features/widgets/resolvers/contact-form";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
@@ -13,8 +13,8 @@ import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashPort } from "../index.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file A `form` moved to the Trash through the generic path (`moveToTrash`), seen from every Forms
@@ -50,9 +50,10 @@ function harness(): Harness {
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   return {
     db,
     registry,

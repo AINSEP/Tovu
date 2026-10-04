@@ -5,8 +5,8 @@ import type Database from "better-sqlite3";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { bindRemoveEntity, createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashMarkerResult, TrashPort } from "../ports.js";
+import { bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashMarkerResult, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file `priorMarker` (migration 0072) round-trips through the generic Trash store: `trash()`
@@ -39,8 +39,8 @@ function harness(
     async hide() {
       return hideResult;
     },
-    async unhide(required) {
-      onUnhide(required);
+    async unhide(required, optional = {}) {
+      onUnhide(optional);
       return { ok: true, version: (required.expectedVersion ?? 0) + 1 };
     },
     async purge() {
@@ -53,9 +53,10 @@ function harness(
   const trash = createTrashService({
     repo,
     adapters: new Map([[STUB_ENTITY_TYPE, adapter]]),
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    entityPolicy: ({ entityType }) => (new Map([[STUB_ENTITY_TYPE, adapter]])).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   return { trash, client };
 }
 
@@ -120,9 +121,8 @@ test("trash() stores a caller-supplied priorMarker when the adapter reports none
     actor: ACTOR,
     display: { title: "Entity e-4" },
     at: AT,
-    expectedVersion: 1,
-    priorMarker: "active",
-  });
+    expectedVersion: 1  }, {
+    priorMarker: "active"  });
 
   const page = await trash.list({ workspaceId: WS, now: AT, limit: 10 });
   assert.equal(page.items[0]?.priorMarker, "active");
@@ -137,9 +137,8 @@ test("trash() keeps the adapter's own priorMarker over a caller-supplied one —
     actor: ACTOR,
     display: { title: "Entity e-5" },
     at: AT,
-    expectedVersion: 1,
-    priorMarker: "active",
-  });
+    expectedVersion: 1  }, {
+    priorMarker: "active"  });
 
   const page = await trash.list({ workspaceId: WS, now: AT, limit: 10 });
   assert.equal(page.items[0]?.priorMarker, "draft");
@@ -148,7 +147,10 @@ test("trash() keeps the adapter's own priorMarker over a caller-supplied one —
 test("bindRemoveEntity passes a domain's priorMarker through, and restore hands it back to unhide", async () => {
   const seen: { priorMarker?: string | null }[] = [];
   const { trash } = harness({ ok: true, version: 2 }, (required) => seen.push(required));
-  const remove = bindRemoveEntity(trash, STUB_ENTITY_TYPE);
+  const remove = bindRemoveEntity({
+    trash: trash,
+    entityType: STUB_ENTITY_TYPE
+  });
 
   const removed = await remove({
     workspaceId: WS,
@@ -157,8 +159,7 @@ test("bindRemoveEntity passes a domain's priorMarker through, and restore hands 
     at: AT,
     expectedVersion: 1,
     actor: ACTOR,
-    priorMarker: "active",
-  });
+  }, { priorMarker: "active" });
   assert.deepEqual(removed, { ok: true, version: 2 });
 
   assert.equal(await trash.restore({ workspaceId: WS, entityType: STUB_ENTITY_TYPE, entityId: "e-6", at: AT }), "restored");

@@ -24,7 +24,7 @@ test("hide bumps version without parsing content, and restore sends spam back to
   assert.deepEqual(h.read(), { status: "trash", updated_at: "hidden-at", version: 8, body_text: "{corrupt}" });
   assert.deepEqual(await h.adapter.hide({ workspaceId: "ws-one", entityId: "c-1", at: "retry-at", expectedVersion: null }), { ok: true, version: 8 });
   assert.deepEqual(h.read(), { status: "trash", updated_at: "hidden-at", version: 8, body_text: "{corrupt}" });
-  assert.deepEqual(await h.adapter.unhide({ workspaceId: "ws-one", entityId: "c-1", at: "restored-at", expectedVersion: 8, priorMarker: "spam" }), { ok: true, version: 9 });
+  assert.deepEqual(await h.adapter.unhide({ workspaceId: "ws-one", entityId: "c-1", at: "restored-at", expectedVersion: 8 }, { priorMarker: "spam" }), { ok: true, version: 9 });
   assert.deepEqual(h.read(), { status: "pending", updated_at: "restored-at", version: 9, body_text: "{corrupt}" });
   assert.deepEqual(h.read("ws-two"), { status: "approved", updated_at: "before", version: 7, body_text: "{corrupt}" });
 });

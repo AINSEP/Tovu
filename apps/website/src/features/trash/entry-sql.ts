@@ -11,7 +11,7 @@ import type { AliasedExpression, ExpressionBuilder, Kysely } from "kysely";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { notTrashed } from "./not-trashed.js";
-import type { TrashEntityType } from "./ports.js";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashRegistry } from "./registry.js";
 
 /** Any table, any column: the shape a registry-driven query sees. A type alias, not an interface:

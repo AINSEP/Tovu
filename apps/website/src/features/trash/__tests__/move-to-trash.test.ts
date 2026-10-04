@@ -9,8 +9,9 @@ import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashAuthorizeFn, TrashPort } from "../index.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAuthorizeFn } from "../index.js";
+import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
  * @file `moveToTrash` (plan §3) — the generic entry point every `POST /trash/items` call resolves
@@ -47,9 +48,10 @@ function harness(): Harness {
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const granted = new Set<string>(["admin.forms.manage"]);
   const authorize: TrashAuthorizeFn = async (params) =>
@@ -91,9 +93,11 @@ test("an unregistered kind is refused before any read or authorize call", async 
   const h = harness();
   const outcome = await moveToTrash(
     { workspaceId: WS, entityType: "gizmo", entityId: "g-1", actor: { principalId: "p-1" } },
-    { registry: h.registry, trash: h.trash, db: new Proxy(createSqliteTrashDb({ db: h.db }), {
-      get() { throw new Error("unknown kinds must not read the database"); },
-    }), authorize: async () => { throw new Error("unknown kinds must not authorize"); }, clock: { nowIso: () => AT } }
+    {
+      registry: h.registry, trash: h.trash, db: new Proxy(createSqliteTrashDb({ db: h.db }), {
+        get() { throw new Error("unknown kinds must not read the database"); },
+      }), authorize: async () => { throw new Error("unknown kinds must not authorize"); }, clock: { nowIso: () => AT }
+    }
   );
   assert.deepEqual(outcome, { ok: false, reason: "unknown-type" });
 });

@@ -8,18 +8,23 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type {
-  ForgetRemovedEntity,
-  RemoveEntity,
-  TrashDb,
-  TrashPort,
-  TrashRegistry,
-  TrashSweepOnce,
-} from "#src/features/trash/index";
+import type { RemoveEntity, TrashDb, TrashRegistry } from "#src/features/trash/index";
+import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
-import type { PasswordHasherPort, PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
+import type {
+  PasswordHasherPort,
+  PolicyPermissionRepoPort,
+  PolicyRepoPort,
+  PrincipalPolicyRepoPort,
+  PrincipalRepoPort,
+  PrincipalRoleRepoPort,
+  RolePolicyRepoPort,
+  RoleRepoPort,
+  SessionRepoPort,
+  UserRepoPort,
+} from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";

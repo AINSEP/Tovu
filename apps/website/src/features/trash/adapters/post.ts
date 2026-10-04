@@ -6,7 +6,7 @@
  */
 import { tableExists } from "../../../platform/db/kernel/dialect.js";
 import { loose } from "../entry-sql.js";
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const POST_ENTITY_TYPE = "post";

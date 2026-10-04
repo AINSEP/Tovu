@@ -9,7 +9,7 @@
  * uses to tell a deleted redirect from one an operator merely switched off.
  */
 import { loose } from "../entry-sql.js";
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";

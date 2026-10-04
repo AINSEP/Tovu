@@ -11,7 +11,7 @@
  * so the composition root binds it in rather than this file reimplementing it in SQL and silently
  * orphaning bytes.
  */
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const MEDIA_ENTITY_TYPE = "media";

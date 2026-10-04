@@ -1,3 +1,4 @@
+// The local trash fork was removed; @jini-ai/cms/trash owns the shared adapter/hooks.
 import type { UUID } from "@jini-ai/core/primitives";
 import { FormSlugConflictError } from "@jini-ai/cms-forms";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
@@ -16,7 +17,7 @@ import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } f
  * owner ruling 2026-09-21) but never returns it through `FormDefinitionRepoPort` — those methods are
  * trash-aware and fail-closed, same as `repo.sqlite.ts`'s `isNull(deletedAt)` reads. `findAnyById`/
  * `save`/`hardDelete` are the deliberate, memory-ONLY exception: a trash-blind seam for the hermetic
- * composition's `createRecordStoreTrashAdapter` (`features/trash/adapters/record-store.ts`), which
+ * composition's `createRecordStoreTrashAdapter` (`@jini-ai/cms/trash`), which
  * needs to see and flip a hidden row directly. They are not part of `FormDefinitionRepoPort`.
  */
 

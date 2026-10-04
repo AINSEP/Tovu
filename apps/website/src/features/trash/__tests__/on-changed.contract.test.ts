@@ -5,11 +5,11 @@ import type Database from "better-sqlite3";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashChangeEvent, TrashMarkerResult, TrashPort, TrashPurgeOutcome } from "../ports.js";
+import { createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashChangeEvent, TrashMarkerResult, TrashPort, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 
 /**
- * @file `TrashServiceDeps.onChanged` — fires once per actual state change (trash/restore/purge),
+ * @file `TrashServiceOptional.onChanged` — fires once per actual state change (trash/restore/purge),
  * never for a no-op outcome, and a failure inside it never undoes the change it followed.
  *
  * Uses a stub adapter (no `table-adapter.ts` exists yet — that lands with G1b/G2) so every hide/
@@ -55,9 +55,12 @@ function harness(options: HarnessOptions = {}): { trash: TrashPort; repo: Sqlite
   const trash = createTrashService({
     repo,
     adapters: new Map([[STUB_ENTITY_TYPE, adapter]]),
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(client),
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    entityPolicy: ({ entityType }) => (new Map([[STUB_ENTITY_TYPE, adapter]])).has(entityType)
+  }, {
     onChanged: options.onChanged,
+    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   return { trash, repo, client };
 }

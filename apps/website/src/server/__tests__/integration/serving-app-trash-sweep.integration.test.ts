@@ -11,18 +11,17 @@ import type { TrashSweepReport } from "#src/features/trash/index";
  * (2026-09-20), against the real composed deps rather than a hand-built sweep.
  *
  * The defect class this exists for is the dominant one in this codebase: a correct primitive with
- * an unwired call site. `features/trash/__tests__/sweeper.test.ts` proves what a sweep decides;
+ * an unwired call site. Jini's `cms/src/trash/__tests__/sweeper.decision.test.ts` proves what a sweep decides;
  * nothing there would notice if `createServingApp` never started one, or started one over a
  * `sweepTrash` that some other composition root had left as a no-op. So this boots the app the two
  * site-serving paths boot, trashes a real post at a date long past its retention window, and waits
  * for the loop to claim it — through `routeDeps.sweepTrash`, the repo it was pre-bound to, and no
  * test double in between.
  *
- * Why it asserts a CLAIM and not a purge: `app.ts`'s hermetic adapters deliberately have no
- * `hardDelete` (`InMemoryPostRepo` has no row removal), so their `purge` stands down with
- * `version-changed` rather than claiming a removal it did not perform. Standing down is the
- * behaviour under test everywhere else; here the question is only whether anything is sweeping at
- * all, and a claim answers it.
+ * The question here is only whether anything is sweeping at all, and a claim answers it. This file
+ * first asserted a `version-changed` stand-down because `InMemoryPostRepo` had no row removal; since
+ * 6ad41e743 (2026-09-20) `app.ts`'s post adapter passes `PostRepoPort.hardDelete`, so the claimed
+ * row is purged for real and the outcome is `purged`.
  */
 
 /** Trashed far enough in the past that `purge_after` (trash time + 60 days) is long expired. */
@@ -63,7 +62,7 @@ test("a post trashed past its retention window is claimed by the serving app's b
   };
 
   const { trashSweeper } = createServingApp(deps, { trashSweepIntervalMs: 20 });
-  t.after(() => trashSweeper.stop());
+  t.after(() => trashSweeper.stop({}));
 
   await waitFor(() => passes.some((pass) => pass.claimed > 0), 2_000);
   const claimedPass = passes.find((pass) => pass.claimed > 0);
@@ -73,7 +72,9 @@ test("a post trashed past its retention window is claimed by the serving app's b
   );
   assert.deepEqual(
     claimedPass.results.map((result) => result.outcome),
-    ["version-changed"],
-    "the hermetic post adapter has no hardDelete, so the sweep must stand down rather than report a purge"
+    ["purged"],
+    // Since 6ad41e743 (2026-09-20) the hermetic post adapter passes `PostRepoPort.hardDelete`, so an
+    // expired post is purged for real instead of standing down and being re-claimed on every pass.
+    "the hermetic post adapter has hardDelete, so the sweep must purge the expired post"
   );
 });

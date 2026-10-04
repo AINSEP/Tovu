@@ -1,7 +1,8 @@
+import { createTrashScheduler } from "#src/features/trash/scheduler.node";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
-import { startTrashSweeper, type TrashSweeper } from "#src/features/trash/index";
+import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
 
 /**
@@ -30,7 +31,7 @@ import { createApp } from "./app.js";
  *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
- * @returns the Express app and both loop handles; call `stop()` on each at shutdown.
+ * @returns the Express app and both loop handles; call the returned handles at shutdown (`trashSweeper.stop({})`).
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
@@ -48,8 +49,14 @@ export function createServingApp(
   // that serves a site. A sweep in the exporter or the agent daemon would hard-delete a site's rows
   // from a process nobody is watching, on a schedule nobody set.
   const trashSweeper = startTrashSweeper(
-    { sweep: routeDeps.sweepTrash, clock: routeDeps.clock },
-    { intervalMs: optional.trashSweepIntervalMs }
+    {
+      sweep: routeDeps.sweepTrash, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
+      scheduler: createTrashScheduler({}), leaseOwner: `trash-sweeper-${Math.random().toString(36).slice(2, 10)}`
+    },
+    {
+      intervalMs: optional.trashSweepIntervalMs,
+      onError: ({ error }) => console.error("[trash-sweeper] sweep failed; retrying after the idle interval", error)
+    }
   );
   return { app, outboxDrainer, trashSweeper };
 }

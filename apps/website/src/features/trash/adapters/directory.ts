@@ -2,7 +2,7 @@ import { chmod, lstat, mkdir, readdir, realpath, rename, rm, rmdir, stat } from 
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 
 export interface DirectoryTrashLocation {
   liveParent: string;

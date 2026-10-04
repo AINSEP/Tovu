@@ -137,8 +137,8 @@ describeEachDialect("generic trash table adapter", { tables: TABLES, make: harne
     assert.deepEqual({ ...hidden, version: Number(hidden.version) }, { deleted_at: AT, version: 2 });
     assert.deepEqual(await h.form.hide({ workspaceId: WS, entityId: "f-1", at: AT, expectedVersion: null }), { ok: true, version: 2, noop: true });
 
-    assert.deepEqual(await h.form.unhide({ workspaceId: WS, entityId: "f-1", at: AT, expectedVersion: 2, priorMarker: null }), { ok: true, version: 3 });
-    assert.deepEqual(await h.form.unhide({ workspaceId: WS, entityId: "f-1", at: AT, expectedVersion: null, priorMarker: null }), {
+    assert.deepEqual(await h.form.unhide({ workspaceId: WS, entityId: "f-1", at: AT, expectedVersion: 2 }, { priorMarker: null }), { ok: true, version: 3 });
+    assert.deepEqual(await h.form.unhide({ workspaceId: WS, entityId: "f-1", at: AT, expectedVersion: null }, { priorMarker: null }), {
       ok: true,
       version: 3,
       noop: true,
@@ -180,7 +180,7 @@ describeEachDialect("generic trash table adapter", { tables: TABLES, make: harne
     const hidden = await h.kernel.run((db) => db.selectFrom("menus").select(["status", "updated_at"]).executeTakeFirstOrThrow());
     assert.deepEqual(hidden, { status: "trash", updated_at: AT });
 
-    assert.deepEqual(await h.menu.unhide({ workspaceId: WS, entityId: "m-1", at: AT, expectedVersion: 2, priorMarker: "draft" }), { ok: true, version: 3 });
+    assert.deepEqual(await h.menu.unhide({ workspaceId: WS, entityId: "m-1", at: AT, expectedVersion: 2 }, { priorMarker: "draft" }), { ok: true, version: 3 });
     assert.equal((await h.kernel.run((db) => db.selectFrom("menus").select("status").executeTakeFirstOrThrow())).status, "draft");
 
     await h.menu.hide({ workspaceId: WS, entityId: "m-1", at: AT, expectedVersion: 3 });

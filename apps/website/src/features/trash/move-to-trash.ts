@@ -5,7 +5,7 @@
  *
  * This is deliberately a thin read-then-write, not a second place that decides what "trashed" means:
  * the marker flip and the `trashed_items` insert still happen inside `TrashPort.trash`
- * (`write-service.ts`), one transaction, exactly as every bespoke `remove*` path already works. What
+ * (`@jini-ai/cms/trash`), one transaction, exactly as every bespoke `remove*` path already works. What
  * this file adds is the part a bespoke `remove*` binding does not need — resolving WHICH kind, WHICH
  * permission and WHICH row, generically, from `TRASHABLE` alone, so a new registry entry needs no new
  * route and no new binding.
@@ -15,7 +15,7 @@
  * items.ts`) maps outcomes to status codes without a try/catch around a business decision.
  */
 import { readLiveSnapshot } from "./entry-sql.js";
-import type { TrashActor, TrashEntityType, TrashPort } from "./ports.js";
+import type { TrashActor, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashAuthorizeFn } from "./permissions.js";
 import type { TrashRegistry } from "./registry.js";
 import type { TrashDb } from "./db-port.js";

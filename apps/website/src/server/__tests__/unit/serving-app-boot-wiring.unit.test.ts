@@ -88,7 +88,7 @@ test("startTrashSweeper is called only by createServingApp", () => {
 });
 
 test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
-  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\)/.test(line)));
+  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\{\}\)/.test(line)));
 });
 
 /**

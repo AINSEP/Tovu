@@ -3,16 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import {
-  bindRemoveEntity,
-  createContentDbTransactionRunner,
-  createTrashService,
-  createUserTrashAdapter,
-  SqliteTrashRepo,
-  USER_ENTITY_TYPE,
-  type TrashAdapter,
-  type TrashPort,
-} from "#src/features/trash/index";
+import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
+import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -86,9 +78,10 @@ async function setup(workspaceId: string): Promise<Fixture> {
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
-    idGen: counterTrashIdGen(),
-    transaction: createContentDbTransactionRunner(db.$client),
-  });
+    idGen: { newId: () => (counterTrashIdGen()).next() },
+    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    entityPolicy: ({ entityType }) => (new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]])).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const isInTrash = async (principalId: string): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
@@ -97,7 +90,11 @@ async function setup(workspaceId: string): Promise<Fixture> {
     wiring,
     identity,
     trash,
-    deps: { identity, removeUser: bindRemoveEntity(trash, USER_ENTITY_TYPE), isInTrash },
+    deps: {
+      identity, removeUser: bindRemoveEntity({
+        trash: trash,
+        entityType: USER_ENTITY_TYPE
+      }), isInTrash },
     workspaceId,
     ownerPrincipalId,
   };
@@ -290,8 +287,8 @@ test("trashUser: refuses to drop the workspace's last active owner-`*` principal
   const f = await setup("ws-inv08");
   const lastOwnerId = await createBareUser(f, "last-owner");
   await makeOwnerWildcard(f, lastOwnerId);
-  const callerId = await createBareUser(f, "user-manager");
-  await makeBuiltinAdmin(f, callerId);
+  // An owner must pass the target guard before the active-owner floor can be exercised.
+  const callerId = f.ownerPrincipalId;
   // The seeded owner is the workspace's OTHER active owner-`*` principal; disable it directly so
   // `lastOwnerId` really is the only one left, isolating INV-08 from the unconditional
   // seeded-owner refusal tested above.
@@ -376,8 +373,8 @@ test("trashUser: two concurrent trashes of the workspace's only two active owner
   const ownerB = await createBareUser(f, "owner-b");
   await makeOwnerWildcard(f, ownerA);
   await makeOwnerWildcard(f, ownerB);
-  const callerId = await createBareUser(f, "user-manager");
-  await makeBuiltinAdmin(f, callerId);
+  // The disabled seeded owner still holds `*`, but does not count toward the active-owner floor.
+  const callerId = f.ownerPrincipalId;
   await disablePrincipalDirect(f, f.ownerPrincipalId);
 
   const [resultA, resultB] = await Promise.allSettled([
@@ -391,6 +388,7 @@ test("trashUser: two concurrent trashes of the workspace's only two active owner
   assert.equal(fulfilled.length, 1, "exactly one of the two concurrent owner trashes must succeed");
   assert.equal(rejected.length, 1, "the other must be refused, never both succeeding and stranding the workspace with zero owners");
   assert.ok(rejected[0]!.status === "rejected" && rejected[0].reason instanceof OwnerRequiredError);
+  assert.equal(rejected[0].reason.message, "the workspace must keep at least one active owner-`*` principal");
 });
 
 test("trashUser: trashing an already-trashed user is an idempotent no-op — one index row, not two", async () => {

@@ -1,3 +1,4 @@
+import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
@@ -17,7 +18,13 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { backfillPostSearchIndex, SqlitePostRepo, postSearchIndexFor, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
+import {
+  backfillPostSearchIndex,
+  SqlitePostRepo,
+  postSearchIndexFor,
+  createPostRevertRegistry,
+  listPublishedPosts,
+} from "#src/features/post/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
@@ -206,9 +213,7 @@ import {
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import {
-  bindRemoveEntity,
   COMMENT_ENTITY_TYPE,
-  bindForgetRemovedEntity,
   buildTrashRegistry,
   createCommentTrashAdapter,
   createContentDbTransactionRunner,
@@ -219,8 +224,6 @@ import {
   createRedirectTrashAdapter,
   createSqliteTrashDb,
   createTableTrashAdapter,
-  createTrashService,
-  createTrashSweep,
   MEDIA_ENTITY_TYPE,
   PLUGIN_ENTITY_TYPE,
   POST_ENTITY_TYPE,
@@ -229,10 +232,16 @@ import {
   USER_ENTITY_TYPE,
   createUserTrashAdapter,
   type RemoveEntity,
+} from "#src/features/trash/index";
+import {
+  bindRemoveEntity,
+  bindForgetRemovedEntity,
+  createTrashService,
+  createTrashSweep,
   type TrashAdapter,
   type TrashFollowUpHooks,
   withFollowUps,
-} from "#src/features/trash/index";
+} from "@jini-ai/cms/trash";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
   SqliteEntryTermRepo,
@@ -247,7 +256,10 @@ import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contract
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import { createExternalMcpOAuthService } from "#src/assistant/index";
-import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
+import {
+  createSqliteDeviceAuthorizationStore,
+  createSqlitePendingAuthorizationStore,
+} from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
 // Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
 // `resolve*RootDir` functions), so `createApp` below closes the `deps.ts` <-> `app.ts` cycle that
@@ -1369,7 +1381,7 @@ async function composeSiteRouteDeps(
     ...[...trashRegistry.values()].map((entry) => {
       const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
       const hooks = trashFollowUpHooks.get(entry.entityType);
-      return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
+      return [entry.entityType, hooks ? withFollowUps({ adapter }, hooks) : adapter] as const;
     }),
   ]);
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
@@ -1379,15 +1391,25 @@ async function composeSiteRouteDeps(
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
-    idGen: { next: () => randomUUID() },
-    transaction: trashTransaction,
+    idGen: { newId: () => randomUUID() },
+    transaction: ({ work }) => trashTransaction(work),
+    entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
+  }, {
+    retentionDays: TRASH_RETENTION_DAYS,
+    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity({
+    trash: trash,
+    entityType: PLUGIN_ENTITY_TYPE
+  }));
   // Delete-user plan v2 Slice 2 — `identity`'s `removeUser`/`isInTrash` overrides (see
   // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for why identity itself cannot build
   // these: it wires before `trash`/`trashRepo` exist).
-  const removeUser = bindRemoveEntity(trash, USER_ENTITY_TYPE);
+  const removeUser = bindRemoveEntity({
+    trash: trash,
+    entityType: USER_ENTITY_TYPE
+  });
   const isInTrash = async (principalId: string): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
@@ -1414,7 +1436,10 @@ async function composeSiteRouteDeps(
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
-    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: REDIRECT_ENTITY_TYPE
+    })),
     // S7 (web-high fix plan 2026-09-24) — same identity `isInTrash` shape as above, pre-bound to
     // this domain's entity type. `trash.restore` is the real `TrashPort` method, not a bespoke one.
     isInTrash: async (required) =>
@@ -1424,9 +1449,8 @@ async function composeSiteRouteDeps(
         workspaceId: required.workspaceId,
         entityType: REDIRECT_ENTITY_TYPE,
         entityId: required.id,
-        at: required.at,
-        actor: required.actor,
-      }),
+        at: required.at      }, {
+        actor: required.actor      }),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
     matcher: redirectMatcher,
@@ -1523,7 +1547,10 @@ async function composeSiteRouteDeps(
     settingsRepo,
     // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
     // index has to follow both directions of that transition — see `syncRemovalIndex`.
-    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, COMMENT_ENTITY_TYPE)),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: COMMENT_ENTITY_TYPE
+    })),
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
@@ -1769,10 +1796,16 @@ async function composeSiteRouteDeps(
       ports: {
         post: {
           repo: postRepo,
-          forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+          forgetRemoved: bindForgetRemovedEntity({
+            repo: trashRepo,
+            entityType: POST_ENTITY_TYPE
+          }),
           // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
           // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-          remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
+          remove: removeEntityWithoutBlocker(bindRemoveEntity({
+            trash: trash,
+            entityType: POST_ENTITY_TYPE
+          })),
         },
         media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
         redirect: redirectsWriteDeps,
@@ -1829,16 +1862,39 @@ async function composeSiteRouteDeps(
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.
-    removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
-    removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
-    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
-    removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
-    removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
-    forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
-    forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: POST_ENTITY_TYPE
+    })),
+    removeComment: bindRemoveEntity({
+      trash: trash,
+      entityType: COMMENT_ENTITY_TYPE
+    }),
+    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: MEDIA_ENTITY_TYPE
+    })),
+    removeRedirect: bindRemoveEntity({
+      trash: trash,
+      entityType: REDIRECT_ENTITY_TYPE
+    }),
+    removeWidget: removeEntityWithoutBlocker(bindWidgetRemoval({ trash })),
+    forgetRemovedMedia: bindForgetRemovedEntity({
+      repo: trashRepo,
+      entityType: MEDIA_ENTITY_TYPE
+    }),
+    forgetRemovedPost: bindForgetRemovedEntity({
+      repo: trashRepo,
+      entityType: POST_ENTITY_TYPE
+    }),
     // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
     // only in a site-serving process — never in the exporter or the agent daemon.
-    sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: trashTransaction }),
+    sweepTrash: createTrashSweep({
+      repo: trashRepo,
+      adapters: trashAdapters,
+      transaction: ({ work }) => trashTransaction(work),
+      entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
+    }),
     // Read on every call; see `TrashDeps.isTrashableEntityType`.
     isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
     // `TrashDeps.registry`/`db` — read by `moveToTrash` (`POST .../trash/items`) and by
@@ -1951,7 +2007,10 @@ async function composeSiteRouteDeps(
         outbox,
         // `post/delete`'s reverter clears the trash marker; without this the index row it was written
         // with outlives it and the Trash lists a post that is live again.
-        forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+        forgetRemoved: bindForgetRemovedEntity({
+          repo: trashRepo,
+          entityType: POST_ENTITY_TYPE
+        }),
       }),
       { menuRepo, clock, idGen, outbox }
     ),
@@ -2015,7 +2074,10 @@ async function composeSiteRouteDeps(
     settleMailer: resolvedMailer.settle,
     menuRepo,
     navLocationBindingRepo,
-    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
+    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: "menu"
+    })),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters, wired into a real composition root
     // for the first time. Delivery-worker activation itself stays gated (REQ-07/SPEC-022's
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
@@ -2078,7 +2140,10 @@ async function composeSiteRouteDeps(
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
-    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
+    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: "form_submission"
+    })),
     executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
@@ -2099,8 +2164,14 @@ async function composeSiteRouteDeps(
     // `removeTerm` is WIDE (carries `"blocked"` — the `term` registry entry declares a
     // `TERM_HAS_CHILDREN` blocker); `removeTaxonomy` is narrowed the same way as `removeMenu`/
     // `removeFormSubmission` above (T6, step 3).
-    removeTerm: bindRemoveEntity(trash, "term"),
-    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
+    removeTerm: bindRemoveEntity({
+      trash: trash,
+      entityType: "term"
+    }),
+    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity({
+      trash: trash,
+      entityType: "taxonomy"
+    })),
     // Same instance backs both `entryTermRepo` (the certified write-service port, widened with the
     // Mergeable/AssignmentCount additive capabilities) and `entryTermReadRepo` (the new
     // `EntryTermReadPort` read path, `routes/types.ts`'s own doc explains why these are two

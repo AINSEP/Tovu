@@ -1,3 +1,4 @@
+// The local in-memory trash fork and its test lane moved to @jini-ai/cms/trash.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,15 +7,15 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryTrashRepo } from "../repo.memory.js";
 import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlTrashRepo } from "../repo.js";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
-import type { TrashItem, TrashRepoPort } from "../ports.js";
+import type { TrashItem, TrashRepoPort } from "@jini-ai/cms/trash";
 
 /**
- * @file Shared contract suite for `TrashRepoPort`, run against BOTH adapters — mirrors
+ * @file Persistent contract suite for `TrashRepoPort`; the memory lane moved to Jini
+ * `cms/src/trash/__tests__/repo.memory.test.ts` with these same assertions. Mirrors
  * `contracts/core/entry-refs/__tests__/repo.contract.test.ts`'s shape.
  *
  * `SqlTrashRepo` (the one Kysely body) also runs on every dialect of the kernel's matrix.
@@ -57,8 +58,8 @@ function seedWorkspaces(client: Database.Database): void {
 function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
   test(`[${adapterName}] insert is idempotent on (workspace, entity_type, entity_id) — re-trashing never duplicates`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "t1", entityId: "post-1" }));
-    await repo.insert(item({ id: "t2", entityId: "post-1", displayTitle: "Second attempt" }));
+    await repo.insert({ row: item({ id: "t1", entityId: "post-1" }) });
+    await repo.insert({ row: item({ id: "t2", entityId: "post-1", displayTitle: "Second attempt" }) });
 
     const page = await repo.list({ workspaceId: WS, now: "2026-09-02T00:00:00.000Z", limit: 50 });
     assert.equal(page.items.length, 1);
@@ -68,8 +69,8 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] list hides expired rows the instant it opens, with no sweeper involved`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "live", entityId: "post-1", purgeAfter: "2026-12-01T00:00:00.000Z" }));
-    await repo.insert(item({ id: "expired", entityId: "post-2", purgeAfter: "2026-09-01T00:00:00.000Z" }));
+    await repo.insert({ row: item({ id: "live", entityId: "post-1", purgeAfter: "2026-12-01T00:00:00.000Z" }) });
+    await repo.insert({ row: item({ id: "expired", entityId: "post-2", purgeAfter: "2026-09-01T00:00:00.000Z" }) });
 
     const page = await repo.list({ workspaceId: WS, now: "2026-09-02T00:00:00.000Z", limit: 50 });
     assert.deepEqual(page.items.map((i) => i.id), ["live"]);
@@ -77,24 +78,24 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] list is workspace-scoped, newest first, and filterable by entity type`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "a", entityId: "post-1", trashedAt: "2026-09-01T00:00:00.000Z" }));
-    await repo.insert(item({ id: "b", entityId: "red-1", entityType: "redirect", trashedAt: "2026-09-03T00:00:00.000Z" }));
-    await repo.insert(item({ id: "c", entityId: "post-9", workspaceId: WS2 }));
+    await repo.insert({ row: item({ id: "a", entityId: "post-1", trashedAt: "2026-09-01T00:00:00.000Z" }) });
+    await repo.insert({ row: item({ id: "b", entityId: "red-1", entityType: "redirect", trashedAt: "2026-09-03T00:00:00.000Z" }) });
+    await repo.insert({ row: item({ id: "c", entityId: "post-9", workspaceId: WS2 }) });
 
     const all = await repo.list({ workspaceId: WS, now: "2026-09-04T00:00:00.000Z", limit: 50 });
     assert.deepEqual(all.items.map((i) => i.id), ["b", "a"]);
 
-    const posts = await repo.list({ workspaceId: WS, now: "2026-09-04T00:00:00.000Z", limit: 50, entityTypes: ["post"] });
+    const posts = await repo.list({ workspaceId: WS, now: "2026-09-04T00:00:00.000Z", limit: 50}, { entityTypes: ["post"]});
     assert.deepEqual(posts.items.map((i) => i.id), ["a"]);
   });
 
   test(`[${adapterName}] keyset pagination walks every row exactly once`, async () => {
     const repo = makeRepo();
     for (let n = 1; n <= 5; n += 1) {
-      await repo.insert(item({ id: `t${n}`, entityId: `post-${n}`, trashedAt: `2026-09-0${n}T00:00:00.000Z` }));
+      await repo.insert({ row: item({ id: `t${n}`, entityId: `post-${n}`, trashedAt: `2026-09-0${n}T00:00:00.000Z` }) });
     }
     for (const id of ["t2a", "t2c", "t2b", "t2d"]) {
-      await repo.insert(item({ id, entityId: `post-${id}`, trashedAt: "2026-09-02T00:00:00.000Z" }));
+      await repo.insert({ row: item({ id, entityId: `post-${id}`, trashedAt: "2026-09-02T00:00:00.000Z" }) });
     }
 
     const seen: string[] = [];
@@ -103,9 +104,8 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
       const page: { items: TrashItem[]; nextCursor: string | null } = await repo.list({
         workspaceId: WS,
         now: "2026-09-10T00:00:00.000Z",
-        limit: 2,
-        cursor,
-      });
+        limit: 2}, {
+        cursor});
       seen.push(...page.items.map((i) => i.id));
       assert.ok(page.items.length <= 2);
       assert.ok(seen.length <= 9, "pagination must terminate without repeating rows");
@@ -117,8 +117,8 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] claimDue takes only due, unleased rows — and a second claimer gets nothing`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }));
-    await repo.insert(item({ id: "not-due", entityId: "post-2", purgeAfter: "2026-12-01T00:00:00.000Z" }));
+    await repo.insert({ row: item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }) });
+    await repo.insert({ row: item({ id: "not-due", entityId: "post-2", purgeAfter: "2026-12-01T00:00:00.000Z" }) });
 
     const first = await repo.claimDue({
       now: "2026-09-02T00:00:00.000Z",
@@ -139,7 +139,7 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] an expired lease is reclaimable — this is the crash recovery`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }));
+    await repo.insert({ row: item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }) });
     await repo.claimDue({ now: "2026-09-02T00:00:00.000Z", leaseOwner: "crashed", leaseUntil: "2026-09-02T00:05:00.000Z", limit: 10 });
 
     const reclaimed = await repo.claimDue({
@@ -154,9 +154,9 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
   test(`[${adapterName}] claimDue includes the exact expiry boundary and respects the batch limit`, async () => {
     const repo = makeRepo();
     const now = "2026-09-02T00:00:00.000Z";
-    await repo.insert(item({ id: "earlier", entityId: "post-earlier", purgeAfter: "2026-09-01T00:00:00.000Z" }));
-    await repo.insert(item({ id: "boundary", entityId: "post-boundary", purgeAfter: now }));
-    await repo.insert(item({ id: "later", entityId: "post-later", purgeAfter: "2026-09-02T00:00:00.001Z" }));
+    await repo.insert({ row: item({ id: "earlier", entityId: "post-earlier", purgeAfter: "2026-09-01T00:00:00.000Z" }) });
+    await repo.insert({ row: item({ id: "boundary", entityId: "post-boundary", purgeAfter: now }) });
+    await repo.insert({ row: item({ id: "later", entityId: "post-later", purgeAfter: "2026-09-02T00:00:00.001Z" }) });
     const args = { now, leaseOwner: "a", leaseUntil: "2026-09-02T00:05:00.000Z", limit: 1 };
     assert.deepEqual((await repo.claimDue(args)).map((row) => row.id), ["earlier"]);
     assert.deepEqual((await repo.claimDue(args)).map((row) => row.id), ["boundary"]);
@@ -165,7 +165,7 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] releaseLease hands a stood-down row back to the next pass`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }));
+    await repo.insert({ row: item({ id: "due", entityId: "post-1", purgeAfter: "2026-09-01T00:00:00.000Z" }) });
     await repo.claimDue({ now: "2026-09-02T00:00:00.000Z", leaseOwner: "a", leaseUntil: "2026-09-02T00:05:00.000Z", limit: 10 });
     await repo.releaseLease({ id: "due" });
 
@@ -175,8 +175,8 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
 
   test(`[${adapterName}] findByIds and deleteById are workspace-scoped`, async () => {
     const repo = makeRepo();
-    await repo.insert(item({ id: "mine", entityId: "post-1" }));
-    await repo.insert(item({ id: "theirs", entityId: "post-2", workspaceId: WS2 }));
+    await repo.insert({ row: item({ id: "mine", entityId: "post-1" }) });
+    await repo.insert({ row: item({ id: "theirs", entityId: "post-2", workspaceId: WS2 }) });
 
     assert.deepEqual((await repo.findByIds({ workspaceId: WS, ids: ["mine", "theirs"] })).map((r) => r.id), ["mine"]);
 
@@ -215,7 +215,7 @@ test("overlapping claims on independent SQLite connections lease disjoint batche
   const firstRepo = new SqlTrashRepo(heldKernel);
   const secondRepo = new SqlTrashRepo(kernelB);
   for (let n = 1; n <= 4; n += 1) {
-    await firstRepo.insert(item({ id: `due-${n}`, entityId: `post-${n}`, purgeAfter: `2026-09-0${n}T00:00:00.000Z` }));
+    await firstRepo.insert({ row: item({ id: `due-${n}`, entityId: `post-${n}`, purgeAfter: `2026-09-0${n}T00:00:00.000Z` }) });
   }
   const args = { now: "2026-09-05T00:00:00.000Z", leaseUntil: "2026-09-05T00:05:00.000Z", limit: 2 };
   const first = firstRepo.claimDue({ ...args, leaseOwner: "a" });
@@ -228,7 +228,6 @@ test("overlapping claims on independent SQLite connections lease disjoint batche
   assert.equal(new Set([...left, ...right].map((row) => row.id)).size, 4);
 });
 
-runSuite("InMemoryTrashRepo", () => new InMemoryTrashRepo());
 runSuite("SqliteTrashRepo", () => {
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;

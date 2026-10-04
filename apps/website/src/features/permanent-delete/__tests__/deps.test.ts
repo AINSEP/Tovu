@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { TrashItem } from "#src/features/trash/ports";
+import type { TrashItem } from "@jini-ai/cms/trash";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
 
 const row = (id: string, entityType = "post", entityId = `entity-${id}`): TrashItem => ({
@@ -23,16 +23,16 @@ function harness(initial: TrashItem[] = [row("a")]) {
     workspaceId: "ws", clock: { nowIso: () => "2026-10-01T00:00:00Z" }, registry: new Map(), ownerPrincipalId: Promise.resolve("seeded-owner"),
     authorize: async (spec: { permission: string }) => { permissions.push(spec.permission); return { allowed, reason: "test-policy" }; },
     trash: {
-      list: async (spec: { entityTypes?: string[]; cursor?: string | null; limit: number }) => {
-        const matches = spec.entityTypes ? items.filter(i => spec.entityTypes!.includes(i.entityType)) : items;
-        const start = spec.cursor ? Number(spec.cursor) : 0;
+      list: async (spec: { limit: number }, optional: { entityTypes?: string[]; cursor?: string | null } = {}) => {
+        const matches = optional.entityTypes ? items.filter(i => optional.entityTypes!.includes(i.entityType)) : items;
+        const start = optional.cursor ? Number(optional.cursor) : 0;
         return { items: matches.slice(start, start + spec.limit), nextCursor: start + spec.limit < matches.length ? String(start + spec.limit) : null };
       },
-      purgeSelected: async (spec: { ids: string[]; authorizeItem: (i: TrashItem) => Promise<boolean>; actor: unknown; workspaceId: string }) => {
+      purgeSelected: async (spec: { ids: string[]; authorizeItem: (i: { item: TrashItem }) => Promise<boolean>; actor: unknown; workspaceId: string }) => {
         const results = [];
         for (const id of spec.ids) {
           const item = items.find(i => i.id === id);
-          const outcome = !item ? "not-found" : await spec.authorizeItem(item) ? "purged" : "forbidden";
+          const outcome = !item ? "not-found" : await spec.authorizeItem({ item }) ? "purged" : "forbidden";
           results.push({ id, outcome });
           if (outcome === "purged") { effects.push({ purge: id, workspaceId: spec.workspaceId, actor: spec.actor }); items = items.filter(i => i.id !== id); }
         }
@@ -106,6 +106,15 @@ test("user deletion refuses self/seeded owner/live users and purges only the tra
   await assert.rejects(h.deps.prepare("identity_user_delete", "missing-user", "owner"), { message: "identity_user_delete: item was not found. List the resource and check its id." });
   const plan = await h.deps.prepare("identity_user_delete", "target", "owner");
   assert.deepEqual(await plan.execute(), { removed: true, purged: 1, results: [{ id: "u", outcome: "purged" }] });
+});
+
+// REGRESSION (r4-trash verify, 2026-10-03): the user lookup must stay scoped to `user` rows. When the
+// Jini adoption moved `entityTypes` to `list`'s second argument, the filter here was left in the
+// first one and silently dropped, so a trashed post sharing the user's id became the purge target.
+test("user deletion only considers trashed users, never another kind's row with the same entity id", async () => {
+  const h = harness([row("p", "post", "target")]);
+  await assert.rejects(h.deps.prepare("identity_user_delete", "target", "owner"), { message: "identity_user_delete: item was not found. List the resource and check its id." });
+  assert.deepEqual(h.effects, []);
 });
 
 test("generic Trash purges cannot bypass self and seeded-owner protection", async () => {

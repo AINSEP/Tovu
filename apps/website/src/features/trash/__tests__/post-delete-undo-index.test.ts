@@ -15,8 +15,8 @@ import {
 
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "../write-service.js";
-import type { TrashAdapter, TrashItem } from "../ports.js";
+import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
+import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
 
 /**
  * @file The Trash index row's fate when a post delete is UNDONE.
@@ -41,7 +41,7 @@ import type { TrashAdapter, TrashItem } from "../ports.js";
 
 const WS = "workspace-1";
 const AT = "2026-09-20T12:00:00.000Z";
-const clock = { nowIso: () => AT };
+const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
 
 function recordingOutbox(): OutboxPort & { events: DomainEvent[] } {
   const events: DomainEvent[] = [];
@@ -76,17 +76,24 @@ function harness(): Harness {
   const trash = createTrashService({
     repo: trashRepo,
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(client),
-  });
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return {
     client,
     postRepo: new SqlitePostRepo(db),
     trashRepo,
     outbox: recordingOutbox(),
-    removePost: bindRemoveEntity(trash, POST_ENTITY_TYPE),
-    forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    removePost: bindRemoveEntity({
+      trash: trash,
+      entityType: POST_ENTITY_TYPE
+    }),
+    forgetRemovedPost: bindForgetRemovedEntity({
+      repo: trashRepo,
+      entityType: POST_ENTITY_TYPE
+    }),
   };
 }
 

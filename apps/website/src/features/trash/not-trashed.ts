@@ -16,7 +16,7 @@
 import type { Expression, SqlBool } from "kysely";
 
 import type { LooseExpressionBuilder } from "./entry-sql.js";
-import type { TrashEntityType } from "./ports.js";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashHiddenWithParentSpec, TrashMarkerSpec, TrashRegistry } from "./registry.js";
 
 /** A `WHERE` condition over a registry entry's table, applied to a query's expression builder. */

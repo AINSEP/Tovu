@@ -103,7 +103,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     const hidden = await kernel.run((db) => db.selectFrom("posts").select(["deleted_at", "updated_at"]).executeTakeFirstOrThrow());
     assert.deepEqual(hidden, { deleted_at: AT, updated_at: AT });
 
-    assert.deepEqual(await post.unhide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: 2, priorMarker: null }), { ok: true, version: 3 });
+    assert.deepEqual(await post.unhide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: 2 }, { priorMarker: null }), { ok: true, version: 3 });
     assert.equal((await kernel.run((db) => db.selectFrom("posts").select("deleted_at").executeTakeFirstOrThrow())).deleted_at, null);
 
     assert.equal(await post.purge({ workspaceId: WS, entityId: "p-1", expectedVersion: 2 }), "version-changed", "a restore beats a stale purge");
@@ -120,7 +120,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
 
     assert.deepEqual(await redirect.hide({ workspaceId: WS, entityId: "r-1", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
     assert.equal((await kernel.run((db) => db.selectFrom("redirects").select("status").executeTakeFirstOrThrow())).status, "disabled");
-    assert.deepEqual(await redirect.unhide({ workspaceId: WS, entityId: "r-1", at: AT, expectedVersion: 2, priorMarker: null }), { ok: true, version: 3 });
+    assert.deepEqual(await redirect.unhide({ workspaceId: WS, entityId: "r-1", at: AT, expectedVersion: 2 }, { priorMarker: null }), { ok: true, version: 3 });
     assert.equal((await kernel.run((db) => db.selectFrom("redirects").select("status").executeTakeFirstOrThrow())).status, "active");
 
     assert.equal(await redirect.purge({ workspaceId: WS, entityId: "r-1", expectedVersion: null }), "purged");

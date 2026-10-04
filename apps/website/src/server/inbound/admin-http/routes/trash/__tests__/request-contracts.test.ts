@@ -38,8 +38,8 @@ test("trash list normalizes filters and cursor and clamps/defaults limits withou
     [{ limit: "invalid" }, { entityTypes: undefined, limit: 50, cursor: null }],
   ] as const) {
     let reads = 0;
-    const invoke = harness({ trash: { list: async (input: unknown) => {
-      reads++; assert.deepEqual(input, { workspaceId: "ws-7", now, ...expected });
+    const invoke = harness({ trash: { list: async (input: { workspaceId: string; now: string; limit: number }, optional: { entityTypes?: string[]; cursor?: string | null }) => {
+      reads++; assert.deepEqual({ ...input, ...optional }, { workspaceId: "ws-7", now, ...expected });
       return { items: [], nextCursor: "continue-after-hidden-rows" };
     } }, userRepo: { list: async () => { throw new Error("empty pages must not query usernames"); } } });
     assert.deepEqual(await invoke("get", "", undefined, query), { statusCode: 200, jsonBody: { items: [], nextCursor: "continue-after-hidden-rows" } });
@@ -79,8 +79,8 @@ test("purge accepts 200 ids, preserves duplicates, and returns every port outcom
   const invoke = harness({ trash: { purgeSelected: async (input: any) => {
     writes++; assert.equal(input.workspaceId, "ws-7"); assert.deepEqual(input.ids, ids);
     assert.deepEqual(input.actor, { principalId: "principal-7" });
-    assert.equal(await input.authorizeItem({ entityType: "post", entityId: "post-8" }), true);
-    assert.equal(await input.authorizeItem({ entityType: "unregistered", entityId: "unknown" }), false);
+    assert.equal(await input.authorizeItem({ item: { entityType: "post", entityId: "post-8" } }), true);
+    assert.equal(await input.authorizeItem({ item: { entityType: "unregistered", entityId: "unknown" } }), false);
     return { purged: 1, results };
   } } });
   assert.deepEqual(await invoke("post", "/purge", { ids }), { statusCode: 200, jsonBody: { purged: 1, results: [
@@ -92,8 +92,8 @@ test("restore accepts 200 items and counts only restored outcomes while retainin
   const items = Array.from({ length: 200 }, () => ({ entityType: "post", entityId: "post-8" }));
   const outcomes = ["restored", ...Array(199).fill("not-found")];
   let writes = 0;
-  const invoke = harness({ trash: { restore: async (input: unknown) => {
-    assert.deepEqual(input, { workspaceId: "ws-7", entityType: "post", entityId: "post-8", at: now, actor: { principalId: "principal-7" } });
+  const invoke = harness({ trash: { restore: async (input: { workspaceId: string; entityType: string; entityId: string; at: string }, optional: { actor?: { principalId: string } }) => {
+    assert.deepEqual({ ...input, ...optional }, { workspaceId: "ws-7", entityType: "post", entityId: "post-8", at: now, actor: { principalId: "principal-7" } });
     return outcomes[writes++];
   } } });
   assert.deepEqual(await invoke("post", "/restore", { items }), { statusCode: 200, jsonBody: {
@@ -116,7 +116,8 @@ test("move-to-trash maps a marker race to 409 TRASH_VERSION_CHANGED, leaving the
   db.$client.prepare(`INSERT INTO form_definitions (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, deleted_at, version)
     VALUES ('form-7', 'ws-7', 'Contact', 'contact', '{"fields":[]}', '{"enabled":false,"recipients":[]}', 'active', ?, ?, NULL, 8)`).run(now, now);
   let writes = 0;
-  const invoke = harness({ registry: buildTrashRegistry(), db: createSqliteTrashDb({ db }), trash: { trash: async (input: unknown) => {
+  const invoke = harness({
+    registry: buildTrashRegistry(), db: createSqliteTrashDb({ db }), trash: { trash: async (input: unknown) => {
     writes++; assert.deepEqual(input, { workspaceId: "ws-7", entityType: "form", entityId: "form-7", actor: { principalId: "principal-7" },
       display: { title: "Contact", subtitle: "contact" }, at: now, expectedVersion: 8 });
     return { ok: false, reason: "version-changed" };

@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 
-import { createRecordStoreTrashAdapter } from "../adapters/record-store.js";
+import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";
 
 /**
@@ -41,11 +41,23 @@ function seed(): PostRecord {
 function adapterOver(postRepo: InMemoryPostRepo, optional: { withHardDelete: boolean }) {
   return createRecordStoreTrashAdapter<PostRecord>({
     entityType: POST_ENTITY_TYPE,
-    store: postRepo,
-    isHidden: (record) => record.deletedAt !== undefined && record.deletedAt !== null,
-    hidden: (record, at) => ({ ...record, deletedAt: at, updatedAt: at }),
-    shown: (record, at) => ({ ...record, deletedAt: null, updatedAt: at }),
-    ...(optional.withHardDelete ? { hardDelete: (required) => postRepo.hardDelete(required) } : {}),
+    store: {
+      findById: required => (postRepo).findById(required),
+      save: ({ record }) => (postRepo).save(record)
+    },
+    isHidden: ({ record }) => record.deletedAt !== undefined && record.deletedAt !== null,
+    hidden: ({ record, at }) => ({
+      ...record,
+      deletedAt: at,
+      updatedAt: at
+    }),
+    shown: ({ record, at }) => ({
+      ...record,
+      deletedAt: null,
+      updatedAt: at
+    })
+  }, {
+    ...(optional.withHardDelete ? { hardDelete: (required) => postRepo.hardDelete(required) } : {})
   });
 }
 

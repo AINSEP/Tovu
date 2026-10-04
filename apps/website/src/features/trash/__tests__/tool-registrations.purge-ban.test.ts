@@ -58,7 +58,7 @@ for (const [id, input] of [
       ...deps, ownerPrincipalId: Promise.resolve("seeded-owner"),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       trash: { ...deps.trash, list: async () => ({ items: [item], nextCursor: null }), purgeSelected: async (spec: Parameters<typeof deps.trash.purgeSelected>[0]) => {
-        assert.equal(await spec.authorizeItem(item), true);
+        assert.equal(await spec.authorizeItem({ item }), true);
         assert.deepEqual(spec.ids, ["row-1"]);
         purges++;
         return { purged: 1, results: [{ id: "row-1", outcome: "purged" as const }] };

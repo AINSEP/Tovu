@@ -3,7 +3,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
+import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 /**
@@ -108,7 +108,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      * Trash" short-circuit belongs to the caller (`trashUser`, delete-user plan v2 Slice 2), which
      * checks the Trash index before ever reaching this adapter.
      */
-    async hide(required): Promise<TrashMarkerResult> {
+    async hide(required, optional = {}): Promise<TrashMarkerResult> {
       const { workspaceId, entityId } = required;
       return underPrincipalLock(workspaceId, entityId, async (k) => {
         const before = await readPrincipal(k, workspaceId, entityId);
@@ -135,7 +135,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
           occurredAt: clock.nowIso(),
           aggregateId: entityId,
           workspaceId,
-          ...(required.actor ? { actorId: required.actor.principalId } : {}),
+          ...(optional.actor ? { actorId: optional.actor.principalId } : {}),
           payload: { principalId: entityId, username, priorStatus: before.status, sessionsRevoked: Number(revoked.numDeletedRows) },
         });
 
@@ -148,13 +148,13 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      * `identity.user.restored`. Sessions are never re-created — a restore never revives an old
      * cookie (decision 2).
      */
-    async unhide(required): Promise<TrashMarkerResult> {
+    async unhide(required, optional = {}): Promise<TrashMarkerResult> {
       const { workspaceId, entityId } = required;
       return underPrincipalLock(workspaceId, entityId, async (k) => {
         const before = await readPrincipal(k, workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
 
-        const restoredStatus = required.priorMarker ?? "disabled";
+        const restoredStatus = optional.priorMarker ?? "disabled";
         const restored = await k.run((db) =>
           db
             .updateTable("principals")
@@ -173,7 +173,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
           occurredAt: clock.nowIso(),
           aggregateId: entityId,
           workspaceId,
-          ...(required.actor ? { actorId: required.actor.principalId } : {}),
+          ...(optional.actor ? { actorId: optional.actor.principalId } : {}),
           payload: { principalId: entityId, username, restoredStatus },
         });
 
@@ -185,11 +185,11 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      * Hard-deletes the principal's identity rows via {@link UserPurgePort.purgeUser} (decision 4) —
      * never a live principal (an `active` status means it was never trashed, or was re-enabled out
      * from under an index row someone forgot to clear; either way it is not this adapter's call to
-     * remove it). Reachable from both `purgeSelected` (an operator, `required.actor` set — `reason:
-     * "manual"`) and the retention sweeper (`required.actor` absent — `reason: "retention"`,
+     * remove it). Reachable from both `purgeSelected` (an operator, `optional.actor` set — `reason:
+     * "manual"`) and the retention sweeper (`optional.actor` absent — `reason: "retention"`,
      * `actorId` left off the event, decision 6).
      */
-    async purge(required): Promise<TrashPurgeOutcome> {
+    async purge(required, optional = {}): Promise<TrashPurgeOutcome> {
       const { workspaceId, entityId } = required;
       return underPrincipalLock(workspaceId, entityId, async (k) => {
         const before = await readPrincipal(k, workspaceId, entityId);
@@ -197,7 +197,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         if (before.status === "active") return "version-changed";
 
         const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
-        const reason: UserPurgeReason = required.actor ? "manual" : "retention";
+        const reason: UserPurgeReason = optional.actor ? "manual" : "retention";
 
         await purge.purgeUser({
           workspaceId,
@@ -209,7 +209,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
             occurredAt: clock.nowIso(),
             aggregateId: entityId,
             workspaceId,
-            ...(required.actor ? { actorId: required.actor.principalId } : {}),
+            ...(optional.actor ? { actorId: optional.actor.principalId } : {}),
             payload: { principalId: entityId, username, removed, reason: builtReason },
           }),
         });

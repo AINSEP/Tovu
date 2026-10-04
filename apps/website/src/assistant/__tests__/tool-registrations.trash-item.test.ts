@@ -19,13 +19,12 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { RouteDeps } from "#src/server/routes/types";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import type { TrashEntityType } from "#src/features/trash/ports";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteTrashDb } from "#src/features/trash/db-port.sqlite";
 import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
-import { createTrashService } from "#src/features/trash/write-service";
-import type { TrashAdapter } from "#src/features/trash/index";
+import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
@@ -136,8 +135,9 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
     adapters,
-    idGen: { next: () => `trash-${(seq += 1)}` },
-    transaction: createContentDbTransactionRunner(db.$client),
+    idGen: { newId: () => `trash-${(seq += 1)}` },
+    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
 
   const authorizeCalls: Array<{ permission: string }> = [];

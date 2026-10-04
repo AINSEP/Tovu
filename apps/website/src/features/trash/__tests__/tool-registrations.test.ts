@@ -9,7 +9,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
-import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "../ports.js";
+import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
  *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
@@ -110,13 +110,13 @@ function harness(
     async trash() {
       return { ok: true, version: 1 };
     },
-    async restore(required) {
+    async restore(required, restoreOptional = {}) {
       restoreCalls.push({ entityType: required.entityType, entityId: required.entityId });
-      restoreActors.push(required.actor);
+      restoreActors.push(restoreOptional.actor);
       return optional.outcome ?? "restored";
     },
-    async list(required) {
-      listCalls.push(required);
+    async list(required, listOptional = {}) {
+      listCalls.push({ ...required, ...listOptional });
       return { items, nextCursor: "cursor-2" };
     },
     async purgeSelected(): Promise<PurgeReport> {

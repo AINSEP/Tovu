@@ -6,9 +6,9 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "../adapters/directory.js";
-import type { TrashAdapter } from "../ports.js";
-import { InMemoryTrashRepo } from "../repo.memory.js";
-import { createTrashService } from "../write-service.js";
+import type { TrashAdapter } from "@jini-ai/cms/trash";
+import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
+import { createTrashService } from "@jini-ai/cms/trash";
 
 const WS = "workspace-1";
 const ENTITY = "plugin";
@@ -184,15 +184,16 @@ test("directory adapter works through trash, list, restore, re-trash, and purge"
   const forgotten: string[] = [];
   const { adapter, liveDir, parkedDir } = await harness(t, async ({ entityId }) => void forgotten.push(entityId));
   await makeLive(liveDir);
-  const repo = new InMemoryTrashRepo();
+  const repo = new InMemoryTrashRepo({});
   const adapters = new Map<string, TrashAdapter>([[ENTITY, adapter]]);
   let sequence = 0;
   const trash = createTrashService({
     repo,
     adapters,
-    idGen: { next: () => `trash-${(sequence += 1)}` },
-    transaction: <T>(fn: () => Promise<T>) => fn(),
-  });
+    idGen: { newId: () => `trash-${(sequence += 1)}` },
+    transaction: ({ work }) => (<T>(fn: () => Promise<T>) => fn())(work),
+    entityPolicy: ({ entityType }) => (adapters).has(entityType)
+  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const required = {
     workspaceId: WS,
     entityType: ENTITY,
@@ -231,7 +232,7 @@ test("directory adapter works through trash, list, restore, re-trash, and purge"
 test("unhideIfRemoveThrows moves the folder back when the Trash row write throws after hide", async (t) => {
   const { adapter, liveDir, parkedDir } = await harness(t);
   await makeLive(liveDir);
-  const remove = unhideIfRemoveThrows(adapter, async (required: { workspaceId: string; id: string; at: string }) => {
+  const remove = unhideIfRemoveThrows(adapter, async (required: { workspaceId: string; id: string; at: string; }) => {
     assert.deepEqual(await adapter.hide({ workspaceId: required.workspaceId, entityId: required.id, at: required.at, expectedVersion: null }), { ok: true, version: null });
     throw new Error("trash row insert failed");
   });

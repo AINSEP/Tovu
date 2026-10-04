@@ -10,8 +10,8 @@ import type { Selectable } from "kysely";
 
 import type { TrashedItemsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
-import type { TrashEntityType, TrashItem, TrashPage, TrashRepoPort, TrashSweepClaim } from "./ports.js";
+import { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";
+import type { TrashEntityType, TrashItem, TrashPage, TrashRepoPort, TrashSweepClaim } from "@jini-ai/cms/trash";
 
 /** The one lock every sweeper claim takes, so two sweepers never lease the same rows (Postgres; a
  *  SQLite transaction already holds the write lock). */
@@ -62,7 +62,7 @@ export class SqlTrashRepo implements TrashRepoPort {
    *
    * @complexity O(1), one indexed insert.
    */
-  async insert(row: TrashItem): Promise<void> {
+  async insert({ row }: { row: TrashItem }): Promise<void> {
     await this.kernel.run((db) =>
       db
         .insertInto("trashed_items")
@@ -144,19 +144,17 @@ export class SqlTrashRepo implements TrashRepoPort {
   async list(required: {
     workspaceId: string;
     now: string;
-    entityTypes?: readonly TrashEntityType[];
     limit: number;
-    cursor?: string | null;
-  }): Promise<TrashPage> {
-    const after = decodeTrashCursor(required.cursor);
+  }, optional: { entityTypes?: readonly TrashEntityType[]; cursor?: string | null } = {}): Promise<TrashPage> {
+    const after = decodeTrashCursor({ cursor: optional.cursor });
     const rows = await this.kernel.run((db) => {
       let query = db
         .selectFrom("trashed_items")
         .select(ITEM_COLUMNS)
         .where("workspace_id", "=", required.workspaceId)
         .where("purge_after", ">", required.now);
-      if (required.entityTypes && required.entityTypes.length > 0) {
-        query = query.where("entity_type", "in", [...required.entityTypes]);
+      if (optional.entityTypes && optional.entityTypes.length > 0) {
+        query = query.where("entity_type", "in", [...optional.entityTypes]);
       }
       if (after) {
         query = query.where((eb) =>
