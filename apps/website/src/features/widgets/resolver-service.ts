@@ -28,6 +28,7 @@ import { findPublishedPostById, findPublishedPostBySlug } from "../post/index.js
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import { scanHtmlEmbeds } from "./html-embeds.js";
 import type { PageHtmlEmbedRef } from "./html-embeds.js";
+import type { PageEmbedType } from "./page-embed-types.js";
 import type { WidgetRegionBindingRepoPort } from "./ports.js";
 import { resolveWidgetType } from "./resolvers/index.js";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types.js";
@@ -1174,7 +1175,7 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
   media: resolveMediaTypeEmbeds,
   post: resolvePostTypeEmbeds,
   content: resolveContentTypeEmbeds,
-};
+} satisfies Record<PageEmbedType, HtmlEmbedResolver>;
 
 /**
  * Marker types that exist in the shared `data-embed-config` vocabulary (`core/embeds/marker.ts`) but
@@ -1201,8 +1202,9 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
  * a resolver entry instead; see `isPageEmbedType`'s own doc for why that would reintroduce the
  * substitution bug this file already fixed once.
  *
- * **Why this isn't just `!isPageEmbedType(type)`.** `isPageEmbedType` is `Object.hasOwn(HTML_EMBED_RESOLVERS,
- * type)` — exactly the same fact this loop's own `HTML_EMBED_RESOLVERS[type]` lookup already tests, one
+ * **Why this isn't just `!isPageEmbedType(type)`.** `isPageEmbedType` is membership in `PAGE_EMBED_TYPES`,
+ * which the compiler holds equal to `HTML_EMBED_RESOLVERS`'s keys — exactly the same fact this loop's own
+ * `HTML_EMBED_RESOLVERS[type]` lookup already tests, one
  * bit: "is this resolver-service's own type." That bit is `false` for `partial`/`menu` AND for a genuine
  * unregistered/typo type alike, so it cannot distinguish "known, owned by a later stage" from "owned
  * nowhere" — using it to gate the warning would silence the ONE case the warning exists for, not just
@@ -1225,30 +1227,11 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
 const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews", "collection"]);
 
 /**
- * Does the page-embed stage OWN this marker type — i.e. is a REQ-28 placeholder the honest answer
- * when it fails to resolve?
- *
- * This question did not exist before the 2026-08-10 marker unification, and its absence was a real
- * bug for exactly as long as the unification was half-done. `html-embeds.ts` used to match only an
- * empty `<div data-embed-type="…">`, so a theme's own `partial`/`menu` markers were INVISIBLE to
- * this stage — "unknown type" could only ever mean an author's typo, and rendering the REQ-28
- * placeholder for it was right. Sharing one permissive parser made every marker visible to every
- * consumer, so `renderHtmlPageBody` began substituting placeholders over the nav, the docs menu, and
- * the footer of any post rendered through a theme template — three markers a LATER stage
- * (`static-render.ts`'s `resolveSlots`/`injectMenuEmbeds`) owns and would have resolved.
- *
- * So ownership must be asked of this registry, never inferred from "did resolution produce
- * anything". A type present here that failed to resolve still degrades to the placeholder — that is
- * REQ-28 and unchanged. A type absent from here is not this stage's to render OR to blank: it is
- * left exactly as authored, which is the shared parser's own "unresolved means untouched" invariant.
- *
- * The cost of being wrong is asymmetric and that is why the default is untouched: a marker wrongly
- * left alone is visible in the output the moment anyone looks at the page, while a marker wrongly
- * replaced is a silently-deleted nav that renders as a tidy, plausible page with a hole in it.
+ * `isPageEmbedType` (the "does this stage OWN the marker type" question, with its own doc) lives in
+ * the dependency-free `page-embed-types.ts` so `render.ts` and the theme render workers can ask it
+ * without loading this file's service graph. Re-exported so existing importers keep working.
  */
-export function isPageEmbedType(type: string): boolean {
-  return Object.hasOwn(HTML_EMBED_RESOLVERS, type);
-}
+export { isPageEmbedType } from "./page-embed-types.js";
 
 /**
  * Resolved embed IR, keyed by embed type then by the referenced id (`resolved.get(ref.type)?.get(

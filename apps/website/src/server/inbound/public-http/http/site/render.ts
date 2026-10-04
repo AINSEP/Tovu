@@ -1,24 +1,23 @@
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/index";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
+import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/theme";
+import { renderStaticPage } from "#src/features/theme/static-render";
 import {
-  resolveTemplateId,
-  resolveLiquidTemplateId,
-  resolveHandlebarsTemplateId,
-  renderStaticPage,
   renderEntryList,
   withEntryListStyleOnce,
   type EntryListItem,
   type EntryListFieldValue,
-} from "#src/features/theme/index";
-import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+} from "#src/features/theme/entry-list-render";
+import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import { isPageEmbedType } from "#src/features/widgets/page-embed-types";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
 import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
 import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
-import { mediaPublicPath, mediaUrlKey } from "#src/features/media/index";
+import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
