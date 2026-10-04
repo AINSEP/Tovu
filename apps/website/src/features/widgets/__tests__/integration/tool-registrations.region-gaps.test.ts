@@ -8,8 +8,6 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
-import type { UIResource } from "#src/assistant/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import { areaDocWithPlacements, buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, parseWidgetAreaPayload, parseWidgetInstancePayload } from "../../entry-payload.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
@@ -74,30 +72,14 @@ function wired(toolId: string, deps: WidgetsToolDeps): ToolRegistration {
 }
 
 /**
- * `widgets_trash_instance` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
- * 2026-09-08-delete-confirmation-build.md) rather than trashing synchronously — this helper raises
- * it and immediately confirms, standing in for the human's click, for tests (like this file's own)
- * that only need a trashed instance to exist and are not themselves certifying the confirmation gate
- * (that is `widgets/__tests__/agent-tools.trash-confirmation.test.ts`'s job).
+ * Trashes one instance through the real `widgets_trash_instance` tool. Since 6eac86229 (2026-10-01,
+ * "confirm destructive and protected actions only") a reversible trash runs without a confirmation
+ * card, so the call itself must report the trash; the earlier card-and-confirm dance is gone.
  */
 async function trashInstance(deps: WidgetsToolDeps, widgetInstanceId: string): Promise<unknown> {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashTool = buildWidgetsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
-  assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
-  const emitted: unknown[] = [];
-  const pending = trashTool.handler({
-    executionId: "exec-1",
-    principal: { id: PRINCIPAL_ID },
-    run: { id: "run-1" },
-    input: { widgetInstanceId },
-    signal: new AbortController().signal,
-  }, { emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "widgets_trash_instance", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending;
+  const result = await wired("widgets_trash_instance", deps).handler(executionContext({ widgetInstanceId }));
+  assert.equal((result as { trashed?: unknown }).trashed, true);
+  return result;
 }
 
 async function createInstance(deps: WidgetsToolDeps, title = "Note"): Promise<{ id: string; version: number }> {
