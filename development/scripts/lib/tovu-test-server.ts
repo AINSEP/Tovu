@@ -71,7 +71,7 @@ export async function loginBarePrincipal(routeDeps: TovuRouteDeps, baseUrl: stri
     principalId,
     workspaceId: routeDeps.workspaceId,
     username,
-    passwordHash: await routeDeps.passwordHasher.hash(password),
+    passwordHash: await routeDeps.passwordHasher.hash({ password }),
   });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
