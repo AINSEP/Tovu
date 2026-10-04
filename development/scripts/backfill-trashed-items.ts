@@ -197,7 +197,7 @@ export function backfillTrashedItems(
   required: BackfillTrashedItemsRequired,
   optional: BackfillTrashedItemsOptional = {}
 ): BackfillDomainResult[] {
-  const purgeAfter = computePurgeAfter(required.now, optional.retentionDays ?? TRASH_RETENTION_DAYS);
+  const purgeAfter = computePurgeAfter({ at: required.now }, { retentionDays: optional.retentionDays ?? TRASH_RETENTION_DAYS });
   const actor = optional.actorPrincipalId ?? BACKFILL_ACTOR_PRINCIPAL_ID;
 
   return buildSources().map((source) => {
@@ -272,7 +272,7 @@ async function main(): Promise<void> {
     else console.log(`BACKFILLED: ${result.entityType} — ${result.rows} row(s) indexed.`);
   }
   const total = applied.reduce((sum, result) => sum + result.rows, 0);
-  console.log(`Done: ${total} row(s) indexed, purge_after = ${computePurgeAfter(now)} (retention starts now, not retroactively).`);
+  console.log(`Done: ${total} row(s) indexed, purge_after = ${computePurgeAfter({ at: now })} (retention starts now, not retroactively).`);
 }
 
 // Only when run as a script — the exported `backfillTrashedItems` is imported by tests.
