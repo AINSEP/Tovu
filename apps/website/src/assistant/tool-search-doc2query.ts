@@ -110,6 +110,12 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   site_describe_capabilities: [
     "What is this site capable of?", "What features and tools does this site have?", "What can I do with this site?", "What is possible here?",
   ],
+  // 2026-10-04: catalog growth (~250 tools) dropped site_get_profile to rank 4 for "give me an overview
+  // of the whole site" behind read tools whose questions say "show me the whole ...". It had no
+  // questions of its own; these give the overview/snapshot phrasing a home.
+  site_get_profile: [
+    "Give me an overview of my site.", "Summarize how the whole site is set up.", "What is on this site right now?", "Show me a snapshot of the site's pages, theme and settings.",
+  ],
   site_backup_plan: [
     "Can you back up my site to a private GitHub repository?", "Save a backup of my site in GitHub.", "Plan a site backup without changing remote files.", "Archive my content and database into a repository.",
   ],
