@@ -27,7 +27,7 @@
  * / largest SCC 0 with `settings` wired this way.
  */
 import type { ToolContributor } from "#src/assistant/index";
-import type { ToolRegistration } from "@jini-ai/core";
+import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
 import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps, type AgentSettingWriteRule } from "@jini-ai/cms/settings";
 import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
@@ -56,7 +56,8 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     setValue: set,
     extraConfirmationSettings: [...(routeDeps.extraConfirmationSettings ?? []), ...TOVU_CONFIRMATION_SETTINGS],
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
-    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options) => {
+    // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
+    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
       const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
         toolId,
         errorCode: "SETTINGS",
