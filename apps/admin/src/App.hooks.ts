@@ -64,6 +64,7 @@ export interface UseAdminSession {
   user: AdminUser | null;
   /** `true` until the initial `api.me()` round trip settles (resolved or rejected). */
   checking: boolean;
+  effectivePermissions?: readonly string[];
   /** `Login`'s `onLogin` — also publishes an unscoped settings refresh, since signing in changes
    *  what this tab is allowed to read, not just who it is (see this function's own inline comment
    *  in the implementation below for the concrete bug that made that necessary). */
@@ -83,22 +84,28 @@ export interface UseAdminSession {
 export function useAdminSession(): UseAdminSession {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [effectivePermissions, setEffectivePermissions] = useState<readonly string[]>([]);
+  // Ignore a previous session read after logout/relogin; grants must never cross identities.
+  const sessionEpoch = useRef(0);
 
   useEffect(() => {
     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
     // doc for why the fragment must not survive past this line. `null` (no fragment, the ordinary
     // case for every ELSE launch path) skips straight to the existing `api.me()` chain, unchanged.
+    const readEpoch = ++sessionEpoch.current;
     const bootToken = takeBootToken(window.location, window.history);
     const redeemed = bootToken ? api.redeemBootSession(bootToken).catch(() => undefined) : Promise.resolve(undefined);
 
     redeemed
       .then(() => api.me())
       .then((r) => {
+        if (sessionEpoch.current !== readEpoch) return;
         setPublishToLiveAvailable(readPublishToLiveAvailability(r));
         setUser(r.user);
+        setEffectivePermissions(r.effectivePermissions ?? []);
       })
-      .catch(() => setUser(null))
+      .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
       .finally(() => setChecking(false));
   }, []);
 
@@ -111,7 +118,7 @@ export function useAdminSession(): UseAdminSession {
    * instead of leaving whichever screen hit the 401 spinning with no explanation (the live bug this
    * fixes, 2026-08-17 — see `onUnauthenticated`'s own doc comment in `lib/api.ts`).
    */
-  useEffect(() => onUnauthenticated(() => setUser(null)), []);
+  useEffect(() => onUnauthenticated(() => { sessionEpoch.current++; setUser(null); setEffectivePermissions([]); }), []);
 
   /**
    * The settings change feed, open for as long as an operator is signed in.
@@ -146,22 +153,27 @@ export function useAdminSession(): UseAdminSession {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
+    const readEpoch = ++sessionEpoch.current;
     setUser(next);
+    setEffectivePermissions([]);
     publishSettingsRefresh();
     // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
     // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
     api
       .me()
-      .then((r) => setPublishToLiveAvailable(readPublishToLiveAvailability(r)))
+      .then((r) => { if (sessionEpoch.current !== readEpoch) return; setPublishToLiveAvailable(readPublishToLiveAvailability(r)); setEffectivePermissions(r.effectivePermissions ?? []); })
       .catch(() => undefined);
   }
 
   async function logout() {
+    sessionEpoch.current++;
+    setEffectivePermissions([]);
     await api.logout().catch(() => undefined);
     setUser(null);
+    setEffectivePermissions([]);
   }
 
-  return { user, checking, handleLogin, logout };
+  return { user, checking, handleLogin, logout, effectivePermissions };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { useMemo, type ReactNode } from "react";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
@@ -101,8 +102,8 @@ export function parseRoute(routePath: string): Route {
 /**
  * Which panel id is "current" for this route — feeds the sidebar highlight directly, and (via
  * {@link agentPageId}'s fallback) the page id an agent is told when no per-route override applies.
- * Deliberately not always {@link agentPageId}'s answer; see that function's own comment for the one
- * case (`widget-regions`) where the two genuinely diverge.
+ * Deliberately not always {@link agentPageId}'s answer; see that function's own comment for the
+ * routes (`widget-regions`, `jini-media`) where the two diverge.
  */
 function currentPanelId(route: Route): string {
   return route.unknownSectionId ?? route.panelId ?? "dashboard";
@@ -121,6 +122,8 @@ function currentPanelId(route: Route): string {
  * correction for that is to navigate again. `panels.tsx`'s `widgets` entry carries this exact case
  * forward as a per-route `agentPageId`, which `resolveAgentPageId` reads.
  *
+ * Jini Media similarly reports `jini-media` at `/media/new` while the sidebar highlights `media`,
+ * so an agent can return to the comparison page without landing on the legacy renderer.
  * Everything else still falls through to the panel id on purpose: a detail route reports its list
  * page (`/posts/abc` → `posts`), which is the nearest id an agent can actually act on.
  *
@@ -452,7 +455,7 @@ export function App(props: AppProps) {
   const useChatDock = resolveChatDockHook(props.useChatDock);
   const useAgentBridge = resolveAgentBridgeHook(props.useAgentBridge);
 
-  const { user, checking, handleLogin, logout } = useSession();
+  const { user, checking, handleLogin, logout, effectivePermissions = [] } = useSession();
   // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
   // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
@@ -560,6 +563,7 @@ export function App(props: AppProps) {
     // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
+    <AdminModulesProvider permissions={effectivePermissions}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp(navLocale, "Cancel")}>
       <div className="admin-layout">
         {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
@@ -694,5 +698,6 @@ export function App(props: AppProps) {
         ) : null}
       </div>
     </ConfirmDialogDefaultsProvider>
+    </AdminModulesProvider>
   );
 }

@@ -1,0 +1,2 @@
+/* Compatibility import; host presentation now follows Jini classes. */
+@import "./jini-media.css";

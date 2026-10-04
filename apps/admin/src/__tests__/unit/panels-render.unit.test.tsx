@@ -1,8 +1,9 @@
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
+import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 
 import { ADMIN_PANELS, type PanelRouteContext } from "../../panels";
-import { parseRoute } from "../../App";
+import { agentPageId, parseRoute } from "../../App";
 import { Themes, ThemeExplore } from "../../features/themes";
 import { Dashboard } from "../../features/dashboard";
 import { Placeholder } from "../../components/Placeholder";
@@ -11,6 +12,7 @@ import { PageEditor, Pages } from "../../features/pages";
 import { Members } from "../../features/members";
 import { Comments } from "../../features/comments";
 import { Analytics } from "../../features/analytics";
+import { ModulePanel } from "../../integrations/jini-admin/ModulePanel";
 import { Media } from "../../features/media";
 import { Menus, MenuEditor } from "../../features/menus";
 import { IntegrationDeliveries, IntegrationsRedirect } from "../../features/integrations";
@@ -75,7 +77,7 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // Webhooks) moved into `providers` (now labelled "Integrations"), and its own id/route stayed for
   // the `/:subscriptionId` deliveries drill-down and the retired index route's redirect — see
   // `panels.tsx`'s own comment on both panels for the full history.
-  it("has exactly 47 panels, and every id is unique", () => {
+  it("has 47 panels, and every id is unique", () => {
     expect(ADMIN_PANELS).toHaveLength(47);
     expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
   });
@@ -139,7 +141,7 @@ describe("panel 'users'", () => {
   });
 });
 
-/** Panels whose `render` reads `ctx.query.get("tab")` straight into a `tabId` prop, with no switch. */
+/** Panels whose default view reads `ctx.query.get("tab")` straight into a `tabId` prop. */
 const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["media", Media],
   ["ai-assistant", AiAssistant],
@@ -339,6 +341,8 @@ describe("panel 'integrations'", () => {
 const ROUTE_RENDER_CASES = [
   { id: "pages", pattern: "/:slug", component: PageEditor, props: { slug: "slug-sample" }, key: "slug-sample" },
   { id: "posts", pattern: "/:postId", component: PostEditor, props: { postId: "postId-sample" }, key: "postId-sample" },
+  // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
+  // { id: "media", pattern: "/new", component: ModulePanel, props: { moduleId: "media", pageId: "library" }, query: "tab=videos" },
   { id: "collections", pattern: "/:contentTypeKey/:entryId", component: CollectionEntryEditor, props: { contentTypeKey: "contentTypeKey-sample", entryId: "entryId-sample" }, key: "contentTypeKey-sample:entryId-sample" },
   { id: "collections", pattern: "/:contentTypeKey", component: CollectionEntries, props: { contentTypeKey: "contentTypeKey-sample" } },
   { id: "menus", pattern: "/new", component: MenuEditor, props: { menuId: null }, key: "new" },
@@ -377,5 +381,40 @@ describe("ADMIN_PANELS — every panel id is exercised by this file", () => {
     const covered = new Set([...SIMPLE_PANELS.map((p) => p.id), ...TAB_THREADED_PANELS.map(([id]) => id), ...switchTested]);
     const missing = ADMIN_PANELS.map((p) => p.id).filter((id) => !covered.has(id));
     expect(missing).toEqual([]);
+  });
+});
+
+describe("panel media — legacy and Jini routes", () => {
+  it.each(["", "?tab=videos"])("renders legacy Media at /media%s", (query) => {
+    const route = parseRoute(`/media${query}`);
+    expect(route.panelId).toBe("media");
+    expect(route.view).toBeNull();
+    const rendered = panel("media").render(route) as ReactElement;
+    expect(rendered.type).toBe(Media);
+    expect(rendered.props).toMatchObject({ tabId: query ? "videos" : null });
+    expect(agentPageId(route)).toBe("media");
+  });
+
+  // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
+  it.skip.each(["", "?tab=videos"])("passes the complete context to the Jini adapter at /media/new%s", (query) => {
+    const route = parseRoute(`/media/new${query}`);
+    expect(route.panelId).toBe("media");
+    expect(route.view).toBe("jini-media");
+    const rendered = panel("media").render(route) as ReactElement;
+    expect(rendered.type).toBe(ModulePanel);
+    expect(rendered.props).toMatchObject({ moduleId: "media", pageId: "library", route });
+    expect(agentPageId(route)).toBe("jini-media");
+    expect(buildAgentPageMap({ panels: ADMIN_PANELS }, { defaultReachable: true })).toMatchObject({
+      media: "/media", "jini-media": "/media/new",
+    });
+  });
+
+  it("keeps one Media sidebar row for both routes", () => {
+    const mediaItems = buildNav({ panels: ADMIN_PANELS }).flatMap((group) => group.items).filter((item) => item.id === "media");
+    expect(mediaItems).toHaveLength(1);
+    expect(mediaItems[0]?.label).toBe("Media");
+    expect(parseRoute("/media").panelId).toBe(mediaItems[0]?.id);
+    // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
+    // expect(parseRoute("/media/new").panelId).toBe(mediaItems[0]?.id);
   });
 });

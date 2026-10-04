@@ -1273,17 +1273,20 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Styled native file input — `<input type="file">` cannot be restyled into a fully custom
    control without JS, but the cross-browser `::file-selector-button` pseudo-element lets the
    button part match the rest of the button hierarchy instead of rendering as the bare OS widget. */
-.file-input {
+.file-input,
+input[type="file"][data-jini-part^="media."] {
   font-size: var(--text-sm); color: var(--fg-2);
   padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong);
   border-radius: var(--r-sm); background: var(--surface);
 }
-.file-input::file-selector-button {
+.file-input::file-selector-button,
+input[type="file"][data-jini-part^="media."]::file-selector-button {
   margin-right: var(--space-3); padding: 0.4rem 0.8rem; border: none; border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--fg-2); font-family: var(--font-ui); font-size: var(--text-sm);
   font-weight: 600; cursor: pointer; transition: background 0.14s;
 }
-.file-input::file-selector-button:hover { background: var(--surface-3); }
+.file-input::file-selector-button:hover,
+input[type="file"][data-jini-part^="media."]::file-selector-button:hover { background: var(--surface-3); }
 /* Media hides the native input visually and shows a translated <label> as the chooser; keyboard
    focus still lands on the hidden input, so draw the focus ring on its label. */
 .file-input:focus-visible + label { outline: 2px solid var(--accent-text); outline-offset: 2px; }

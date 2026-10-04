@@ -18,10 +18,10 @@ import { publishContentRefresh } from "./content-refresh-bus";
  * excluded. That's a deliberate reversal of the package's fail-safe-by-default stance (see
  * `panels.tsx`'s own file header for the reasoning): navigation alone only lets an agent land on a
  * page, never operate anything on it — that needs each control separately tagged with
- * `data-agent-element` — so there is no meaningful risk in an agent knowing a page exists. No panel
- * opts OUT explicitly today; the one that did (`settings-raw`, `agentReachable: false`) was a
- * human-only raw-ledger debugging surface, deleted once `/settings` covered the same rows. The
- * escape hatch is still wired and still honored — it just has no current user.
+ * `data-agent-element` — so there is no meaningful risk in an agent knowing a page exists. The
+ * previous `settings-raw` opt-out was a human-only raw-ledger debugging surface, deleted once
+ * `/settings` covered the same rows. The
+ * escape hatch is still wired and still honored.
  *
  * Ids are the same vocabulary the sidebar and `currentPanelId()` already use, so "take me to
  * redirects" resolves to the id a human would guess and the one already reported as the current

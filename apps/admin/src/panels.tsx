@@ -9,7 +9,7 @@ import { PageEditor, Pages } from "./features/pages";
 import { Members } from "./features/members";
 import { Comments } from "./features/comments";
 import { Analytics } from "./features/analytics";
-import { Media } from "./features/media";
+import { renderMediaPanel } from "./media-panel";
 import { Menus, MenuEditor } from "./features/menus";
 import { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
 import { Providers } from "./features/providers";
@@ -56,10 +56,10 @@ import { Sites } from "./features/sites";
  * keeps that exact reasoning but as fields on one declaration: `nav` is optional (omit it and a
  * panel is routable but unlisted), and `agentReachable` is left unset on nearly every panel below —
  * `agent-pages.ts` opts Tovu into `buildAgentPageMap`'s `defaultReachable: true`, so unset now means
- * reachable, not excluded. No panel currently sets `agentReachable: false` to opt back OUT: the one
- * that did was `settings-raw`, the SPEC-007 raw namespace/key ledger inspector, a human-only
- * debugging surface deleted once `/settings` covered the same rows through a curated tabbed UI. The
- * field still exists and still works; nothing needs it today. This is the mirror image of the field's original
+ * reachable, not excluded. Previously that opt-out was `settings-raw`, the SPEC-007 raw namespace/key
+ * ledger inspector, a human-only debugging surface deleted once `/settings` covered the same rows
+ * through a curated tabbed UI. The
+ * field still exists and still works. This is the mirror image of the field's original
  * fail-safe-by-default design (`@jini-ai/admin/core`'s own default is still `false`, for a host that
  * hasn't made this call); Tovu decided navigation-only reachability carries no meaningful risk on
  * its own — operating a page's controls is a separate, still per-element `data-agent-element`
@@ -69,8 +69,8 @@ import { Sites } from "./features/sites";
  * Detail routes (`/posts/:id`, `/widgets/regions/:key`, …) used to live as branches in `App.tsx`'s
  * `parseRoute`, a ~30-line if-chain. They live on each panel's own `routes` now — see
  * `AdminRoutePattern` in `@jini-ai/admin/core` for the segment-matching rules, and this file's
- * `widgets` entry below for the one case where a route's reported agent page id genuinely diverges
- * from its panel id.
+ * `widgets` and `media` entries below for routes whose reported agent page id diverges from the
+ * panel id while the sidebar still highlights the owning panel.
  *
  * `App.tsx` still owns two Tovu-local things the generic package cannot: the legacy
  * `/section/:id` URL shape (nothing else in the corpus this package was ported from has that), and
@@ -212,10 +212,12 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "media",
-    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
-    // (see `Media`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
-    // `settings`'s own entries elsewhere in this file.
-    render: (ctx) => <Media tabId={ctx.query.get("tab")} />,
+    render: renderMediaPanel,
+    routes: [
+      // TEMPORARY (2026-10-03): side-by-side visual parity with legacy; the Jini page takes over /admin/media after owner sign-off
+      // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
+      // { pattern: "/new", view: "jini-media", agentPageId: "jini-media" },
+    ],
     nav: {
       label: "Media",
       group: "Content",

@@ -1,4 +1,6 @@
 import React from "react";
+import { KitProvider } from "@jini-ai/ui-kit/react";
+import { tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { FetchQueryProvider } from "./lib/fetch-query";
@@ -9,6 +11,7 @@ import "./styles/forms.css";
 import "./styles/editor.css";
 import "./styles/pages.css";
 import "./styles/media.css";
+import "./integrations/jini-admin/jini-media.css";
 import "./styles/source-control.css";
 import "./styles/access-tokens.css";
 import "./styles/site-token.css";
@@ -43,8 +46,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`
         directly, and the two styles coexist without interfering. */}
+    <KitProvider kit={tovuKit}>
     <FetchQueryProvider>
       <App />
     </FetchQueryProvider>
+    </KitProvider>
   </React.StrictMode>
 );

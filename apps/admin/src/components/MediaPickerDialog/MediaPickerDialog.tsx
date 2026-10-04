@@ -1,3 +1,4 @@
+import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
 import { useId, useRef } from "react";
 import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import { agentHandle } from "@jini-ai/agentic";
@@ -61,7 +62,7 @@ export interface MediaPickerDialogProps {
   agentHandle?: string;
 }
 
-export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
+function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
   const { items, error, select, mediaOriginalUrl, cancelRef, t } = useDialog(props.onSelect, props.onCancel);
   // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -132,4 +133,10 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agent
       </div>
     </div>
   );
+}
+
+/** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
+export function MediaPickerDialog(props: MediaPickerDialogProps, _optional: Record<string, never> = {}) {
+  const vm = useJiniMediaPicker(props);
+  return vm.enabled ? <>{vm.error && <div role="alert">{vm.error}<button type="button" onClick={vm.onCancel}>Cancel</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }
