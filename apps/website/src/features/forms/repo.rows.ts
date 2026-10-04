@@ -66,7 +66,7 @@ export function toSubmissionRecord(row: FormSubmissionRow): FormSubmissionRecord
     workspaceId: row.workspace_id,
     formDefinitionId: row.form_definition_id,
     data: JSON.parse(row.data_json) as Record<string, string | boolean>,
-    // Published cms-forms still requires a string. Since nullable migration 0006, an
+    // cms-forms <0.2.2 required a string (0.2.2 allows null). Since nullable migration 0006, an
     // expired IP has an empty display value until the host adopts the nullable package DTO.
     sourceIp: row.source_ip ?? "",
     submittedAt: row.submitted_at,

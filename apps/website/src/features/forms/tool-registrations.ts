@@ -167,7 +167,8 @@ function toFormSubmissionView(record: FormSubmissionRecord): FormSubmissionToolV
     id: record.id,
     formDefinitionId: record.formDefinitionId,
     data: { ...record.data },
-    sourceIp: record.sourceIp,
+    // cms-forms 0.2.2 types an expired IP as null; this view keeps repo.rows.ts's empty string.
+    sourceIp: record.sourceIp ?? "",
     submittedAt: record.submittedAt,
   };
 }

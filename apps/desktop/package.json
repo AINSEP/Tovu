@@ -19,8 +19,8 @@
     "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.ts"
   },
   "dependencies": {
-    "@jini-ai/chat": "^0.5.0",
-    "@jini-ai/desktop-host": "^0.4.0",
+    "@jini-ai/chat": "^0.5.1",
+    "@jini-ai/desktop-host": "^0.4.1",
     "@jini-ai/platform": "^0.5.0",
     "@mcp-ui/client": "7.1.1",
     "@radix-ui/react-checkbox": "^1.3.11",
