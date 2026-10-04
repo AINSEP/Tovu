@@ -9,8 +9,8 @@ import { useTheme, type ThemePreference } from './theme.js';
 // Author Checklist: reject defaulting to system, ignoring saved preferences, applying the OS
 // to explicit preferences, omitting persistence/DOM updates, or leaving the system listener
 // attached after a preference change/unmount. Real React effects and EventTarget routing run.
-// The workspace's installed admin DOM dependency; React/ReactDOM are Runner's real dependencies.
-const { JSDOM } = createRequire(new URL('../../../admin/package.json', import.meta.url))('jsdom');
+// Desktop's own DOM dependency: CI installs root and desktop, without installing admin.
+const { JSDOM } = createRequire(import.meta.url)('jsdom');
 
 function mountTheme(t: TestContext, stored: string | null, dark: boolean) {
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://runner.test/' });

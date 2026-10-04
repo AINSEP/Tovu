@@ -18,6 +18,20 @@ import { TEST_PASSES, parseNodeTestScript, runnerSplitDrift } from "./coverage-f
 const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
 const DESKTOP_ROOT = path.dirname(PACKAGE_JSON);
 
+test("npm test builds the deployed preloads before either test pass on a clean checkout", () => {
+  const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
+  // The speech VM checks the shipped CommonJS bundle, not a substitute transpilation. Build
+  // just the preloads, without the renderer, before reading it; never skip on a missing dist.
+  assert.equal(manifest.scripts.pretest, "npm run build:preload");
+});
+
+test("desktop declares the DOM dependency its real renderer hook tests need", () => {
+  const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
+  // A hoisted admin install can hide this omission locally. Desktop Gates installs only root
+  // and desktop, so resolving a DOM package somewhere on this machine is insufficient proof.
+  assert.equal(manifest.devDependencies.jsdom, "^29.1.1");
+});
+
 test("package.json's test script runs the same globs under the same runners as TEST_PASSES", () => {
   const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
   assert.deepEqual(runnerSplitDrift(TEST_PASSES, parseNodeTestScript(manifest.scripts.test)), []);

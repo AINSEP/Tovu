@@ -48,7 +48,7 @@ test('a non-Error rejection is stringified, and a missing bridge says so', async
 
 // F2.3/F6.2: run the hook's real state transitions and delivery callback, including a retry.
 test('the locate hook shows pending/error state and delivers the found record with the old id on retry', async (t) => {
-  const { JSDOM } = createRequire(new URL('../../../admin/package.json', import.meta.url))('jsdom');
+  const { JSDOM } = createRequire(import.meta.url)('jsdom');
   const dom = new JSDOM('<div id="root"></div>');
   const globals = { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true };
   const saved = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));

@@ -40,7 +40,7 @@
     },
     {
       "what": "src/renderer/*.tsx",
-      "why": "there is no DOM test runner in this package — no jsdom, no testing-library, no .tsx runner. The renderer wiring tests are source-text guards. Measuring these means adopting apps/admin's vitest+jsdom stack here, which is a separate decision nobody has taken."
+      "why": "The measured renderer area includes .ts hooks and rules; their React hook tests use desktop's own jsdom dependency. The .tsx components remain outside this area's disk denominator, and their wiring tests read source text. Measuring the components requires rendering the actual .tsx modules and explicitly adding them to the denominator, which remains a separate coverage decision."
     },
     {
       "what": "src/preload/preload.mts",

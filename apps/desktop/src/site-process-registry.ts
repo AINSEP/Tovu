@@ -476,6 +476,15 @@ async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_
     await sleep(TERMINATE_POLL_MS);
   }
 
+  await finishOrphanTermination({ row });
+}
+
+/** Reconfirm the orphan's identity before escalating, then observe exit before its row is cleared.
+ * @complexity O(DEFAULT_TERMINATE_GRACE_MS / TERMINATE_POLL_MS) — bounded final poll. */
+async function finishOrphanTermination(
+  { row }: { row: ServeIdentityRow },
+  _optional: Record<string, never> = {},
+): Promise<void> {
   if (isProcessAlive(row.pid) && isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) {
     try {
       process.kill(row.pid, "SIGKILL");

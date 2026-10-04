@@ -18,13 +18,15 @@ export function sitePortPresentation(
 ) {
   const { port, status = 'running' } = input;
   const validPort = typeof port === 'number' && Number.isInteger(port) && port > 0 && port <= 65535;
-  const running = status === 'running' && validPort;
-  const portLabel = running ? String(port) : '';
-  const label = STATUS_LABEL[status === 'running' && !running ? 'stopped' : status];
+  if (status !== 'running' || !validPort) {
+    const label = STATUS_LABEL[status === 'running' ? 'stopped' : status];
+    return { running: false, portLabel: '', origin: '', statusDescription: `${label}.` };
+  }
+  const portLabel = String(port);
   return {
-    running,
+    running: true,
     portLabel,
-    origin: running ? `http://127.0.0.1:${portLabel}` : '',
-    statusDescription: running ? `${label} on port ${portLabel}.` : `${label}.`,
+    origin: `http://127.0.0.1:${portLabel}`,
+    statusDescription: `${STATUS_LABEL.running} on port ${portLabel}.`,
   };
 }

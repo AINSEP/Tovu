@@ -1,5 +1,5 @@
 /**
- * Exercise the bundled CommonJS preload that Electron actually loads. Build preloads first:
+ * Exercise the bundled CommonJS preload that Electron actually loads. npm test builds preloads first:
  * Jini must be inlined, and the restricted sandbox must require only Electron at runtime.
  * The VM retains the admin-only file capability and positional speech wire assertions.
  */
