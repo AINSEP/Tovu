@@ -3,6 +3,7 @@ import type { Express } from "express";
 import { buildContentPublishPorts, type ContentPublishSources } from "#src/server/runtime/composition/content-publish-ports";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { RouteDeps } from "#src/server/routes/types";
+import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -53,6 +54,11 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type PublishContentRouteDeps = Pick<
   RouteDeps,
   | "workspaceId"
+  | "contentKernel"
+  | "siteBinding"
+  | "ownerPrincipalId"
+  | "principalRoleRepo"
+  | "roleRepo"
   | "authorize"
   | "clock"
   | "idGen"
@@ -86,7 +92,7 @@ export type PublishContentRouteDeps = Pick<
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
 
-export type PublishContentProjectionDeps = ContentPublishSources & Pick<PublishContentRouteDeps,
+export type PublishContentProjectionDeps = ContentPublishSources & Partial<Pick<PublishContentRouteDeps, "contentKernel" | "siteBinding">> & Pick<PublishContentRouteDeps,
   | "clock" | "idGen" | "outbox" | "pluginBeforeSaveHook" | "blobStore"
   | "mediaRepo" | "assetBlobRepo" | "mediaContentTypeStore" | "redirectsWriteDeps"
   | "menuRepo" | "navLocationBindingRepo" | "themesDir" | "fileBlobIndex"
@@ -124,6 +130,7 @@ export function toPublishContentDeps(deps: PublishContentProjectionDeps): Publis
     idGen: deps.idGen,
     outbox: deps.outbox,
     beforeSaveHook: deps.pluginBeforeSaveHook,
+    backstop: buildPublishBackstopPorts(deps),
     // F2 — one ports bag keyed by entityType, instead of nine flat fields. See `type-registry.ts`'s
     // `PublishContentPorts` header for why. Apply-only ports (`post.forgetRemoved`/`.remove`,
     // `theme-files.onReplaced`) are supplied only by the apply bag (`apply-loop.ts`'s

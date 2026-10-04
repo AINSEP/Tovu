@@ -124,7 +124,7 @@ test("the two tools reach the catalog the daemon serves, via the real compositio
   assert.ok(contributor, "installFirstPartyToolContributors() did not install publish-content");
 
   const ids = contributor.build(toolDeps() as never, NO_SURFACES).map((r) => r.descriptor.id);
-  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, "publish_content_plan_pull", "publish_content_execute_pull"].sort());
+  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, "publish_content_plan_pull", "publish_content_execute_pull", "publish_backstop_gaps"].sort());
 
   // Every wired tool must carry a risk classification, or `assertRiskMetadataIsWirable` refuses the
   // whole catalog at boot — the gate that turns a missing entry into a dead assistant, not a quiet gap.

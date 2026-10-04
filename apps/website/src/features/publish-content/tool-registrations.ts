@@ -38,7 +38,7 @@ import {
 import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../publish-trust/provisioning.node-io.js";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID } from "./agent-tools.js";
+import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "./agent-tools.js";
 import { connectAndRecordDestination } from "./connect-destination.js";
 // Kept for its TYPE only — `PublishContentToolDeps.publishContentPeerHttpClient`/
 // `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` are still declared against
@@ -85,6 +85,8 @@ import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, Widget
  */
 
 const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> a read-only projection of source audit events; no bundle, confirmation or writes.
+  [PUBLISH_BACKSTOP_GAPS_TOOL_ID, "none"],
   // -> one peer-table read, one repo-config read. Writes nothing, contacts nothing.
   [PUBLISH_CONTENT_STATUS_TOOL_ID, "none"],
   // -> pullAndStageFromPeer stores blobs and a 24-hour staged row; gateway.plan reads;
@@ -249,6 +251,13 @@ export function buildPublishContentRegistrations(
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
 
   const handlers: Record<string, ToolHandler> = {
+    [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
+      refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.read" });
+      const audit = routeDeps.makePublishContentDeps?.().backstop?.audit;
+      return { gaps: audit && await audit.ready() ? await audit.gaps({ workspaceId: routeDeps.workspaceId }) : [] };
+    },
     [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID]: async ctx => pullToolBoundary(async () => {
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, ["peerId"]);

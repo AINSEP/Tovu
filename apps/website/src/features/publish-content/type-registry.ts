@@ -30,6 +30,8 @@ import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { SettingsRepoPort } from "@jini-ai/cms/settings";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
+import type { BackstopPorts } from "./backstop-ports.js";
+import type { BackstopMetadata } from "./backstop-audit.js";
 
 /**
  * @file Task 2 of the publish-content (Publish Content) feature —
@@ -201,6 +203,8 @@ export interface TaxonomyPublishPorts {
  * module itself never has to know what any particular resource needs to build its handler.
  */
 export interface PublishContentDeps {
+  /** Only explicit selection packs raw items; ordinary exports always yield none. */
+  readonly backstop?: BackstopPorts;
   /** Every publish-content operation is scoped to one workspace (plan §1.1's mount-path
    *  convention: `/api/admin/v1/workspaces/:workspaceId/...`) — carried here rather than threaded
    *  as a per-call parameter, the same choice `PostToolDeps`/`RouteDeps` already make for every
@@ -237,6 +241,7 @@ export interface PublishContentDeps {
  * import proceeds.
  */
 export interface PackedEntity {
+  readonly backstop?: BackstopMetadata;
   /** Must equal the owning {@link PublishContentHandler.entityType} — carried on the entity
    *  itself (not just implied by which handler produced it) so a bundle's `entities[]` array is
    *  self-describing once serialized, with no positional/grouping convention to preserve. */
@@ -336,6 +341,8 @@ export interface RepointResult {
  * mutation gateway).
  */
 export interface PublishContentHandler {
+  /** A new manual send after an undo must not reuse the original send's command key. */
+  readonly idempotencyScope?: "run";
   /** Stable wire discriminator. Appears in bundles and in baselines; never renamed — a rename would
    *  silently orphan every baseline row keyed on the old string, turning every future sync for that
    *  type into a false `created` (no matching baseline) rather than the update it should be. */
@@ -526,6 +533,9 @@ export interface SkippedPackEntity {
  * contributor first just to read a static ordering fact.
  */
 export interface PublishContentContributor {
+  /** Full-table/root coverage prevents raw imports from bypassing typed validation. */
+  readonly coversTables?: readonly string[];
+  readonly coversRoots?: readonly string[];
   readonly entityType: string;
   readonly dependsOn: readonly string[];
   readonly build: (deps: PublishContentDeps) => PublishContentHandler;

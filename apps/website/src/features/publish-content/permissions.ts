@@ -1,4 +1,5 @@
 import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
+import { registerPermission } from "@jini-ai/user-management";
 
 /**
  * @file Task 9 of the publish-content (Publish Content) feature —
@@ -60,6 +61,13 @@ export const PUBLISH_CONTENT_READ_PERMISSION = "publish_content.read";
  * feed it (`blob-put.ts`, `blobs-probe.ts`, `bundle-create.ts`) — the write/mutate side.
  */
 export const PUBLISH_CONTENT_APPLY_PERMISSION = "publish_content.apply";
+
+/** The manual surface additionally checks built-in role membership; a custom wildcard role
+ * never qualifies, even if role.manage has written this permission into its own policy. */
+export const PUBLISH_BACKSTOP_PERMISSION = "publish.backstop";
+registerPermission({ id: PUBLISH_BACKSTOP_PERMISSION, owner: "publish-content", description: "Send uncovered site items by hand (owner and built-in admins only)." });
+registerBuiltinRoleGrant({ role: "admin", permission: PUBLISH_BACKSTOP_PERMISSION,
+  reason: "Owner B1 (2026-10-04): manual publish is available only to the owner and built-in admins; every route also enforces that role boundary." });
 
 registerBuiltinRoleGrant({
   role: "admin",

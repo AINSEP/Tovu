@@ -1,6 +1,9 @@
 import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
+import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
+import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
@@ -136,6 +139,15 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
         // in full. An empty `entityTypes` allows nothing, which is the correct reading of a
         // permission nobody stated.
         const publishTrust = getPublishTrustContext(res);
+        if (validated.entities.some((entry) => {
+          const entityType = (entry as { entityType?: string } | null)?.entityType;
+          return typeof entityType === "string" && isBackstopEntityType({ entityType }) &&
+            !backstopGrantAllows({ grant: publishTrust, entityType });
+        })) {
+          res.status(403).json({ error: "Send by hand requires the destination's backstop grant and raw entity type.",
+            code: "FORBIDDEN", details: { permission: "publish_content.backstop", reason: "backstop_not_granted" } });
+          return;
+        }
         if (publishTrust) {
           // `validated.entities` is `unknown[]` on purpose (see `validateBundleBody`), so an entry
           // that does not declare a string `entityType` is refused rather than skipped: skipping it
@@ -159,6 +171,20 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
               details: { permission: "publish_content.apply", reason: "entity_type_not_granted" },
             });
             return;
+          }
+        }
+
+        if (validated.entities.some((entity) => isBackstopEntityType({ entityType: String((entity as { entityType?: unknown } | null)?.entityType) }))) {
+          try {
+            // Envelope validation leaves entity fields opaque; the planner checks their full
+            // shape before any writes. This read validates only the manual-send metadata.
+            const metadata = readBackstopMetadata({ entities: validated.entities as unknown as PackedEntity[] });
+            if (metadata?.destinationHost !== req.get("host")) {
+              res.status(400).json({ error: "The confirmed live address does not match this destination." }); return;
+            }
+          } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Invalid send details." }); return; }
+          if (!(await toPublishContentDeps(deps).backstop?.audit?.ready())) {
+            res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return;
           }
         }
 

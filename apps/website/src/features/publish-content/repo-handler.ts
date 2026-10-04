@@ -50,6 +50,8 @@ export interface RepoWriteResult {
 
 /** One publishable type's config for {@link createRepoPublishHandler} (plan §2.1). */
 export interface RepoPublishTypeConfig<Row, Ports> {
+  readonly coversTables?: readonly string[];
+  readonly coversRoots?: readonly string[];
   readonly entityType: string;
   /** Defaults to 1. */
   readonly schemaVersion?: number;
@@ -327,5 +329,5 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     };
   }
 
-  return { entityType, dependsOn, build };
+  return { entityType, dependsOn, build, coversTables: config.coversTables, coversRoots: config.coversRoots };
 }

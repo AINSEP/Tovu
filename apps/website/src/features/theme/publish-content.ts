@@ -740,5 +740,5 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
  * — see this file's header.
  */
 export function contributeThemeFilesPublish(): PublishContentContributor {
-  return { entityType: "theme-files", dependsOn: THEME_FILES_DEPENDS_ON, build: buildHandler };
+  return { entityType: "theme-files", coversRoots: ["themes"], dependsOn: THEME_FILES_DEPENDS_ON, build: buildHandler };
 }

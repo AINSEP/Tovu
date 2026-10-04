@@ -22,6 +22,22 @@ import { registerPublishContentCapabilitiesRoute } from "../capabilities.js";
 const WORKSPACE_ID = "ws-capabilities";
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/publish-content/capabilities`;
 
+test("raw capabilities need both backstop trust and an explicit type, including for API-key callers", async (t) => {
+  resetPublishContentContributorsForTests();
+  t.after(resetPublishContentContributorsForTests);
+  registerPublishContentContributor(stubHandler("post", 1));
+  registerPublishContentContributor(stubHandler("raw-row", 1));
+  registerPublishContentContributor(stubHandler("raw-file", 1));
+  for (const trust of [undefined, publishTrust(["post", "raw-row", "raw-file"]),
+    { ...publishTrust(["post", "raw-row"]), capabilities: ["publish_content.apply", "publish_content.backstop"] as const }]) {
+    const server = await startTestServer(buildApp({ publishTrust: trust }), t);
+    const response = await fetch(`${server}${BASE}`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.entityTypes, trust?.capabilities.includes("publish_content.backstop") ? ["post", "raw-row"] : ["post"]);
+  }
+});
+
 function stubHandler(entityType: string, schemaVersion: number) {
   return {
     entityType,

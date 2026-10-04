@@ -65,6 +65,7 @@ import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "./index
 export const contributeMenusPublish = (): PublishContentContributor =>
   createRepoPublishHandler<NavMenuEntry, PublishContentPorts["menu"]>({
     entityType: "menu",
+    coversTables: ["menus", "nav_location_bindings"],
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).
     permission: "admin.menus.update",
     dependsOn: ["post", "page"],

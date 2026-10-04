@@ -103,6 +103,7 @@ function redirectFields(workspaceId: string, state: Record<string, unknown>) {
 export const contributeRedirectPublish = (): PublishContentContributor =>
   createRepoPublishHandler<RedirectRow, RedirectsWriteDeps>({
     entityType: "redirect",
+    coversTables: ["redirects"],
     permission: "admin.redirects.manage",
     ports: (deps) => deps.ports.redirect,
     list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(withTitle),

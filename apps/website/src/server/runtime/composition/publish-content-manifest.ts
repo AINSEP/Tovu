@@ -5,6 +5,8 @@ import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
+import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
+import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
 import { contributeSiteSettingPublish } from "#src/features/settings/publish-content";
@@ -63,4 +65,6 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributeWidgetAreaPublish());
   registerPublishContentContributor(contributeSiteSettingPublish());
   registerPublishContentContributor(contributeActiveThemePublish());
+  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor(contributeRawFilePublish());
 }

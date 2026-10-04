@@ -23,6 +23,7 @@ const NOTIFY: FieldDisposition = "transferred";
 export const contributeFormPublish = (): PublishContentContributor =>
   createRepoPublishHandler<FormDefinitionRecord, PublishContentPorts["form"]>({
     entityType: "form",
+    coversTables: ["form_definitions"],
     permission: "admin.forms.manage",
     ports: (deps) => deps.ports.form,
     list: (p, workspaceId) => p.repo.list({ workspaceId }),

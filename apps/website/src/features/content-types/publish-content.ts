@@ -35,6 +35,7 @@ const seededKeyRefusal = (key: string): string | null =>
 export const contributeContentTypePublish = (): PublishContentContributor =>
   createRepoPublishHandler<ContentTypeRecord, PublishContentPorts["content-type"]>({
     entityType: "content-type",
+    coversTables: ["content_types"],
     permission: "admin.collections.manage",
     ports: (deps) => deps.ports["content-type"],
     list: (p, workspaceId) => p.repo.listByWorkspace({ workspaceId }),

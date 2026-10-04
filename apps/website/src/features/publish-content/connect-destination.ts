@@ -91,7 +91,8 @@ export async function connectAndRecordDestination(
   deps: ConnectAndRecordDeps,
   input: { workspaceId: string; baseUrl: string; entityTypes: readonly string[] }
 ): Promise<{ site: PublishContentPeerSummary; grant: GrantWriteResult }> {
-  const grant = await deps.connectGrant({ baseUrl: input.baseUrl, entityTypes: input.entityTypes });
+  const grant = await deps.connectGrant({ baseUrl: input.baseUrl,
+    entityTypes: input.entityTypes.filter((entityType) => entityType !== "raw-row" && entityType !== "raw-file") });
 
   let site: PublishContentPeerSummary;
   try {

@@ -57,6 +57,10 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app
     try {
       const caller = getAuthedPrincipal(res);
       const body = (req.body ?? {}) as Record<string, unknown>;
+      if (body.permission === "publish.backstop" || body.permission === "publish_content.backstop") {
+        res.status(403).json({ error: "Manual publishing is reserved for the owner and built-in admins; it cannot be granted to another role.", code: "FORBIDDEN" });
+        return;
+      }
 
       const { policyPermission } = await writePolicyPermission({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? ""), permission: String(body.permission ?? "") } }, { resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined, constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined });
 

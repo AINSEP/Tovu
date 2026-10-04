@@ -2,7 +2,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
 import { buildChallengeMessage } from "./challenge.js";
-import { PUBLISHING_CAPABILITIES, type PublishingCapability } from "./grant.js";
+import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "./grant.js";
 import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
 
 /**
@@ -251,7 +251,7 @@ export async function fetchDestinationIdentity(
  */
 export async function openPublishSession(
   deps: HandshakeClientDeps & { readonly keyring: KeyringPort },
-  input: { baseUrl: string; workspaceId: string; generation?: number }
+  input: { baseUrl: string; workspaceId: string; generation?: number; backstop?: boolean }
 ): Promise<PublishSession> {
   const generation = input.generation ?? PUBLISH_TRUST_GENERATION;
   const identity = await fetchDestinationIdentity(deps, input);
@@ -275,7 +275,8 @@ export async function openPublishSession(
     generation,
   });
 
-  const capabilities: readonly PublishingCapability[] = PUBLISHING_CAPABILITIES;
+  const capabilities: readonly PublishingCapability[] = input.backstop
+    ? [...DEFAULT_PUBLISHING_CAPABILITIES, "publish_content.backstop"] : DEFAULT_PUBLISHING_CAPABILITIES;
   const signatureB64u = signingKey.sign(
     buildChallengeMessage({ nonce, targetInstallationId, sourceInstallationId, generation, capabilities })
   );

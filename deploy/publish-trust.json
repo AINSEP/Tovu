@@ -24,11 +24,14 @@
       "widget",
       "widget-area",
       "site-setting",
-      "active-theme"
+      "active-theme",
+      "raw-row",
+      "raw-file"
     ],
     "capabilities": [
       "publish_content.read",
-      "publish_content.apply"
+      "publish_content.apply",
+      "publish_content.backstop"
     ],
     "notAfter": "2027-09-19T18:37:35.101Z"
   }

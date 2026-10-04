@@ -74,6 +74,7 @@ const notInstalled = (themeId: string) => `active theme '${themeId}' is not inst
 export const contributeActiveThemePublish = (): PublishContentContributor =>
   createRepoPublishHandler<ActiveThemeRow, Ports>({
     entityType: "active-theme",
+    coversTables: ["presentation_settings"],
     permission: "theme.set",
     dependsOn: ["theme-files"],
     ports: (deps) => deps.ports["active-theme"],

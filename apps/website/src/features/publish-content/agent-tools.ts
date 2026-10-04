@@ -39,6 +39,7 @@ export interface AgentToolDefinition {
 }
 
 export const PUBLISH_CONTENT_STATUS_TOOL_ID = "publish_content_status";
+export const PUBLISH_BACKSTOP_GAPS_TOOL_ID = "publish_backstop_gaps";
 export const PUBLISH_CONTENT_CONNECT_TOOL_ID = "publish_content_connect";
 
 export const PUBLISH_CONTENT_PLAN_PULL_TOOL_ID = "publish_content_plan_pull";
@@ -47,6 +48,9 @@ export const PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID = "publish_content_execute_pul
 const NO_ARGUMENTS_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 
 export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
+  { name: PUBLISH_BACKSTOP_GAPS_TOOL_ID,
+    description: "Read which kinds of site items people have sent by hand because normal publishing does not cover them yet. Returns gap labels, send counts and the last reason. Use this to suggest new normal publish types. The assistant can only read this history. A person must confirm every manual send; never fill their live-address confirmation.",
+    sideEffects: "none", authorization: { permission: "publish_content.read" }, inputSchema: NO_ARGUMENTS_SCHEMA },
   {
     name: PUBLISH_CONTENT_PLAN_PULL_TOOL_ID,
     description: "Fetches the live site's content and shows what pulling it down would change here; changes no content yet. " +

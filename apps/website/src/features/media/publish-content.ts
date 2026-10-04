@@ -112,6 +112,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
 export const contributeMediaPublish = (): PublishContentContributor =>
   createRepoPublishHandler<MediaRecord, PublishContentPorts["media"]>({
     entityType: "media",
+    coversTables: ["media", "asset_blobs"],
     // The same permission `post`/`page` declare; media has no write permission of its own.
     permission: "content.write",
     ports: (deps) => deps.ports.media,

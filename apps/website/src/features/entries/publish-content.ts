@@ -53,6 +53,7 @@ const withTerms = async (p: EntryPublishPorts, row: TrashableEntryRecord): Promi
 export const contributeCollectionEntryPublish = (): PublishContentContributor =>
   createRepoPublishHandler<EntryRow, EntryPublishPorts>({
     entityType: "collection-entry",
+    coversTables: ["entries", "entry_refs"],
     // 2 = the state may carry `termIds`. Exact-match, so an instance built before this refuses.
     schemaVersion: 2,
     permission: "admin.collections.manage",

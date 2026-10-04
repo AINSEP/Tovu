@@ -1,4 +1,5 @@
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
+import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
@@ -52,9 +53,12 @@ export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistr
 
       // `null` (no publishing grant on this request — an explicitly-configured peer key) means
       // "every registered type", matching `bundle-create.ts`'s own reading of the same absence.
-      const grantedTypes = getPublishTrustContext(res)?.entityTypes ?? null;
+      const trust = getPublishTrustContext(res);
+      const grantedTypes = trust?.entityTypes ?? null;
       const entityTypes =
-        grantedTypes === null ? registeredTypes : registeredTypes.filter((entityType) => grantedTypes.includes(entityType));
+        registeredTypes.filter((entityType) => isBackstopEntityType({ entityType })
+          ? backstopGrantAllows({ grant: trust, entityType })
+          : grantedTypes === null || grantedTypes.includes(entityType));
 
       const schemaVersions: Record<string, number> = {};
       for (const handler of catalog.handlers) {

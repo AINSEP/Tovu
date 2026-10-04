@@ -16,6 +16,7 @@ import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-ht
 import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
 import { registerPublishContentDestinationRoutes } from "#src/server/inbound/admin-http/routes/publish-content/destination";
+import { registerPublishBackstopRoutes } from "#src/server/inbound/admin-http/routes/publish-content/backstop";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import {
   COMMITTED_JSON_CODEC,
@@ -85,6 +86,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       // see `capabilities.ts`'s header for why this has to run ahead of `bundles`, not beside it.
       registerPublishContentCapabilitiesRoute(app, deps);
       registerPublishContentImportRoutes(app, deps);
+      registerPublishBackstopRoutes(app, deps);
       // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of
       // the routes registered above.
       registerPublishContentPeerRoutes(app, deps);

@@ -243,6 +243,7 @@ function packedKindMismatch(kind: PostKind, id: string, state: Record<string, un
 function contributePostKind(kind: PostKind): PublishContentContributor {
   return createRepoPublishHandler<PostRow, PostPorts>({
     entityType: kind, // PostKind's two values are exactly this feature's two entityTypes
+    coversTables: ["posts", "post_versions"],
     schemaVersion: 2,
     // The same permission `content_post_create`/`content_post_update` declare.
     permission: "content.write",

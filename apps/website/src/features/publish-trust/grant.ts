@@ -26,9 +26,26 @@
  */
 
 /** The ONLY capabilities a publishing grant may carry. Closed set — see this file's header. */
-export const PUBLISHING_CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
+export const DEFAULT_PUBLISHING_CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
+export const PUBLISHING_CAPABILITIES = [...DEFAULT_PUBLISHING_CAPABILITIES, "publish_content.backstop"] as const;
 
 export type PublishingCapability = (typeof PUBLISHING_CAPABILITIES)[number];
+
+/** Raw types are an opt-in trust boundary even for an otherwise privileged peer key. */
+export function backstopGrantAllows(
+  { grant, entityType }: { grant: { capabilities: readonly string[]; entityTypes: readonly string[] } | null; entityType: string },
+  _optional: Record<string, never> = {},
+): boolean {
+  return grant !== null && grant.capabilities.includes("publish_content.apply") &&
+    grant.capabilities.includes("publish_content.backstop") && grant.entityTypes.includes(entityType);
+}
+
+export function isBackstopEntityType(
+  { entityType }: { entityType: string },
+  _optional: Record<string, never> = {},
+): boolean {
+  return entityType === "raw-row" || entityType === "raw-file";
+}
 
 /**
  * Every `method + path` a publishing credential may reach on the destination, as express-style

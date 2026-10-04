@@ -2,7 +2,8 @@ import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
 import {
-  PUBLISHING_CAPABILITIES,
+  DEFAULT_PUBLISHING_CAPABILITIES,
+  isBackstopEntityType,
   PUBLISH_TRUST_GRANT_VERSION,
   type PublishTrustGrant,
 } from "./grant.js";
@@ -149,8 +150,9 @@ export async function connectDestination(
     // The DESTINATION's workspace, as the destination itself just stated it. This is the value the
     // old flow made a human find and retype, and the reason `/identity` exists.
     workspaceId: identity.workspaceId,
-    entityTypes: [...input.entityTypes],
-    capabilities: PUBLISHING_CAPABILITIES,
+    // Connecting is the ordinary publish path. Backstop trust is reviewed in deploy config.
+    entityTypes: input.entityTypes.filter((entityType) => !isBackstopEntityType({ entityType })),
+    capabilities: DEFAULT_PUBLISHING_CAPABILITIES,
     notAfter: grantNotAfterFrom(nowIso({ clock: deps.clock })),
   };
 

@@ -1,4 +1,7 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { readBackstopMetadata } from "./backstop-service.js";
+import type { BackstopAuditRecord } from "./backstop-audit.js";
+import { contentHash } from "./content-hash.js";
 import { createHash } from "node:crypto";
 
 import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
@@ -466,7 +469,7 @@ async function applyOneRow(
         workspaceId: ctx.workspaceId,
         sourcePrincipalId: ctx.sourcePrincipalId,
         entity,
-      }),
+      }) + (handler.idempotencyScope === "run" ? `:${ctx.runId}` : ""),
     });
     // Persist the change-set id BEFORE the baseline write. If that next write fails, status lookup
     // still proves exactly which content mutation landed and a retry can use the same command key.
@@ -535,7 +538,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
   }
 
   return {
-    async applyReport({ report, principalId, bundleId, restorePointId, authorize }) {
+    async applyReport({ report, principalId, bundleId, restorePointId, authorize, backstop }) {
       const startedAt = clockNowIso({ clock: input.clock });
       const staged = await loadActiveBundle({
         repo: input.bundleRepo,
@@ -586,9 +589,21 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       // The caller's authorize wins when it supplies one: this port is built once per process and
       // closes over RBAC, which is the wrong authority for a publishing credential. See
       // `PublishContentApplyPort.applyReport`'s own doc.
-      const handlerDeps =
-        authorize === undefined ? input.publishContentDeps : { ...input.publishContentDeps, authorize };
+      const handlerDeps = { ...input.publishContentDeps,
+        ...(authorize === undefined ? {} : { authorize }), ...(backstop === undefined ? {} : { backstop }) };
       const { handlerByType } = buildPublishContentCatalog(handlerDeps);
+      const metadata = readBackstopMetadata({ entities });
+      let auditRecord: BackstopAuditRecord | undefined;
+      if (metadata) {
+        if (!(await handlerDeps.backstop?.audit?.ready())) throw new Error("Send by hand needs its audit storage installed before it can send anything.");
+        report = { ...report, backstop: metadata };
+        auditRecord = { id: runId, workspaceId: input.workspaceId, direction: "destination", actorId: metadata.sourceActor,
+          destination: metadata.destinationHost, reason: metadata.reason, at: startedAt, gapLabels: metadata.gapLabels,
+          items: await Promise.all(entities.map(async (e) => ({ entityType: e.entityType, id: e.id,
+            beforeHash: (await handlerByType.get(e.entityType)?.inspect(e.id))?.hash ?? null, afterHash: e.contentHash }))),
+          result: "pending", runId, details: {}, inverses: [] };
+        await handlerDeps.backstop!.audit!.save({ record: auditRecord });
+      }
 
       const effectiveRowsByKey = new Map(
         report.rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const)
@@ -761,7 +776,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
 
       let activeItemKey: string | null = null;
 
-      try {
+      const applyRows = async () => {
         for (const row of report.rows) {
           activeItemKey = entityKey(row.entityType, row.entityId);
           const result = await applyOneRow(row, ctx);
@@ -783,7 +798,44 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           await saveSnapshot("applying", null);
           activeItemKey = null;
         }
+        if (auditRecord) {
+          await handlerDeps.backstop!.audit!.save({ record: { ...auditRecord, result: "success",
+            inverses: handlerDeps.backstop?.inverses ?? [], details: { report: currentReport() },
+            items: auditRecord.items.map((item) => {
+              const inverse = handlerDeps.backstop?.inverses?.find((i) => i.entity.id === item.id && i.entity.entityType === item.entityType);
+              if (!inverse) return item;
+              const beforeHash = inverse.kind === "raw-row"
+                ? inverse.before === null ? null : contentHash("raw-row", inverse.before as unknown as Record<string, unknown>)
+                : inverse.before.sha256 === null ? null : contentHash("raw-file", { path: item.id,
+                    sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode });
+              return { ...item, beforeHash };
+            }) } });
+        }
+      };
+      try {
+        if (entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file")) {
+          if (!handlerDeps.backstop?.rows) throw new Error("The raw-row transaction port is not wired.");
+          await handlerDeps.backstop.rows.transaction({ work: applyRows });
+        } else await applyRows();
       } catch (error) {
+        const rollbackErrors: string[] = [];
+        if (entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file")) {
+          for (const rollback of [...(handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
+            try { await rollback(); } catch (failure) { rollbackErrors.push(failure instanceof Error ? failure.message : "A file could not be rolled back."); }
+          }
+          // All raw writes, change sets and baselines rolled back together. Do not report the
+          // tentative per-item snapshots as writes that landed.
+          const reason = [error instanceof Error ? error.message : "This send was rolled back.", ...rollbackErrors].join(" ");
+          for (const row of report.rows) {
+            const key = entityKey(row.entityType, row.entityId);
+            const item = itemByKey.get(key);
+            if (!item) continue;
+            const mayRemain = row.entityType === "raw-file" && item.changeSetId !== null && rollbackErrors.length > 0;
+            effectiveRowsByKey.set(key, { ...row, outcome: "blocked", writes: mayRemain, reason });
+            itemByKey.set(key, { ...item, phase: "failed", outcome: "blocked", writes: mayRemain,
+              changeSetId: null, retiredChangeSetId: null, errorSummary: reason, reason });
+          }
+        }
         // A non-conflict error aborted the run partway through — the run row must still record
         // exactly which change sets landed before the failure (plan §5 risk #7's own words), never
         // silently drop that trail just because the whole run did not complete.
@@ -804,6 +856,9 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
         await runRepointPass();
         await saveSnapshot("failed", clockNowIso({ clock: input.clock }));
+        if (auditRecord) await handlerDeps.backstop!.audit!.save({ record: { ...auditRecord, result: "failure",
+          inverses: rollbackErrors.length > 0 ? (handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === "raw-file") : [],
+          details: { error: error instanceof Error ? error.message : "This send was rolled back.", rollbackErrors } } });
         throw error;
       }
 

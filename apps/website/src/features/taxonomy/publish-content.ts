@@ -48,6 +48,7 @@ const errors = {
 export const contributeTaxonomyPublish = (): PublishContentContributor =>
   createRepoPublishHandler<Taxonomy, TaxonomyPublishPorts>({
     entityType: "taxonomy",
+    coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
     ports: (deps) => deps.ports.taxonomy,
     list: (p) => p.taxonomies.list(),
@@ -84,6 +85,7 @@ function parentFirst(rows: readonly Term[]): Term[] {
 export const contributeTermPublish = (): PublishContentContributor =>
   createRepoPublishHandler<Term, TaxonomyPublishPorts>({
     entityType: "term",
+    coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
     dependsOn: ["taxonomy"],
     ports: (deps) => deps.ports.term,

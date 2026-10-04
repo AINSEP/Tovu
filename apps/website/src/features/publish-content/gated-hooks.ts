@@ -130,6 +130,7 @@ export interface PublishContentApplyPort {
      * Absent means "use the port's own", so every existing caller is unchanged.
      */
     authorize?: PublishContentDeps["authorize"];
+    backstop?: PublishContentDeps["backstop"];
   }): Promise<{
     runId: string;
     changeSetIds: readonly string[];
@@ -326,6 +327,7 @@ export function buildPublishContentImportHooks(
         // credential. Threaded rather than left to the port because the port is built once per
         // process and this decision is per request.
         ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
+        ...(input.publishContentDeps.backstop === undefined ? {} : { backstop: input.publishContentDeps.backstop }),
       });
       return {
         restorePointId,

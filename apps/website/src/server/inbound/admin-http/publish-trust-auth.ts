@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import {
   grantAllowsCapability,
+  backstopGrantAllows,
+  isBackstopEntityType,
   isPublishTrustRoute,
   type PublishingCapability,
 } from "#src/features/publish-trust/grant";
@@ -417,7 +419,8 @@ export function withPublishTrustContentAuthorize<
     }
 
     const allowed =
-      context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(publishType);
+      context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(publishType) &&
+      (!isBackstopEntityType({ entityType: publishType }) || backstopGrantAllows({ grant: context, entityType: publishType }));
     return {
       allowed,
       reason: allowed

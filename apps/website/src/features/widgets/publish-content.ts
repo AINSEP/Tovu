@@ -109,6 +109,7 @@ async function portableRow(p: WidgetPublishPorts, workspaceId: string, row: Widg
 export const contributeWidgetPublish = (): PublishContentContributor =>
   createRepoPublishHandler<WidgetRow, WidgetPublishPorts>({
     entityType: "widget",
+    coversTables: ["entries", "entry_refs", "widget_region_bindings"],
     permission: "widgets.update",
     // `importWidgetInstance` asks `widgets.create` for a widget new to the destination.
     alsoAuthorizes: ["widgets.create"],
@@ -201,6 +202,7 @@ async function listAreas(p: WidgetPublishPorts, workspaceId: string): Promise<Wi
 export const contributeWidgetAreaPublish = (): PublishContentContributor =>
   createRepoPublishHandler<WidgetAreaRow, WidgetPublishPorts>({
     entityType: "widget-area",
+    coversTables: ["entries", "entry_refs", "widget_region_bindings"],
     permission: "widgets.place",
     dependsOn: ["widget"],
     ports: (deps) => deps.ports["widget-area"],

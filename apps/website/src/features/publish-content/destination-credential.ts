@@ -60,7 +60,7 @@ export interface PublishDestinationCredentialDeps {
  */
 export async function resolvePublishDestinationCredential(
   deps: PublishDestinationCredentialDeps,
-  input: { workspaceId: string; id: string }
+  input: { workspaceId: string; id: string; backstop?: boolean }
 ): Promise<ResolvedPeerCredential> {
   const record = await deps.repo.findById(input);
   if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
@@ -74,7 +74,7 @@ export async function resolvePublishDestinationCredential(
 
   const session = await openPublishSession(
     { httpClient: deps.httpClient, keyring: deps.keyring },
-    { baseUrl: record.baseUrl, workspaceId: input.workspaceId }
+    { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) }
   );
 
   // The workspace learned at connect time, re-checked against what the site says about itself right

@@ -110,6 +110,7 @@ const localOnly = (id: string) => `site-setting '${id}' points at this computer`
 export const contributeSiteSettingPublish = (): PublishContentContributor =>
   createRepoPublishHandler<SiteSettingRow, Ports>({
     entityType: "site-setting",
+    coversTables: ["setting_values_workspace"],
     // What `deriveRequiredPermission` names for a workspace-scope `set`.
     permission: "settings.workspace.write",
     // The share image may name a media item.
