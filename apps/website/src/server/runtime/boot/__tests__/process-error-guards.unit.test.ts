@@ -22,13 +22,13 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const FIXTURE_PATH = path.join(import.meta.dirname, "fixtures", "unhandled-rejection-child.ts");
 
-async function runFixture(mode: "--with-guard" | "--without-guard"): Promise<{ code: number; stdout: string }> {
+async function runFixture(mode: "--with-guard" | "--without-guard"): Promise<{ code: number; stdout: string; stderr: string }> {
   try {
-    const { stdout } = await execFileAsync(process.execPath, ["--import", "tsx", FIXTURE_PATH, mode]);
-    return { code: 0, stdout };
+    const { stdout, stderr } = await execFileAsync(process.execPath, ["--import", "tsx", FIXTURE_PATH, mode]);
+    return { code: 0, stdout, stderr };
   } catch (err) {
-    const failure = err as { code?: number; stdout?: string };
-    return { code: failure.code ?? 1, stdout: failure.stdout ?? "" };
+    const failure = err as { code?: number; stdout?: string; stderr?: string };
+    return { code: failure.code ?? 1, stdout: failure.stdout ?? "", stderr: failure.stderr ?? "" };
   }
 }
 
@@ -39,7 +39,9 @@ test("negative control: without the guard, an unhandled rejection really does ki
 });
 
 test("installUnhandledRejectionGuard: with the guard installed, the SAME unhandled rejection is logged instead, and the process survives to run later work", async () => {
-  const { code, stdout } = await runFixture("--with-guard");
+  const { code, stdout, stderr } = await runFixture("--with-guard");
   assert.equal(code, 0, "the process must exit cleanly, not be terminated by the rejection");
   assert.equal(stdout.includes("STILL_ALIVE"), true, "the deferred `setTimeout` callback firing is direct proof the process was still alive well after the rejection — a dead process cannot print this");
+  assert.match(stderr, /\[unhandledRejection\]/, "the guard must emit its diagnostic to stderr");
+  assert.match(stderr, /Error: simulated: no root key/, "the diagnostic must include the rejected error's reason");
 });

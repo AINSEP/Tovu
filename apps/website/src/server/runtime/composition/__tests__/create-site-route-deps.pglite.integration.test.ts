@@ -246,8 +246,20 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
   assert.equal(fs.existsSync(socketPath), false, "closing the store stops serving");
 });
 
-test("a daemon composition started before the owner serves waits for the socket, then connects and sees the owner's rows", async () => {
+test("a daemon composition started before the owner serves waits for the socket, then connects and sees the owner's rows", async (t) => {
   const dbPath = path.join(siteDir, "content.db");
+  // Own the fixture and stopped-owner state even when this test runs alone.
+  const postId = "daemon-startup-post";
+  const { deps: seedDeps, boot: seedBoot } = await bootOwner(t);
+  assert.ok(seedDeps.contentKernel);
+  await seedDeps.contentKernel.query(sql`
+    INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version)
+    VALUES (${postId}, ${seedDeps.workspaceId}, 'Written before daemon startup', 'daemon-startup-post',
+            '{"type":"doc","content":[]}', 'draft', '2026-04-06T00:00:00.000Z', 1)
+  `);
+  await closeSiteDirBoot(seedBoot);
+  assert.equal(fs.existsSync(socketPath), false, "this test's seed owner stopped serving before the client starts");
+
   // The agent daemon's composition (`createAgentDaemonRouteDeps` → role "client"), socket from TOVU_PG_SOCKET.
   const opened: { client?: SiteStore } = {};
   const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (opened.client = store) });
@@ -258,7 +270,7 @@ test("a daemon composition started before the owner serves waits for the socket,
   const owner = await openSiteStore({ storage: { kind: "pglite" }, dbPath, chatDbPath: path.join(siteDir, "chat.db"), role: "owner" });
   try {
     await owner.content.run((db) =>
-      db.updateTable("posts").set({ title: "Renamed while the daemon waited" }).where("title", "=", "Written by the owner").execute()
+      db.updateTable("posts").set({ title: "Renamed while the daemon waited" }).where("id", "=", postId).execute()
     );
     const deps = await clientDeps;
     try {
@@ -267,6 +279,10 @@ test("a daemon composition started before the owner serves waits for the socket,
       assert.equal(clientStore.pgliteSocketPath, socketPath, "the client used the socket TOVU_PG_SOCKET names");
       const titles = (await clientStore.content.run((db) => db.selectFrom("posts").select("title").execute())).map((r) => r.title);
       assert.ok(titles.includes("Renamed while the daemon waited"), JSON.stringify(titles));
+      const seeded = await clientStore.content.run((db) =>
+        db.selectFrom("posts").select(["workspace_id", "title"]).where("id", "=", postId).executeTakeFirstOrThrow()
+      );
+      assert.deepEqual(seeded, { workspace_id: seedDeps.workspaceId, title: "Renamed while the daemon waited" });
     } finally {
       await drainBootReadiness(deps).catch(() => undefined);
       await openedClient()?.close();
