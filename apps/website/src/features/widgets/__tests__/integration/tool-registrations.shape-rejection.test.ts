@@ -95,6 +95,16 @@ test("widgets_create_instance: an unregistered widgetType is a shape rejection â
         `expected the decorated WidgetTypeUnregisteredError message, got: ${error.message}`
       );
       assert.match(error.message, /Schema for 'widgets_create_instance':/);
+      const banner = "Schema for 'widgets_create_instance': ";
+      const includedSchema = JSON.parse(error.message.slice(error.message.indexOf(banner) + banner.length));
+      assert.equal(includedSchema.type, "object");
+      assert.deepEqual(includedSchema.required, ["widgetType", "title", "config"]);
+      assert.equal(includedSchema.additionalProperties, false);
+      assert.equal(includedSchema.properties.widgetType.type, "string");
+      assert.deepEqual(includedSchema.properties.widgetType.enum, ["text", "social-links", "recent-entries", "menu", "contact-form"]);
+      assert.equal(includedSchema.properties.title.type, "string");
+      assert.equal(includedSchema.properties.title.minLength, 1);
+      assert.equal(includedSchema.properties.config.type, "object");
       return true;
     }
   );
@@ -116,6 +126,16 @@ test("widgets_create_instance: a config missing a required field is a shape reje
         `expected the decorated WidgetConfigValidationError message, got: ${error.message}`
       );
       assert.match(error.message, /Schema for 'widgets_create_instance':/);
+      const banner = "Schema for 'widgets_create_instance': ";
+      const includedSchema = JSON.parse(error.message.slice(error.message.indexOf(banner) + banner.length));
+      assert.equal(includedSchema.type, "object");
+      assert.deepEqual(includedSchema.required, ["widgetType", "title", "config"]);
+      assert.equal(includedSchema.additionalProperties, false);
+      assert.equal(includedSchema.properties.widgetType.type, "string");
+      assert.deepEqual(includedSchema.properties.widgetType.enum, ["text", "social-links", "recent-entries", "menu", "contact-form"]);
+      assert.equal(includedSchema.properties.title.type, "string");
+      assert.equal(includedSchema.properties.title.minLength, 1);
+      assert.equal(includedSchema.properties.config.type, "object");
       return true;
     }
   );

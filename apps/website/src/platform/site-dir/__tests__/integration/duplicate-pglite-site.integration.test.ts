@@ -53,11 +53,16 @@ test("a PGlite site duplicates while it runs in this process and while stopped; 
   const source = await initSite({ dir: path.join(parent, "source"), name: "Pglite Source", storage: { kind: "pglite" } });
   const running = await openOwner(source.dir);
   let posts: number;
+  let expectedPosts: unknown[];
+  let expectedHistory: unknown[];
   try {
     posts = await count(running, "posts");
     assert.ok(posts > 0, "the starter template seeds posts");
     await addChat(running, "chat-1");
     await addPublish(running, "before-copy");
+    await running.content.execute(sql`UPDATE posts SET title = 'Distinctive copy title', body_json = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Copy this exact body"}]}]}'`);
+    expectedPosts = await running.content.query(sql`SELECT * FROM posts ORDER BY id`);
+    expectedHistory = await running.content.query(sql`SELECT * FROM publish_history ORDER BY id`);
     // Served by this process: the copy goes through its owner's exclusive window.
     await duplicateSite({ sourceDir: source.dir, targetDir: path.join(parent, "hot-copy") });
   } finally {
@@ -77,6 +82,8 @@ test("a PGlite site duplicates while it runs in this process and while stopped; 
     try {
       assert.equal(await count(b, "posts"), posts, `${copyName}: posts copied`);
       assert.equal(await count(b, "publish_history"), 1, `${copyName}: other content copied`);
+      assert.deepEqual(await b.content.query(sql`SELECT * FROM posts ORDER BY id`), expectedPosts, `${copyName}: complete post records survive`);
+      assert.deepEqual(await b.content.query(sql`SELECT * FROM publish_history ORDER BY id`), expectedHistory, `${copyName}: complete publish history survives`);
       assert.equal(await count(b, "ai_chat.ai_chats"), 0, `${copyName}: AI chat stays behind`);
       assert.ok((await count(b, "ai_chat.tovu_chat_migrations")) > 0, `${copyName}: the chat ledger is kept (at head)`);
       assert.equal(await count(a, "ai_chat.ai_chats"), 1, "the source keeps its chat");

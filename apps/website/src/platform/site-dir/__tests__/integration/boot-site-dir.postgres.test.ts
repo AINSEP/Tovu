@@ -10,6 +10,8 @@ import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres
 import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
 import { initSite } from "../../init-site.js";
 import { SITE_META_FILENAME } from "../../site-storage.js";
+import { CHAT_EXPIRY_SWEEP_INTERVAL_MS } from "#src/assistant/persistence/chat-expiry-sweep";
+import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 
 /**
  * @file R1f (R1d leftover): `bootSiteDir` — the `tovu serve <dir>` / `tovu export <dir>` boot —
@@ -41,6 +43,12 @@ before(async () => {
   fs.writeFileSync(metaPath, JSON.stringify({ ...meta, storage: { kind: "postgres", secretRef: { env: URL_ENV } } }, null, 2));
   // A postgres site has no SQLite store; bootSiteDir must not need (or recreate) one.
   for (const name of ["content.db", "content.db-wal", "content.db-shm", "chat.db"]) fs.rmSync(path.join(dir, name), { force: true });
+  const boot = await bootSiteDir({ dir });
+  await closeSiteDirBoot(boot);
+  const seeded = psql(DATABASE, `INSERT INTO workspaces (id, name, slug, created_at) VALUES
+    ('ws-boot-oldest', 'Oldest', 'boot-oldest', '1900-01-01T00:00:00.000Z'),
+    ('ws-boot-selected', 'Selected', 'boot-selected', '2000-01-01T00:00:00.000Z');`);
+  assert.ok(seeded.ok, seeded.stderr);
 });
 
 after(() => {
@@ -56,20 +64,48 @@ test("bootSiteDir on a postgres site opens the store (migrated, workspace resolv
     assert.equal(boot.db, undefined, "no SQLite handle for a postgres site");
     assert.ok(boot.store, "the opened store is handed back");
     assert.ok(boot.workspaceId.length > 0, "the workspace resolved on the postgres store");
+    assert.equal(boot.workspaceId, "ws-boot-oldest");
     assert.equal(fs.existsSync(path.join(dir, "content.db")), false, "no content.db was created");
     const ledger = psql(DATABASE, "SELECT count(*) FROM public.tovu_migrations;");
     assert.ok(ledger.ok && Number(ledger.stdout.trim()) >= 2, "the content history ran to head");
+    const ids = psql(DATABASE, "SELECT id FROM public.tovu_migrations ORDER BY id;");
+    assert.ok(ids.ok, ids.stderr);
+    assert.deepEqual(ids.stdout.trim().split("\n"), CONTENT_MIGRATIONS.map((step) => step.id));
   } finally {
     await closeSiteDirBoot(boot);
   }
   assert.equal(connections(), 0, "closeSiteDirBoot closed the pool");
 });
 
-test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)", async () => {
+test("bootSiteDir honors an explicit Postgres workspace instead of the oldest", async () => {
+  const boot = await bootSiteDir({ dir }, { workspaceId: "ws-boot-selected" });
+  try {
+    assert.equal(boot.workspaceId, "ws-boot-selected");
+  } finally {
+    await closeSiteDirBoot(boot);
+  }
+});
+
+test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)", async (t) => {
   const boot = await bootSiteDir({ dir });
+  let composed: Parameters<typeof closeSiteDirBoot>[1];
+  const sweeps: ReturnType<typeof setInterval>[] = [];
+  const cleared: Parameters<typeof clearInterval>[0][] = [];
+  const realSetInterval = globalThis.setInterval;
+  const realClearInterval = globalThis.clearInterval;
+  const intervalSpy = t.mock.method(globalThis, "setInterval", (...args: Parameters<typeof setInterval>) => {
+    const timer = realSetInterval(...args);
+    if (args[1] === CHAT_EXPIRY_SWEEP_INTERVAL_MS) sweeps.push(timer);
+    return timer;
+  });
+  const clearSpy = t.mock.method(globalThis, "clearInterval", (timer: Parameters<typeof clearInterval>[0]) => {
+    cleared.push(timer);
+    realClearInterval(timer);
+  });
   try {
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       store: boot.store,
+      onStoreOpened: (store) => { composed = store; },
       db: boot.db,
       workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"),
@@ -78,15 +114,26 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
     });
     assert.equal(deps.contentKernel, boot.store?.content, "the composition runs on the booted store, not a second pool");
     assert.equal(deps.workspaceId, boot.workspaceId);
-    await Promise.all([deps.identityReady, deps.settingsReady, deps.siteTitleReady]);
+    await Promise.allSettled(Object.values(deps).filter((value) => value instanceof Promise));
+    assert.ok(composed, "composition must provide its owned close wrapper");
+    assert.equal(sweeps.length, 1, "the owner composition starts its guest-chat sweep");
   } finally {
-    await closeSiteDirBoot(boot);
+    try {
+      await closeSiteDirBoot(boot, composed);
+    } finally {
+      intervalSpy.mock.restore();
+      clearSpy.mock.restore();
+    }
   }
+  assert.ok(cleared.includes(sweeps[0]!), "composed close must stop the exact guest-chat sweep it started");
   assert.equal(connections(), 0, "nothing else held a connection open");
 });
 
 test("bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened", async () => {
-  await assert.rejects(bootSiteDir({ dir }, { workspaceId: "no-such-workspace" }));
+  await assert.rejects(bootSiteDir({ dir }, { workspaceId: "no-such-workspace" }), {
+    name: "ValidationError",
+    message: 'resolveWorkspace: no workspace with id "no-such-workspace" exists in this content.db',
+  });
   assert.equal(connections(), 0, "the rejected boot left no connection open");
 });
 

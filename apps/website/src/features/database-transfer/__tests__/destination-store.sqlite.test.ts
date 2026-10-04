@@ -24,24 +24,30 @@ const DESTINATION: SavedDatabaseDestination = {
   savedAt: "2026-09-27T20:00:00.000Z",
 };
 
-function fixture(t: test.TestContext): { db: ContentDb; keyring: InMemoryKeyring; open: () => SealedDatabaseDestinationStore } {
+function fixture(t: test.TestContext): { db: ContentDb; keyring: InMemoryKeyring; open: () => SealedDatabaseDestinationStore; reopen: () => void } {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-destination-"));
-  const db = openContentDb(path.join(dir, "content.db"));
+  let db = openContentDb(path.join(dir, "content.db"));
   t.after(() => {
     db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
   const keyring = new InMemoryKeyring();
-  // Every call builds a fresh store and repo over the same database: what a restart does.
+  // Every `open()` builds a fresh store and repo; `reopen()` also reopens the database file —
+  // together, what a restart does.
+  const reopen = () => {
+    db.$client.close();
+    db = openContentDb(path.join(dir, "content.db"));
+  };
   const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(db), sealer: new AesGcmSecretSealer(keyring), keyring });
-  return { db, keyring, open };
+  return { get db() { return db; }, keyring, open, reopen };
 }
 
 test("a saved destination and its last run survive a restart", async (t) => {
-  const { open } = fixture(t);
+  const { open, reopen } = fixture(t);
   await open().save("ws-1", DESTINATION);
   await open().recordRun("ws-1", { copied: true, snapshotAt: "2026-09-27T21:00:00.000Z", tableCount: 88, rowCount: 1234 });
 
+  reopen();
   const restarted = open();
   assert.deepEqual(await restarted.get("ws-1"), DESTINATION);
   assert.deepEqual(await restarted.lastRun("ws-1"), { copied: true, snapshotAt: "2026-09-27T21:00:00.000Z", tableCount: 88, rowCount: 1234 });
@@ -92,4 +98,24 @@ test("a destination sealed under another root key does not open", async (t) => {
   await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(other), keyring: other }).save("ws-1", DESTINATION);
   const mine = new InMemoryKeyring("v1");
   await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(mine), keyring: mine }).get("ws-1"), DestinationUnreadableError);
+});
+
+test("an unsupported stored AAD version is refused before attempting decryption", async (t) => {
+  const { db, open, keyring } = fixture(t);
+  await open().save("ws-1", DESTINATION);
+  db.$client.prepare("UPDATE database_transfer_destinations SET aad_version = 99 WHERE workspace_id = 'ws-1'").run();
+  const realSealer = new AesGcmSecretSealer(keyring);
+  let opens = 0;
+  const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(db), keyring, sealer: {
+    seal: input => realSealer.seal(input),
+    open: input => { opens += 1; return realSealer.open(input); },
+  } });
+  await assert.rejects(store.get("ws-1"), (error: unknown) => {
+    assert.ok(error instanceof DestinationUnreadableError);
+    assert.equal(error.message, "the saved destination database could not be unlocked (the site's key may have changed); save it again with database_transfer_set_destination");
+    return true;
+  });
+  assert.equal(opens, 0);
+  const stored = db.$client.prepare("SELECT aad_version FROM database_transfer_destinations WHERE workspace_id = 'ws-1'").get() as { aad_version: number };
+  assert.equal(stored.aad_version, 99);
 });

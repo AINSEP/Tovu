@@ -182,14 +182,23 @@ test("widgets_set_region_placements: an omitted placementId is auto-assigned via
   const widget = await createInstance(deps);
   const region = await bindRegion(deps);
 
+  let generated = 0;
+  deps.idGen = { newId: () => `generated-placement-${++generated}` };
+
   const out = (await wired("widgets_set_region_placements", deps).handler(
     executionContext({
       regionKey: "footer",
       baseVersion: region.version,
-      placements: [{ widgetEntryId: widget.id, enabled: true }],
+      placements: [{ widgetEntryId: widget.id, enabled: true }, { widgetEntryId: widget.id, enabled: false }],
     })
   )) as { area: { version: number } };
   assert.equal(out.area.version, region.version + 1);
+  const stored = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: region.areaEntryId });
+  assert.ok(stored);
+  assert.deepEqual(parseWidgetAreaPayload(stored.fieldsJson).doc.placements, [
+    { placementId: "generated-placement-1", widgetEntryId: widget.id, enabled: true },
+    { placementId: "generated-placement-2", widgetEntryId: widget.id, enabled: false },
+  ]);
 });
 
 test("widgets_set_region_placements: an unbound regionKey is rejected with WidgetAreaNotFoundError, distinct from the malformed-shape errors above", async () => {

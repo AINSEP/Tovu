@@ -66,7 +66,12 @@ export function readThemeLineageFile(
   const path = join(required.themeDir, THEME_LINEAGE_FILENAME);
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as ThemeLineage;
+    const value: unknown = JSON.parse(readFileSync(path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const lineage = value as Record<string, unknown>;
+    if (lineage.from !== "marketplace" || !["declarative", "templated", "handlebars", "static", "code"].includes(lineage.tier as string)) return null;
+    if (!["version", "catalog", "marketplaceId", "name"].every((key) => typeof lineage[key] === "string")) return null;
+    return lineage as unknown as ThemeLineage;
   } catch {
     return null;
   }

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
+import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
+import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
+
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
@@ -17,7 +22,7 @@ import {
 } from "../../embed-service.js";
 import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
 import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "../../write-service.js";
-import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
+import { buildWidgetInstanceFieldsJson, buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
 
 /**
@@ -549,4 +554,66 @@ test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead
   assert.deepEqual(content[1], { type: "widgetEmbed", attrs: { placementId, widgetEntryId: widgetId } });
   const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
   assert.deepEqual(refs.map((r) => r.targetId), [deepWidgetId, widgetId], "both the deep embed and the new one are extracted, in document order");
+});
+
+// F1542: host and reference writes share the real SQLite transaction, even after refs were changed.
+test("insertWidgetEmbed rolls back document, version, refs and revision when ref persistence fails", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  const entryRepo = new SqliteEntryRepo(db);
+  const contentTypeRepo = new SqliteContentTypeRepo(db);
+  const entryRefsRepo = new SqliteEntryRefsRepo(db);
+  const memory = makeSharedRepos();
+  const deps = makeDeps(memory, { entryRepo, contentTypeRepo, entryRefsRepo });
+  await registerContentType({ deps: { repo: contentTypeRepo, clock: deps.clock, ids: deps.ids, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
+    input: { actorId: ACTOR.principalId, workspaceId: WORKSPACE_ID, key: HOST_CONTENT_TYPE, label: "Article", fields: [] } });
+  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this" }] }, { type: "widgetEmbed", attrs: { placementId: "original-placement", widgetEntryId: "widget-atomic" } }] };
+  db.$client.prepare(`INSERT INTO entries (id, workspace_id, type, slug, status, title, fields_json, body_json, created_at, updated_at, version)
+    VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)`).run("host-atomic", WORKSPACE_ID, HOST_CONTENT_TYPE, "host-atomic", "Host", '{"ext":{"site":{}}}', JSON.stringify(body), "2026-07-21T00:00:00.000Z", "2026-07-21T00:00:00.000Z");
+  db.$client.prepare(`INSERT INTO entries (id, workspace_id, type, slug, status, title, fields_json, created_at, updated_at, version)
+    VALUES (?, ?, 'widget', ?, 'draft', ?, ?, ?, ?, 1)`).run("widget-atomic", WORKSPACE_ID, "widget-atomic", "Widget", JSON.stringify(buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "hello" }, status: "active" })), "2026-07-21T00:00:00.000Z", "2026-07-21T00:00:00.000Z");
+  await entryRefsRepo.replaceForSource({ workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic", refs: [
+    { workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic", sourceKind: "widget-embed", fieldPath: "bodyJson.content[1]", targetKind: "entry", targetId: "widget-atomic" },
+  ] });
+  const before = await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" });
+  const refsBefore = await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic" });
+  const revisionsBefore = db.$client.prepare("SELECT * FROM entry_revisions").all();
+  const failure = new Error("ref persistence failed");
+  let refWrites = 0;
+  class FailingRefs extends SqliteEntryRefsRepo {
+    override async replaceForSource(required: Parameters<SqliteEntryRefsRepo["replaceForSource"]>[0]): Promise<void> {
+      await super.replaceForSource(required);
+      assert.equal((await super.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic" })).length, 2, "both the original and inserted refs were written before failure");
+      assert.equal((await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" }))?.version, 2);
+      refWrites += 1;
+      throw failure;
+    }
+  }
+  await assert.rejects(insertWidgetEmbed({ deps: { ...deps, entryRefsRepo: new FailingRefs(db) },
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: "host-atomic", baseVersion: 1, widgetEntryId: "widget-atomic" } }), (error) => error === failure);
+  assert.equal(refWrites, 1, "failure follows a real ref write");
+  assert.deepEqual(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" }), before);
+  assert.deepEqual(await entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic" }), refsBefore);
+  assert.deepEqual(db.$client.prepare("SELECT * FROM entry_revisions").all(), revisionsBefore);
+});
+
+test("remove and reorder preserve text, marks and nested interleaved embed slots in the persisted body", async () => {
+  const repos = makeSharedRepos();
+  const w1 = await makeWidgetInstance(repos);
+  const w2 = await makeWidgetInstance(repos);
+  const heading = { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Keep heading" }] };
+  const paragraph = { type: "paragraph", content: [{ type: "text", text: "Keep bold", marks: [{ type: "bold" }] }] };
+  const tail = { type: "paragraph", content: [{ type: "text", text: "Keep tail", marks: [{ type: "italic" }] }] };
+  const embed = (placementId: string, widgetEntryId: string) => ({ type: "widgetEmbed", attrs: { placementId, widgetEntryId } });
+  const body = { type: "doc", content: [heading, { type: "blockquote", content: [embed("remove-me", w1), paragraph, embed("nested-slot", w2)] }, tail, embed("last-slot", w1)] };
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, body);
+  const removed = await removeWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, placementId: "remove-me" } });
+  const afterRemove = { type: "doc", content: [heading, { type: "blockquote", content: [paragraph, embed("nested-slot", w2)] }, tail, embed("last-slot", w1)] };
+  assert.deepEqual(removed.entry.bodyJson, afterRemove);
+  assert.deepEqual((await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id }))?.bodyJson, afterRemove);
+  let seq = 0;
+  const reordered = await reorderWidgetEmbeds({ deps: makeDeps(repos, { ids: { newId: () => `slot-${++seq}` } }), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: removed.entry.version, orderedWidgetEntryIds: [w1, w2] } });
+  const afterReorder = { type: "doc", content: [heading, { type: "blockquote", content: [paragraph, embed("slot-1", w1)] }, tail, embed("slot-2", w2)] };
+  assert.deepEqual(reordered.entry.bodyJson, afterReorder);
+  assert.deepEqual((await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id }))?.bodyJson, afterReorder);
 });

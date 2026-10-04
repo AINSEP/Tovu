@@ -8,6 +8,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { identityServiceDepsFrom } from "../inbound/admin-http/routes/users/deps.js";
 import { resetUserPassword } from "@jini-ai/user-management/server";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level tests for `GET /api/admin/v1/auth/me/password-status` (password-banner plan,
@@ -85,6 +86,22 @@ test("password-status: after resetUserPassword to another value, a fresh sign-in
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { usesDefaultPassword: false });
+});
+
+test("password-status is specific to the authenticated user rather than the owner", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const id = "password-status-other";
+  await deps.principalRepo.save({ id, workspaceId: deps.workspaceId, kind: "user", displayName: "Other user", status: "active", createdAt: deps.clock.nowIso() });
+  await deps.userRepo.save({ principalId: id, workspaceId: deps.workspaceId, username: "status-other", passwordHash: await deps.passwordHasher.hash({ password: "other-non-default-password" }) });
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "status-other", password: "other-non-default-password" }) });
+  assert.equal(login.status, 200);
+  const otherCookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+  for (const [cookie, expected] of [[otherCookie, false], [ownerCookie, true], [otherCookie, false]] as const) {
+    const response = await fetch(`${baseUrl}/api/admin/v1/auth/me/password-status`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { usesDefaultPassword: expected });
+  }
 });
 
 test("password-status: repeat reads of an unchanged hash reuse one argon2 verify; a new hash re-verifies", async (t) => {

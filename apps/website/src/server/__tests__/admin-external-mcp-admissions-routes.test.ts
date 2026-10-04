@@ -197,6 +197,33 @@ test("no daemon listening at all — 503 with a distinguishable code, never an e
   assert.equal("connections" in body, false, "a down daemon must not answer with a connections list at all, empty or otherwise");
 });
 
+for (const mode of ["stalled", "malformed-json"] as const) {
+  test(`a ${mode} daemon returns bounded 503 without a connections list`, { timeout: 9_000 }, async (t) => {
+    const { buildApp, daemonPort } = await harness();
+    const daemon = createServer((_req, res) => {
+      if (mode === "malformed-json") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end("{ invalid JSON");
+      }
+    });
+    await new Promise<void>((resolve, reject) => {
+      daemon.once("error", reject);
+      daemon.listen(daemonPort, resolve);
+    });
+    t.after(() => new Promise<void>((resolve) => {
+      daemon.close(() => resolve());
+      daemon.closeAllConnections();
+    }));
+    const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+    const response = await fetch(`${baseUrl}${PATH}`, { headers: { cookie }, signal: AbortSignal.timeout(7_000) });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: "the agent daemon is not reachable — the assistant may not be running",
+      code: "AGENT_DAEMON_UNAVAILABLE",
+    });
+  });
+}
+
 test("the daemon answers but rejects the token — still 503, never an empty connections list", async (t) => {
   const { buildApp, daemonPort } = await harness();
   await withStandInDaemon(t, daemonPort, []);

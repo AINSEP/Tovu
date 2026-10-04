@@ -33,7 +33,7 @@ import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exc
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
@@ -102,9 +102,10 @@ async function buildHarness(deps: CustomCredentialsToolDeps) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  const eventLog = createInMemoryEventLog({});
+  const lifecycle = createRunLifecycle({ eventLog });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
-  return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
+  return { run, lifecycle, toolExecutor, eventLog, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 }
 
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
@@ -371,6 +372,28 @@ test("a transport failure stays redacted — its message can carry an internal a
   assert.equal(result.error.code, "INTERNAL_ERROR");
   assert.equal(result.error.message, "an internal error occurred");
   assert.ok(!JSON.stringify(result).includes("10.0.4.7"), "an internal address must never reach the wire");
+});
+
+test("a make-request egress refusal exposes only its caller-safe reason on the wire and in run events", async () => {
+  const privateAddress = "10.23.45.67";
+  const safeMessage = "egress to 'api.fly.io' rejected: resolved address is private";
+  const { deps, httpClient } = await makeRouteDeps({ httpError: new EgressRefusedError({ message: `egress to 'api.fly.io' (${privateAddress}) rejected: resolved address is private` }, { callerSafeMessage: safeMessage }) });
+  const harness = await buildHarness(deps);
+  const result = await call(harness, "custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps" });
+  assert.equal(result.ok, false);
+  assert.ok(!result.ok);
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.equal(result.error.message.split(". Fix the input and retry")[0], safeMessage);
+  const events = await harness.eventLog.replay({ runId: harness.run.id, afterCursor: null });
+  assert.equal(events.kind, "ok");
+  assert.ok(events.kind === "ok" && events.entries.length > 0);
+  assert.ok(JSON.stringify(events).includes(safeMessage));
+  for (const text of [JSON.stringify(result), JSON.stringify(events)]) {
+    assert.ok(!text.includes(privateAddress));
+    assert.ok(!text.includes(SEEDED_TOKEN));
+  }
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0]!.url, "https://api.fly.io/v1/apps");
 });
 
 /* ------------------------------------------------------------------------------------------------

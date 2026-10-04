@@ -51,6 +51,20 @@ test("sqlite: no ledger is 'none'; a latest created_at the journal lacks is 'div
   }
 });
 
+test("sqlite: an existing empty ledger is none through both kernel and file readers", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-empty-ledger-"));
+  const dbPath = path.join(dir, "content.db");
+  const db = openContentDb(dbPath);
+  try {
+    db.$client.exec("DELETE FROM __drizzle_migrations");
+    assert.equal(await readAppliedSchemaIdentity(sqliteKernel(db)), "none");
+    assert.equal(await readAppliedSchemaIdentityOfFile(dbPath), "none");
+  } finally {
+    closeSqliteConnection(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("postgres: reads the tovu_migrations head — none, known, then diverged", async () => {
   assert.equal(await readAppliedSchemaIdentity(pg), "none");
   await pg.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY, checksum text NOT NULL, applied_at text NOT NULL)`);
@@ -58,6 +72,10 @@ test("postgres: reads the tovu_migrations head — none, known, then diverged", 
   const head = CONTENT_MIGRATIONS[0].id;
   await pg.execute(sql`INSERT INTO tovu_migrations VALUES (${head}, 'c', 'now')`);
   assert.deepEqual(await readAppliedSchemaIdentity(pg), { idx: 0, tag: head });
+  const later = CONTENT_MIGRATIONS[2].id;
+  await pg.execute(sql`INSERT INTO tovu_migrations VALUES (${later}, 'c', 'earlier-time')`);
+  await pg.execute(sql`INSERT INTO tovu_migrations VALUES (${CONTENT_MIGRATIONS[1].id}, 'c', 'later-time')`);
+  assert.deepEqual(await readAppliedSchemaIdentity(pg), { idx: 2, tag: later });
   await pg.execute(sql`INSERT INTO tovu_migrations VALUES ('9999_from_a_newer_tovu', 'c', 'now')`);
   assert.equal(await readAppliedSchemaIdentity(pg), "diverged");
 });

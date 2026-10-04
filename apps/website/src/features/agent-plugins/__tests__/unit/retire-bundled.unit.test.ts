@@ -322,6 +322,31 @@ test("a MALFORMED tovu-deploy-fly record fails the retirement and changes nothin
   }
 });
 
+test("a package-list I/O failure becomes a failed retirement and the next entry still runs", async () => {
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  try {
+    await mkdir(workspaceLayout.root, { recursive: true });
+    const brokenPackages = path.join(workspaceLayout.root, "not-a-directory");
+    await writeFile(brokenPackages, "keep these bytes", "utf8");
+    let reads = 0;
+    const failingLayout = { ...layout, forWorkspace: (workspaceId: string) => {
+      assert.equal(workspaceId, WORKSPACE_ID);
+      return reads++ === 0 ? { ...workspaceLayout, packages: brokenPackages } : workspaceLayout;
+    } };
+    const outcomes = await retireBundledAgentPlugins({ layout: failingLayout, workspaceId: WORKSPACE_ID }, {
+      retired: new Map([[RETIRED, SUCCESSOR], ["another-retired", SUCCESSOR]]),
+    });
+    assert.equal(outcomes.length, 2);
+    assert.equal(outcomes[0]?.pluginId, RETIRED);
+    assert.equal(outcomes[0]?.status, "failed");
+    assert.match(outcomes[0]?.status === "failed" ? outcomes[0].reason : "", /ENOTDIR/);
+    assert.deepEqual(outcomes[1], { pluginId: "another-retired", successorId: SUCCESSOR, status: "absent" });
+    assert.equal(await readFile(brokenPackages, "utf8"), "keep these bytes");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
 test("uninstallAgentPlugin's retiredBundled option skips only the bundled refusal", async () => {
   const { cwd, layout, workspaceLayout } = await freshLayout();
   try {

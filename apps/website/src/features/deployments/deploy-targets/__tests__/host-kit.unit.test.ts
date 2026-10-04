@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
@@ -104,4 +105,21 @@ test("deployment reachability refuses private links before fetch and probes publ
   const accepted = await kit.checkDeploymentUrl("https://8.8.8.8/public");
   assert.equal(accepted.reachable, true);
   assert.deepEqual(urls, ["https://8.8.8.8/public"]);
+});
+
+
+test("the kit signs an S3 request using the supplied credentials and bucket endpoint", async () => {
+  const client = createDeployHostKit().createSigV4Client({ accessKeyId: "fixture-key", secretAccessKey: "fixture-secret", service: "s3", region: "us-east-1" });
+  const init = { method: "GET", aws: { datetime: "20260102T030405Z" } };
+  const request = await client.sign("https://fixture-bucket.s3.us-east-1.amazonaws.com/index.html", init);
+  assert.equal(request.url, "https://fixture-bucket.s3.us-east-1.amazonaws.com/index.html");
+  assert.equal(request.method, "GET");
+  assert.equal(request.headers.get("x-amz-date"), "20260102T030405Z");
+  assert.equal(request.headers.get("x-amz-content-sha256"), "UNSIGNED-PAYLOAD");
+  const canonical = "GET\n/index.html\n\nhost:fixture-bucket.s3.us-east-1.amazonaws.com\nx-amz-content-sha256:UNSIGNED-PAYLOAD\nx-amz-date:20260102T030405Z\n\nhost;x-amz-content-sha256;x-amz-date\nUNSIGNED-PAYLOAD";
+  let key: string | Buffer = "AWS4fixture-secret";
+  for (const part of ["20260102", "us-east-1", "s3", "aws4_request"]) key = createHmac("sha256", key).update(part).digest();
+  const toSign = "AWS4-HMAC-SHA256\n20260102T030405Z\n20260102/us-east-1/s3/aws4_request\n" + createHash("sha256").update(canonical).digest("hex");
+  const signature = createHmac("sha256", key).update(toSign).digest("hex");
+  assert.equal(request.headers.get("authorization"), `AWS4-HMAC-SHA256 Credential=fixture-key/20260102/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=${signature}`);
 });

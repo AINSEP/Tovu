@@ -62,6 +62,7 @@ test("findMatching matches exact topic, entity wildcard, and owner wildcard, but
   const ids = matches.map((m) => m.id).sort();
 
   assert.deepEqual(ids, ["entity-wildcard", "exact", "owner-wildcard"]);
+  assert.deepEqual((await repo.findMatching({ workspaceId: "workspace-1", topic: "postage.created" })).map((row) => row.id), ["owner-wildcard"]);
 });
 
 test("findMatching treats an empty topic list as fail-closed (never matches)", async () => {

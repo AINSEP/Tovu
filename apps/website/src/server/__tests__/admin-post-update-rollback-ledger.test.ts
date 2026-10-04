@@ -94,8 +94,15 @@ async function rollBackAnUpdate(
   const { baseUrl, cookie, deps } = await startServerWithDeps(t);
   const { id, version } = await createRow(baseUrl, cookie, surface, {
     title: "Ledger Fixture",
+    slug: "ledger-original",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Original body survives rollback" }] }] },
     status: "draft",
   });
+  const prior = structuredClone(await deps.postRepo.findById({ workspaceId: WS, id }));
+  assert.ok(prior);
+  const priorRevisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: id });
+  const priorRevision = priorRevisions.at(-1);
+  assert.ok(priorRevision);
 
   const outbox = spyOnOutbox(deps);
   const originalInsert = deps.changeSets.insert.bind(deps.changeSets);
@@ -123,18 +130,23 @@ async function rollBackAnUpdate(
   const current = await deps.postRepo.findById({ workspaceId: WS, id });
   assert.ok(current, "the rolled-back row must still exist");
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: id });
-  return { current, revisions, statusEvents: outbox.names() };
+  const persisted = await deps.outbox.claimPending({ batchSize: 100, nowIso: deps.clock.nowIso() });
+  return { current, prior, priorRevision, revisions, statusEvents: outbox.names(), persistedEvents: persisted.map((row) => row.event).filter((event) => event.name.startsWith("entry.")) };
 }
 
 for (const surface of ["posts", "pages"] as const) {
   test(`PUT ${surface}: a rolled-back update leaves no revision describing a state the row never kept`, async (t) => {
-    const { current, revisions } = await rollBackAnUpdate(t, surface);
+    const { current, prior, priorRevision, revisions } = await rollBackAnUpdate(t, surface);
 
     assert.equal(current.title, "Ledger Fixture", "the rollback must restore the pre-edit title");
     assert.equal(current.status, "draft", "the rollback must restore the pre-edit status");
 
     const newest = revisions.at(-1);
     assert.ok(newest, "the ledger must carry at least the create revision");
+    assert.deepEqual(current, { ...prior, version: prior.version + 2, updatedAt: current.updatedAt });
+    assert.deepEqual(newest.stateJson, { ...prior, version: prior.version + 2, updatedAt: current.updatedAt });
+    assert.equal(newest.op, "restore");
+    assert.equal(newest.restoredFrom, priorRevision.id);
     assert.equal(
       newest.seq,
       current.version,
@@ -158,7 +170,7 @@ for (const surface of ["posts", "pages"] as const) {
   });
 
   test(`PUT ${surface}: a rolled-back publish does not leave an uncompensated entry.published event`, async (t) => {
-    const { current, statusEvents } = await rollBackAnUpdate(t, surface);
+    const { current, statusEvents, persistedEvents } = await rollBackAnUpdate(t, surface);
 
     assert.equal(current.status, "draft", "the rollback must restore the pre-edit status");
     assert.deepEqual(
@@ -166,5 +178,9 @@ for (const surface of ["posts", "pages"] as const) {
       ["entry.published", "entry.unpublished"],
       "the undone draft->published write announced entry.published; the rollback must announce the matching entry.unpublished rather than leave subscribers believing the row is live"
     );
+    assert.deepEqual(persistedEvents.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
+      { name: "entry.published", aggregateId: current.id, workspaceId: WS, payload: { entryId: current.id, contentType: surface === "pages" ? "page" : "post" } },
+      { name: "entry.unpublished", aggregateId: current.id, workspaceId: WS, payload: { entryId: current.id, contentType: surface === "pages" ? "page" : "post" } },
+    ]);
   });
 }

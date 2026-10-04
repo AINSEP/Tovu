@@ -202,6 +202,24 @@ test("APIKEY_ISSUE returns the raw key once and persists only a hash of it", asy
   assert.ok(snapshotId, "the key records its issuance snapshot");
   const snapshot = await deps.policyRepo.findById({ workspaceId: WORKSPACE, id: snapshotId });
   assert.equal(snapshot?.isFrozen, true);
+  const beforePermissions = await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: snapshotId });
+  assert.ok(beforePermissions.length > 0);
+  const bearer = { authorization: `Bearer ${rawKey}` };
+  const beforeMe = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: bearer });
+  assert.equal(beforeMe.status, 200);
+  const beforeEffective = ((await beforeMe.json()) as { effectivePermissions: string[] }).effectivePermissions;
+  const permissionUrl = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/policies/${snapshotId}/permissions`;
+  const addition = await fetch(permissionUrl, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ permission: "apikey.manage" }) });
+  assert.equal(addition.status, 400);
+  assert.deepEqual(await addition.json(), { error: "cannot write a permission onto a built-in or frozen policy", code: "VALIDATION_ERROR" });
+  assert.deepEqual(await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: snapshotId }), beforePermissions);
+  const removal = await fetch(`${permissionUrl}/${beforePermissions[0].id}`, { method: "DELETE", headers: { cookie } });
+  assert.equal(removal.status, 400);
+  assert.deepEqual(await removal.json(), { error: "cannot remove a permission from a built-in or frozen policy", code: "VALIDATION_ERROR" });
+  assert.deepEqual(await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: snapshotId }), beforePermissions);
+  const afterMe = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: bearer });
+  assert.equal(afterMe.status, 200);
+  assert.deepEqual(((await afterMe.json()) as { effectivePermissions: string[] }).effectivePermissions, beforeEffective);
 });
 
 test("a request authenticates with Authorization: Bearer <raw-key> and performs a gated mutation", async (t) => {
@@ -426,6 +444,8 @@ test("APIKEY_ISSUE refuses a wildcard source policy, a non-api_key target, and a
   });
   assert.equal(wildcard.res.status, 400);
   assert.equal(wildcard.body.code, "VALIDATION_ERROR");
+  assert.equal(wildcard.body.error, `policy '${ownerPolicyId}' carries the owner wildcard '*'; an API-key snapshot may never carry it`);
+  assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: WORKSPACE, principalId }), []);
 
   // AC-23: binding to a human principal would let the key inherit that principal's grants.
   const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
@@ -437,6 +457,9 @@ test("APIKEY_ISSUE refuses a wildcard source policy, a non-api_key target, and a
   });
   assert.equal(humanTarget.res.status, 400);
   assert.equal(humanTarget.body.code, "VALIDATION_ERROR");
+  assert.equal(humanTarget.body.error, "ISSUE_API_KEY target must be a machine (kind='api_key') principal, got kind='user'");
+  assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: WORKSPACE, principalId: ownerPrincipalId }), []);
+  assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: WORKSPACE, principalId }), []);
 
   // 404, not 400, for a target that simply does not exist.
   const missing = await issueKey(baseUrl, cookie, {
@@ -449,9 +472,13 @@ test("APIKEY_ISSUE refuses a wildcard source policy, a non-api_key target, and a
   // AC-25: the first issuance makes the principal non-grantless, so a second is refused.
   const first = await issueKey(baseUrl, cookie, { principalId, label: "first", policyIds: [editorPolicyId] });
   assert.equal(first.res.status, 201);
+  const beforeSecond = await deps.apiKeyRepo.listByPrincipalId({ workspaceId: WORKSPACE, principalId });
+  assert.equal(beforeSecond.length, 1);
   const second = await issueKey(baseUrl, cookie, { principalId, label: "second", policyIds: [editorPolicyId] });
   assert.equal(second.res.status, 400);
   assert.equal(second.body.code, "VALIDATION_ERROR");
+  assert.equal(second.body.error, `principal '${principalId}' already carries grants; ISSUE_API_KEY requires a grantless principal so the key's authority equals exactly the policies attached here`);
+  assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: WORKSPACE, principalId }), beforeSecond);
 });
 
 test("INV-07: an issuer cannot snapshot a permission it does not hold unconstrained", async (t) => {

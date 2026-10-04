@@ -172,3 +172,27 @@ test("parseMailAdaptersFile rejects a bad schema version, a non-.mjs module, a m
   assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, credentialLabel: "" }])), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
   assert.deepEqual(parseMailAdaptersFile(descriptorJson([entry, entry])), { ok: false, reason: "adapters[1].id 'a' is declared twice" });
 });
+
+test("throwing modules and malformed descriptors are refused while healthy mail adapters still load", async () => {
+  await withWorkspace(async (workspaceRoot) => {
+    for (const [pluginId, files] of Object.entries({
+      "healthy-mail": FIXTURE_FILES,
+      "throwing-mail": { ...FIXTURE_FILES, "adapters/fixture.mjs": 'throw new Error("fixture import failed");' },
+      "malformed-mail": { [MAIL_ADAPTERS_FILENAME]: "{" },
+    })) {
+      const digest = await installPackage(pluginId, files);
+      await markBundled(workspaceRoot, pluginId, digest);
+    }
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(registry.refusals, [
+      "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
+      "mail adapter 'fixture-mail' from 'throwing-mail' was not loaded: fixture import failed",
+    ]);
+    assert.deepEqual(registry.list().map(adapter => [adapter.pluginId, adapter.descriptor.id]), [["healthy-mail", "fixture-mail"]]);
+    const mailer = registry.list()[0]!.module.create({ credential: { token: "survived", baseUrl: "https://x.test" }, kit: { httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "" }) } } });
+    assert.deepEqual(await mailer.send(
+      { workspaceId: WORKSPACE_ID, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "s", text: "t" },
+      { idempotencyKey: "k", workspaceId: WORKSPACE_ID, sourceContext: { module: "test" } },
+    ), { ok: true, providerMessageId: "fixture:survived", acceptedAt: "2026-09-29T00:00:00.000Z" });
+  });
+});

@@ -12,6 +12,7 @@ import { contributeCollectionEntryPublish } from "../../publish-content.js";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
 
 const at = "2026-09-01T00:00:00.000Z";
+const soupBody = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Simmer the tomatoes for twenty minutes." }] }] };
 
 function entry(overrides: Partial<EntryRecord> & { id: string; slug: string }): EntryRecord {
   return {
@@ -51,7 +52,7 @@ async function sites() {
   registerOnly([contributeCollectionEntryPublish()]);
   const src = await instance();
   const dst = await instance();
-  await src.entries.save(entry({ id: "e-soup", slug: "soup" }));
+  await src.entries.save(entry({ id: "e-soup", slug: "soup", bodyJson: soupBody }));
   await src.entries.save(entry({ id: "e-cake", slug: "cake", status: "draft", publishedAt: null, bodyJson: null }));
   await src.entries.save(entry({ id: "e-gone", slug: "gone" }));
   src.trash("e-gone");
@@ -89,6 +90,8 @@ test("collection-entry round trip: ids, status and publishedAt kept; widgets and
   const soup = await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "e-soup" });
   assert.equal(soup?.status, "published");
   assert.equal(soup?.publishedAt, at);
+  assert.deepEqual(entities.find((e) => e.id === "e-soup")?.state.bodyJson, soupBody);
+  assert.deepEqual(soup?.bodyJson, soupBody);
   assert.equal((await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "e-cake" }))?.status, "draft");
 });
 
@@ -207,4 +210,20 @@ test("collection-entry: an entity of a widget type is refused at apply and write
     message: "collection-entry 'w-evil' has type 'widget', which is a widget type and publishes on its own, not as a collection entry",
   });
   assert.equal(await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "w-evil" }), null);
+});
+
+
+test("collection-entry: a tombstoned owning type blocks planning and no entry is applied", async () => {
+  const { dst, source, dest } = await sites();
+  const owner = await dst.contentTypes.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
+  assert.ok(owner);
+  await dst.contentTypes.save({ ...owner, status: "tombstone", tombstonedAt: at, version: owner.version + 1 });
+  const entities = await packAll(source);
+  const report = await plan(entities, dest);
+  assert.deepEqual(report.rows.map((r) => [r.entityId, r.outcome, r.reason]).sort(), [
+    ["e-cake", "blocked", "content-type 'recipe' is permanently removed at this destination and cannot be republished over"],
+    ["e-soup", "blocked", "content-type 'recipe' is permanently removed at this destination and cannot be republished over"],
+  ]);
+  await applyReport(report, entities, dest);
+  assert.deepEqual(await dst.entries.listByWorkspaceExcludingTypes({ workspaceId: WORKSPACE_ID, excludeTypes: [] }), []);
 });

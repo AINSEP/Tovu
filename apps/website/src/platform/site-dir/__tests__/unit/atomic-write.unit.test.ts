@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 
 import { writeFileAtomic } from "../../atomic-write.js";
 
@@ -54,12 +55,40 @@ test("writeFileAtomic: overwriting an existing 0644 file preserves 0644 (preserv
     const target = path.join(dir, ".site-meta.json");
     fs.writeFileSync(target, "{}");
     fs.chmodSync(target, 0o644);
-    writeFileAtomic(target, '{"schemaVersion":2}');
+    execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
+      import { writeFileAtomic } from ${JSON.stringify(new URL("../../atomic-write.ts", import.meta.url).href)};
+      process.umask(0o077);
+      writeFileAtomic(process.argv[1], '{"schemaVersion":2}');
+    `, target]);
     assert.equal(fs.statSync(target).mode & 0o777, 0o644, "an unrelated already-0644 file must not be forced to 0600");
+    assert.equal(fs.readFileSync(target, "utf8"), '{"schemaVersion":2}');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const stage of ["statSync", "chmodSync", "renameSync"] as const) {
+  test(`writeFileAtomic: ${stage} failure propagates and preserves destination bytes and mode`, (t) => {
+    const dir = mkFixtureDir();
+    const target = path.join(dir, ".env");
+    fs.writeFileSync(target, "ORIGINAL\n", { mode: 0o640 });
+    fs.chmodSync(target, 0o640);
+    const error = Object.assign(new Error(`injected ${stage} failure`), { code: stage === "statSync" ? "EACCES" : "EIO" });
+    const fault = t.mock.method(fs, stage, () => { throw error; });
+    try {
+      try {
+        assert.throws(() => writeFileAtomic(target, "REPLACED\n"), (actual) => actual === error);
+      } finally {
+        fault.mock.restore();
+      }
+      assert.equal(fs.readFileSync(target, "utf8"), "ORIGINAL\n");
+      assert.equal(fs.statSync(target).mode & 0o777, 0o640);
+      if (stage === "statSync") assert.deepEqual(fs.readdirSync(dir), [".env"], "a failed stat must not start writing");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 test("writeFileAtomic: a blocked write (INV-04) throws before any rename and leaves the destination untouched", (t) => {
   if (isRoot()) {

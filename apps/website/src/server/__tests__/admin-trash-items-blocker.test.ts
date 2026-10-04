@@ -188,4 +188,12 @@ test("POST /trash/items on a childless term still answers 200 (the blocker check
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true, version: 2 });
+  assert.deepEqual(h.client.prepare("SELECT status, version FROM terms WHERE id = 'term-leaf'").get(), { status: "trash", version: 2 });
+  assert.deepEqual(h.client.prepare("SELECT workspace_id, entity_type, entity_id, entity_version, prior_marker FROM trashed_items WHERE entity_id = 'term-leaf'").all(), [{
+    workspace_id: h.deps.workspaceId,
+    entity_type: "term",
+    entity_id: "term-leaf",
+    entity_version: 2,
+    prior_marker: "active",
+  }]);
 });

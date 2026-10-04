@@ -164,3 +164,22 @@ test("a later registry is consulted when the first does not declare the host (th
   assert.deepEqual(report.copied, ["c-1"]);
   assert.equal((await deps.vendorRepo.findById({ workspaceId: WORKSPACE, id: "c-1" }))?.vendorId, "cloudflare");
 });
+
+
+for (const failure of ["seal", "mismatch"] as const) {
+  test(`a vendor ${failure} failure skips the copy and preserves the legacy row`, async (t) => {
+    const deps = await makeDeps();
+    await seedLegacy(deps, { id: "c-1", providerId: "vercel", label: "default", isDefault: true, fields: { token: "vtok" } });
+    const before = await deps.legacyRepo.listByWorkspace({ workspaceId: WORKSPACE });
+    if (failure === "seal") {
+      t.mock.method(deps.sealer, "seal", async () => { throw new Error("fixture reseal failed"); });
+    } else {
+      const open = deps.sealer.open.bind(deps.sealer);
+      t.mock.method(deps.sealer, "open", async (args) => args.aad === buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "vercel", id: "c-1" }) ? "different plaintext" : open(args));
+    }
+    const report = await copyPublishCredentialsToVendorTable(deps, { workspaceId: WORKSPACE });
+    assert.deepEqual(report, { copied: [], alreadyCopied: [], skipped: [{ id: "c-1", reason: failure === "seal" ? "the credential could not be re-sealed: fixture reseal failed" : "the re-sealed credential did not open to the same value" }] });
+    assert.deepEqual(await deps.vendorRepo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+    assert.deepEqual(await deps.legacyRepo.listByWorkspace({ workspaceId: WORKSPACE }), before);
+  });
+}

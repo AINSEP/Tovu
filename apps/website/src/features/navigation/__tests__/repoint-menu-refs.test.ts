@@ -177,7 +177,7 @@ test("menuHoldersReferencing() returns one holder per (menu, referencedId)", () 
     makeMenu({
       id: "menu-footer",
       title: "Footer",
-      doc: { type: "menu", version: 1, items: [urlItem()] },
+      doc: { type: "menu", version: 1, items: [entryRefItem({ id: "footer-1", entryId: "post-about" }), entryRefItem({ id: "footer-2", entryId: "post-about" }), urlItem()] },
     }),
   ];
 
@@ -185,6 +185,7 @@ test("menuHoldersReferencing() returns one holder per (menu, referencedId)", () 
 
   assert.deepEqual(holders, [
     { entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" },
+    { entityType: "menu", entityId: "menu-footer", entityLabel: "Footer", referencedId: "post-about" },
   ]);
 });
 

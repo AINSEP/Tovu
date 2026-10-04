@@ -218,7 +218,7 @@ test("purgeSelected fires onChanged once per purged item, with change:'purge'", 
 
 test("purgeSelected does not fire onChanged for already-gone, not-found or forbidden — nothing changed", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ purge: "already-gone", onChanged: (event) => events.push(event) });
+  const { trash, client } = harness({ purge: "already-gone", onChanged: (event) => events.push(event) });
 
   await trash.trash({
     workspaceId: WS,
@@ -231,13 +231,20 @@ test("purgeSelected does not fire onChanged for already-gone, not-found or forbi
   });
   events.length = 0;
 
+  const beforeDenied = client.prepare("SELECT * FROM trashed_items").all();
+  assert.equal(beforeDenied.length, 1);
+  const deniedReport = await trash.purgeSelected({ workspaceId: WS, ids: ["trash-1"], actor: ACTOR, authorizeItem: async () => false });
+  assert.deepEqual(deniedReport.results, [{ id: "trash-1", outcome: "forbidden" }]);
+  assert.deepEqual(client.prepare("SELECT * FROM trashed_items").all(), beforeDenied);
+  assert.deepEqual(events, [], "a forbidden purge must not notify");
+
   const alreadyGoneReport = await trash.purgeSelected({ workspaceId: WS, ids: ["trash-1"], actor: ACTOR, authorizeItem: ALLOW_ALL });
   assert.deepEqual(alreadyGoneReport.results, [{ id: "trash-1", outcome: "already-gone" }]);
 
   const notFoundReport = await trash.purgeSelected({ workspaceId: WS, ids: ["does-not-exist"], actor: ACTOR, authorizeItem: ALLOW_ALL });
   assert.deepEqual(notFoundReport.results, [{ id: "does-not-exist", outcome: "not-found" }]);
 
-  assert.deepEqual(events, [], "already-gone and not-found are no-ops; onChanged must not fire for either");
+  assert.deepEqual(events, [], "already-gone, not-found and forbidden must not notify");
 });
 
 test("purgeSelected does not fire onChanged when a version-changed race stands the purge down", async () => {

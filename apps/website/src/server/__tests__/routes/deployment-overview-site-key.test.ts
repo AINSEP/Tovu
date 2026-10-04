@@ -28,7 +28,8 @@ function isolateHomeDir(t: import("node:test").TestContext): string {
   process.env.HOME = dir;
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
   t.after(() => {
-    process.env.HOME = originalHome;
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
     if (originalRootKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
     else process.env.TOVU_INTEGRATIONS_ROOT_KEY = originalRootKey;
     rmSync(dir, { recursive: true, force: true });
@@ -39,10 +40,12 @@ function isolateHomeDir(t: import("node:test").TestContext): string {
 test("deployment-overview: TOVU_INTEGRATIONS_ROOT_KEY row is site-aware — reads THIS site's per-site key file, not just the legacy default (site-key plan §A3b)", async (t) => {
   const home = isolateHomeDir(t);
   const deps = createRouteDeps();
+  const siteDir = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-site-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  deps.siteBinding = { dir: siteDir, name: "isolated-site", dirOverridden: true, switcherCompatible: false };
 
   const siteMetaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
   writeFileSync(siteMetaPath, JSON.stringify({ siteId: "deployment-overview-site-key-test" }));
-  t.after(() => rmSync(siteMetaPath, { force: true }));
 
   // A valid 32-byte key written ONLY at the per-site path — never at the legacy default
   // (`~/.tovu/integrations-root-key.hex`) a non-site-aware read would still check.
@@ -67,6 +70,9 @@ test("deployment-overview: TOVU_INTEGRATIONS_ROOT_KEY row is site-aware — read
 test("deployment-overview: falls back to today's behavior when this site has no resolvable siteKeyId", async (t) => {
   isolateHomeDir(t);
   const deps = createRouteDeps();
+  const siteDir = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-no-meta-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  deps.siteBinding = { dir: siteDir, name: "no-meta-site", dirOverridden: true, switcherCompatible: false };
 
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

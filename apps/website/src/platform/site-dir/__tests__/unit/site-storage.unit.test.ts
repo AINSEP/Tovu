@@ -49,6 +49,13 @@ test("a site folder with no .site-meta.json is sqlite", () => {
   withSiteDir(undefined, (dir) => assert.deepEqual(resolveSiteStorage(dir), { kind: "sqlite" }));
 });
 
+test("a non-ENOENT metadata read failure propagates instead of defaulting to sqlite", () => {
+  withSiteDir(undefined, (dir) => {
+    fs.mkdirSync(path.join(dir, ".site-meta.json"));
+    assert.throws(() => resolveSiteStorage(dir), { code: "EISDIR" });
+  });
+});
+
 test("the dev site's partial meta file (only the site-key fields) is sqlite", () => {
   // Exactly the shape of sites/tovu-dev/.site-meta.json on 2026-09-28.
   const devSiteMeta = JSON.stringify({ siteKeyId: "fe23a0eb-817d-4188-b8b7-afd9c52767e8", siteKeyFingerprint: "03b2912a352b" }, null, 2);

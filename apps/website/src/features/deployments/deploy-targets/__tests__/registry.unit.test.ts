@@ -266,3 +266,20 @@ test("two bundled plugins declaring the same target id: neither is used", async 
     assert.deepEqual(registry.refusals, ["deploy target 'fixture-host' was not loaded: more than one plugin declares it ('fixture-deploy', 'other-deploy')"]);
   });
 });
+
+
+test("an altered installation is refused even when the original bundled digest is recorded", async () => {
+  await withWorkspace(async (workspaceRoot) => {
+    const original = await installPackage("fixture-deploy", FIXTURE_FILES);
+    await markBundled(workspaceRoot, "fixture-deploy", original);
+    await forceRemove(path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).packages, original));
+    const changed = await installPackage("fixture-deploy", { ...FIXTURE_FILES, "targets/fixture.mjs": FIXTURE_MODULE + "\n// modified installation\n" });
+    assert.notEqual(changed, original);
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    assert.equal(registry.get("fixture-host"), undefined);
+    assert.deepEqual(registry.list(), []);
+    assert.deepEqual(registry.refusals, [
+      `deploy targets from 'fixture-deploy' were not loaded: only plugins shipped with Tovu may add deploy targets (installed digest ${changed.slice(0, 12)} is not the one this build shipped)`,
+    ]);
+  });
+});

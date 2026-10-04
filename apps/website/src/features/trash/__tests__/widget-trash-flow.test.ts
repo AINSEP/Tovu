@@ -157,6 +157,10 @@ test("a widget whose payload does not parse can be trashed, and restore brings i
 
 test("trashing a missing or already-trashed widget is refused with WidgetInstanceNotFoundError", async () => {
   const h = harness();
+  await assert.rejects(
+    trashWidgetInstance({ deps: h.deps, input: { workspaceId: WS, actor: ACTOR, widgetInstanceId: "missing-widget" } }),
+    { name: "WidgetInstanceNotFoundError", message: "widget instance 'missing-widget' was not found" }
+  );
   const { id } = await createTextWidget(h, "Once");
   await trashWidgetInstance({ deps: h.deps, input: { workspaceId: WS, actor: ACTOR, widgetInstanceId: id } });
 
@@ -247,6 +251,10 @@ function setLegacyStatus(h: Harness, id: string, status: "trash" | "purged"): vo
 test("adoptLegacyTrashedWidgets moves every old trash/purged widget into the Trash with its payload status untouched, once", async () => {
   const h = harness();
   const live = await createTextWidget(h, "Live");
+  const corruptWidget = await createTextWidget(h, "Corrupt candidate");
+  const corrupt = '{"ext":{"widget":{"payload":"{not json"}}}';
+  h.db.$client.prepare("UPDATE entries SET fields_json = ? WHERE id = ?").run(corrupt, corruptWidget.id);
+  const corruptBefore = rawRow(h, corruptWidget.id);
   const oldTrash = await createTextWidget(h, "Old trash");
   const oldPurged = await createTextWidget(h, "Old purged");
   setLegacyStatus(h, oldTrash.id, "trash");
@@ -280,16 +288,38 @@ test("adoptLegacyTrashedWidgets moves every old trash/purged widget into the Tra
     assert.equal(row.version, versionsBefore.get(id)! + 1, "only the Trash's own version bump");
   }
   assert.ok(await h.entries.findById({ workspaceId: WS, id: live.id }), "a live widget is left alone");
+  assert.deepEqual(rawRow(h, corruptWidget.id), corruptBefore, "adoption skips corrupt candidates without writing them");
 
   const second = await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
   assert.deepEqual(second.adopted, []);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 2);
 });
 
-test("a restored adopted widget comes back active and readable", async () => {
+test("an adopted widget corrupted before restore comes back byte-identical", async (t) => {
   const h = harness();
-  const oldPurged = await createTextWidget(h, "Old purged");
-  setLegacyStatus(h, oldPurged.id, "purged");
+  t.after(() => h.db.$client.close());
+  const widget = await createTextWidget(h, "Adopted corrupt");
+  setLegacyStatus(h, widget.id, "purged");
+  await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
+  const corrupt = '{"ext":{"widget":{"payload":"{not json"}}}';
+  h.db.$client.prepare("UPDATE entries SET fields_json = ? WHERE id = ?").run(corrupt, widget.id);
+  const before = rawRow(h, widget.id)!;
+  assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: widget.id, at: AT }), "restored");
+  assert.deepEqual(rawRow(h, widget.id), { fields_json: corrupt, deleted_at: null, version: before.version + 1 });
+  assert.ok(await h.entries.findById({ workspaceId: WS, id: widget.id }));
+  assert.deepEqual((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items, []);
+});
+
+test("a restored adopted widget comes back active and readable with its outgoing refs rebuilt", async () => {
+  const h = harness();
+  const target = await createTextWidget(h, "Referenced target");
+  const { instance: oldPurged } = await createWidgetInstance({ deps: h.deps, input: {
+    workspaceId: WS, actor: ACTOR, widgetType: "menu", title: "Old purged", config: { menuRef: target.id },
+  } });
+  const legacy = buildWidgetInstanceFieldsJson({ widgetType: "menu", config: { menuRef: target.id }, status: "purged" });
+  h.db.$client.prepare("UPDATE entries SET fields_json = ? WHERE id = ?").run(JSON.stringify(legacy), oldPurged.id);
+  h.db.$client.prepare("DELETE FROM entry_refs WHERE source_entry_id = ?").run(oldPurged.id);
+  assert.deepEqual(await h.deps.entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: oldPurged.id }), []);
   await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
 
   assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: oldPurged.id, at: AT }), "restored");
@@ -297,6 +327,9 @@ test("a restored adopted widget comes back active and readable", async () => {
   const restored = await h.entries.findById({ workspaceId: WS, id: oldPurged.id });
   assert.ok(restored, "a restored adopted widget reads again");
   assert.equal(parseWidgetInstancePayload(restored.fieldsJson).status, "active", "a restored old widget renders");
+  assert.deepEqual(await h.deps.entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: oldPurged.id }), [
+    { workspaceId: WS, sourceEntryId: oldPurged.id, sourceKind: "config-field", fieldPath: "fields.ext.widget.config.menuRef", targetKind: "entry", targetId: target.id },
+  ]);
   assert.equal(rawRow(h, oldPurged.id)!.deleted_at, null);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
 });

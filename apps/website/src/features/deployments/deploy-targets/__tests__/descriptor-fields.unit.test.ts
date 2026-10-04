@@ -51,6 +51,7 @@ test("the shipped github-pages owner field has person-facing help that does not 
   const owner = parsed.descriptors.find((descriptor) => descriptor.id === "github-pages")?.configFields.find((field) => field.name === "owner");
   assert.ok(owner?.userHelp);
   assert.doesNotMatch(owner.userHelp, /accountLabel|never guess/);
+  assert.notEqual(owner.userHelp, owner.help);
 });
 
 test("a credential may carry a separate person-facing userHelp; a non-string one is refused", () => {
@@ -71,6 +72,8 @@ test("the shipped S3 credential and Public URL speak to the person, not in the a
   const credential = parsed.descriptors.find((descriptor) => descriptor.id === "s3-compatible")?.credential;
   const publicUrl = credential?.fields.find((field) => field.name === "publicUrl");
   assert.ok(credential?.userHelp && publicUrl?.userHelp);
+  assert.notEqual(credential.userHelp, credential.help);
+  assert.notEqual(publicUrl.userHelp, publicUrl.help);
   for (const text of [credential.userHelp, publicUrl.userHelp]) assert.doesNotMatch(text, /\bask me\b|\bme to\b/i);
 });
 
@@ -81,6 +84,9 @@ test("the shipped Cloudflare credential help and Account ID help do not point to
   const accountId = credential?.fields.find((field) => field.name === "accountId");
   assert.doesNotMatch(credential?.help ?? "", /sidebar|home page/);
   assert.match(accountId?.help ?? "", /dash\.cloudflare\.com\//);
+  assert.ok(credential?.help && accountId?.help);
+  assert.match(credential.help, /your Cloudflare account ID/);
+  assert.equal(accountId.help, "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.");
 });
 
 test("a config field may not shadow a publish request's own keys", () => {
@@ -163,6 +169,23 @@ test("malformed credential blocks are refused with the exact reason", () => {
   for (const [credential, reason] of cases) {
     assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, credential }])), { ok: false, reason });
   }
+});
+
+test("credential token links must be HTTPS and project-name copy rejects malformed labels and help", () => {
+  const credential = { vendorId: "fixture", fields: [{ name: "token", label: "Token", required: true }] };
+  for (const tokenPageUrl of ["not a URL", "http://tokens.example.test", "javascript:alert(1)", 7]) {
+    assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, credential: { ...credential, tokenPageUrl } }])), { ok: false, reason: "targets[0].credential.tokenPageUrl must be an https URL" });
+  }
+  const valid = parseDeployTargetsFile(file([{ ...BASE, credential: { ...credential, tokenPageUrl: "https://tokens.example.test/create" } }]));
+  assert.ok(valid.ok);
+  assert.equal(valid.descriptors[0]?.credential?.tokenPageUrl, "https://tokens.example.test/create");
+  for (const projectName of [null, { label: " " }, { label: 3 }]) {
+    assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, projectName }])), { ok: false, reason: "targets[0].projectName.label must be a non-empty string" });
+  }
+  for (const help of [3, "x".repeat(501)]) {
+    assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, projectName: { label: "Release", help } }])), { ok: false, reason: "targets[0].projectName.help must be a string of at most 500 characters" });
+  }
+  assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, projectName: { label: "Release", help: "Commit description" } }])), { ok: true, descriptors: [{ ...BASE, configFields: [], projectName: { label: "Release", help: "Commit description" } }] });
 });
 
 test("the shipped deploy plugin names each credential check's vendor and which hosts return an account label", async () => {

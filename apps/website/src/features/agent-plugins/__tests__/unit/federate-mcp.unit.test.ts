@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { forceRemove } from "../fixtures/force-remove.js";
+import { installAgentPlugin } from "../../install.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { recordBundledAgentPluginDigests } from "../../bundled-digests.js";
 
 import { InMemoryExternalMcpServerRepo, listExternalMcpServerViews, saveExternalMcpServer, type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { deriveAgentPluginConnectionId, planAgentPluginMcpFederation, provisionAgentPluginMcpServers } from "../../federate-mcp.js";
+import { deriveAgentPluginConnectionId, planAgentPluginMcpFederation, provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
@@ -26,6 +34,45 @@ const SSE_SERVER: McpServerConfig = { type: "sse", url: "https://mcp.example.com
 const HEADERED_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", headers: { "X-Tenant": "acme" } };
 
 const clock = { nowMs: () => Date.parse("2026-09-10T00:00:00.000Z"), nowIso: () => "2026-09-10T00:00:00.000Z" };
+
+test("MCP resolution keeps each workspace's bundled declaration despite competing digests and plugins", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-mcp-resolution-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  try {
+    const layout = resolveAgentPluginLayout();
+    const install = async (workspaceId: string, pluginId: string, servers: Record<string, McpServerConfig>) => {
+      const files = {
+        "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" }),
+        "mcp.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: servers }),
+      };
+      const archive = Buffer.from(JSON.stringify(files));
+      return installAgentPlugin({ layout, workspaceId, archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: {
+        async *entries() {
+          for (const [entryPath, text] of Object.entries(files)) {
+            const bytes = Buffer.from(text);
+            yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } };
+          }
+        },
+      } });
+    };
+    const first = { first: REMOTE_SERVER };
+    const second = { second: OAUTH_SERVER };
+    for (const [workspaceId, servers] of [["ws-1", first], ["ws-2", second]] as const) {
+      await install(workspaceId, "requested", { obsolete: SSE_SERVER });
+      const preferred = await install(workspaceId, "requested", servers);
+      await install(workspaceId, "unrelated", { wrong: REMOTE_SERVER });
+      await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(workspaceId).root, seeded: [{ pluginId: "requested", archiveDigest: preferred.archiveDigest }] });
+    }
+    assert.deepEqual({ ...await resolveAgentPluginMcpServers({ workspaceId: "ws-1", pluginId: "requested" }) }, first);
+    assert.deepEqual({ ...await resolveAgentPluginMcpServers({ workspaceId: "ws-2", pluginId: "requested" }) }, second);
+    assert.deepEqual(await resolveAgentPluginMcpServers({ workspaceId: "absent", pluginId: "requested" }), {});
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+});
 
 function makeDeps(): ExternalMcpStoreDeps {
   const repo = new InMemoryExternalMcpServerRepo();

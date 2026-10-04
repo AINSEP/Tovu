@@ -99,9 +99,15 @@ test("results are sorted by score descending", () => {
 });
 
 test("limit truncates the result set to the requested size", () => {
-  const many = Array.from({ length: 5 }, (_, i) => candidate({ pluginId: `gdpr-tool-${i}`, keywords: ["gdpr"] }));
+  const many = [
+    candidate({ pluginId: "weak", keywords: [], description: "gdpr", skills: [] }),
+    candidate({ pluginId: "weaker", keywords: [], description: undefined, skills: [{ name: "misc", summary: "gdpr" }] }),
+    candidate({ pluginId: "gdpr-top", keywords: ["gdpr"], description: "gdpr", skills: [] }),
+    candidate({ pluginId: "gdpr-next", keywords: ["gdpr"], description: undefined, skills: [] }),
+  ];
   const matches = rankInstalledAgentPlugins("gdpr", many, 2);
   assert.equal(matches.length, 2);
+  assert.deepEqual(matches.map(match => match.pluginId), ["gdpr-top", "gdpr-next"]);
 });
 
 test("a disabled plugin still ranks and is returned — search is not gated on activation", () => {
@@ -111,13 +117,17 @@ test("a disabled plugin still ranks and is returned — search is not gated on a
 });
 
 test("every field of the source candidate is carried through onto the match, plus a score", () => {
-  const [match] = rankInstalledAgentPlugins("gdpr", [candidate()], 10);
+  const original = candidate();
+  const [match] = rankInstalledAgentPlugins("gdpr", [original], 10);
   assert.ok(match);
   assert.equal(match.pluginId, "site-compliance");
   assert.equal(match.version, "1.0.0");
   assert.equal(match.enabled, true);
   assert.deepEqual(match.mcpServerIds, []);
   assert.equal(typeof match.score, "number");
+  const { score, ...payload } = match;
+  assert.deepEqual(payload, original);
+  assert.ok(score > 0);
 });
 
 test("a candidate with no description and no mcp servers does not throw — every optional field is genuinely optional", () => {

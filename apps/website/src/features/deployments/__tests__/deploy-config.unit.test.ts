@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import { ValidationError } from "#src/platform/site-dir/index";
 
@@ -49,6 +52,18 @@ test("buildDeploymentDescriptor: called twice returns the same values (no hidden
   assert.deepEqual(first, second);
 });
 
+test("buildDeploymentDescriptor refuses source format drift instead of guessing a missing port", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-deploy-descriptor-"));
+  t.mock.method(process, "cwd", () => root);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, "Dockerfile"), "FROM node:22\n# EXPOSE removed\n");
+  writeFileSync(path.join(root, "fly.toml"), 'app = "fixture"\n[build]\ndockerfile = "Dockerfile"\n[[mounts]]\nsource = "data"\ndestination = "/data"\n');
+  const routePath = path.join(root, "apps/website/src/server/inbound/public-http/routes/ops/health.ts");
+  mkdirSync(path.dirname(routePath), { recursive: true });
+  writeFileSync(routePath, 'export const registerReadyzRoute = () => app.get("/readyz", handler);');
+  assert.throws(() => buildDeploymentDescriptor(), { message: "tovu deploy config: could not derive the container port from Dockerfile (EXPOSE line) — its format changed since deploy-config.ts's extraction pattern was written. Update the pattern in deploy-config.ts to match the new format, or hardcode the value there instead with a comment explaining why it can no longer be derived." });
+});
+
 /**
  * `assertNoConfigInjection` is a guard: it must actually be able to fail. Direct coverage of the
  * guard itself, in addition to the exact-string regressions already exercised end-to-end through
@@ -93,4 +108,15 @@ test("assertNoConfigInjection: a leading hyphen or surrounding whitespace throws
       err.message ===
         'field (" evil ") starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file',
   );
+});
+
+test("assertNoConfigInjection rejects every quoted-sink and YAML indicator character independently", () => {
+  for (const character of ['"', "\n", "\r"]) {
+    const value = `before${character}after`;
+    assert.throws(() => assertNoConfigInjection("field", value), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
+  }
+  for (const character of [":", "#", "{", "[", "&", "*"]) {
+    const value = `before${character}after`;
+    assert.throws(() => assertNoConfigInjection("field", value), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`);
+  }
 });

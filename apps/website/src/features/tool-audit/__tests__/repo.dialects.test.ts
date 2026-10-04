@@ -53,6 +53,30 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
     assert.equal((await rows(kernel, "ws-other")).length, 1);
   });
 
+  for (const [stage, failingRun] of [["cutoff query", 2], ["retention delete", 3]] as const) {
+    test(`append preserves its successful insert when the ${stage} fails`, async () => {
+      const kernel = makeKernel();
+      await new SqlToolAttemptAuditSink(kernel).append(event({ attemptId: "older" }));
+      const failure = new Error(`${stage} failed`);
+      const errors: unknown[] = [];
+      let calls = 0;
+      const broken: ContentKernel = {
+        ...kernel,
+        run: (work) => {
+          calls += 1;
+          if (calls === failingRun) return Promise.reject(failure);
+          return kernel.run(work);
+        },
+      };
+      const sink = new SqlToolAttemptAuditSink(broken, { maxRowsPerWorkspace: 1, pruneCheckInterval: 1, onError: (e) => errors.push(e) });
+      await assert.doesNotReject(() => sink.append(event({ attemptId: "newest" })));
+      assert.equal(calls, failingRun, "the selected retention operation must be reached");
+      assert.deepEqual(errors, [failure]);
+      assert.equal(errors[0], failure, "report the original error");
+      assert.deepEqual((await rows(kernel, "ws-1")).map((row) => row.attempt_id), ["older", "newest"]);
+    });
+  }
+
   test("append never rejects; a failed write goes to onError", async () => {
     const kernel = makeKernel();
     const errors: unknown[] = [];

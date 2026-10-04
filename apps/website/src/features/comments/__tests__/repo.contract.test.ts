@@ -137,9 +137,12 @@ function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<Comme
     await repo.create(makeComment({ id: "a", entryId: "entry-1" }));
     await repo.create(makeComment({ id: "b", entryId: "entry-2" }));
     await repo.create(makeComment({ id: "c", entryId: "entry-1", status: "approved" }));
+    await repo.create(makeComment({ id: "foreign-1", workspaceId: "workspace-2", entryId: "entry-1" }));
+    await repo.create(makeComment({ id: "foreign-2", workspaceId: "workspace-2", entryId: "entry-2" }));
 
     assert.equal(await repo.countByStatus({ workspaceId: WORKSPACE_ID, status: "pending" }), 2);
     assert.equal(await repo.countByStatus({ workspaceId: WORKSPACE_ID, status: "pending", entryId: "entry-1" }), 1);
+    assert.equal(await repo.countByStatus({ workspaceId: "workspace-2", status: "pending" }), 2);
   });
 
   test(`[${label}] applyModeration flips status and appends a moderation_log entry atomically`, async () => {

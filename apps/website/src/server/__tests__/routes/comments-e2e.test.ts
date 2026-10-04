@@ -97,4 +97,37 @@ test("comments end-to-end: public submit -> pending -> operator approves -> queu
 
   const approvedQueue = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status: "approved", limit: 10 });
   assert.equal(approvedQueue.items.some((c) => c.id === submitted.id), true, "and now shows up under approved");
+  const approved = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: submitted.id });
+  assert.ok(approved);
+  assert.equal(approved.version, 1);
+  let version = 1;
+  for (const [action, status] of [["spam", "spam"], ["trash", "trash"], ["restore", "approved"], ["trash", "trash"]] as const) {
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/${submitted.id}/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ expectedVersion: version }),
+    });
+    assert.equal(response.status, 204, action);
+    version += 1;
+    const stored = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: submitted.id });
+    assert.ok(stored, action);
+    assert.equal(stored.status, status, action);
+    assert.equal(stored.version, version, action);
+    assert.equal(stored.bodyText, approved.bodyText, action);
+    for (const queueStatus of ["pending", "approved", "spam", "trash"] as const) {
+      const queue = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status: queueStatus, limit: 10 });
+      assert.equal(queue.items.some((row) => row.id === submitted.id), queueStatus === status, `${action}: ${queueStatus}`);
+    }
+  }
+  const purged = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/${submitted.id}/purge`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({}),
+  });
+  assert.equal(purged.status, 204);
+  assert.equal(await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: submitted.id }), null);
+  for (const status of ["pending", "approved", "spam", "trash"] as const) {
+    const queue = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit: 10 });
+    assert.ok(!queue.items.some((row) => row.id === submitted.id), `purged: ${status}`);
+  }
 });

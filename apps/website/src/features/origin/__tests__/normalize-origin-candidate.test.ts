@@ -31,6 +31,7 @@ test("normalizeOriginCandidate IDNA/punycode-normalizes a homoglyph host", () =>
   assert.ok(result);
   assert.notEqual(result.host, "good.com");
   assert.ok(result.host.startsWith("xn--"), `expected punycode host, got '${result.host}'`);
+  assert.deepEqual(result, { scheme: "https", host: "xn--gd-fmca.com", port: 443 });
 });
 
 test("normalizeOriginCandidate rejects a backslash scheme-separator bypass", () => {

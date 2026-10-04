@@ -267,3 +267,41 @@ test("deployment_trigger_export starts a real run, a concurrent second call is r
   assert.ok(final.counts && final.counts.routesSucceeded > 0, "the hermetic fixture's own routes must have actually exported");
   assert.equal(final.counts?.routesFailed, 0);
 });
+
+test("two triggers held in authorization start exactly one export when both grants settle", async () => {
+  let releaseAuthorization!: () => void;
+  const authorization = new Promise<void>(resolve => { releaseAuthorization = resolve; });
+  let releaseExport!: (report: Awaited<ReturnType<DeploymentsToolDeps["exportSiteBound"]>>) => void;
+  const exportResult = new Promise<Awaited<ReturnType<DeploymentsToolDeps["exportSiteBound"]>>>(resolve => { releaseExport = resolve; });
+  let authorizations = 0;
+  let starts = 0;
+  const deps: DeploymentsToolDeps = {
+    ...grantingDeps(),
+    authorize: async request => {
+      assert.equal(request.permission, "system.export");
+      authorizations += 1;
+      await authorization;
+      return { allowed: true, reason: "matched" };
+    },
+    exportSiteBound: async () => { starts += 1; return exportResult; },
+  };
+  const trigger = buildDeploymentsRegistrations(deps).find(r => r.descriptor.id === "deployment_trigger_export")!;
+  const calls = [trigger.handler(ctx({}) as never), trigger.handler(ctx({}) as never)];
+  const settled = Promise.allSettled(calls);
+  try {
+    assert.equal(authorizations, 2, "both calls must reach the authorization barrier");
+    assert.equal(starts, 0);
+    releaseAuthorization();
+    const results = await settled;
+    assert.equal(starts, 1);
+    assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+    const refused = results.find(result => result.status === "rejected");
+    assert.ok(refused?.status === "rejected");
+    assert.match(String(refused.reason), /an export is already running/);
+  } finally {
+    releaseAuthorization();
+    releaseExport({ routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [] } as Awaited<ReturnType<DeploymentsToolDeps["exportSiteBound"]>>);
+    await settled;
+    await new Promise(resolve => setImmediate(resolve));
+  }
+});

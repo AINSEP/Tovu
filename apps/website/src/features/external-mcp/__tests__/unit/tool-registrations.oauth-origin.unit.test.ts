@@ -215,3 +215,20 @@ test("neither TOVU_PUBLIC_URL nor a derived origin: the last-resort refusal stil
     else process.env.TOVU_PUBLIC_URL = previous;
   }
 });
+
+
+test("configured URLs with a trailing slash or path send exactly one origin-based callback path", async () => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  try {
+    for (const configured of ["https://configured.example.com/", "https://configured.example.com/operator/path/"]) {
+      process.env.TOVU_PUBLIC_URL = configured;
+      const handler = await makeConnectHandler("https://localhost:3000");
+      const result = await call(handler, { id: SERVER }) as { kind: string; authorizationUrl: string };
+      assert.equal(result.kind, "redirect_required");
+      assert.equal(redirectUriOf(result.authorizationUrl), "https://configured.example.com/api/mcp-servers/oauth/callback/test-oauth-srv");
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previous;
+  }
+});

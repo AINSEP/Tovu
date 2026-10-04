@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
+import type { AuthorizeFn } from "../../settings/index.js";
 import { CommentsSettingsValidationError } from "../errors.js";
 import {
   ensureCommentsSettingDefinitions,
@@ -63,6 +64,7 @@ test("getCommentsSettings after ensureCommentsSettingDefinitions reads the same 
   assert.equal(settings.enabled, true);
   assert.equal(settings.maxDepth, 5);
   assert.equal(settings.closeAfterDays, null);
+  assert.deepEqual(settings, { enabled: true, requireModeration: true, maxDepth: 5, closeAfterDays: null, spamAutoRejectScore: 0.5, maxPerIpPerHour: 20 });
 });
 
 test("setCommentsSettings writes a partial patch; getCommentsSettings reflects it", async () => {
@@ -114,4 +116,21 @@ test("setCommentsSettings rejects a negative maxDepth", async () => {
       ),
     CommentsSettingsValidationError
   );
+});
+
+test("comments.configure alone permits settings writes; denied writes leave the effective settings unchanged", async () => {
+  const { settingsRepo, deps } = makeDeps();
+  await ensureCommentsSettingDefinitions(deps, { workspaceId: WORKSPACE, systemPrincipalId: "system-comments-settings" });
+  const seen: string[] = [];
+  const authorize: AuthorizeFn = async (request) => {
+    seen.push(request.permission);
+    return { allowed: request.principalId === "configure-only" && request.permission === "comments.configure", reason: "fixture" };
+  };
+  await setCommentsSettings({ ...deps, authorize }, { workspaceId: WORKSPACE, callerPrincipalId: "configure-only", patch: { requireModeration: false, maxDepth: 3 } });
+  const beforeDenied = await getCommentsSettings({ settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(beforeDenied.requireModeration, false);
+  assert.equal(beforeDenied.maxDepth, 3);
+  await assert.rejects(() => setCommentsSettings({ ...deps, authorize }, { workspaceId: WORKSPACE, callerPrincipalId: "denied", patch: { requireModeration: true, maxDepth: 9 } }));
+  assert.deepEqual(await getCommentsSettings({ settingsRepo }, { workspaceId: WORKSPACE }), beforeDenied);
+  assert.deepEqual(seen, ["comments.configure", "comments.configure", "comments.configure"]);
 });

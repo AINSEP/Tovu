@@ -22,13 +22,18 @@ const SAMPLE: ThemeLineage = {
   name: "Basic",
 };
 
-test("writeThemeLineageFile then readThemeLineageFile round-trips the lineage object", () => {
+test("writeThemeLineageFile then readThemeLineageFile round-trips the lineage object", (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-lineage-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   writeThemeLineageFile({ themeDir: dir, lineage: SAMPLE });
   assert.ok(fs.existsSync(path.join(dir, THEME_LINEAGE_FILENAME)));
 
   const read = readThemeLineageFile({ themeDir: dir });
   assert.deepEqual(read, SAMPLE);
+  for (const tier of ["declarative", "templated", "handlebars", "static", "code"] as const) {
+    writeThemeLineageFile({ themeDir: dir, lineage: { ...SAMPLE, tier } });
+    assert.deepEqual(readThemeLineageFile({ themeDir: dir }), { ...SAMPLE, tier });
+  }
 });
 
 test("readThemeLineageFile returns null when a theme has no lineage sidecar (every hand-authored theme)", () => {
@@ -36,18 +41,27 @@ test("readThemeLineageFile returns null when a theme has no lineage sidecar (eve
   assert.equal(readThemeLineageFile({ themeDir: dir }), null);
 });
 
-test("readThemeLineageFile returns null rather than throwing on a corrupt sidecar file", () => {
+test("readThemeLineageFile returns null rather than throwing on a corrupt sidecar file", (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-lineage-corrupt-"));
-  fs.writeFileSync(path.join(dir, THEME_LINEAGE_FILENAME), "{not json", "utf8");
-  assert.equal(readThemeLineageFile({ themeDir: dir }), null);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const invalid = ["{not json", "[]", "{}", '{"from":1}', "null", JSON.stringify({ ...SAMPLE, from: 1 }), JSON.stringify({ ...SAMPLE, tier: "unknown" }),
+    ...["version", "catalog", "marketplaceId", "name"].map((key) => JSON.stringify({ ...SAMPLE, [key]: 1 }))];
+  for (const raw of invalid) {
+    fs.writeFileSync(path.join(dir, THEME_LINEAGE_FILENAME), raw, "utf8");
+    assert.equal(readThemeLineageFile({ themeDir: dir }), null, raw);
+  }
 });
 
-test("writeThemeLineageFile never touches theme.json — the sidecar is a separate file", () => {
+test("writeThemeLineageFile never touches theme.json — the sidecar is a separate file", (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-lineage-manifest-"));
-  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "basic-1" }), "utf8");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const original = '{  "id": "basic-1" }\n';
+  fs.writeFileSync(path.join(dir, "theme.json"), original, "utf8");
   writeThemeLineageFile({ themeDir: dir, lineage: SAMPLE });
 
-  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8")) as Record<string, unknown>;
+  const bytes = fs.readFileSync(path.join(dir, "theme.json"), "utf8");
+  assert.equal(bytes, original, "the complete manifest bytes must be untouched");
+  const manifest = JSON.parse(bytes) as Record<string, unknown>;
   assert.equal(manifest.lineage, undefined, "theme.json must not gain a lineage key");
   assert.deepEqual(Object.keys(manifest), ["id"], "theme.json's own content must be untouched");
 });

@@ -91,13 +91,18 @@ test("verify fails closed on a malformed, foreign, or hostile stored hash instea
   }
 });
 
-test("decoyKeyHash is a real, verifiable-shaped digest that no secret matches, memoized per hasher", async () => {
+test("decoyKeyHash hashes one verifiable decoy per hasher and rejects presented key secrets", async (t) => {
   const hasher = new ScryptApiKeySecretHasher();
+  const hash = hasher.hash.bind(hasher);
+  const inputs: string[] = [];
+  t.mock.method(hasher, "hash", async (secret: string) => { inputs.push(secret); return hash(secret); });
 
   const first = await decoyKeyHash(hasher);
   const second = await decoyKeyHash(hasher);
   assert.equal(first, second, "memoized: one derivation per hasher per process");
   assert.match(first, /^scrypt\$/);
+  assert.equal(inputs.length, 1, "memoization performs exactly one real hash");
+  assert.equal(await hasher.verify(first, inputs[0]!), true, "the decoy digest must verify its captured input, so it cannot be a malformed prefix");
   // It must be well-formed enough that `verify` actually does the work — a digest that parsed to
   // null would return instantly and defeat the timing defence it exists to provide.
   assert.equal(await hasher.verify(first, mintApiKey().secret), false);

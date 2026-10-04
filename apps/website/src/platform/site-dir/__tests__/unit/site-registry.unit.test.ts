@@ -79,7 +79,7 @@ test("createSite + listSites: a created site is listed with the right name/dir/d
     assert.equal(result.dir, path.join(cwd, "sites", "my-second-site"));
     assert.match(result.siteId, /^[0-9a-f-]{36}$/i);
 
-    const sites = listSites({ cwd });
+    const sites = listSites({ cwd, env: {} });
     assert.equal(sites.length, 1);
     assert.equal(sites[0]?.name, "my-second-site");
     assert.equal(sites[0]?.dir, result.dir);

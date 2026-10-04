@@ -7,6 +7,9 @@ import {
   InMemoryAssetRenditionRepo,
   InMemoryBlobStore,
   InMemoryMediaRepo,
+  InMemoryTransformDefinitionRepo,
+  registerTransform,
+  resolveMediaRendition,
   uploadMedia,
   type MediaRecord,
 } from "@jini-ai/cms/media";
@@ -169,13 +172,23 @@ test("the copy is nonetheless an independent row: editing its metadata does not 
 });
 
 test("the copy gets its OWN rendition rows — renditions are keyed by asset id, so a shared one would 404", async () => {
-  const { deps, assetRenditionRepo } = fakeRouteDeps();
+  const { deps, assetRenditionRepo, assetBlobRepo } = fakeRouteDeps();
   const source = await seedAsset(deps);
 
   const { media } = (await call(duplicateTool(deps), { resource: "media", id: source.id })) as { media: MediaRecord };
 
   const forCopy = await assetRenditionRepo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: media.id });
   assert.ok(forCopy.length > 0, "the copy must be independently addressable at its own /m/<id>/... URL");
+  const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: source.source.sha256 });
+  assert.ok(blob);
+  const { id: renditionId, ...rendition } = forCopy[0]!;
+  assert.notEqual(renditionId, (await assetRenditionRepo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: source.id }))[0]!.id);
+  assert.deepEqual(forCopy.length, 1);
+  assert.deepEqual(rendition, { workspaceId: WORKSPACE_ID, assetId: media.id, transformName: "original", version: 1, storageKey: blob.storageKey, createdAt: NOW });
+  const transformRepo = new InMemoryTransformDefinitionRepo({});
+  await registerTransform({ deps: { ...deps, transformRepo }, input: { workspaceId: WORKSPACE_ID, name: "original", params: { format: "png" }, owner: "core" } });
+  const served = await resolveMediaRendition({ deps: { ...deps, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, transformRepo, imageTransformer: { transform: async () => { throw new Error("an existing original must not generate bytes"); } } }, input: { workspaceId: WORKSPACE_ID, assetId: media.id, transformName: "original", version: 1 } });
+  assert.deepEqual(served, { outcome: "ok", bytes: PNG_BYTES, contentType: "image/png" });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -290,4 +303,13 @@ test("a caller holding content.write but NOT media.upload cannot copy an asset",
 
   await assert.rejects(call(duplicateTool(deps), { resource: "media", id: source.id }), /media\.upload/);
   assert.equal((await mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, rowsBefore, "a denied caller must leave no copy behind");
+});
+
+
+test("the copy preserves a recorded content type instead of replacing it with the fresh sniff", async () => {
+  const { deps, contentTypes } = fakeRouteDeps();
+  const source = await seedAsset(deps);
+  contentTypes.set(source.source.sha256, "image/jpeg");
+  const { media } = await call(duplicateTool(deps), { resource: "media", id: source.id }) as { media: MediaRecord };
+  assert.equal(contentTypes.get(media.source.sha256), "image/jpeg");
 });

@@ -7,7 +7,7 @@ import test from "node:test";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAssistantByokModule } from "../../runtime/composition/modules/assistant-byok.js";
-import { SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-catalog-audit";
+import { DESCRIBE_TOOL_TOOL_ID, SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-catalog-audit";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import type { ToolAttemptAuditSink, ToolAttemptEvent } from "#src/features/tool-audit/types";
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
@@ -115,7 +115,7 @@ test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbP
   }
 });
 
-test("app.ts's hermetic root composes the in-memory audit sink — it owns no content.db to write to", () => {
+test("app.ts's hermetic root composes the in-memory audit sink — it owns no content.db to write to", async (t) => {
   const deps = createRouteDeps();
   const sink = deps.toolAttemptAuditSink as ToolAttemptAuditSink & { events?: readonly ToolAttemptEvent[] };
 
@@ -128,6 +128,32 @@ test("app.ts's hermetic root composes the in-memory audit sink — it owns no co
     !(deps.toolAttemptAuditSink instanceof SqliteToolAttemptAuditSink),
     "the hermetic root has no real content.db, so it must never compose the SQLite sink",
   );
+  await sink.append(APPENDED_EVENT);
+  assert.deepEqual(sink.events, [APPENDED_EVENT]);
+  const module = createAssistantByokModule(deps);
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-04T00:00:00.000Z") });
+  const result = await module.toolSurface.executeMetaTool(
+    { id: "principal-memory-audit" },
+    { id: "run-memory-audit" },
+    { name: "describe_tool", input: { id: "nonexistent-memory-audit-tool" } },
+  );
+  assert.equal(result.isError, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sink.events!.length, 2);
+  const event = sink.events![1]!;
+  assert.match(event.attemptId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  assert.equal(event.at, "2026-10-04T00:00:00.000Z");
+  assert.deepEqual(sink.events, [APPENDED_EVENT, {
+    attemptId: event.attemptId,
+    executionId: null,
+    workspaceId: deps.workspaceId,
+    runId: "run-memory-audit",
+    toolId: DESCRIBE_TOOL_TOOL_ID,
+    principalId: "principal-memory-audit",
+    phase: "completed",
+    at: "2026-10-04T00:00:00.000Z",
+    detail: JSON.stringify({ id: "nonexistent-memory-audit-tool", found: false }),
+  }]);
 });
 
 test("createAssistantByokModule logs meta-tool attempts through the INJECTED sink and opens no database of its own", async () => {

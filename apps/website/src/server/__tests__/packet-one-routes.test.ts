@@ -6,6 +6,17 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
+/** Measure the complete serialized request against the documented 1 MiB cap, including metadata. */
+function contentRequestAtBytes(fields: Record<string, unknown>, bytes: number): string {
+  const payload = { ...fields, bodyJson: { type: "doc", content: [{ type: "text", text: "" }] } };
+  const padding = bytes - Buffer.byteLength(JSON.stringify(payload), "utf8");
+  assert.ok(padding >= 0);
+  payload.bodyJson.content[0]!.text = "a".repeat(padding);
+  const serialized = JSON.stringify(payload);
+  assert.equal(Buffer.byteLength(serialized, "utf8"), bytes);
+  return serialized;
+}
+
 test("packet-one admin and content routes expose the seeded post loop", async (t) => {
   const server = createServer(createApp());
   server.listen(0);
@@ -48,33 +59,38 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
   };
   assert.equal(themePayload.settings.activeThemeId, "tovu-theme");
 
+  const editedBody = {
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: "Packet one is alive." }] }],
+  };
   const saveResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
-      title: "Welcome to Tovu",
-      slug: "welcome",
-      bodyJson: {
-        type: "doc",
-        content: [
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: "Packet one is alive." }],
-          },
-        ],
-      },
+      title: "Edited packet title",
+      slug: "edited-packet",
+      bodyJson: editedBody,
       status: "published",
     }),
   });
   assert.equal(saveResponse.status, 200);
 
-  const contentResponse = await fetch(`${baseUrl}/api/content/v1/workspaces/workspace-local/posts/welcome`);
+  const saved = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, { headers: { cookie } });
+  assert.equal(saved.status, 200);
+  const savedPost = ((await saved.json()) as { post: { title: string; slug: string; bodyJson: unknown } }).post;
+  assert.equal(savedPost.title, "Edited packet title");
+  assert.equal(savedPost.slug, "edited-packet");
+  assert.deepEqual(savedPost.bodyJson, editedBody);
+
+  const contentResponse = await fetch(`${baseUrl}/api/content/v1/workspaces/workspace-local/posts/edited-packet`);
   assert.equal(contentResponse.status, 200);
   const contentPayload = (await contentResponse.json()) as {
-    post: { title: string; workspaceId?: string; version?: number; status?: string };
+    post: { title: string; slug: string; bodyJson: unknown; workspaceId?: string; version?: number; status?: string };
     presentation: { activeThemeId: string };
   };
-  assert.equal(contentPayload.post.title, "Welcome to Tovu");
+  assert.equal(contentPayload.post.title, "Edited packet title");
+  assert.equal(contentPayload.post.slug, "edited-packet");
+  assert.deepEqual(contentPayload.post.bodyJson, editedBody);
   assert.equal(contentPayload.post.workspaceId, undefined);
   assert.equal(contentPayload.post.version, undefined);
   assert.equal(contentPayload.post.status, undefined);
@@ -171,11 +187,10 @@ test("POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written;
   const oversizedResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Oversized Post",
       slug: "oversized-post",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1_100_000) }] },
-    }),
+    }, 1024 * 1024 + 1),
   });
   assert.equal(oversizedResponse.status, 413);
   assert.deepEqual(await oversizedResponse.json(), {
@@ -189,17 +204,21 @@ test("POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written;
   const notCreatedPayload = (await notCreated.json()) as { posts: Array<{ post: { slug: string } }> };
   assert.ok(!notCreatedPayload.posts.some((entry) => entry.post.slug === "oversized-post"));
 
-  // Regression guard: a body comfortably under the 1 MiB cap must still succeed (no over-rejection).
+  // Regression guard: a body one byte under the 1 MiB cap must still succeed (no over-rejection).
   const underCapResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Comfortably Under Cap",
       slug: "under-cap-post",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1000) }] },
-    }),
+    }, 1024 * 1024 - 1),
   });
   assert.equal(underCapResponse.status, 201);
+  const created = ((await underCapResponse.json()) as { post: { id: string } }).post;
+  const stored = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/${created.id}`, { headers: { cookie } });
+  assert.equal(stored.status, 200);
+  assert.deepEqual(((await stored.json()) as { post: { bodyJson: unknown } }).post.bodyJson,
+    JSON.parse(contentRequestAtBytes({ title: "Comfortably Under Cap", slug: "under-cap-post" }, 1024 * 1024 - 1)).bodyJson);
 });
 
 // Same 1 MiB cap, sibling update endpoint: api.spec.md §4 / behavior.spec.md §4 scope the bound to
@@ -224,12 +243,11 @@ test("POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
   const oversizedResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Oversized Update",
       slug: "welcome",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1_100_000) }] },
       status: "published",
-    }),
+    }, 1024 * 1024 + 1),
   });
   assert.equal(oversizedResponse.status, 413);
   assert.deepEqual(await oversizedResponse.json(), {
@@ -244,19 +262,22 @@ test("POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
   assert.equal(notUpdatedPayload.post.title, "Welcome to Tovu");
   assert.equal(notUpdatedPayload.post.version, 1);
 
-  // Regression guard: a body comfortably under the 1 MiB cap must still update (no over-rejection).
+  // Regression guard: a body one byte under the 1 MiB cap must still update (no over-rejection).
   const underCapResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Comfortably Under Cap",
       slug: "welcome",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1000) }] },
       status: "published",
-    }),
+    }, 1024 * 1024 - 1),
   });
   assert.equal(underCapResponse.status, 200);
   assert.equal(((await underCapResponse.json()) as { post: { title: string } }).post.title, "Comfortably Under Cap");
+  const stored = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, { headers: { cookie } });
+  assert.equal(stored.status, 200);
+  assert.deepEqual(((await stored.json()) as { post: { bodyJson: unknown } }).post.bodyJson,
+    JSON.parse(contentRequestAtBytes({ title: "Comfortably Under Cap", slug: "welcome", status: "published" }, 1024 * 1024 - 1)).bodyJson);
 });
 
 test("POST_CREATE: 400 VALIDATION_ERROR for a malformed slug, 409 SLUG_CONFLICT for a taken slug", async (t) => {
@@ -597,12 +618,11 @@ test("PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
   const oversizedResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/pages/${pageId}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Oversized Page Update",
       slug: "sizable-page",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1_100_000) }] },
       status: "published",
-    }),
+    }, 1024 * 1024 + 1),
   });
   assert.equal(oversizedResponse.status, 413);
   assert.deepEqual(await oversizedResponse.json(), {
@@ -617,22 +637,25 @@ test("PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
   assert.equal(notUpdatedPayload.post.title, "Sizable Page");
   assert.equal(notUpdatedPayload.post.version, 1);
 
-  // Regression guard: a body comfortably under the 1 MiB cap must still update (no over-rejection).
+  // Regression guard: a body one byte under the 1 MiB cap must still update (no over-rejection).
   const underCapResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/pages/${pageId}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
+    body: contentRequestAtBytes({
       title: "Comfortably Under Cap Page",
       slug: "sizable-page",
-      bodyJson: { type: "doc", content: [{ type: "text", text: "a".repeat(1000) }] },
       status: "published",
-    }),
+    }, 1024 * 1024 - 1),
   });
   assert.equal(underCapResponse.status, 200);
   assert.equal(
     ((await underCapResponse.json()) as { post: { title: string } }).post.title,
     "Comfortably Under Cap Page"
   );
+  const stored = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/pages/${pageId}`, { headers: { cookie } });
+  assert.equal(stored.status, 200);
+  assert.deepEqual(((await stored.json()) as { post: { bodyJson: unknown } }).post.bodyJson,
+    JSON.parse(contentRequestAtBytes({ title: "Comfortably Under Cap Page", slug: "sizable-page", status: "published" }, 1024 * 1024 - 1)).bodyJson);
 });
 
 test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one marked active", async (t) => {

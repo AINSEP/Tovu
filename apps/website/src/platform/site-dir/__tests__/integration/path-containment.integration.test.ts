@@ -43,7 +43,8 @@ test("U-004-B1 (embedded '..' segments): initSite writes exclusively under the R
   fs.mkdirSync(decoyDir);
   const realTarget = path.join(root, "actual-target");
   // Resolves to <root>/actual-target, but the literal string routes through the decoy dir first.
-  const dirArgWithDotDot = path.join(root, "decoy-should-stay-empty", "..", "actual-target");
+  const dirArgWithDotDot = [root, "decoy-should-stay-empty", "..", "actual-target"].join(path.sep);
+  assert.ok(dirArgWithDotDot.split(path.sep).includes(".."), "the input must reach initSite without prior normalization");
   assert.equal(path.resolve(dirArgWithDotDot), realTarget, "sanity: the constructed argument really does resolve to realTarget");
 
   try {

@@ -223,3 +223,20 @@ test("a caller holding content.write but NOT admin.forms.manage cannot copy a fo
     "a denied caller must leave no copy behind",
   );
 });
+
+
+test("a trashed copy still reserves the derived slug, so the next copy uses the next free suffix", async () => {
+  const { deps, formDefinitionRepo } = fakeRouteDeps();
+  await seedForm(formDefinitionRepo);
+  const duplicate = duplicateTool(deps);
+  const first = await call(duplicate, { resource: "form", id: "source-form" }) as { definition: FormView };
+  const held = await formDefinitionRepo.findAnyById({ workspaceId: WORKSPACE_ID, id: first.definition.id });
+  assert.ok(held);
+  await formDefinitionRepo.save({ ...held, deletedAt: NOW });
+  assert.equal(await formDefinitionRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact-us-2" }), null);
+  const next = await call(duplicate, { resource: "form", id: "source-form" }) as { definition: FormView };
+  assert.equal(next.definition.name, "Contact Us 2");
+  assert.equal(next.definition.slug, "contact-us-2-2");
+  assert.equal((await formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: next.definition.id }))?.slug, "contact-us-2-2");
+  assert.deepEqual(await formDefinitionRepo.findAnyById({ workspaceId: WORKSPACE_ID, id: held.id }), { ...held, deletedAt: NOW });
+});

@@ -85,8 +85,13 @@ test("the bundled deploy plugin ships exactly one rule, fly-io, sending FlyV1 fo
 });
 
 test("a source directory without the file contributes nothing and is not an error", async () => {
-  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "empty", packageRoot: tmpdir() });
-  assert.deepEqual(registry, { rules: [], refusals: [] });
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-empty-auth-schemes-"));
+  try {
+    const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "empty", packageRoot: root });
+    assert.deepEqual(registry, { rules: [], refusals: [] });
+  } finally {
+    await forceRemove(root);
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -223,5 +228,34 @@ test("registry: a malformed file drops that plugin with the parse reason", async
 test("registry: a workspace with nothing installed has no rules and no refusals", async () => {
   await withWorkspace(async () => {
     assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }), { rules: [], refusals: [] });
+  });
+});
+
+test("registry: duplicate IDs across trusted plugins remove both ambiguous rules and retain unique rules", async () => {
+  await withWorkspace(async workspaceRoot => {
+    for (const [pluginId, prefix] of [["first-scheme", "First"], ["second-scheme", "Second"]]) {
+      const schemes = [{ id: "shared", prefix, scheme: prefix }, { id: pluginId, prefix: `${prefix}Unique`, scheme: prefix }];
+      const digest = await installPackage(pluginId, { [CREDENTIAL_SCHEMES_FILENAME]: JSON.stringify({ schemaVersion: 1, schemes }) });
+      await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] });
+    }
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual([...registry.rules].sort((a, b) => a.id.localeCompare(b.id)), [
+      { id: "first-scheme", prefix: "FirstUnique", scheme: "First" },
+      { id: "second-scheme", prefix: "SecondUnique", scheme: "Second" },
+    ]);
+    assert.deepEqual(registry.refusals, ["credential scheme 'shared' was not loaded: more than one plugin declares it"]);
+  });
+});
+
+test("registry: a malformed plugin does not discard a healthy plugin's rules", async () => {
+  await withWorkspace(async workspaceRoot => {
+    for (const [pluginId, raw] of [["bad-scheme", "{"], ["good-scheme", SCHEMES_FILE]]) {
+      const digest = await installPackage(pluginId, { [CREDENTIAL_SCHEMES_FILENAME]: raw });
+      await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] });
+    }
+    assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }), {
+      rules: [{ id: "fixture-scheme", prefix: "FixV1", scheme: "FixV1" }],
+      refusals: [`credential schemes from 'bad-scheme' were not loaded: ${CREDENTIAL_SCHEMES_FILENAME} is invalid: not valid JSON`],
+    });
   });
 });

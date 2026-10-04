@@ -34,8 +34,11 @@ test("findSiteKeyDependentData: Postgres (env) site — a clean database is no d
   assert.ok(created.ok, created.stderr);
   assert.equal(await findSiteKeyDependentData(dir, { env }), false);
 
-  const inserted = psql(DATABASE, "INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES ('cipher-bytes');");
+  const inserted = psql(DATABASE, "INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES (NULL);");
   assert.ok(inserted.ok, inserted.stderr);
+  assert.equal(await findSiteKeyDependentData(dir, { env }), false, "ordinary rows with no ciphertext are clean");
+  const updated = psql(DATABASE, "UPDATE publish_credential_sets SET sealed_ciphertext = 'cipher-bytes';");
+  assert.ok(updated.ok, updated.stderr);
   assert.equal(await findSiteKeyDependentData(dir, { env }), true);
 });
 

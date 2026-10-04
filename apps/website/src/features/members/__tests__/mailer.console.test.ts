@@ -82,6 +82,7 @@ test("send truncates a long body in the log line", async () => {
   const loggedLine = String(logCalls[0][0]);
   assert.ok(!loggedLine.includes("x".repeat(500)), "the full 500-char body must not appear untruncated");
   assert.match(loggedLine, /…/);
+  assert.equal(loggedLine.slice(loggedLine.indexOf("body=")), `body="${"x".repeat(200)}…"`);
 });
 
 test("send falls back to the html body when text is absent", async () => {
@@ -190,7 +191,8 @@ test("sendBatch loops send() once per message", async () => {
   ];
 
   const originalLog = console.log;
-  console.log = () => {};
+  const logCalls: unknown[][] = [];
+  console.log = (...args: unknown[]) => { logCalls.push(args); };
   let results;
   try {
     results = await adapter.sendBatch(messages, SEND_OPTIONS);
@@ -199,6 +201,9 @@ test("sendBatch loops send() once per message", async () => {
   }
 
   assert.equal(results.length, 2);
+  assert.deepEqual(logCalls.map((args) => String(args[0])), messages.map((message) =>
+    `[mail:console] to=${message.to.email} subject=${JSON.stringify(message.subject)} idempotencyKey=idem-1 sourceContext={"module":"members"} body=${JSON.stringify(message.text)}`
+  ));
   assert.equal(results[0].ok, true);
   assert.equal(results[1].ok, true);
   if (results[0].ok && results[1].ok) {

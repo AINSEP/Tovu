@@ -320,9 +320,10 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
   const post = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/posts`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ title: "Legitimate exported content" }),
+    body: JSON.stringify({ title: "Legitimate exported content", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Distinctive legitimate export body" }] }] } }),
   });
-  assert.equal(post.status, 201, await post.text());
+  assert.equal(post.status, 201, await post.clone().text());
+  const created = (await post.json()) as { post: { id: string } };
 
   const exported = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/export`, {
     headers: { cookie },
@@ -330,8 +331,12 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
   const raw = await exported.text();
   assert.equal(exported.status, 200, raw);
 
-  const bundle = JSON.parse(raw) as { entities: Array<{ entityType: string }> };
+  const bundle = JSON.parse(raw) as { entities: Array<{ entityType: string; id: string; state: Record<string, unknown> }> };
   assert.ok(bundle.entities.length > 0, "the legitimate post must actually be present, or this test proves nothing");
+  const legitimate = bundle.entities.find((entity) => entity.entityType === "post" && entity.id === created.post.id);
+  assert.ok(legitimate, "the post created by this test must be exported");
+  assert.equal(legitimate.state.title, "Legitimate exported content");
+  assert.deepEqual(legitimate.state.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Distinctive legitimate export body" }] }] });
   const registered = listPublishContentContributors().map((c) => c.entityType);
   for (const entity of bundle.entities) {
     assert.ok(registered.includes(entity.entityType), `an unregistered entityType reached the bundle: ${entity.entityType}`);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -7,6 +7,7 @@ import express from "express";
 import type { PostRecord } from "#src/features/post/index";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { InMemoryMemberSessionRepo } from "#src/features/members/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
@@ -101,7 +102,7 @@ function buildTestApp(theme: DiscoveredTheme | null): { app: express.Express; de
 
 async function saveBarePost(
   deps: RouteDeps,
-  fields: { slug: string; bodyHtml: string; templateChoice?: string | null; memberAccessJson?: string | null }
+  fields: { slug: string; bodyHtml: string; templateChoice?: string | null; memberAccessJson?: string | null; status?: PostRecord["status"] }
 ): Promise<PostRecord> {
   // `templateChoice` defaults to `""` (bare) only when OMITTED (`undefined`) — an explicit `null` in
   // `fields` (the "control" test below) must survive untouched, so this can't be `??`, which treats
@@ -118,7 +119,7 @@ async function saveBarePost(
     title: `Bare ${fields.slug === "/" ? "home" : fields.slug}`,
     slug: fields.slug,
     bodyJson: {},
-    status: "published",
+    status: fields.status ?? "published",
     kind: "page",
     bodyFormat: "html",
     bodyHtml: fields.bodyHtml,
@@ -203,6 +204,27 @@ test("a bare Page whose body is already a complete HTML document is served as-is
   assert.equal(html, fullDoc, "a full document must pass through byte-identical");
 });
 
+for (const [slug, prefix] of [["bare-bom", "\uFEFF"], ["bare-comments", "\uFEFF \n<!-- first -->\t<!-- second -->\n  "]] as const) {
+  test(`a complete bare document at ${slug} preserves its leading BOM/comments byte for byte`, async (t) => {
+    const fullDoc = `${prefix}<!doctype html><html><head><title>Authored prefix</title></head><body><p>${POST_BODY_TEXT}</p></body></html>`;
+    const { app, deps } = buildTestApp(staticThemeWithPageShell());
+    await saveBarePost(deps, { slug, bodyHtml: fullDoc });
+    const baseUrl = await startTestServer(app, t);
+    const response = await fetch(`${baseUrl}/${slug}`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from(fullDoc), "read bytes because Response.text strips a leading BOM");
+  });
+}
+
+test("a draft bare Page is not publicly served", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithPageShell());
+  await saveBarePost(deps, { slug: "bare-draft", bodyHtml: `<p>${POST_BODY_TEXT}</p>`, status: "draft" });
+  const baseUrl = await startTestServer(app, t);
+  const { status, html } = await getPage(baseUrl, "/bare-draft");
+  assert.equal(status, 404);
+  assert.ok(!html.includes(POST_BODY_TEXT));
+});
+
 test("a member-gated bare Page still 404s for a signed-out visitor — the gate is not bypassed by bare", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithPageShell());
   await saveBarePost(deps, {
@@ -216,6 +238,17 @@ test("a member-gated bare Page still 404s for a signed-out visitor — the gate 
 
   assert.equal(status, 404);
   assert.ok(!html.includes(POST_BODY_TEXT), "the gated body must never reach a signed-out visitor");
+  const token = "bare-page-member-session";
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{
+    id: "bare-page-member-session-id", workspaceId: WORKSPACE_ID, memberId: "bare-page-member",
+    tokenHash: createHash("sha256").update(token).digest("hex"),
+    createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z",
+  }]);
+  const entitled = await fetch(`${baseUrl}/bare-gated`, { headers: { cookie: `tovu_member_session=${token}` } });
+  assert.equal(entitled.status, 200);
+  const entitledHtml = await entitled.text();
+  assert.ok(entitledHtml.includes(POST_BODY_TEXT));
+  assertNoChrome(entitledHtml);
 });
 
 test("control: a Page with templateChoice null is unaffected — still renders the theme's page shell", async (t) => {

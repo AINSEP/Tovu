@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { readTemplate } from "../../read-template.js";
 import { seededWorkspace, seededPosts, seededPresentation } from "#src/server/runtime/configuration/seed";
+import { resolveProductRoot } from "../../product-root.js";
 
 /**
  * @file SPEC-003 C-009 (`readTemplate`) — TDD certification, unit tier.
@@ -75,3 +79,31 @@ test("BR-01 step 3: an unknown templateId throws InternalError before anything i
     }
   );
 });
+
+for (const corruptFile of ["template.json", "seed-content.json", "missing-seed"] as const) {
+  test(`readTemplate rejects ${corruptFile} as InternalError using isolated files`, (t) => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-template-"));
+    const templateId = "isolated-corrupt-template";
+    const requestedDir = path.join(resolveProductRoot(), "content", "templates", templateId);
+    fs.writeFileSync(path.join(fixture, "template.json"), corruptFile === "template.json" ? "{ broken metadata" : JSON.stringify({ id: templateId, version: "1.0.0", name: "Fixture" }));
+    if (corruptFile !== "missing-seed") fs.writeFileSync(path.join(fixture, "seed-content.json"), corruptFile === "template.json" ? JSON.stringify({ workspace: seededWorkspace, entries: seededPosts, presentation: seededPresentation }) : "{ broken seed");
+    const read = fs.readFileSync;
+    const stub = t.mock.method(fs, "readFileSync", (...args: Parameters<typeof fs.readFileSync>) => {
+      if (typeof args[0] === "string" && path.dirname(args[0]) === requestedDir) {
+        return read(path.join(fixture, path.basename(args[0])), args[1]);
+      }
+      return read(...args);
+    });
+    try {
+      assert.throws(() => readTemplate({ templateId }), (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.equal(err.name, "InternalError");
+        assert.match(err.message, /isolated-corrupt-template.*missing or corrupt/);
+        return true;
+      });
+    } finally {
+      stub.mock.restore();
+      fs.rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+}

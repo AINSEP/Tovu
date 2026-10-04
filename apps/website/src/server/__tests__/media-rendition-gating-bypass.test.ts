@@ -9,7 +9,7 @@ import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerTransform, updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
 import type { MemberSessionRecord } from "../../features/members/index.js";
-import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
+import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo } from "../../features/members/index.js";
 
 /**
  * @file The member/paid gate on `routes/site/media-rendition.ts`'s TWO public routes, exercised
@@ -677,3 +677,51 @@ test("media gate: an asset a members-only entry embeds BY SLUG is gated when req
     assert.equal(member.status, 200, "an entitled member must still be able to play a slug-authored embed");
   });
 });
+
+for (const visibility of ["paid", "tiers"] as const) {
+  for (const assetKind of ["image", "video"] as const) {
+    test(`media gate: ${visibility} ${assetKind} requires an active matching entitlement`, async () => {
+      await withServer(async (baseUrl, deps) => {
+        const expectedBytes = assetKind === "video" ? mp4Bytes("subscription-gated-video") : bytesFrom("subscription-gated-image");
+        const { media } = await uploadOne(deps, expectedBytes, assetKind === "video" ? "subscription.mp4" : "subscription.png",
+          assetKind === "video" ? "video/mp4" : "image/png");
+        const { definition } = await registerOne(deps, "public");
+        const url = assetKind === "video" ? `${baseUrl}/m/${media.id}/original`
+          : `${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`;
+        await deps.postRepo.save(makePost({
+          id: "subscription-gated-post", slug: "subscription-gated-post", kind: "page", bodyFormat: "html",
+          bodyHtml: htmlEmbedBody(media.id),
+          memberAccessJson: JSON.stringify(visibility === "tiers" ? { visibility, tierIds: ["premium-tier"] } : { visibility }),
+        }, deps.workspaceId));
+        const now = "2026-09-05T00:00:00.000Z";
+        for (const [id, type] of [["premium-tier", "paid"], ["other-paid-tier", "paid"], ["free-tier", "free"]] as const) {
+          await deps.memberTierRepo.save({ id, workspaceId: deps.workspaceId, name: id, slug: id, type,
+            status: "active", visibleInPortal: true, createdAt: now, updatedAt: now, version: 1 });
+        }
+        const session = activeMemberSession(deps.workspaceId);
+        deps.memberSessionRepo = new InMemoryMemberSessionRepo([session]);
+        for (const scenario of ["unsubscribed", "period-ended", "expired-status", "wrong-tier", "entitled"] as const) {
+          deps.memberSubscriptionRepo = new InMemoryMemberSubscriptionRepo();
+          if (scenario !== "unsubscribed") {
+            await deps.memberSubscriptionRepo.save({ id: "subscription-control", workspaceId: deps.workspaceId,
+              memberId: session.memberId,
+              tierId: scenario === "wrong-tier" ? (visibility === "paid" ? "free-tier" : "other-paid-tier") : "premium-tier",
+              status: scenario === "expired-status" ? "expired" : "active", source: "comp",
+              startedAt: now, currentPeriodEnd: scenario === "period-ended" ? "2000-01-01T00:00:00.000Z" : "2099-01-01T00:00:00.000Z",
+              createdAt: now, updatedAt: now, version: 1 });
+          }
+          const response = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+          assert.equal(response.status, scenario === "entitled" ? 200 : 404, scenario);
+          assert.equal(response.headers.get("cache-control"), "private, no-store", scenario);
+          if (scenario !== "entitled") {
+            assert.deepEqual(await response.json(), { error: assetKind === "video" ? "video rendition not found" : "rendition not found" });
+          } else if (assetKind === "video") {
+            assert.deepEqual(new Uint8Array(await response.arrayBuffer()), expectedBytes);
+          } else {
+            assert.ok((await response.arrayBuffer()).byteLength > 0);
+          }
+        }
+      });
+    });
+  }
+}

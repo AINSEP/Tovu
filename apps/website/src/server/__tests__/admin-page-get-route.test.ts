@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 /**
  * @file `GET /pages/:pageId` (`src/server/routes/admin/pages/get-by-id.ts`) — certifies the
@@ -18,7 +18,8 @@ import { createApp } from "../runtime/composition/app.js";
 const WS = "workspace-local";
 
 async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = createServer(createApp());
+  const deps = createRouteDeps();
+  const server = createServer(createApp(deps));
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -34,7 +35,7 @@ async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
   assert.equal(login.status, 200);
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
 
-  return { baseUrl, cookie };
+  return { baseUrl, cookie, deps };
 }
 
 async function createRow(baseUrl: string, cookie: string, surface: "posts" | "pages", title: string) {
@@ -102,4 +103,32 @@ test("GET /pages/:idOrSlug 404s a value that matches neither an id nor a slug", 
 
   assert.equal(status, 404, body);
   assert.equal((JSON.parse(body) as { code: string }).code, "ENTRY_NOT_FOUND");
+});
+
+test("GET /pages by id and slug requires content.read, and that grant alone suffices", async (t) => {
+  const { baseUrl, cookie, deps } = await startServer(t);
+  const page = await createRow(baseUrl, cookie, "pages", "Permission fixture page");
+  for (const allowed of [false, true]) {
+    const id = allowed ? "page-reader" : "page-no-grants";
+    await deps.principalRepo.save({ id, workspaceId: WS, kind: "user", displayName: id, status: "active", createdAt: deps.clock.nowIso() });
+    await deps.userRepo.save({ principalId: id, workspaceId: WS, username: id, passwordHash: await deps.passwordHasher.hash({ password: "page-test-password" }) });
+    if (allowed) {
+      await deps.policyRepo.save({ id: "page-read-policy", workspaceId: WS, name: "Read only", isBuiltin: false, isFrozen: false });
+      await deps.policyPermissionRepo.save({ id: "page-read-permission", workspaceId: WS, policyId: "page-read-policy", permission: "content.read", resourceType: null, constraintJson: null });
+      await deps.principalPolicyRepo.save({ id: "page-read-link", workspaceId: WS, principalId: id, policyId: "page-read-policy" });
+    }
+    const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: id, password: "page-test-password" }) });
+    assert.equal(login.status, 200);
+    const session = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+    for (const identifier of [page.id, page.slug]) {
+      const result = await getPage(baseUrl, session, identifier);
+      assert.equal(result.status, allowed ? 200 : 403, result.body);
+      if (allowed) assert.equal(JSON.parse(result.body).post.id, page.id);
+      else {
+        const body = JSON.parse(result.body);
+        assert.equal(body.code, "FORBIDDEN");
+        assert.equal(body.details.permission, "content.read");
+      }
+    }
+  }
 });

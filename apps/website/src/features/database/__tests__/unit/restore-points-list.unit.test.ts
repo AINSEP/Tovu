@@ -10,11 +10,11 @@ import { listRestorePoints, type RestorePointRecord } from "../../restore-points
  */
 
 function makeRow(overrides: Partial<RestorePointRecord> = {}): RestorePointRecord {
-  return { id: "rp-1", trigger: "manual", costClass: "cheap", kind: "file-snapshot", watermarkAtCapture: 3, createdAt: "2026-07-15T00:00:00.000Z", ...overrides };
+  return { id: "rp-1", trigger: "manual", costClass: "cheap", kind: "file-snapshot", artifactRef: "backups/first.sqlite", watermarkAtCapture: 3, createdAt: "2026-07-15T00:00:00.000Z", ...overrides };
 }
 
 test("listRestorePoints: passes through whatever order/shape the port returns (the port owns query shape)", async () => {
-  const rows = [makeRow({ id: "rp-2", createdAt: "2026-07-15T01:00:00.000Z" }), makeRow({ id: "rp-1" })];
+  const rows = [makeRow({ id: "rp-2", artifactRef: "backups/second.sql", kind: "sql-dump", costClass: "expensive", watermarkAtCapture: 9, createdAt: "2026-07-15T01:00:00.000Z" }), makeRow({ id: "rp-1" })];
   const repo = { list: async () => rows };
 
   const result = await listRestorePoints({ repo });
@@ -23,6 +23,7 @@ test("listRestorePoints: passes through whatever order/shape the port returns (t
     result.items.map((r) => r.id),
     ["rp-2", "rp-1"]
   );
+  assert.deepEqual(result.items, rows);
 });
 
 test("listRestorePoints: a brand-new site with zero restore points returns an empty items array", async () => {

@@ -206,12 +206,31 @@ test("substituteHtmlEmbeds: an element WITH content is matched and replaced when
 });
 
 test("substituteHtmlEmbeds: the captured id is handed to resolve() as plain data, never re-interpolated into the output by this function itself — a hostile id cannot break out of resolve()'s own returned markup", () => {
+  const hostileId = `'><script>alert(1)</script>`;
+  const encoded = JSON.stringify({ type: "widget", id: hostileId }).replace(/'/g, "\\u0027").replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+  const html = `<div data-embed-config='${encoded}'></div>`;
+  const seen: Array<{ type: string; id: string | null }> = [];
+  const out = substituteHtmlEmbeds(html, (ref) => {
+    seen.push({ type: ref.type, id: ref.id });
+    return "<strong>resolved widget</strong>";
+  });
+  assert.deepEqual(seen, [{ type: "widget", id: hostileId }]);
+  assert.equal(out, "<strong>resolved widget</strong>");
+});
+
+test("substituteHtmlEmbeds: invalid JSON markers stay byte-identical and never reach resolve", () => {
+  const html = `<div data-embed-config='{"type":"widget","id":"'><script>alert(1)</script>"></div>`;
   // The `'` closing the attribute early means the config text is `{"type":"widget","id":"` — invalid
   // JSON, so the marker is rejected and left inert rather than exploited. This function does not
   // attempt to be a general HTML sanitizer; it only ever emits what `resolve()` returns for a marker
   // the shared parser accepted.
-  const html = `<div data-embed-config='{"type":"widget","id":"'><script>alert(1)</script>"></div>`;
-  const out = substituteHtmlEmbeds(html, () => "SHOULD-NOT-BE-CALLED");
+  let calls = 0;
+  const out = substituteHtmlEmbeds(html, () => {
+    calls += 1;
+    return "SHOULD-NOT-BE-CALLED";
+  });
+  assert.equal(calls, 0);
+  assert.equal(out, html);
   assert.doesNotMatch(out, /SHOULD-NOT-BE-CALLED/);
 });
 

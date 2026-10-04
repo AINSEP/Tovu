@@ -82,9 +82,30 @@ function runSuite(adapterName: string, makeRepo: () => WidgetRegionBindingRepoPo
     assert.equal((await repo.findByRegion({ workspaceId: WS, regionKey: "sidebar" }))?.areaEntryId, "rebuilt-sidebar");
     assert.equal((await repo.findByRegion({ workspaceId: WS2, regionKey: "footer" }))?.areaEntryId, "ws2-untouched", "rebuild must be scoped to one workspace only");
   });
+  test(`[${adapterName}] an empty rebuild removes the last binding and preserves other workspaces`, async () => {
+    const repo = makeRepo();
+    const other = { workspaceId: WS2, regionKey: "footer", areaEntryId: "other-area", updatedAt: "2026-07-21T01:00:00.000Z" };
+    await repo.upsert({ workspaceId: WS, regionKey: "footer", areaEntryId: "last-area", updatedAt: "2026-07-21T00:00:00.000Z" });
+    await repo.upsert(other);
+    assert.equal((await repo.listByWorkspace({ workspaceId: WS })).length, 1);
+    await repo.rebuildForWorkspace({ workspaceId: WS, bindings: [] });
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WS }), []);
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WS2 }), [other]);
+  });
 }
 
 runSuite("InMemoryWidgetRegionBindingRepo", () => new InMemoryWidgetRegionBindingRepo());
 for (const each of eachDialect({ tables: ["widget_region_bindings"], make: (kernel) => new SqlWidgetRegionBindingRepo(kernel) })) {
   runSuite(`SqlWidgetRegionBindingRepo ${each.name}`, each.make);
+  test(`[${each.name}] a failed region-index replacement rolls back the delete and preserves both workspaces`, async () => {
+    const repo = each.make();
+    const original = { workspaceId: WS, regionKey: "footer", areaEntryId: "original-area", updatedAt: "2026-07-21T00:00:00.000Z" };
+    const other = { workspaceId: WS2, regionKey: "header", areaEntryId: "neighbor-area", updatedAt: "2026-07-21T01:00:00.000Z" };
+    await repo.upsert(original);
+    await repo.upsert(other);
+    const replacement = { workspaceId: WS, regionKey: "sidebar", areaEntryId: "new-area", updatedAt: "2026-07-21T02:00:00.000Z" };
+    await assert.rejects(repo.rebuildForWorkspace({ workspaceId: WS, bindings: [replacement, { ...replacement, areaEntryId: "duplicate-region" }] }), /unique|duplicate key/i);
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WS }), [original]);
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WS2 }), [other]);
+  });
 }

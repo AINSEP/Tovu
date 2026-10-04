@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { getWidgetInstance, listWidgetInstances, type WidgetReadServiceDeps } from "../../read-service.js";
 import { WidgetForbiddenError, WidgetInstanceNotFoundError } from "../../errors.js";
@@ -150,27 +151,35 @@ test("REQ-04: listWidgetInstances defaults to active-only and narrows by widgetT
     deps: writeDeps(repos),
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Text A", config: { body: "a" } },
   });
-  await createWidgetInstance({
+  const { instance: social } = await createWidgetInstance({
     deps: writeDeps(repos),
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "social-links", title: "Socials", config: { links: [] } },
   });
+  const { instance: liveText } = await createWidgetInstance({ deps: writeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Live text", config: { body: "Live body" } } });
+  const { instance: legacy } = await createWidgetInstance({ deps: writeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Legacy inactive", config: { body: "Legacy body" } } });
+  const legacyRow = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: legacy.id });
+  assert.ok(legacyRow);
+  await repos.entryRepo.save({ ...legacyRow, fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "Legacy body" }, status: "purged" }) });
   await trashWidgetInstance({ deps: writeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: text1.id } });
 
   const activeOnly = await listWidgetInstances({ deps: readDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR } });
-  assert.equal(activeOnly.instances.length, 1);
-  assert.equal(activeOnly.instances[0].widgetType, "social-links");
+  assert.deepEqual(activeOnly.instances.map((row) => row.id).sort(), [social.id, liveText.id].sort());
 
   const narrowed = await listWidgetInstances({
     deps: readDeps(repos),
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "social-links" },
   });
-  assert.equal(narrowed.instances.length, 1);
+  assert.deepEqual(narrowed.instances.map((row) => row.id), [social.id]);
 
   const includingTrashed = await listWidgetInstances({
     deps: readDeps(repos),
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, includeInactive: true },
   });
-  assert.equal(includingTrashed.instances.length, 1, "the Trash lists it; the widgets library does not");
+  assert.deepEqual(includingTrashed.instances.map((row) => row.id).sort(), [social.id, liveText.id, legacy.id].sort(), "includeInactive includes readable legacy rows and excludes the actual Trash");
+  for (const includeInactive of [false, true]) {
+    const texts = await listWidgetInstances({ deps: readDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", includeInactive } });
+    assert.deepEqual(texts.instances.map((row) => row.id).sort(), (includeInactive ? [liveText.id, legacy.id] : [liveText.id]).sort());
+  }
 });
 
 test("dossier C5 follow-up: a malformed widget-instance record is skipped, counted before filters, and identified for the caller", async () => {

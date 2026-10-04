@@ -81,17 +81,31 @@ test("PUT .../comments/settings persists a partial patch; a subsequent GET refle
   const getBody = (await getRes.json()) as { data: Record<string, unknown> };
   assert.equal(getBody.data.requireModeration, false);
   assert.equal(getBody.data.maxDepth, 2);
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ enabled: false, maxPerIpPerHour: 7, spamAutoRejectScore: 0.8 }),
+  });
+  assert.equal(second.status, 200);
+  const afterSecond = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, { headers: { cookie } });
+  assert.equal(afterSecond.status, 200);
+  assert.deepEqual((await afterSecond.json() as { data: Record<string, unknown> }).data, {
+    enabled: false, requireModeration: false, maxDepth: 2, closeAfterDays: null,
+    spamAutoRejectScore: 0.8, maxPerIpPerHour: 7,
+  });
 });
 
 test("PUT .../comments/settings 400s on an invalid patch and writes nothing", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const before = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, { headers: { cookie } });
+  assert.equal(before.status, 200);
+  const beforeBody = await before.json();
 
   const putRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ spamAutoRejectScore: 2.5 }),
+    body: JSON.stringify({ enabled: false, requireModeration: false, spamAutoRejectScore: 2.5 }),
   });
   assert.equal(putRes.status, 400);
 
@@ -99,6 +113,8 @@ test("PUT .../comments/settings 400s on an invalid patch and writes nothing", as
     headers: { cookie },
   });
   const getBody = (await getRes.json()) as { data: Record<string, unknown> };
+  assert.equal(getRes.status, 200);
+  assert.deepEqual(getBody, beforeBody, "a mixed valid/invalid patch must write no field");
   assert.equal(getBody.data.spamAutoRejectScore, 0.5, "the invalid patch must not have been written");
 });
 

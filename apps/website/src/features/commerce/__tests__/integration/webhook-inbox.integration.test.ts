@@ -147,6 +147,20 @@ test("ingestProviderEvent: a later event correctly supersedes an earlier one app
   assert.equal(order.providerEventAt, T2);
 });
 
+test("ingestProviderEvent: a distinct event at the same timestamp cannot overwrite the order or bump its version", async () => {
+  const db = openTestDb();
+  seedOrder(db, "order-1");
+  const deps = makeDeps(db);
+  const event = { workspaceId: "ws-1", provider: "stripe", eventId: "evt_first", eventType: "payment_intent.succeeded", eventOccurredAt: T1, payload: "{}" };
+  assert.equal(await ingestProviderEvent({ deps, event, projection: { orderId: "order-1", status: "paid" } }), "applied");
+  const before = db.select().from(commerceOrders).all()[0];
+  assert.equal(before.status, "paid");
+  assert.equal(before.version, 2);
+  assert.equal(await ingestProviderEvent({ deps, event: { ...event, eventId: "evt_equal", eventType: "payment_intent.canceled" }, projection: { orderId: "order-1", status: "canceled" } }), "stale");
+  assert.deepEqual(db.select().from(commerceOrders).all()[0], before);
+  assert.deepEqual(db.select().from(commerceWebhookEvents).all().map(row => [row.eventId, row.status]).sort(), [["evt_equal", "ignored"], ["evt_first", "applied"]]);
+});
+
 test("ingestProviderEvent: the raw provider payload round-trips verbatim through the inbox for audit", async () => {
   const db = openTestDb();
   seedOrder(db, "order-1");

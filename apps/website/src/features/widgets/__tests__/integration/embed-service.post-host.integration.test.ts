@@ -182,16 +182,24 @@ test("REQ-44 post-host fix: insertWidgetEmbed against a post host also appends a
 
 test("REQ-44 post-host fix: insertWidgetEmbed against a kind:'page' doc host succeeds the same way", async () => {
   const repos = makeSharedRepos();
-  const page = await seedPost(repos, { kind: "page" });
+  const paragraph = { type: "paragraph", content: [{ type: "text", text: "Page introduction", marks: [{ type: "bold" }] }] };
+  const page = await seedPost(repos, { kind: "page", bodyJson: { type: "doc", content: [paragraph] } });
   const widgetId = await makeWidgetInstance(repos);
 
-  const { entry } = await insertWidgetEmbed({
+  const { entry, placementId } = await insertWidgetEmbed({
     deps: makeDeps(repos),
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: page.id, baseVersion: page.version, widgetEntryId: widgetId },
   });
 
   assert.equal(entry.id, page.id);
   assert.equal(entry.version, 2);
+  const expectedBody = { type: "doc", content: [paragraph, { type: "widgetEmbed", attrs: { placementId, widgetEntryId: widgetId } }] };
+  assert.deepEqual(entry.bodyJson, expectedBody);
+  const stored = await repos.postRepo.findById({ workspaceId: WORKSPACE_ID, id: page.id });
+  assert.deepEqual(stored?.bodyJson, expectedBody);
+  assert.deepEqual(await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: page.id }), [
+    { workspaceId: WORKSPACE_ID, sourceEntryId: page.id, sourceKind: "widget-embed", fieldPath: "bodyJson.content[1]", targetKind: "entry", targetId: widgetId },
+  ]);
 });
 
 test("REQ-44 post-host fix: removeWidgetEmbed and reorderWidgetEmbeds against a post host succeed, version bumps, body updated", async () => {
@@ -221,6 +229,16 @@ test("REQ-44 post-host fix: removeWidgetEmbed and reorderWidgetEmbeds against a 
   });
   assert.equal(removed.entry.version, 5);
   assert.equal(embedsIn(removed.entry.bodyJson).length, 1);
+  const keptPlacement = embedsIn(reordered.entry.bodyJson).find((embed) => embed.widgetEntryId === w2)!;
+  const expectedBody = { type: "doc", content: [{ type: "paragraph", content: [] }, { type: "widgetEmbed", attrs: keptPlacement }] };
+  assert.deepEqual(embedsIn(removed.entry.bodyJson), [keptPlacement]);
+  assert.deepEqual(removed.entry.bodyJson, expectedBody);
+  const stored = await repos.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+  assert.equal(stored?.version, 5);
+  assert.deepEqual(stored?.bodyJson, expectedBody);
+  assert.deepEqual(await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: post.id }), [
+    { workspaceId: WORKSPACE_ID, sourceEntryId: post.id, sourceKind: "widget-embed", fieldPath: "bodyJson.content[1]", targetKind: "entry", targetId: w2 },
+  ]);
 });
 
 test("unknown host is a typed WidgetEmbedHostNotFoundError, for insert, remove and reorder alike", async () => {
@@ -398,4 +416,32 @@ test("an unknown widgetEntryId against a valid post host still rejects with the 
 
   const after = await repos.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
   assert.equal(after?.version, post.version);
+});
+
+test("a failed post embed change-set write compensates content forward and preserves refs", async () => {
+  const repos = makeSharedRepos();
+  const oldWidget = await makeWidgetInstance(repos);
+  const newWidget = await makeWidgetInstance(repos);
+  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep me" }] }, { type: "widgetEmbed", attrs: { placementId: "prior-placement", widgetEntryId: oldWidget } }] };
+  const post = await seedPost(repos, { bodyJson: body });
+  const priorRefs = [{ workspaceId: WORKSPACE_ID, sourceEntryId: post.id, sourceKind: "widget-embed" as const, fieldPath: "bodyJson.content[1]", targetKind: "entry" as const, targetId: oldWidget }];
+  await repos.entryRefsRepo.replaceForSource({ workspaceId: WORKSPACE_ID, sourceEntryId: post.id, refs: priorRefs });
+  const failure = new Error("change-set persist failed");
+  let failedWrites = 0;
+  class FailingChangeSets extends InMemoryChangeSetRepo {
+    override async insert(..._args: Parameters<InMemoryChangeSetRepo["insert"]>): Promise<void> {
+      const mutated = await repos.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+      assert.equal(mutated?.version, 2, "the post mutation precedes persistence failure");
+      assert.deepEqual(embedsIn(mutated!.bodyJson).map((embed) => embed.widgetEntryId), [oldWidget, newWidget]);
+      failedWrites += 1;
+      throw failure;
+    }
+  }
+  const changeSets = new FailingChangeSets();
+  await assert.rejects(insertWidgetEmbed({ deps: makeDeps(repos, { changeSets }), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: post.id, baseVersion: 1, widgetEntryId: newWidget } }), (error) => error === failure);
+  assert.equal(failedWrites, 1);
+  assert.deepEqual(await repos.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id }), { ...post, version: 3 });
+  assert.deepEqual((await repos.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: post.id })).map((revision) => ({ seq: revision.seq, op: revision.op })), [{ seq: 2, op: "update" }, { seq: 3, op: "restore" }]);
+  assert.deepEqual(await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: post.id }), priorRefs);
+  assert.deepEqual(await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
