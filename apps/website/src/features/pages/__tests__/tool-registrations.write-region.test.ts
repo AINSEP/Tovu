@@ -31,7 +31,7 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
  *    `warning` on a `written: true` result, which is not feedback.
  */
 
-const clock = { nowIso: () => "2026-09-09T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 const WS = "ws-region";
 
 function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
@@ -457,7 +457,7 @@ test("pages_write_region refuses doc, trashed, and missing pages without changin
   await seedPage(repo, "doc-page");
   await seedHtmlBypassingTools(repo, "trashed-page", THREE_REGIONS);
   const trashed = (await repo.findById({ workspaceId: WS, id: "trashed-page" }))!;
-  await repo.save({ ...trashed, deletedAt: clock.nowIso() });
+  await repo.save({ ...trashed, deletedAt: new Date(clock.nowMs()).toISOString() });
   for (const id of ["doc-page", "trashed-page", "missing-page"]) {
     const before = await repo.findById({ workspaceId: WS, id });
     if (id === "trashed-page") {

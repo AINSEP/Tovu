@@ -23,8 +23,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
     // "First boot": apply a mutation and record its change set.
     const db1 = openContentDb(dbPath);
     const repo1 = new SqliteChangeSetRepo(db1);
-    await repo1.insert(
-      {
+    await repo1.insert({ record: {
         id: "cs-restart-1",
         workspaceId,
         actorId: "user-1",
@@ -33,8 +32,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
         idempotencyKey: "idem-restart-1",
         createdAt: "2026-07-16T00:00:00.000Z",
         appliedAt: "2026-07-16T00:00:00.000Z",
-      },
-      [
+      }, items: [
         {
           id: "cs-restart-1-item-1",
           changeSetId: "cs-restart-1",
@@ -45,7 +43,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
           entityVersionAtApply: 2,
           position: 0,
         },
-      ]
+      ] }
     );
 
     // "Restart": a brand-new content.db handle + a brand-new SqliteChangeSetRepo against the

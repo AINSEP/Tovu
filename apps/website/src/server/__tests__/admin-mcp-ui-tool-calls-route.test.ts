@@ -107,7 +107,7 @@ test("requires an admin session — no cookie means 401 and the daemon is never 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: {} }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
   });
 
   assert.equal(res.status, 401);
@@ -174,7 +174,7 @@ test("forwards an allowlisted call to the daemon with the bearer token and the s
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: { id: "post-1", kind: "post", confirmationToken: "tok" } }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { id: "post-1", kind: "post", confirmationToken: "tok" } }),
   });
 
   assert.equal(res.status, 200);
@@ -184,7 +184,7 @@ test("forwards an allowlisted call to the daemon with the bearer token and the s
   assert.equal(recorded[0].headers.authorization, `Bearer ${TOKEN}`);
   assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
   assert.deepEqual(JSON.parse(recorded[0].body), {
-    toolName: "content_post_delete",
+    toolName: "webhooks_delete_subscription",
     params: { id: "post-1", kind: "post", confirmationToken: "tok" },
   });
 });
@@ -198,7 +198,7 @@ test("a browser-supplied principal header is overwritten, never trusted", async 
   await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-someone-else" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: {} }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
   });
 
   assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
@@ -237,7 +237,7 @@ async function authedPrincipalId(baseUrl: string, cookie: string): Promise<strin
   await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: {} }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
   });
   const forwarded = recorded.at(-1);
   assert.ok(forwarded, "the probe request must have reached the stand-in daemon");
@@ -278,13 +278,13 @@ test("a typed answer is delivered to a locally-parked exchange without a daemon 
 test("an explicit confirmation exchange ID delivers locally without calling the daemon", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId }, async () => undefined);
   const waiting = exchange.receive();
   const before = recorded.length;
   const params = { __exchangeId: exchange.id, decision: "confirm" };
   const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "content_post_delete", params }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params }),
   });
   assert.equal(response.status, 202);
   assert.deepEqual(await response.json(), { delivered: true });
@@ -294,11 +294,11 @@ test("an explicit confirmation exchange ID delivers locally without calling the 
 
 test("a caller cannot answer another principal's local confirmation", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "another-admin" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId: "another-admin" }, async () => undefined);
   const waiting = exchange.receive();
   const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST", headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "content_post_delete", params: { __exchangeId: exchange.id, decision: "confirm" } }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { __exchangeId: exchange.id, decision: "confirm" } }),
   });
   assert.equal(response.status, 409);
   assert.equal((await response.json() as { reason: string }).reason, "binding-mismatch");
@@ -359,7 +359,7 @@ test("BYOK: an A2UI renderer rejection reaches the locally-held render_ui exchan
 test("BYOK: an A2UI post cannot answer or cancel a locally-held MCP-UI confirmation", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId }, async () => undefined);
   const waiting = exchange.receive();
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/", message: "x" } };

@@ -113,7 +113,7 @@ async function makeFixture(options: { sourceFiles?: Record<string, string>; dest
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-24T12:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") },
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,
     changeSets,

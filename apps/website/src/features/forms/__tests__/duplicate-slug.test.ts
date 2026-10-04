@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { deriveAvailableFormSlug, slugifyFormName, FORM_SLUG_MAX_LENGTH } from "../duplicate-slug.js";
-import { SLUG_PATTERN } from "../write-service.js";
+import { SLUG_PATTERN } from "@jini-ai/cms-forms";
 
 /**
  * @file Certifies the slug derivation `content_duplicate`'s `"form"` resource needs and Forms did

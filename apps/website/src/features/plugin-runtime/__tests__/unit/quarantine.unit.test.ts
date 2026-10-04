@@ -10,7 +10,7 @@ const PLUGIN_ID = "acme-plugin";
 
 test("quarantinePlugin: throws error when no activation record exists", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  const clock = { nowIso: () => "2026-08-01T12:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-08-01T12:00:00.000Z") };
 
   await assert.rejects(
     async () => {
@@ -41,7 +41,7 @@ test("quarantinePlugin: disables plugin and persists quarantine fields", async (
   };
   const repo = new InMemoryPluginActivationRepo([initialActivation]);
   const nowIso = "2026-08-01T12:00:00.000Z";
-  const clock = { nowIso: () => nowIso };
+  const clock = { nowMs: () => Date.parse(nowIso) };
 
   const { activation } = await quarantinePlugin({
     deps: { repo, clock },

@@ -30,7 +30,7 @@ import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
  * keep both true at once, which is exactly the pair a future edit is most likely to trade off.
  */
 
-const clock = { nowIso: () => "2026-08-05T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z") };
 
 const noopOutbox: OutboxPort = {
   enqueue: async () => {},

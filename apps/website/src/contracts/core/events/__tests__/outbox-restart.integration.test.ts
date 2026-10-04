@@ -35,18 +35,18 @@ test("SqliteOutboxAdapter: an enqueued event survives a simulated process restar
     const db2 = openContentDb(dbPath);
     const outbox2 = new SqliteOutboxAdapter(db2);
 
-    const claimed = await outbox2.claimPending(10, "2026-07-16T00:00:01.000Z");
+    const claimed = await outbox2.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
     assert.equal(claimed.length, 1, "the enqueued event must survive a restart");
     assert.equal(claimed[0].id, "evt-restart-1");
     assert.deepEqual(claimed[0].event.payload, { changeSetId: "cs-restart-1" });
 
     // Mark delivered, then confirm a THIRD restart still reflects the delivered state (no
     // re-delivery after a successful hand-off survives a restart either).
-    await outbox2.markDelivered("evt-restart-1");
+    await outbox2.markDelivered({ id: "evt-restart-1" });
 
     const db3 = openContentDb(dbPath);
     const outbox3 = new SqliteOutboxAdapter(db3);
-    const afterDelivery = await outbox3.claimPending(10, "2099-01-01T00:00:00.000Z");
+    const afterDelivery = await outbox3.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" });
     assert.equal(afterDelivery.length, 0, "a delivered event must not be re-claimed after a restart");
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -60,16 +60,14 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
     // "First boot": executeCommand()'s real path — insert() co-persists the outbox event.
     const db1 = openContentDb(dbPath);
     const changeSets1 = new SqliteChangeSetRepo(db1);
-    await changeSets1.insert(
-      {
+    await changeSets1.insert({ record: {
         id: "cs-cochangeset-1",
         workspaceId: "workspace-restart-test",
         status: "applied",
         summary: "Renamed a post",
         createdAt: "2026-07-16T00:00:00.000Z",
         appliedAt: "2026-07-16T00:00:00.000Z",
-      },
-      [
+      }, items: [
         {
           id: "cs-cochangeset-1-item-1",
           changeSetId: "cs-cochangeset-1",
@@ -78,22 +76,21 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
           operation: "update",
           position: 0,
         },
-      ],
-      {
+      ] }, { event: {
         id: "evt-cochangeset-1",
         name: "change-set.applied",
         occurredAt: "2026-07-16T00:00:00.000Z",
         workspaceId: "workspace-restart-test",
         changeSetId: "cs-cochangeset-1",
         payload: { changeSetId: "cs-cochangeset-1", entityType: "post", entityId: "post-1" },
-      }
+      } }
     );
 
     // "Restart": a fresh SqliteOutboxAdapter must find the event that SqliteChangeSetRepo wrote —
     // proving the two adapters genuinely share one table, not two disconnected write paths.
     const db2 = openContentDb(dbPath);
     const outbox2 = new SqliteOutboxAdapter(db2);
-    const claimed = await outbox2.claimPending(10, "2026-07-16T00:00:01.000Z");
+    const claimed = await outbox2.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
 
     assert.equal(claimed.length, 1);
     assert.equal(claimed[0].id, "evt-cochangeset-1");
@@ -117,21 +114,21 @@ test("SqliteOutboxAdapter: a row stranded in processing by a process that died m
       workspaceId: "workspace-restart-test",
       payload: { entryId: "post-1" },
     });
-    assert.equal((await outbox1.claimPending(20, "2026-07-16T00:00:01.000Z")).length, 1);
+    assert.equal((await outbox1.claimPending({ batchSize: 20, nowIso: "2026-07-16T00:00:01.000Z" })).length, 1);
 
     // "Next process": fresh handles on the same file, a bus carrying the real subscriber, and a
     // drain that runs after the dead process's claim lease has run out.
     const outbox2 = new SqliteOutboxAdapter(openContentDb(dbPath), { claimLeaseMs: 60_000 });
     const bus = new InMemoryEventBus();
     const received: string[] = [];
-    await bus.subscribe("entry.updated", async (event) => {
+    await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
       received.push(event.id);
-    });
+    } });
 
-    const processed = await processOutbox({ outbox: outbox2, bus, clock: { nowIso: () => "2026-07-16T00:01:01.000Z" } });
+    const processed = await processOutbox({ outbox: outbox2, bus, clock: { nowMs: () => Date.parse("2026-07-16T00:01:01.000Z") } });
 
     assert.deepEqual({ processed, received }, { processed: 1, received: ["evt-stranded-1"] });
-    assert.equal((await outbox2.claimPending(20, "2099-01-01T00:00:00.000Z")).length, 0, "once delivered it must stay delivered");
+    assert.equal((await outbox2.claimPending({ batchSize: 20, nowIso: "2099-01-01T00:00:00.000Z" })).length, 0, "once delivered it must stay delivered");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

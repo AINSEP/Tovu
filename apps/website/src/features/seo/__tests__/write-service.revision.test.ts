@@ -24,7 +24,7 @@ const NOW = "2026-09-18T00:00:00.000Z";
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const noopInvalidate = () => {};
-const clock = { nowIso: () => NOW };
+const clock = { nowMs: () => Date.parse(NOW) };
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
   return {

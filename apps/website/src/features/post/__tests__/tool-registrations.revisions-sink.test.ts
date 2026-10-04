@@ -36,7 +36,7 @@ function fakeRouteDeps() {
   const postRepo = new InMemoryPostRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),
@@ -143,7 +143,7 @@ for (const operation of ["create", "update"] as const) {
     assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id }), before);
     assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: id }), beforeRevisions);
     assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeChanges);
-    assert.deepEqual(await deps.outbox.claimPending(10, NOW), []);
+    assert.deepEqual(await deps.outbox.claimPending({ batchSize: 10, nowIso: NOW }), []);
   });
 }
 

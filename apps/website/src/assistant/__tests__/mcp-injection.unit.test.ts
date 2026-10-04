@@ -71,7 +71,7 @@ test("hands the bridge the per-run credential minted for that run, never the pro
   const saved = process.env.TOVU_AGENT_DAEMON_TOKEN;
   process.env.TOVU_AGENT_DAEMON_TOKEN = bootToken;
   try {
-    const credential = await injection.credential?.("run-42");
+    const credential = await injection.credential?.({ runId: "run-42" });
 
     assert.equal(credential, "run-token-run-42");
     assert.notEqual(credential, bootToken);

@@ -91,8 +91,7 @@ async function trashInstance(deps: WidgetsToolDeps, widgetInstanceId: string): P
     run: { id: "run-1" },
     input: { widgetInstanceId },
     signal: new AbortController().signal,
-    emitSurface: async (s) => void emitted.push(s),
-  });
+  }, { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));

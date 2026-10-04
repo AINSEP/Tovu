@@ -45,7 +45,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteEntryRepo(db);
-    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     let idCounter = 0;
 
     const created = await createEntry({

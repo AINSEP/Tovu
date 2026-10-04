@@ -44,7 +44,7 @@ function instance(name: string) {
     contentTypeRepo: repos.contentTypes,
     entryRefsRepo: repos.entryRefs,
     bindingRepo: repos.bindings,
-    clock: { nowIso: () => at },
+    clock: { nowMs: () => Date.parse(at) },
     ids: { newId: () => `${name}-${++n}-0000-0000` },
     authorize: async () => ({ allowed: true, reason: "test" }),
     outbox: new InMemoryOutbox(),

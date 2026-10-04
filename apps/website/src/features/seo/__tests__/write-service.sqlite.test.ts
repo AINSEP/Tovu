@@ -14,7 +14,7 @@ import { setEntrySeoOverrides } from "../write-service.js";
  */
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
-const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
 
 function openTestDb() {
   // ADR-042 item 3: openContentDb no longer auto-seeds demo content (that was an infra->server

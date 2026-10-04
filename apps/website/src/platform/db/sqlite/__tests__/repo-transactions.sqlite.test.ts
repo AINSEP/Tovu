@@ -81,7 +81,7 @@ test("change sets: insert survives another caller's rollback", async () => {
     createdAt: NOW,
     appliedAt: NOW,
   };
-  await writeDuringOthersRollback(db, () => repo.insert(record, []));
+  await writeDuringOthersRollback(db, () => repo.insert({ record, items: [] }));
   assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" }))?.changeSet.id, "cs-1");
 });
 
@@ -89,8 +89,8 @@ test("outbox: a claim survives another caller's rollback", async () => {
   const db = openSeededDb();
   const outbox = new SqliteOutboxAdapter(db);
   await outbox.enqueue({ id: "evt-1", name: "change-set.applied", occurredAt: NOW, workspaceId: WORKSPACE, payload: {} });
-  await writeDuringOthersRollback(db, () => outbox.claimPending(10, NOW));
-  assert.deepEqual(await outbox.claimPending(10, NOW), [], "the claimed row stays leased");
+  await writeDuringOthersRollback(db, () => outbox.claimPending({ batchSize: 10, nowIso: NOW }));
+  assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: NOW }), [], "the claimed row stays leased");
 });
 
 test("gated mutation tokens: a redeem survives another caller's rollback (no second redeem)", async () => {
@@ -153,7 +153,7 @@ test("user purge: the deletes and the audit event survive another caller's rollb
   assert.deepEqual(removed, { roles: 0, policies: 0, sessions: 1, apiKeys: 0, userSettings: 0 });
   assert.deepEqual(snapshot("principal-1"), { principal: [], user: [], sessions: [] });
   assert.deepEqual(snapshot("principal-neighbor"), neighborBefore);
-  const events = await new SqliteOutboxAdapter(db).claimPending(10, NOW);
+  const events = await new SqliteOutboxAdapter(db).claimPending({ batchSize: 10, nowIso: NOW });
   assert.deepEqual(events.map((record) => record.id), ["evt-purge"]);
   assert.deepEqual(events[0]!.event.payload, { removed });
 });

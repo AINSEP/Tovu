@@ -84,7 +84,7 @@ function makeDeps(itemPorts: ItemPorts | undefined, overrides: Partial<TestDeps>
   return {
     workspaceId: WORKSPACE_ID,
     ports: {},
-    clock: { nowIso: () => `2026-09-25T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse(`2026-09-25T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
     idGen: { newId: () => "unused-in-these-tests" },
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     outbox: fakeOutbox(),
@@ -118,7 +118,7 @@ function fakeOutbox(): OutboxPort {
  *  collects every recorded change set so a test can read its summary and item version. */
 function workingChangeSets(inserted: Array<{ record: ChangeSetRecord; items: ChangeSetItemRecord[] }> = []): ChangeSetRepoPort {
   return {
-    insert: async (record, items) => {
+    insert: async ({ record, items }) => {
       inserted.push({ record, items });
     },
     findById: async () => null,

@@ -70,7 +70,7 @@ function makeService(options: { removeFails?: "not-found" | "version-changed"; r
     repo,
     outbox,
     hooks,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => "event-1" },
     remove: async (required) => {
       trace.push("remove");

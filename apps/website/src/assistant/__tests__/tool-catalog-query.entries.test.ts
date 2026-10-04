@@ -29,7 +29,7 @@ test("listToolCatalogEntries: each entry's source and description equal describe
     descriptors.map((descriptor) => descriptor.id),
   );
   for (const entry of entries) {
-    const described = catalog.describe(entry.id);
+    const described = catalog.describe({ id: entry.id });
     assert.ok(described, `describe_tool must resolve ${entry.id}`);
     assert.equal(entry.source, described.source);
     assert.equal(entry.description, described.description);

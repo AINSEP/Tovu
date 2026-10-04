@@ -28,8 +28,8 @@ describeEachDialect("presentation settings repo", { tables: ["presentation_setti
   test("save then findByWorkspaceId round-trips; unknown workspace misses", async () => {
     const { repo } = makeRepos();
     await repo.save(settings("ws-1", "paper"));
-    assert.deepEqual(await repo.findByWorkspaceId("ws-1"), settings("ws-1", "paper"));
-    assert.equal(await repo.findByWorkspaceId("ws-none"), null);
+    assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: "ws-1" }), settings("ws-1", "paper"));
+    assert.equal(await repo.findByWorkspaceId({ workspaceId: "ws-none" }), null);
   });
 
   test("save upserts on workspace_id and leaves other workspaces alone", async () => {
@@ -37,8 +37,8 @@ describeEachDialect("presentation settings repo", { tables: ["presentation_setti
     await repo.save(settings("ws-1", "paper"));
     await repo.save(settings("ws-2", "ink"));
     await repo.save(settings("ws-1", "ink", T1));
-    assert.deepEqual(await repo.findByWorkspaceId("ws-1"), settings("ws-1", "ink", T1));
-    assert.deepEqual(await repo.findByWorkspaceId("ws-2"), settings("ws-2", "ink"));
+    assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: "ws-1" }), settings("ws-1", "ink", T1));
+    assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: "ws-2" }), settings("ws-2", "ink"));
     const all = await repo.listAll();
     assert.deepEqual(
       all.map((r) => r.workspaceId).sort(),

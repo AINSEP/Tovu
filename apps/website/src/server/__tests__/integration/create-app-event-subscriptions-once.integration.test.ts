@@ -25,14 +25,13 @@ class HandlerCountingBus extends InMemoryEventBus {
   readonly subscribedNames = new Set<string>();
 
   override async subscribe<TPayload>(
-    eventName: string,
-    handler: (event: DomainEvent<TPayload>) => Promise<void>
+    { eventName, handler }: { eventName: string; handler: (event: DomainEvent<TPayload>) => Promise<void> }
   ): Promise<() => Promise<void>> {
     this.subscribedNames.add(eventName);
-    return super.subscribe<TPayload>(eventName, async (event) => {
+    return super.subscribe<TPayload>({ eventName, handler: async (event) => {
       this.handlerRuns.set(eventName, (this.handlerRuns.get(eventName) ?? 0) + 1);
       await handler(event);
-    });
+    } });
   }
 }
 
@@ -62,7 +61,7 @@ async function handlerRunsPerEvent(build: (deps: ReturnType<typeof createRouteDe
   deps.bus = bus;
   build(deps);
   for (const name of [...bus.subscribedNames].sort()) {
-    await bus.publish(makeEvent(name, deps.workspaceId, deps.clock.nowIso()));
+    await bus.publish(makeEvent(name, deps.workspaceId, new Date(deps.clock.nowMs()).toISOString()));
   }
   return Object.fromEntries([...bus.handlerRuns].sort(([a], [b]) => a.localeCompare(b)));
 }
@@ -99,7 +98,7 @@ test("one form submission event sends one notify email after the site app was re
   createApp(deps);
   deps.createSiteApp();
 
-  const now = deps.clock.nowIso();
+  const now = new Date(deps.clock.nowMs()).toISOString();
   await deps.formDefinitionRepo.create({
     id: "form-1",
     workspaceId: deps.workspaceId,
@@ -147,7 +146,7 @@ for (const name of ["entry.published", "entry.updated", "entry.unpublished"]) {
     assert.ok(existing, "precondition: a published source post exists");
     await deps.postRepo.save({ ...existing, id: "sitemap-new-post", slug: "sitemap-new-post", title: "New independently inserted post" });
     assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: deps.workspaceId }), before, "precondition: the stale cache conceals the new post");
-    await deps.bus.publish(makeEvent(name, deps.workspaceId, deps.clock.nowIso()));
+    await deps.bus.publish(makeEvent(name, deps.workspaceId, new Date(deps.clock.nowMs()).toISOString()));
     const after = await buildSitemap(sitemapDeps, { workspaceId: deps.workspaceId });
     assert.equal(after.length, before.length + 1);
     assert.ok(after.some((entry) => entry.loc.endsWith("/sitemap-new-post")));

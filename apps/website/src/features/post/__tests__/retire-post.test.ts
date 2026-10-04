@@ -27,7 +27,7 @@ const noopOutbox: OutboxPort = {
   markFailed: async () => {},
 };
 
-const clock = { nowIso: () => "2026-09-24T12:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") };
 const WS = "workspace-1";
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {

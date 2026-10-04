@@ -58,18 +58,23 @@ test("audit forwards every execute argument, including the cancellation and surf
   const input = { key: "recipe" };
   const signal = new AbortController().signal;
   const emit: SurfaceEmitter = async () => {};
-  await wrap(inner, createInMemoryToolAttemptAuditSink()).execute(PRINCIPAL, RUN, "t", input, signal, emit);
+  await wrap(inner, createInMemoryToolAttemptAuditSink()).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: input }, { signal: signal, emitSurface: emit });
   assert.equal(inner.arguments.length, 1);
-  const expected = [PRINCIPAL, RUN, "t", input, signal, emit];
-  assert.equal(inner.arguments[0].length, expected.length);
-  for (const [index, argument] of expected.entries()) assert.equal(inner.arguments[0][index], argument);
+  assert.equal(inner.arguments[0].length, 2);
+  const [required, optional] = inner.arguments[0];
+  assert.equal(required.principal, PRINCIPAL);
+  assert.equal(required.run, RUN);
+  assert.equal(required.toolId, "t");
+  assert.equal(required.input, input);
+  assert.equal(optional?.signal, signal);
+  assert.equal(optional?.emitSurface, emit);
 });
 
 test("ORDERING GAP: an unknown tool leaves a durable attempt record — Jini writes none at all, because it throws before minting one", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const inner = fakeExecutor({ throws: new Error('ToolExecutor: unknown tool "collections_typo"') });
 
-  await assert.rejects(() => wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_typo", { key: "x" }), /unknown tool/);
+  await assert.rejects(() => wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_typo", input: { key: "x" } }), /unknown tool/);
 
   assert.deepEqual(
     sink.events.map((e) => e.phase),
@@ -94,7 +99,7 @@ test("the 'requested' row is appended BEFORE the inner executor is called, which
     getAuditRecord: () => null,
   } as unknown as ToolExecutor;
 
-  await wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_content_type_define", {});
+  await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: {} });
 
   assert.deepEqual(order, ["append:requested", "inner.execute", "append:completed"]);
 });
@@ -103,7 +108,7 @@ test("a denied execution records requested + denied, carrying Jini's executionId
   const sink = createInMemoryToolAttemptAuditSink();
   const inner = fakeExecutor({ result: { executionId: "exec-9", status: "denied" } });
 
-  const result = await wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_content_type_tombstone", { key: "recipe" });
+  const result = await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_tombstone", input: { key: "recipe" } });
 
   assert.equal(result.status, "denied");
   assert.deepEqual(
@@ -117,7 +122,7 @@ test("a completed execution records requested + completed and returns the inner 
   const sink = createInMemoryToolAttemptAuditSink();
   const inner = fakeExecutor({ result: { executionId: "exec-2", status: "completed", output: { contentType: { key: "recipe" } } } });
 
-  const result = await wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_content_type_define", { key: "recipe" });
+  const result = await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: { key: "recipe" } });
 
   assert.deepEqual(result, { executionId: "exec-2", status: "completed", output: { contentType: { key: "recipe" } } });
   assert.deepEqual(
@@ -129,7 +134,7 @@ test("a completed execution records requested + completed and returns the inner 
 test("every non-throwing result status is recorded under its own phase, so the table can distinguish them", async () => {
   for (const status of ["completed", "denied", "confirmation-denied", "timed-out", "cancelled", "failed"] as const) {
     const sink = createInMemoryToolAttemptAuditSink();
-    await wrap(fakeExecutor({ result: { executionId: "e", status } }), sink).execute(PRINCIPAL, RUN, "t", {});
+    await wrap(fakeExecutor({ result: { executionId: "e", status } }), sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
     assert.equal(sink.events[1].phase, status, `status '${status}' must map to its own phase`);
   }
@@ -140,7 +145,7 @@ test("a throwing handler records requested + failed, and the original error stil
   const boom = new TypeError("cannot read properties of null");
   const inner = fakeExecutor({ throws: boom });
 
-  const thrown = await wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_content_type_define", {}).then(
+  const thrown = await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: {} }).then(
     () => null,
     (e: unknown) => e,
   );
@@ -164,7 +169,7 @@ test("ADVERSARIAL: a sink that throws on every append cannot break tool executio
   const inner = fakeExecutor({ result: { executionId: "exec-3", status: "completed", output: "ok" } });
   const executor = withToolAttemptAudit(inner, hostileSink, { workspaceId: WORKSPACE_ID, onSinkError: (e) => sinkErrors.push(e) });
 
-  const result = await executor.execute(PRINCIPAL, RUN, "collections_content_type_define", {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: {} });
 
   assert.deepEqual(result, { executionId: "exec-3", status: "completed", output: "ok" });
   assert.equal(inner.calls, 1, "the tool must still have run");
@@ -180,7 +185,7 @@ test("ADVERSARIAL: a throwing sink on the error path does not mask the tool's ow
   const boom = new Error("the real failure");
   const executor = withToolAttemptAudit(fakeExecutor({ throws: boom }), hostileSink, { workspaceId: WORKSPACE_ID, onSinkError: () => {} });
 
-  const thrown = await executor.execute(PRINCIPAL, RUN, "t", {}).then(
+  const thrown = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} }).then(
     () => null,
     (e: unknown) => e,
   );
@@ -193,7 +198,7 @@ test("REDACTION: detail records the input's key names and array sizes, never any
   const secret = "s3cret-operator-content";
   const inner = fakeExecutor({ result: { executionId: "exec-4", status: "completed", output: null } });
 
-  await wrap(inner, sink).execute(PRINCIPAL, RUN, "collections_content_type_define", { key: secret, label: secret, fields: [{ name: secret }] });
+  await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: { key: secret, label: secret, fields: [{ name: secret }] } });
 
   const detail = String(sink.events[0].detail);
   assert.equal(detail.includes(secret), false, `detail leaked operator content: ${detail}`);
@@ -205,7 +210,7 @@ test("REDACTION: a thrown error contributes only its class name, never its messa
   const secret = "s3cret-operator-content";
 
   await wrap(fakeExecutor({ throws: new RangeError(`failed on ${secret}`) }), sink)
-    .execute(PRINCIPAL, RUN, "t", {})
+    .execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} })
     .catch(() => {});
 
   assert.equal(sink.events[1].detail, "RangeError");
@@ -214,7 +219,7 @@ test("REDACTION: a thrown error contributes only its class name, never its messa
 
 test("every row carries the workspace, run, tool and principal needed to attribute it", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  await wrap(fakeExecutor({ result: { executionId: "exec-5", status: "completed", output: null } }), sink).execute(PRINCIPAL, RUN, "collections_content_type_deprecate", {});
+  await wrap(fakeExecutor({ result: { executionId: "exec-5", status: "completed", output: null } }), sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_deprecate", input: {} });
 
   for (const event of sink.events) {
     assert.equal(event.workspaceId, WORKSPACE_ID);
@@ -227,7 +232,7 @@ test("every row carries the workspace, run, tool and principal needed to attribu
 
 test("a truncated output is noted, since the recorded result is then not the whole story", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  await wrap(fakeExecutor({ result: { executionId: "exec-6", status: "completed", output: "abc", truncated: true } }), sink).execute(PRINCIPAL, RUN, "t", {});
+  await wrap(fakeExecutor({ result: { executionId: "exec-6", status: "completed", output: "abc", truncated: true } }), sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(sink.events[1].detail, "output truncated");
 });
@@ -240,7 +245,7 @@ test("2026-09-16: a redacted internal failure's row links to its error ID, never
     result: { executionId: "exec-8", status: "failed", errorKind: "internal", error: `Error ${errorId}: boom ${secret}`, errorId },
   });
 
-  await wrap(inner, sink).execute(PRINCIPAL, RUN, "t", {});
+  await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(sink.events[1].detail, `errorId=${errorId}`);
   assert.equal(String(sink.events[1].detail).includes("boom"), false, "the detail must never carry the error's own text");
@@ -251,7 +256,7 @@ test("distinct executions get distinct attempt ids, so concurrent runs cannot be
   const sink = createInMemoryToolAttemptAuditSink();
   const executor = withToolAttemptAudit(fakeExecutor({ result: { executionId: "e", status: "completed", output: null } }), sink, { workspaceId: WORKSPACE_ID });
 
-  await Promise.all([executor.execute(PRINCIPAL, RUN, "t", {}), executor.execute(PRINCIPAL, RUN, "t", {})]);
+  await Promise.all([executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} }), executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} })]);
 
   assert.equal(new Set(sink.events.map((e) => e.attemptId)).size, 2, "two executions must not share one attempt id");
   assert.equal(sink.events.length, 4);
@@ -262,19 +267,19 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through �
   const record = { executionId: "exec-7", toolId: "t", principalId: "p", runId: "r", events: [] };
   const inner = {
     execute: async () => ({ executionId: "e", status: "completed" as const }),
-    resumeConfirmation: (id: string, decision: string) => calls.push(`resume:${id}:${decision}`),
-    cancel: (id: string) => calls.push(`cancel:${id}`),
-    getAuditRecord: (id: string) => {
+    resumeConfirmation: ({ executionId: id, decision }: { executionId: string; decision: string }) => calls.push(`resume:${id}:${decision}`),
+    cancel: ({ executionId: id }: { executionId: string }) => calls.push(`cancel:${id}`),
+    getAuditRecord: ({ executionId: id }: { executionId: string }) => {
       calls.push(`get:${id}`);
       return record;
     },
   } as unknown as ToolExecutor;
 
   const executor = withToolAttemptAudit(inner, createInMemoryToolAttemptAuditSink(), { workspaceId: WORKSPACE_ID });
-  executor.resumeConfirmation("exec-7", "confirm");
-  executor.cancel("exec-7");
+  executor.resumeConfirmation({ executionId: "exec-7", decision: "confirm" });
+  executor.cancel({ executionId: "exec-7" });
 
-  assert.equal(executor.getAuditRecord("exec-7"), record, "Jini's in-memory record stays its own source of truth — this table is additive");
+  assert.equal(executor.getAuditRecord({ executionId: "exec-7" }), record, "Jini's in-memory record stays its own source of truth — this table is additive");
   assert.deepEqual(calls, ["resume:exec-7:confirm", "cancel:exec-7", "get:exec-7"]);
 });
 

@@ -270,7 +270,7 @@ async function prepareSuccessTarget(repos: IdentityRepos, toolId: string): Promi
 }
 
 /** These fixtures are valid, unreferenced custom targets with no permissions to trigger the grant clamp. */
-async function assertSuccessfulResult(repos: IdentityRepos, toolId: string, result: unknown): Promise<void> {
+async function assertSuccessfulResult(repos: IdentityRepos, toolId: string, result: unknown, { emailPrincipalId = "target-principal" }: { emailPrincipalId?: string } = {}): Promise<void> {
   const scope = { workspaceId: WORKSPACE_ID };
   const out = result as {
     created: boolean;
@@ -304,8 +304,9 @@ async function assertSuccessfulResult(repos: IdentityRepos, toolId: string, resu
       break;
     }
     case "identity_user_update_email":
+      assert.equal(out.user.principalId, emailPrincipalId);
       assert.equal(out.user.email, "a@b.test");
-      assert.equal((await repos.users.findByPrincipalId({ ...scope, principalId: "target-principal" }))?.email, "a@b.test");
+      assert.equal((await repos.users.findByPrincipalId({ ...scope, principalId: emailPrincipalId }))?.email, "a@b.test");
       break;
     case "identity_user_disable":
     case "identity_user_enable": {
@@ -417,8 +418,8 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
 const OR_GATED_TOOL_IDS = identityAgentToolCatalog.filter((tool) => tool.authorization.orPermission).map((tool) => tool.name);
 
-test("the catalog declares an OR gate for exactly the three admin-onboarding tools", () => {
-  assert.deepEqual(OR_GATED_TOOL_IDS.sort(), ["identity_user_create", "identity_user_list", "identity_user_update_email"]);
+test("the catalog declares an OR gate for exactly the user-list and own-email tools", () => {
+  assert.deepEqual(OR_GATED_TOOL_IDS.sort(), ["identity_user_list", "identity_user_update_email"]);
 });
 
 for (const toolId of OR_GATED_TOOL_IDS) {
@@ -429,11 +430,36 @@ for (const toolId of OR_GATED_TOOL_IDS) {
       const caller = await addPrincipal(repos, `caller-${permission}`);
       await grant(repos, caller, [permission]);
 
-      const result = await wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, TOOL_INPUTS[toolId]));
-      await assertSuccessfulResult(repos, toolId, result);
+      // Jini 54e5e713 keeps the email OR only for the caller's own account.
+      const ownEmail = toolId === "identity_user_update_email" && permission === "member.manage";
+      const input = ownEmail ? { ...TOOL_INPUTS[toolId], principalId: caller } : TOOL_INPUTS[toolId];
+      const result = await wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, input));
+      await assertSuccessfulResult(repos, toolId, result, { emailPrincipalId: ownEmail ? caller : "target-principal" });
+      if (ownEmail) {
+        const before = await stateFingerprint(repos);
+        await assert.rejects(
+          () => wired(deps, identityWiredId(toolId)).handler(...executionContext(caller, TOOL_INPUTS[toolId])),
+          IdentityForbiddenError,
+          "member.manage must not permit changing another operator's email",
+        );
+        assert.equal(await stateFingerprint(repos), before, "the refused email change must not write");
+      }
     });
   }
 }
+
+test("identity_user_create: member.manage alone cannot create an operator or write any state", async () => {
+  const { deps, repos } = await buildHarness();
+  await seedTargets(repos);
+  const caller = await addPrincipal(repos, "member-manager-only");
+  await grant(repos, caller, ["member.manage"]);
+  const before = await stateFingerprint(repos);
+  await assert.rejects(
+    () => wired(deps, identityWiredId("identity_user_create")).handler(...executionContext(caller, TOOL_INPUTS.identity_user_create)),
+    IdentityForbiddenError,
+  );
+  assert.equal(await stateFingerprint(repos), before, "operator creation requires user.manage before any write");
+});
 
 test("a tool with no declared OR really is single-permission — role.manage holders cannot reach the user tools", async () => {
   const { deps, repos } = await buildHarness();

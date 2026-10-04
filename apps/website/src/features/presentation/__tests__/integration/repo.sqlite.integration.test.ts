@@ -34,7 +34,7 @@ test("save (insert) -> restart-simulated (fresh repo instance against the same f
 
     const dbAfterRestart = openContentDb(filePath);
     const repoAfterRestart = new SqlitePresentationSettingsRepo(dbAfterRestart);
-    const found = await repoAfterRestart.findByWorkspaceId("ws-1");
+    const found = await repoAfterRestart.findByWorkspaceId({ workspaceId: "ws-1" });
     assert.ok(found);
     assert.equal(found?.activeThemeId, "paper");
     assert.equal(found?.updatedAt, "2026-07-15T00:00:00.000Z");
@@ -47,7 +47,7 @@ test("findByWorkspaceId returns null for a workspace with no presentation-settin
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqlitePresentationSettingsRepo(db);
-    assert.equal(await repo.findByWorkspaceId("no-such-workspace"), null);
+    assert.equal(await repo.findByWorkspaceId({ workspaceId: "no-such-workspace" }), null);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -60,7 +60,7 @@ test("save() on an existing workspaceId upserts in place — one real UPDATE, no
     await repo.save({ workspaceId: "ws-1", activeThemeId: "paper", updatedAt: "2026-07-15T00:00:00.000Z" });
     await repo.save({ workspaceId: "ws-1", activeThemeId: "atlas", updatedAt: "2026-07-16T00:00:00.000Z" });
 
-    const found = await repo.findByWorkspaceId("ws-1");
+    const found = await repo.findByWorkspaceId({ workspaceId: "ws-1" });
     assert.equal(found?.activeThemeId, "atlas", "the second save must overwrite the first, not sit alongside it");
     assert.equal(found?.updatedAt, "2026-07-16T00:00:00.000Z");
 
@@ -81,8 +81,8 @@ test("workspace-scoping: findByWorkspaceId for ws-2 does not see ws-1's row, and
     await repo.save({ workspaceId: "ws-1", activeThemeId: "paper", updatedAt: "2026-07-15T00:00:00.000Z" });
     await repo.save({ workspaceId: "ws-2", activeThemeId: "glassmorphic", updatedAt: "2026-07-15T00:00:01.000Z" });
 
-    const ws1 = await repo.findByWorkspaceId("ws-1");
-    const ws2 = await repo.findByWorkspaceId("ws-2");
+    const ws1 = await repo.findByWorkspaceId({ workspaceId: "ws-1" });
+    const ws2 = await repo.findByWorkspaceId({ workspaceId: "ws-2" });
     assert.equal(ws1?.activeThemeId, "paper");
     assert.equal(ws2?.activeThemeId, "glassmorphic");
 

@@ -140,7 +140,9 @@ test("explore: filesystem I/O failures return 500 through the composed app witho
   // Match the containment adapter's canonical paths, including macOS's /var -> /private/var alias.
   const live = fs.realpathSync(path.join(themesDir, "static", THEME_ID));
   const catalog = fs.realpathSync(path.join(themesDir, THEME_CATALOG_DIR, "static", THEME_ID));
-  const compiledCatalog = fs.realpathSync(path.join(compiledRoot, THEME_CATALOG_DIR, "static", COMPILED_ID));
+  // Generated-tree restore copies directly from the catalog path supplied by the host,
+  // unlike per-file reset's containment adapter, which canonicalizes its catalog path.
+  const compiledCatalog = path.join(compiledRoot, THEME_CATALOG_DIR, "static", COMPILED_ID);
   fs.writeFileSync(path.join(live, "style.css"), "modified live stylesheet");
   const fault = Object.assign(new Error("filesystem I/O failure"), { code: "EIO" });
   const cases = [

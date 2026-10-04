@@ -51,7 +51,7 @@ let idCounter = 0;
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
   return {
     ...repos,
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },
@@ -63,7 +63,7 @@ function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrash
   return {
     ...repos,
     remove: repos.trash.remove,
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },
@@ -75,14 +75,14 @@ async function makeHostEntry(
   type = HOST_CONTENT_TYPE,
   bodyJson: unknown = { type: "doc", content: [{ type: "paragraph", content: [] }] }
 ): Promise<{ id: string; version: number }> {
-  const deps = { repo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } };
+  const deps = { repo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } };
   const existing = await repos.contentTypeRepo.findByKey({ workspaceId: WORKSPACE_ID, key: type });
   if (!existing) {
     await registerContentType({ deps, input: { actorId: ACTOR.principalId, workspaceId: WORKSPACE_ID, key: type, label: "Page", fields: [] } });
   }
 
   const created = await createEntry({
-    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `entry-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `entry-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: ACTOR.principalId,
       workspaceId: WORKSPACE_ID,
@@ -164,11 +164,11 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
   const host = await makeHostEntry(repos);
 
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
-    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: ACTOR.principalId,
       workspaceId: WORKSPACE_ID,
@@ -405,11 +405,11 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
   const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
 
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
-    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: ACTOR.principalId,
       workspaceId: WORKSPACE_ID,

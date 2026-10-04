@@ -15,7 +15,7 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
  * store.
  */
 
-const clock = { nowIso: () => "2026-08-05T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z") };
 const WS = "ws-1";
 
 function harness() {

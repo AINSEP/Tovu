@@ -118,7 +118,7 @@ test("PURGE_REQUIRED is resolved by running the purge service first: after purge
 
   const repo = new SqliteSettingsRepo(db);
   const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
-  const clock = { nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW) };
   const result = await purgeTenantSettings({
     deps: { repo, clock, authorize: alwaysAllow },
     input: { workspaceId: "ws-fk-3", callerPrincipalId: "actor-1" },

@@ -72,14 +72,14 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     db.exec(normalizeDdl(readFileSync(MIGRATION_PATH, "utf8")));
-    const store = createChatHistoryStore(db, {
+    const store = createChatHistoryStore({ db: db, scope: {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",
-    });
+    } });
     return (async () => {
       await store.create({ id: "c1", title: "Parity check" });
-      await store.appendMessage("c1", { id: "m1", role: "user", content: "hello" });
+      await store.appendMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } });
       const listed = await store.list();
       assert.equal(listed.length, 1);
       assert.equal(listed[0]?.messageCount, 1);
@@ -91,15 +91,15 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     db.exec(normalizeDdl(readFileSync(MIGRATION_PATH, "utf8")));
-    const store = createChatHistoryStore(db, {
+    const store = createChatHistoryStore({ db: db, scope: {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",
-    });
+    } });
     return (async () => {
       await store.create({ id: "c1" });
-      await store.appendMessage("c1", { id: "m1", role: "user", content: "hello" });
-      await store.delete("c1");
+      await store.appendMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } });
+      await store.delete({ id: "c1" });
       const orphans = db.prepare(`SELECT COUNT(*) AS n FROM ai_chat_messages`).get() as { n: number };
       assert.equal(orphans.n, 0, "messages outlived their conversation — is foreign_keys ON?");
       db.close();

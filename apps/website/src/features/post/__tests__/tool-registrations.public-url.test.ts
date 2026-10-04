@@ -33,7 +33,7 @@ function fakeRouteDeps() {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,

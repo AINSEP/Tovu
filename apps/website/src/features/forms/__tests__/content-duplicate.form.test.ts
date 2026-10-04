@@ -9,7 +9,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
 import { contributeFormsDuplicateHandlers, type FormsToolDeps } from "../tool-registrations.js";
-import { SLUG_PATTERN } from "../write-service.js";
+import { SLUG_PATTERN } from "@jini-ai/cms-forms";
 
 /**
  * @file Certifies this domain's `"form"` contribution to the cross-resource `content_duplicate`
@@ -32,7 +32,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["admin.forms.manage"]) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `form-copy-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),

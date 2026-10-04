@@ -40,7 +40,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
   const ledger = createChatRunLedger(db);
   const store = createChatStoreFactory(db)(principal);
   await store.create({ id: "c1" });
-  await store.appendMessage("c1", stub);
+  await store.appendMessage({ conversationId: "c1", message: stub });
   const finalizer = createAssistantRunFinalizer({
     ledger: {
       ...ledger,
@@ -82,7 +82,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     }
     // Reproduce startup repair while a completed answer's progress write is still pending.
     await ledger.reconcileInterrupted(2000);
-    const saved = (await store.messages("c1"))[0]!;
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "succeeded", "startup must not turn an already-ended answer into an interrupted turn");
     assert.equal(terminalWritten, true, "terminal settlement must not wait for an unrelated progress write");
     assert.equal(checkpointCalls, 1, "progress writes must stay bounded while storage is slow");
@@ -97,7 +97,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     db.close();
     db = openChatDb(path);
     assert.equal(await createChatRunLedger(db).reconcileInterrupted(3000), 0);
-    const reopened = (await createChatStoreFactory(db)(principal).messages("c1"))[0]!;
+    const reopened = (await createChatStoreFactory(db)(principal).messages({ conversationId: "c1" }))[0]!;
     assert.equal(reopened.runStatus, "succeeded");
     assert.equal(reopened.content, "Finished answer");
     assert.deepEqual(reopened.events, [{ kind: "text", text: "Finished answer" }]);
@@ -116,7 +116,7 @@ test("daemon disappearance cancels the interrupted turn, preserves progress, and
   const ledger = createChatRunLedger(db);
   const store = createChatStoreFactory(db)(principal);
   await store.create({ id: "c1" });
-  await store.appendMessage("c1", stub);
+  await store.appendMessage({ conversationId: "c1", message: stub });
   const finalizer = createAssistantRunFinalizer({
     ledger,
     daemon: {
@@ -129,8 +129,8 @@ test("daemon disappearance cancels the interrupted turn, preserves progress, and
   try {
     finalizer.watch({ principalId: "owner", conversationId: "c1", message: stub });
     await finalizer.idle();
-    await store.appendMessage("c1", { ...stub, runStatus: "failed", events: [], content: "" });
-    const saved = (await store.messages("c1"))[0]!;
+    await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", events: [], content: "" } });
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "canceled");
     assert.equal(saved.content, "Partial");
     assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
@@ -144,7 +144,7 @@ test("a genuine CLI failure still saves failed with its exit diagnosis", async (
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
   await store.create({ id: "c1" });
-  await store.appendMessage("c1", stub);
+  await store.appendMessage({ conversationId: "c1", message: stub });
   const finalizer = createAssistantRunFinalizer({
     ledger: createChatRunLedger(db),
     daemon: {
@@ -156,7 +156,7 @@ test("a genuine CLI failure still saves failed with its exit diagnosis", async (
   try {
     finalizer.watch({ principalId: "owner", conversationId: "c1", message: stub });
     await finalizer.idle();
-    const saved = (await store.messages("c1"))[0]!;
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "failed");
     assert.equal(saved.content, "");
     assert.deepEqual(saved.events, [{
@@ -176,12 +176,12 @@ test("a browser-first restart save is canceled before it can win terminal settle
   const ledger = createChatRunLedger(db);
   try {
     await store.create({ id: "c1" });
-    await store.appendMessage("c1", stub);
+    await store.appendMessage({ conversationId: "c1", message: stub });
     // The current chat hook maps onError + onDone to failed. Its exact restart notice distinguishes
     // interruption from a CLI failure, even when this browser save beats the server finalizer.
-    await store.appendMessage("c1", { ...stub, runStatus: "failed", content: "Partial", events: [{ kind: "text", text: "Partial" }, notice] });
+    await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", content: "Partial", events: [{ kind: "text", text: "Partial" }, notice] } });
     assert.equal(await ledger.settle({ conversationId: "c1", messageId: "a1", runId: "run-1", status: "canceled", content: "late", events: [], endedAt: 1234 }), false);
-    const saved = (await store.messages("c1"))[0]!;
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "canceled", "the browser must not turn process interruption into a failed run");
     assert.equal(saved.content, "Partial");
     assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
@@ -197,8 +197,8 @@ test("a browser's genuine failure with a different status notice remains failed"
   try {
     await store.create({ id: "c1" });
     const events = [{ kind: "status", label: notice.label, detail: "The CLI reported a real error." }];
-    await store.appendMessage("c1", { ...stub, runStatus: "failed", events });
-    const saved = (await store.messages("c1"))[0]!;
+    await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", events } });
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "failed");
     assert.deepEqual(saved.events, events);
   } finally {

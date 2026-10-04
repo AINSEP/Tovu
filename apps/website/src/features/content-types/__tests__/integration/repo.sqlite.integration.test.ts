@@ -41,7 +41,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteContentTypeRepo(db);
-    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
 
     const registered = await registerContentType({
       deps: { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } },
@@ -68,7 +68,7 @@ test("workspace-scoping boundary: a content type registered in ws-1 is invisible
   const { db, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteContentTypeRepo(db);
-    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
     await registerContentType({ deps, input: { actorId: "user-1", workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [] } });
@@ -89,7 +89,7 @@ test("revision/audit trail actually persists: register + field-change + deprecat
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteContentTypeRepo(db);
-    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
     await registerContentType({ deps, input: { actorId: "user-1", workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [] } });
@@ -131,7 +131,7 @@ test("audit provenance persists: principal_kind distinguishes a human write from
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
     const repo = new SqliteContentTypeRepo(db);
-    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
     // Both writes are attributed to the SAME principal id — the assistant runs under the human's

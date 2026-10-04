@@ -65,13 +65,13 @@ async function readBoth(db: Database.Database) {
     const original = beforeAdoption(kernel, scope);
     const adopted = createChatHistoryStore(kernel, scope);
     assert.deepEqual(await adopted.list(), await original.list());
-    assert.deepEqual(await adopted.get(id), await original.get(id));
-    assert.deepEqual(await adopted.messages(id), await original.messages(id));
+    assert.deepEqual(await adopted.get({ id }), await original.get(id));
+    assert.deepEqual(await adopted.messages({ conversationId: id }), await original.messages(id));
     assert.deepEqual((await adopted.pageMessages({ conversationId: id })).items, await original.messages(id));
     assert.deepEqual((await adopted.pageConversations()).items, await original.list());
-    assert.equal((await adopted.get(id))?.createdAt, T0);
-    assert.equal((await adopted.messages(id))[0]?.content, "é é 中 😀\u0000\n\\text");
-    assert.equal(await adopted.get(id === "user-chat" ? "guest-chat" : "user-chat"), null);
+    assert.equal((await adopted.get({ id }))?.createdAt, T0);
+    assert.equal((await adopted.messages({ conversationId: id }))[0]?.content, "é é 中 😀\u0000\n\\text");
+    assert.equal(await adopted.get({ id: id === "user-chat" ? "guest-chat" : "user-chat" }), null);
   }
 }
 
@@ -113,7 +113,7 @@ test("constructing and reading the package adapter alone leaves checkpointed mai
     db = new Database(file, { readonly: true, fileMustExist: true });
     const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER });
     assert.equal((await history.list())[0]?.id, "user-chat");
-    assert.equal((await history.messages("user-chat"))[0]?.createdAt, T0 + 1);
+    assert.equal((await history.messages({ conversationId: "user-chat" }))[0]?.createdAt, T0 + 1);
     await history.pageConversations(); await history.pageMessages({ conversationId: "user-chat" });
     db.close(); db = undefined;
     assert.deepEqual(readFileSync(file), initial, "read-only adoption must not write SQLite pages");

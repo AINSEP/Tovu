@@ -62,7 +62,7 @@ function recordingOutbox(): { outbox: OutboxPort; events: CapturedEvent[] } {
   };
 }
 
-const clock = { nowIso: () => "2026-07-30T12:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-30T12:00:00.000Z") };
 const WS = "workspace-1";
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {

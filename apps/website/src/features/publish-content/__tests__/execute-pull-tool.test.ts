@@ -28,7 +28,7 @@ async function start(f: Awaited<ReturnType<typeof planned>>, overwriteEntityKeys
   let resolveSurface!: (value: any) => void;
   const surface = new Promise<any>(resolve => { resolveSurface = resolve; });
   const r = await tool(f.deps, ID, { surfaceExchanges });
-  const pending = r.handler(context({ bundleId: f.bundleId, overwriteEntityKeys }, { signal: controller.signal, emitSurface: async s => { resolveSurface(s); } }));
+  const pending = r.handler(context({ bundleId: f.bundleId, overwriteEntityKeys }, { signal: controller.signal }), { emitSurface: async s => { resolveSurface(s); } });
   const emitted = await Promise.race([surface, pending.then(() => { throw new Error("execute ended before a dialog"); })]);
   const html = emitted.payload.resource.resource.text as string;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));

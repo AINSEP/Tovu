@@ -62,7 +62,7 @@ function makeDeps(db: ContentDb) {
     products: new SqliteCommerceProductRepo(db),
     prices: new SqliteCommercePriceRepo(db),
     orders: new SqliteCommerceOrderRepo(db),
-    clock: { nowIso: () => "2026-08-12T09:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-08-12T09:00:00.000Z") },
     idGen: { newId: () => `id-${++idCounter}` },
   };
 }

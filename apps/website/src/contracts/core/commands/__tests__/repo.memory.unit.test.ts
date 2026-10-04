@@ -61,7 +61,7 @@ test("InMemoryChangeSetRepo: insert forwards event to outbox when outbox is prov
     payload: {},
   };
 
-  await repo.insert(makeRecord({ id: "cs-evt" }), [], event);
+  await repo.insert({ record: makeRecord({ id: "cs-evt" }), items: [] }, { event: event });
   assert.equal(enqueued.length, 1);
   assert.equal(enqueued[0].id, "evt-1");
 });
@@ -76,7 +76,7 @@ test("InMemoryChangeSetRepo: insert handles event when outbox is omitted without
     payload: {},
   };
 
-  await repo.insert(makeRecord({ id: "cs-no-outbox" }), [], event);
+  await repo.insert({ record: makeRecord({ id: "cs-no-outbox" }), items: [] }, { event: event });
   const found = await repo.findById({ workspaceId: "workspace-1", id: "cs-no-outbox" });
   assert.ok(found);
 });
@@ -93,7 +93,7 @@ test("InMemoryChangeSetRepo: save appends record if not found by id", async () =
 
 test("InMemoryChangeSetRepo: findByIdempotencyKey finds by key and returns null when not found", async () => {
   const repo = new InMemoryChangeSetRepo();
-  await repo.insert(makeRecord({ id: "cs-key", idempotencyKey: "test-key" }), []);
+  await repo.insert({ record: makeRecord({ id: "cs-key", idempotencyKey: "test-key" }), items: [] });
 
   const found = await repo.findByIdempotencyKey({ workspaceId: "workspace-1", idempotencyKey: "test-key" });
   assert.equal(found?.id, "cs-key");
@@ -105,7 +105,7 @@ test("InMemoryChangeSetRepo: findByIdempotencyKey finds by key and returns null 
 test("InMemoryChangeSetRepo: save updates existing record", async () => {
   const repo = new InMemoryChangeSetRepo();
   const record = makeRecord({ id: "cs-update", summary: "Before" });
-  await repo.insert(record, []);
+  await repo.insert({ record: record, items: [] });
 
   await repo.save({ ...record, summary: "After" });
   const found = await repo.findById({ workspaceId: "workspace-1", id: "cs-update" });
@@ -114,9 +114,9 @@ test("InMemoryChangeSetRepo: save updates existing record", async () => {
 
 test("InMemoryChangeSetRepo: listByWorkspace sorts correctly by createdAt descending", async () => {
   const repo = new InMemoryChangeSetRepo();
-  await repo.insert(makeRecord({ id: "cs-older", createdAt: "2026-07-15T00:00:00.000Z" }), []);
-  await repo.insert(makeRecord({ id: "cs-newer", createdAt: "2026-07-16T00:00:00.000Z" }), []);
-  await repo.insert(makeRecord({ id: "cs-same", createdAt: "2026-07-16T00:00:00.000Z" }), []);
+  await repo.insert({ record: makeRecord({ id: "cs-older", createdAt: "2026-07-15T00:00:00.000Z" }), items: [] });
+  await repo.insert({ record: makeRecord({ id: "cs-newer", createdAt: "2026-07-16T00:00:00.000Z" }), items: [] });
+  await repo.insert({ record: makeRecord({ id: "cs-same", createdAt: "2026-07-16T00:00:00.000Z" }), items: [] });
 
   const list = await repo.listByWorkspace({ workspaceId: "workspace-1" });
   assert.equal(list.length, 3);

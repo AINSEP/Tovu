@@ -39,7 +39,7 @@ function makeDeps(): RegionAreaServiceDeps & WidgetWriteServiceDeps {
     contentTypeRepo,
     entryRefsRepo,
     bindingRepo,
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },

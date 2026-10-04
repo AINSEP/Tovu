@@ -35,16 +35,16 @@ for (const spec of PERMANENT_DELETE_SPECS) {
     const ctx: ToolExecutionContext = {
       executionId: "e", principal: { id: "owner" }, run: { id: "r" }, signal: new AbortController().signal,
       input: spec.key ? { [spec.key]: "target" } : {},
-      emitSurface: async () => {
-        const exchangeId = surfaceExchanges.findTypedAnswerTarget({ principalId: "owner", toolId: spec.name })!;
-        confirmedExchangeId = exchangeId;
-        assert.equal(deletes, 0);
-        assert.equal((await post({ __exchangeId: exchangeId, decision: "confirm" }, "someone-else")).status, 409);
-        assert.equal(deletes, 0);
-        assert.equal((await post({ __exchangeId: exchangeId, decision: "confirm" }, "owner")).status, 202);
-      },
     };
-    assert.deepEqual(await registration.handler(ctx), { removed: true, id: "target" });
+    const emitSurface = async () => {
+      const exchangeId = surfaceExchanges.findTypedAnswerTarget({ principalId: "owner", toolId: spec.name })!;
+      confirmedExchangeId = exchangeId;
+      assert.equal(deletes, 0);
+      assert.equal((await post({ __exchangeId: exchangeId, decision: "confirm" }, "someone-else")).status, 409);
+      assert.equal(deletes, 0);
+      assert.equal((await post({ __exchangeId: exchangeId, decision: "confirm" }, "owner")).status, 202);
+    };
+    assert.deepEqual(await registration.handler(ctx, { emitSurface }), { removed: true, id: "target" });
     assert.equal(deletes, 1);
     assert.equal((await post({ __exchangeId: confirmedExchangeId, decision: "confirm" }, "owner")).status, 409);
     assert.equal(deletes, 1);

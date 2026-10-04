@@ -12,7 +12,7 @@ function source() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: { list: async (p: unknown) => { assert.deepEqual(p, { workspaceId: "ws-adapter" }); calls.push("posts"); return [{ id: "post-8" }]; } },
     themes: [{ id: "custom-theme" }],
-    presentationRepo: { findByWorkspaceId: async (ws: string) => { assert.equal(ws, "ws-adapter"); calls.push("theme"); return active; } },
+    presentationRepo: { findByWorkspaceId: async (required: { workspaceId: string }) => { assert.deepEqual(required, { workspaceId: "ws-adapter" }); calls.push("theme"); return active; } },
     settingsRepo,
     getEffective: async (d: unknown, p: unknown) => {
       assert.deepEqual(d, { repo: settingsRepo });

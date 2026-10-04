@@ -52,7 +52,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
     entryRefsRepo: repos.entryRefsRepo,
     postRepo: repos.postRepo,
     changeSets: repos.changeSets,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },
@@ -65,7 +65,7 @@ function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetWrite
     entryRepo: repos.entryRepo,
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },
@@ -111,11 +111,11 @@ function embedsIn(bodyJson: unknown): Array<{ placementId: string; widgetEntryId
 
 async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Promise<string> {
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
-    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: ACTOR.principalId,
       workspaceId: WORKSPACE_ID,

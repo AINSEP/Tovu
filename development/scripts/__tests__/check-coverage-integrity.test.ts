@@ -19,7 +19,10 @@ import {
 
 const REPO_ROOT = path.join(import.meta.dirname, "..", "..", "..");
 function readRealSource(repoRelativeFile: string): string {
-  return readFileSync(path.join(REPO_ROOT, repoRelativeFile), "utf8");
+  // 168d8c276 moved the live exporter to features/site-export. Keep the frozen LCOV's
+  // historical SF path and provenance intact while resolving its corresponding live source.
+  const currentFile = repoRelativeFile.replace("apps/website/src/platform/export/", "apps/website/src/features/site-export/");
+  return readFileSync(path.join(REPO_ROOT, currentFile), "utf8");
 }
 
 /**

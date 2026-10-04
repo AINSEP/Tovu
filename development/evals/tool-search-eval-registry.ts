@@ -47,7 +47,7 @@ export const MIN_EXPECTED_TOOL_COUNT = 100;
 export function fakeEvalRouteDeps(): RouteDeps {
   const deps = {
     workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentTypeRepo: {

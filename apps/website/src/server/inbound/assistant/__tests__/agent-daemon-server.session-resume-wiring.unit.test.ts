@@ -97,7 +97,7 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   });
 
   test("a run unregisters itself from the tracker on its own terminal event", () => {
-    const waitForTerminalIndex = onStartedSource.indexOf("runLifecycle.waitForTerminal(run.id).finally(");
+    const waitForTerminalIndex = onStartedSource.indexOf("runLifecycle.waitForTerminal({ runId: run.id }).finally(");
     assert.ok(waitForTerminalIndex > -1, "this test's own anchor (the waitForTerminal cleanup block) must still exist verbatim");
 
     const unregisterIndex = onStartedSource.indexOf("liveRunTracker.unregister(");

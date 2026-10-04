@@ -58,7 +58,7 @@ test("taxonomy mergeTerm: plan -> confirm -> execute succeeds end-to-end and rep
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const { fromTermId, intoTermId } = await createTermPair(baseUrl, cookie);
-  const sourceTerm = await deps.termRepo.findById(fromTermId);
+  const sourceTerm = await deps.termRepo.findByIdFull({ id: fromTermId });
   assert.ok(sourceTerm);
   const unrelatedRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${sourceTerm.taxonomyId}/terms`, {
     method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ name: "Unrelated" }),
@@ -101,8 +101,8 @@ test("taxonomy mergeTerm: plan -> confirm -> execute succeeds end-to-end and rep
   assert.equal(remainingOverlap, 0, "fromTermId's rows were repointed away, not duplicated");
   const assignments = await deps.entryTermRepo.listForContent({ contentType: "post", contentId: "post-1" });
   assert.deepEqual(assignments.map((row) => row.termId).sort(), [intoTermId, unrelated.id].sort());
-  assert.equal((await deps.termRepo.findById(fromTermId))?.status, "deprecated");
-  assert.equal((await deps.termRepo.findById(intoTermId))?.status, "active");
+  assert.equal((await deps.termRepo.findByIdFull({ id: fromTermId }))?.status, "deprecated");
+  assert.equal((await deps.termRepo.findByIdFull({ id: intoTermId }))?.status, "active");
 });
 
 test("taxonomy mergeTerm: a stale plan (overlap count changed between confirm and execute) is rejected PLAN_STALE", async (t) => {

@@ -11,7 +11,7 @@ import { InMemoryEventBus, InMemoryOutbox, startOutboxDrainer } from "../index.j
  * short intervals.
  */
 
-const clock = { nowIso: () => new Date().toISOString() };
+const clock = { nowMs: () => Date.now() };
 
 function makeEvent(id: string): DomainEvent {
   return { id, name: "entry.updated", occurredAt: "2026-01-01T00:00:00.000Z", workspaceId: "ws-drainer", payload: {} };
@@ -40,15 +40,15 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 function spyOutbox(inner: OutboxPort, hooks: { claimPending?: () => void; markDelivered?: (id: string) => void }): OutboxPort {
   return {
     enqueue: (event) => inner.enqueue(event),
-    claimPending: async (batchSize, nowIso) => {
+    claimPending: async ({ batchSize, nowIso }) => {
       hooks.claimPending?.();
-      return inner.claimPending(batchSize, nowIso);
+      return inner.claimPending({ batchSize: batchSize, nowIso: nowIso });
     },
-    markDelivered: async (id) => {
+    markDelivered: async ({ id }) => {
       hooks.markDelivered?.(id);
-      return inner.markDelivered(id);
+      return inner.markDelivered({ id: id });
     },
-    markFailed: (id, error, nextAttemptAt, nextStatus) => inner.markFailed(id, error, nextAttemptAt, nextStatus),
+    markFailed: ({ id, error, nextAttemptAt, nextStatus }) => inner.markFailed({ id: id, error: error, nextAttemptAt: nextAttemptAt, nextStatus: nextStatus }),
   };
 }
 
@@ -56,9 +56,9 @@ test("delivers a row enqueued after start, with no route calling processOutbox",
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10 });
   t.after(() => drainer.stop());
 
@@ -73,9 +73,9 @@ test("a full batch drains again at once instead of waiting the idle interval", a
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
   for (let i = 1; i <= 5; i += 1) await outbox.enqueue(makeEvent(`batch-${i}`));
 
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 60_000, batchSize: 2 });
@@ -89,13 +89,13 @@ test("a failing handler reschedules only its own row: the rows behind it are del
   const bus = new InMemoryEventBus();
   const received: string[] = [];
   let poisonAttempts = 0;
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     if (event.id === "poison") {
       poisonAttempts += 1;
       throw new Error("subscriber exploded");
     }
     received.push(event.id);
-  });
+  } });
   await outbox.enqueue(makeEvent("poison"));
   await outbox.enqueue(makeEvent("after-1"));
   await outbox.enqueue(makeEvent("after-2"));
@@ -120,9 +120,9 @@ test("a drain that throws is reported to onError and the loop keeps delivering",
   });
   const bus = new InMemoryEventBus();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
   const errors: string[] = [];
   await inner.enqueue(makeEvent("after-error-1"));
 
@@ -144,9 +144,9 @@ test("an onError that throws cannot end the loop", async (t) => {
   });
   const bus = new InMemoryEventBus();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
-  });
+  } });
   await inner.enqueue(makeEvent("after-bad-reporter-1"));
 
   const drainer = startOutboxDrainer(
@@ -170,10 +170,10 @@ test("a row is marked delivered only after its handler has finished", async (t) 
   const bus = new InMemoryEventBus();
   const gate = deferred();
   let handlerStarted = false;
-  await bus.subscribe("entry.updated", async () => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async () => {
     handlerStarted = true;
     await gate.promise;
-  });
+  } });
   await inner.enqueue(makeEvent("slow-1"));
 
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5 });
@@ -196,10 +196,10 @@ test("stop() waits for the running drain, and no drain runs after it", async (t)
   const bus = new InMemoryEventBus();
   const gate = deferred();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
     if (event.id === "in-flight-1") await gate.promise;
-  });
+  } });
   await outbox.enqueue(makeEvent("in-flight-1"));
 
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5 });
@@ -246,10 +246,10 @@ test("a handler that never settles cannot stall the loop: the event behind it is
   const bus = new InMemoryEventBus();
   const stuck = deferred();
   const received: string[] = [];
-  await bus.subscribe("entry.updated", async (event) => {
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     if (event.id === "never-settles") return stuck.promise;
     received.push(event.id);
-  });
+  } });
   await inner.enqueue(makeEvent("never-settles"));
 
   const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5, deliveryTimeoutMs: 20 });
@@ -266,7 +266,7 @@ test("a handler that never settles cannot stall the loop: the event behind it is
     "a handler that never settles stalled the drainer: the event queued behind it was never delivered"
   );
   assert.deepEqual({ received, delivered }, { received: ["after-stuck-1"], delivered: ["after-stuck-1"] });
-  const retry = await inner.claimPending(10, "2099-01-01T00:00:00.000Z");
+  const retry = await inner.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" });
   assert.deepEqual(
     retry.map((row) => [row.id, row.lastError]),
     [["never-settles", 'delivery of outbox event "entry.updated" (never-settles) timed out after 20ms']]

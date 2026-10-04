@@ -22,7 +22,7 @@ import { InMemoryChangeSetRepo } from "../repo.memory.js";
  */
 
 const WORKSPACE = "workspace-1";
-const fixedClock = { nowIso: () => "2026-07-10T00:00:00.000Z" };
+const fixedClock = { nowMs: () => Date.parse("2026-07-10T00:00:00.000Z") };
 
 function counterIdGen() {
   let n = 0;

@@ -115,11 +115,10 @@ class SubscribeCountingBus extends InMemoryEventBus {
   subscriptions = new Map<string, number>();
 
   override async subscribe<TPayload>(
-    eventName: string,
-    handler: (event: DomainEvent<TPayload>) => Promise<void>
+    { eventName, handler }: { eventName: string; handler: (event: DomainEvent<TPayload>) => Promise<void> }
   ): Promise<() => Promise<void>> {
     this.subscriptions.set(eventName, (this.subscriptions.get(eventName) ?? 0) + 1);
-    return super.subscribe(eventName, handler);
+    return super.subscribe<TPayload>({ eventName, handler });
   }
 }
 

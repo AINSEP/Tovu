@@ -21,7 +21,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
  * chokepoint still writes `bodyFormat: "doc"`.
  */
 
-const clock = { nowIso: () => "2026-08-04T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-04T00:00:00.000Z") };
 
 const noopOutbox: OutboxPort = {
   enqueue: async () => {},

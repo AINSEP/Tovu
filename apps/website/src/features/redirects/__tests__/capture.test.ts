@@ -44,7 +44,7 @@ function makeFakeRepo(existing: RedirectRecord[] = []) {
   };
 }
 
-const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
 let idCounter = 0;
 function makeIdGen() {
   idCounter = 0;

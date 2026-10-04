@@ -314,7 +314,7 @@ test("an MCP-UI tool call for an exchangeId the daemon owns falls through, and t
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({
-      toolName: "content_post_delete",
+      toolName: "webhooks_delete_subscription",
       exchangeId: "exchange-owned-by-a-local-cli-daemon-run",
       params: {},
     }),

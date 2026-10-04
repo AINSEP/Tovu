@@ -39,7 +39,7 @@ function runAuthorshipContract(
   test(`createPost stamps createdByPrincipalId/createdAt from actorId + clock (${name})`, async () => {
     const { repo, teardown } = await withRepo();
     try {
-      const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
+      const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       const result = await createPost({
         deps: { repo, clock },
         input: { workspaceId: "ws-1", id: "post-1", title: "Hello", actorId: "principal-1" },
@@ -59,7 +59,7 @@ function runAuthorshipContract(
   test(`createPost stores NULL createdByPrincipalId when actorId is omitted — never a fabricated value (${name})`, async () => {
     const { repo, teardown } = await withRepo();
     try {
-      const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
+      const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       const result = await createPost({
         deps: { repo, clock },
         input: { workspaceId: "ws-1", id: "post-2", title: "No known author" },
@@ -78,13 +78,13 @@ function runAuthorshipContract(
   test(`updatePost never changes createdByPrincipalId or createdAt (${name})`, async () => {
     const { repo, teardown } = await withRepo();
     try {
-      const createClock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
+      const createClock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       await createPost({
         deps: { repo, clock: createClock },
         input: { workspaceId: "ws-1", id: "post-3", title: "Original", actorId: "principal-1" },
       });
 
-      const updateClock = { nowIso: () => "2026-09-19T00:00:00.000Z" };
+      const updateClock = { nowMs: () => Date.parse("2026-09-19T00:00:00.000Z") };
       const noopOutbox = {
         enqueue: async () => {},
         claimPending: async () => [],

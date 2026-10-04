@@ -26,7 +26,7 @@ import { removeVia } from "#src/features/post/__tests__/remove-post-double";
  */
 
 const WS = "workspace-1";
-const clock = { nowIso: () => "2026-07-30T12:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-30T12:00:00.000Z") };
 
 interface CapturedEvent {
   id: string;
@@ -89,10 +89,10 @@ test("the registry routes ('post','delete') and ('post','update') to two distinc
   assert.ok(updateReverter, "post/update must be registered");
   assert.notEqual(deleteReverter, updateReverter, "the two operations must route to different reverters");
   await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
-  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ deletedAt: null, version: 4, updatedAt: clock.nowIso() }));
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ deletedAt: null, version: 4, updatedAt: new Date(clock.nowMs()).toISOString() }));
   const inverse = { title: "Before", slug: "before", bodyJson: { type: "doc", content: [{ type: "paragraph" }] }, status: "draft" };
   await updateReverter.applyInverse({ workspaceId: WS, item: { ...deleteItem, inversePayload: inverse } });
-  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ ...inverse, status: "draft", deletedAt: null, version: 5, updatedAt: clock.nowIso() }));
+  assert.deepEqual(await postRepo.findById({ workspaceId: WS, id: "post-1" }), seed({ ...inverse, status: "draft", deletedAt: null, version: 5, updatedAt: new Date(clock.nowMs()).toISOString() }));
 });
 
 test("applyInverse clears the trash marker, restoring the row losslessly", async () => {

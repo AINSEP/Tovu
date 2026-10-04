@@ -48,7 +48,7 @@ const seedPost = {
   version: 1,
 };
 
-const clock = { nowIso: () => "2026-09-06T01:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-06T01:00:00.000Z") };
 
 /** One operator's save, differing only in the body text and the basis it claims. */
 function operatorSave(repo: InMemoryPostRepo, text: string, expectedVersion?: number) {

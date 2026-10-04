@@ -20,7 +20,7 @@ test("ingestProviderEvent: delegates correctly to CommerceWebhookEventRepoPort w
   };
 
   const fixedNow = "2026-08-12T13:00:00.000Z";
-  const mockClock = { nowIso: () => fixedNow };
+  const mockClock = { nowMs: () => Date.parse(fixedNow) };
   const mockIdGen = { newId: () => "evt-row-mock-123" };
 
   const event: InboundProviderEvent = {
@@ -88,7 +88,7 @@ test("ingestProviderEvent: passes through duplicate and stale results", async ()
     const result = await ingestProviderEvent({
       deps: {
         webhookEvents: mockRepo,
-        clock: { nowIso: () => "2026-08-12T13:00:00.000Z" },
+        clock: { nowMs: () => Date.parse("2026-08-12T13:00:00.000Z") },
         idGen: { newId: () => "id-1" },
       },
       event: {

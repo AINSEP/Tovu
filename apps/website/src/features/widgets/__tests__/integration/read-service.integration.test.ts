@@ -29,7 +29,7 @@ function writeDeps(repos: ReturnType<typeof makeRepos>, authorize?: WidgetWriteS
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
     remove: repos.trash.remove,
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: authorize ?? (async () => ({ allowed: true, reason: "test: always allow" })),
     outbox: { enqueue: async () => undefined },

@@ -39,7 +39,7 @@ function makeCounterRepo(inner: PostRepoPort) {
   return { repo, counter };
 }
 
-const clock = { nowIso: () => "2026-07-28T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-07-28T00:00:00.000Z") };
 const outbox = { enqueue: async () => {} };
 
 async function seedPost(repo: PostRepoPort, overrides: Partial<PostRecord> = {}): Promise<PostRecord> {

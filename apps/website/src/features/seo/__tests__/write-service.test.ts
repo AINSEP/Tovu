@@ -38,7 +38,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const alwaysDeny = async () => ({ allowed: false, reason: "no_grant" });
 const noopInvalidate = () => {};
-const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
 
 test("setEntrySeoOverrides: authorize() runs first — unauthorized caller gets FORBIDDEN, zero writes", async () => {
   const repo = new InMemoryPostRepo([seedPost()]);

@@ -11,8 +11,8 @@ async function invoke(themes: unknown[], settings: unknown, fail = false) {
   const app = express();
   registerAdminThemesListRoute(app, {
     workspaceId: "ws-7", themes, authorize: async () => ({ allowed: true, reason: "matched" }),
-    presentationRepo: { findByWorkspaceId: async (id: string) => {
-      assert.equal(id, "ws-7"); if (fail) throw new Error("secret db failure"); return settings;
+    presentationRepo: { findByWorkspaceId: async (required: { workspaceId: string }) => {
+      assert.deepEqual(required, { workspaceId: "ws-7" }); if (fail) throw new Error("secret db failure"); return settings;
     } },
   } as any);
   const { res, capture } = createCapturingResponse();

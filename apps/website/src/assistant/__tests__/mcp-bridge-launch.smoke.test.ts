@@ -107,7 +107,7 @@ test("a packaged desktop app's bridge answers initialize within 5 s", async () =
       electronVersion: "43.6.0",
       env: { ELECTRON_RUN_AS_NODE: "1" },
     });
-    const entry = buildMcpJsonServerEntry("bridge-smoke", injection, "smoke-token");
+    const entry = buildMcpJsonServerEntry({ runId: "bridge-smoke", options: injection }, { credential: "smoke-token" });
 
     assertJiniInitializeReply(await initializeReply(entry.command, entry.args, entry.env));
   } finally {
@@ -124,7 +124,7 @@ test("the real Electron binary, given the entry's env, runs the bridge as Node a
     return;
   }
   const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", { execPath: electronBinary, electronVersion: "43.6.0", env: {} });
-  const entry = buildMcpJsonServerEntry("bridge-smoke", injection, "smoke-token");
+  const entry = buildMcpJsonServerEntry({ runId: "bridge-smoke", options: injection }, { credential: "smoke-token" });
 
   assertJiniInitializeReply(await initializeReply(entry.command, entry.args, entry.env));
 });

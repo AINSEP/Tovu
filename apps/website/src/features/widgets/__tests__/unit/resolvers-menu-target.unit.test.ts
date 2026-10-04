@@ -13,7 +13,7 @@ test("an injected target resolver supplies hrefs for non-URL items in the config
   const targets: unknown[] = [];
   const reader = { getMenu: async (p: unknown) => { reads.push(p); assert.deepEqual(p, { workspaceId: "ws-menu", menuId: "menu-footer" }); return menu; } } as NavMenuReadModel;
   const resolver = createMenuResolver({ navMenuReadModel: reader,
-    resolveTargetHref: async (target, context) => { targets.push([target, context]); assert.deepEqual(target, { kind: "entryRef", entryId: "entry-eight" }); assert.deepEqual(context, { workspaceId: "ws-menu" }); return { path: "/about-eight", available: true }; },
+    resolveTargetHref: async ({ target, context }) => { targets.push([target, context]); assert.deepEqual(target, { kind: "entryRef", entryId: "entry-eight" }); assert.deepEqual(context, { workspaceId: "ws-menu" }); return { path: "/about-eight", available: true }; },
   });
   const result = await resolver.resolveMany([
     { id: "bad", widgetType: "menu", config: { menuRef: "" } },

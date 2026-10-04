@@ -97,7 +97,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
 
   const reverterDeps: PostReverterDeps = {
     postRepo,
-    clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
     outbox: { enqueue: async () => {} },
   };
 
@@ -105,7 +105,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
     deps: {
       changeSets,
       registry: createPostRevertRegistry(reverterDeps),
-      clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
+      clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
       idGen: { newId: () => "id-1" },
     },
     input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
@@ -143,7 +143,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
 
     const reverterDeps: PostReverterDeps = {
       postRepo,
-      clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
+      clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
       outbox: { enqueue: async () => {} },
     };
 
@@ -151,7 +151,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
       deps: {
         changeSets,
         registry: createPostRevertRegistry(reverterDeps),
-        clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
+        clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
         idGen: { newId: () => "id-1" },
       },
       input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },

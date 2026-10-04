@@ -40,7 +40,7 @@ function makeDeps(rows: PostRecord[]) {
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
-    clock: { nowIso: () => "2026-09-19T12:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-19T12:00:00.000Z") },
     idGen: (() => {
       let n = 0;
       return { newId: () => `generated-id-${++n}` };

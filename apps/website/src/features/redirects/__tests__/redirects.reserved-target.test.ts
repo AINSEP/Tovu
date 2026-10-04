@@ -56,7 +56,7 @@ function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDe
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-07-13T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse(`2026-07-13T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };

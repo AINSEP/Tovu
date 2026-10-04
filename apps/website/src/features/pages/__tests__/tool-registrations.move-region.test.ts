@@ -17,7 +17,7 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
  * refused: "The catalog has no tool that can move a section on a page."
  */
 
-const clock = { nowIso: () => "2026-10-01T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") };
 const WS = "ws-move";
 
 function harness() {

@@ -36,7 +36,7 @@ function depsFor(repo: SqlEntryRepo, idSeed: string, workspaceId = "ws-1", type 
   return {
     entryRepo: repo,
     contentTypeRepo: lookup(workspaceId, type, fields),
-    clock: { nowIso: () => "2026-09-23T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-23T00:00:00.000Z") },
     ids: { newId: () => idSeed },
     authorize: ALLOW,
     outbox: { enqueue: async () => {} },

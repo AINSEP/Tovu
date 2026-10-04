@@ -33,7 +33,7 @@ import { PageKindMismatchError, PageConcurrentEditError } from "../html-document
  * double.
  */
 
-const clock = { nowIso: () => "2026-09-09T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 const WS = "ws-mem-cas";
 
 async function harness(): Promise<{ repo: InMemoryPostRepo }> {

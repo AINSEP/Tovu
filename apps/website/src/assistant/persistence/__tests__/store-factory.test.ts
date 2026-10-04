@@ -46,7 +46,7 @@ describe("createChatStoreFactory", () => {
     const created = await first.create({ id: "c-alice" });
     const second = factory(alice);
     assert.notEqual(second, first);
-    assert.deepEqual(await second.get("c-alice"), created);
+    assert.deepEqual(await second.get({ id: "c-alice" }), created);
     assert.deepEqual(db.prepare("SELECT id, owner_id FROM ai_chats").all(), [{ id: "c-alice", owner_id: "alice" }]);
     const bobList = await factory(bob).list();
 
@@ -85,14 +85,14 @@ describe("createInMemoryChatStoreFactory", () => {
     const store = factory(principal);
 
     await store.create({ id: "c1" });
-    await store.appendMessage("c1", { id: "m1", role: "user", content: "hello" });
-    await store.delete("c1");
+    await store.appendMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } });
+    await store.delete({ id: "c1" });
 
     // If `PRAGMA foreign_keys = ON` were not set, the message row would survive its conversation's
     // deletion — this is the exact regression the module's own comment warns about.
     const listed = await store.list();
     assert.deepEqual(listed, []);
     await store.create({ id: "c1" });
-    assert.deepEqual(await store.messages("c1"), [], "no orphaned messages may reappear when the conversation id is reused");
+    assert.deepEqual(await store.messages({ conversationId: "c1" }), [], "no orphaned messages may reappear when the conversation id is reused");
   });
 });

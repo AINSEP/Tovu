@@ -19,7 +19,7 @@ import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sql
 
 const WORKSPACE = "workspace-1";
 const IDEMPOTENCY_KEY = "race-key-1";
-const fixedClock = { nowIso: () => "2026-08-24T00:00:00.000Z" };
+const fixedClock = { nowMs: () => Date.parse("2026-08-24T00:00:00.000Z") };
 
 function counterIdGen(prefix: string) {
   let n = 0;

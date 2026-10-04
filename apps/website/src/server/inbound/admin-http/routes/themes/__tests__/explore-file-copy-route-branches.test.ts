@@ -149,8 +149,11 @@ test("copy: an injected filesystem failure returns 500 and leaves no destination
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const app = buildTestApp(root);
   const baseUrl = await startTestServer(app, t);
-  const source = path.join(root, "static", "plain", "pages", "about.html");
-  const destination = path.join(root, "static", "plain", "pages", "about-2.html");
+  // The containment adapter canonicalizes the theme directory before copying, including
+  // macOS's /var -> /private/var alias. Inject against the paths the adapter actually uses.
+  const themeDir = fs.realpathSync(path.join(root, "static", "plain"));
+  const source = path.join(themeDir, "pages", "about.html");
+  const destination = path.join(themeDir, "pages", "about-2.html");
   const before = fs.readFileSync(source, "utf8");
   const originalCopy = fs.copyFileSync;
   let reached = false;

@@ -32,10 +32,11 @@ function open<K extends StorageKernel<unknown>>(kernel: K): K {
 describe("0001_post_search", () => {
   test("SQLite: recorded, the schema is unchanged", async () => {
     const kernel = sqliteKernel<unknown>(openContentDb(":memory:"));
-    // Step 0002 drops the empty legacy chat tables; nothing else changes.
-    const before = (await listTables(kernel)).filter((name) => !["ai_chats", "ai_chat_messages", "assistant_agent_sessions"].includes(name));
+    // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables;
+    // every other table remains unchanged.
+    const before = (await listTables(kernel)).filter((name) => !["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "deployment_run_events", "deployment_runs", "deployment_targets", "releases", "deployment_environments"].includes(name));
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
     assert.deepEqual((await listTables(kernel)).filter((name) => name !== "tovu_migrations"), before);
   });
 

@@ -135,7 +135,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
 
   let nextId = 0;
   const idGen = { newId: () => `id-${++nextId}` };
-  const clock = { nowIso: () => "2026-09-20T12:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
 
   // The concurrent writer. Fires during the restore-point capture — inside the window between the
   // gateway's verified re-derivation and `executeMutation()`'s own, exactly as sol describes.

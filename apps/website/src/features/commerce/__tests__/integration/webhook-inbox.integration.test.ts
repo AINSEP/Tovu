@@ -53,7 +53,7 @@ function makeDeps(db: ContentDb) {
   idCounter = 0;
   return {
     webhookEvents: new SqliteCommerceWebhookEventRepo(db),
-    clock: { nowIso: () => "2026-08-12T13:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-08-12T13:00:00.000Z") },
     idGen: { newId: () => `evt-row-${++idCounter}` },
   };
 }

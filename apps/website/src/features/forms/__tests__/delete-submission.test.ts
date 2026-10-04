@@ -16,16 +16,16 @@ function repo(record: typeof submission | null): FormSubmissionRepoPort {
 for (const outcome of [{ ok: true, version: null }, { ok: false, reason: "not-found" }, { ok: false, reason: "version-changed" }] as const) {
   test(`Trash outcome ${JSON.stringify(outcome)} is forwarded, with exact privacy-safe display and attribution`, async () => {
     const calls: Parameters<RemoveFormSubmissionFn>[0][] = [];
-    const result = await deleteFormSubmission(required, { submissionRepo: repo(submission), clock: { nowIso: () => "2026-10-01T12:00:00Z" }, remove: async (input) => { calls.push(input); return outcome; } });
+    const result = await deleteFormSubmission(required, { submissionRepo: repo(submission), clock: { nowMs: () => Date.parse("2026-10-01T12:00:00Z") }, remove: async (input) => { calls.push(input); return outcome; } });
     assert.deepEqual(result, outcome.ok ? { ok: true } : outcome);
     // F2.5: remove is the injected domain boundary; route tests exercise actual Trash effects.
-    assert.deepEqual(calls, [{ workspaceId: "ws-a", id: "sub-a", display: { title: "Contact", subtitle: "2026-09-30T10:00:00Z" }, at: "2026-10-01T12:00:00Z", expectedVersion: null, actor: { principalId: "owner", pluginId: "operator-tool" } }]);
+    assert.deepEqual(calls, [{ workspaceId: "ws-a", id: "sub-a", display: { title: "Contact", subtitle: "2026-09-30T10:00:00Z" }, at: "2026-10-01T12:00:00.000Z", expectedVersion: null, actor: { principalId: "owner", pluginId: "operator-tool" } }]);
   });
 }
 
 for (const record of [null, { ...submission, formDefinitionId: "other-form" }]) {
   test(`a ${record === null ? "missing" : "different-form"} submission cannot reach Trash`, async () => {
-    assert.deepEqual(await deleteFormSubmission(required, { submissionRepo: repo(record), clock: { nowIso: () => { assert.fail("clock should not be read"); } }, remove: async () => { assert.fail("submission must not be removed"); } }), { ok: false, reason: "not-found" });
+    assert.deepEqual(await deleteFormSubmission(required, { submissionRepo: repo(record), clock: { nowMs: () => { assert.fail("clock should not be read"); } }, remove: async () => { assert.fail("submission must not be removed"); } }), { ok: false, reason: "not-found" });
   });
 }
 
@@ -36,7 +36,7 @@ for (const stage of ["read", "remove"] as const) {
     const submissionRepo = repo(submission);
     if (stage === "read") submissionRepo.findById = async () => { throw fault; };
     await assert.rejects(deleteFormSubmission(required, {
-      submissionRepo, clock: { nowIso: () => "2026-10-01T12:00:00Z" },
+      submissionRepo, clock: { nowMs: () => Date.parse("2026-10-01T12:00:00Z") },
       remove: async () => { if (stage === "read") assert.fail("read failure must stop before removal"); throw fault; },
     }), (error) => error === fault);
   });

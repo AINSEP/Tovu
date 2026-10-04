@@ -80,7 +80,7 @@ test("resolveAgentPluginPromptPrefix resolves to an empty prefix and never touch
   const result = await resolveAgentPluginPromptPrefix(run, [], lifecycle, "definitely-not-a-real-workspace-id");
 
   assert.equal(result, "");
-  const status = await lifecycle.get(run.id);
+  const status = await lifecycle.get({ runId: run.id });
   assert.equal(status?.state, "running", "an empty-refs run must not be touched by plugin resolution at all");
 });
 
@@ -112,7 +112,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
 
   // The run must still be non-terminal — a successful resolution must not itself finish the run
   // (only `onStarted`'s later `agentExecutor.run()` call does that).
-  const statusAfterSuccess = await lifecycle.get(run.id);
+  const statusAfterSuccess = await lifecycle.get({ runId: run.id });
   assert.equal(statusAfterSuccess?.state, "running");
 
   // The exact two-line sequence `onStarted` runs after this call: prepend, then use the result as
@@ -137,7 +137,7 @@ test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycl
   // recorded a call. A pinned plugin silently not reaching the agent (a run that looks like it
   // just... started running with an ordinary prompt) is exactly the confusing failure mode this
   // function's own module doc says it exists to avoid.
-  const status = await lifecycle.get(run.id);
+  const status = await lifecycle.get({ runId: run.id });
   assert.equal(status?.state, "failed");
 });
 

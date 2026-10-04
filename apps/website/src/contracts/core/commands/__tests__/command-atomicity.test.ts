@@ -26,7 +26,7 @@ import { InMemoryChangeSetRepo } from "../repo.memory.js";
 const WORKSPACE = "workspace-1";
 const POST_ID = "post-1";
 
-const fixedClock = { nowIso: () => "2026-07-07T05:00:00.000Z" };
+const fixedClock = { nowMs: () => Date.parse("2026-07-07T05:00:00.000Z") };
 
 function counterIdGen() {
   let n = 0;
@@ -85,7 +85,7 @@ function postUpdateMutation(
 
 /** A change-set repo whose record persistence always fails (injected EC-08 fault). */
 class FailingChangeSetRepo implements ChangeSetRepoPort {
-  async insert(_record: ChangeSetRecord, _items: ChangeSetItemRecord[]): Promise<void> {
+  async insert(_required: { record: ChangeSetRecord; items: ChangeSetItemRecord[] }): Promise<void> {
     throw new Error("injected change-set persist failure");
   }
   async findById(): Promise<ChangeSetWithItems | null> {

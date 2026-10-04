@@ -44,7 +44,7 @@ function discoveryOf(status: PluginDiscoveryRecord["status"]): PluginDiscoveryRe
 }
 
 function clock(iso = "2026-07-28T00:00:00.000Z") {
-  return { nowIso: () => iso };
+  return { nowMs: () => Date.parse(iso) };
 }
 
 test("BR-05 step (1): enabling/disabling a plugin id absent from discovery is PluginNotFoundError", async () => {
@@ -908,8 +908,8 @@ test("boot replay skips disabled, quarantined, invalid, and other-workspace plug
     const id = source.manifest.id;
     await repo.save({
       workspaceId: id === "foreign-marker" ? "other-workspace" : WORKSPACE, pluginId: id,
-      version: "1.0.0", enabled: id !== "disabled-marker" && id !== "quarantined-marker", updatedAt: clock().nowIso(),
-      ...(id === "quarantined-marker" ? { quarantinedAt: clock().nowIso(), quarantineReason: "failure", quarantineFailureCount: 3 } : {}),
+      version: "1.0.0", enabled: id !== "disabled-marker" && id !== "quarantined-marker", updatedAt: new Date(clock().nowMs()).toISOString(),
+      ...(id === "quarantined-marker" ? { quarantinedAt: new Date(clock().nowMs()).toISOString(), quarantineReason: "failure", quarantineFailureCount: 3 } : {}),
     });
   }
   sources[3] = { ...sources[3]!, manifest: { ...sources[3]!.manifest, hooks: ["unknown.hook" as typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE] } };

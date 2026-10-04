@@ -33,7 +33,7 @@ import { contributePagePublish, contributePostPublish, toPublishableState } from
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
 function makeClock() {
-  return { nowIso: () => "2026-09-18T00:00:00.000Z" };
+  return { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
 }
 
 function makeIdGen() {
@@ -410,13 +410,13 @@ test("apply() restores an existing destination forward when change-set recording
   const source = makePost({ ...prior, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
   await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1" }), error => error === failure);
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
-  assert.deepEqual(restored, { ...prior, updatedAt: deps.clock.nowIso(), version: 3 });
+  assert.deepEqual(restored, { ...prior, updatedAt: new Date(deps.clock.nowMs()).toISOString(), version: 3 });
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: prior.id });
   assert.deepEqual(revisions.map(row => [row.seq, row.op]), [[1, "create"], [2, "update"], [3, "restore"]]);
   assert.deepEqual(revisions[2]?.stateJson, restored);
   assert.equal(revisions[2]?.restoredFrom, revisions[0]?.id);
   assert.equal(revisions[2]?.actorId, "operator-1");
-  assert.deepEqual((await deps.outbox.claimPending(10, deps.clock.nowIso())).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
+  assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: new Date(deps.clock.nowMs()).toISOString() })).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
   assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
 

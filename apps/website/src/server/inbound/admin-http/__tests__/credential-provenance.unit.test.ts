@@ -35,7 +35,7 @@ function makeGatewayDeps(allowed: boolean): { deps: GatewayDeps; saved: Confirma
   return {
     saved,
     deps: {
-      clock: { nowIso: () => FIXED_NOW },
+      clock: { nowMs: () => Date.parse(FIXED_NOW) },
       idGen: { newId: () => "plan-1" },
       authorize: async () => ({ allowed, reason: allowed ? "ok" : "denied" }),
       tokens,

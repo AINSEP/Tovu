@@ -33,7 +33,7 @@ function fakeRouteDeps<R extends InMemoryPostRepo | SqlitePostRepo = InMemoryPos
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: new InMemoryOutbox(),

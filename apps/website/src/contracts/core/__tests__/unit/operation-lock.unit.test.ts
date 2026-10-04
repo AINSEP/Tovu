@@ -18,7 +18,7 @@ import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from 
  */
 
 const NOW = "2026-07-15T00:00:00.000Z";
-const clock = { nowIso: () => NOW };
+const clock = { nowMs: () => Date.parse(NOW) };
 
 test("U-001-B1: acquireOperationLock succeeds when no operation is in flight for the site", async () => {
   const result = await acquireOperationLock({

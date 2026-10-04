@@ -94,9 +94,9 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
     test("a transaction's save + appendRevision roll back together; a nested one joins", async () => {
       const { repo, kernel } = makeRepo();
       await assert.rejects(
-        repo.transaction(async () => {
+        repo.transaction({ fn: async () => {
           await repo.save(contentType("t1"));
-          await repo.transaction(async () => {
+          await repo.transaction({ fn: async () => {
             await repo.appendRevision({
               contentTypeKey: "t1",
               workspaceId: WS,
@@ -108,9 +108,9 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
               delegatedById: null,
               recordedAt: "2026-09-28T00:00:00.000Z",
             } as unknown as Parameters<Repo["appendRevision"]>[0]);
-          });
+          } });
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await repo.findByKey({ workspaceId: WS, key: "t1" }), null);

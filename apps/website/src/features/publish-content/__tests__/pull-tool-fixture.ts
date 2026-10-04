@@ -26,7 +26,7 @@ export function context(input: unknown, extra: Partial<ToolExecutionContext> = {
 export async function fixture(entities: PackedEntity[] = [packed("new")]) {
   let sequence = 0;
   let now = NOW;
-  const clock = { nowIso: () => now };
+  const clock = { nowMs: () => Date.parse(now) };
   const idGen = { newId: () => `pull-${++sequence}` };
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const runRepo = new InMemoryPublishContentRunRepo();

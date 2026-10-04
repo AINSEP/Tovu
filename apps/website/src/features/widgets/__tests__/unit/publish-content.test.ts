@@ -27,7 +27,7 @@ function instance(name: string) {
     contentTypeRepo: ports.contentTypes,
     entryRefsRepo: ports.entryRefs,
     bindingRepo: ports.bindings,
-    clock: { nowIso: () => "2026-09-01T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-01T00:00:00.000Z") },
     ids: { newId: () => `${name}-${++n}-0000-0000` },
     authorize: async () => ({ allowed: true, reason: "test" }),
     outbox: new InMemoryOutbox(),

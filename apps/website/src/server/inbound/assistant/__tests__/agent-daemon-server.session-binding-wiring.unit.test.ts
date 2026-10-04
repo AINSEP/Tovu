@@ -56,15 +56,15 @@ function sessionHarness() {
     resolveAttachmentRunFields: async () => ({}), resolveAgentPluginPromptPrefix: async () => "",
     buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
     routeDeps: { workspaceId: "ws-1", agentSessions: {
-      getSessionId: async (conversationId: string, agentId: string) => {
+      getSessionId: async ({ conversationId, agentId }: { conversationId: string; agentId: string }) => {
         assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
         return stored;
       },
-      setSessionId: async (conversationId: string, agentId: string, id: string) => {
+      setSessionId: async ({ conversationId, agentId, sessionId }: { conversationId: string; agentId: string; sessionId: string }) => {
         assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
         writes += 1;
         await writeGate;
-        stored = id;
+        stored = sessionId;
       },
     } },
     conversationStartLock: createConversationStartLock(),
@@ -72,8 +72,8 @@ function sessionHarness() {
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,
-    agentExecutor: { run: async (input: { runId: string; newSessionId?: string; resumeSessionId?: string }) => {
-      launches.push({ runId: input.runId, newSessionId: input.newSessionId, resumeSessionId: input.resumeSessionId, stored });
+    agentExecutor: { run: async (input: { runId: string }, options: { newSessionId?: string; resumeSessionId?: string } = {}) => {
+      launches.push({ runId: input.runId, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored });
     } },
     process: { env: {}, cwd: () => "/isolated" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
@@ -187,7 +187,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
       "agentExecutor.run must be handed the SAME id that was persisted (via resolveNewSessionField(hostMintedSessionId)) — persisting one id and spawning the CLI under another is the fork this fix exists to prevent",
     );
     assert.ok(
-      /setSessionId\(conversationId,\s*agentId,\s*hostMintedSessionId\)/.test(onStartedSource),
+      /setSessionId\(\{\s*conversationId,\s*agentId,\s*sessionId:\s*hostMintedSessionId\s*\}\)/.test(onStartedSource),
       "the persisted value must be the minted id itself, under this run's own (conversationId, agentId)",
     );
   });

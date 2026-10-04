@@ -27,6 +27,7 @@ import { LegacyHistoryError } from "../step.js";
 
 const BOOKKEEPING = ["__drizzle_migrations", "tovu_migrations"];
 const LEGACY_CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
+const UNUSED_DEPLOYMENT_TABLES = ["deployment_run_events", "deployment_runs", "deployment_targets", "releases", "deployment_environments"];
 const chain = readFrozenChain();
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-legacy-adoption-"));
 const opened: Array<StorageKernel<unknown>> = [];
@@ -68,21 +69,22 @@ describe("0000_legacy_baseline on SQLite", () => {
   test("a brand-new database gets the whole chain, the same schema drizzle's migrator builds", async () => {
     const kernel = memory();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
     assert.equal(await drizzleRows(kernel), 78);
     const viaDrizzle = sqliteKernel<unknown>(openContentDb(":memory:"));
-    // Step 0002 drops the three empty legacy chat tables drizzle's chain creates; compare the rest.
+    // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables
+    // drizzle's chain creates; compare every remaining schema object.
     const mine = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
-    assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES] }));
+    assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES, ...UNUSED_DEPLOYMENT_TABLES] }));
   });
 
   test("a drizzle-migrated database is adopted with no schema change and no new drizzle rows", async () => {
     const db = openContentDb(":memory:");
     const kernel = sqliteKernel<unknown>(db);
-    const before = await readSchemaShape(kernel, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES] });
+    const before = await readSchemaShape(kernel, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES, ...UNUSED_DEPLOYMENT_TABLES] });
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
-    assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "only the empty legacy chat tables are gone");
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
+    assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "only the empty legacy chat and unused deployment tables are gone");
     assert.equal(await drizzleRows(kernel), 78);
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
   });
@@ -92,7 +94,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const report = await migrateContentDatabase(kernel);
     assert.equal(await drizzleRows(kernel), 78);
     assert.ok(report.notes.some((note) => note.includes("0058_keen_mauler") && note.includes("0077_external_mcp_tool_approvals") && note.includes("(20)")));
-    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
+    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
   });
 
   test("a recorded hash that is not in the chain stops adoption, nothing recorded", async () => {

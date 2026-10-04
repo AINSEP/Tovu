@@ -34,7 +34,7 @@ import type {
  */
 
 const WS = "ws-1";
-const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z") };
 const idGen = { newId: () => "id-1" };
 
 function fakeReverter(opts: {
@@ -291,7 +291,7 @@ test("enqueues a change-set.reverted event on the outbox when one is provided", 
 
   const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
   assert.equal(persisted?.changeSet.status, "reverted");
-  assert.equal(persisted?.changeSet.revertedAt, clock.nowIso());
+  assert.equal(persisted?.changeSet.revertedAt, new Date(clock.nowMs()).toISOString());
   await assert.rejects(
     () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
     ChangeSetInvalidStatusError,
@@ -322,7 +322,7 @@ test("completes without enqueuing anything when no outbox is provided", async ()
 
   const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
   assert.equal(persisted?.changeSet.status, "reverted");
-  assert.equal(persisted?.changeSet.revertedAt, clock.nowIso());
+  assert.equal(persisted?.changeSet.revertedAt, new Date(clock.nowMs()).toISOString());
   await assert.rejects(
     () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
     ChangeSetInvalidStatusError,

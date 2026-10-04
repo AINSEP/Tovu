@@ -174,7 +174,17 @@ const CASES: readonly ModuleCase[] = [
       `GET ${W}/settings/events`,
     ],
   },
-  { name: "skills", create: () => createSkillsModule(noDeps), routes: [`GET ${W}/skills`] },
+  {
+    name: "skills", create: () => createSkillsModule(noDeps),
+    routes: [
+      `GET ${W}/skills`,
+      `GET ${W}/skills/:toolId/files`,
+      `POST ${W}/skills`,
+      `PATCH ${W}/skills/:toolId`,
+      `DELETE ${W}/skills/:toolId`,
+      `GET ${W}/skills/:toolId/guidance`,
+    ],
+  },
   {
     name: "taxonomy",
     create: () => createTaxonomyModule(noDeps),

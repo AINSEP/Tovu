@@ -23,12 +23,12 @@ test('a newly enqueued event cannot start another drain while the current delive
   let finish!: () => void;
   const held = new Promise<void>((resolve) => { finish = resolve; });
   const received: string[] = [];
-  await bus.subscribe('entry.updated', async (event) => {
+  await bus.subscribe({ eventName: 'entry.updated', handler: async (event) => {
     received.push(event.id);
     if (event.id === 'first') await held;
-  });
+  } });
   await outbox.enqueue({ id: 'first', name: 'entry.updated', workspaceId: 'ws', occurredAt: NOW, payload: {} });
-  const drainer = startOutboxDrainer({ outbox, bus, clock: { nowIso: () => NOW } }, { batchSize: 1, intervalMs: 10 });
+  const drainer = startOutboxDrainer({ outbox, bus, clock: { nowMs: () => Date.parse(NOW) } }, { batchSize: 1, intervalMs: 10 });
   t.after(async () => { finish(); await drainer.stop(); });
   t.mock.timers.tick(0);
   await tick();
@@ -51,7 +51,7 @@ test('an idle drainer does not keep its otherwise finished process alive', (t) =
   const script = `
     import { startOutboxDrainer } from ${JSON.stringify(new URL('../outbox-drainer.ts', import.meta.url).href)};
     import { InMemoryEventBus, InMemoryOutbox } from ${JSON.stringify(new URL('../memory-bus.ts', import.meta.url).href)};
-    startOutboxDrainer({ outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock: { nowIso: () => '${NOW}' } });
+    startOutboxDrainer({ outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock: { nowMs: () => Date.parse('${NOW}') } });
     process.stdout.write('ready\\n');
   `;
   const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval', script], {

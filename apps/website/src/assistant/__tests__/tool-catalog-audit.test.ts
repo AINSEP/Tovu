@@ -56,7 +56,7 @@ test("INCIDENT FIX: a search_tools call is durably recorded with its query lengt
   // "form definition" is unambiguous: both terms appear only in the two `forms_*` descriptions, not
   // in `identity_user_create`'s ("Creates a new human operator user.") — unlike a bare "create",
   // which FTS5's porter stemming also matches against "Creates".
-  const hits = catalog.search("form definition", 5);
+  const hits = catalog.search({ query: "form definition" }, { limit: 5 });
 
   // The wrapper must not alter what the caller sees.
   assert.deepEqual(hits.map((h) => h.id).sort(), ["forms_create_definition", "forms_update_definition"]);
@@ -82,7 +82,7 @@ test("a search_tools call that matches nothing still records the query length an
   const sink = createInMemoryToolAttemptAuditSink();
   const catalog = wrap(sink);
 
-  const hits = catalog.search("zzzzqqqwwwnothingmatchesthis", 10);
+  const hits = catalog.search({ query: "zzzzqqqwwwnothingmatchesthis" }, { limit: 10 });
 
   assert.deepEqual(hits, []);
   await Promise.resolve();
@@ -94,7 +94,7 @@ test("SECURITY: a search query containing a credential-shaped string is never st
   const catalog = wrap(sink);
 
   const secretQuery = "does sk-ant-abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 still work";
-  catalog.search(secretQuery, 5);
+  catalog.search({ query: secretQuery }, { limit: 5 });
 
   await Promise.resolve();
   const detail = String(sink.events[0].detail);
@@ -106,8 +106,8 @@ test("a describe_tool call records the requested id and whether it resolved", as
   const sink = createInMemoryToolAttemptAuditSink();
   const catalog = wrap(sink);
 
-  const found = catalog.describe("forms_create_definition");
-  const missing = catalog.describe("nonexistent_tool");
+  const found = catalog.describe({ id: "forms_create_definition" });
+  const missing = catalog.describe({ id: "nonexistent_tool" });
 
   assert.ok(found);
   assert.equal(missing, null);
@@ -132,8 +132,8 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
     { onSinkError: (e) => errors.push(e) },
   );
 
-  const hits = catalog.search("form", 5);
-  const entry = catalog.describe("forms_create_definition");
+  const hits = catalog.search({ query: "form" }, { limit: 5 });
+  const entry = catalog.describe({ id: "forms_create_definition" });
 
   assert.ok(hits.length > 0);
   assert.ok(entry);

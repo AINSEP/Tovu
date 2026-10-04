@@ -12,30 +12,30 @@ import { buildComponentCatalogQuery } from "../component-catalog-query.js";
 
 test("search finds the data-table providers by a capability-term match", () => {
   const catalog = buildComponentCatalogQuery();
-  const hits = catalog.search("data table").map((hit) => hit.id);
+  const hits = catalog.search({ query: "data table" }).map((hit) => hit.id);
   assert.ok(hits.includes("native.data-table"));
   assert.ok(hits.includes("shadcn.data-table"));
 });
 
 test("search returns an empty array, not an error, for no matches", () => {
   const catalog = buildComponentCatalogQuery();
-  assert.deepEqual(catalog.search("nonexistent-keyword-xyz"), []);
+  assert.deepEqual(catalog.search({ query: "nonexistent-keyword-xyz" }), []);
 });
 
 test("search respects the limit argument", () => {
   const catalog = buildComponentCatalogQuery();
-  const hits = catalog.search("data table", 1);
+  const hits = catalog.search({ query: "data table" }, { limit: 1 });
   assert.equal(hits.length, 1);
 });
 
 test("describe returns null for an unknown id", () => {
   const catalog = buildComponentCatalogQuery();
-  assert.equal(catalog.describe("no.such.component"), null);
+  assert.equal(catalog.describe({ id: "no.such.component" }), null);
 });
 
 test("describe returns the full entry, including a JSON-Schema propsSchema, for a known id", () => {
   const catalog = buildComponentCatalogQuery();
-  const entry = catalog.describe("native.data-table");
+  const entry = catalog.describe({ id: "native.data-table" });
   assert.ok(entry);
   assert.equal(entry.id, "native.data-table");
   assert.equal(entry.provider, "native");

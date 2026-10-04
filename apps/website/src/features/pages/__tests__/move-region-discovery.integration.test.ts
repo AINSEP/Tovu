@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createContributionRegistry } from "@jini-ai/core";
 
-import { createByokToolSurface } from "#src/assistant/index";
+import { createByokToolSurface, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
 import { registerInstalledExtensionTools } from "#src/server/runtime/composition/installed-extension-tools";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
@@ -20,8 +21,12 @@ const PRINCIPAL = { id: "admin-1", kind: "user" } as never;
 const RUN = { id: "run-move-discovery" } as never;
 
 function surface() {
-  installFirstPartyToolContributors();
-  return createByokToolSurface(fakeEvalRouteDeps() as never, { registerInstalledExtensions: registerInstalledExtensionTools });
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
+  return createByokToolSurface(fakeEvalRouteDeps() as never, { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string): Promise<string[]> {
@@ -32,7 +37,7 @@ async function rankedIds(query: string): Promise<string[]> {
 }
 
 test("the surface under test is the real, fully-installed catalog", () => {
-  assert.ok(surface().registry.list().length >= MIN_EXPECTED_TOOL_COUNT);
+  assert.ok(surface().registry.list({}).length >= MIN_EXPECTED_TOOL_COUNT);
 });
 
 const MOVE_PHRASINGS = [

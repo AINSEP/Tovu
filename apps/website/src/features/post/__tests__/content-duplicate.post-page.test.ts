@@ -48,7 +48,7 @@ function fakeRouteDeps(overrides: Record<string, unknown> = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
     outbox,
@@ -253,7 +253,7 @@ function withPagesHtmlStore(deps: PostToolDeps, postRepo: InMemoryPostRepo): Pos
   return {
     ...deps,
     pagesHtmlStore: (scope: { workspaceId: string; postId: string }) =>
-      new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock: { nowIso: () => NOW } }),
+      new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) } }),
   } as PostToolDeps;
 }
 

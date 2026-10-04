@@ -45,7 +45,7 @@ function makeService() {
     repo,
     outbox,
     hooks,
-    clock: { nowIso: () => "2026-07-16T01:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-07-16T01:00:00.000Z") },
     idGen: { newId: () => "event-1" },
     ...commentTrashDoubles(),
     forgetRemoved: async ({ workspaceId, id }) => { removedIndex.delete(`${workspaceId}:${id}`); },
@@ -74,7 +74,7 @@ test("approving a comment enqueues comments.approved and fires the statusChanged
   assert.equal(result.ok, true);
   assert.deepEqual(hookFired, { workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: "pending", toStatus: "approved" });
 
-  const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+  const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T01:00:00.000Z" });
   assert.equal(claimed.length, 1);
   assert.deepEqual(claimed[0].event, {
     id: "event-1", name: "comments.approved", occurredAt: "2026-07-16T01:00:00.000Z",
@@ -103,7 +103,7 @@ test("a conflict returns without enqueueing an event or firing the hook", async 
 
   assert.equal(result.ok, false);
   assert.equal(hookFired, false);
-  const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+  const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T01:00:00.000Z" });
   assert.equal(claimed.length, 0);
 });
 
@@ -116,7 +116,7 @@ test("purge enqueues comments.purged", async () => {
   const result = await service.purge({ workspaceId: WORKSPACE_ID, id: "comment-1", actorPrincipalId: "principal-1", note: "abuse" });
   assert.equal(result.ok, true);
 
-  const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+  const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T01:00:00.000Z" });
   assert.equal(claimed.length, 1);
   assert.equal(claimed[0].event.name, "comments.purged");
   assert.deepEqual([...removedIndex], ["other:comment-1"]);
@@ -139,7 +139,7 @@ test("a 'trash' action (no explicit event mapping needed beyond comments.trashed
     note: null,
   });
 
-  const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+  const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T01:00:00.000Z" });
   assert.equal(claimed.length, 1);
   assert.equal(claimed[0].event.name, "comments.trashed");
   assert.deepEqual(changed, [{ workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: "approved", toStatus: "trash" }]);
@@ -157,7 +157,7 @@ for (const scenario of [
     assert.deepEqual(await service.applyModeration({ workspaceId: WORKSPACE_ID, id: "comment-1",
       expectedVersion: 0, action: scenario.action, toStatus: scenario.to, actorPrincipalId: "principal-1", note: null }), { ok: true });
     assert.deepEqual(changed, [{ workspaceId: WORKSPACE_ID, commentId: "comment-1", fromStatus: scenario.from, toStatus: scenario.to }]);
-    const claimed = await outbox.claimPending(10, "2026-07-16T01:00:00.000Z");
+    const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T01:00:00.000Z" });
     assert.deepEqual(claimed.map((row) => row.event.name), scenario.event ? [scenario.event] : []);
   });
 }

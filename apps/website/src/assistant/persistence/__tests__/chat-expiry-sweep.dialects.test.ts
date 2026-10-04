@@ -79,9 +79,9 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
   test("deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats", async () => {
     const { kernel, guest, admin } = make();
     await guest.create({ id: "expired", expiresAt: T0 - 1 });
-    await guest.appendMessage("expired", { id: "m1", role: "user", content: "hi" });
+    await guest.appendMessage({ conversationId: "expired", message: { id: "m1", role: "user", content: "hi" } });
     await admin.create({ id: "expired-user", expiresAt: T0 - 1 });
-    await admin.appendMessage("expired-user", { id: "m2", role: "user", content: "hello" });
+    await admin.appendMessage({ conversationId: "expired-user", message: { id: "m2", role: "user", content: "hello" } });
     await kernel.run(async (db) => {
       for (const conversationId of ["expired", "expired-user"]) {
         await db.insertInto("assistant_agent_sessions").values({ conversation_id: conversationId, agent_id: "a", session_id: `s-${conversationId}`, updated_at: T0 }).execute();
@@ -95,17 +95,17 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
 
     assert.equal(await sweepExpiredChats(kernel, T0), 2);
 
-    assert.equal(await guest.get("expired"), null);
+    assert.equal(await guest.get({ id: "expired" }), null);
     assert.equal(await messageCount(kernel, "expired"), 0);
-    assert.equal(await admin.get("expired-user"), null);
+    assert.equal(await admin.get({ id: "expired-user" }), null);
     assert.equal(await messageCount(kernel, "expired-user"), 0);
     const remainingChildren = await kernel.run(async (db) => [
       ...await db.selectFrom("assistant_agent_sessions").select("conversation_id").execute(),
       ...await db.selectFrom("assistant_conversation_tool_approvals").select("conversation_id").execute(),
     ]);
     assert.deepEqual(remainingChildren, [], "sessions and approvals must cascade with the expired chats");
-    assert.notEqual(await guest.get("fresh"), null);
-    assert.notEqual(await admin.get("forever"), null);
+    assert.notEqual(await guest.get({ id: "fresh" }), null);
+    assert.notEqual(await admin.get({ id: "forever" }), null);
   });
 
   test("a chat expiring exactly now is swept; a second pass deletes nothing", async () => {
@@ -121,8 +121,8 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     const errors: unknown[] = [];
     const stop = startChatExpirySweep(kernel, { now: () => T0, intervalMs: 60_000, onError: (e) => errors.push(e) });
     try {
-      for (let i = 0; i < 50 && (await guest.get("expired")) !== null; i++) await new Promise((r) => setImmediate(r));
-      assert.equal(await guest.get("expired"), null);
+      for (let i = 0; i < 50 && (await guest.get({ id: "expired" })) !== null; i++) await new Promise((r) => setImmediate(r));
+      assert.equal(await guest.get({ id: "expired" }), null);
       assert.deepEqual(errors, []);
     } finally {
       await stop();
@@ -141,7 +141,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     assert.equal(stopped, false, "stop() must wait for the held pass");
     release();
     await stopping;
-    assert.equal(await guest.get("expired"), null, "the pass stop() waited for ran to completion");
+    assert.equal(await guest.get({ id: "expired" }), null, "the pass stop() waited for ran to completion");
   });
 
   test("a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again", async (t) => {
@@ -186,7 +186,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
       interval.tick();
       assert.equal(passes, 2, "a tick after completion must start another pass");
       await laterFinished;
-      assert.equal(await guest.get("expired-later"), null);
+      assert.equal(await guest.get({ id: "expired-later" }), null);
       assert.equal(maxActive, 1);
     } finally {
       release();
@@ -221,12 +221,12 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     try {
       await errorReported;
       assert.deepEqual(errors, [failure]);
-      assert.notEqual(await guest.get("expired-after-error"), null, "the failed pass must leave the chat present");
+      assert.notEqual(await guest.get({ id: "expired-after-error" }), null, "the failed pass must leave the chat present");
       await new Promise((resolve) => setImmediate(resolve));
       interval.tick();
       assert.equal(passes, 2, "failure must release the active-pass guard");
       await recoveryFinished;
-      assert.equal(await guest.get("expired-after-error"), null);
+      assert.equal(await guest.get({ id: "expired-after-error" }), null);
       assert.deepEqual(errors, [failure]);
     } finally {
       await stop();

@@ -31,7 +31,7 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
     db.close();
   });
 
@@ -40,8 +40,8 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-abc");
-    assert.equal(await store.getSessionId("c1", "claude"), "sess-abc");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), "sess-abc");
     db.close();
   });
 
@@ -50,10 +50,10 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-old");
-    await store.setSessionId("c1", "claude", "sess-new");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-old" });
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-new" });
 
-    assert.equal(await store.getSessionId("c1", "claude"), "sess-new");
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), "sess-new");
     const rowCount = db.prepare(`SELECT COUNT(*) AS n FROM assistant_agent_sessions`).get() as { n: number };
     assert.equal(rowCount.n, 1, "an upsert for the same pair must not leave a duplicate row");
     db.close();
@@ -64,11 +64,11 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-claude");
-    await store.setSessionId("c1", "codex", "sess-codex");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-claude" });
+    await store.setSessionId({ conversationId: "c1", agentId: "codex", sessionId: "sess-codex" });
 
-    assert.equal(await store.getSessionId("c1", "claude"), "sess-claude");
-    assert.equal(await store.getSessionId("c1", "codex"), "sess-codex");
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), "sess-claude");
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "codex" }), "sess-codex");
     db.close();
   });
 
@@ -77,7 +77,7 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-abc");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
     db.exec(`DELETE FROM ai_chats WHERE id = 'c1'`);
 
     const rowCount = db.prepare(`SELECT COUNT(*) AS n FROM assistant_agent_sessions`).get() as { n: number };
@@ -90,10 +90,10 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-dead");
-    await store.clearSessionId("c1", "claude");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-dead" });
+    await store.clearSessionId({ conversationId: "c1", agentId: "claude" });
 
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
     const rowCount = db.prepare(`SELECT COUNT(*) AS n FROM assistant_agent_sessions`).get() as { n: number };
     assert.equal(rowCount.n, 0, "clearSessionId must actually delete the row, not just make it unreadable");
     db.close();
@@ -104,12 +104,12 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await store.setSessionId("c1", "claude", "sess-claude");
-    await store.setSessionId("c1", "codex", "sess-codex");
-    await store.clearSessionId("c1", "claude");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-claude" });
+    await store.setSessionId({ conversationId: "c1", agentId: "codex", sessionId: "sess-codex" });
+    await store.clearSessionId({ conversationId: "c1", agentId: "claude" });
 
-    assert.equal(await store.getSessionId("c1", "claude"), null);
-    assert.equal(await store.getSessionId("c1", "codex"), "sess-codex", "clearing one agent's session must not touch a different agent on the same conversation");
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "codex" }), "sess-codex", "clearing one agent's session must not touch a different agent on the same conversation");
     db.close();
   });
 
@@ -118,8 +118,8 @@ describe("createSqliteAgentSessionStore", () => {
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
     const store = createSqliteAgentSessionStore(db);
 
-    await assert.doesNotReject(store.clearSessionId("c1", "claude"));
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    await assert.doesNotReject(store.clearSessionId({ conversationId: "c1", agentId: "claude" }));
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
     db.close();
   });
 });
@@ -127,45 +127,45 @@ describe("createSqliteAgentSessionStore", () => {
 describe("createInMemoryAgentSessionStore", () => {
   it("returns null for a pair with no stored session", async () => {
     const store = createInMemoryAgentSessionStore();
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
   });
 
   it("round-trips a stored session id", async () => {
     const store = createInMemoryAgentSessionStore();
-    await store.setSessionId("c1", "claude", "sess-abc");
-    assert.equal(await store.getSessionId("c1", "claude"), "sess-abc");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), "sess-abc");
   });
 
   it("does not let a concatenation-ambiguous id pair collide with a different pair", async () => {
     // ("a", "bc") and ("ab", "c") would collide under a naive `${a}${b}` join key.
     const store = createInMemoryAgentSessionStore();
-    await store.setSessionId("a", "bc", "sess-first");
-    await store.setSessionId("ab", "c", "sess-second");
+    await store.setSessionId({ conversationId: "a", agentId: "bc", sessionId: "sess-first" });
+    await store.setSessionId({ conversationId: "ab", agentId: "c", sessionId: "sess-second" });
 
-    assert.equal(await store.getSessionId("a", "bc"), "sess-first");
-    assert.equal(await store.getSessionId("ab", "c"), "sess-second");
+    assert.equal(await store.getSessionId({ conversationId: "a", agentId: "bc" }), "sess-first");
+    assert.equal(await store.getSessionId({ conversationId: "ab", agentId: "c" }), "sess-second");
   });
 
   it("gives two independent store instances two independent maps", async () => {
     const storeA = createInMemoryAgentSessionStore();
     const storeB = createInMemoryAgentSessionStore();
 
-    await storeA.setSessionId("c1", "claude", "sess-abc");
-    assert.equal(await storeB.getSessionId("c1", "claude"), null);
+    await storeA.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
+    assert.equal(await storeB.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
   });
 
   it("H1 regression: clearSessionId removes a stored id so the next getSessionId returns null", async () => {
     const store = createInMemoryAgentSessionStore();
-    await store.setSessionId("c1", "claude", "sess-dead");
+    await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-dead" });
 
-    await store.clearSessionId("c1", "claude");
+    await store.clearSessionId({ conversationId: "c1", agentId: "claude" });
 
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
   });
 
   it("clearSessionId is a silent no-op when nothing is stored for the pair", async () => {
     const store = createInMemoryAgentSessionStore();
-    await assert.doesNotReject(store.clearSessionId("c1", "claude"));
-    assert.equal(await store.getSessionId("c1", "claude"), null);
+    await assert.doesNotReject(store.clearSessionId({ conversationId: "c1", agentId: "claude" }));
+    assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
   });
 });

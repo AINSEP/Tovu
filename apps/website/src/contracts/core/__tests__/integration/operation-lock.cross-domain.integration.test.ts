@@ -20,7 +20,7 @@ import { acquireOperationLock, releaseOperationLock } from "../../operation-lock
  */
 
 test("U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for the same site, from simulated Database and Recovery callers, resolve to exactly one winner", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const siteId = "site-contested";
 
   // Simulate 6 "simultaneous" callers: 3 as if from Database's migrate-forward path,
@@ -50,7 +50,7 @@ test("U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for
 });
 
 test("U-001-B1 (property): for 50 independent sites, each site's own 4 concurrent attempts resolve independently to exactly one winner per site", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const siteIds = Array.from({ length: 50 }, (_, i) => `site-${i}`);
 
   const perSiteResults = await Promise.all(
@@ -71,7 +71,7 @@ test("U-001-B1 (property): for 50 independent sites, each site's own 4 concurren
 });
 
 test("U-001-ORD1: after a winning acquire and a subsequent release, a fresh acquire for the same site can win again (no permanent lockout)", async () => {
-  const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+  const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
   const siteId = "site-cycle";
 
   const first = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });

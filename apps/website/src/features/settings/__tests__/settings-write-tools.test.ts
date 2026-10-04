@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
-import type { ToolExecutionContext } from "@jini-ai/core";
+import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import { InMemorySettingsRepo, type SettingDefinitionRecord, type SettingsToolDeps } from "@jini-ai/cms/settings";
 import { contributeSettingsTools } from "../tool-registrations.js";
@@ -20,15 +20,16 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
   const settingsRepo = new InMemorySettingsRepo({ definitions: [definition] });
   const deps = {
     workspaceId: "ws-1", settingsRepo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
-    clock: { nowIso: () => definition.createdAt }, idGen: { newId: () => "unused" },
+    clock: { nowMs: () => Date.parse(definition.createdAt) }, idGen: { newId: () => "unused" },
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as SettingsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ newExchangeId: () => "exchange-1" });
   const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges });
-  const call = (toolId: string, input: Record<string, unknown>, extras: Partial<ToolExecutionContext> = {}) => {
+  const call = (toolId: string, input: Record<string, unknown>, extras: Partial<ToolExecutionContext> & ToolExecutionOptions = {}) => {
     const registration = registrations.find((r) => r.descriptor.id === toolId);
     assert.ok(registration, `expected '${toolId}' to be wired`);
-    return registration.handler({ executionId: "exec-1", principal: { id: "caller" }, run: { id: "run-1" }, signal: new AbortController().signal, input, ...extras });
+    const { emitSurface, ...contextExtras } = extras;
+    return registration.handler({ executionId: "exec-1", principal: { id: "caller" }, run: { id: "run-1" }, signal: new AbortController().signal, input, ...contextExtras }, { emitSurface });
   };
   return { settingsRepo, registrations, surfaceExchanges, call, deps };
 }
@@ -55,7 +56,7 @@ for (const [namespace, key] of [["core.privacy", "telemetry.metrics"], ["core.in
 for (const decision of ["confirm", "cancel", "typed"] as const) {
   test(`real card ${decision} reaches the held call; only confirm mutates privacy`, async () => {
     const f = fixture("core.privacy", "telemetry.metrics", { type: "boolean" });
-    const emitSurface: NonNullable<ToolExecutionContext["emitSurface"]> = async (emission) => {
+    const emitSurface: NonNullable<ToolExecutionOptions["emitSurface"]> = async (emission) => {
       assert.equal(emission.channel, "mcp-ui");
       assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 0);
       assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_clear_value", principalId: "caller", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });

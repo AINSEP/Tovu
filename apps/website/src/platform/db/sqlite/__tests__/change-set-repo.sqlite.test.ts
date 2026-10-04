@@ -61,7 +61,7 @@ function openRepo(): SqliteChangeSetRepo {
 
 test("actorId round-trips as undefined (not null) when the change set has no actor — the null side of `row.actorId ?? undefined`, never hit by any other suite's always-actored fixtures", async () => {
   const repo = openRepo();
-  await repo.insert(record({ actorId: undefined }), [item()]);
+  await repo.insert({ record: record({ actorId: undefined }), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
     assert.ok(found, "an actorless change set must still exist");
@@ -81,7 +81,7 @@ test("actorId round-trips as undefined (not null) when the change set has no act
 
 test("intentRef round-trips its value when present — every other suite's fixtures omit it, so only the null side had ever been reached", async () => {
   const repo = openRepo();
-  await repo.insert(record({ intentRef: "chat-message-42" }), [item()]);
+  await repo.insert({ record: record({ intentRef: "chat-message-42" }), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.changeSet.intentRef, "chat-message-42");
@@ -89,7 +89,7 @@ test("intentRef round-trips its value when present — every other suite's fixtu
 
 test("intentRef round-trips as undefined when absent", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item()]);
+  await repo.insert({ record: record(), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.changeSet.intentRef, undefined);
@@ -97,7 +97,7 @@ test("intentRef round-trips as undefined when absent", async () => {
 
 test("appliedAt round-trips as undefined for a change set that was never applied (status 'proposed') — the null side of `row.appliedAt ?? undefined`, never hit by any other suite's always-applied fixtures", async () => {
   const repo = openRepo();
-  await repo.insert(record({ status: "proposed", appliedAt: undefined }), [item()]);
+  await repo.insert({ record: record({ status: "proposed", appliedAt: undefined }), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.changeSet.status, "proposed");
@@ -106,7 +106,7 @@ test("appliedAt round-trips as undefined for a change set that was never applied
 
 test("revertedAt round-trips its value when supplied AT INSERT TIME (not via a later save()) — every other suite's insert() calls omit it and only set it through save()", async () => {
   const repo = openRepo();
-  await repo.insert(record({ status: "reverted", revertedAt: "2026-09-04T01:00:00.000Z" }), [item()]);
+  await repo.insert({ record: record({ status: "reverted", revertedAt: "2026-09-04T01:00:00.000Z" }), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.changeSet.revertedAt, "2026-09-04T01:00:00.000Z");
@@ -114,7 +114,7 @@ test("revertedAt round-trips its value when supplied AT INSERT TIME (not via a l
 
 test("save() persists an absent appliedAt as null, round-tripping to undefined — unreachable via revert.ts (the only production caller, which always supplies appliedAt), but a plain ChangeSetRepoPort.save() call is not restricted to that caller", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item()]);
+  await repo.insert({ record: record(), items: [item()] });
 
   await repo.save({ ...record(), status: "proposed", appliedAt: undefined });
 
@@ -125,7 +125,7 @@ test("save() persists an absent appliedAt as null, round-tripping to undefined �
 
 test("save() persists an absent revertedAt as null, round-tripping to undefined — same unreachable-from-revert.ts branch as appliedAt above, tested directly through the port", async () => {
   const repo = openRepo();
-  await repo.insert(record({ status: "reverted", revertedAt: "2026-09-04T01:00:00.000Z" }), [item()]);
+  await repo.insert({ record: record({ status: "reverted", revertedAt: "2026-09-04T01:00:00.000Z" }), items: [item()] });
 
   await repo.save({ ...record(), status: "applied", revertedAt: undefined });
 
@@ -136,7 +136,7 @@ test("save() persists an absent revertedAt as null, round-tripping to undefined 
 
 test("beforeRevisionId round-trips its value when present — a revisioned entity type's item ('Revision pointers for revisioned entity types', change-set.ts), never exercised by any suite's fixtures, which always omit it", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item({ beforeRevisionId: "rev-before-1" })]);
+  await repo.insert({ record: record(), items: [item({ beforeRevisionId: "rev-before-1" })] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.items[0].beforeRevisionId, "rev-before-1");
@@ -144,7 +144,7 @@ test("beforeRevisionId round-trips its value when present — a revisioned entit
 
 test("beforeRevisionId round-trips as undefined when absent", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item()]);
+  await repo.insert({ record: record(), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.items[0].beforeRevisionId, undefined);
@@ -152,7 +152,7 @@ test("beforeRevisionId round-trips as undefined when absent", async () => {
 
 test("afterRevisionId round-trips its value when present — same never-exercised branch as beforeRevisionId", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item({ afterRevisionId: "rev-after-1" })]);
+  await repo.insert({ record: record(), items: [item({ afterRevisionId: "rev-after-1" })] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.items[0].afterRevisionId, "rev-after-1");
@@ -160,7 +160,7 @@ test("afterRevisionId round-trips its value when present — same never-exercise
 
 test("afterRevisionId round-trips as undefined when absent", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [item()]);
+  await repo.insert({ record: record(), items: [item()] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.items[0].afterRevisionId, undefined);
@@ -168,9 +168,9 @@ test("afterRevisionId round-trips as undefined when absent", async () => {
 
 test("entityVersionAtApply round-trips as undefined for a 'create' item, which has no prior version — the null side of `row.entityVersionAtApply ?? undefined`, never hit by any other suite's always-versioned update fixtures", async () => {
   const repo = openRepo();
-  await repo.insert(record(), [
+  await repo.insert({ record: record(), items: [
     item({ operation: "create", entityVersionAtApply: undefined, inversePayload: undefined }),
-  ]);
+  ] });
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
   assert.equal(found?.items[0].entityVersionAtApply, undefined);

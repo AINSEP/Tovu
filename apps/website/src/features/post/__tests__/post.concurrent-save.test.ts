@@ -50,7 +50,7 @@ const seedPost: PostRecord = {
   version: 1,
 };
 
-const clock = { nowIso: () => "2026-09-07T01:00:00.000Z" };
+const clock = { nowMs: () => Date.parse("2026-09-07T01:00:00.000Z") };
 
 function bodyWith(text: string): UpdatePostInput["bodyJson"] {
   return { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] };
