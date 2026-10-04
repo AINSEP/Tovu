@@ -165,9 +165,11 @@ export async function seedBundledAgentPlugins(
 
   const pluginDirNames = await listBundledPluginDirs(sourceRoot);
   // The migration must finish before new installs, including bundled packages, are published.
+  // Rejected legacy entries are preserved in quarantine and count as handled. An incomplete run
+  // means a move/quarantine failed; a held lock also refuses seeding until migration can finish.
   try {
     const migration = await migrateSiteAgentPluginLayouts({ layout, workspaceId });
-    if (!migration.complete) throw new Error("Legacy plugin layout could not be fully migrated; see boot log");
+    if (!migration.complete) throw new Error("Legacy plugin layout migration has unfinished filesystem moves; see boot log");
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return { sourceRoot, outcomes: pluginDirNames.map(pluginId => ({ pluginId, status: "failed" as const, reason })), retirements: [] };

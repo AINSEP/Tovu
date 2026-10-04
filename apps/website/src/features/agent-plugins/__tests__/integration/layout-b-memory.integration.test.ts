@@ -14,6 +14,7 @@ import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../uninsta
 import { assertContainedOnDisk } from "../../package-paths.js";
 import { buildPluginMemoryRegistrations } from "../../memory-tools.js";
 import { forceRemove } from "../fixtures/force-remove.js";
+import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 
 const workspaceId = "workspace-local";
 async function fixture() {
@@ -189,12 +190,48 @@ test("migration resumes after interruption, isolates malformed manifests, and se
     const partial = await migratePluginLayout(input);
     assert.equal(partial.complete, false); assert.equal(partial.moved, 1);
     await assert.rejects(fs.stat(path.join(f.workspace.root, ".agent-plugin-layout-migrated")), { code: "ENOENT" });
-    assert.equal(await fs.readFile(path.join(broken, "plugin.json"), "utf8"), "bad json");
-    await fs.writeFile(path.join(broken, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "third" }));
+    await assert.rejects(fs.stat(broken), { code: "ENOENT" });
+    const quarantine = path.join(f.workspace.staging, "legacy-quarantine");
+    const [run] = await fs.readdir(quarantine);
+    assert.equal(await fs.readFile(path.join(quarantine, run!, "packages", "sha256", "c".repeat(64), "plugin.json"), "utf8"), "bad json");
     const results = await Promise.all([migratePluginLayout({ ...input, filesystem: fs }), migratePluginLayout({ ...input, filesystem: fs })]);
     assert.equal(results.every(result => result.complete), true);
-    assert.deepEqual(results.map(result => result.moved).sort(), [0, 2]);
-    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.pluginId).sort(), ["first", "second", "third"]);
+    assert.deepEqual(results.map(result => result.moved).sort(), [0, 1]);
+    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.pluginId).sort(), ["first", "second"]);
+  } finally { await forceRemove(f.temporary); }
+});
+
+test("malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next", async () => {
+  const f = await fixture();
+  try {
+    const sourceRoot = path.join(f.temporary, "bundled-source");
+    const pluginSource = path.join(sourceRoot, "example");
+    await fs.mkdir(path.join(pluginSource, "skills", "example"), { recursive: true });
+    await fs.writeFile(path.join(pluginSource, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "example", version: "1.0.0" }));
+    await fs.writeFile(path.join(pluginSource, "skills", "example", "SKILL.md"), "# Example\nGuidance.");
+    const broken = path.join(f.workspace.packages, "f".repeat(64));
+    await fs.mkdir(broken, { recursive: true });
+    await fs.writeFile(path.join(broken, "plugin.json"), "bad json");
+    const request = { layout: f.layout, workspaceId, sourceRoot };
+    const first = await seedBundledAgentPlugins(request);
+    assert.equal(first.outcomes.length, 1);
+    assert.equal(first.outcomes[0]?.status, "seeded");
+    assert.equal(first.ledgerFailure, undefined);
+    assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.workspace.root, ".agent-plugin-layout-migrated"), "utf8")), { layoutVersion: 2 });
+    await assert.rejects(fs.stat(broken), { code: "ENOENT" });
+    const quarantine = path.join(f.workspace.staging, "legacy-quarantine");
+    const runs = await fs.readdir(quarantine);
+    assert.equal(runs.length, 1);
+    const savedManifest = path.join(quarantine, runs[0]!, "packages", "sha256", "f".repeat(64), "plugin.json");
+    assert.equal(await fs.readFile(savedManifest, "utf8"), "bad json");
+    assert.deepEqual(await migrateAgentPluginLayout({ layout: f.layout, workspaceId }), { complete: true, moved: 0 });
+    const second = await seedBundledAgentPlugins(request);
+    assert.equal(second.outcomes.length, 1);
+    assert.equal(second.outcomes[0]?.status, "seeded");
+    assert.equal(second.ledgerFailure, undefined);
+    assert.deepEqual(await fs.readdir(quarantine), runs);
+    assert.equal(await fs.readFile(savedManifest, "utf8"), "bad json");
+    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(plugin => plugin.pluginId), ["example"]);
   } finally { await forceRemove(f.temporary); }
 });
 
