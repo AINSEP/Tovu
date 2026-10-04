@@ -383,7 +383,7 @@ function refusingExecutor(): { executor: ToolExecutor; executed: string[] } {
   return {
     executed,
     executor: {
-      execute: async (_principal, _run, toolId) => {
+      execute: async ({ toolId }) => {
         executed.push(toolId);
         return { executionId: "x", status: "completed", output: {} };
       },

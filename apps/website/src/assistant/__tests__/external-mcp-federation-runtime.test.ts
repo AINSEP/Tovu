@@ -53,7 +53,7 @@ function fakeRegistry(): ToolRegistry & { registered: ToolRegistration[] } {
       registered.push(registration);
       descriptors.push(registration.descriptor);
     },
-    has: (toolId: string) => descriptors.some((descriptor) => descriptor.id === toolId),
+    has: ({ toolId }: { toolId: string }) => descriptors.some((descriptor) => descriptor.id === toolId),
     list: () => descriptors,
   };
 }
@@ -333,8 +333,8 @@ test("a connect failure at boot is reported by connectFailures(), with reports()
  *  never overrides it (`mcp-federation/reload.ts`'s `runOnePass`) — while `attach` applies to both. */
 function attachFailing(failIds: ReadonlySet<string>) {
   return async (params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> => {
-    const reports: AttachFederatedToolsResult["reports"] = [];
-    const connectFailures: AttachFederatedToolsResult["connectFailures"] = [];
+    const reports: AttachFederatedToolsResult["reports"][number][] = [];
+    const connectFailures: AttachFederatedToolsResult["connectFailures"][number][] = [];
     for (const c of params.extraConnections ?? []) {
       if (failIds.has(c.config.connectionId)) {
         connectFailures.push({ connectionId: c.config.connectionId, reason: "boom" });

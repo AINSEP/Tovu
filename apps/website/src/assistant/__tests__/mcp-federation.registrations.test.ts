@@ -608,7 +608,7 @@ function fakeRegistry(seed: string[] = []): ToolRegistry & { registered: ToolReg
       registered.push(registration);
       descriptors.push(registration.descriptor);
     },
-    has: (toolId: string) => descriptors.some((descriptor) => descriptor.id === toolId),
+    has: ({ toolId }: { toolId: string }) => descriptors.some((descriptor) => descriptor.id === toolId),
     list: () => descriptors,
   };
 }
