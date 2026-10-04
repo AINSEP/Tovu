@@ -28,10 +28,12 @@ import { dirname, join } from "node:path";
 import { databaseFile } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel, type SqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
 import { contentKernel } from "../../platform/db/content-kernel.js";
-import { createDatabaseTransferTools, databaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
+import { createDatabaseTransferTools, getDatabaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
 import { TRANSFER_NAMING } from "./copy-engine.js";
 import { planChatSnapshotTables } from "./table-catalog.js";
-export { databaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
+import { TOVU_TRANSFER_MESSAGES } from "./transfer-messages.js";
+/** Tovu's copy and real schema names ('tovu', 'tovu_'), not Jini's neutral defaults ('the source', 'app'). */
+export const databaseTransferAgentToolCatalog = getDatabaseTransferAgentToolCatalog({}, { naming: TRANSFER_NAMING, messages: TOVU_TRANSFER_MESSAGES });
 /** Composition adapter; all moved transfer/tool rationale now lives in @jini-ai/db/{transfer,tools}. */
 const DOMAIN = "database-transfer";
 const PLAN_TOOL_ID = "database_transfer_plan";
@@ -114,7 +116,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,
     },
-  });
+  }, { messages: TOVU_TRANSFER_MESSAGES });
   return buildDomainRegistrations({ domain: DOMAIN, catalogModule: "features/database-transfer/tool-registrations.ts", catalog: CATALOG_BY_ID,
     handlers: withModelFacingErrors({ handlers: Object.fromEntries(tools.map(tool => [tool.descriptor.id, tool.handler])), rules: DATABASE_TRANSFER_MODEL_FACING_ERRORS }), derivedRisk: databaseTransferDerivedRisk });
 }

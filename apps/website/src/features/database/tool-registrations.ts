@@ -40,6 +40,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/cont
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
+import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
 import { executeMigrateForward } from "./migrate-forward/execute.js";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
 import {
@@ -142,7 +143,7 @@ export function buildDatabaseRegistrations(
     ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
     dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
-  });
+  }, { messages: TOVU_DATABASE_MESSAGES });
   const handlers: Record<string, ToolHandler> = {
     ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
 
