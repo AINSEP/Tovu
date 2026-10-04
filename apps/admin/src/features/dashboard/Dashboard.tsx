@@ -9,6 +9,7 @@ import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
+import { PublishBackstopSection } from "../publish-content/PublishBackstopSection";
 
 /**
  * @file Admin landing screen — markup only.
@@ -227,6 +228,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         </div>
       </div>
 
+      <PublishBackstopSection />
       {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 

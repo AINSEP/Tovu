@@ -31,6 +31,26 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     }
     return id;
   }
+  app.get(`${base}/backstop/status`, async (req, res) => {
+    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    try {
+      if (!(await actor(res))) return;
+      const audit = toPublishContentDeps(deps).backstop?.audit;
+      res.json({ allowed: true, installed: !!audit && await audit.ready() });
+    } catch { res.status(500).json({ error: "Manual publishing availability could not be read." }); }
+  });
+  app.get(`${base}/runs/:runId/backstop`, async (req, res) => {
+    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    try {
+      if (!(await actor(res))) return;
+      const audit = toPublishContentDeps(deps).backstop?.audit;
+      if (!audit || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
+      const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
+      if (!log || log.direction !== "destination") { res.status(404).json({ error: "This send was not found on this site." }); return; }
+      res.json({ runId: log.runId, reason: log.reason, items: log.items.map(({ entityType, id }) => ({ entityType, id })),
+        canUndo: log.result === "success" || (log.result === "failure" && log.inverses.length > 0) });
+    } catch { res.status(500).json({ error: "This send could not be read." }); }
+  });
   app.post(`${base}/backstop`, async (req, res) => {
     if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
     try {
@@ -40,7 +60,10 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
       const destination = await deps.publishContentPeerRepo.findById({ workspaceId: deps.workspaceId, id: peerId });
       if (!destination) { res.status(404).json({ error: "The connected live site was not found." }); return; }
       const host = new URL(destination.baseUrl).host;
-      const checked = validateBackstopRequest({ body: req.body, destinationHost: host });
+      // Checking is not the human confirmation. A supplied wrong host still fails, but the UI
+      // leaves this field empty until the operator has seen the plan. Send always requires it.
+      const checked = validateBackstopRequest({ body: req.body.action === "plan" && req.body.typedHost === undefined
+        ? { ...req.body, typedHost: host } : req.body, destinationHost: host });
       if ("error" in checked) { res.status(400).json({ error: checked.error, code: "VALIDATION_ERROR" }); return; }
       const projection = toPublishContentDeps(deps);
       const backstop = { ...projection.backstop!, selection: checked.request.selection };

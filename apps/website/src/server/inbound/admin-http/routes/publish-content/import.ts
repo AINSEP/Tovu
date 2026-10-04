@@ -24,6 +24,9 @@ import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#sr
 import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 import { toPublishContentReportDto } from "./report-dto.js";
+import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —
@@ -147,9 +150,31 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
 
+      const report = result.details as PublishContentReport;
+      let backstopPreview;
+      // The planner does not attach backstop metadata; the apply loop adds that to the durable
+      // run later. Detect raw rows themselves so the first manual plan also has a value review.
+      if (!report.refused && report.rows.some((row) => row.entityType === "raw-row" || row.entityType === "raw-file")) {
+        const projection = toPublishContentDeps(deps);
+        const authorized = withPublishTrustContentAuthorize(res, { authorize: deps.authorize }, registeredPublishTypePermissions(projection));
+        // A read-capable account cannot turn the raw plan into a private-data reader. Both the
+        // separate capability and each explicitly granted raw type are checked by this port.
+        const types = [...new Set(report.rows.map((row) => row.entityType))];
+        for (const publishType of types) {
+          const allowed = await authorized.authorize({ principalId: principal.id, permission: "publish.backstop", workspaceId: deps.workspaceId, publishType } as Parameters<typeof deps.authorize>[0]);
+          if (!allowed.allowed) { res.status(403).json({ error: "Manual publishing values are not available to this account.", code: "FORBIDDEN" }); return; }
+        }
+        const staged = await deps.publishContentBundleRepo.findById({ workspaceId: deps.workspaceId, id: bundleId });
+        if (staged && projection.backstop) {
+          const entities = JSON.parse(staged.entitiesJson) as PackedEntity[];
+          readBackstopMetadata({ entities });
+          backstopPreview = await buildBackstopPreview({ entities, backstop: projection.backstop, workspaceId: deps.workspaceId });
+        }
+      }
       res.json({
         ...result,
-        details: toPublishContentReportDto(result.details as PublishContentReport),
+        details: toPublishContentReportDto(report),
+        ...(backstopPreview === undefined ? {} : { backstopPreview }),
       });
     } catch (err) {
       const { status, code } = statusFor(err);
@@ -268,7 +293,18 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
           }),
       });
 
-      res.json(result);
+      // The manual result must name apply-time skips rather than repeat the dry-run prediction.
+      // Reading the audit after a successful mutation is advisory: a read failure must never
+      // turn an already applied send into an apparent failure and invite a duplicate retry.
+      let backstopReport;
+      try {
+        const audit = toPublishContentDeps(deps).backstop?.audit;
+        if (audit && await audit.ready()) {
+          const log = await audit.get({ workspaceId: deps.workspaceId, id: result.runId });
+          if (log?.direction === "destination" && log.details.report) backstopReport = toPublishContentReportDto(log.details.report as PublishContentReport);
+        }
+      } catch { /* The normal run and its persisted audit remain authoritative. */ }
+      res.json({ ...result, ...(backstopReport === undefined ? {} : { report: backstopReport }) });
     } catch (err) {
       const { status, code } = statusFor(err);
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
