@@ -1,8 +1,12 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { resolveAgentPluginActivation } = agentPluginActivations;
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { resolveAgentPluginActivation } from "./activation.js";
+
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import { assertContainedOnDisk, PackagePathViolation } from "./package-paths.js";
@@ -99,7 +103,7 @@ async function trustRefusal(
   workspaceRoot: string
 ): Promise<string | null> {
   if (query.requireActive) {
-    const activation = await resolveAgentPluginActivation(workspaceRoot, plugin.pluginId);
+    const activation = await resolveAgentPluginActivation({ workspaceRoot: workspaceRoot, pluginId: plugin.pluginId });
     if (activation.verdict === "inactive") return "inactive";
     if (activation.verdict === "undetermined") return `its activation could not be read (${activation.reason})`;
   }

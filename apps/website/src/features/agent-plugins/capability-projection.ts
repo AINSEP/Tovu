@@ -45,8 +45,8 @@
  */
 import { readFile } from "node:fs/promises";
 
-import type { AgentPluginMcpConfig, McpServerConfig } from "./manifest.js";
-import { parseAgentPluginMcpConfig } from "./manifest.js";
+import type { AgentPluginMcpConfig, McpServerConfig } from "./mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "./mcp-metadata.js";
 import { assertContainedOnDisk } from "./package-paths.js";
 
 /**
@@ -130,7 +130,7 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
   } catch {
     // Missing/malformed extensions cannot supply read trust; transport discovery still works.
   }
-  const result = parseAgentPluginMcpConfig(parsedJson, manifest);
+  const result = parseAgentPluginMcpConfig({ value: parsedJson }, { pluginManifest: manifest });
   return result.ok ? result.config : null;
 }
 

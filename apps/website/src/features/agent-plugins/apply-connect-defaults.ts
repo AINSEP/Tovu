@@ -27,7 +27,7 @@ import {
 } from "#src/assistant/index";
 
 import { findAgentPluginMcpServerDefaults, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
-import type { McpServerConfig } from "./manifest.js";
+import type { McpServerConfig } from "./mcp-metadata.js";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
 /** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant

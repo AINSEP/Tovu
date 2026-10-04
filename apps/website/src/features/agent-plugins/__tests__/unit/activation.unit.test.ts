@@ -1,22 +1,14 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { deleteAgentPluginActivation, filterActiveAgentPlugins, isAgentPluginActive, normalizeActivations, readAgentPluginActivations, recordBundledAgentPluginIfAbsent, resolveAgentPluginActivation, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import {
-  ACTIVATIONS_FILENAME,
-  AgentPluginActivationsUnreadableError,
-  deleteAgentPluginActivation,
-  filterActiveAgentPlugins,
-  isAgentPluginActive,
-  normalizeActivations,
-  readAgentPluginActivations,
-  recordBundledAgentPluginIfAbsent,
-  resolveAgentPluginActivation,
-  setAgentPluginActivation,
-  type AgentPluginActivations,
-} from "../../activation.js";
+import { ACTIVATIONS_FILENAME, AgentPluginActivationsUnreadableError, type AgentPluginActivations } from "@jini-ai/agent-plugins/lifecycle";
 
 /**
  * @file `activation.ts` — the record that makes "bundled but inactive" enforceable.
@@ -33,7 +25,7 @@ async function freshWorkspaceRoot(): Promise<string> {
 
 test("a plugin with NO record is active — an operator's own install keeps working", () => {
   const activations: AgentPluginActivations = { schemaVersion: 1, plugins: {} };
-  assert.equal(isAgentPluginActive(activations, "ui-ux-design"), true);
+  assert.equal(isAgentPluginActive({ activations: activations, pluginId: "ui-ux-design" }), true);
 });
 
 test("an explicit enabled:false record makes a plugin inactive", () => {
@@ -41,7 +33,7 @@ test("an explicit enabled:false record makes a plugin inactive", () => {
     schemaVersion: 1,
     plugins: { "site-compliance": { enabled: false, origin: "bundled", updatedAt: "2026-08-26T00:00:00.000Z", updatedBy: "system:seed" } },
   };
-  assert.equal(isAgentPluginActive(activations, "site-compliance"), false);
+  assert.equal(isAgentPluginActive({ activations: activations, pluginId: "site-compliance" }), false);
 });
 
 test("isAgentPluginActive: a plugin named for an Object.prototype member is active by absence, never an inherited value", () => {
@@ -50,8 +42,8 @@ test("isAgentPluginActive: a plugin named for an Object.prototype member is acti
   // file's `SAFE_PLUGIN_ID_PATTERN`), so a plain bag lookup (`activations.plugins["constructor"]`)
   // hands back `Object.prototype.constructor` instead of `undefined` — and `.enabled` on that
   // function is `undefined`, not the `true` this function's own doc promises for an absent record.
-  assert.equal(isAgentPluginActive(activations, "constructor"), true);
-  assert.equal(isAgentPluginActive(activations, "hasownproperty"), true);
+  assert.equal(isAgentPluginActive({ activations: activations, pluginId: "constructor" }), true);
+  assert.equal(isAgentPluginActive({ activations: activations, pluginId: "hasownproperty" }), true);
 });
 
 test("filterActiveAgentPlugins drops exactly the disabled ones, keeping order", () => {
@@ -64,7 +56,7 @@ test("filterActiveAgentPlugins drops exactly the disabled ones, keeping order", 
   };
   const items = [{ id: "a-plugin" }, { id: "site-compliance" }, { id: "turned-off" }, { id: "z-plugin" }];
   assert.deepEqual(
-    filterActiveAgentPlugins(activations, items, (item) => item.id).map((item) => item.id),
+    filterActiveAgentPlugins({ activations: activations, items: items, pluginIdOf: ({ item: item }) => item.id }).map((item) => item.id),
     ["a-plugin", "z-plugin"],
   );
 });
@@ -72,7 +64,7 @@ test("filterActiveAgentPlugins drops exactly the disabled ones, keeping order", 
 test("a workspace with no activations file reads as empty, not as an error", async () => {
   const root = await freshWorkspaceRoot();
   try {
-    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: root }), { schemaVersion: 1, plugins: {} });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -83,7 +75,7 @@ test("a corrupt activations file reads as empty for DISCOVERY — but the boot s
   try {
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), "{ not json at all", "utf8");
     // The lenient DISCOVERY read is unchanged — that half of the old test still holds.
-    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: root }), { schemaVersion: 1, plugins: {} });
 
     // What changed (t91 F1.1, 2026-09-16): the seeder's writer no longer launders that lenient view
     // into a fresh, rewritten file. It refuses outright, and the corrupt bytes are left exactly as
@@ -99,7 +91,7 @@ test("a corrupt activations file reads as empty for DISCOVERY — but the boot s
 });
 
 test("normalizeActivations drops malformed entries WITHOUT discarding the operator's good ones", () => {
-  const normalized = normalizeActivations({
+  const normalized = normalizeActivations({ value: {
     schemaVersion: 1,
     plugins: {
       good: { enabled: true, origin: "operator-installed", updatedAt: "2026-01-01T00:00:00.000Z", updatedBy: "op" },
@@ -108,7 +100,7 @@ test("normalizeActivations drops malformed entries WITHOUT discarding the operat
       "Bad Id": { enabled: false },
       "another-good": { enabled: false },
     },
-  });
+  } });
 
   assert.deepEqual(Object.keys(normalized.plugins).sort(), ["another-good", "good"]);
   assert.equal(normalized.plugins.good?.enabled, true);
@@ -119,7 +111,7 @@ test("normalizeActivations drops malformed entries WITHOUT discarding the operat
 });
 
 test("a wrong schemaVersion reads as empty rather than being interpreted under this version's rules", () => {
-  assert.deepEqual(normalizeActivations({ schemaVersion: 2, plugins: { x: { enabled: false } } }), { schemaVersion: 1, plugins: {} });
+  assert.deepEqual(normalizeActivations({ value: { schemaVersion: 2, plugins: { x: { enabled: false } } } }), { schemaVersion: 1, plugins: {} });
 });
 
 test("setAgentPluginActivation round-trips and leaves no temp file behind", async () => {
@@ -127,7 +119,7 @@ test("setAgentPluginActivation round-trips and leaves no temp file behind", asyn
   try {
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "site-compliance", enabled: true, actor: "cli:alice" });
 
-    const activations = await readAgentPluginActivations(root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: root });
     assert.equal(activations.plugins["site-compliance"]?.enabled, true);
     assert.equal(activations.plugins["site-compliance"]?.updatedBy, "cli:alice");
 
@@ -145,11 +137,11 @@ test("deleteAgentPluginActivation removes the record entirely — a subsequent r
 
     await deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" });
 
-    const activations = await readAgentPluginActivations(root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: root });
     assert.equal("my-plugin" in activations.plugins, false, "the deleted plugin's key must be absent, not present with enabled:false");
     assert.equal(activations.plugins["other-plugin"]?.enabled, true, "a sibling plugin's record must be untouched");
     // Absent now means active again — proves this really is a delete, not a disabled tombstone.
-    assert.equal(isAgentPluginActive(activations, "my-plugin"), true);
+    assert.equal(isAgentPluginActive({ activations: activations, pluginId: "my-plugin" }), true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -159,7 +151,7 @@ test("deleteAgentPluginActivation is a no-op, not an error, when no record exist
   const root = await freshWorkspaceRoot();
   try {
     await deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "never-recorded" });
-    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: root }), { schemaVersion: 1, plugins: {} });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -180,7 +172,7 @@ test("toggling preserves provenance — enabling a bundled plugin does not make 
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "site-compliance" });
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "site-compliance", enabled: true, actor: "cli:alice" });
 
-    const activations = await readAgentPluginActivations(root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: root });
     assert.equal(activations.plugins["site-compliance"]?.enabled, true);
     assert.equal(activations.plugins["site-compliance"]?.origin, "bundled");
   } finally {
@@ -199,7 +191,7 @@ test("recordBundledAgentPluginIfAbsent NEVER overwrites an existing decision —
       assert.equal(recorded, false);
     }
 
-    const activations = await readAgentPluginActivations(root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: root });
     assert.equal(activations.plugins["site-compliance"]?.enabled, true, "re-seeding must not re-disable what the operator enabled");
     assert.equal(activations.plugins["site-compliance"]?.updatedBy, "cli:alice");
   } finally {
@@ -212,7 +204,7 @@ test("recordBundledAgentPluginIfAbsent { enabled: true } writes an ENABLED bundl
   try {
     const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
     assert.equal(recorded, true);
-    const record = (await readAgentPluginActivations(root)).plugins.deploy;
+    const record = (await readAgentPluginActivations({ workspaceRoot: root })).plugins.deploy;
     assert.equal(record?.enabled, true);
     assert.equal(record?.origin, "bundled");
     assert.equal(record?.updatedBy, "system:seed");
@@ -225,11 +217,11 @@ test("recordBundledAgentPluginIfAbsent { enabled: true } upgrades the seeder's O
   const root = await freshWorkspaceRoot();
   try {
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" });
-    assert.equal((await readAgentPluginActivations(root)).plugins.deploy?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: root })).plugins.deploy?.enabled, false);
 
     const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
     assert.equal(recorded, true);
-    assert.equal((await readAgentPluginActivations(root)).plugins.deploy?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: root })).plugins.deploy?.enabled, true);
 
     const again = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
     assert.equal(again.recorded, false, "an enabled seed record is a decision already made");
@@ -246,7 +238,7 @@ test("recordBundledAgentPluginIfAbsent { enabled: true } NEVER re-enables a plug
 
     const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
     assert.equal(recorded, false);
-    const record = (await readAgentPluginActivations(root)).plugins.deploy;
+    const record = (await readAgentPluginActivations({ workspaceRoot: root })).plugins.deploy;
     assert.equal(record?.enabled, false);
     assert.equal(record?.updatedBy, "cli:alice");
   } finally {
@@ -299,7 +291,7 @@ test("the written file is human-readable JSON an operator can inspect", async ()
 test("resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent means active' rule is untouched", async () => {
   const root = await freshWorkspaceRoot();
   try {
-    assert.deepEqual(await resolveAgentPluginActivation(root, "never-recorded"), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "never-recorded" }), { verdict: "active" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -307,14 +299,14 @@ test("resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent mea
 
 test("resolveAgentPluginActivation: a workspace root that does not exist at all is ACTIVE, not a fault", async () => {
   const root = path.join(os.tmpdir(), `tovu-activation-missing-${process.pid}-${Date.now()}`);
-  assert.deepEqual(await resolveAgentPluginActivation(root, "never-installed-here"), { verdict: "active" });
+  assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "never-installed-here" }), { verdict: "active" });
 });
 
 test("resolveAgentPluginActivation: a well-formed file with no entry for THIS plugin is ACTIVE", async () => {
   const root = await freshWorkspaceRoot();
   try {
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "other-plugin", enabled: false, actor: "op-1" });
-    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" }), { verdict: "active" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -324,10 +316,10 @@ test("resolveAgentPluginActivation: an explicit record answers exactly what it s
   const root = await freshWorkspaceRoot();
   try {
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin", enabled: false, actor: "op-1" });
-    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "inactive" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" }), { verdict: "inactive" });
 
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin", enabled: true, actor: "op-1" });
-    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" }), { verdict: "active" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -338,12 +330,12 @@ test("resolveAgentPluginActivation: a file that is not valid JSON is UNDETERMINE
   try {
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), "{ this is not json", "utf8");
 
-    const verdict = await resolveAgentPluginActivation(root, "my-plugin");
+    const verdict = await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" });
     assert.equal(verdict.verdict, "undetermined", "a corrupt file must never be laundered into 'nothing recorded, therefore permitted'");
     assert.match(verdict.verdict === "undetermined" ? verdict.reason : "", /not valid JSON/);
 
     // The lenient reader's own behavior is unchanged — that divergence is the point, not a bug.
-    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: root }), { schemaVersion: 1, plugins: {} });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -353,13 +345,13 @@ test("resolveAgentPluginActivation: a wrong-shape or wrong-version envelope is U
   const root = await freshWorkspaceRoot();
   try {
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 2, plugins: {} }), "utf8");
-    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" })).verdict, "undetermined");
 
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify(["not", "an", "envelope"]), "utf8");
-    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" })).verdict, "undetermined");
 
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 1, plugins: "nope" }), "utf8");
-    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" })).verdict, "undetermined");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -376,11 +368,11 @@ test("resolveAgentPluginActivation: a malformed record for THIS plugin is UNDETE
 
     // This is exactly where the lenient reader would say "active": normalization drops the entry,
     // and an entry that is gone is an entry that was never there.
-    assert.equal(isAgentPluginActive(await readAgentPluginActivations(root), "my-plugin"), true);
+    assert.equal(isAgentPluginActive({ activations: await readAgentPluginActivations({ workspaceRoot: root }), pluginId: "my-plugin" }), true);
 
-    const verdict = await resolveAgentPluginActivation(root, "my-plugin");
+    const verdict = await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" });
     assert.equal(verdict.verdict, "undetermined", "a garbled decision about this plugin must not be read as consent");
-    assert.deepEqual(await resolveAgentPluginActivation(root, "good-plugin"), { verdict: "active" }, "a sibling's readable record still answers normally");
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "good-plugin" }), { verdict: "active" }, "a sibling's readable record still answers normally");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -392,8 +384,8 @@ test("resolveAgentPluginActivation: an id that names an Object.prototype member 
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 1, plugins: {} }), "utf8");
     // `constructor` and `tostring` both pass the plugin-name grammar, so a plain bag lookup would
     // hand back an inherited function instead of `undefined`.
-    assert.deepEqual(await resolveAgentPluginActivation(root, "constructor"), { verdict: "active" });
-    assert.deepEqual(await resolveAgentPluginActivation(root, "valueof"), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "constructor" }), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "valueof" }), { verdict: "active" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

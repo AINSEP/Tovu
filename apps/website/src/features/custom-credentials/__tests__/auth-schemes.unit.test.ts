@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../agent-plugins/activation-effects.js";
+const { setAgentPluginActivation } = agentPluginActivations;
 import { detectSelfDescribingAuthScheme, parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -7,7 +11,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
-import { setAgentPluginActivation } from "#src/features/agent-plugins/activation";
+
 import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";

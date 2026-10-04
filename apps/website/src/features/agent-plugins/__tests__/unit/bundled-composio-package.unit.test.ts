@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
@@ -26,7 +27,7 @@ async function readPackageJson(relativePath: string): Promise<unknown> {
 }
 
 test("plugin.json parses with no warnings and carries the words a user would search with", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   assert.equal(parsed.manifest.name, "composio");
@@ -38,7 +39,7 @@ test("plugin.json parses with no warnings and carries the words a user would sea
 });
 
 test("mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, no local execution)", async () => {
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   assert.deepEqual(parsed.config.serverIds, ["composio"]);

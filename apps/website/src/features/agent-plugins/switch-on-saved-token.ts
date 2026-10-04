@@ -1,8 +1,12 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { enableBundledAgentPluginUnlessOperatorDisabled, readAgentPluginActivations } = agentPluginActivations;
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpServerRepoPort } from "#src/assistant/index";
 
-import { enableBundledAgentPluginUnlessOperatorDisabled, readAgentPluginActivations } from "./activation.js";
+
 import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 
@@ -54,7 +58,7 @@ export interface SwitchOnSavedTokenDeps {
 
 /** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote. */
 async function defaultIsPluginOffByOperator(workspaceId: string, pluginId: string): Promise<boolean> {
-  const activations = await readAgentPluginActivations(resolveAgentPluginLayout().forWorkspace(workspaceId).root);
+  const activations = await readAgentPluginActivations({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(workspaceId).root });
   if (!Object.hasOwn(activations.plugins, pluginId)) return false;
   const record = activations.plugins[pluginId];
   return record.enabled === false && record.updatedBy !== SEED_ACTOR;
@@ -68,7 +72,7 @@ async function defaultIsPluginOffByOperator(workspaceId: string, pluginId: strin
  */
 async function defaultSwitchPluginOn(workspaceId: string, pluginId: string): Promise<boolean> {
   const workspaceRoot = resolveAgentPluginLayout().forWorkspace(workspaceId).root;
-  const activations = await readAgentPluginActivations(workspaceRoot);
+  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
   if (!Object.hasOwn(activations.plugins, pluginId)) return true;
   const record = activations.plugins[pluginId];
   if (record.enabled) return true;

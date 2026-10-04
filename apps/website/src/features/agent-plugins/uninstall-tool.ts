@@ -8,10 +8,7 @@ import {
   type ConfirmationOutcome,
 } from "../../contracts/core/tool-surface-exchanges.js";
 
-import {
-  AgentPluginActivationsBusyError,
-  AgentPluginActivationsUnreadableError,
-} from "./activation.js";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "./layout.js";
 import {
   AgentPluginChangedSincePreviewError,

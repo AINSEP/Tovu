@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -6,12 +10,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import {
-  ACTIVATIONS_FILENAME,
-  readAgentPluginActivations,
-  recordBundledAgentPluginIfAbsent,
-  setAgentPluginActivation,
-} from "../../activation.js";
+import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 import {
   BUNDLED_DIGESTS_FILENAME,
   readBundledAgentPluginDigests,
@@ -123,7 +122,7 @@ test("an ENABLED tovu-deploy-fly: its package, record and ledger entry go; deplo
     ]);
     assert.deepEqual(await installedIds(workspaceLayout.packages), [SUCCESSOR]);
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(Object.hasOwn(activations.plugins, RETIRED), false, "the retired plugin's record is deleted, not tombstoned");
     assert.equal(activations.plugins[SUCCESSOR]?.enabled, true);
 
@@ -148,7 +147,7 @@ test("an enabled tovu-deploy-fly switches on deploy's untouched disabled seed re
 
     assert.equal(outcome?.status, "retired");
     assert.equal(outcome?.status === "retired" && outcome.successor, "enabled");
-    const record = (await readAgentPluginActivations(workspaceLayout.root)).plugins[SUCCESSOR];
+    const record = (await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR];
     assert.equal(record?.enabled, true);
     assert.equal(record?.origin, "bundled");
     assert.equal(record?.updatedBy, "system:retire-tovu-deploy-fly");
@@ -166,7 +165,7 @@ test("an enabled tovu-deploy-fly with NO deploy record creates deploy's record e
     const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
 
     assert.equal(outcome?.status === "retired" && outcome.successor, "enabled");
-    assert.equal((await readAgentPluginActivations(workspaceLayout.root)).plugins[SUCCESSOR]?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR]?.enabled, true);
   } finally {
     await forceRemove(cwd);
   }
@@ -184,7 +183,7 @@ test("an operator-DISABLED deploy stays off and is reported, while tovu-deploy-f
     assert.equal(outcome?.status, "retired");
     assert.equal(outcome?.status === "retired" && outcome.successor, "left-disabled-by-operator");
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins[SUCCESSOR]?.enabled, false, "an operator's decision is never overridden");
     assert.equal(activations.plugins[SUCCESSOR]?.updatedBy, "test:operator");
     assert.equal(Object.hasOwn(activations.plugins, RETIRED), false);
@@ -199,12 +198,12 @@ test("a DISABLED tovu-deploy-fly is removed without touching deploy", async () =
   try {
     await seedPreRetirementWorkspace(layout, workspaceLayout.root);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: SUCCESSOR, enabled: false, actor: "test:operator" });
-    const deployBefore = (await readAgentPluginActivations(workspaceLayout.root)).plugins[SUCCESSOR];
+    const deployBefore = (await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR];
 
     const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
 
     assert.equal(outcome?.status === "retired" && outcome.successor, "not-needed");
-    assert.deepEqual((await readAgentPluginActivations(workspaceLayout.root)).plugins[SUCCESSOR], deployBefore);
+    assert.deepEqual((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR], deployBefore);
     assert.deepEqual(await installedIds(workspaceLayout.packages), [SUCCESSOR]);
   } finally {
     await forceRemove(cwd);
@@ -260,7 +259,7 @@ test("a record with no package left is deleted directly", async () => {
       ledgerEntryRemoved: false,
       successor: "not-needed",
     });
-    assert.equal(Object.hasOwn((await readAgentPluginActivations(workspaceLayout.root)).plugins, RETIRED), false);
+    assert.equal(Object.hasOwn((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins, RETIRED), false);
   } finally {
     await forceRemove(cwd);
   }

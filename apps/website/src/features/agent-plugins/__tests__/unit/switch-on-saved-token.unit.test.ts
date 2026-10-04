@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +12,7 @@ import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assis
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 import { switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
@@ -68,7 +72,7 @@ test("the seeder's default 'off' is switched on with the row, and only then repo
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });
-    const record = (await readAgentPluginActivations(workspaceRoot)).plugins[PLUGIN];
+    const record = (await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins[PLUGIN];
     assert.equal(record?.enabled, true);
     assert.equal(record?.updatedBy, "system:connect-defaults");
   });
@@ -79,7 +83,7 @@ test("an operator's own 'off' is kept and reported", async () => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "owner" });
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "plugin-off-by-operator" });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins[PLUGIN]?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins[PLUGIN]?.enabled, false);
   });
 });
 
@@ -87,7 +91,7 @@ test("no activation record reads as on and writes nothing", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });
-    assert.equal(Object.hasOwn((await readAgentPluginActivations(workspaceRoot)).plugins, PLUGIN), false);
+    assert.equal(Object.hasOwn((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins, PLUGIN), false);
   });
 });
 
@@ -106,7 +110,7 @@ test("the production fallback enables an untouched saved-token row with the inst
       principalId: "owner", provisionedByPluginId: "supabase",
     });
     const before = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.supabase?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, false);
     assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, externalMcpServerRepo: repo, clock }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal(row.enabled, true);
@@ -114,6 +118,6 @@ test("the production fallback enables an untouched saved-token row with the inst
     assert.deepEqual(JSON.parse(row.writeAllowedToolNames), ["confirm_cost", "create_project", "pause_project", "restore_project"]);
     assert.equal(row.writeGrantsUpdatedByPrincipalId, "system:connect-defaults");
     assert.deepEqual(row.sealedOAuth, before.sealedOAuth);
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.supabase?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, true);
   });
 });

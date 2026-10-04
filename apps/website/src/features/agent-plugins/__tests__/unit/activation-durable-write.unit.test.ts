@@ -15,7 +15,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
  * not a stub, so `setAgentPluginActivation` still genuinely succeeds and can be asserted on
  * afterwards too.
  *
- * Registered ONCE at module top level, before `activation.js` is imported (also once) — same
+ * Registered ONCE at module top level, before the host activation binding is imported (also once) — same
  * `mock.module()`-cannot-retroactively-rebind caveat as this directory's other mocked test files.
  */
 
@@ -40,7 +40,7 @@ const wrappedRename = (async (from: Parameters<typeof realFsp.rename>[0], to: Pa
 
 mock.module("node:fs/promises", { namedExports: { ...realFsp, open: wrappedOpen, rename: wrappedRename } });
 
-const { setAgentPluginActivation } = await import("../../activation.js");
+const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 
 async function freshRoot(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "tovu-activation-durable-"));

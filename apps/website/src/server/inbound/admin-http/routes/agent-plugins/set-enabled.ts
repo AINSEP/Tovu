@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "#src/features/agent-plugins/activation";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";

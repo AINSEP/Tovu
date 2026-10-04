@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { resolveAgentPluginActivation } = agentPluginActivations;
 /**
  * @file Resolves a run's pinned Agent Plugin refs (`pluginRefIds` — `run-start-context.ts`'s
  * decoded `contextRef` field, itself sourced from the composer's `pluginRefId` chips,
@@ -58,7 +62,7 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { resolveAgentPluginActivation, type AgentPluginActivationVerdict } from "./activation.js";
+import { type AgentPluginActivationVerdict } from "@jini-ai/agent-plugins/lifecycle";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "./bundled-digests.js";
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
@@ -135,7 +139,7 @@ export async function resolveAgentPluginRefs(
     // refuses on a corrupt/unreadable file instead of reading it as "nothing recorded" — injecting a
     // plugin's guidance SPENDS it exactly like a tool call, so this surface must refuse rather than
     // read a fault as consent.
-    const refusal = activationRefusal(pluginRefId, await resolveAgentPluginActivation(workspaceLayout.root, pluginRefId));
+    const refusal = activationRefusal(pluginRefId, await resolveAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: pluginRefId }));
     if (refusal !== undefined) return { ok: false, reason: refusal };
 
     const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode, bundledDigests);

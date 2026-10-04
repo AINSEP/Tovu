@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,10 +9,11 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 
@@ -28,14 +33,14 @@ async function readPackageJson(relativePath: string): Promise<unknown> {
 }
 
 test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "deploy");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
 test("mcp.json declares ZERO servers — hosts run in-process through the deploy-target registry", async () => {
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
 });
@@ -91,7 +96,7 @@ test("existing site: the seeder's own earlier DISABLED deploy record is switched
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "deploy" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.deploy?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.deploy?.enabled, true);
     assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID })).get("netlify")?.pluginId, "deploy");
   });
 });
@@ -103,7 +108,7 @@ test("an operator who switched deploy off stays switched off across boots", asyn
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.deploy?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.deploy?.enabled, false);
   });
 });
 
@@ -112,7 +117,7 @@ test("seeded by the real seeder, deploy is ENABLED with no user action and the r
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "deploy")?.status, "seeded");
 
-    const activations = await readAgentPluginActivations(layout.forWorkspace(WORKSPACE_ID).root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
     assert.equal(activations.plugins.deploy?.enabled, true, "publishing must keep working with zero user action");
     assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
 

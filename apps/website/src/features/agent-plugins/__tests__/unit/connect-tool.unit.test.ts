@@ -21,7 +21,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 import { runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
-import type { McpServerConfig } from "../../manifest.js";
+import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
  * @file `agent_plugin_connect`'s RED coverage for S-G1 (2026-09-27 Supabase-agent-plugin v2 plan,

@@ -1,10 +1,14 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { appendFile, chmod, cp, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { setAgentPluginActivation } from "../../activation.js";
+
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { listInstalledPlugins, resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
 import { resolveAgentPluginMcpServers } from "../../federate-mcp.js";

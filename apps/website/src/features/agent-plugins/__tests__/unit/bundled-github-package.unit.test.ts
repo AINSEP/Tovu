@@ -3,7 +3,8 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
@@ -45,14 +46,14 @@ async function readReference(name: string): Promise<string> {
 }
 
 test("plugin.json parses under the Agent Plugins v1.0.0 validator", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "github");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
 test("plugin.json's keywords carry the vocabulary that moved off the fly deploy procedure", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
   for (const expected of ["github", "commit", "actions", "github-actions", "workflow-dispatch", "ci", "secrets", "branch"]) {
@@ -61,7 +62,7 @@ test("plugin.json's keywords carry the vocabulary that moved off the fly deploy 
 });
 
 test("mcp.json declares ZERO servers — this plugin ships no server, it drives existing native tools", async () => {
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")));
+  const parsed = parseAgentPluginMcpConfig({ value: JSON.parse(await readPackageFile("mcp.json")) });
   assert.equal(parsed.ok, true);
   assert.deepEqual(
     parsed.ok ? parsed.config.serverIds : ["unreachable"],

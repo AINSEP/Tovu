@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { assertAgentPluginActivationsWritable, recordBundledAgentPluginIfAbsent } = agentPluginActivations;
 /**
  * @file `seedBundledAgentPlugins()` — installs the Agent Plugins that ship WITH Tovu into a
  * workspace's own package store, and records each one INACTIVE until an operator says otherwise
@@ -81,7 +85,7 @@ import type { Dirent } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { assertAgentPluginActivationsWritable, recordBundledAgentPluginIfAbsent } from "./activation.js";
+
 import { recordBundledAgentPluginDigests } from "./bundled-digests.js";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "./bundled-source-archive.js";
 import { installAgentPlugin } from "./install.js";
@@ -218,7 +222,7 @@ async function recordSeededDigests(
  *  @complexity One file read. */
 async function activationsRefusal(layout: AgentPluginLayout, workspaceId: string): Promise<string | undefined> {
   try {
-    await assertAgentPluginActivationsWritable(layout.forWorkspace(workspaceId).root);
+    await assertAgentPluginActivationsWritable({ workspaceRoot: layout.forWorkspace(workspaceId).root });
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);

@@ -6,7 +6,7 @@
  * an explicit decision. That is the whole point of the bundled-but-inactive model: the vendor
  * supplies the capability, the operator authorizes it.
  *
- * Thin composition over `src/features/agent-plugins/activation.ts` and `layout.ts` — no rule of its
+ * Thin composition over `@jini-ai/agent-plugins/lifecycle` through activation-effects.ts and `layout.ts` (the activation.ts fork was deleted) — no rule of its
  * own. Every guarantee (tenant-scoped path resolution, atomic write, provenance preservation) lives
  * there and is exercised unchanged here.
  *
@@ -18,13 +18,10 @@
  * `list` shows every installed package alongside its activation state, so an operator can see what
  * shipped without having to already know its id.
  */
-import {
-  isAgentPluginActive,
-  readAgentPluginActivations,
-  setAgentPluginActivation,
-} from "../../src/features/agent-plugins/activation.js";
-import { resolveAgentPluginLayout } from "../../src/features/agent-plugins/layout.js";
-import { listInstalledPlugins } from "../../src/features/agent-plugins/resolve-agent-plugin-refs.js";
+import { agentPluginActivations } from "../../apps/website/src/features/agent-plugins/activation-effects.js";
+const { isAgentPluginActive, readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
+import { resolveAgentPluginLayout } from "../../apps/website/src/features/agent-plugins/layout.js";
+import { listInstalledPlugins } from "../../apps/website/src/features/agent-plugins/resolve-agent-plugin-refs.js";
 
 const USAGE =
   "Usage: npx tsx development/scripts/agent-plugin-activation.ts list    --workspace <uuid>\n" +
@@ -40,7 +37,7 @@ interface ParsedArgs {
 }
 
 /** Pure token classification, split from validation so the two are separately readable — the same
- *  split `install-agent-plugin.ts` already makes. */
+ *  split the removed `install-agent-plugin.ts` made (see development/DELETED-CODE.md). */
 export function parseActivationArgs(args: readonly string[]): ParsedArgs | { readonly error: string } {
   const positional: string[] = [];
   let workspaceId: string | undefined;
@@ -88,7 +85,7 @@ async function main(): Promise<void> {
 
   if (parsed.command === "list") {
     const installed = await listInstalledPlugins(workspaceLayout.packages);
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
 
     if (installed.length === 0) {
       console.log(`No Agent Plugins are installed for workspace ${parsed.workspaceId}.`);
@@ -97,7 +94,7 @@ async function main(): Promise<void> {
 
     for (const plugin of installed) {
       const record = activations.plugins[plugin.pluginId];
-      const state = isAgentPluginActive(activations, plugin.pluginId) ? "ACTIVE  " : "INACTIVE";
+      const state = isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }) ? "ACTIVE  " : "INACTIVE";
       const provenance = record === undefined ? "operator-installed (no explicit record)" : `${record.origin}, set by ${record.updatedBy} at ${record.updatedAt}`;
       console.log(`${state}  ${plugin.pluginId}  [${plugin.archiveDigest.slice(0, 12)}]  ${provenance}`);
     }

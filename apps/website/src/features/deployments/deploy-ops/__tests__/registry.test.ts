@@ -33,7 +33,7 @@ test("installed deploy package must be active and match the bundled digest", asy
   const { installAgentPlugin } = await import("../../../agent-plugins/install.js");
   const { resolveAgentPluginLayout } = await import("../../../agent-plugins/layout.js");
   const { recordBundledAgentPluginDigests } = await import("../../../agent-plugins/bundled-digests.js");
-  const { setAgentPluginActivation } = await import("../../../agent-plugins/activation.js");
+  const { setAgentPluginActivation } = (await import("../../../agent-plugins/activation-effects.js")).agentPluginActivations;
   const { loadDeployOpsRegistry } = await import("../registry.js");
   const root = await mkdtemp(path.join(tmpdir(), "t01-ops-installed-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;

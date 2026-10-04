@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
@@ -16,12 +20,7 @@ import {
   runAgentPluginSetAccessToken,
   type AgentPluginAccessTokenToolDeps,
 } from "./access-token-tool.js";
-import {
-  filterActiveAgentPlugins,
-  isAgentPluginActive,
-  readAgentPluginActivations,
-  resolveAgentPluginActivation,
-} from "./activation.js";
+
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
@@ -439,8 +438,8 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
   // BEFORE the ambiguity check below on purpose: two installed digests of a plugin nobody has
   // enabled is not an operator-actionable error, and throwing on it would let a dormant, disabled
   // package break tool registration for every OTHER plugin in the workspace.
-  const activations = await readAgentPluginActivations(workspaceLayout.root);
-  const active = filterActiveAgentPlugins(activations, installed, (plugin) => plugin.pluginId);
+  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
+  const active = filterActiveAgentPlugins({ activations: activations, items: installed, pluginIdOf: ({ item: plugin }) => plugin.pluginId });
 
   const digestByPluginId = new Map<string, string>();
   // Keyed by pluginId (not a plain array) so a LATER conflicting digest can retract an EARLIER
@@ -683,7 +682,7 @@ export function createAgentPluginToolGate(ctx: { readonly workspaceId: string })
     async isCallable(plugin: AgentPluginToolIdentity): Promise<boolean> {
       // Activation FIRST, installation SECOND — the reverse of uninstall's own order. See the
       // REVOCATION note above for why that ordering is what closes the concurrent-uninstall window.
-      const activation = await resolveAgentPluginActivation(workspaceLayout.root, plugin.pluginId);
+      const activation = await resolveAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: plugin.pluginId });
       if (activation.verdict === "undetermined") {
         // The error surface fail-CLOSED is supposed to lack: an operator whose activations file is
         // damaged gets a denial they can see the cause of, next to the daemon's own `denied` record.
@@ -969,7 +968,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     await listInstalledPlugins(workspaceLayout.packages),
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
-  const activations = await readAgentPluginActivations(workspaceLayout.root);
+  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
 
   const seenPluginIds = new Set<string>();
   const candidates: AgentPluginSearchCandidate[] = [];
@@ -995,7 +994,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
         ...(plugin.version !== undefined ? { version: plugin.version } : {}),
         ...(plugin.description !== undefined ? { description: plugin.description } : {}),
         keywords: plugin.keywords ?? [],
-        enabled: isAgentPluginActive(activations, plugin.pluginId),
+        enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),
         skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
         mcpServerIds,
       });

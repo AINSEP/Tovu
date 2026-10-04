@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { parseAgentPluginMcpConfig } from "../manifest.js";
+import { parseAgentPluginMcpConfig } from "../mcp-metadata.js";
 
 function parseDefaults(tovuDefaultTools: unknown) {
-  const result = parseAgentPluginMcpConfig({
+  const result = parseAgentPluginMcpConfig({ value: {
     $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } },
-  }, { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fixture",
-    extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools } } } } });
+  } }, { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fixture",
+    extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools } } } } } });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error(result.errors.join("; "));
   return result.config.servers.remote;
@@ -48,7 +48,7 @@ test("bundled Higgsfield declares only the two evidenced read tools and no sign-
   assert.deepEqual(Object.keys(raw.mcpServers.higgsfield).sort(), ["type", "url"]);
   const manifest = JSON.parse(await readFile(new URL("../../../../../../content/agent-plugins/higgsfield-media/plugin.json", import.meta.url), "utf8"));
   assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, { read: ["models_explore", "job_status"] });
-  const parsed = parseAgentPluginMcpConfig(raw, manifest);
+  const parsed = parseAgentPluginMcpConfig({ value: raw }, { pluginManifest: manifest });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid bundle");
   assert.equal(parsed.config.servers.higgsfield?.tovuAuthMode, "oauth");
@@ -56,17 +56,16 @@ test("bundled Higgsfield declares only the two evidenced read tools and no sign-
 
 
 test("legacy mcp.json fields cannot supply operator read trust", () => {
-  const parsed = parseAgentPluginMcpConfig({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools: { allow: ["inspect"], read: ["inspect"] } } } });
+  const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools: { allow: ["inspect"], read: ["inspect"] } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   assert.deepEqual(parsed.config.servers.remote?.tovuDefaultTools?.read, []);
 });
 
 test("an invalid plugin manifest cannot supply read trust", () => {
-  const parsed = parseAgentPluginMcpConfig({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } } },
-    { name: "fixture", extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } });
+  const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } } } }, { pluginManifest: { name: "fixture", extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   assert.equal(parsed.config.servers.remote?.tovuDefaultTools, undefined);

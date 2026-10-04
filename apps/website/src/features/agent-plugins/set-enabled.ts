@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { setAgentPluginActivation } = agentPluginActivations;
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:
  * verify the id is actually installed in this workspace, then write the activation record.
@@ -34,7 +38,7 @@
  * `features/agent-plugins` business rule. Filesystem only, via `layout.ts`'s `forWorkspace()` root —
  * the same tenant-isolation guarantee every other path in this feature goes through.
  */
-import { setAgentPluginActivation } from "./activation.js";
+
 import { resolveAgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 

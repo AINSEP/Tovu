@@ -3,7 +3,8 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 
 /**
  * @file The `site-compliance` bundled Agent Plugin's package is VALID and, more importantly, still
@@ -33,14 +34,14 @@ async function readPackageFile(relativePath: string): Promise<string> {
 }
 
 test("plugin.json parses under the Agent Plugins v1.0.0 validator", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "site-compliance");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
 test("plugin.json's keywords carry the vocabulary an operator would actually search for", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
   for (const expected of ["gdpr", "ccpa", "cookie", "consent", "accessibility", "wcag", "privacy"]) {
@@ -49,7 +50,7 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
 });
 
 test("mcp.json declares ZERO servers — plugin-declared MCP servers cannot execute in this codebase", async () => {
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")));
+  const parsed = parseAgentPluginMcpConfig({ value: JSON.parse(await readPackageFile("mcp.json")) });
   assert.equal(parsed.ok, true);
   assert.deepEqual(
     parsed.ok ? parsed.config.serverIds : ["unreachable"],

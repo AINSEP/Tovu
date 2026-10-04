@@ -6,7 +6,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { deriveAgentPluginConnectionId, planAgentPluginMcpFederation, provisionAgentPluginMcpServers } from "../../federate-mcp.js";
-import type { McpServerConfig } from "../../manifest.js";
+import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
  * @file `federate-mcp.ts` — Phase 4 of the 2026-09-10 plugin-MCP-wiring work, rewritten against the

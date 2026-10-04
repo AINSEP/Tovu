@@ -9,7 +9,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 import { readInstalledSkillMarkdown } from "../../capability-projection.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 
 /**
  * @file End-to-end proof that layout + install + manifest + capability-projection compose into one
@@ -80,7 +80,7 @@ test("install -> parse mcp.json -> read installed files through the containment 
     // proving `readInstalledSkillMarkdown`'s containment primitive generalizes to any installed file,
     // not only the one path shape its own unit tests exercise.
     const mcpConfigRaw = await readInstalledSkillMarkdown(installed.packageRoot, "mcp.json");
-    const parsedMcp = parseAgentPluginMcpConfig(JSON.parse(mcpConfigRaw));
+    const parsedMcp = parseAgentPluginMcpConfig({ value: JSON.parse(mcpConfigRaw) });
     assert.equal(parsedMcp.ok, true);
     const mcpServerIds = parsedMcp.ok ? parsedMcp.config.serverIds : [];
     assert.deepEqual(mcpServerIds, ["main"]);

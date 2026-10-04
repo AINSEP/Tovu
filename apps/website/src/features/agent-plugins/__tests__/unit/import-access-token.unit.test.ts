@@ -20,7 +20,7 @@ import {
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 import { forceRemove } from "../fixtures/force-remove.js";
-import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../manifest.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
 
 /**
  * @file `import-access-token.ts`: a token that did not come through the paste form (the retired
@@ -267,7 +267,7 @@ test("env import never sends the token to a row pointed at a URL the bundled plu
 });
 
 test("manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server", () => {
-  const good = parseAgentPluginMcpConfig({
+  const good = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA,
     mcpServers: {
       s: {
@@ -276,7 +276,7 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
         tovuTokenAuth: { helpUrl: "https://example.com/t", probeUrl: "https://example.com/p", importFromEnv: "OLD_TOKEN", retiredEnv: ["OLD_A"] },
       },
     },
-  });
+  } });
   assert.ok(good.ok);
   const server = good.ok ? good.config.servers.s : undefined;
   assert.ok(server && server.type !== "stdio");
@@ -287,12 +287,12 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
     retiredEnv: ["OLD_A"],
   });
 
-  const bad = parseAgentPluginMcpConfig({
+  const bad = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA,
     mcpServers: {
       s: { type: "streamable-http", url: "https://example.com/mcp", tovuTokenAuth: { helpUrl: "https://example.com/t", probeUrl: "https://example.com/p", importFromEnv: "lower case" } },
     },
-  });
+  } });
   assert.ok(bad.ok);
   assert.equal(bad.ok ? bad.config.servers.s : "x", undefined);
 });

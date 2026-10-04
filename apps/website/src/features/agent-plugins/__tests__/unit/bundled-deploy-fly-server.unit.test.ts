@@ -5,7 +5,7 @@ import test from "node:test";
 import { parse as parseToml } from "smol-toml";
 import { load as parseYaml } from "js-yaml";
 
-import { parseAgentPluginManifest } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
@@ -46,7 +46,7 @@ test("the old tovu-deploy-fly package is gone — retire-bundled.ts removes it f
 });
 
 test("plugin.json still parses and carries the fly vocabulary an operator would search for", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "deploy");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);

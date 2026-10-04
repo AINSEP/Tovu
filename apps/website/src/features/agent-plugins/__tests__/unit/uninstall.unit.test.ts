@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmod, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
@@ -6,7 +10,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { ACTIVATIONS_FILENAME, readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import {
@@ -102,7 +106,7 @@ test("refuses a bundled plugin with AgentPluginNotUninstallableError, naming the
     const stillPublished = await stat(installed.packageRoot);
     assert.equal(stillPublished.isDirectory(), true, "a refused uninstall must not touch the on-disk package");
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["site-compliance"]?.origin, "bundled", "the bundled activation record must survive a refusal");
   } finally {
     await forceRemove(cwd);
@@ -181,7 +185,7 @@ test("uninstalls an operator-installed plugin: removes the package root and dele
     await assert.rejects(() => stat(installed.packageRoot), "the package root must actually be gone from disk");
     assert.deepEqual(await readdir(workspaceLayout.packages).catch(() => []), [], "no digest directory for this plugin may remain");
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(
       "my-custom-plugin" in activations.plugins,
       false,
@@ -198,7 +202,7 @@ test("uninstalls an operator-installed plugin that was NEVER explicitly toggled 
   try {
     const installed = await installTestPackage(instanceLayout, "never-toggled", "archive-never-toggled");
 
-    const activationsBefore = await readAgentPluginActivations(workspaceLayout.root);
+    const activationsBefore = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal("never-toggled" in activationsBefore.plugins, false, "sanity: a fresh install has no activation record yet");
 
     const result = await uninstallAgentPlugin({ layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "never-toggled" });
@@ -270,7 +274,7 @@ test("a failed uninstall puts every staged package tree back — no digest is le
       "the rollback must restore the original digest names and leave no staged directory behind",
     );
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["multi-digest"]?.enabled, true, "the activation record must survive, so it still describes real bytes");
   } finally {
     await forceRemove(cwd);
@@ -312,7 +316,7 @@ test("previewAgentPluginUninstall names what would be removed — id, versions, 
     assert.deepEqual(preview, { pluginId: "preview-me", versions: ["1.0.0"], archiveDigests: [installed.archiveDigest] });
     assert.equal(JSON.stringify(preview).includes(cwd), false, "the preview feeds a confirmation dialog; it must carry no host path");
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "a preview must not remove the package");
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["preview-me"]?.enabled, true, "a preview must not touch the activation record");
   } finally {
     await forceRemove(cwd);
@@ -363,7 +367,7 @@ test("a confirmed preview refuses — removing nothing — when an archive for t
     assert.equal((await stat(first.packageRoot)).isDirectory(), true);
     assert.equal((await stat(second.packageRoot)).isDirectory(), true);
     assert.deepEqual((await readdir(workspaceLayout.packages)).sort(), [first.archiveDigest, second.archiveDigest].sort());
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["changed-plugin"]?.enabled, false);
   } finally {
     await forceRemove(cwd);

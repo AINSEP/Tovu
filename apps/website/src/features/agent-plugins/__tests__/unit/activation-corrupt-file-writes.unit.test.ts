@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, resolveAgentPluginActivation, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -7,14 +11,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import {
-  AgentPluginActivationsUnreadableError,
-  assertAgentPluginActivationsWritable,
-  deleteAgentPluginActivation,
-  recordBundledAgentPluginIfAbsent,
-  resolveAgentPluginActivation,
-  setAgentPluginActivation,
-} from "../../activation.js";
+import { AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
@@ -137,7 +134,7 @@ test("recordBundledAgentPluginIfAbsent refuses a corrupt file and never rewrites
       AgentPluginActivationsUnreadableError,
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), CORRUPT, "the corrupt file must be left byte-for-byte untouched");
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }
@@ -153,7 +150,7 @@ test("setAgentPluginActivation refuses a corrupt file even when toggling an UNRE
       AgentPluginActivationsUnreadableError,
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), CORRUPT);
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }
@@ -204,8 +201,8 @@ test("recordBundledAgentPluginIfAbsent for a DIFFERENT plugin preserves a malfor
 
     const raw = JSON.parse(await readFile(path.join(root, "activations.json"), "utf8")) as { plugins: Record<string, unknown> };
     assert.deepEqual(raw.plugins["evil-plugin"], { enabled: "no" }, "the malformed entry must survive a write to a different plugin, untouched");
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
-    assert.equal((await resolveAgentPluginActivation(root, "good-plugin")).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "good-plugin" })).verdict, "inactive");
   } finally {
     await forceRemove(root);
   }
@@ -221,7 +218,7 @@ test("recordBundledAgentPluginIfAbsent treats a present-but-malformed entry as a
 
     const raw = JSON.parse(await readFile(path.join(root, "activations.json"), "utf8")) as { plugins: Record<string, unknown> };
     assert.deepEqual(raw.plugins["evil-plugin"], { enabled: "no" });
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }
@@ -234,10 +231,10 @@ test("setAgentPluginActivation for a DIFFERENT plugin preserves a malformed sibl
 
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "good-plugin", enabled: true, actor: "op-2" });
 
-    assert.equal((await resolveAgentPluginActivation(root, "good-plugin")).verdict, "active");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "good-plugin" })).verdict, "active");
     const raw = JSON.parse(await readFile(path.join(root, "activations.json"), "utf8")) as { plugins: Record<string, unknown> };
     assert.deepEqual(raw.plugins["evil-plugin"], { enabled: "no" }, "toggling a sibling must not drop the malformed entry");
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }
@@ -261,7 +258,7 @@ test("GUARD: seedBundledAgentPlugins still seeds normally against an ABSENT file
     assert.equal((result.outcomes[0] as { pluginId: string }).pluginId, "mini-bundled");
     assert.equal((result.outcomes[0] as { activationRecorded: boolean }).activationRecorded, true);
     assert.equal(
-      (await resolveAgentPluginActivation(layout.forWorkspace(WORKSPACE_ID).root, "mini-bundled")).verdict,
+      (await resolveAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: "mini-bundled" })).verdict,
       "inactive",
     );
   } finally {
@@ -371,8 +368,8 @@ test("two concurrent disables of DIFFERENT plugins both land — neither write e
         ["fulfilled", "fulfilled"],
         `round ${round}: a concurrent toggle must not fail`,
       );
-      assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive", `round ${round}: plugin-a's disable was erased`);
-      assert.equal((await resolveAgentPluginActivation(root, "plugin-b")).verdict, "inactive", `round ${round}: plugin-b's disable was erased`);
+      assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "inactive", `round ${round}: plugin-a's disable was erased`);
+      assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b" })).verdict, "inactive", `round ${round}: plugin-b's disable was erased`);
     } finally {
       await forceRemove(root);
     }
@@ -395,8 +392,8 @@ test("a burst of concurrent operator toggles and seeder records in one process k
       "no concurrent write may throw",
     );
     for (let index = 0; index < 6; index++) {
-      assert.equal((await resolveAgentPluginActivation(root, `operator-${index}`)).verdict, "inactive", `operator-${index}'s disable was erased`);
-      assert.equal((await resolveAgentPluginActivation(root, `bundled-${index}`)).verdict, "inactive", `bundled-${index}'s seed record was erased`);
+      assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: `operator-${index}` })).verdict, "inactive", `operator-${index}'s disable was erased`);
+      assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: `bundled-${index}` })).verdict, "inactive", `bundled-${index}'s seed record was erased`);
     }
   } finally {
     await forceRemove(root);
@@ -438,7 +435,7 @@ test("T17: a lock left by a dead pid does not block setAgentPluginActivation", a
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" });
     assert.ok(Date.now() - start < 5000, "a dead-holder lock must be broken at once, not waited out");
 
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "inactive");
     await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
   } finally {
     await forceRemove(root);
@@ -455,7 +452,7 @@ test("T18: a 0-byte lock aged 60s does not block recordBundledAgentPluginIfAbsen
 
     const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "mini-bundled" });
     assert.equal(recorded, true);
-    assert.equal((await resolveAgentPluginActivation(root, "mini-bundled")).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "mini-bundled" })).verdict, "inactive");
     await assert.rejects(readFile(lockPath), { code: "ENOENT" });
   } finally {
     await forceRemove(root);
@@ -467,7 +464,7 @@ test("T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not 
   try {
     await plantLock(root, deadPid());
 
-    await assertAgentPluginActivationsWritable(root);
+    await assertAgentPluginActivationsWritable({ workspaceRoot: root });
 
     await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
   } finally {
@@ -500,11 +497,11 @@ test("T20: a writer WAITS for a live foreign lock, and proceeds the moment it is
     assert.equal(settled, false);
     assert.equal(await readFile(lockPathFor(root), "utf8"), planted, "the live holder must not be stolen");
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), initial);
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "active");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "active");
 
     await unlink(lockPathFor(root));
     await writePromise;
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "inactive");
     await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
   } finally {
     await unlink(lockPathFor(root)).catch(() => undefined);
@@ -550,7 +547,7 @@ test("N1: setAgentPluginActivation refuses when the TARGET plugin's own entry is
       malformedTarget,
       "a malformed TARGET entry must be left byte-for-byte untouched, not repaired as operator-installed",
     );
-    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin" })).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }

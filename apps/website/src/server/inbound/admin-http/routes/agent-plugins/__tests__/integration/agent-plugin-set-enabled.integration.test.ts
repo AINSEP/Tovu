@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../../../../../../features/agent-plugins/activation-effects.js";
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -11,7 +15,7 @@ import { saveExternalMcpServer } from "#src/assistant/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
-import { readAgentPluginActivations, setAgentPluginActivation } from "#src/features/agent-plugins/activation";
+
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 import {
@@ -165,7 +169,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
     assert.equal(body.agentPlugin.version, "1.0.0", "the row is the same shape AGENT_PLUGINS_LIST returns, so the client can replace in place");
     assert.ok(body.agentPlugin.skills.some((skill) => skill.name === "site-compliance"));
 
-    const persisted = await readAgentPluginActivations(workspaceRoot);
+    const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"]?.enabled, true, "the decision survives on disk");
   });
 });
@@ -230,7 +234,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a toggle preserves the package's `origin` proven
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
 
-    const persisted = await readAgentPluginActivations(workspaceRoot);
+    const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"]?.origin, "bundled", "a bundled plugin does not become operator-installed by being toggled");
     assert.notEqual(persisted.plugins["site-compliance"]?.updatedBy, "system:seed", "the toggling operator, not the seeder, is recorded as the actor");
   });
@@ -247,7 +251,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an id that is not installed in this workspace is
     assert.equal(response.status, 404);
     assert.equal(((await response.json()) as { code?: string }).code, "AGENT_PLUGIN_NOT_FOUND");
 
-    const persisted = await readAgentPluginActivations(workspaceRoot);
+    const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["never-installed"], undefined, "no activation record is minted for a plugin that does not exist");
   });
 });
@@ -266,7 +270,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a non-boolean `enabled` is 400 VALIDATION_ERROR,
       assert.equal(((await response.json()) as { code?: string }).code, "VALIDATION_ERROR");
     }
 
-    const persisted = await readAgentPluginActivations(workspaceRoot);
+    const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"]?.enabled, true, "an enabled plugin was NOT silently disabled by a malformed body");
   });
 });
@@ -434,14 +438,14 @@ test("AGENT_PLUGIN_SET_ENABLED: a signed-in principal without enable permission 
     const { app, baseDeps } = buildTestApp();
     const { baseUrl } = await bootAuthenticated(app, t);
     const cookie = await loginAsBarePrincipal(baseDeps, baseUrl);
-    const before = await readAgentPluginActivations(workspaceRoot);
+    const before = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     const mcpBefore = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
     const res = await patch(baseUrl, cookie, "enable-denied-fixture", { enabled: true });
     assert.equal(res.status, 403);
     const body = await res.json();
     assert.equal(body.code, "FORBIDDEN");
     assert.equal(body.details.permission, "admin.plugins.enable");
-    assert.deepEqual(await readAgentPluginActivations(workspaceRoot), before);
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: workspaceRoot }), before);
     assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), mcpBefore);
   });
 });
@@ -460,7 +464,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an MCP-store failure preserves the successful ac
     assert.equal(res.status, 200);
     assert.equal((await res.json()).agentPlugin.enabled, true);
     assert.equal(attempts, 1, "the declared server must reach the failing provisioning boundary");
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins["mcp-failure-fixture"]?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins["mcp-failure-fixture"]?.enabled, true);
     assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), before);
   });
 });

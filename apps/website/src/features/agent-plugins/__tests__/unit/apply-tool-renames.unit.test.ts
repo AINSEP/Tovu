@@ -7,7 +7,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
 import type { InstalledAgentPluginServers } from "../../import-access-token.js";
-import type { McpServerConfig } from "../../manifest.js";
+import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
  * @file `apply-tool-renames.ts` — a plugin's declared `tovuRenamedTools` rewrite the saved tool lists

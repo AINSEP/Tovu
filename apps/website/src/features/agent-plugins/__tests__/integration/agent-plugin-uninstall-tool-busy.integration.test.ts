@@ -16,9 +16,9 @@ import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exch
  * `{uninstalled:false, reason:"activations-busy", ...}` — the same ADR-055 Decision 6 RESULT shape
  * `plugins_set_enabled` returns for the sibling family, never an opaque thrown error. Mirrors this
  * directory's sibling `agent-plugin-uninstall-tool.integration.test.ts`'s UNREADABLE tests, but
- * forces the failure by mocking `exclusive-file-lock.ts` rather than corrupting the file, per this
+ * forces the failure by mocking `@jini-ai/platform/fs/file-lock` rather than corrupting the file, per this
  * repo's proven `activation-lock-busy.unit.test.ts` idiom: `mock.module()` is registered, spreading
- * the real module's own exports through it, before `activation.js`/`tool-registrations.js` are ever
+ * the real module's own exports through it, before the host activation binding/`tool-registrations.js` are ever
  * imported, and each is imported only once, dynamically.
  *
  * RETARGETED (S4, 2026-09-24) from the deleted standalone `agent_plugins_uninstall` onto
@@ -28,22 +28,22 @@ import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exch
  * leaves no staged/quarantined leftovers — a busy lock is a refused delete, not a partial one.
  */
 
-const real = await import("#src/features/agent-plugins/exclusive-file-lock");
+const real = await import("@jini-ai/platform/fs/file-lock");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
 // `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = real.withExclusiveFileLock;
+let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
 
-mock.module("#src/features/agent-plugins/exclusive-file-lock", {
+mock.module("@jini-ai/platform/fs/file-lock", {
   namedExports: {
     ...real,
-    withExclusiveFileLock: (lockPath: string, run: (lock: unknown) => Promise<unknown>, options?: unknown) => behavior(lockPath, run, options),
+    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
   },
 });
 
 const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
-const { setAgentPluginActivation } = await import("#src/features/agent-plugins/activation");
+const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 const { forceRemove } = await import("../fixtures/force-remove.js");
 const { buildPluginsUninstallRegistration } = await import("../fixtures/plugins-uninstall-registration.js");
 const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
@@ -160,7 +160,7 @@ async function waitForDialog(first: Promise<unknown>, pending: Promise<unknown>)
 function timeoutBehavior(pid: number): typeof behavior {
   return async (lockPath) => {
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError(lockPath, holder, 15_000);
+    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -195,7 +195,7 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
       const surfaceExchanges = createSurfaceExchangeStore();
       const recorder = surfaceRecorder();
 
-      const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+      const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
       const surface = await waitForDialog(recorder.first, pending);
       const delivery = surfaceExchanges.deliver({
         exchangeId: exchangeIdFromSurface(surface),
@@ -209,7 +209,7 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
       assert.deepEqual(result, busyOutput("operator-plugin"));
       assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "the package must still be installed");
     } finally {
-      behavior = real.withExclusiveFileLock;
+      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     }
   });
 });
@@ -228,7 +228,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
       const surfaceExchanges = createSurfaceExchangeStore();
       const recorder = surfaceRecorder();
 
-      const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+      const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
       const surface = await waitForDialog(recorder.first, pending);
       behavior = timeoutBehavior(9302);
       const delivery = surfaceExchanges.deliver({
@@ -246,7 +246,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
       assert.deepEqual(await readFile(activationsPath), activationBefore, "refusal must preserve the activation record byte for byte");
       assert.deepEqual(await readdir(workspaceLayout.packages), [installed.archiveDigest], "no .uninstalling-* tree may remain");
     } finally {
-      behavior = real.withExclusiveFileLock;
+      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     }
   });
 });

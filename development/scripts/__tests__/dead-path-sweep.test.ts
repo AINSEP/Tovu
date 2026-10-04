@@ -118,14 +118,14 @@ import {
  * `../../apps/website/src/...`, including the two targets that were also renamed in the restructure
  * (`repo.sqlite.ts` -> `entry-refs-repo.sqlite.ts`, `html-document-store.ts` ->
  * `html-document-store.sqlite.ts`). That made the staleness gate below fail — the register still
- * listed the old dead specifiers for both files. Their 9 entries are removed below; the register is
- * now 9 references across the remaining 4 files. Those 4 — `agent-plugin-activation.ts`,
- * `install-agent-plugin.ts`, `theme-tool.ts`, `write-path-inventory.ts` — are still genuinely broken
- * (`src/` does not exist at the repo root) and still parked on the same `UNRUN_ONE_SHOT` rationale.
+ * listed the old dead specifiers for both files. Their 9 entries are removed below; the register was
+ * then 9 references across 4 files. B4/A23 (development/DELETED-CODE.md) removed the
+ * install-agent-plugin.ts CLI and rewired agent-plugin-activation.ts, dropping their 7 entries; the 2
+ * left (`theme-tool.ts`, `write-path-inventory.ts`) are still genuinely broken (`src/` does not exist
+ * at the repo root) and still parked on the same `UNRUN_ONE_SHOT` rationale.
  * One imprecision in that rationale worth flagging without editing it: "nothing invokes it" describes
  * CI/test reachability, not manual reachability — `agent-plugin-activation.ts` and
- * `install-agent-plugin.ts` are each wired to a `package.json` script (`agent-plugin:activation`,
- * `agent-plugin:install`) and `theme-tool.ts` to `theme`, so a person can still run them directly even
+ * the removed `install-agent-plugin.ts` formerly had npm scripts; `theme-tool.ts` still maps to `theme`, so a person can still run them directly even
  * though no test or CI step does. `KnownBrokenEntry` has only a `rationale` field, so there's nowhere
  * to record that distinction structurally without inventing one — left as a follow-up, not fixed here.
  */
@@ -186,17 +186,6 @@ const UNRUN_ONE_SHOT =
  * to park an entry; "CI won't notice because continue-on-error" is not a reason at all.
  */
 const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEntry>> = {
-  ...known("development/scripts/agent-plugin-activation.ts", UNRUN_ONE_SHOT, [
-    "../../src/features/agent-plugins/activation.js",
-    "../../src/features/agent-plugins/layout.js",
-    "../../src/features/agent-plugins/resolve-agent-plugin-refs.js",
-  ]),
-  ...known("development/scripts/install-agent-plugin.ts", UNRUN_ONE_SHOT, [
-    "../../src/features/agent-plugins/fetch-archive.js",
-    "../../src/features/agent-plugins/install.js",
-    "../../src/features/agent-plugins/install-from-url.js",
-    "../../src/features/agent-plugins/layout.js",
-  ]),
   ...known("development/scripts/theme-tool.ts", UNRUN_ONE_SHOT, ["../../src/features/theme/theme.js"]),
   ...known(
     "development/scripts/write-path-inventory.ts",
@@ -241,8 +230,8 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 9 references remaining after the 2026-09-05 convert-legacy-doc-pages-to-html.ts/migrate-page-embed-markers.ts fix pass — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 9);
+test("known-broken register is exactly the 2 references remaining after B4/A23 removed the agent-plugin CLI entries — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 2);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {

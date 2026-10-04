@@ -18,9 +18,9 @@ import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registra
  * `{changed:false, reason:"activations-busy", ...}` — a RESULT the model can relay (ADR-055
  * Decision 6), never a raw thrown error. Mirrors this directory's sibling
  * `tool-registrations.plugins-set-enabled-families.test.ts`'s UNREADABLE tests, but forces the
- * failure by mocking `exclusive-file-lock.ts` rather than corrupting the file, per this repo's
+ * failure by mocking `@jini-ai/platform/fs/file-lock` rather than corrupting the file, per this repo's
  * proven `activation-lock-busy.unit.test.ts` idiom: `mock.module()` is registered, spreading the
- * real module's own exports through it, before `activation.js`/`tool-registrations.js` are ever
+ * real module's own exports through it, before the host activation binding/`tool-registrations.js` are ever
  * imported, and each is imported only once, dynamically.
  *
  * The enable case also proves the pre-flight ordering (t91 §7.2, extended to R2): a busy lock is
@@ -29,22 +29,22 @@ import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registra
  * handler, "Order is load-bearing".
  */
 
-const real = await import("#src/features/agent-plugins/exclusive-file-lock");
+const real = await import("@jini-ai/platform/fs/file-lock");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
 // `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = real.withExclusiveFileLock;
+let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
 
-mock.module("#src/features/agent-plugins/exclusive-file-lock", {
+mock.module("@jini-ai/platform/fs/file-lock", {
   namedExports: {
     ...real,
-    withExclusiveFileLock: (lockPath: string, run: (lock: unknown) => Promise<unknown>, options?: unknown) => behavior(lockPath, run, options),
+    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
   },
 });
 
 const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
-const { readAgentPluginActivations, setAgentPluginActivation } = await import("#src/features/agent-plugins/activation");
+const { readAgentPluginActivations, setAgentPluginActivation } = (await import("#src/features/agent-plugins/activation-effects")).agentPluginActivations;
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
 const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
 const { InMemoryExternalMcpServerRepo } = await import("#src/assistant/index");
@@ -102,7 +102,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
     });
     return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -156,7 +156,7 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
 function timeoutBehavior(pid: number): typeof behavior {
   return async (lockPath) => {
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError(lockPath, holder, 15_000);
+    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -187,7 +187,7 @@ test("plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:ac
       note: busyNoteFor(AGENT_PLUGIN_ID, true),
     });
     assert.equal(emitted.length, 0, "a busy pre-flight must refuse before any confirmation dialog is raised");
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, undefined, "nothing may be written when the lock is busy");
   });
 });
@@ -195,7 +195,7 @@ test("plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:ac
 test("plugins_set_enabled: a busy lock on DISABLE returns the same changed:false/reason:activations-busy result", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: true, actor: "test-operator" });
-    const before = await readAgentPluginActivations(workspaceRoot);
+    const before = await readAgentPluginActivations({ workspaceRoot });
     behavior = timeoutBehavior(9202);
     const { deps } = fakeRouteDeps();
     const tool = setEnabledTool(deps, createSurfaceExchangeStore());
@@ -211,7 +211,7 @@ test("plugins_set_enabled: a busy lock on DISABLE returns the same changed:false
       reason: "activations-busy",
       note: busyNoteFor(AGENT_PLUGIN_ID, false),
     });
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.deepEqual(activations, before, "busy disable preserves the complete enabled activation record");
   });
 });
@@ -225,7 +225,7 @@ for (const enabled of [true, false]) {
       const emitted: unknown[] = [];
       await assert.rejects(() => call(setEnabledTool(deps, createSurfaceExchangeStore()), { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async surface => void emitted.push(surface)), error => error === failure);
       assert.deepEqual(emitted, []);
-      assert.deepEqual((await readAgentPluginActivations(workspaceRoot)).plugins, {});
+      assert.deepEqual((await readAgentPluginActivations({ workspaceRoot })).plugins, {});
     });
   });
 }

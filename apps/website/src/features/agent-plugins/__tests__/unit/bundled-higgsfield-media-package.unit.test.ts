@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
@@ -51,14 +52,14 @@ async function readReference(name: string): Promise<string> {
 }
 
 test("plugin.json parses under the Agent Plugins v1.0.0 validator", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "higgsfield-media");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
 test("plugin.json's keywords carry the vocabulary an operator would actually search for", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
   for (const expected of ["higgsfield", "image", "image-generation", "media", "media-library", "external-mcp"]) {
@@ -79,7 +80,7 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
  * the external-MCP row when an operator enables this plugin — no more hand-typing the URL.
  */
 test("mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust", async () => {
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")), JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginMcpConfig({ value: JSON.parse(await readPackageFile("mcp.json")) }, { pluginManifest: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
 
@@ -236,7 +237,7 @@ test("SKILL.md is honest that the cold start leaves chat — the enable step, an
 });
 
 test("plugin.json's keywords also reach an operator who says 'photo' or 'illustration'", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
   const keywords = (parsed.ok ? (parsed.manifest.keywords ?? []) : []).map((keyword) => keyword.toLowerCase());
 

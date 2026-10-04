@@ -28,22 +28,22 @@ import type { AgentPluginsRouteDeps } from "../../deps.js";
  * retroactively rebind a specifier a module already resolved at its first load.
  */
 
-const real = await import("#src/features/agent-plugins/exclusive-file-lock");
+const real = await import("@jini-ai/platform/fs/file-lock");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
 // `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = real.withExclusiveFileLock;
+let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
 
-mock.module("#src/features/agent-plugins/exclusive-file-lock", {
+mock.module("@jini-ai/platform/fs/file-lock", {
   namedExports: {
     ...real,
-    withExclusiveFileLock: (lockPath: string, run: (lock: unknown) => Promise<unknown>, options?: unknown) => behavior(lockPath, run, options),
+    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
   },
 });
 
 const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
-const { readAgentPluginActivations } = await import("#src/features/agent-plugins/activation");
+const { readAgentPluginActivations } = (await import("#src/features/agent-plugins/activation-effects")).agentPluginActivations;
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
 const { createRouteDeps } = await import("#src/server/runtime/composition/app");
 const { registerAuthRoutes, requireAdminSession } = await import("#src/server/inbound/admin-http/dev-auth");
@@ -136,7 +136,7 @@ function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown)
 function timeoutBehavior(pid: number): typeof behavior {
   return async (lockPath) => {
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError(lockPath, holder, 15_000);
+    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -160,7 +160,7 @@ test("AGENT_PLUGIN_SET_ENABLED: another process holding the write lock is 409 AG
     assert.equal(JSON.stringify(body).includes(workspaceRoot), false, "the 409 body must carry no host path");
     assert.equal(JSON.stringify(body).includes("activations.json.lock"), false, "the 409 body must not name the lock file");
 
-    const persisted = await readAgentPluginActivations(workspaceRoot);
+    const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"], undefined, "a busy write must leave no activation record behind");
   });
 });
@@ -173,7 +173,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a lock lost right before commit is also 409 AGEN
       run({
         lockPath,
         assertHeld: async () => {
-          throw new real.FileLockLostError(lockPath);
+          throw new real.FileLockLostError({ lockPath });
         },
       });
 

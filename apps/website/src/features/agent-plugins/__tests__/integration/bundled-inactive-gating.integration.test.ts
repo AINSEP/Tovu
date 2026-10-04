@@ -1,10 +1,14 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readAgentPluginActivations, setAgentPluginActivation } from "../../activation.js";
+
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "../../seed-bundled.js";
@@ -80,7 +84,7 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
       "the package must carry its own eponymous skill folder — run-start injection resolves skills/<pluginId>/SKILL.md",
     );
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(activations.plugins[PLUGIN_ID]?.enabled, false);
     assert.equal(activations.plugins[PLUGIN_ID]?.origin, "bundled");
     assert.equal(activations.plugins[PLUGIN_ID]?.updatedBy, "system:seed");
@@ -182,7 +186,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
       "content addressing must dedup a re-seed rather than publishing a second digest for this plugin",
     );
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(activations.plugins[PLUGIN_ID]?.enabled, true);
   });
 });

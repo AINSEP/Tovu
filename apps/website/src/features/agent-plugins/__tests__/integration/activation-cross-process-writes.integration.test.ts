@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { resolveAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn } from "node:child_process";
 import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
@@ -8,7 +12,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { resolveAgentPluginActivation } from "../../activation.js";
+
 
 /**
  * @file X1-X3 — the cross-process half of the concurrency race `activation.ts`'s in-process chain
@@ -110,9 +114,9 @@ test("X1: a second process's write during a first process's paused rename is not
 
     assert.equal(outcomeA.code, 0, `process A must exit 0 — stderr: ${outcomeA.stderr}`);
     assert.equal(outcomeB.code, 0, `process B must exit 0 — stderr: ${outcomeB.stderr}`);
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "inactive");
     assert.equal(
-      (await resolveAgentPluginActivation(root, "plugin-b")).verdict,
+      (await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b" })).verdict,
       "inactive",
       "plugin-b's disable was erased by a process that had read activations.json before plugin-b was written",
     );
@@ -156,7 +160,7 @@ test("X2: an 80-write burst across two processes loses nothing and leaves no loc
 
     for (const prefix of ["plugin-a", "plugin-b"]) {
       for (let index = 0; index < 40; index++) {
-        assert.equal((await resolveAgentPluginActivation(root, `${prefix}-${index}`)).verdict, "inactive", `${prefix}-${index} was lost`);
+        assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: `${prefix}-${index}` })).verdict, "inactive", `${prefix}-${index} was lost`);
       }
     }
     assert.deepEqual(await readdir(root), ["activations.json"], "no activations.json.lock may be left behind");
@@ -187,13 +191,13 @@ test("X3: a lock left by a SIGKILLed holder is recovered by liveness, not by wai
     await exited;
 
     const start = performance.now();
-    const { setAgentPluginActivation } = await import("../../activation.js");
+    const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
     await setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b", enabled: false, actor: "parent" });
     const elapsed = performance.now() - start;
 
     assert.ok(elapsed < 5000, `recovered by lock age, not by seeing the holder's process was gone (took ${elapsed}ms)`);
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-b")).verdict, "inactive");
-    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "active", "A never committed, so its own disable must not have landed");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b" })).verdict, "inactive");
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a" })).verdict, "active", "A never committed, so its own disable must not have landed");
     await assert.rejects(readFile(lockPath), { code: "ENOENT" });
   } finally {
     if (childA) killIfAlive(childA);

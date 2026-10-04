@@ -63,7 +63,7 @@ import { chmod, mkdir, mkdtemp, open, readdir, readFile, rename, rm, stat } from
 import path from "node:path";
 
 import type { AgentPluginLayout } from "./layout.js";
-import { parseAgentPluginManifest } from "./manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths.js";
 
 /** One extraction/install failure reason. A caller (an admin route, a future marketplace installer)
@@ -122,7 +122,7 @@ const LIMITS = {
 } as const;
 
 /** Exposes `LIMITS.maxArchiveBytes` for a caller outside this module — concretely, a test asserting
- * `fetch-archive.ts`'s own mirrored cap constant stays pinned to this one. See that module's header
+ * `@jini-ai/agent-plugins/lifecycle`'s fetch cap constant stays pinned to this one. The local fetch-archive.ts fork was deleted; see the package's fetch module
  * for why it duplicates the number instead of importing it (no runtime dependency on `install.ts`);
  * this accessor is what lets a test assert the pairing without either module importing the other. */
 export function maxAgentPluginInstallArchiveBytes(): number {
@@ -152,7 +152,7 @@ export interface InstalledAgentPlugin {
    */
   readonly description?: string;
   readonly keywords?: readonly string[];
-  readonly author?: string;
+  readonly author?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginManifest["author"];
   readonly license?: string;
   /** SHA-256 of the raw archive bytes — the content-addressing key and the descriptor `revision`
    * a future capability projection pins invocation to (`capability-projection.ts`). */
@@ -462,7 +462,7 @@ export async function indexInstalledRoot(packageRoot: string, archiveDigest: str
     throw new AgentPluginInstallError("MANIFEST_INVALID", "plugin.json is not valid JSON", { cause: error });
   }
 
-  const parsed = parseAgentPluginManifest(manifestValue);
+  const parsed = parseAgentPluginManifest({ value: manifestValue });
   if (!parsed.ok) {
     throw new AgentPluginInstallError("MANIFEST_INVALID", `plugin.json failed validation: ${parsed.errors.join("; ")}`);
   }

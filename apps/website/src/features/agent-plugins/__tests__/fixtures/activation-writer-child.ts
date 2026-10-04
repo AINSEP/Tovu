@@ -6,7 +6,7 @@
  * Argv: `<mode> <workspaceRoot> <signalDir> <pluginId> [count]`
  *
  * - **`pause-before-rename`**: monkeypatches `node:fs/promises`'s `rename` — the SAME named export
- *   `activation.ts` imports — so renaming `activations.json` specifically pauses: it writes
+ *   Jini activation effects use (the local activation.ts fork was deleted) — so renaming `activations.json` specifically pauses: it writes
  *   `<signalDir>/<pluginId>.paused`, then polls for `<signalDir>/<pluginId>.release` before calling
  *   the real rename. Simulates a writer frozen between its strict read and its rename — the exact
  *   window the pre-lock code (`72dc4766`) lost a cross-process write in. The patch mutates the CJS
@@ -59,7 +59,7 @@ function installPauseBeforeRename(): void {
   (require("node:module") as typeof import("node:module")).syncBuiltinESMExports();
 }
 
-async function runBurst(setAgentPluginActivation: typeof import("../../activation.js").setAgentPluginActivation): Promise<void> {
+async function runBurst(setAgentPluginActivation: typeof import("../../activation-effects.js").agentPluginActivations.setAgentPluginActivation): Promise<void> {
   const count = Number(countArg ?? "0");
   await writeFile(signalPath(`${pluginId}.ready`), "1", "utf8");
   await waitForFile(signalPath("go"), 30_000);
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   await mkdir(signalDir, { recursive: true });
   if (mode === "pause-before-rename") installPauseBeforeRename();
 
-  const { setAgentPluginActivation } = await import("../../activation.js");
+  const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 
   if (mode === "burst") {
     await runBurst(setAgentPluginActivation);

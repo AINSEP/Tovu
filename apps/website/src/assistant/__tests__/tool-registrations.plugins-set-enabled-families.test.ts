@@ -16,7 +16,7 @@ import {
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
 } from "../../contracts/core/tool-surface-exchanges.js";
-import { readAgentPluginActivations, setAgentPluginActivation } from "../../features/agent-plugins/activation.js";
+import { agentPluginActivations } from "../../features/agent-plugins/activation-effects.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/install.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
@@ -35,6 +35,8 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
+
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -315,7 +317,7 @@ test("plugins_set_enabled: enabling refuses outright when the execution context 
     const tool = setEnabledTool(deps, createSurfaceExchangeStore());
     await assert.rejects(() => call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }), /confirmation/i);
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, undefined, "nothing may be written when the gate cannot be raised");
   });
 });
@@ -329,7 +331,7 @@ test("plugins_set_enabled: disabling an Agent Plugin needs no confirmation — i
     };
 
     assert.equal(out.agentPlugin.enabled, false);
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, false, "the disable must reach activations.json, not just the response");
   });
 });
@@ -337,12 +339,12 @@ test("plugins_set_enabled: disabling an Agent Plugin needs no confirmation — i
 test("plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: true, actor: "test-operator" });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins[AGENT_PLUGIN_ID]?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[AGENT_PLUGIN_ID]?.enabled, true);
     const { deps } = fakeRouteDeps();
     const tool = setEnabledTool(deps, createSurfaceExchangeStore());
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { agentPlugin: { enabled: boolean } };
     assert.equal(out.agentPlugin.enabled, false);
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins[AGENT_PLUGIN_ID]?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[AGENT_PLUGIN_ID]?.enabled, false);
   });
 });
 
@@ -432,7 +434,7 @@ test("plugins_set_enabled: a confirmed enable writes the Agent Plugin's activati
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
     assert.equal((result as { agentPlugin: { enabled: boolean } }).agentPlugin.enabled, true);
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, true);
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.updatedBy, PRINCIPAL_ID, "the confirming operator is the recorded actor");
   });
@@ -480,7 +482,7 @@ test("plugins_set_enabled: a declined enable writes nothing and says so", async 
       { changed: false, cancelled: true },
     );
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, undefined, "a declined confirmation must leave the record untouched");
   });
 });

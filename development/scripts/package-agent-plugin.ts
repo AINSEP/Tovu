@@ -3,7 +3,7 @@
  * directory (not at a parent folder containing it) — `install.ts`'s own `installAgentPlugin` requires
  * `plugin.json` at the archive ROOT (`indexInstalledRoot` reads `<packageRoot>/plugin.json`), so a zip
  * that nests the plugin under its own directory name would fail `MANIFEST_MISSING` on install. Prints
- * the resulting archive's SHA-256 so it can be pinned via `--sha256` on `install-agent-plugin.ts`.
+ * the resulting archive's SHA-256 so it can be supplied to the Jini lifecycle installer. The broken install-agent-plugin.ts CLI was removed (development/DELETED-CODE.md).
  *
  * Uses `yazl` (a devDependency already used by this feature's own `__tests__/fixtures/build-zip.ts`)
  * for the same reason that fixture does: this script is dev-only tooling for building test/demo

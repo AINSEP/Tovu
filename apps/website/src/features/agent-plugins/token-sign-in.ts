@@ -3,7 +3,8 @@ import type { HttpClientPort } from "../../platform/http/index.js";
 import { probeToken } from "./access-token-tool.js";
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers } from "./import-access-token.js";
-import type { AgentPluginTokenAuth, McpServerConfig } from "./manifest.js";
+import type { AgentPluginTokenAuth } from "@jini-ai/agent-plugins/lifecycle";
+import type { McpServerConfig } from "./mcp-metadata.js";
 
 /**
  * @file Which installed Agent Plugins can be connected with a pasted access token, and a check of one

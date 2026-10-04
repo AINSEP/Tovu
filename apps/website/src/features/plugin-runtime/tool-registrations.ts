@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../agent-plugins/activation-effects.js";
+const { assertAgentPluginActivationsWritable } = agentPluginActivations;
 import { type Clock, nowIso } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -115,7 +119,7 @@ import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-pl
 // t91 F1.1/R2 (2026-09-16). `activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, assertAgentPluginActivationsWritable } from "../agent-plugins/activation.js";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
@@ -580,7 +584,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
  */
 async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
   try {
-    await assertAgentPluginActivationsWritable(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
+    await assertAgentPluginActivationsWritable({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root });
     return undefined;
   } catch (error) {
     const refusal = activationsRefusalResult(request, error);

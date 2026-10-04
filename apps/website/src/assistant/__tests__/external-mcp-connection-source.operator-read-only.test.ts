@@ -8,7 +8,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
-import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/manifest.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
@@ -29,9 +29,9 @@ async function harness() {
   return { ...deps };
 }
 function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
-  const parsed = parseAgentPluginMcpConfig({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-    mcpServers: { remote: { type: "streamable-http", url } } },
-    { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read } } } } } });
+  const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+    mcpServers: { remote: { type: "streamable-http", url } } } },
+    { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   assert.deepEqual(parsed.config.servers.remote?.tovuDefaultTools?.read, read, "the fixture must contain a valid read declaration");

@@ -3,7 +3,7 @@ import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { hasStoredAgentPluginCredential } from "./connect-tool.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import type { McpServerConfig } from "./manifest.js";
+import type { McpServerConfig } from "./mcp-metadata.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
 

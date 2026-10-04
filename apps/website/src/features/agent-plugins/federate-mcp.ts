@@ -7,7 +7,8 @@ import {
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import type { AgentPluginDefaultTools, McpServerConfig } from "./manifest.js";
+import type { AgentPluginDefaultTools } from "@jini-ai/agent-plugins/lifecycle";
+import type { McpServerConfig } from "./mcp-metadata.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 

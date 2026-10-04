@@ -10,7 +10,7 @@ import express from "express";
 import { readEnabledExternalMcpConfigs } from "../../assistant/index.js";
 
 import { provisionAgentPluginMcpServers } from "../../features/agent-plugins/federate-mcp.js";
-import { parseAgentPluginMcpConfig } from "../../features/agent-plugins/manifest.js";
+import { parseAgentPluginMcpConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
@@ -39,7 +39,7 @@ const SUPABASE_MCP_JSON = path.resolve(import.meta.dirname, "../../../../../cont
 async function buildAdminOnlyApp() {
   const deps = createRouteDeps();
   await deps.identityReady;
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readFile(SUPABASE_MCP_JSON, "utf8")));
+  const parsed = parseAgentPluginMcpConfig({ value: JSON.parse(await readFile(SUPABASE_MCP_JSON, "utf8")) });
   assert.ok(parsed.ok);
   // Exactly what enabling the bundled plugin does at boot (`federate-mcp.ts`), no agent involved.
   await provisionAgentPluginMcpServers(

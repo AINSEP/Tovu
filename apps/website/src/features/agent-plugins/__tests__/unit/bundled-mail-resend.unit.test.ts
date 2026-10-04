@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,11 +12,12 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import type { MailAdapterModule, MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { readAgentPluginActivations, setAgentPluginActivation } from "../../activation.js";
+
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistryFromSource } from "../../mail-adapter-registry.js";
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 
 /**
@@ -31,14 +36,14 @@ async function readPackageJson(relativePath: string): Promise<unknown> {
 }
 
 test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "resend");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
 test("mcp.json declares ZERO servers — the adapter runs in-process through the mail-adapter registry", async () => {
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
 });
@@ -77,7 +82,7 @@ test("seeded by the real seeder, resend is ENABLED with no user action and the r
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "resend")?.status, "seeded");
 
-    const activations = await readAgentPluginActivations(layout.forWorkspace(WORKSPACE_ID).root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
     assert.equal(activations.plugins.resend?.enabled, true, "a site configured for Resend must keep sending with zero user action");
 
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
@@ -94,7 +99,7 @@ test("an operator who switched resend off stays switched off across boots, and t
     await setAgentPluginActivation({ workspaceRoot, pluginId: "resend", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.resend?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.resend?.enabled, false);
     assert.deepEqual((await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID })).list(), []);
   });
 });

@@ -8,41 +8,35 @@ import test from "node:test";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
- * @file B1-B7 — the busy-error mapping every writer performs when `withExclusiveFileLock` throws:
+ * @file B1-B7 — the busy-error mapping every writer performs when `withFileLock` throws:
  * `FileLockTimeoutError`/`FileLockLostError` become `AgentPluginActivationsBusyError`, and every
  * OTHER error (chiefly `AgentPluginActivationsUnreadableError`) passes through unchanged. Mocks
- * `exclusive-file-lock.ts` rather than forcing real contention, so each failure mode is exact and
+ * `@jini-ai/platform/fs/file-lock` rather than forcing real contention, so each failure mode is exact and
  * instant — `activation-cross-process-writes.integration.test.ts` is the file that proves the REAL
  * lock closes the race this file merely assumes it does.
  *
- * The mock is registered ONCE, at module top level, before `activation.js`/`seed-bundled.js` are
+ * The mock is registered ONCE, at module top level, before the host activation binding/`seed-bundled.js` are
  * imported (also once) — `mock.module()` cannot retroactively change a binding a module already
  * resolved at its first load (this repo's own established caveat; see
  * `members/__tests__/disable.unit.test.ts`'s header). Each test only reassigns the shared mutable
  * `behavior`; run standalone, like every other file in this directory.
  */
 
-const real = await import("../../exclusive-file-lock.js");
+const real = await import("@jini-ai/platform/fs/file-lock");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
 // `behavior` per test to cover every lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = real.withExclusiveFileLock;
+let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
 
-mock.module("../../exclusive-file-lock.js", {
+mock.module("@jini-ai/platform/fs/file-lock", {
   namedExports: {
     ...real,
-    withExclusiveFileLock: (lockPath: string, run: (lock: unknown) => Promise<unknown>, options?: unknown) => behavior(lockPath, run, options),
+    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
   },
 });
 
-const {
-  AgentPluginActivationsBusyError,
-  AgentPluginActivationsUnreadableError,
-  assertAgentPluginActivationsWritable,
-  deleteAgentPluginActivation,
-  recordBundledAgentPluginIfAbsent,
-  setAgentPluginActivation,
-} = await import("../../activation.js");
+const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
+const { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,  } = await import("@jini-ai/agent-plugins/lifecycle");
 const { seedBundledAgentPlugins } = await import("../../seed-bundled.js");
 const { resolveAgentPluginLayout } = await import("../../layout.js");
 const { listInstalledPlugins } = await import("../../resolve-agent-plugin-refs.js");
@@ -69,7 +63,7 @@ async function writeBundledSourceFixture(bundledRoot: string): Promise<void> {
 function timeoutBehavior(pid: number): typeof behavior {
   return async (lockPath) => {
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError(lockPath, holder, 15_000);
+    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -78,7 +72,7 @@ function lostBehavior(): typeof behavior {
     run({
       lockPath,
       assertHeld: async () => {
-        throw new real.FileLockLostError(lockPath);
+        throw new real.FileLockLostError({ lockPath });
       },
     });
 }
@@ -106,7 +100,7 @@ test("B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivations
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), seed);
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(root);
   }
 });
@@ -125,7 +119,7 @@ test("B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginAct
     );
     await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(root);
   }
 });
@@ -146,7 +140,7 @@ test("B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivati
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), seed);
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(root);
   }
 });
@@ -156,12 +150,12 @@ test("B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPlugi
   try {
     behavior = timeoutBehavior(4204);
 
-    await assert.rejects(() => assertAgentPluginActivationsWritable(root), (error: unknown) => {
+    await assert.rejects(() => assertAgentPluginActivationsWritable({ workspaceRoot: root }), (error: unknown) => {
       assertBusy(error, 4204);
       return true;
     });
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(root);
   }
 });
@@ -189,7 +183,7 @@ test("B5: a lock LOST right before the rename maps to AgentPluginActivationsBusy
       `no temp file may survive a lost-lock write: ${JSON.stringify(entries)}`,
     );
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(root);
   }
 });
@@ -211,7 +205,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     assert.match(outcome.reason ?? "", /write lock/);
     assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).packages), []);
   } finally {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(cwd);
     await forceRemove(bundledRoot);
   }
@@ -220,7 +214,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
 test("B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped", async () => {
   const root = await freshRoot();
   try {
-    behavior = real.withExclusiveFileLock;
+    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await writeFile(path.join(root, "activations.json"), "{ not json at all", "utf8");
 
     await assert.rejects(

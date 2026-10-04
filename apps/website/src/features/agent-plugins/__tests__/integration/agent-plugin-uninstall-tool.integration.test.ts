@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
@@ -11,7 +15,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
-import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+
 import { forceRemove } from "../fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
@@ -343,7 +347,7 @@ test("FAILS CLOSED: with no interactive confirmation channel (no emitSurface) no
     await assert.rejects(() => findRegistration(deps).handler(fakeCtx({ pluginId: "operator-plugin" })), /no interactive confirmation channel/);
 
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "an unconfirmable call must not delete anything");
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["operator-plugin"]?.enabled, true, "the activation record must be untouched");
   });
 });
@@ -387,7 +391,7 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
     assert.match(out.note, /restart/i);
     await assert.rejects(() => stat(installed.packageRoot));
 
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal("operator-plugin" in activations.plugins, false, "the activation record must be deleted, not tombstoned");
   });
 });
@@ -429,7 +433,7 @@ test("cancel: nothing is removed and the result reports the cancellation, not an
     assert.equal(out.cancelled, true);
     assert.equal(out.restartRequired, false);
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
-    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["operator-plugin"]?.enabled, true);
   });
 });

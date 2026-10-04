@@ -13,7 +13,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
-import type { McpServerConfig } from "../../manifest.js";
+import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
  * @file `apply-connect-defaults.ts` — S-G2: a plugin's declared `tovuDefaultTools` are granted on the

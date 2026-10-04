@@ -1,10 +1,14 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readAgentPluginActivations, setAgentPluginActivation } from "../../activation.js";
+
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
@@ -81,7 +85,7 @@ test("higgsfield-media seeds from the real bundled tree and is recorded INACTIVE
       "run-start injection resolves skills/<pluginId>/SKILL.md, so the skill folder must match the manifest name exactly",
     );
 
-    const activations = await readAgentPluginActivations(workspaceRoot);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(activations.plugins[PLUGIN_ID]?.enabled, false, "a bundled plugin must ship OFF — enabling it is the operator's decision");
     assert.equal(activations.plugins[PLUGIN_ID]?.origin, "bundled");
     assert.equal(activations.plugins[PLUGIN_ID]?.updatedBy, "system:seed");

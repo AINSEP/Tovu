@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -5,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { setAgentPluginActivation } from "../../activation.js";
+
 import { recordBundledAgentPluginDigests } from "../../bundled-digests.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../install.js";
 import { loadMailAdapterRegistry, MAIL_ADAPTERS_FILENAME } from "../../mail-adapter-registry.js";

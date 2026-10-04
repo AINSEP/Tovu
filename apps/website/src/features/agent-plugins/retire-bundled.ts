@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { deleteAgentPluginActivation, enableBundledAgentPluginUnlessOperatorDisabled, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
 /**
  * @file `retireBundledAgentPlugins()` — removes bundled Agent Plugins Tovu no longer ships from a
  * workspace, and moves their users onto the plugin that absorbed them. Runs on every boot from
@@ -40,13 +44,7 @@
  * failure is captured per id, exactly like `seed-bundled.ts`'s own outcomes, so one stuck retirement
  * cannot stop a workspace from booting.
  */
-import {
-  type BundledAgentPluginEnableOutcome,
-  deleteAgentPluginActivation,
-  enableBundledAgentPluginUnlessOperatorDisabled,
-  readAgentPluginActivations,
-  resolveAgentPluginActivation,
-} from "./activation.js";
+import { type BundledAgentPluginEnableOutcome } from "@jini-ai/agent-plugins/lifecycle";
 import { removeBundledAgentPluginDigest } from "./bundled-digests.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
@@ -124,13 +122,13 @@ async function retireOne(
   const workspaceLayout = required.layout.forWorkspace(required.workspaceId);
   const workspaceRoot = workspaceLayout.root;
 
-  const verdict = await resolveAgentPluginActivation(workspaceRoot, pluginId);
+  const verdict = await resolveAgentPluginActivation({ workspaceRoot: workspaceRoot, pluginId: pluginId });
   if (verdict.verdict === "undetermined") {
     return { pluginId, successorId, status: "failed", reason: `cannot tell whether '${pluginId}' was enabled: ${verdict.reason}` };
   }
 
   const installed = (await listInstalledPlugins(workspaceLayout.packages)).filter((plugin) => plugin.pluginId === pluginId);
-  const hasRecord = Object.hasOwn((await readAgentPluginActivations(workspaceRoot)).plugins, pluginId);
+  const hasRecord = Object.hasOwn((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins, pluginId);
 
   if (installed.length === 0 && !hasRecord) {
     const ledgerEntryRemoved = await removeBundledAgentPluginDigest({ workspaceRoot, pluginId });

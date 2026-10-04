@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "../../activation-effects.js";
+const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,7 +9,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
 import { buildSourceControlProvider, buildSourceControlProviders } from "#src/features/source-control/provider-registry";
@@ -40,10 +44,10 @@ test("existing site: the seeder's own earlier DISABLED github record is switched
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     // What every workspace seeded before this change carries: the seeder's untouched disabled record.
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "github" });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.github?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, false);
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.github?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, true);
 
     // The exact resolution source_control_execute_commit makes.
     const commit = await buildSourceControlProvider({ workspaceId: WORKSPACE_ID, providerId: "github" });
@@ -61,7 +65,7 @@ test("existing site: the seeder's own earlier DISABLED github record is switched
 test("fresh site: github seeds ENABLED with no user action", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(layout.forWorkspace(WORKSPACE_ID).root)).plugins.github?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root })).plugins.github?.enabled, true);
   });
 });
 
@@ -72,7 +76,7 @@ test("an operator who switched github off stays off across boots, and a commit i
     await setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.github?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, false);
 
     const commit = await buildSourceControlProvider({ workspaceId: WORKSPACE_ID, providerId: "github" });
     assert.equal(commit.ok, false);

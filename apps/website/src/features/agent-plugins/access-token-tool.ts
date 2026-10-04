@@ -15,7 +15,8 @@ import {
 import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type AgentPluginConnectToolDeps } from "./connect-tool.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
-import type { AgentPluginTokenAuth, RemoteMcpServerConfig } from "./manifest.js";
+import type { AgentPluginTokenAuth } from "@jini-ai/agent-plugins/lifecycle";
+import type { RemoteMcpServerConfig } from "./mcp-metadata.js";
 import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
 
 /**

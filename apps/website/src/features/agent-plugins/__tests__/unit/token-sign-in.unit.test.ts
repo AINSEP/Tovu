@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
-import type { McpServerConfig } from "../../manifest.js";
+import type { McpServerConfig } from "../../mcp-metadata.js";
 import { checkAgentPluginAccessToken, listTokenSignInPlugins } from "../../token-sign-in.js";
 
 /**

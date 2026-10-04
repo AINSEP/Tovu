@@ -21,7 +21,7 @@ import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
-import type { McpServerConfig, RemoteMcpServerConfig } from "./manifest.js";
+import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 
 /**
  * @file `agent_plugin_connect` — G1 of the 2026-09-27 Supabase-agent-plugin v2 plan

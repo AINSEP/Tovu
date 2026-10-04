@@ -1,3 +1,7 @@
+
+// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+import { agentPluginActivations } from "./activation-effects.js";
+const { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
 /**
  * @file `uninstallAgentPlugin()` — permanently removes one workspace's installed Agent Plugin: its
  * on-disk package(s) under `packages/sha256/*` for this `pluginId`, then its activation record.
@@ -110,7 +114,7 @@ import { chmod, readdir, rename, rm, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
-import { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } from "./activation.js";
+
 import type { InstalledAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
@@ -340,14 +344,14 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired, r
     throw new AgentPluginNotFoundError(`Agent Plugin '${pluginId}' is not installed in this workspace — nothing to uninstall`);
   }
 
-  if (!retiredBundled && (await isAgentPluginRecordedAsBundled(workspaceLayout.root, pluginId))) {
+  if (!retiredBundled && (await isAgentPluginRecordedAsBundled({ workspaceRoot: workspaceLayout.root, pluginId: pluginId }))) {
     throw new AgentPluginNotUninstallableError(bundledRefusalMessage(pluginId));
   }
   // The bundled read above answers `false` for a present-but-malformed entry (a non-object, a non-boolean
   // `enabled`), which says nothing about provenance. The gate reads that entry as `undetermined` and denies; an
   // uninstall does the same rather than remove what may be a bundled plugin the next boot re-seeds (t91 R4). A
   // file that became unreadable between the two reads also lands here, and is refused the same way.
-  if ((await resolveAgentPluginActivation(workspaceLayout.root, pluginId)).verdict === "undetermined") {
+  if ((await resolveAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: pluginId })).verdict === "undetermined") {
     throw new AgentPluginNotUninstallableError(malformedEntryRefusalMessage(pluginId));
   }
 

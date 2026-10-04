@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
@@ -29,7 +30,7 @@ async function readSkill(): Promise<string> {
 }
 
 test("AC-01: plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "supabase");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
@@ -47,7 +48,7 @@ async function readFailureModes(): Promise<string> {
 }
 
 test("mcp.json declares exactly one streamable-http OAuth server at Supabase's account-wide endpoint, auto-admitted", async () => {
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
 
@@ -79,7 +80,7 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
 test("mcp.json offers the access-token fallback: Supabase's tokens page, probed against its projects list", async () => {
   // Moved out of core `features/supabase-connect/` on 2026-09-29: the generic
   // `agent_plugin_set_access_token` (`access-token-tool.ts`) reads these from the plugin.
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.ok(parsed.ok);
   const server = parsed.config.servers.supabase;
   assert.ok(server && server.type !== "stdio");
@@ -102,7 +103,7 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
 });
 
 test("mcp.json carries saved selections across Supabase's get_logs -> query_logs rename, and defaults use the new name", async () => {
-  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.ok(parsed.ok);
   const server = parsed.config.servers.supabase;
   assert.ok(server && server.type !== "stdio");
@@ -112,7 +113,7 @@ test("mcp.json carries saved selections across Supabase's get_logs -> query_logs
 });
 
 test("plugin.json's keywords reach someone who just says they need a database", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
   for (const expected of ["supabase", "database", "store-data", "signups", "forms", "backend", "postgres"]) {
     assert.ok(keywords.has(expected), `plugin.json keywords must include '${expected}'`);
@@ -120,7 +121,7 @@ test("plugin.json's keywords reach someone who just says they need a database", 
 });
 
 test("plugin.json's description tells the model to start with agent_plugin_connect", async () => {
-  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.ok(parsed.ok);
   assert.match(parsed.manifest.description ?? "", /agent_plugin_connect/);
 });
