@@ -41,7 +41,7 @@ function makeDeps(): WidgetTrashDeps {
     remove: trash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    clock: { nowIso: () => "2026-07-21T00:00:00.000Z", nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: { enqueue: async () => undefined },

@@ -31,7 +31,7 @@ import { removeVia } from "./remove-post-double.js";
  */
 
 const WS = "workspace-1";
-const clock = { nowIso: () => "2026-09-20T12:00:00.000Z" };
+const clock = { nowIso: () => "2026-09-20T12:00:00.000Z", nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
 
 function recordingOutbox(): OutboxPort & { events: DomainEvent[] } {
   const events: DomainEvent[] = [];

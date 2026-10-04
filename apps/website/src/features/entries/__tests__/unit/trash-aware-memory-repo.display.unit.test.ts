@@ -45,7 +45,7 @@ async function createPublishedEntry(params: {
   const deps = {
     entryRepo: params.repo,
     contentTypeRepo: fixedContentTypeLookup(params.workspaceId, params.type, params.contentTypeFields),
-    clock: { nowIso: () => "2026-09-23T00:00:00.000Z" },
+    clock: { nowIso: () => "2026-09-23T00:00:00.000Z", nowMs: () => Date.parse("2026-09-23T00:00:00.000Z") },
     ids: { newId: () => params.idSeed },
     authorize: async () => ({ allowed: true, reason: "ok" }),
     outbox: { enqueue: async () => {} },
@@ -201,7 +201,7 @@ test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and 
     deps: {
       entryRepo: repo,
       contentTypeRepo: fixedContentTypeLookup("ws-1", "recipe", RECIPE_FIELDS),
-      clock: { nowIso: () => "2026-09-23T00:00:00.000Z" },
+      clock: { nowIso: () => "2026-09-23T00:00:00.000Z", nowMs: () => Date.parse("2026-09-23T00:00:00.000Z") },
       ids: { newId: () => "recipe-draft" },
       authorize: async () => ({ allowed: true, reason: "ok" }),
       outbox: { enqueue: async () => {} },

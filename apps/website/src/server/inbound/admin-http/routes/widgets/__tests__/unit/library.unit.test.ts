@@ -29,7 +29,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   let counter = 0;
   const deps = { workspaceId: "ws-7", entryRepo: new InMemoryEntryRepo(), entryRefsRepo: new InMemoryEntryRefsRepo(),
     contentTypeRepo: new InMemoryContentTypeRepo(), outbox: new InMemoryOutbox(), widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
-    clock: { nowIso: () => "2026-10-01T12:00:00Z" }, idGen: { newId: () => `b07-id-${++counter}` },
+    clock: { nowIso: () => "2026-10-01T12:00:00.000Z", nowMs: () => Date.parse("2026-10-01T12:00:00.000Z") }, idGen: { newId: () => `b07-id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides,
   };
   const app = express();
@@ -194,7 +194,7 @@ test("trash response preserves the marker port's exact version, including null",
       assert.deepEqual(input, {
         workspaceId: "ws-7", id: "active-text", expectedVersion: 3,
         display: { title: "Title active-text", subtitle: "slug-active-text" },
-        at: "2026-10-01T12:00:00Z", actor: { principalId: "principal-7", pluginId: null },
+        at: "2026-10-01T12:00:00.000Z", actor: { principalId: "principal-7", pluginId: null },
       });
       return { ok: true, version };
     } });
