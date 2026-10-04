@@ -13,6 +13,7 @@ import {
   type FormWriteServiceDeps,
 } from "#src/features/forms/write-service";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
@@ -77,6 +78,16 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
 
     try {
       const principal = getAuthedPrincipal(res);
+      // Empty/ignored bodies fall through to a read without invoking the write service's
+      // gateway. Gate that path too, before it can return a definition or disclose its absence.
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
+        principalId: principal.id,
+        permission: "admin.forms.manage",
+        workspaceId: deps.workspaceId,
+        entityType: "form_definition",
+        entityId: formId,
+      });
+      if (!authorized) return;
       const actor = { id: principal.id, kind: "user" as const };
       const writeDeps = {
         executeCommand: deps.executeCommand,

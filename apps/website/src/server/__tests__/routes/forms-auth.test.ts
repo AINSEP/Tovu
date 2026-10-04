@@ -238,3 +238,55 @@ test("admin forms routes: manage and submission-read permissions are separate on
     }
   }
 });
+
+
+test("admin forms PUT: no-op bodies require manage permission before revealing a definition", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/forms`;
+  const createRes = await fetch(base, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ name: "Private definition", slug: "private-definition", fields: [
+      { id: "email", label: "Email", type: "email", required: true },
+    ] }),
+  });
+  assert.equal(createRes.status, 201);
+  const definition = (await createRes.json()).data;
+  const before = await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: definition.id });
+  assert.ok(before);
+
+  const bareCookie = await loginWithPermissions(deps, baseUrl, []);
+  const readCookie = await loginWithPermissions(deps, baseUrl, ["admin.forms.submissions.read"]);
+  // Empty/ignored bodies used to bypass the write service's permission check and return the
+  // full definition (or disclose its absence), even though the matching GET denied that caller.
+  for (const cookie of [bareCookie, readCookie]) {
+    for (const id of [definition.id, "does-not-exist-resource-id"]) {
+      for (const body of [{}, { slug: "ignored" }, { status: "invalid" }]) {
+        const response = await fetch(`${base}/${id}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json", cookie },
+          body: JSON.stringify(body),
+        });
+        assert.equal(response.status, 403, `${id}: ${JSON.stringify(body)}`);
+        const denied = await response.json();
+        assert.equal(denied.code, "FORBIDDEN");
+        assert.equal(denied.details.permission, "admin.forms.manage");
+        assert.equal(denied.data, undefined);
+      }
+    }
+  }
+  assert.deepEqual(await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: definition.id }), before);
+
+  const grantedCookie = await loginWithPermissions(deps, baseUrl, ["admin.forms.manage"]);
+  const grantedRes = await fetch(`${base}/${definition.id}`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie: grantedCookie }, body: "{}",
+  });
+  assert.equal(grantedRes.status, 200);
+  assert.deepEqual((await grantedRes.json()).data, definition);
+  const missingRes = await fetch(`${base}/does-not-exist-resource-id`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie: grantedCookie }, body: "{}",
+  });
+  assert.equal(missingRes.status, 404);
+  assert.equal((await missingRes.json()).code, "FORMS_DEFINITION_NOT_FOUND");
+});

@@ -108,9 +108,36 @@ describe("MENUS_DICT: 'Move to trash' confirm dialog copy", () => {
  *   your theme's menu locations." became "…for your theme's header and footer."), orphaning all 21
  *   translations under the old key;
  * - the item editor's "Advanced" fields from 92494e7c0, which never got translations at all.
+ * The first repair covered those seven strings. The full rendered-key list also guards the
+ * 19 loading, label, placeholder and item-control keys left untranslated in every locale.
  */
 describe("MENUS_DICT: copy the menus screens actually render", () => {
   const RENDERED_KEYS = [
+    "Back",
+    "Content",
+    "Menus",
+    "Add New",
+    "No menus yet.",
+    "Create your first menu to get started.",
+    "Title",
+    "Status",
+    "Actions",
+    "Trash",
+    "Move to trash?",
+    "Move to trash",
+    'Move "{title}" to trash?',
+    "New menu",
+    "Edit menu",
+    "Build this menu's items and where each one links to.",
+    "Save",
+    "Menu title",
+    "Label",
+    "URL",
+    "Route",
+    "Entry",
+    "Term",
+    "+ child",
+    "+ Add item",
     "Build navigation menus for your theme's header and footer.",
     "Advanced",
     "CSS class",
@@ -118,6 +145,25 @@ describe("MENUS_DICT: copy the menus screens actually render", () => {
     "Description",
     "Link rel",
     "Open in new tab",
+    "Loading menus…",
+    "Loading menu…",
+    "Route name",
+    "route name",
+    "Entry ID",
+    "entry id",
+    "Term ID",
+    "term id",
+    "Taxonomy",
+    "taxonomy",
+    "Item label",
+    "Link type",
+    "Move up",
+    "Move item up",
+    "Move down",
+    "Move item down",
+    "Add child item",
+    "Remove item",
+    "Menu slug",
   ];
   const LOCALES = [
     "ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it",
@@ -130,6 +176,10 @@ describe("MENUS_DICT: copy the menus screens actually render", () => {
       (key) => MENUS_DICT[locale]?.[key] === undefined && COMMON_I18N[locale]?.[key] === undefined,
     );
     expect(untranslated).toEqual([]);
+    for (const key of RENDERED_KEYS) {
+      const value = MENUS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key];
+      expect(value?.trim().length, `${locale}: ${key}`).toBeGreaterThan(0);
+    }
   });
 
   it("no longer carries the orphaned pre-a4637b788 description key", () => {

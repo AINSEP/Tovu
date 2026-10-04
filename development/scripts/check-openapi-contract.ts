@@ -5,8 +5,10 @@
  * Boots a REAL Tovu server (`createApp()`, the same composition root
  * `admin-post-page-delete-routes.test.ts` and friends use) against real in-memory repos, then
  * fires real HTTP requests designed to land on each documented error status and asserts the real
- * response status matches. Every probe below is GENERIC (derived mechanically from the spec, not
- * hand-written per route) except the three `IDEMPOTENCY_409` probes, which mirror the
+ * response status matches. Probe selection is GENERIC (derived mechanically from the spec, not
+ * hand-written per route). Request fixtures now supply valid bodies/paths where `{}` or
+ * placeholder segments would mask the named condition; see `lib/openapi-contract-fixtures.ts`.
+ * The three `IDEMPOTENCY_409` probes mirror the
  * `Idempotency-Key`-replay pattern `src/server/__tests__/admin-post-page-delete-routes.test.ts` /
  * `forms-admin-crud.test.ts` already established for those exact three routes.
  *
@@ -20,10 +22,13 @@
  * - **404 (workspace)**: every op with a `{workspaceId}` path param documenting 404 — real request
  *   against a workspace id that does not exist.
  * - **404 (resource)**: every op with 2+ path params documenting 404 — real request with a valid
- *   workspace but a nonexistent id in the last path segment.
- * - **400 (create-body validation)**: every `POST`/`PUT`/`PATCH` op whose ONLY path param is
- *   `workspaceId` (i.e. a collection-create, not an update-by-id) with a required body and a
- *   documented 400 — real request with an empty `{}` body.
+ *   workspace but a nonexistent resource id. Renditions use the asset segment (the last segment
+ *   is cosmetic); newsletter subscription lists instead assert the documented empty 200.
+ * - **400 (create-body validation)**: every `POST`/`PUT`/`PATCH` op with at most one path param
+ *   (a collection-create, not an update-by-id, or a public form slug) with a required body and a
+ *   documented 400 — real request with an invalid body. `{}` is valid for blank draft creation
+ *   and clearing media credentials, so those use invalid field values. Public form validation
+ *   uses a seeded active form so an unknown placeholder slug cannot short-circuit to 404.
  * - **409 (idempotency replay)**: hardcoded to the 3 routes with an existing test precedent for
  *   this exact mechanism (`create_post`, `create_page`, `create_form_definition`) — replays the
  *   same `Idempotency-Key` twice and asserts the second response is 409.
@@ -48,14 +53,15 @@
  */
 import path from "node:path";
 
-import { buildUrl, loadOpenApiOperations, type OpenApiOperation } from "./lib/openapi-operations.js";
+import { loadOpenApiOperations, type OpenApiOperation } from "./lib/openapi-operations.js";
+import { buildContractProbeRequest, seedContractProbeForm, type ContractProbeType } from "./lib/openapi-contract-fixtures.js";
 import { loginBarePrincipal, loginOwner, startTovuServer } from "./lib/tovu-test-server.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const OPENAPI_DIR = path.join(REPO_ROOT, "openapi");
 const WORKSPACE_ID = "workspace-local";
 
-type ProbeType = "AUTH_401" | "PERM_403" | "WORKSPACE_404" | "RESOURCE_404" | "VALIDATION_400" | "IDEMPOTENCY_409";
+type ProbeType = ContractProbeType;
 
 interface ProbeResult {
   readonly probeType: ProbeType;
@@ -78,19 +84,31 @@ function cookieHeader(op: OpenApiOperation, cookie: string): Record<string, stri
 }
 
 async function runProbe(
-  probeType: ProbeType,
-  op: OpenApiOperation,
-  expectedStatus: string,
-  baseUrl: string,
-  url: string,
-  headers: Record<string, string>,
-  body: string | undefined
+  { probeType, op, expectedStatus, baseUrl, url, headers, body }: {
+    probeType: ProbeType;
+    op: OpenApiOperation;
+    expectedStatus: string;
+    baseUrl: string;
+    url: string;
+    headers: Record<string, string>;
+    body: string | undefined;
+  },
+  { request = fetch }: { request?: typeof fetch } = {},
 ): Promise<ProbeResult> {
   const init: RequestInit = { method: op.method.toUpperCase(), headers };
   if (body !== undefined) init.body = body;
-  const res = await fetch(`${baseUrl}${url}`, init);
+  const res = await request(`${baseUrl}${url}`, init);
   const bodyText = await res.text();
-  const pass = String(res.status) === expectedStatus;
+  let pass = String(res.status) === expectedStatus;
+  if (pass && probeType === "RESOURCE_EMPTY_200") {
+    // The newsletter spec promises an empty collection for an unknown list, not any 200 body.
+    try {
+      const payload = JSON.parse(bodyText) as { data?: unknown };
+      pass = Array.isArray(payload.data) && payload.data.length === 0;
+    } catch {
+      pass = false;
+    }
+  }
   return {
     probeType,
     file: op.file,
@@ -104,40 +122,17 @@ async function runProbe(
   };
 }
 
-function jsonBody(op: OpenApiOperation, headers: Record<string, string>): { headers: Record<string, string>; body: string | undefined } {
-  if (!op.requestBodyRequired) return { headers, body: undefined };
-  return { headers: { ...headers, "content-type": "application/json" }, body: "{}" };
-}
-
-async function probeAuth401(op: OpenApiOperation, baseUrl: string): Promise<ProbeResult> {
-  const url = buildUrl(op, { workspaceId: WORKSPACE_ID });
-  const { headers, body } = jsonBody(op, {});
-  return runProbe("AUTH_401", op, "401", baseUrl, url, headers, body);
-}
-
-async function probePerm403(op: OpenApiOperation, baseUrl: string, bareCookie: string): Promise<ProbeResult> {
-  const url = buildUrl(op, { workspaceId: WORKSPACE_ID });
-  const { headers, body } = jsonBody(op, { cookie: bareCookie });
-  return runProbe("PERM_403", op, "403", baseUrl, url, headers, body);
-}
-
-async function probeWorkspace404(op: OpenApiOperation, baseUrl: string, ownerCookie: string): Promise<ProbeResult> {
-  const url = buildUrl(op, { workspaceId: "does-not-exist-workspace" });
-  const { headers, body } = jsonBody(op, cookieHeader(op, ownerCookie));
-  return runProbe("WORKSPACE_404", op, "404", baseUrl, url, headers, body);
-}
-
-async function probeResource404(op: OpenApiOperation, baseUrl: string, ownerCookie: string): Promise<ProbeResult> {
-  const lastParam = op.pathParams[op.pathParams.length - 1];
-  const url = buildUrl(op, { workspaceId: WORKSPACE_ID, [lastParam]: "does-not-exist-resource-id" });
-  const { headers, body } = jsonBody(op, cookieHeader(op, ownerCookie));
-  return runProbe("RESOURCE_404", op, "404", baseUrl, url, headers, body);
-}
-
-async function probeValidation400(op: OpenApiOperation, baseUrl: string, ownerCookie: string): Promise<ProbeResult> {
-  const url = buildUrl(op, { workspaceId: WORKSPACE_ID });
-  const headers = { ...cookieHeader(op, ownerCookie), "content-type": "application/json" };
-  return runProbe("VALIDATION_400", op, "400", baseUrl, url, headers, "{}");
+async function probeOperation(
+  { probeType, op, baseUrl, headers }: {
+    probeType: Exclude<ProbeType, "RESOURCE_EMPTY_200" | "IDEMPOTENCY_409">;
+    op: OpenApiOperation;
+    baseUrl: string;
+    headers: Record<string, string>;
+  },
+  { formSlug }: { formSlug?: string } = {},
+): Promise<ProbeResult> {
+  const input = buildContractProbeRequest({ operation: op, probeType, workspaceId: WORKSPACE_ID, headers }, { formSlug });
+  return runProbe({ ...input, op, baseUrl });
 }
 
 interface IdempotencyTarget {
@@ -206,8 +201,12 @@ async function probeIdempotency409(target: IdempotencyTarget, baseUrl: string, o
  * body-required route with an empty `{}` body lands on a 400 instead of the status being probed —
  * that by itself doesn't prove the documented 403/404 is unreachable, only that this probe's empty
  * body can't isolate the path being tested for THIS operation.
+ *
+ * The 2026-10-04 fixtures correct the known cases without suppressing failures. This hint
+ * remains useful for newly documented operations that still need a valid request fixture.
  */
 function mismatchHint(f: ProbeResult): string | undefined {
+  if (f.probeType === "RESOURCE_EMPTY_200") return "the missing-list response must have an empty data array";
   if ((f.probeType === "PERM_403" || f.probeType === "RESOURCE_404") && f.actualStatus === 400) {
     return "likely probe limitation: this handler validates the request body before checking auth/resource-existence, so the empty probe body short-circuits before reaching the path being tested — not proof the documented status is wrong, re-check with a schema-valid body";
   }
@@ -246,41 +245,45 @@ async function main(): Promise<void> {
   const results: ProbeResult[] = [];
   const touched = new Set<string>();
 
-  for (const op of operations) {
-    const key = `${op.file}#${op.operationId}`;
-    if (op.requiresAuth && op.statusCodes.includes("401")) {
-      results.push(await probeAuth401(op, server.baseUrl));
-      touched.add(key);
-    }
-    if (op.requiresAuth && op.statusCodes.includes("403")) {
-      results.push(await probePerm403(op, server.baseUrl, bareCookie));
-      touched.add(key);
-    }
-    if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
-      results.push(await probeWorkspace404(op, server.baseUrl, ownerCookie));
-      touched.add(key);
-    }
-    if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
-      results.push(await probeResource404(op, server.baseUrl, ownerCookie));
-      touched.add(key);
-    }
-    if (
-      ["post", "put", "patch"].includes(op.method) &&
-      op.requestBodyRequired &&
-      op.pathParams.length <= 1 &&
-      op.statusCodes.includes("400")
-    ) {
-      results.push(await probeValidation400(op, server.baseUrl, ownerCookie));
-      touched.add(key);
-    }
-  }
+  try {
+    const formSlug = await seedContractProbeForm({ request: fetch, baseUrl: server.baseUrl, ownerCookie, workspaceId: WORKSPACE_ID });
 
-  for (const target of IDEMPOTENCY_PROBES) {
-    results.push(await probeIdempotency409(target, server.baseUrl, ownerCookie));
-    touched.add(`${target.file}#${target.operationId}`);
-  }
+    for (const op of operations) {
+      const key = `${op.file}#${op.operationId}`;
+      if (op.requiresAuth && op.statusCodes.includes("401")) {
+        results.push(await probeOperation({ probeType: "AUTH_401", op, baseUrl: server.baseUrl, headers: {} }));
+        touched.add(key);
+      }
+      if (op.requiresAuth && op.statusCodes.includes("403")) {
+        results.push(await probeOperation({ probeType: "PERM_403", op, baseUrl: server.baseUrl, headers: { cookie: bareCookie } }));
+        touched.add(key);
+      }
+      if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
+        results.push(await probeOperation({ probeType: "WORKSPACE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+        touched.add(key);
+      }
+      if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
+        results.push(await probeOperation({ probeType: "RESOURCE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+        touched.add(key);
+      }
+      if (
+        ["post", "put", "patch"].includes(op.method) &&
+        op.requestBodyRequired &&
+        op.pathParams.length <= 1 &&
+        op.statusCodes.includes("400")
+      ) {
+        results.push(await probeOperation({ probeType: "VALIDATION_400", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }, { formSlug }));
+        touched.add(key);
+      }
+    }
 
-  await server.close();
+    for (const target of IDEMPOTENCY_PROBES) {
+      results.push(await probeIdempotency409(target, server.baseUrl, ownerCookie));
+      touched.add(`${target.file}#${target.operationId}`);
+    }
+  } finally {
+    await server.close();
+  }
 
   const byType = new Map<ProbeType, ProbeResult[]>();
   for (const r of results) byType.set(r.probeType, [...(byType.get(r.probeType) ?? []), r]);

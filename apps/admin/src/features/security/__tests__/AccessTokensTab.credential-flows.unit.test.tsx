@@ -609,6 +609,7 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+    expect(dialog).toHaveAttribute("open");
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel", hidden: true }));
 
     expect(removeToken).not.toHaveBeenCalled();
@@ -622,6 +623,7 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+    expect(dialog).toHaveAttribute("open");
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove from Tovu", hidden: true }));
 
     expect(removeToken).toHaveBeenCalledWith(target.row);
