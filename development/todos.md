@@ -22,6 +22,155 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Owner decisions still in force (carried from the retired owner worklist, 2026-10-04)
+
+Product calls that govern future work. Dates are when the owner said it. Archive:
+`ADS-memory/.local-artifacts/archive/owner-worklist-retired-2026-10-04.md`.
+
+- **Delete = Trash (09-20).** Every delete goes to Trash; permanent delete only from the Trash screen (checkbox + confirm modal); agents get trash/restore/list-trash and NO purge tool; 60-day purge is a backstop. Forms are deletable to Trash too, overriding INV-08 (09-21); plugins go to Trash (09-21).
+- **Errors say the real reason (09-16):** "always say the real reason so i can improve it or people can see the errors and report them later".
+- **BYOK tool errors: "hide secrets only" (09-16).** Errors stay visible with a copyable error ID; secret-shaped values blanked; full (redacted) error kept server-side.
+- **Publish actions (09-18):** Deploy, Publish Content, and a combined Deploy + Publish that is an explicit third choice, never the default, and deploys THEN publishes (the combined tool itself is parked, see below).
+- **Publish selection (09-19):** "we should have the ability to push a select group of things and not all of it". Per-row/per-group selection is a requirement.
+- **Publish list order (09-26):** to-publish first A–Z, then up-to-date A–Z, one shared comparator.
+- **Publish replacing a live page repoints live menu links (09-24).** Overwrite of seed-untouched rows is pre-ticked (09-24). A chat without admin rights cannot publish: "OK for now", owner unsure, revisit.
+- **Site key (09-24, supersedes the 09-19 "Site Token" name):** call it "site key" EVERYWHERE (copy, code, env var, file names, routes, i18n, tests) in one job, with only a temporary old-name fallback so prod and existing installs still decrypt; auto-create it (no banner, no Generate click); keep the Generate button but hidden. The root-key decision for desktop 0.1.8 is still the owner's.
+- **Agents may read everything (09-24):** the `.env` deny was reverted ("claude should read everything"); the non-Claude CLI key-file block is parked.
+- **Embeds (09-16):** JSON picks only WHAT to embed (type + slug); every option is a plain attribute on the marker (e.g. `controls="false"`); page-HTML security stays as is. Docs use slugs, never long UUIDs (09-23).
+- **Public file URLs (09-23):** serve only files something published uses, plus a user-changeable setting, default protected.
+- **Users (09-24):** owner/admin keep resetting others' passwords (add an info icon saying why); owner + built-in admin role may trash/restore/purge users; NO production lockout on the default password; first start with admin/tovu-dev is OK on localhost with a dismissible "change your password before deploying" banner.
+- **Tovu Starter (09-27):** a copy of Tovu Theme with all Tovu stuff stripped; default for every desktop app and zip; never touch the active Tovu theme.
+- **kUInetic CDN (09-27):** "NO exact pin (no hand bumps); use major range kuinetic@0 + local fallback". Currently contradicted by `c91d9849f` (pinned 0.2.3), see the open item below.
+- **Storage (09-28):** SQLite is the default; PGlite is an option chosen at site creation with full parity (one PGlite for content, one for chats); the choice is not permanent (PGlite → Supabase Postgres later); PGlite stays hidden until parity. Drop Drizzle after Q1; AI chats live in Postgres schema `ai_chat`; every SQLite site gets a `tovu_migrations` table plus a one-time backup on next boot.
+- **Approvals (09-28):** write-shaped inputs always ask; a `query` input stays always-ask.
+- **Hooks (09-23):** about 20 core hooks now, plus plugin-published namespaced hooks (`acme.invoice.created`) on top of the typed core catalog, low priority.
+- **Agent-plugin knowledge (09-14):** ONE per-plugin `knowledge` folder holding both plugin-learned and user project knowledge; a Tovu-only extension (the public Agent Plugins standard is not changed).
+- **Langfuse (09-23)** may receive prompts, opt-in, keys always stripped. Monitoring as a whole is still Later.
+- **Zana admin (09-24)** is its own project (a copy of the Tovu admin, not a shared shell): vibecoded app → Zana admin → Jini.
+- **Local CI drift gate stays blocking (09-15).** RSS feed stays (09-28). No newsletter work at all.
+
+---
+
+## Moved from owner-worklist (2026-10-04)
+
+The owner worklist (`ADS-memory/.local-artifacts/owner-worklist.md`) was retired 2026-10-04; new items go here.
+Each item: what is left, date asked, `Lnnn` = line in the archived worklist. Verified against code/git on
+2026-10-04 (Codex audit `ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/worklist-open.md` plus spot checks).
+Not repeated here because other work owns them today: test-rigor waves 11–19 + requeues, desktop 0.1.8 release,
+plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
+
+### Desktop
+- **Cmd+W quits the whole app and stops every site** (09-18, L2177/L2243): `apps/desktop/main.ts:1737` `window-all-closed` → `app.quit()` with no darwin guard. Most user-visible desktop bug.
+- **Site Restart control** (09-16, L2098): Stop now exists (`use-site-power.hooks.ts`); confirm a one-click Restart exists or add it.
+- **Session/tab restore on launch, Cmd+K quick open, native notification when a long run finishes** (09-18, L2171–2175): none built (audit estimates: restore ~half a day, notifications 2–3 days + an ownership call).
+- **Committed desktop UI test harness** (09-19, L2474): owner: "this needs to be automatic for testing later! completely automated". Per-feature `apps/desktop/scripts/verify-*.ts` launch Electron; no generic launch-with-CDP + Playwright + teardown harness any agent can use.
+- **Measure card-preview timing** (09-12, L51): `PREVIEW_PAINT_SETTLE_MS=1200` / `PREVIEW_CAPTURE_DEBOUNCE_MS=1500` are guesses.
+- **minWidth on the site/admin window** (09-12, L52): `createWindow` sets only width/height.
+- **Vendor Google Fonts** (09-24, L3053): `apps/desktop/src/renderer/app.css:1` still imports fonts.googleapis.com; then tighten CSP `style-src`/`font-src` to `'self'`.
+- **Auto-update on/off preference** (09-24, L3042): updater exists, no user toggle.
+- **First-run Agree screen** (legal, 09-24, L3042): not built.
+- **Third-party notices + Electron license files in the package** (09-24, L3038/L3042): no THIRD_PARTY_NOTICES generator; `LICENSES.chromium.html` reported dropped.
+- **Browser-server ZIP launchers (Mac/Win/Linux) + release assets** (09-23, L2990–2996): run-from-zip plan S3–S5 left (`ADS-memory/.local-artifacts/run-from-zip-plan-2026-09-23.md`); Download page still has a `ZIP_URL` placeholder.
+- **Root `build:server` is not Windows-portable** (09-24, L3047): uses `rm -rf`/`mkdir -p`/`cp -R`; move to a node script.
+- **`npm start` port probe-then-bind race** (09-24, L3047): `development/scripts/start.mjs`.
+- **js-backslide guard enforces nothing** (09-12, L54): `core.hooksPath` unset so `apps/desktop/scripts/hooks/pre-push` never runs, and CI is off. Wire the hook (or a CI job when CI returns).
+- **Desktop hand checks** (09-12, L47–50): the 5 toolbar checks (arrows/URL layout, back/forward across admin↔site, Reload keeps history, Cmd+[ / Cmd+], History menu present + Help empty) and the restart click-through. Fold into the release hand-check gate below.
+
+### Plugins
+- **Agent Plugins page redesign** (owner-decided 09-14, L696–708/L958): one list, On/Off for every plugin; Tovu-shipped = "Built in", switch-off only; user-added get Uninstall + confirm; drop the Downloaded tab. Needs an uninstall HTTP route + `origin` in the list response; Jini `AgentPluginRow` still disables Uninstall.
+- **Plugin hooks S2–S6** (09-23, L2984–2987): S1 catalog landed `068402eaf`; rest in `ADS-memory/.local-artifacts/handoffs/2026-09-23-hooks-lane.md`. Before the SDK 0.2.0 bump fix plugin ranges (`^0.1.0` excludes 0.2.0).
+- **Plugin-published namespaced hooks** (owner YES 09-23, L2981): runtime publication on top of the typed catalog, after hooks S2–S6.
+- **Plugin-memory layout B** (09-14, L704–718/L1014–1020): spec revised `ad7a90a55`; implementation not started; needs the owner's build go.
+- **Higgsfield plugin says video is not covered** (09-26, L3483–3485): `content/agent-plugins/higgsfield-media/skills/higgsfield-media/references/models-and-plan-gates.md:130` says `generate_video` is not allowlisted; owner says video works and the promo shows it. Fix the docs or wire video.
+- **Installed SKILL.md copies refresh on plugin upgrade?** (09-14, L1371): unverified; add a test.
+
+### Publish
+- **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
+- **Advanced manual publish "YOLO" backstop BS1–BS6** (09-24, L3101–3102): design in `ADS-memory/.local-artifacts/publish-backstop-design-2026-09-24.md`, nothing built. Owner questions B1 (admins too?), B2 (ship switched off on live?), B3 (allow plugin `p_*` tables?) unanswered.
+
+### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
+- **wm S1→S2** (L3314): listed as remaining on 09-24; confirm state before starting.
+- **wm S3 entries** (L3314): Jini `entries/write-service` checks version before the transaction and saves with no persistence `expectedVersion` guard.
+- **wm S4 menus** (L3314): Jini `navigation/menu-service:updateMenuTree` same pattern.
+- **wm S5 content types** (L3314): Jini `content-types/lifecycle.ts:220` tears down indexes before the transactional save.
+- **wm S10 sitemap** (L3314): `setSeoSettings` does not invalidate the web process's sitemap.
+- **wm S16 tool failures** (L3314): redirect/comment domain errors not mapped to actionable model-facing errors; taxonomy unassign pending.
+- **wm S18 taxonomy unassign** (L3314): `taxonomy/tool-registrations.ts:299` returns every requested termId; Jini `unassignTerms` returns void.
+
+### Chat & admin
+- **Typed answers to a pending ask_choice, jl A1a/A1b** (09-24, L3318): typing produces no request; on a consumed answer the client must DROP the text or it starts a second PAID run (L2243). No `deliverTypedAnswer` producer in admin or Jini chat.
+- **Chat auto-scroll still sticks** (09-15/09-21, L2054/L2670): Jini `de436905` (08-31) predates the complaints; lead: `MessageList` `stickToBottomRef` set false by any scroll, reset only on remount. (Composer draft + attachment persistence is done: Jini `8d4a0ca2`, `aebdfc59`.)
+- **Posts editor ignores assistant edits / stale slug in address bar** (09-24, L3110, also L2099): no fix commit after the report.
+- **Theme Explore: agent-added/removed files and remaining rename/URL cases** (09-16, L1361–1362/L2110): flash + dirty-buffer guard done (`4939448bb`); external file mutations not.
+- **Deep admin translation sweep** (09-22, L2726–2745): many fixes landed (latest `f07a92dcb`); no whole-admin literal/call-site closure.
+- **3b-handoff small follow-ups** (09-14, L1323–1327): footer GET repeats, widget-paste visuals, remaining review comments.
+- **Approval card: expiry countdown + record hints at enable time** (09-28, L3626/L3686): neither built (the baseline needs a content.db record).
+- **Public-file protection setting** (09-23, L2917/L2972): the published-referrer media gate exists; the owner's user-changeable setting (default protected), readable-slugs Q1, is not built.
+- **Migrate-forward never updates `.site-meta.json`** (09-21, L2612): only `init-site.ts:269` writes it, so the banner's promise may be false; check under the new storage runner.
+
+### Media
+- **File size visible on Media cards** (09-21, L2712–2724): Jini `MediaCard` renders `jini-media-card-size` with `hidden`.
+- **Upload date on Media items** (09-26, L3494/L3501): missed earlier; Jini `MediaCard` shows no date.
+- **Sound-on pill on the home promo video** (09-26, L3497): owner: for THIS video only, no global rule; owner killed the writer before it landed.
+
+### DB
+- **PGlite parity acceptance + SQLite/PGlite choice at site creation** (09-28, L3564/L3588): CLI `--storage` exists; no selector in admin/desktop site creation.
+- **Retire the remaining Drizzle tooling after parity** (09-28, L3625/L3693): `package.json` still depends on drizzle-orm/drizzle-kit; `build:server` copies `platform/db/drizzle`.
+- **Real-Postgres concurrency tests (Q1) + post-extraction DB tests C1–C3** (09-28, L3603–3604/L3712): no aggregate lock/race acceptance.
+
+### Testing & release (post-extraction TRACKER, 10-02, L3714–3718)
+- **Step-3 unit-test repair, one package at a time** (44 briefs in `codex-new/post-queue`): many suites fixed; no final completion report.
+- **19 fix checks + 8 security reviews**, after all code changes stop (review LAST).
+- **GATE: hand-check desktop app + web (site + admin)** before release.
+- **Step-6 coverage for all 44 briefs**: batches A/B done; the rest queued.
+- **Jini guard/architecture/coverage sweep + inline-handler cleanup** (09-12, L116/L1359): original counts obsolete; fold into the post-extraction audit.
+- **Make the Supabase live SQL journey repeatable** (chat → card → SQL, 09-27, L3544): passed manually once.
+- **Live Supabase acceptance: DCR, AC-13, ARIA (SPEC-052)** (09-14, L1322/L1344/L3526): needs a real-account run.
+- **BYOK: switching providers back keeps each provider's saved key** (09-14, L1330–1333): needs a live Anthropic + OpenAI switching proof.
+- **kUInetic reduced-motion "shorten" blinks entrance elements ~2 frames** (09-28, L3703): fix in the kUInetic repo.
+
+### Security
+- **Rotate the GitHub + NVIDIA keys** printed by `pgrep -fl` (owner-only, 10-02, L3724).
+- **GitHub writes: reject nested `.git` paths and keep executable modes, jl C2** (09-24, L3318): `isReservedGitPath` checks only the first segment; `content/agent-plugins/github/source-control/write-files.mjs:275` always emits mode 100644.
+- **Token rotation drops a sealed-only username, jl C3** (09-24, L3318): `custom-credentials/tool-registrations.ts:852` reseals with `current.username` only.
+- **List/cursor/branch validation, jl C6a–C6c** (09-24, L3318): plan `ADS-memory/.local-artifacts/fix-plan-jini-leftovers-2026-09-24.md`.
+- **Regenerate a leaked site key from the UI** (09-12, L88): must re-encrypt every sealed credential; an env-set key cannot change from the UI. Recovery routes exist (`82444fec4`), no regenerate flow.
+- **Finish the site-key rename** (09-19/09-24, L2412/L3240): `TOVU_SITE_KEY` with fallback exists only in `features/webhooks/site-key-sources.ts`; UI still says "Site Token"; the env-var move is a coordinated production secret migration (Fly secrets, `~/.bash_profile`, CI) and prod must be updated first.
+- **AI disclosure + report link; legal identity/contact inputs** (09-24, L3042/L3303): owner inputs still open: own name as controller, $0 cap vs $50 floor, state/county, tovu.dev vs tovu.com, contact email, form-IP retention.
+
+### Owner-only actions and calls
+- **kUInetic auto-upgrade vs pin** (needs an owner call): owner said `kuinetic@0` range, no exact pin (09-27, L3519); `c91d9849f` later pinned 0.2.3 because jsDelivr caches `@0` for a week and stale browsers ran 0.2.2. Pick one.
+- **Delete the stray public branch `codex/test-rigor-w01-postwave-20261001`** (10-02, L3726): still on origin (remote-tracking ref present 10-04).
+- **Codex GitHub app can see the 4 AINSEP repos?** (10-02, L3727): external app permission, check in GitHub.
+- **Dispose of stale release-build clones and scratch artifacts** (09-14/09-21, L1446/L1468/L2622).
+
+### Still unsure (could not be settled from code/git)
+- **Three more demo videos + "See it in action" carousel** (09-27, L3505): home DB has a carousel with two video slugs; a DB-only change has no commit to check.
+- **Landing gold hovers / lede / FOUC changes on production** (09-28, L3698–3700): local page v74/v75 exists; needs a look at tovu.dev.
+- **Old admin plan leftovers** (09-21, L2610–2614: misc A1/A2/F6/F7/D1, component D2, content C, platform 2/5/6, tooling B4–6): no mapping from those plan IDs to current code; needs a re-audit, not a lookup.
+- **Publish UI/source/CSS feature-slice colocation cleanup** (09-19, L2374–2376/L2439): the feature moved; the original acceptance was never written down.
+
+### Parked by owner
+- **Global desktop chat bar + SPEC-051 prerequisites** (L103–112/L3244): "NEXT VERSION". Direction: one global conversation with active-site tools.
+- **Separate persistent admin/site guests with shared history** (09-14, L1191): owner stopped it; not restarted.
+- **Public collection-entry pages G1–G4** (09-23, L2819/L2953): owner disabled the wave; collection displays already shipped.
+- **Unified searchable plugin/webhook event list** (L83/L1910/L3178): build later.
+- **Microsoft Store** (09-23, L2983): paused until LLC + DUNS + domain email; Store prep is done.
+- **Jev model routing in the assistant** (09-21, L2570/L2591): "Later / back of mind".
+- **Compound Deploy + Publish tool** (L2279/L3236): parked; separate Deploy and Publish ship.
+- **Secrets sync channel for publish** (09-24, L3228): parked; publish excludes credentials by design.
+- **Exhaustive "everything under sites/" publish gap audit** (09-24, L3234): parked.
+- **Sandbox non-Claude local CLIs from reading the key** (09-24, L2117/L3242): "just do the MVP"; plan `plan-root-key-non-claude-cli-2026-09-24.md`.
+- **Purge/reseed the removed sample users** (09-24, L3155): jordan/alex stay in Trash; seed regeneration parked.
+- **Newsletter backlog (wm S6/S7, jl C4a)** (09-24, L3312): no newsletter work at all.
+- **Public MCP member sign-in `/auth/magic`** (09-28, L3585): HOLD.
+- **Move the outbox to its own Jini package** (10-02, L3721): ON HOLD; stays in `@jini-ai/infra` until more event code exists.
+- **Composio as an optional small Agent Plugin** (10-02, L3732): only if wanted again.
+- **Test gaps for the later combined batch** (09-30, L500–507): D-03 listener `[resetKey]` dependency mutant; real overflow measurement/ResizeObserver in a browser; SiteGrid delete-confirmation (`isCardOpenable(project, true)` never tested).
+- Already tracked elsewhere in this file, not repeated: admin motifs, admin buffet, EmDash gaps, workerd, public site search bar, Observability instrumentation (monitoring Later), raw-HTML forms/menus/widgets.
+
+---
+
 ## Raw-HTML embed mode for forms, menus and categories/tags (owner idea, 2026-10-03; NOT now, after the admin media swap is committed)
 
 **Goal.** Site builders get plain, semantic, unstyled HTML that they style however they want.
@@ -148,6 +297,11 @@ registry-installed `@jini-ai/*` packages will NOT get until a version bump + pub
 No Tovu code change needed here; this is a reminder that a Jini publish + dist rebuild is owed
 before registry installs pick these up. See also the Jini-publish note in the "Entries envelope
 owner" section above (line ~48), a separate instance of the same publish debt.
+
+**From the owner worklist (2026-10-02):** the post-extraction release step is "npm publish, owner approves
+each package; cms-forms stays private". Progress since: Tovu `9d236f090`/`03709b9af`/`9ed760ce1` adopt cms 0.4.1,
+ui 0.4.1 and cms-forms 0.2.1 (so cms-forms did get published after all); no ledger yet shows every extracted package approved and published.
+Agents cannot publish: give the owner a `!` command run from the Jini root.
 
 ---
 
