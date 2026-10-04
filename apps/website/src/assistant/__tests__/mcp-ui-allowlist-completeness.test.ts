@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
@@ -31,7 +32,7 @@ const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
   // exercise both IDs with the real exchange store, including wrong-binding and typed answers.
-  "settings_set_value", "settings_clear_value",
+  "assistant_ask_choice", "settings_set_value", "settings_clear_value",
   "trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
   "identity_user_delete", "external_mcp_delete", "custom_credential_delete",
   "deployment_delete_provider_credential", "source_control_delete_credential",
@@ -61,36 +62,113 @@ interface ExchangeScan {
   readonly unresolved: readonly string[];
 }
 
-function scanExchangeOpeners(files: readonly string[]): ExchangeScan {
-  const texts = files.map((file) => ({ file, text: readFileSync(file, "utf8") }));
-  const constants = new Map<string, string>();
-  for (const { text } of texts) {
-    for (const m of text.matchAll(/\bconst ([A-Z][A-Z0-9_]*)(?:\s*:\s*[A-Za-z]+)?\s*=\s*"([a-z][a-z0-9_]*)"/g)) {
-      if (!constants.has(m[1]!)) constants.set(m[1]!, m[2]!);
+// These exact dynamic expressions are adapters for handlers tested through real exchanges.
+// New unresolved expressions fail closed, including in these same files.
+const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
+  ["contracts/core/human-confirm.ts", new Set(["toolId", "spec.dialog(prepared)"])],
+  ["assistant/external-mcp-call-confirmation.ts", new Set(["spec"])],
+  ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
+  ["features/permanent-delete/tool-registrations.ts", new Set(["toolId"])],
+  ["features/settings/tool-registrations.ts", new Set(["toolId"])],
+  ["features/newsletter/delivery-confirmation.ts", new Set(["toolId"])],
+  ["features/database-transfer/tool-registrations.ts", new Set(["binding"])],
+]);
+
+function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
+  const sources = texts.map(({ file, text }) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
+  const constants = new Map<string, ts.Expression>();
+  const walk = (node: ts.Node, visit: (node: ts.Node) => void) => {
+    visit(node);
+    ts.forEachChild(node, (child) => walk(child, visit));
+  };
+  for (const source of sources) walk(source, (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      constants.set(node.name.text, node.initializer);
     }
-  }
+  });
+  const unparen = (node: ts.Expression): ts.Expression =>
+    ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) ? unparen(node.expression) : node;
+  const resolve = (node: ts.Expression, seen = new Set<string>()): string | undefined => {
+    node = unparen(node);
+    if (ts.isStringLiteralLike(node)) return node.text;
+    if (ts.isIdentifier(node) && !seen.has(node.text)) {
+      const value = constants.get(node.text);
+      if (value) return resolve(value, new Set([...seen, node.text]));
+    }
+    return undefined;
+  };
+  const property = (node: ts.Expression | undefined, name: string): ts.Expression | undefined => {
+    if (!node || !ts.isObjectLiteralExpression(unparen(node))) return undefined;
+    for (const prop of (unparen(node) as ts.ObjectLiteralExpression).properties) {
+      if (prop.name && (ts.isIdentifier(prop.name) || ts.isStringLiteralLike(prop.name)) && prop.name.text === name) {
+        if (ts.isPropertyAssignment(prop)) return prop.initializer;
+        if (ts.isShorthandPropertyAssignment(prop)) return prop.name;
+      }
+    }
+    return undefined;
+  };
   const toolIds = new Set<string>();
   const unresolved: string[] = [];
-  for (const { file, text } of texts) {
-    // `requireHumanConfirm(ctx, surfaces, { toolId: X, ... })` (`contracts/core/human-confirm.ts`)
-    // opens the exchange on its caller's behalf, so its calls count as openers too.
-    for (const m of text.matchAll(/(?:surfaceExchanges\.open|requireHumanConfirm)\([^{)]*\{\s*toolId(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?/g)) {
-      const name = m[1];
-      if (name === undefined) continue; // shorthand `{ toolId, ... }` — see PARAMETERISED_EXCHANGE_TOOL_IDS
-      const id = constants.get(name);
-      if (id === undefined) unresolved.push(`${path.relative(SRC_ROOT, file)}: ${name}`);
-      else toolIds.add(id);
-    }
-    // `humanConfirmedToolHandler(surfaces, { ..., dialog: (...) => ({ toolId: X, ... }) })` passes its
-    // dialog spec to `requireHumanConfirm`, so each `dialog:` naming a `toolId` counts as an opener.
-    for (const m of text.matchAll(/\bdialog:\s*\([^)]*\)\s*=>\s*\(\{\s*toolId\s*:\s*([A-Za-z_][A-Za-z0-9_]*)/g)) {
-      const id = constants.get(m[1]!);
-      if (id === undefined) unresolved.push(`${path.relative(SRC_ROOT, file)}: ${m[1]}`);
-      else toolIds.add(id);
-    }
+  for (const source of sources) {
+    const relative = path.relative(SRC_ROOT, source.fileName);
+    const record = (spec: ts.Expression | undefined, node: ts.Node) => {
+      const value = property(spec, "toolId") ?? spec;
+      const id = value && resolve(value);
+      if (id) toolIds.add(id);
+      else if (!value || !DYNAMIC_BINDINGS.get(relative)?.has(value.getText(source))) {
+        const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        unresolved.push(`${relative}:${line}: ${value?.getText(source) ?? "missing argument"}`);
+      } else {
+        // The host adapters delegate these registered IDs to Jini rather than declaring a literal binding.
+        if (relative === "assistant/ask-choice-tool.ts") toolIds.add("assistant_ask_choice");
+        if (relative === "features/database-transfer/tool-registrations.ts") {
+          toolIds.add("database_transfer_set_destination");
+          toolIds.add("database_transfer_run");
+        }
+      }
+    };
+    walk(source, (node) => {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        if (ts.isPropertyAccessExpression(callee) && callee.name.text === "open") {
+          // SecretSealer.open is the other .open API in this tree; its payload is not a binding.
+          if (!property(node.arguments[0], "sealed")) record(node.arguments[0], node);
+        } else if (ts.isIdentifier(callee) && callee.text === "requireHumanConfirm") {
+          record(property(node.arguments[0], "spec") ?? node.arguments[2], node);
+        }
+      }
+      if (ts.isPropertyAssignment(node) && node.name.getText(source) === "dialog" && ts.isArrowFunction(node.initializer)) {
+        const body = node.initializer.body;
+        if (ts.isBlock(body)) {
+          const returned = body.statements.find(ts.isReturnStatement);
+          record(returned?.expression, node);
+        } else record(body, node);
+      }
+    });
   }
   return { toolIds, unresolved };
 }
+
+function scanExchangeOpeners(files: readonly string[]): ExchangeScan {
+  return scanExchangeTexts(files.map((file) => ({ file, text: readFileSync(file, "utf8") })));
+}
+
+// F5.6: the scanner must see alternate receivers, literals, shorthand and reordered fields.
+test("the parser enumerates alternate opener shapes and reports unresolved bindings", () => {
+  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "fixture.ts"), text: `
+    const TOOL = "literal_tool";
+    const toolId = "shorthand_tool";
+    store.open({ principalId: "p", toolId: TOOL }, emit);
+    anotherStore.open({ principalId: "p", toolId: "inline_tool" }, emit);
+    store.open({ toolId, principalId: "p" }, emit);
+    store.open(binding, emit);
+    store.open({ principalId: "p", toolId: unknownId }, emit);
+  ` }]);
+  assert.deepEqual([...fixture.toolIds].sort(), ["inline_tool", "literal_tool", "shorthand_tool"]);
+  assert.equal(fixture.unresolved.length, 2);
+  assert.match(fixture.unresolved[0]!, /binding$/);
+  assert.match(fixture.unresolved[1]!, /unknownId$/);
+});
 
 function missingFromAllowlist(openers: ReadonlySet<string>, allowlist: ReadonlySet<string>): string[] {
   return [...openers, ...PARAMETERISED_EXCHANGE_TOOL_IDS]

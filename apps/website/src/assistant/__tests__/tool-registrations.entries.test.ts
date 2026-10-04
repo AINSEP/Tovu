@@ -59,8 +59,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     outbox: { enqueue: async () => undefined },
     entryRepo,
     contentTypeRepo,
-    authorize: async (params: Record<string, unknown>) => {
-      authorizeCalls.push(params);
+    authorize: async (params: Record<string, unknown>, optional: Record<string, unknown> = {}) => {
+      authorizeCalls.push({ ...params, ...optional });
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
   };
@@ -267,8 +267,14 @@ test("collections_entry_create rejects fieldsJson missing a required field, with
 // ---------------------------------------------------------------------------
 
 test("workflow: create an entry, update it, publish it, then unpublish it — version and id thread through consistently", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, authorizeCalls } = fakeRouteDeps();
   await seedContentType(deps);
+  const assertManageGate = () => {
+    assert.equal(authorizeCalls[0]?.permission, "admin.collections.manage");
+    assert.equal(authorizeCalls[0]?.principalId, PRINCIPAL_ID);
+    assert.equal(authorizeCalls[0]?.workspaceId, WORKSPACE_ID);
+    assert.equal(authorizeCalls[0]?.entityType, "entry");
+  };
 
   // Step 1: create.
   const created = (await wired("collections_entry_create", deps).handler(
@@ -278,10 +284,12 @@ test("workflow: create an entry, update it, publish it, then unpublish it — ve
   assert.equal(created.entry.version, 1);
   const entryId = created.entry.id;
 
+  authorizeCalls.length = 0;
   // Step 2: update, using the id AND version step 1 returned.
   const updated = (await wired("collections_entry_update", deps).handler(
     executionContext({ id: entryId, expectedVersion: created.entry.version, title: "My Updated Article" }),
   )) as { entry: { id: string; title: string; version: number; status: string } };
+  assertManageGate();
   assert.equal(updated.entry.id, entryId, "the update must operate on the SAME entry created in step 1");
   assert.equal(updated.entry.title, "My Updated Article");
   assert.equal(updated.entry.version, 2, "version must have advanced from step 1's version 1");
@@ -293,20 +301,24 @@ test("workflow: create an entry, update it, publish it, then unpublish it — ve
     /expected version 1/,
   );
 
+  authorizeCalls.length = 0;
   // Step 3: publish, using step 2's own returned version.
   const published = (await wired("collections_entry_publish", deps).handler(
     executionContext({ id: entryId, expectedVersion: updated.entry.version }),
   )) as { entry: { id: string; status: string; version: number; publishedAt: string | null } };
+  assertManageGate();
   assert.equal(published.entry.id, entryId);
   assert.equal(published.entry.status, "published");
   assert.equal(published.entry.version, 3);
   assert.ok(published.entry.publishedAt, "publishedAt must be set");
 
+  authorizeCalls.length = 0;
   // Step 4: unpublish, chained off step 3's own returned version — proves the full chain leaves
   // consistent, inspectable state end to end, not just that each tool works alone.
   const unpublished = (await wired("collections_entry_unpublish", deps).handler(
     executionContext({ id: entryId, expectedVersion: published.entry.version }),
   )) as { entry: { id: string; status: string; version: number; publishedAt: string | null; title: string } };
+  assertManageGate();
   assert.equal(unpublished.entry.id, entryId);
   assert.equal(unpublished.entry.status, "unpublished");
   assert.equal(unpublished.entry.version, 4);

@@ -309,6 +309,29 @@ test("G3 card: one confirmation authorizes exactly one call — a second call ge
   assert.equal(h.sent.length, 1);
 });
 
+test("G3 card: another principal or tool cannot confirm the call", async () => {
+  const h = harness();
+  const { pending, cards } = call(h, "execute_sql", { query: "drop table g3" });
+  await tick();
+  const card = readCard(cards[0]);
+  try {
+    for (const binding of [
+      { principalId: "another-admin", toolId: "mcp__supabase__execute_sql" },
+      { principalId: PRINCIPAL_ID, toolId: "mcp__supabase__create_project" },
+    ]) {
+      assert.deepEqual(h.store.deliver({ exchangeId: card.exchangeId, params: { decision: "confirm" }, ...binding }),
+        { ok: false, reason: "binding-mismatch" });
+      await tick();
+      assert.deepEqual(h.sent, []);
+      assert.equal(h.store.size(), 1, "a mismatched answer leaves the legitimate call parked");
+    }
+  } finally {
+    answer(h, card, "execute_sql", "cancel");
+    await pending;
+  }
+  assert.deepEqual(h.sent, []);
+});
+
 test("G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not", async () => {
   const base = { toolId: "mcp__supabase__x", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, declaredAnnotations: undefined, origin: undefined, description: "", inputSchema: {}, writeShapedInputs: [] };
   const destructive = buildFederatedCallConfirmSpec({ ...base, destructive: true });

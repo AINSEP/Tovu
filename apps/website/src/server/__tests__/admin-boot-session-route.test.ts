@@ -102,13 +102,13 @@ test("boot-session: single-use survives the ROUTE, not just the token store — 
   assert.deepEqual(await replay.json(), { error: "invalid or spent boot token", code: "UNAUTHENTICATED" });
 });
 
-test("boot-session: the loopback guard runs BEFORE the token is even looked at", async () => {
+test("boot-session: the loopback guard runs BEFORE the token is even looked at", async (t) => {
   // Unreachable through a real HTTP request in this test environment — `fetch` against `127.0.0.1`
   // always arrives as a loopback peer, so there is no way to make a REAL request that fails this
   // check. Same accepted exception `extractRouteHandler`'s own doc names: invoke the real, registered
   // handler directly with a hand-built non-loopback `req`, exactly as it documents as the one narrow
   // case where bypassing real HTTP is correct rather than a shortcut.
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/auth/boot-session");
   const token = mintBootSessionToken();
 
@@ -130,6 +130,18 @@ test("boot-session: the loopback guard runs BEFORE the token is even looked at",
 
   assert.equal(statusCode, 403);
   assert.deepEqual(jsonCalls, [{ error: "boot-session is loopback-only", code: "FORBIDDEN" }]);
+  const baseUrl = await startTestServer(app, t);
+  const redemption = await fetch(`${baseUrl}/api/admin/v1/auth/boot-session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  assert.equal(redemption.status, 200, "the remote caller must not consume the token");
+  const cookie = redemption.headers.get("set-cookie")?.split(";")[0];
+  assert.match(cookie ?? "", /^tovu_session=\S+$/);
+  const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie: cookie! } });
+  assert.equal(me.status, 200);
+  assert.equal((await me.json() as { user: { id: string } }).user.id, await deps.ownerPrincipalId);
 });
 
 // Sanity-check that `bootAuthenticated`/a password login is completely unaffected by this route

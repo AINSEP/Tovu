@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -12,18 +13,9 @@ import type { RouteDeps } from "../../routes/types.js";
  * @file Admin Deployment panel → Dockerfile tab — `GET`/`PUT /api/admin/v1/workspaces/:workspaceId/
  * system/dockerfile`. Same shape as `deployment-overview-route.test.ts`; see that file's header.
  *
- * The "existing Dockerfile" case reads the SAME repo-root file the route itself reads
- * (`join(process.cwd(), "Dockerfile")`) and asserts the response matches it byte-for-byte — this
- * is deliberately coupled to whatever is really on disk (see `readDockerfileSource`'s own doc:
- * `process.cwd()` is the resolution root, same convention `mediaUploadsDir()` already uses), not a
- * fixture. If the real Dockerfile is ever removed, this test's own assertion adapts to that (see
- * the conditional below) rather than asserting a value that could go stale.
- *
- * The PUT success test writes to that SAME real repo-root file (there is nowhere else for it to
- * write — the route accepts no path input at all, by design). It captures the file's real
- * before-state via `readDockerfileSource()` and restores it in `t.after()`, which `node:test` runs
- * even if an assertion above it throws, so a failed run cannot leave the checkout's own Dockerfile
- * mutated.
+ * Each test redirects the cwd resolution seam to its own temporary root. The real filesystem
+ * read/write implementation runs there, so PUT never touches the checkout Dockerfile.
+ * Present and absent fixtures are exercised independently and removed after each test.
  *
  * ## 2026-08-15 — `If-Match`/`ETag` (Terra audit finding C5)
  *
@@ -51,6 +43,14 @@ function getEtag(res: Response): string {
   assert.match(etag, DOCKERFILE_ETAG_SHAPE, "must be the Dockerfile route's OWN content-hash ETag, not Express's unrelated auto-generated one");
   return etag;
 }
+
+const FIXTURE_DOCKERFILE = "# isolated fixture\nFROM node:22-slim\n";
+test.beforeEach((t) => {
+  const root = mkdtempSync(join(tmpdir(), "tovu-dockerfile-route-"));
+  t.mock.method(process, "cwd", () => root);
+  writeFileSync(join(root, "Dockerfile"), FIXTURE_DOCKERFILE);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+});
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
@@ -102,7 +102,7 @@ test("dockerfile-source: a mismatched workspaceId in the URL 404s", async (t) =>
   assert.equal(res.status, 404);
 });
 
-test("dockerfile-source: the seeded owner gets 200 with the real repo-root Dockerfile's own bytes, or an honest absence", async (t) => {
+test("dockerfile-source: the seeded owner gets the isolated Dockerfile bytes", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -113,13 +113,17 @@ test("dockerfile-source: the seeded owner gets 200 with the real repo-root Docke
   assert.equal(res.status, 200);
   const body = await res.json();
 
-  const dockerfilePath = join(process.cwd(), "Dockerfile");
-  if (existsSync(dockerfilePath)) {
-    assert.equal(body.exists, true);
-    assert.equal(body.contents, readFileSync(dockerfilePath, "utf8"));
-  } else {
-    assert.deepEqual(body, { exists: false, contents: null });
-  }
+  assert.deepEqual(body, { exists: true, contents: FIXTURE_DOCKERFILE });
+});
+
+test("dockerfile-source: a missing Dockerfile reports an honest absence", async (t) => {
+  rmSync(join(process.cwd(), "Dockerfile"));
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { exists: false, contents: null });
+  assert.equal(getEtag(res), 'W/"missing"');
 });
 
 test("dockerfile-source: PUT — an unauthorized principal (no grants) gets 403 and never writes", async (t) => {
@@ -128,9 +132,6 @@ test("dockerfile-source: PUT — an unauthorized principal (no grants) gets 403 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
   const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, {
     method: "PUT",
@@ -159,9 +160,6 @@ test("dockerfile-source: PUT — a body with no 'contents' string 400s and never
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   // A real If-Match, read from a real preceding GET — so this 400 is unambiguously attributable to
   // the malformed BODY, not to the new missing-header path (covered by its own test below).
@@ -184,9 +182,6 @@ test("dockerfile-source: PUT — no 'If-Match' header at all is refused 400 and 
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, {
     method: "PUT",
@@ -203,12 +198,6 @@ test("dockerfile-source: PUT — the seeded owner can overwrite the Dockerfile w
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const before = readDockerfileSource();
-  t.after(() => {
-    // Restores the checkout's real Dockerfile exactly, whether or not it existed beforehand — see
-    // this file's header for why this write target cannot be a fixture path instead.
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   const preGetRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, { headers: { cookie } });
   const ifMatch = getEtag(preGetRes);
@@ -236,10 +225,6 @@ test("dockerfile-source: PUT — a stale If-Match is refused 412 with the CURREN
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   // Writer A (this test) reads first and gets a real etag for the contents at this moment.
   const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, { headers: { cookie } });

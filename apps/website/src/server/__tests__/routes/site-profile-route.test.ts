@@ -4,6 +4,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -161,6 +162,9 @@ test("site profile route: the seeded owner gets every section, with real data", 
   // Real boot-discovered themes, not a placeholder.
   assert.ok(Array.isArray(body.sections.theme.data.installed));
   assert.ok(body.sections.theme.data.installed.length > 0);
+  const starter = body.sections.theme.data.installed.find((theme: { id: string }) => theme.id === "tovu-starter");
+  assert.ok(starter, "the stock starter theme must be discovered");
+  assert.deepEqual({ id: starter.id, name: starter.name, version: starter.version }, { id: "tovu-starter", name: "Tovu Starter", version: "1.0.0" });
   assert.ok(Array.isArray(body.sections.pages.data.items));
 });
 
@@ -198,6 +202,10 @@ test("site profile route: '?sections=' scopes the response to exactly what was a
 
 test("site profile route: an unknown section or a bad pageLimit is a 400, never a silent default", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
+  deps.postRepo = new InMemoryPostRepo(["a", "b", "c"].map((id) => ({
+    id, workspaceId: deps.workspaceId, title: `Page ${id}`, slug: `page-${id}`, kind: "page" as const, status: "published" as const,
+    bodyFormat: "doc" as const, bodyJson: { type: "doc", content: [] }, bodyHtml: null, version: 1, updatedAt: "2026-10-01T00:00:00.000Z",
+  })));
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -214,10 +222,15 @@ test("site profile route: an unknown section or a bad pageLimit is a 400, never 
     assert.equal(res.status, 400, `pageLimit='${badLimit}' should be rejected`);
   }
 
-  const good = await fetch(`${baseUrl}${PROFILE_PATH(deps.workspaceId)}?pageLimit=5&sections=pages`, {
+  const good = await fetch(`${baseUrl}${PROFILE_PATH(deps.workspaceId)}?pageLimit=2&sections=pages`, {
     headers: { cookie },
   });
   assert.equal(good.status, 200);
+  const body = await good.json();
+  assert.deepEqual(body.sections.pages.data.items, ["a", "b"].map((id) => ({ id, title: `Page ${id}`, slug: `page-${id}`, kind: "page", status: "published", bodyFormat: "doc", updatedAt: "2026-10-01T00:00:00.000Z" })));
+  assert.equal(body.sections.pages.data.total, 3);
+  assert.deepEqual(body.sections.pages.data.countsByKind, { page: 3 });
+  assert.equal(body.sections.pages.truncated, true);
 });
 
 test("site profile route: no canary seeded in any credential store reaches the response body", async (t) => {

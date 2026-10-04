@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { expandPartials, renderStaticPage } from "../static-render.js";
+import { expandPartials, renderStaticPage, renderStaticPartial } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -67,4 +67,24 @@ test("renderStaticPage over already-expanded HTML is byte-identical to over raw 
   const fromExpanded = renderStaticPage({ theme, pageId: "index", htmlOverride: alreadyExpanded });
 
   assert.equal(fromRaw, fromExpanded);
+});
+
+test("an undeclared partial slot keeps its authored fallback; a missing declared source disappears", () => {
+  const html = `<main><div data-embed-config='{"type":"partial","id":"unknown"}'>Fallback</div></main>`;
+  assert.equal(expandPartials(html, makeTheme()), html);
+  assert.equal(expandPartials(`<main><div data-embed-config='{"type":"partial","id":"nav"}'>Fallback</div></main>`, makeTheme({ partials: {} })), "<main></main>");
+});
+
+test("standalone partial previews inject both token sets and rewrite their assets", () => {
+  const theme = makeTheme({
+    manifest: { ...makeTheme().manifest, apiVersion: 2 },
+    tokens: { "--color": "#123456" },
+    tokensLight: { "--color": "#fedcba" },
+    partials: { nav: '<nav>Preview</nav><script src="../scripts/nav.js"></script>' },
+  });
+  const html = renderStaticPartial({ theme, partialId: "nav" });
+  assert.ok(html);
+  assert.ok(html.includes('<nav>Preview</nav><script src="/theme-assets/expand-partials-test/scripts/nav.js"></script>'));
+  assert.ok(html.includes('<style>\n:root {\n  --color: #123456;\n}\n:root[data-theme="light"] {\n  --color: #fedcba;\n}\n</style>\n<link rel="stylesheet" href="/theme-assets/expand-partials-test/css/theme.css" />'));
+  assert.equal(renderStaticPartial({ theme, partialId: "missing" }), null);
 });

@@ -81,7 +81,9 @@ test("neither sibling imports the other feature's manifest module", () => {
 });
 
 test("(supplementary, not the regression guard) both validators still accept exactly the shared vocabulary", () => {
-  for (const capability of SHARED_EXTENSION_CAPABILITIES) {
+  const required = ["content.read", "content.extend", "hooks.attach"];
+  assert.deepEqual([...SHARED_EXTENSION_CAPABILITIES].sort(), [...required].sort());
+  for (const capability of required) {
     const pluginResult = validateManifest({
       manifest: {
         id: "sample",

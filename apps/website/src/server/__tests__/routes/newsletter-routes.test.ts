@@ -266,6 +266,12 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
   assert.equal(imported.created.length, 1);
   assert.equal(imported.failed.length, 1);
   assert.equal(imported.failed[0].code, "NEWSLETTER_SUBSCRIBER_NOT_FOUND");
+  const importedRows = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId: list.id });
+  const importedRow = importedRows.find((row) => row.subscriberId === secondMemberId);
+  assert.ok(importedRow, "the successful import must persist the requested subscriber");
+  assert.deepEqual({ subscriberId: importedRow.subscriberId, listId: importedRow.listId, status: importedRow.status, source: importedRow.source },
+    { subscriberId: secondMemberId, listId: list.id, status: "pending", source: "import" });
+  assert.equal(importedRows.some((row) => row.subscriberId === "does-not-exist"), false);
 
   const resendRes = await fetch(`${baseUrl}${base}/subscriptions/${createdSub.data.id}/resend-confirmation`, {
     method: "POST",
@@ -282,6 +288,9 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
   const removed = (await removeRes.json()) as { data: { status: string; unsubscribedAt: string | null } };
   assert.equal(removed.data.status, "unsubscribed");
   assert.ok(removed.data.unsubscribedAt);
+  const storedRemoved = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: createdSub.data.id });
+  assert.equal(storedRemoved?.status, "unsubscribed");
+  assert.equal(storedRemoved?.unsubscribedAt, removed.data.unsubscribedAt);
 
   // Idempotent repeat.
   const removeAgainRes = await fetch(`${baseUrl}${base}/lists/${list.id}/subscriptions/${createdSub.data.id}`, {

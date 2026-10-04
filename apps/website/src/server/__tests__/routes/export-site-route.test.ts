@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -199,9 +199,26 @@ test("export-site: authorize() throwing (not just denying) 500s on both the trig
 
 test("export-site: trigger starts a real run (202), honors a real 'basePath', a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
+  const staleFile = path.join(exportOutputDir, "stale.html");
+  writeFileSync(staleFile, "previous export");
+  const realExport = deps.runExportSite;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  let engineFinished: Promise<unknown> | undefined;
+  deps.runExportSite = (options) => {
+    calls++;
+    const work = barrier.then(() => realExport(options));
+    engineFinished = work;
+    return work;
+  };
+  t.after(async () => {
+    release();
+    await engineFinished?.catch(() => {});
+    rmSync(exportOutputDir, { recursive: true, force: true });
+  });
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  t.after(() => rmSync(exportOutputDir, { recursive: true, force: true }));
 
   // A real, valid, non-blank `basePath` (the GitHub Pages PROJECT-site case, per this route's own
   // file-header doc) -- exercises `normalizeBasePath`'s "keep it" branch and
@@ -210,7 +227,7 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
   const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ basePath: "/preview" }),
+    body: JSON.stringify({ basePath: "/preview", clean: true }),
   });
   assert.equal(trigger.status, 202);
   const triggerBody = await trigger.json();
@@ -221,22 +238,18 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
   // doc) -- the immediate "running" snapshot never carries it, so it's checked below instead.
   assert.equal(triggerBody.basePath, undefined);
 
-  // Fired immediately, no delay — the real export is still mid-flight (it drives multiple real
-  // HTTP round trips against its own in-process listener, see `site-exporter.ts`), so this must
-  // observe "already running", never silently queue or silently drop the second request.
+  // Hold the engine until the conflicting request has been observed (F7.1).
   const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
     method: "POST",
     headers: { cookie },
   });
   assert.equal(second.status, 409);
-
-  let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
-  for (let attempt = 0; attempt < 100 && finalStatusBody.status === "running"; attempt++) {
-    await delay(50);
-    const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, { headers: { cookie } });
-    assert.equal(poll.status, 200);
-    finalStatusBody = await poll.json();
-  }
+  assert.equal(calls, 1);
+  release();
+  await engineFinished;
+  const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, { headers: { cookie } });
+  assert.equal(poll.status, 200);
+  const finalStatusBody = await poll.json() as { status: string; [key: string]: unknown };
 
   assert.equal(finalStatusBody.status, "completed", `export did not settle in time: ${JSON.stringify(finalStatusBody)}`);
   assert.equal(finalStatusBody.ok, true);
@@ -248,6 +261,11 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
   assert.equal(counts.routesFailed, 0);
   assert.deepEqual(finalStatusBody.failedRoutes, []);
   assert.deepEqual(finalStatusBody.failedAssets, []);
+  assert.equal(existsSync(staleFile), false, "clean:true removes the previous export's stale file");
+  const home = readFileSync(path.join(exportOutputDir, "index.html"), "utf8");
+  assert.match(home, /href="\/preview\/welcome"/);
+  assert.match(home, /href="\/preview\/theme-assets\/tovu-starter\//);
+  assert.doesNotMatch(home, /href="\/(?!preview\/)/);
 });
 
 test("export-site: req.body can never actually be undefined through this app's real composition (the global express.json() in app.ts always defaults it to {}) -- parseTriggerRequestBody's `body === undefined` branch is reached by calling the real handler directly with an explicitly undefined body, the same type-bypass technique a `default: throw` exhaustiveness guard would need; the trigger still starts a real, honest export", async (t) => {

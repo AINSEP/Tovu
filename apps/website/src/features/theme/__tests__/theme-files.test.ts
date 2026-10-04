@@ -12,11 +12,56 @@ import {
   isSourceDirGeneratedConflict,
   listThemeFiles,
   MAX_THEME_FILE_BYTES,
+  nextAvailableFileName,
   readThemeFile,
+  renameThemeFile,
   resolveThemeFilePath,
   ThemePathError,
   writeThemeFile,
 } from "../theme-files.js";
+
+test("an oversized existing file refuses reads and ordinary replacement, but permits an explicit replacement", (t) => {
+  const { root, themeDir } = makeThemesRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const target = path.join(themeDir, "large.css");
+  const bytes = Buffer.alloc(MAX_THEME_FILE_BYTES + 1, 120);
+  fs.writeFileSync(target, bytes);
+  const required = { themeDir, themesRoot: root, relativePath: "large.css" };
+  assert.throws(() => readThemeFile(required), (error) => error instanceof ThemePathError && error.message === `file 'large.css' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit`);
+  assert.throws(() => writeThemeFile({ ...required, content: "short" }), (error) => error instanceof ThemePathError && error.message === `file 'large.css' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit; overwriting it requires overwriteOversized: true`);
+  assert.deepEqual(fs.readFileSync(target), bytes);
+  assert.equal(writeThemeFile({ ...required, content: "short" }, { overwriteOversized: true }), fs.realpathSync(target));
+  assert.equal(readThemeFile(required), "short");
+  assert.deepEqual(fs.readdirSync(themeDir).sort(), ["large.css", "templates", "theme.json"]);
+});
+
+test("rename moves the original bytes and inode, creates parents, and refuses collisions and escapes", (t) => {
+  const { root, themeDir } = makeThemesRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const bytes = Buffer.from([0, 255, 128, 42]);
+  const source = path.join(themeDir, "source.bin");
+  fs.writeFileSync(source, bytes);
+  const inode = fs.statSync(source).ino;
+  const required = { themeDir, themesRoot: root, sourcePath: "source.bin", destPath: "nested/moved.bin" };
+  const destination = path.join(fs.realpathSync(themeDir), "nested", "moved.bin");
+  assert.equal(renameThemeFile(required), destination);
+  assert.equal(fs.existsSync(source), false);
+  assert.deepEqual(fs.readFileSync(destination), bytes);
+  assert.equal(fs.statSync(destination).ino, inode);
+  fs.writeFileSync(source, "replacement source");
+  assert.throws(() => renameThemeFile(required), /already exists/);
+  assert.equal(fs.readFileSync(source, "utf8"), "replacement source");
+  assert.deepEqual(fs.readFileSync(destination), bytes);
+  assert.throws(() => renameThemeFile({ ...required, destPath: "../escape.bin" }), ThemePathError);
+  assert.equal(fs.existsSync(path.join(root, "escape.bin")), false);
+  assert.equal(fs.readFileSync(source, "utf8"), "replacement source");
+});
+
+test("filename allocation preserves the extension and selects the first free suffix", () => {
+  assert.equal(nextAvailableFileName({ desiredPath: "pages/about.html", existingPaths: new Set() }), "pages/about.html");
+  assert.equal(nextAvailableFileName({ desiredPath: "pages/about.html", existingPaths: new Set(["pages/about.html", "pages/about-1.html", "pages/about-3.html"]) }), "pages/about-2.html");
+  assert.equal(nextAvailableFileName({ desiredPath: "folder.v2/README", existingPaths: new Set(["folder.v2/README"]) }), "folder.v2/README-1");
+});
 
 /**
  * @file Certifies the path containment that the `themes` agent-tool domain's whole safety argument

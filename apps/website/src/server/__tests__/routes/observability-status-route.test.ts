@@ -45,6 +45,16 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
 
+test.beforeEach((t) => {
+  const keys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_SERVICE_NAME"] as const;
+  const before = keys.map((key) => process.env[key]);
+  for (const key of keys) delete process.env[key];
+  t.after(() => keys.forEach((key, index) => {
+    if (before[index] === undefined) delete process.env[key];
+    else process.env[key] = before[index];
+  }));
+});
+
 test("observability-status: an unauthorized principal (no grants) gets 403", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
@@ -78,4 +88,17 @@ test("observability-status: a mismatched workspaceId in the URL 404s", async (t)
     headers: { cookie },
   });
   assert.equal(res.status, 404);
+});
+
+test("observability-status: enabled telemetry reports the configured service without exposing its endpoint", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  for (const key of ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] as const) {
+    process.env[key] = "https://collector-private.example.test:4318/v1/traces";
+    process.env.OTEL_SERVICE_NAME = "route-service-canary";
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { enabled: true, serviceName: "route-service-canary" });
+    delete process.env[key];
+  }
 });

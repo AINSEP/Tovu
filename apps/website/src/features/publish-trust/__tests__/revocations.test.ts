@@ -9,6 +9,7 @@ import type { PublishTrustRevocation } from "../revocations.js";
 import {
   admitPublish,
   createFileRevocations,
+  createInMemoryRevocations,
   isRevoked,
   MAX_REVOCATIONS,
   parseRevocationDocument,
@@ -221,8 +222,15 @@ test("reconnecting is an explicit act that restores publishing", async () => {
   const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
   await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW });
 
+  await port.revoke({ sourceInstallationId: "desktop", nowIso: NOW, note: "keep disconnected" });
   const restored = await port.restore({ sourceInstallationId: "laptop" });
   assert.equal(restored.ok && restored.changed, true);
+  const reopened = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+  const read = await reopened.list();
+  assert.deepEqual(read.ok ? read.revocations : null, [
+    { sourceInstallationId: "desktop", revokedAt: NOW, note: "keep disconnected" },
+  ]);
+  assert.equal(ask({ grants: [grantFor("laptop")], revocations: read.ok ? read.revocations : null }).allowed, true);
   assert.equal(ask({ grants: [grantFor("laptop")], revocations: restored.ok ? restored.revocations : null }).allowed, true);
 });
 
@@ -232,6 +240,7 @@ test("disconnecting the same computer twice is a no-op, and keeps the first time
   await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW, note: "first" });
   const again = await port.revoke({ sourceInstallationId: "laptop", nowIso: "2026-12-25T00:00:00.000Z", note: "second" });
 
+  assert.equal(again.ok, true);
   assert.equal(again.ok && again.changed, false);
   assert.equal(again.ok ? again.revocations[0].revokedAt : "", NOW);
   assert.equal(again.ok ? again.revocations[0].note : "", "first");
@@ -242,7 +251,9 @@ test("reconnecting a computer that was never disconnected is a no-op, not an err
   const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
   const restored = await port.restore({ sourceInstallationId: "never-seen" });
 
+  assert.equal(restored.ok, true);
   assert.equal(restored.ok && restored.changed, false);
+  assert.deepEqual(await port.list(), { ok: true, revocations: [] });
 });
 
 test("a corrupt revocation file is never overwritten by a disconnect", async () => {
@@ -283,4 +294,29 @@ test("a stored disconnect survives a reread through the file, notes and all", as
 test("the port names where its state lives, because that path must be the persistent volume", () => {
   const port = createFileRevocations({ io: memoryIo(), path: "/workspace/Tovu/sites/publish-trust-disconnected.json" });
   assert.equal(port.path, "/workspace/Tovu/sites/publish-trust-disconnected.json");
+});
+
+
+test("the in-memory store revokes, restores, preserves idempotency and refuses overflow", async () => {
+  const port = createInMemoryRevocations();
+  const grants = [grantFor("laptop")];
+  assert.deepEqual(await port.list(), { ok: true, revocations: [] });
+  assert.equal(ask({ grants, revocations: [] }).allowed, true);
+  assert.equal((await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW, note: "first" })).ok, true);
+  const denial = [{ sourceInstallationId: "laptop", revokedAt: NOW, note: "first" }];
+  assert.deepEqual(await port.list(), { ok: true, revocations: denial });
+  const revoked = await port.list();
+  assert.equal(ask({ grants, revocations: revoked.ok ? revoked.revocations : null }).allowed, false);
+  assert.deepEqual(await port.revoke({ sourceInstallationId: "laptop", nowIso: "2026-12-25T00:00:00.000Z", note: "second" }),
+    { ok: true, changed: false, revocations: denial });
+  assert.deepEqual(await port.restore({ sourceInstallationId: "never-seen" }), { ok: true, changed: false, revocations: denial });
+  assert.deepEqual(await port.restore({ sourceInstallationId: "laptop" }), { ok: true, changed: true, revocations: [] });
+  const restored = await port.list();
+  assert.equal(ask({ grants, revocations: restored.ok ? restored.revocations : null }).allowed, true);
+  const full = Array.from({ length: MAX_REVOCATIONS }, (_, i) => ({ sourceInstallationId: `m${i}`, revokedAt: NOW, note: null }));
+  for (const row of full) assert.equal((await port.revoke({ sourceInstallationId: row.sourceInstallationId, nowIso: NOW })).ok, true);
+  assert.deepEqual(await port.list(), { ok: true, revocations: full });
+  const overflow = await port.revoke({ sourceInstallationId: "one-too-many", nowIso: NOW });
+  assert.equal(overflow.ok, false);
+  assert.deepEqual(await port.list(), { ok: true, revocations: full });
 });

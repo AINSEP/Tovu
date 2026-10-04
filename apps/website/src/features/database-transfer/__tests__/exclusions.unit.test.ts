@@ -27,3 +27,15 @@ test("every excluded name is a real core table, and none of them is copied", () 
   const copied = new Set(collectTransferTables().map((table) => table.name));
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => copied.has(name)), []);
 });
+
+
+test("the copy excludes every agreed login, saved-key and confirmation table", () => {
+  assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).sort(), [
+    "identity_users", "sessions", "api_keys", "member_sessions", "member_magic_tokens",
+    "admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
+    "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
+    "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
+    "publish_credential_sets", "site_assistant_credentials", "source_control_credential_sets",
+    "vendor_credential_sets", "gated_mutation_tokens",
+  ].sort());
+});

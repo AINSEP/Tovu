@@ -109,3 +109,20 @@ test("parseEmbedHtmlAttributes on an empty/whitespace-only string returns no att
   assert.deepEqual(parseEmbedHtmlAttributes(""), { attributes: {}, errors: [], error: null });
   assert.deepEqual(parseEmbedHtmlAttributes("   "), { attributes: {}, errors: [], error: null });
 });
+
+for (const [text, reason, attribute] of [
+  ['style="background:url(javascript:x)"', "unsafe-style", "style"],
+  ['style="background:url(vbscript:x)"', "unsafe-style", "style"],
+  ['style="-moz-binding:url(x)"', "unsafe-style", "style"],
+  ['style="behavior:url(x)"', "unsafe-style", "style"],
+  ["style=\"@import 'x'\"", "unsafe-style", "style"],
+  ['poster="vbscript:x"', "unsafe-url", "poster"],
+  ['ONCLICK="alert(1)"', "event-handler", "onclick"],
+] as const) {
+  test(`parseEmbedHtmlAttributes drops ${text} and preserves the safe sibling`, () => {
+    const parsed = parseEmbedHtmlAttributes(`data-safe="kept" ${text}`);
+    assert.deepEqual(parsed.attributes, { "data-safe": "kept" });
+    assert.deepEqual(parsed.errors, [{ reason, attribute }]);
+    assert.deepEqual(parsed.error, { reason, attribute });
+  });
+}

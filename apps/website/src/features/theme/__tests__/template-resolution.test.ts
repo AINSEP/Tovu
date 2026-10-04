@@ -144,14 +144,20 @@ test("an empty templates array has nothing to fall back to", () => {
 });
 
 test("the resolved template html is returned so the caller never re-reads theme.pages", () => {
-  const theme = makeTheme({ templates: ["blog-post.html"] });
+  const fallbackHtml = `<html><head><title>Fallback</title></head><body><main>${CONTENT_SLOT}</main></body></html>`;
+  const chosenHtml = `<html lang="fr"><head><title>Chosen</title></head><body><article>${CONTENT_SLOT}</article></body></html>`;
+  const theme = makeTheme({ templates: ["blog-post.html", "long-form.html"], pages: { "blog-post": fallbackHtml, "long-form": chosenHtml } });
   const result = resolveTemplate({ theme, templateChoice: null });
   assert.ok(result.kind === "template" && result.html.includes('"type":"content"'));
+  assert.deepEqual(result, { kind: "template", pageId: "blog-post", html: fallbackHtml });
+  assert.deepEqual(resolveTemplate({ theme, templateChoice: "long-form.html" }), { kind: "template", pageId: "long-form", html: chosenHtml });
 });
 
 test("a choice carrying no .html suffix still resolves against the page key", () => {
-  const theme = makeTheme({ templates: ["blog-post.html"] });
-  assert.equal(resolveTemplate({ theme, templateChoice: "blog-post" }).kind, "template");
+  const theme = makeTheme({ templates: ["blog-post.html", "long-form.html"] });
+  const result = resolveTemplate({ theme, templateChoice: "long-form" });
+  assert.equal(result.kind, "template");
+  assert.deepEqual(result, { kind: "template", pageId: "long-form", html: `<html><body><article>${CONTENT_SLOT}</article></body></html>` });
 });
 
 // 2026-09-03 posts-*/pages-* rename: `basic` renamed its three content templates

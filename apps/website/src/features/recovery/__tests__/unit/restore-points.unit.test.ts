@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRestorePoint } from "../../restore-points.js";
+import { type CreateRestorePointRepoPort, createRestorePoint } from "../../restore-points.js";
 
 /**
  * @file REQ-05 (SPEC-019) — `createRestorePoint` as an ordinary `authorize()`-gated mutation,
@@ -19,10 +19,10 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const alwaysDeny = async () => ({ allowed: false, reason: "no_grant" });
 
 function fakeRepo() {
-  const rows: Array<{ restorePointId: string; idempotencyKey: string }> = [];
+  const rows: Array<Parameters<CreateRestorePointRepoPort["save"]>[0]> = [];
   return {
     rows,
-    save: async (row: { restorePointId: string; idempotencyKey: string }) => {
+    save: async (row: Parameters<CreateRestorePointRepoPort["save"]>[0]) => {
       rows.push(row);
     },
     findByIdempotencyKey: async (key: string) => rows.find((r) => r.idempotencyKey === key) ?? null,
@@ -55,6 +55,8 @@ test("AC-10: createRestorePoint succeeds without any plan()/confirm() step or mi
 
 test("AC-11: authorize() runs before the idempotency short-circuit, even on the second identical call", async () => {
   const repo = fakeRepo();
+  let retryIdCounter = 0;
+  const retryIds = { newId: () => `rp-idempotent-${++retryIdCounter}` };
   let authorizeCallCount = 0;
   const authorize = async () => {
     authorizeCallCount++;
@@ -62,15 +64,18 @@ test("AC-11: authorize() runs before the idempotency short-circuit, even on the 
   };
   const gateway = { plan: async () => ({ ok: true, value: {} }) };
 
-  await createRestorePoint({
-    deps: { repo, clock, ids, authorize, gateway },
+  const first = await createRestorePoint({
+    deps: { repo, clock, ids: retryIds, authorize, gateway },
     input: { principalId: "user-1", principalKind: "user", idempotencyKey: "key-2", trigger: "manual", operationInFlight: false },
   });
-  await createRestorePoint({
-    deps: { repo, clock, ids, authorize, gateway },
+  const second = await createRestorePoint({
+    deps: { repo, clock, ids: retryIds, authorize, gateway },
     input: { principalId: "user-1", principalKind: "user", idempotencyKey: "key-2", trigger: "manual", operationInFlight: false },
   });
 
+  assert.deepEqual(first, { ok: true, value: { restorePointId: "rp-idempotent-1" } });
+  assert.deepEqual(second, { ok: true, value: { restorePointId: "rp-idempotent-1" } });
+  assert.deepEqual(repo.rows, [{ restorePointId: "rp-idempotent-1", idempotencyKey: "key-2", trigger: "manual", createdAt: NOW, createdBy: "user-1" }]);
   assert.equal(authorizeCallCount, 2, "authorize() must run on every call, including a repeated idempotency key (SPEC-016 REQ-14)");
   assert.equal(repo.rows.length, 1, "the idempotent second call must not create a second row");
 });

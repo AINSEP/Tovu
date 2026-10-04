@@ -161,6 +161,22 @@ test("forms list-submissions: an explicit valid ?limit=&cursor= pair is threaded
   assert.equal(res.status, 200);
   assert.equal(seen.limit, 5);
   assert.equal(seen.cursor, "some-cursor");
+  for (const [id, submittedAt] of [["sub-old", "2026-10-01T00:00:00.000Z"], ["sub-middle", "2026-10-01T00:01:00.000Z"], ["sub-new", "2026-10-01T00:02:00.000Z"]]) {
+    await deps.formSubmissionRepo.create({ id, workspaceId: deps.workspaceId, formDefinitionId: formId, data: { name: id }, sourceIp: "192.0.2.1", submittedAt });
+  }
+  const page = async (query: string) => {
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions${query}`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    return await response.json() as { data: Array<{ id: string }>; nextCursor: string | null };
+  };
+  const first = await page("?limit=2");
+  assert.deepEqual(first.data.map((row) => row.id), ["sub-new", "sub-middle"]);
+  assert.equal(typeof first.nextCursor, "string");
+  const last = await page(`?limit=2&cursor=${encodeURIComponent(first.nextCursor!)}`);
+  assert.deepEqual(last.data.map((row) => row.id), ["sub-old"]);
+  assert.equal(last.nextCursor, null);
+  assert.deepEqual((await page("")).data.map((row) => row.id), ["sub-new", "sub-middle", "sub-old"]);
+  assert.equal(seen.limit, 50, "omitting limit forwards the route's default");
 });
 
 test("forms list-submissions: 500s (generic, message swallowed) when the repo explodes", async (t) => {

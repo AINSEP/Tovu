@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
 import Handlebars from "handlebars";
@@ -28,7 +28,7 @@ function ledgerTemplate(name: "home" | "entry"): string {
   // has shipped zero themes since, so this is the only real (non-fixture) handlebars template source
   // left to certify the allowlist and `loadTheme`'s handlebars-tier path against — same re-point
   // `theme.test.ts` already made for `dispatch`, the templated-tier sibling of this same commit.
-  return readFileSync(join(process.cwd(), "development", "fixtures", "theme-archive", "ledger", "templates", `${name}.hbs`), "utf8");
+  return readFileSync(join(resolve(import.meta.dirname, "../../../../../../development/fixtures/theme-archive/ledger"), "templates", `${name}.hbs`), "utf8");
 }
 
 test("a clean template with no expressions at all reports no violations", () => {
@@ -285,10 +285,12 @@ test("an unexpected exception during the AST walk itself is caught and reported 
   }
 });
 
-test("an oversized template source is rejected before it is ever parsed", () => {
+test("an oversized template source is rejected before it is ever parsed", (t) => {
+  const parse = t.mock.method(Handlebars, "parse");
   const violations = lintHandlebarsTemplate("x".repeat(1_000_001));
   assert.equal(violations.length, 1);
   assert.match(violations[0], /exceeds the maximum allowed size/);
+  assert.equal(parse.mock.callCount(), 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -297,7 +299,7 @@ test("an oversized template source is rejected before it is ever parsed", () => 
 
 test("the live themes/handlebars/ledger demonstrator theme loads as valid end-to-end", () => {
   const theme = loadTheme({
-    themeDir: join(process.cwd(), "development", "fixtures", "theme-archive", "ledger"),
+    themeDir: resolve(import.meta.dirname, "../../../../../../development/fixtures/theme-archive/ledger"),
     id: "ledger",
     source: "built-in",
   });

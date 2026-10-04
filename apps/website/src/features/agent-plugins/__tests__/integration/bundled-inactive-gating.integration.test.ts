@@ -99,10 +99,18 @@ test("every bundled plugin not seeded enabled, supabase and tovuize-site include
     const bundledIds = [...new Set((await listInstalledPlugins(layout.packages)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
+    assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "resend"]);
+    assert.deepEqual([...bundledIds].sort(), ["composio", "create-tovu-theme", "higgsfield-media", "jev", "site-compliance", "supabase", "tovuize-site"]);
     for (const expected of ["supabase", "tovuize-site"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
 
     const listed = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_ID });
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    for (const pluginId of ["deploy", "github", "resend"]) {
+      assert.equal(listed.find(candidate => candidate.pluginId === pluginId)?.enabled, true, `${pluginId}: seeded enabled`);
+      assert.ok(sources.some(source => source.pluginId === pluginId), `${pluginId}: tool gate open`);
+      const injected = await resolveAgentPluginRefs([pluginId], layout);
+      assert.ok(injected.ok && injected.promptPrefix.length > 0, `${pluginId}: prompt gate open`);
+    }
     for (const pluginId of bundledIds) {
       assert.equal(listed.find((candidate) => candidate.pluginId === pluginId)?.enabled, false, `${pluginId}: listed, switched off`);
       assert.deepEqual(sources.filter((source) => source.pluginId === pluginId), [], `${pluginId}: no agent_plugin_* tool`);

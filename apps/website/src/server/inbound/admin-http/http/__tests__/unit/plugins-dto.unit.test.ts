@@ -27,6 +27,7 @@ function discovery(overrides: Partial<PluginDiscoveryRecord> = {}): PluginDiscov
 test("REQ-10: a plugin never enabled (activation null) maps to enabled:false, not an error", () => {
   const response = toAdminPluginResponse(discovery(), null);
   assert.equal(response.enabled, false);
+  assert.equal(response.quarantine, null);
 });
 
 test("REQ-10: a plugin with an activation row projects its enabled flag verbatim", () => {
@@ -38,6 +39,16 @@ test("REQ-10: a plugin with an activation row projects its enabled flag verbatim
     updatedAt: "2026-07-28T00:00:00.000Z",
   });
   assert.equal(response.enabled, true);
+  assert.equal(response.quarantine, null);
+});
+
+test("REQ-10: an ordinary disabled activation stays disabled without a quarantine badge", () => {
+  const response = toAdminPluginResponse(discovery(), {
+    pluginId: "word-count", workspaceId: "ws-1", version: "1.0.0",
+    enabled: false, updatedAt: "2026-07-28T00:00:00.000Z",
+  });
+  assert.equal(response.enabled, false);
+  assert.equal(response.quarantine, null);
 });
 
 test("automatic quarantine is inspectable through the existing plugin response", () => {
@@ -52,6 +63,7 @@ test("automatic quarantine is inspectable through the existing plugin response",
     quarantineFailureCount: 3,
   });
 
+  assert.equal(response.enabled, false);
   assert.deepEqual(response.quarantine, {
     at: "2026-08-12T12:00:00.000Z",
     reason: "plugin 'word-count' filter failed",

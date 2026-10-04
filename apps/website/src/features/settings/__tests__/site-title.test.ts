@@ -397,3 +397,24 @@ test("REQ-09 (REQ-13): a display-name read that throws resolves Tovu Demo Site",
 
   assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-new" }), "Tovu Demo Site");
 });
+
+
+test("a committed pin with a failed preservation marker is resolved on retry without a second revision", async (t) => {
+  const ledger = await makeLedger(["ws-pre"]);
+  silenceConsoleError(t);
+  const mark = ledger.preservationStore.markPreserved.bind(ledger.preservationStore);
+  let fail = true;
+  ledger.preservationStore.markPreserved = async (input) => {
+    if (fail) { fail = false; throw new Error("marker unavailable"); }
+    await mark(input);
+  };
+  assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: [], skippedWorkspaceIds: [], failedWorkspaceIds: ["ws-pre"] });
+  assert.deepEqual(await effectiveTitle(ledger, "ws-pre"), { value: "Tovu Demo Site", sourceLayer: "workspace" });
+  assert.equal(await ledger.preservationStore.isPending("ws-pre"), true);
+  const before = await systemPinRevisions(ledger, "ws-pre");
+  assert.equal(before.length, 1);
+  assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: [], skippedWorkspaceIds: ["ws-pre"], failedWorkspaceIds: [] });
+  assert.equal(await ledger.preservationStore.isPending("ws-pre"), false);
+  assert.deepEqual(await systemPinRevisions(ledger, "ws-pre"), before);
+  assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), { workspaceId: "ws-pre" }), "Tovu Demo Site");
+});

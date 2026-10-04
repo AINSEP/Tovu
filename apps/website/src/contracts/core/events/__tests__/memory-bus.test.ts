@@ -153,3 +153,22 @@ test("subscribe's unsubscriber removes only that handler, leaving a second handl
   assert.deepEqual(firstSeen, [], "the unsubscribed handler must not run");
   assert.deepEqual(secondSeen, ["workspace.created"], "the still-subscribed handler must still run");
 });
+
+test("named subscriptions deliver only the matching name", async () => {
+  const bus = new InMemoryEventBus();
+  const seen: string[] = [];
+  for (const eventName of ["workspace.created", "entry.published"]) {
+    await bus.subscribe({ eventName, handler: async (event) => { seen.push(`${eventName}:${event.id}`); } });
+  }
+  await bus.publish({ id: "evt-a", name: "workspace.created", occurredAt: "2026-02-21T00:00:00.000Z", workspaceId: "workspace-1", payload: {} });
+  assert.deepEqual(seen, ["workspace.created:evt-a"]);
+  await bus.publish({ id: "evt-b", name: "entry.published", occurredAt: "2026-02-21T00:00:01.000Z", workspaceId: "workspace-1", payload: {} });
+  assert.deepEqual(seen, ["workspace.created:evt-a", "entry.published:evt-b"]);
+});
+
+test("a handler failure is reported by publish for the outbox to retry", async () => {
+  const bus = new InMemoryEventBus();
+  const failure = new Error("consumer failed");
+  await bus.subscribe({ eventName: "entry.published", handler: async () => { throw failure; } });
+  await assert.rejects(bus.publish({ id: "evt", name: "entry.published", occurredAt: "2026-02-21T00:00:00.000Z", workspaceId: "workspace-1", payload: {} }), (error) => error === failure);
+});

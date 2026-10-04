@@ -100,8 +100,8 @@ interface Scenario {
   setup(surfaceExchanges: SurfaceExchangeStore): Promise<{
     toolExecutor: ReturnType<typeof createToolExecutor>;
     trashParams: Record<string, unknown>;
-    assertDone(output: unknown): void;
-    assertCancelled?(output: unknown): void;
+    assertDone(output: unknown): void | Promise<void>;
+    assertCancelled?(output: unknown): void | Promise<void>;
   }>;
 }
 
@@ -154,10 +154,11 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   return {
     toolExecutor,
     trashParams: { commentId: "comment-1", expectedVersion: 1 },
-    assertDone: (output) => {
+    assertDone: async (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
       assert.equal(o.trashed, true);
       assert.equal(o.cancelled, false);
+      assert.equal((await commentRepo.findById({ workspaceId, id: "comment-1" }))?.status, "trash");
     },
   };
 }
@@ -200,10 +201,11 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
   return {
     toolExecutor,
     trashParams: { widgetInstanceId: instance.id },
-    assertDone: (output) => {
+    assertDone: async (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
       assert.equal(o.trashed, true);
       assert.equal(o.cancelled, false);
+      assert.equal(await widgetTrash.entryRepo.findById({ workspaceId, id: instance.id }), null);
     },
   };
 }
@@ -237,10 +239,11 @@ async function setupTheme(surfaceExchanges: SurfaceExchangeStore): ReturnType<Sc
   return {
     toolExecutor,
     trashParams: { themeId: "plain", path: "styles.css" },
-    assertDone: (output) => {
+    assertDone: async (output) => {
       const o = output as { trashed: boolean; cancelled: boolean };
       assert.equal(o.trashed, true);
       assert.equal(o.cancelled, false);
+      assert.equal(fs.existsSync(path.join(themesDir, "plain", "styles.css")), false);
     },
   };
 }
@@ -286,10 +289,11 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
   return {
     toolExecutor,
     trashParams: { id: record.id },
-    assertDone: (output) => {
+    assertDone: async (output) => {
       const o = output as { tombstoned: boolean; cancelled: boolean };
       assert.equal(o.tombstoned, true);
       assert.equal(o.cancelled, false);
+      assert.equal((await redirectRepo.findById({ workspaceId, id: record.id }))?.status, "disabled");
     },
   };
 }
@@ -337,11 +341,17 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   return {
     toolExecutor,
     trashParams: { subscriptionId: subscription.id },
-    assertDone: (output) => assert.equal((output as { deleted: boolean }).deleted, true),
-    assertCancelled: (output) => {
+    assertDone: async (output) => {
+      assert.equal((output as { deleted: boolean }).deleted, true);
+      const stored = await webhookSubscriptionRepo.findById({ workspaceId, id: subscription.id });
+      assert.equal(stored?.status, "disabled");
+      assert.equal(stored?.disabledAt, NOW);
+    },
+    assertCancelled: async (output) => {
       const o = output as { deleted: boolean; cancelled: boolean };
       assert.equal(o.deleted, false);
       assert.equal(o.cancelled, true);
+      assert.deepEqual(await webhookSubscriptionRepo.findById({ workspaceId, id: subscription.id }), subscription);
     },
   };
 }
@@ -393,7 +403,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const executed = await pending;
     assert.equal(executed.status, "completed", `the parked ${scenario.toolId} call must resolve completed: ${JSON.stringify(executed)}`);
-    assertDone(executed.output);
+    await assertDone(executed.output);
   });
 
   test(`SECURITY: a Cancel click for ${scenario.toolId} also reaches the allowlist and reports the cancellation, not a 403`, async (t) => {
@@ -422,7 +432,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const executed = await pending;
     assert.ok(assertCancelled, `${scenario.toolId} raises a card, so its scenario must check the cancelled result`);
-    assertCancelled(executed.output);
+    await assertCancelled(executed.output);
   });
 }
 
@@ -438,7 +448,7 @@ for (const scenario of TRASH_SCENARIOS) {
 
     assert.equal(emitted.length, 0, `${scenario.toolId} is reversible and must not raise a confirmation dialog`);
     assert.equal(executed.status, "completed", `${scenario.toolId} must complete on its own: ${JSON.stringify(executed)}`);
-    assertDone(executed.output);
+    await assertDone(executed.output);
   });
 
   test(`SECURITY: a surface callback cannot run ${scenario.toolId} — the route refuses it with 403 and never reaches the executor`, async (t) => {

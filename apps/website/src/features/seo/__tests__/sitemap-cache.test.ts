@@ -86,10 +86,18 @@ test("regenerateSitemapCache: force-rebuilds bypassing a cache hit", async () =>
   // Mutate the underlying data directly (bypassing any write chokepoint) to prove regenerate
   // actually re-queries rather than returning the stale cached value.
   await deps.postRepo.save({ ...post(WORKSPACE_A, { slug: "first" }), id: "b", slug: "second" });
+  assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE_A }), [{ loc: "/first", lastmod: "2026-07-13T00:00:00.000Z" }]);
   await regenerateSitemapCache(deps, { workspaceId: WORKSPACE_A });
 
   const after = await buildSitemap(deps, { workspaceId: WORKSPACE_A });
-  assert.equal(after.length, 2);
+  assert.deepEqual(after, [{ loc: "/first", lastmod: "2026-07-13T00:00:00.000Z" }, { loc: "/second", lastmod: "2026-07-13T00:00:00.000Z" }]);
+  await deps.postRepo.save(post(WORKSPACE_A, { id: "c", slug: "third" }));
+  assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE_A }), after);
+  invalidateSitemapCache({ workspaceId: WORKSPACE_A });
+  invalidateSitemapCache({ workspaceId: WORKSPACE_A });
+  assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE_A }), [
+    ...after, { loc: "/third", lastmod: "2026-07-13T00:00:00.000Z" },
+  ]);
 });
 
 test("regenerateSitemapCache: two concurrent regenerate calls converge to one final value, no error", async () => {
@@ -113,4 +121,23 @@ test("INV-08: two different workspaceIds produce two independent cache entries",
 
   assert.equal(entriesA.length, 1);
   assert.equal(entriesB.length, 2);
+});
+
+
+test("a slow older rebuild cannot overwrite a newer completed rebuild", async () => {
+  const older = await makeDeps(WORKSPACE_A, [post(WORKSPACE_A, { slug: "old" })]);
+  const newer = await makeDeps(WORKSPACE_A, [post(WORKSPACE_A, { slug: "new" })]);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const list = older.postRepo.list.bind(older.postRepo);
+  older.postRepo.list = async (input) => { await held; return list(input); };
+  const pending = regenerateSitemapCache(older, { workspaceId: WORKSPACE_A });
+  try {
+    await regenerateSitemapCache(newer, { workspaceId: WORKSPACE_A });
+    assert.deepEqual(await buildSitemap(newer, { workspaceId: WORKSPACE_A }), [{ loc: "/new", lastmod: "2026-07-13T00:00:00.000Z" }]);
+  } finally {
+    release();
+    await pending;
+  }
+  assert.deepEqual(await buildSitemap(newer, { workspaceId: WORKSPACE_A }), [{ loc: "/new", lastmod: "2026-07-13T00:00:00.000Z" }]);
 });

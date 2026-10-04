@@ -41,3 +41,16 @@ test("multiple rebinds always reflect the MOST RECENT catalog, never an earlier 
 
   assert.deepEqual(live.query.describe("x"), { id: "reload-2:x", description: "reload-2", source: "test" });
 });
+
+test("search preserves an explicit limit before and after rebind", () => {
+  const catalog = (prefix: string): ToolCatalogQuery => ({
+    ...stubCatalog(prefix),
+    search: (_query, { limit = 3 } = {}) => [1, 2, 3].slice(0, limit).map((n) => ({
+      id: `${prefix}-${n}`, description: prefix, source: "test", score: 1,
+    })),
+  });
+  const live = createLiveToolCatalogQuery(catalog("first"));
+  assert.deepEqual(live.query.search({ query: "q" }, { limit: 1 }).map(({ id }) => id), ["first-1"]);
+  live.rebind(catalog("second"));
+  assert.deepEqual(live.query.search({ query: "q" }, { limit: 2 }).map(({ id }) => id), ["second-1", "second-2"]);
+});

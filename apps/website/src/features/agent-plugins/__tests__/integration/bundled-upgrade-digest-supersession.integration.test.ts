@@ -1,7 +1,7 @@
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
-const { setAgentPluginActivation } = agentPluginActivations;
+const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { appendFile, chmod, cp, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -206,4 +206,19 @@ test("MCP federation reads the RUNNING build's package, in EITHER seeding order"
   assert.ok(!(await serverKeysAfter(["shipped"])).includes(UPGRADED_MCP_SERVER_KEY), "precondition: the shipped bundle declares no such server");
   assert.ok((await serverKeysAfter(["shipped", "upgraded"])).includes(UPGRADED_MCP_SERVER_KEY), "after an upgrade, federation must read the upgraded package");
   assert.ok(!(await serverKeysAfter(["upgraded", "shipped"])).includes(UPGRADED_MCP_SERVER_KEY), "after a rollback, federation must read the package this build ships again");
+});
+
+
+test("a bundled upgrade preserves an operator's disabled decision and keeps both gates closed", async () => {
+  await withUpgradeScenario(async ({ workspaceRoot, upgradedSourceRoot, seedFrom }) => {
+    const original = await seedFrom(BUNDLED_SOURCE_ROOT);
+    await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "operator:test" });
+    const before = (await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID];
+    const upgraded = await seedFrom(upgradedSourceRoot);
+    assert.notEqual(upgraded, original);
+    assert.deepEqual((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID], before);
+    assert.deepEqual((await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID })).filter(source => source.pluginId === PLUGIN_ID), []);
+    const injected = await resolveAgentPluginRefs([PLUGIN_ID], resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID));
+    assert.ok(!injected.ok && injected.reason.includes("is not enabled"));
+  });
 });

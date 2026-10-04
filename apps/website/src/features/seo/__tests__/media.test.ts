@@ -77,7 +77,7 @@ test("resolveSeoImageRef: a valid {assetId}:{transformName} ref composes the fro
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
   assert.ok(result);
-  assert.match(result!, /^\/m\/asset-1\/og\.v1\//);
+  assert.equal(result, "/m/asset-1/og.v1/image.jpg");
 });
 
 test("resolveSeoImageRef: a deleted/missing asset resolves undefined, never throws", async () => {
@@ -122,7 +122,7 @@ test("resolveSeoImageRef: a registered transform with no generated rendition yet
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
   assert.ok(result, "no rendition row yet must NOT block the URL from being emitted");
-  assert.match(result!, /^\/m\/asset-1\/og\.v1\//);
+  assert.equal(result, "/m/asset-1/og.v1/image.jpg");
 });
 
 test("resolveSeoImageRef: multiple registered versions of the same transform resolve to the HIGHEST version, regardless of registration order", async () => {
@@ -132,13 +132,13 @@ test("resolveSeoImageRef: multiple registered versions of the same transform res
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [
       makeTransformDef({ id: "transform-2", version: 2 }),
       makeTransformDef({ id: "transform-1", version: 1 }),
-      makeTransformDef({ id: "transform-3", version: 3 }),
+      makeTransformDef({ id: "transform-3", version: 3, params: { width: 1200, height: 630, fit: "cover", format: "webp" } }),
     ] }),
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
   assert.ok(result);
-  assert.match(result!, /^\/m\/asset-1\/og\.v3\//, `expected the highest registered version (3) to win, got: ${result}`);
+  assert.equal(result, "/m/asset-1/og.v3/image.webp");
 });
 
 test("resolveSeoImageRef: a ref built from the asset's SLUG (not its id) resolves the same way a ref built from its id does", async () => {
@@ -150,7 +150,7 @@ test("resolveSeoImageRef: a ref built from the asset's SLUG (not its id) resolve
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "a-photo:og" });
   assert.ok(result, "a slug-keyed ref must resolve, the same as an id-keyed one");
-  assert.match(result!, /^\/m\/a-photo\/og\.v1\//);
+  assert.equal(result, "/m/a-photo/og.v1/image.jpg");
 });
 
 test("resolveSeoImageRef: a ref built from the asset's id emits the asset's CURRENT SLUG in the URL, not the id (readable-slugs S4)", async () => {
@@ -162,7 +162,7 @@ test("resolveSeoImageRef: a ref built from the asset's id emits the asset's CURR
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
   assert.ok(result);
-  assert.match(result!, /^\/m\/a-photo\/og\.v1\//, `expected the slug in the URL, got: ${result}`);
+  assert.equal(result, "/m/a-photo/og.v1/image.jpg");
 });
 
 test("resolveSeoImageRef: a trashed asset resolves undefined even when looked up by its slug", async () => {

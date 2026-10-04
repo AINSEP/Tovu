@@ -95,9 +95,26 @@ export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
 export function readSiteDir(required: ReadSiteDirRequired): ReadSiteDirResult {
   const { dir } = required;
   const config = readSiteConfig({ dir });
-  const meta = readJsonFile(dir, ".site-meta.json") as SiteMetaJson;
-  parseSiteStorage((meta as Partial<SiteMetaJson> | null)?.storage);
+  const meta = validateMeta(readJsonFile(dir, ".site-meta.json"));
+  parseSiteStorage(meta.storage);
   return { config, meta };
+}
+
+/** The commit marker must carry a usable identity and migration stamp, not merely valid JSON. */
+function validateMeta(parsed: unknown): SiteMetaJson {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new SiteDirInvalidError(".site-meta.json must be an object");
+  }
+  const meta = parsed as Record<string, unknown>;
+  for (const field of ["siteId", "templateId", "templateVersion", "schemaTag", "createdAt"] as const) {
+    if (typeof meta[field] !== "string" || meta[field].trim() === "") {
+      throw new SiteDirInvalidError(`.site-meta.json.${field} must be a non-empty string`);
+    }
+  }
+  if (typeof meta.schemaVersion !== "number" || !Number.isSafeInteger(meta.schemaVersion) || meta.schemaVersion < 0) {
+    throw new SiteDirInvalidError(".site-meta.json.schemaVersion must be a non-negative integer");
+  }
+  return parsed as SiteMetaJson;
 }
 
 /** A site directory's display name, read live. See {@link createLiveSiteDisplayName}. */

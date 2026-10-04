@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer, type Server } from "node:http";
+import { createServer, type Server, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
@@ -46,9 +46,11 @@ function makeDeps() {
  *  hit/expiry tests can assert on request count instead of only on the returned value. */
 async function startProviderServer(
   respond: () => { status: number; body: unknown },
-): Promise<{ baseUrl: string; server: Server; requestCount: () => number }> {
+): Promise<{ baseUrl: string; server: Server; requestCount: () => number; headers: IncomingHttpHeaders[] }> {
   let count = 0;
-  const server = createServer((_req, res) => {
+  const headers: IncomingHttpHeaders[] = [];
+  const server = createServer((req, res) => {
+    headers.push(req.headers);
     count += 1;
     const { status, body } = respond();
     res.writeHead(status, { "content-type": "application/json" });
@@ -57,7 +59,7 @@ async function startProviderServer(
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
-  return { baseUrl: `http://127.0.0.1:${port}`, server, requestCount: () => count };
+  return { baseUrl: `http://127.0.0.1:${port}`, server, requestCount: () => count, headers };
 }
 
 /**
@@ -187,6 +189,8 @@ test("an anthropic credential with a reachable provider returns its live models"
 
     assert.deepEqual(result, [{ id: "claude-opus-5-20260101", label: "Claude Opus 5" }]);
     assert.equal(provider.requestCount(), 1);
+    assert.equal(provider.headers[0]?.["x-api-key"], "sk-ant-test-key");
+    assert.equal(provider.headers[0]?.["anthropic-version"], "2023-06-01");
   } finally {
     await new Promise((resolve) => provider.server.close(() => resolve(undefined)));
   }
@@ -249,9 +253,10 @@ test("a second call within the TTL reuses the cached result instead of re-issuin
 test("a call after the TTL has expired re-issues the live call", async () => {
   resetLiveModelCacheForTesting();
   const { deps, repo, sealer } = makeDeps();
+  let model = { id: "claude-opus-5-20260101", display_name: "Claude Opus 5" };
   const provider = await startProviderServer(() => ({
     status: 200,
-    body: { data: [{ id: "claude-opus-5-20260101", display_name: "Claude Opus 5" }] },
+    body: { data: [model] },
   }));
   try {
     await setExecutionCredential(deps, {
@@ -264,9 +269,12 @@ test("a call after the TTL has expired re-issues the live call", async () => {
     let fakeNow = 1_000_000;
     const now = () => fakeNow;
 
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const first = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    assert.deepEqual(first, [{ id: "claude-opus-5-20260101", label: "Claude Opus 5" }]);
+    model = { id: "claude-sonnet-new", display_name: "New Sonnet" };
     fakeNow += TTL_MS + 1;
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const second = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    assert.deepEqual(second, [{ id: "claude-sonnet-new", label: "New Sonnet" }]);
 
     assert.equal(provider.requestCount(), 2, "an expired cache entry must trigger a fresh live call");
   } finally {

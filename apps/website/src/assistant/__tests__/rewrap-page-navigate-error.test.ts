@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { executePageCapability, type PageDriver } from "@jini-ai/agentic";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
@@ -121,4 +122,24 @@ test("withPageNavigateErrorRewrap: an unrelated page.navigate failure is rewrapp
   const wrapped = withPageNavigateErrorRewrap(registrations);
 
   await assert.rejects(wrapped[0]!.handler(fakeCtx()), (err: unknown) => err === other);
+});
+
+// F3.1: get the wording from the installed upstream executor rather than a copied message.
+test("the real page.navigate refusal is rewrapped into CMS guidance", async () => {
+  let navigations = 0;
+  const driver = {
+    listPages: async () => [{ id: "posts", label: "Posts" }, { id: "settings", label: "Settings" }],
+    navigate: async () => { navigations++; },
+  } as unknown as PageDriver;
+  await assert.rejects(executePageCapability({ driver, capabilityId: "page.navigate", input: { page: "missing-cms-page" } }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    const rewrapped = rewrapPageNavigateError(error) as Error;
+    assert.notEqual(rewrapped, error);
+    assert.match(rewrapped.message, /admin screen/i);
+    assert.match(rewrapped.message, /"missing-cms-page"/);
+    assert.match(rewrapped.message, /posts \(Posts\), settings \(Settings\)/);
+    assert.match(rewrapped.message, /content_post_search/);
+    return true;
+  });
+  assert.equal(navigations, 0);
 });

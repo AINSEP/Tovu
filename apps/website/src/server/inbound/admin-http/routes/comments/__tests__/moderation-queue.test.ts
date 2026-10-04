@@ -136,26 +136,41 @@ test("moderation-queue: a valid status string is honored (spam)", async (t) => {
 
 test("moderation-queue: limit omitted or non-numeric both default to 20; a valid limit is honored and clamped to [1,100]", async (t) => {
   const { app, commentRepo } = buildApp();
-  for (let i = 0; i < 3; i += 1) {
-    await commentRepo.create(makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+  const orderedIds = Array.from({ length: 105 }, (_, i) => `p-${i}`);
+  for (const [i, id] of orderedIds.entries()) {
+    const timestamp = new Date(Date.UTC(2026, 6, 16, 0, i)).toISOString();
+    await commentRepo.create(makeComment({ id, createdAt: timestamp, updatedAt: timestamp }));
   }
   const baseUrl = await startTestServer(app, t);
 
   const omitted = await fetch(`${baseUrl}${PATH}`);
-  assert.equal(((await omitted.json()) as { items: unknown[] }).items.length, 3, "default limit of 20 returns all 3");
+  assert.equal(omitted.status, 200);
+  assert.deepEqual(((await omitted.json()) as { items: CommentRecord[] }).items.map(row => row.id), orderedIds.slice(0, 20));
 
   const nonNumeric = await fetch(`${baseUrl}${PATH}?limit=not-a-number`);
-  assert.equal(((await nonNumeric.json()) as { items: unknown[] }).items.length, 3, "non-numeric limit also defaults to 20");
+  assert.equal(nonNumeric.status, 200);
+  assert.deepEqual(((await nonNumeric.json()) as { items: CommentRecord[] }).items.map(row => row.id), orderedIds.slice(0, 20));
 
   const clampedLow = await fetch(`${baseUrl}${PATH}?limit=0`);
-  assert.equal(((await clampedLow.json()) as { items: unknown[] }).items.length, 1, "limit=0 clamps up to 1");
+  assert.equal(clampedLow.status, 200);
+  assert.deepEqual(((await clampedLow.json()) as { items: CommentRecord[] }).items.map(row => row.id), ["p-0"]);
 
   const clampedHigh = await fetch(`${baseUrl}${PATH}?limit=500`);
-  assert.equal(((await clampedHigh.json()) as { items: unknown[] }).items.length, 3, "limit=500 clamps down to 100, still returns all 3 available");
+  assert.equal(clampedHigh.status, 200);
+  const highBody = await clampedHigh.json() as { items: CommentRecord[]; nextCursor: string | null };
+  assert.deepEqual(highBody.items.map(row => row.id), orderedIds.slice(0, 100));
+  assert.equal(typeof highBody.nextCursor, "string");
+  const last = await fetch(`${baseUrl}${PATH}?limit=500&cursor=${encodeURIComponent(highBody.nextCursor!)}`);
+  assert.equal(last.status, 200);
+  const lastBody = await last.json() as { items: CommentRecord[]; nextCursor: string | null };
+  assert.deepEqual(lastBody.items.map(row => row.id), orderedIds.slice(100));
+  assert.equal(lastBody.nextCursor, null);
 
   const exact = await fetch(`${baseUrl}${PATH}?limit=2`);
-  const exactBody = (await exact.json()) as { items: unknown[]; nextCursor: string | null };
+  assert.equal(exact.status, 200);
+  const exactBody = (await exact.json()) as { items: CommentRecord[]; nextCursor: string | null };
   assert.equal(exactBody.items.length, 2);
+  assert.deepEqual(exactBody.items.map(row => row.id), ["p-0", "p-1"]);
   assert.ok(exactBody.nextCursor);
 });
 
@@ -171,6 +186,8 @@ test("moderation-queue: cursor omitted starts from the beginning; a real cursor 
   assert.deepEqual(page1Body.items.map((c) => c.id), ["p-0", "p-1"]);
 
   const page2 = await fetch(`${baseUrl}${PATH}?limit=2&cursor=${encodeURIComponent(page1Body.nextCursor)}`);
-  const page2Body = (await page2.json()) as { items: CommentRecord[] };
+  assert.equal(page2.status, 200);
+  const page2Body = (await page2.json()) as { items: CommentRecord[]; nextCursor: string | null };
   assert.deepEqual(page2Body.items.map((c) => c.id), ["p-2"]);
+  assert.equal(page2Body.nextCursor, null);
 });

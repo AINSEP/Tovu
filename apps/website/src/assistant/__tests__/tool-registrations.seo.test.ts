@@ -31,6 +31,7 @@ import {
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
+import { buildSitemap, invalidateSitemapCache } from "../../features/seo/sitemap.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 
 import type { RouteDeps } from "../../server/routes/types.js";
@@ -236,17 +237,17 @@ test("seo_get_entry_meta: a denied principal is rejected", async () => {
 
 test("seo_analyze_entry: a denied principal is rejected", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired(deps, "seo_analyze_entry").handler(executionContext({ entryId: "post-1" })));
+  await assert.rejects(() => wired(deps, "seo_analyze_entry").handler(executionContext({ entryId: "post-1" })), /is not authorized for 'admin\.seo\.manage'/);
 });
 
 test("seo_get_settings: a denied principal is rejected", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired(deps, "seo_get_settings").handler(executionContext({})));
+  await assert.rejects(() => wired(deps, "seo_get_settings").handler(executionContext({})), /is not authorized for 'admin\.seo\.manage'/);
 });
 
 test("seo_regenerate_sitemap: a denied principal is rejected", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired(deps, "seo_regenerate_sitemap").handler(executionContext({})));
+  await assert.rejects(() => wired(deps, "seo_regenerate_sitemap").handler(executionContext({})), /is not authorized for 'admin\.seo\.manage'/);
 });
 
 test("seo_set_entry_overrides: self-enforcing chokepoint — a denied principal is rejected and nothing is written", async () => {
@@ -349,4 +350,31 @@ test("workflow: set site-wide settings, get settings to confirm the patch landed
   };
   assert.equal(after.settings.titleTemplate, "%s — My Site");
   assert.equal(after.settings.sitemapEnabled, true, "untouched field must survive the partial patch");
+});
+
+test("seo_regenerate_sitemap rebuilds the active cache rather than only acknowledging", async () => {
+  const { deps, postRepo } = await fakeRouteDeps();
+  const sitemapDeps = { postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry };
+  invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
+  try {
+    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
+    await postRepo.save(seedPost({ slug: "updated-slug", version: 2 }));
+    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
+    assert.deepEqual(await wired(deps, "seo_regenerate_sitemap").handler(executionContext({})), { accepted: true });
+    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/updated-slug"]);
+  } finally {
+    invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
+  }
+});
+
+test("SEO tools reject invalid settings without writes and clear an override back to the derived title", async () => {
+  const { deps, settingsRepo } = await fakeRouteDeps();
+  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  await assert.rejects(wired(deps, "seo_set_settings").handler(executionContext({ titleTemplate: "no placeholder" })), /titleTemplate must contain '%s'/);
+  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: "Override Title" }));
+  const read = () => wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" })) as Promise<{ meta: { title: string } }>;
+  assert.equal((await read()).meta.title, "Override Title");
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: null }));
+  assert.equal((await read()).meta.title, "Hello World");
 });

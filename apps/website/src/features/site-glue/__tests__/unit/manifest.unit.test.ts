@@ -104,10 +104,12 @@ test("unknown top-level manifest keys fail validation", () => {
 });
 
 test("a manifest that is not a JSON object at all is MANIFEST_MALFORMED, never a throw", () => {
-  assert.doesNotThrow(() => validateGlueManifest(required(null)));
-  assert.doesNotThrow(() => validateGlueManifest(required([1, 2, 3])));
-  assert.doesNotThrow(() => validateGlueManifest(required("not an object")));
-  assert.ok(codesOf(validateGlueManifest(required(null))).includes("MANIFEST_MALFORMED"));
+  for (const manifest of [null, [1, 2, 3], "not an object", 42, true, false]) {
+    assert.doesNotThrow(() => validateGlueManifest(required(manifest)));
+    assert.deepEqual(validateGlueManifest(required(manifest)), {
+      errors: [{ code: "MANIFEST_MALFORMED", file: null, message: "glue manifest must be a JSON object" }],
+    });
+  }
 });
 
 test("an id outside ^[a-z0-9-]+$ or outside 1..50 chars is MANIFEST_MALFORMED", () => {
@@ -184,3 +186,18 @@ test("Decision 5 Open #1: the auto-quarantine threshold placeholder is a single 
   assert.equal(AUTO_QUARANTINE_THRESHOLD_PLACEHOLDER.windowMs, 5 * 60 * 1000);
   assert.ok(Object.isFrozen(AUTO_QUARANTINE_THRESHOLD_PLACEHOLDER), "the placeholder must not be mutable at a distance");
 });
+
+
+for (const [field, value, message] of [
+  ["id", 42, "'id' must be a string"],
+  ["version", false, "'version' must be a string"],
+  ["sdkRange", {}, "'sdkRange' must be a string"],
+  ["capabilities", "content.read", "'capabilities' must be an array"],
+  ["attachments", {}, "'attachments' must be an array"],
+] as const) {
+  test(`a manifest with a wrong-type ${field} reports exactly that malformed field`, () => {
+    assert.deepEqual(validateGlueManifest(required({ ...(validManifest() as object), [field]: value })), {
+      errors: [{ code: "MANIFEST_MALFORMED", file: null, message }],
+    });
+  });
+}

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import { minimatch } from "minimatch";
 
 import { isDeniedFsFileName } from "#src/features/fs-files/fs-files";
 import { checkTreePath } from "#src/features/publish-content/file-tree-policy";
@@ -112,6 +113,26 @@ test("git and Docker ignore the copy in any site folder", () => {
     assert.equal(result.status, 0, `${rel} must be git-ignored`);
   }
   for (const file of [".dockerignore", "Dockerfile.dockerignore"]) {
-    assert.match(fs.readFileSync(path.join(REPO_ROOT, file), "utf8"), /^\*\*\/ops\/pre-migrations-\*\.db\*$/m, `${file} excludes the copy`);
+    const patterns = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");
+    for (const rel of [`ops/${COPY_NAME}`, `sites/any-site/ops/${COPY_NAME}`, `nested/site/ops/${COPY_NAME}-wal`, `nested/site/ops/${COPY_NAME}-shm`]) {
+      assert.equal(dockerContextExcludes(patterns, rel), true, `${file} effectively excludes ${rel}`);
+      assert.equal(dockerContextExcludes(`${patterns}\n!**/ops/pre-migrations-*.db*\n`, rel), false, "a later negation must re-include the copy");
+    }
+    assert.equal(dockerContextExcludes(patterns, "sites/any-site/ops/ordinary.json"), false);
   }
 });
+
+/** Evaluate the ordered Docker glob rules used here, including ancestor directories and negation. */
+function dockerContextExcludes(source: string, relativePath: string): boolean {
+  const segments = relativePath.split("/");
+  const ancestors = segments.map((_segment, index) => segments.slice(0, index + 1).join("/"));
+  let excluded = false;
+  for (const line of source.split(/\r?\n/)) {
+    const rule = line.trim();
+    if (rule === "" || rule.startsWith("#") || rule === ".") continue;
+    const negated = rule.startsWith("!");
+    const pattern = (negated ? rule.slice(1) : rule).replace(/^\/+|\/+$/g, "");
+    if (ancestors.some((candidate) => minimatch(candidate, pattern, { dot: true, nonegate: true }))) excluded = !negated;
+  }
+  return excluded;
+}

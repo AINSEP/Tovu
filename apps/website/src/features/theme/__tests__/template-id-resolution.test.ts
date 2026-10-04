@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId } from "../theme.js";
+import { duplicateThemeIds, findStoredTheme, findTheme, resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId, validThemeIds, type DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Characterization tests for `resolveTemplateId`/`resolveLiquidTemplateId`/
@@ -18,6 +18,23 @@ import { resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId
 
 test("resolveTemplateId: route 'home' resolves to 'home' when templates.home exists", () => {
   assert.equal(resolveTemplateId({ route: "home", templates: { home: {} } }), "home");
+});
+
+test("discovered IDs expose collisions and invalid themes while stored lookup prefers the current name", () => {
+  const retired = { manifest: { id: "basic" }, status: "valid" } as DiscoveredTheme;
+  const current = { manifest: { id: "tovu-theme" }, status: "valid" } as DiscoveredTheme;
+  const invalid = { manifest: { id: "broken" }, status: "invalid" } as DiscoveredTheme;
+  const themes = [retired, invalid, current, retired, invalid, retired];
+  assert.deepEqual(duplicateThemeIds(themes), ["basic", "broken"]);
+  assert.deepEqual(validThemeIds(themes), ["basic", "tovu-theme", "basic", "basic"]);
+  assert.equal(findTheme({ themes, id: "basic" }), retired);
+  assert.equal(findTheme({ themes, id: "broken" }), invalid);
+  assert.equal(findTheme({ themes, id: "missing" }), undefined);
+  for (const id of ["basic", "tovu-theme"]) {
+    assert.equal(findStoredTheme({ themes, id }), current);
+    assert.equal(findStoredTheme({ themes: [retired], id }), retired);
+  }
+  assert.equal(findStoredTheme({ themes, id: "missing" }), undefined);
 });
 
 test("resolveTemplateId: route 'home' resolves to null when templates.home is absent — no fallthrough", () => {

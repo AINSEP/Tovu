@@ -107,3 +107,50 @@ test("Finding A: a `menu` widget renders real resolved menu content on a real GE
   assert.match(html, /<a href="\/">Home<\/a>/);
   assert.doesNotMatch(html, /widget-placeholder/);
 });
+
+test("recent-entries and contact-form resolve real records through the public serving composition", async (t) => {
+  const { app, deps } = buildTestApp(fakeThemeWithRegions(["footer"]));
+  await deps.entryRepo.save({
+    id: "resolver-entry", workspaceId: WORKSPACE_ID, type: "post", slug: "resolver-entry",
+    title: "Resolver entry canary", status: "published", bodyJson: null,
+    fieldsJson: { ext: { site: {} } }, publishedAt: "2026-01-01T00:00:00.000Z",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1,
+  });
+  await deps.formDefinitionRepo.create({
+    id: "resolver-form", workspaceId: WORKSPACE_ID, name: "Resolver form", slug: "resolver-contact",
+    fields: [{ id: "reply", label: "Resolver reply address", type: "email", required: true }],
+    notify: { enabled: false, recipients: [] }, status: "active", version: 1,
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const ids: string[] = [];
+  for (const input of [
+    { widgetType: "recent-entries", title: "Recent canary", config: { maxItems: 20 } },
+    { widgetType: "contact-form", title: "Contact canary", config: { formDefinitionId: "resolver-form" } },
+  ]) {
+    const response = await fetch(`${baseUrl}${BASE}/widgets`, {
+      method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(input),
+    });
+    assert.equal(response.status, 201, await response.clone().text());
+    ids.push((await response.json() as { widget: { id: string } }).widget.id);
+  }
+  const binding = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ regionKey: "footer" }),
+  });
+  assert.equal(binding.status, 201);
+  const { area } = await binding.json() as { area: { version: number } };
+  const placement = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: area.version, placements: ids.map((widgetEntryId, i) => ({ placementId: `dynamic-${i}`, widgetEntryId, enabled: true })) }),
+  });
+  assert.equal(placement.status, 200, await placement.clone().text());
+  const response = await fetch(`${baseUrl}/`);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Resolver entry canary/);
+  assert.match(html, /action="\/forms\/resolver-contact\/submit"/);
+  assert.match(html, /Resolver reply address/);
+  assert.match(html, /type="email"[^>]*name="reply"|name="reply"[^>]*type="email"/);
+  assert.doesNotMatch(html, /widget-placeholder/);
+});

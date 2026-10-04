@@ -50,3 +50,21 @@ test("recovery_resolve_deep_link: a malformed envelope field is a ToolInputError
     },
   );
 });
+
+
+for (const [field, value] of [
+  ["correlationId", 42], ["siteId", false], ["drift", {}], ["intent", []], ["issuedAt", null],
+  ["ledgerEventId", 42], ["restorePointId", undefined],
+] as const) {
+  test(`recovery_resolve_deep_link: malformed ${field} is an input error naming that field`, async () => {
+    const envelope = {
+      v: 1, correlationId: "corr-1", siteId: "ws-1", ledgerEventId: null, restorePointId: null,
+      drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z", [field]: value,
+    };
+    await assert.rejects(() => buildTool().handler(ctxWithInput({ envelope })), (error: unknown) => {
+      assert.ok(error instanceof ToolInputError);
+      assert.ok(error.message.includes(`'envelope.${field}'`), error.message);
+      return true;
+    });
+  });
+}

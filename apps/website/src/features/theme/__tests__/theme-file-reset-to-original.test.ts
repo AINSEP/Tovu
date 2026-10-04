@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -45,6 +46,35 @@ function reset(root: ReturnType<typeof makeRoot>, relativePath: string): { wasMo
 }
 
 const RUNNING_AS_ROOT = process.getuid?.() === 0;
+
+test("a failure after staging bytes preserves the live inode and removes the populated temporary file", (t) => {
+  const root = makeRoot();
+  t.after(() => fs.rmSync(root.themesRoot, { recursive: true, force: true }));
+  const original = "body { color: original; }";
+  write(root.originalDir, "css/site.css", original);
+  const live = write(root.themeDir, "css/site.css", "edited");
+  const inode = fs.statSync(live).ino;
+  const failure = new Error("injected staging chmod failure");
+  let stagedPath: string | undefined;
+  let stagedBytes: Buffer | undefined;
+  const chmod = t.mock.method(fs, "chmodSync", (file: fs.PathLike) => {
+    stagedPath = String(file);
+    stagedBytes = fs.readFileSync(file);
+    throw failure;
+  });
+  syncBuiltinESMExports();
+  t.after(() => { chmod.mock.restore(); syncBuiltinESMExports(); });
+
+  assert.throws(() => reset(root, "css/site.css"), (error) => error === failure);
+  assert.ok(stagedPath);
+  assert.equal(path.dirname(stagedPath), fs.realpathSync(path.dirname(live)));
+  assert.match(path.basename(stagedPath), /^\.site\.css\..+\.tmp$/);
+  assert.deepEqual(stagedBytes, Buffer.from(original));
+  assert.equal(fs.existsSync(stagedPath), false);
+  assert.equal(fs.readFileSync(live, "utf8"), "edited");
+  assert.equal(fs.statSync(live).ino, inode);
+  assert.deepEqual(fs.readdirSync(path.dirname(live)), ["site.css"]);
+});
 
 test("no file in the catalog at the path: null, and the live file is untouched", () => {
   const root = makeRoot();

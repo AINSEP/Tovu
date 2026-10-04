@@ -216,7 +216,7 @@ test("a denied principal is rejected before any dialog is raised, and nothing is
     const { deps } = fakeDeps({ allow: false });
     const recorder = surfaceRecorder();
 
-    await assert.rejects(() => findRegistration(deps).handler(fakeCtx({ pluginId: "my-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface }));
+    await assert.rejects(() => findRegistration(deps).handler(fakeCtx({ pluginId: "my-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface }), /is not authorized for 'admin\.plugins\.enable'/);
 
     assert.equal(recorder.emitted.length, 0, "a denied principal must never have a dialog raised for them");
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
@@ -373,6 +373,13 @@ test("the dialog names the plugin and its version, targets plugins_uninstall, an
 test("confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-happy-path");
+    const sibling = await installReal(WORKSPACE_A, "sibling-plugin", "archive-sibling");
+    const otherWorkspace = "78787878-7878-4787-8787-787878787878";
+    const other = await installReal(otherWorkspace, "operator-plugin", "archive-other-workspace");
+    const otherLayout = resolveAgentPluginLayout().forWorkspace(otherWorkspace);
+    await setAgentPluginActivation({ workspaceRoot: otherLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-other" });
+    const otherBefore = await readAgentPluginActivations({ workspaceRoot: otherLayout.root });
+
     const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
@@ -393,6 +400,10 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
 
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal("operator-plugin" in activations.plugins, false, "the activation record must be deleted, not tombstoned");
+    assert.equal((await stat(sibling.packageRoot)).isDirectory(), true);
+    assert.equal((await stat(other.packageRoot)).isDirectory(), true);
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: otherLayout.root }), otherBefore);
+
   });
 });
 

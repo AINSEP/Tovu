@@ -15,7 +15,7 @@ import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bun
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { buildLoadedSourceControlProvider, findReservedPath, isUnderWorkflowPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
+import { buildSourceControlProviders, buildSourceControlProviderForApi, type LoadedSourceControlProvider, type SourceControlProviderRegistry, buildLoadedSourceControlProvider, findReservedPath, isUnderWorkflowPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
 import type { SourceControlProvider } from "../provider-module.js";
 import { GITHUB_PACKAGE_ROOT } from "./fixtures/github-from-source.js";
 
@@ -266,4 +266,34 @@ test("pickSourceControlProviderForApi matches by API origin, falls back to a sol
     noSourceControlProviderMessage({}),
     "No enabled Agent Plugin provides source control, and no installed one declares it. Open the admin's Add-Ons > Agent Plugins screen to install or turn on a plugin that provides it.",
   );
+});
+
+
+test("provider builders load the requested workspace, forward HTTP, select by origin and preserve refusals", async () => {
+  const httpClient = { send: async () => { throw new Error("unexpected network call"); } };
+  const loaded: LoadedSourceControlProvider[] = ["alpha", "beta"].map((id) => ({
+    pluginId: `plugin-${id}`,
+    descriptor: { id, label: id, apiOrigin: `https://${id}.test`, module: "provider.mjs" },
+    module: { create: ({ kit }) => {
+      assert.equal(kit.httpClient, httpClient);
+      return { readAccountLabel: async (token: string) => `${id}:${token}` } as never;
+    } },
+  }));
+  const refusals = ["plugin-gamma refused"];
+  const registry: SourceControlProviderRegistry = { list: () => loaded, get: (id) => loaded.find((p) => p.descriptor.id === id), refusals };
+  const load = async (workspaceId: string) => { assert.equal(workspaceId, WORKSPACE_ID); return registry; };
+  const built = await buildSourceControlProviders({ load, workspaceId: WORKSPACE_ID, httpClient });
+  assert.deepEqual(built.providers.map((p) => p.id), ["alpha", "beta"]);
+  assert.deepEqual(await Promise.all(built.providers.map((p) => p.readAccountLabel("secret"))), ["alpha:secret", "beta:secret"]);
+  assert.deepEqual(built.refusals, refusals);
+  const selected = await buildSourceControlProviderForApi({ load, workspaceId: WORKSPACE_ID, httpClient, baseUrl: "https://beta.test/repos" });
+  assert.equal(selected.ok, true);
+  assert.equal(selected.ok ? await selected.provider.readAccountLabel("selected") : null, "beta:selected");
+  assert.deepEqual(await buildSourceControlProviderForApi({ load, workspaceId: WORKSPACE_ID, httpClient, baseUrl: "https://missing.test" }), {
+    ok: false, message: "No enabled Agent Plugin provides source control for https://missing.test.", refusals,
+  });
+  const empty = async () => ({ ...registry, list: () => [], switchedOff: new Map([["alpha", "plugin-alpha"]]) });
+  assert.deepEqual(await buildSourceControlProviderForApi({ load: empty, workspaceId: WORKSPACE_ID, httpClient, baseUrl: "https://alpha.test" }), {
+    ok: false, message: "No enabled Agent Plugin provides source control: the 'plugin-alpha' Agent Plugin is switched off. To switch it back on, open the admin's Add-Ons > Agent Plugins screen and turn on 'plugin-alpha'.", refusals,
+  });
 });

@@ -105,7 +105,10 @@ test("an unchanged reconnect reports changed:false so there is nothing to commit
   await port.connect({ grant: grantFor("laptop") });
   const again = await port.connect({ grant: grantFor("laptop") });
 
+  assert.equal(again.ok, true);
   assert.equal(again.ok && again.changed, false);
+  const read = await port.readProvisioned();
+  assert.deepEqual(read.ok ? read.grants : null, [grantFor("laptop")]);
 });
 
 test("the grant list is bounded", () => {
@@ -209,6 +212,9 @@ test("disconnecting one computer leaves the others publishing", async () => {
   const removed = await port.disconnect({ sourceInstallationId: "laptop" });
   assert.equal(removed.ok && removed.changed, true);
   assert.deepEqual(removed.ok ? removed.grants.map((g) => g.sourceInstallationId) : [], ["desktop"]);
+  const reopened = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path: "/repo/deploy/publish-trust.json" });
+  const read = await reopened.readProvisioned();
+  assert.deepEqual(read.ok ? read.grants : null, [grantFor("desktop")]);
 });
 
 test("disconnecting a computer that was never connected is a no-op, not an error", () => {
@@ -351,4 +357,29 @@ test("an oversized document is refused before it is parsed", () => {
   const parsed = parseGrantDocument(JSON.stringify([grantFor("laptop", { entityTypes: ["x".repeat(400)] })]).padEnd(20_000, " "));
   assert.equal(parsed.ok, false);
   assert.match(parsed.ok ? "" : parsed.reason, /exceeds/);
+});
+
+
+test("an over-limit connect refuses without overwriting the stored grants", async () => {
+  const path = "/repo/deploy/publish-trust.json";
+  const original = JSON.stringify(Array.from({ length: MAX_PROVISIONED_GRANTS }, (_, i) => grantFor(`m${i}`)));
+  const io = memoryIo({ [path]: original });
+  const port = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path });
+  const result = await port.connect({ grant: grantFor("one-too-many") });
+  assert.equal(result.ok, false);
+  assert.match(result.ok ? "" : result.reason, /disconnect one first/);
+  assert.equal(io.files[path], original);
+});
+
+test("a codec encode refusal leaves the stored document untouched", async () => {
+  const path = "/repo/deploy/publish-trust.json";
+  const original = JSON.stringify([grantFor("desktop")]);
+  const io = memoryIo({ [path]: original });
+  const codec = {
+    ...COMMITTED_JSON_CODEC,
+    encode: () => ({ ok: false as const, reason: "config is read-only" }),
+  };
+  const port = createFileProvisioning({ io, codec, path });
+  assert.deepEqual(await port.connect({ grant: grantFor("laptop") }), { ok: false, reason: "config is read-only" });
+  assert.equal(io.files[path], original);
 });

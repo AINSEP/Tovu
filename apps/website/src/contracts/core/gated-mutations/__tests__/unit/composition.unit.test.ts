@@ -195,3 +195,22 @@ test("buildConfirmOnlyHooks's executeMutation throws a tripwire error if gateway
     message: "executeMutation is not invoked by gateway.ts's confirm() — this hooks object is confirm-only",
   });
 });
+
+test("an absent owner fails closed even when the caller identity is also absent", async () => {
+  for (const owner of [null, undefined, ""] as const) {
+    const authorize = buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: Promise.resolve(owner) as Promise<string> });
+    for (const principalId of ["", undefined] as const) {
+      assert.deepEqual(await authorize({ principalId: principalId as string, permission: "database.migrate" }),
+        { allowed: false, reason: "not_instance_owner" }, `owner=${String(owner)}, caller=${String(principalId)}`);
+    }
+  }
+});
+
+test("a changed owner promise is resolved on the next authorization call", async () => {
+  const params = { ownerPrincipalId: Promise.resolve("owner-1") };
+  const authorize = buildOwnerOnlyInstanceAuthorize(params);
+  assert.equal((await authorize({ principalId: "owner-1", permission: "database.migrate" })).allowed, true);
+  params.ownerPrincipalId = Promise.resolve("owner-2");
+  assert.equal((await authorize({ principalId: "owner-1", permission: "database.migrate" })).allowed, false);
+  assert.equal((await authorize({ principalId: "owner-2", permission: "database.migrate" })).allowed, true);
+});

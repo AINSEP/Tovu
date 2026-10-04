@@ -131,18 +131,18 @@ export async function authorizeAndCollectSection<T>(spec: {
   timeoutMs: number;
   collect: () => Promise<CollectedSection<T>>;
 }): Promise<InspectionSection<T>> {
-  const decision = await spec.authorize({
-    principalId: spec.principalId,
-    permission: spec.permission,
-    workspaceId: spec.workspaceId,
-    entityType: spec.entityType,
-    entityId: spec.section,
-  });
-  if (!decision.allowed) {
-    return { status: "forbidden", reason: decision.reason };
-  }
-
   try {
+    const decision = await spec.authorize({
+      principalId: spec.principalId,
+      permission: spec.permission,
+      workspaceId: spec.workspaceId,
+      entityType: spec.entityType,
+      entityId: spec.section,
+    });
+    if (!decision.allowed) {
+      return { status: "forbidden", reason: decision.reason };
+    }
+
     const collected = await withTimeout(spec.collect(), spec.timeoutMs, spec.logLabel);
     return collected.truncated
       ? { status: "ok", data: collected.data, truncated: true }

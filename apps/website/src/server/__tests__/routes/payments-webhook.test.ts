@@ -163,7 +163,7 @@ test("payments webhook: byte-identical JSON that differs only in key order and w
   await withServer(lipay, async (baseUrl) => {
     const response = await fetch(`${baseUrl}/payments/webhook/lipay`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-lipay-signature": signature },
+      headers: { "content-type": "application/json; charset=utf-8", "x-lipay-signature": signature },
       body: raw,
     });
     assert.equal(response.status, 200, "the exact bytes must reach the verifier, not a reserialized copy");

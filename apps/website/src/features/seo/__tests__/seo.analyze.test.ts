@@ -80,8 +80,8 @@ test("analyzeEntry: nothing missing -> score 100, issues []", async () => {
 test("analyzeEntry: a missing description produces an issue", async () => {
   const deps = await makeDeps([seedPost({ bodyJson: { type: "doc", content: [] } })]);
   const analysis = await analyzeEntry(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
-  assert.ok(analysis.issues.some((issue) => issue.field === "description"));
-  assert.ok(analysis.score < 100);
+  assert.deepEqual(analysis.issues, [{ code: "missing_description", severity: "warning", message: "Description is missing.", field: "description" }]);
+  assert.equal(analysis.score, 80);
 });
 
 test("analyzeEntry: a missing title produces an issue and lowers score", async () => {
@@ -97,9 +97,20 @@ test("analyzeEntry: a missing title produces an issue and lowers score", async (
 });
 
 test("analyzeEntry: carries the fully-resolved SeoMeta in `resolved`", async () => {
-  const deps = await makeDeps([seedPost()]);
+  const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({
+    title: "Search title", description: "Search description", canonical: "https://canonical.test/article",
+    noindex: true, nofollow: true, schemaType: "NewsArticle", ogType: "website",
+    ogTitle: "Social title", ogDescription: "Social description", ogImage: "https://cdn.test/social.png",
+    twitterTitle: "Twitter title", twitterDescription: "Twitter description", twitterCard: "summary", twitterImage: "https://cdn.test/twitter.jpg",
+  }) })]);
   const analysis = await analyzeEntry(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
-  assert.equal(analysis.resolved.title, "Hello World");
+  assert.deepEqual(analysis.resolved, {
+    title: "Search title", description: "Search description", canonical: "https://canonical.test/article",
+    robots: { noindex: true, nofollow: true },
+    openGraph: { title: "Social title", description: "Social description", type: "website", url: "https://canonical.test/article", image: "https://cdn.test/social.png", siteName: undefined },
+    twitter: { title: "Twitter title", description: "Twitter description", card: "summary", image: "https://cdn.test/twitter.jpg", site: undefined },
+    jsonLd: [{ "@context": "https://schema.org", "@type": "NewsArticle", headline: "Search title", description: "Search description" }],
+  });
   assert.equal(analysis.entryId, "post-1");
 });
 

@@ -18,6 +18,8 @@ import { parseRunStartContextRef } from "../run-start-context.js";
 test("forwards a model present in contextRef", () => {
   const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", model: "sonnet" }));
   assert.equal(result.model, "sonnet");
+  assert.equal(result.prompt, "hi");
+  assert.equal(result.principalId, "p1");
 });
 
 test("omits model when absent from contextRef", () => {
@@ -128,4 +130,11 @@ test("model and reasoning both survive the same envelope", () => {
   );
   assert.equal(result.model, "opus");
   assert.equal(result.reasoning, "max");
+});
+
+test("invalid JSON and non-object envelopes cannot start a run", () => {
+  assert.throws(() => parseRunStartContextRef("not JSON"), SyntaxError);
+  for (const raw of ["null", "[]", "42", '"text"', "true"]) {
+    assert.throws(() => parseRunStartContextRef(raw), Error, raw);
+  }
 });

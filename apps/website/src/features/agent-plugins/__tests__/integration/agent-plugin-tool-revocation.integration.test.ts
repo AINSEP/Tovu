@@ -90,10 +90,10 @@ async function withAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function installReal(archiveSeed: string): Promise<InstalledAgentPlugin> {
+async function installReal(archiveSeed: string, { workspaceId = WORKSPACE_ID, pluginId = PLUGIN_ID } = {}): Promise<InstalledAgentPlugin> {
   const manifest = JSON.stringify({
     $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-    name: PLUGIN_ID,
+    name: pluginId,
     version: "1.0.0",
   });
   const archive = new Uint8Array(Buffer.from(archiveSeed));
@@ -101,14 +101,14 @@ async function installReal(archiveSeed: string): Promise<InstalledAgentPlugin> {
   return installAgentPlugin({
     archive,
     expectedSha256: digest,
-    archiveReader: reader(entries(manifest)),
+    archiveReader: reader(entries(manifest, pluginId)),
     layout: resolveAgentPluginLayout(),
-    workspaceId: WORKSPACE_ID,
+    workspaceId,
   });
 }
 
-function entries(manifest: string): readonly AgentPluginArchiveEntry[] {
-  return [fileEntry("plugin.json", manifest), fileEntry(`skills/${PLUGIN_ID}/SKILL.md`, SKILL_MARKDOWN)];
+function entries(manifest: string, pluginId = PLUGIN_ID): readonly AgentPluginArchiveEntry[] {
+  return [fileEntry("plugin.json", manifest), fileEntry(`skills/${pluginId}/SKILL.md`, SKILL_MARKDOWN)];
 }
 
 /** Boots the tool surface the way `agent-daemon-server.ts` does: register once, then keep the same
@@ -235,5 +235,27 @@ test("the gate's INSTALLED half stands on its own: the package bytes disappearin
       "denied",
       "the installed-package signal must be checked independently of the activation record — a registration whose bytes are gone cannot be authorized by a record that outlived them",
     );
+  });
+});
+
+
+test("revocation is scoped to the plugin and workspace in an already-booted registry", async () => {
+  await withAgentPluginsDir(async () => {
+    const otherWorkspace = "92929292-9292-4292-8292-929292929292";
+    await installReal("isolation-main");
+    await installReal("isolation-sibling", { pluginId: "tea-roastery" });
+    await installReal("isolation-other-workspace", { workspaceId: otherWorkspace });
+    const mine = await bootDaemonToolSurface();
+    const other = createToolRegistry({});
+    await registerInstalledAgentPluginTools(other, { workspaceId: otherWorkspace });
+    const execute = (registry: ToolRegistry, toolId: string) => createToolExecutor({ registry }).execute({
+      principal: PRINCIPAL, run: { id: "isolation-run" }, toolId, input: {},
+    });
+    assert.equal((await execute(mine, "agent_plugin_tea_roastery")).status, "completed");
+    assert.equal((await execute(other, TOOL_ID)).status, "completed");
+    await setAgentPluginEnabled({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
+    assert.equal((await callPluginTool(mine)).status, "denied");
+    assert.equal((await execute(mine, "agent_plugin_tea_roastery")).status, "completed");
+    assert.equal((await execute(other, TOOL_ID)).status, "completed");
   });
 });

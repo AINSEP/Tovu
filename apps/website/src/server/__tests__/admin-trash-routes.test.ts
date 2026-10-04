@@ -553,6 +553,11 @@ test("restore: one forbidden item in a mixed selection does not abort the rest",
     (h.client.prepare(`SELECT status FROM redirects WHERE id = ?`).get("redirect-1") as { status: string }).status,
     "active"
   );
+  // A post's trash marker is `posts.deleted_at` (features/trash/adapters/post.ts), not its status.
+  assert.equal((h.client.prepare("SELECT deleted_at FROM posts WHERE id = ?").get("post-1") as { deleted_at: string | null }).deleted_at, AT);
+  const remaining = await h.trash.list({ workspaceId: h.deps.workspaceId, now: AT, limit: 100 });
+  assert.ok(remaining.items.some((item) => item.entityType === POST_ENTITY_TYPE && item.entityId === "post-1"), "the forbidden post stays indexed in Trash");
+  assert.equal(remaining.items.some((item) => item.entityType === REDIRECT_ENTITY_TYPE && item.entityId === "redirect-1"), false, "the restored redirect leaves Trash");
 });
 
 test("items: forbidden without the kind's own permission; 200 with it; a second call reads not-found (already trashed)", async (t) => {

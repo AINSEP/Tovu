@@ -534,3 +534,43 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through to
   assert.equal(executor.getAuditRecord({ executionId: "exec-7" }), record);
   assert.deepEqual(calls, ["resume:exec-7:confirm", "cancel:exec-7", "get:exec-7"]);
 });
+
+// F6.2/F2.5: a diagnostic inside nested arrays must recover under the original caller context.
+test("interactive nested-array recovery dispatches remedy and retry with the original principal, run and signal", async () => {
+  const calls: Array<{ toolId: string; input: unknown; principal: Principal; run: RunRef; signal: AbortSignal | undefined }> = [];
+  const controller = new AbortController();
+  let originals = 0;
+  const inner = routedExecutor({});
+  inner.execute = async ({ toolId, input, principal, run }, { signal } = {}) => {
+    calls.push({ toolId, input, principal, run, signal });
+    if (toolId === ORIGINAL_TOOL_ID) {
+      return { executionId: "original", status: "completed", output: ++originals === 1
+        ? { nested: [[{ failure: authFailureOutput() }]] } : { status: 200, bodyText: "recovered" } };
+    }
+    assert.equal(toolId, SET_USERNAME_TOOL_ID);
+    assert.deepEqual(input, { label: "name.com", username: "recovery-user" });
+    return { executionId: "remedy", status: "completed", output: { saved: true } };
+  };
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const { pending, emitted } = await runOriginal(executor, { signal: controller.signal });
+  try {
+    assert.equal(emitted.length, 1, "nested arrays must not hide an actionable diagnostic");
+    assert.deepEqual(surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]),
+      toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "recovery-user" } }), { ok: true });
+    assert.deepEqual((await pending).output, { status: 200, bodyText: "recovered" });
+    assert.deepEqual(calls.map(({ toolId, input }) => ({ toolId, input })), [
+      { toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT },
+      { toolId: SET_USERNAME_TOOL_ID, input: { label: "name.com", username: "recovery-user" } },
+      { toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT },
+    ]);
+    for (const call of calls) {
+      assert.equal(call.principal, PRINCIPAL);
+      assert.equal(call.run, RUN);
+      assert.equal(call.signal, controller.signal);
+    }
+  } finally {
+    controller.abort();
+    await pending;
+  }
+});

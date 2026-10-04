@@ -40,7 +40,8 @@ function fakeHostPort(): { hostPort: { registerTools: (moduleId: string, registr
 
 test("a well-formed glue module registers successfully and calls the host port exactly once", () => {
   const { hostPort, calls } = fakeHostPort();
-  const module: GlueToolModuleContribution = { moduleId: "m1", build: () => [registration("glue_tool_a")] };
+  const original = registration("glue_tool_a");
+  const module: GlueToolModuleContribution = { moduleId: "m1", build: () => [original] };
 
   const result = mergeGlueToolRegistrations({ coreToolIds: ["core_tool_x"], glueModules: [module], hostPort });
 
@@ -49,6 +50,9 @@ test("a well-formed glue module registers successfully and calls the host port e
   assert.equal(calls.length, 1);
   assert.equal(calls[0].moduleId, "m1");
   assert.deepEqual(calls[0].registrations.map((r) => r.toolId), ["glue_tool_a"]);
+  assert.equal(calls[0].registrations[0], original);
+  assert.equal(calls[0].registrations[0].handler, original.handler);
+  assert.equal(calls[0].registrations[0].handler(), "handled:glue_tool_a");
 });
 
 test("CIC-3: a throwing module's build() is dropped and quarantined; a well-behaved sibling module still registers, and this function itself never throws", () => {
@@ -144,4 +148,19 @@ test("a module contributing MULTIPLE tool registrations succeeds or fails as a u
   assert.deepEqual(result.registeredModuleIds, []);
   assert.equal(result.quarantined[0].reason, "DUPLICATE_TOOL_ID");
   assert.equal(calls.length, 0, "no partial mount — the host port is never called for a quarantined module");
+});
+
+
+test("duplicate ids inside one module quarantine the whole module and leave its ids free for a sibling", () => {
+  const { hostPort, calls } = fakeHostPort();
+  const result = mergeGlueToolRegistrations({ coreToolIds: [], hostPort, glueModules: [
+    { moduleId: "duplicate", build: () => [registration("unique"), registration("same"), registration("same")] },
+    { moduleId: "good", build: () => [registration("unique"), registration("same")] },
+  ] });
+  assert.deepEqual(result.registeredModuleIds, ["good"]);
+  assert.equal(result.quarantined.length, 1);
+  assert.equal(result.quarantined[0].moduleId, "duplicate");
+  assert.equal(result.quarantined[0].reason, "DUPLICATE_TOOL_ID");
+  assert.match(result.quarantined[0].detail, /same/);
+  assert.deepEqual(calls.map((call) => call.moduleId), ["good"]);
 });

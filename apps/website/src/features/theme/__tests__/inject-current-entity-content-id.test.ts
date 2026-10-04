@@ -40,6 +40,8 @@ test("every bare content marker in the template receives the same id", () => {
   const out = injectCurrentEntityContentId(template, "post-123");
   const occurrences = out.split('"id":"post-123"').length - 1;
   assert.equal(occurrences, 2);
+  assert.equal(out, '<header data-embed-config=\'{"type":"content","id":"post-123"}\'></header>' +
+    '<main data-embed-config=\'{"type":"content","id":"post-123"}\'></main>');
 });
 
 test("leaves markers of every OTHER type untouched, for a later stage to resolve", () => {

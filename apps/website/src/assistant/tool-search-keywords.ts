@@ -312,7 +312,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // found. MUST carry "copy duplicate clone" — see this file's own header on why a keyword miss is a
   // silent failure mode, not a wrong-result one.
   sites_duplicate_site:
-    "site sites copy duplicate clone new client starting point template based on existing existing site " +
+    "site sites copy duplicate clone new client starting point template sample landing based on existing existing site " +
     "spin up stand up set up create from a copy of same content",
 
   // --- content / collections --------------------------------------------------------------------------

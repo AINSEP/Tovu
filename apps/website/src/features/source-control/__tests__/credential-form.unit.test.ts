@@ -35,3 +35,14 @@ test("malformed blocks are refused with the exact reason", () => {
   ];
   for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm(value, "c"), reason);
 });
+
+
+test("a custom tokenField selects the declared alternate secret with all field flags preserved", () => {
+  assert.deepEqual(parseSourceControlCredentialForm({
+    help: "Use an access token", tokenPageUrl: "https://git.test/tokens", tokenField: "accessToken",
+    fields: [{ name: "accessToken", label: "Access token", required: true, secret: true }, { name: "username", label: "Username", required: false, secret: false }],
+  }, "c"), {
+    help: "Use an access token", tokenPageUrl: "https://git.test/tokens", tokenField: "accessToken",
+    fields: [{ name: "accessToken", label: "Access token", required: true, secret: true }, { name: "username", label: "Username", required: false }],
+  });
+});

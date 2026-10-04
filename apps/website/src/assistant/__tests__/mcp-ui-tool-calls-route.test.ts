@@ -334,3 +334,28 @@ test("a top-level exchangeId wins over a params-borne one, so one body cannot na
     "the params-borne id must not also be delivered to"
   );
 });
+
+// F6.2: both IDs are redeemable, so only the exchange's tool binding may refuse this answer.
+test("a different allowlisted tool cannot answer another tool's exchange", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
+  const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
+  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
+  const answer = exchange.receive();
+  try {
+    const res = await postToolCall(baseUrl,
+      { toolName: "settings_clear_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "confirm" } },
+      { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+    assert.equal(res.status, 409);
+    assert.equal(calls.length, 0);
+    assert.equal(surfaceExchanges.size(), 1);
+    assert.equal(await Promise.race([answer, Promise.resolve("still-waiting")]), "still-waiting");
+    const valid = await postToolCall(baseUrl,
+      { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "cancel" } },
+      { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+    assert.equal(valid.status, 202);
+    assert.equal((await answer).status, "received");
+  } finally {
+    exchange.close();
+  }
+});

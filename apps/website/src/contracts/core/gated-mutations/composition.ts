@@ -110,7 +110,7 @@ export function buildGatewayDeps(params: {
 export function buildOwnerOnlyInstanceAuthorize(params: { ownerPrincipalId: Promise<string> }): InstanceAuthorizeFn {
   return async ({ principalId }) => {
     const ownerPrincipalId = await params.ownerPrincipalId;
-    if (principalId !== ownerPrincipalId) {
+    if (typeof ownerPrincipalId !== "string" || ownerPrincipalId.length === 0 || principalId !== ownerPrincipalId) {
       return { allowed: false, reason: "not_instance_owner" };
     }
     return { allowed: true, reason: "owner_wildcard" };

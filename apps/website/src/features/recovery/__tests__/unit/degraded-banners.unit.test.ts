@@ -39,6 +39,7 @@ test("EC-06: when migration.interrupted AND PENDING_MIGRATION are both true, mig
   const banner = resolveDegradedBanner({ capabilities: capabilities({ migrationInterrupted: true, pendingMigration: true }) });
 
   assert.equal(banner?.kind, "migration-interrupted");
+  assert.equal(banner?.actionKind, "unblock-interrupted-migration");
 });
 
 test("AC-29: the migration-interrupted banner's accessible text includes the literal substring 'planned downtime'", () => {
@@ -66,16 +67,27 @@ test("precedence: operation-in-flight outranks costClass:'unavailable'", () => {
   const banner = resolveDegradedBanner({ capabilities: capabilities({ operationInFlight: true, costClass: "unavailable" }) });
 
   assert.equal(banner?.kind, "operation-in-flight");
+  assert.equal(banner?.actionKind, "none");
 });
 
 test("precedence: costClass:'unavailable' outranks watermark-baseline-unavailable", () => {
   const banner = resolveDegradedBanner({ capabilities: capabilities({ costClass: "unavailable", watermarkBaselineAvailable: false }) });
 
   assert.equal(banner?.kind, "cost-unavailable");
+  assert.equal(banner?.actionKind, "none");
 });
 
 test("no degraded condition true -> resolver returns null (no banner rendered)", () => {
   const banner = resolveDegradedBanner({ capabilities: capabilities() });
 
   assert.equal(banner, null);
+});
+
+
+test("an unavailable watermark baseline alone warns while restoring remains available", () => {
+  assert.deepEqual(resolveDegradedBanner({ capabilities: capabilities({ watermarkBaselineAvailable: false }) }), {
+    kind: "watermark-baseline-unavailable",
+    accessibleText: "This site can't show exactly what a restore would discard. Restoring still works — the counts you'll see are marked \"unknown\" rather than a confirmed number.",
+    actionKind: "none",
+  });
 });

@@ -59,6 +59,8 @@ test("updateCustomCredential: a username-only update (no connection) persists th
   // byte-identical `sealed` object (not just "still decrypts to the same token") proves the update
   // path never even called `sealer.seal()` for this request.
   assert.deepEqual(after.sealed, before.sealed);
+  assert.equal(after.username, "leonaburime@gmail.com");
+  assert.equal((await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "name.com" }))?.connection.username, "leonaburime@gmail.com");
 });
 
 test("updateCustomCredential: a token-only update (connection supplied, no top-level username) still works, unaffected by the new field", async () => {
@@ -77,6 +79,7 @@ test("updateCustomCredential: a token-only update (connection supplied, no top-l
     connection: { token: "sk_live_rotated", username: "still-here" },
   });
   assert.equal(result.username, "still-here");
+  assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.username, "still-here");
 });
 
 test("updateCustomCredential: both `username` and `connection` supplied in the same call — the top-level `username` wins for the column", async () => {
@@ -96,6 +99,7 @@ test("updateCustomCredential: both `username` and `connection` supplied in the s
     username: "from-top-level",
   });
   assert.equal(result.username, "from-top-level");
+  assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.username, "from-top-level");
 });
 
 test("updateCustomCredential: `username: null` explicitly clears a saved username", async () => {
@@ -110,6 +114,9 @@ test("updateCustomCredential: `username: null` explicitly clears a saved usernam
 
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
   assert.equal("username" in result, false);
+  const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+  assert.ok(stored, "clearing the username must preserve the credential row");
+  assert.equal(stored.username, undefined);
 });
 
 test("updateCustomCredential: `username: null` (no connection) also strips the sealed payload's own embedded username, so the real decrypting read path (resolveCustomCredentialByLabel) does not resurrect it", async () => {
@@ -124,6 +131,9 @@ test("updateCustomCredential: `username: null` (no connection) also strips the s
 
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
   assert.equal("username" in result, false);
+  const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+  assert.ok(stored, "clearing the username must preserve the credential row");
+  assert.equal(stored.username, undefined);
 
   const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "name.com" });
   assert.ok(resolved);
@@ -164,4 +174,5 @@ test("updateCustomCredential: omitting both `username` and `connection` leaves t
 
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, label: "renamed" });
   assert.equal(result.username, "old-username");
+  assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.username, "old-username");
 });

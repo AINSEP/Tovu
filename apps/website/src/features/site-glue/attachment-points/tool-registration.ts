@@ -106,12 +106,17 @@ export function mergeGlueToolRegistrations(
       continue;
     }
 
-    const duplicate = registrations.find((registration) => claimedToolIds.has(registration.toolId));
+    const moduleToolIds = new Set<string>();
+    const duplicate = registrations.find((registration) => {
+      if (claimedToolIds.has(registration.toolId) || moduleToolIds.has(registration.toolId)) return true;
+      moduleToolIds.add(registration.toolId);
+      return false;
+    });
     if (duplicate) {
       quarantine(
         module.moduleId,
         "DUPLICATE_TOOL_ID",
-        `tool id '${duplicate.toolId}' is already registered by core or an earlier glue module`
+        `tool id '${duplicate.toolId}' is already registered by core, an earlier glue module, or this module`
       );
       continue;
     }

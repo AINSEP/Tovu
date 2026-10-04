@@ -327,3 +327,21 @@ test("active theme: a destination with no presentation row is refused cleanly", 
   );
   assert.equal(await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), null);
 });
+
+
+test("active theme: a denied theme.set cannot switch an installed theme", async () => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  source.themes.push(theme("static", "paper"));
+  await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
+  destination.themes.push(theme("static", "paper"), theme("static", "basic"));
+  const original = { workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: at };
+  await destination.presentation.save(original);
+  destinationDeps.authorize = async ({ permission }) => {
+    assert.equal(permission, "theme.set");
+    return { allowed: false, reason: "no_grant" };
+  };
+  const entities = await packAll(sourceDeps);
+  const report = await plan(entities, destinationDeps, ["active-theme:site"]);
+  await assert.rejects(applyReport(report, entities, destinationDeps), /not authorized.*theme.set/);
+  assert.deepEqual(await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), original);
+});

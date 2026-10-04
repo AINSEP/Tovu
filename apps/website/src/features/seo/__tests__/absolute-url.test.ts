@@ -72,8 +72,18 @@ function fakeOriginRegistry(origin: VerifiedOrigin | Error): OriginRegistryPort 
 }
 
 test("resolveWorkspaceOrigin: returns the verified origin when one is registered", async () => {
-  const result = await resolveWorkspaceOrigin(fakeOriginRegistry(ORIGIN), "workspace-1");
-  assert.deepEqual(result, ORIGIN);
+  const other: VerifiedOrigin = { ...ORIGIN, host: "other.test" };
+  const origins = new Map([["workspace-1", ORIGIN], ["workspace-2", other]]);
+  const registry: OriginRegistryPort = {
+    ...fakeOriginRegistry(ORIGIN),
+    async canonicalOrigin({ workspaceId }) {
+      const origin = origins.get(workspaceId);
+      assert.ok(origin, `unexpected workspace ${workspaceId}`);
+      return origin;
+    },
+  };
+  assert.deepEqual(await resolveWorkspaceOrigin(registry, "workspace-1"), ORIGIN);
+  assert.deepEqual(await resolveWorkspaceOrigin(registry, "workspace-2"), other);
 });
 
 test("resolveWorkspaceOrigin: degrades to undefined on OriginNotVerifiedError, the documented no-origin fallback", async () => {

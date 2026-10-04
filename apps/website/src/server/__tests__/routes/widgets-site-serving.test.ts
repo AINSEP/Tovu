@@ -113,6 +113,7 @@ test("W-004: a disabled placement (enabled:false) does not render publicly, even
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ widgetType: "text", title: "Footer note", config: { body: "Should not be visible" } }),
   });
+  assert.equal(createRes.status, 201);
   const { widget } = (await createRes.json()) as { widget: { id: string } };
 
   const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
@@ -120,15 +121,22 @@ test("W-004: a disabled placement (enabled:false) does not render publicly, even
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ regionKey: "footer" }),
   });
+  assert.equal(bindRes.status, 201);
   const { area } = (await bindRes.json()) as { area: { version: number } };
 
-  await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
+  const placementRes = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ baseVersion: area.version, placements: [{ placementId: "p1", widgetEntryId: widget.id, enabled: false }] }),
   });
+  assert.equal(placementRes.status, 200, await placementRes.clone().text());
+  const savedRes = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, { headers: { cookie } });
+  assert.equal(savedRes.status, 200);
+  const saved = await savedRes.json() as { area: { doc: { placements: unknown[] } } };
+  assert.deepEqual(saved.area.doc.placements, [{ placementId: "p1", widgetEntryId: widget.id, enabled: false }]);
 
   const siteRes = await fetch(`${baseUrl}/`);
+  assert.equal(siteRes.status, 200);
   const html = await siteRes.text();
   assert.doesNotMatch(html, /Should not be visible/);
   assert.doesNotMatch(html, /widget-region--footer/);

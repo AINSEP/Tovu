@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
@@ -143,8 +143,8 @@ test("custom_credential_set_username is wired to a real handler", () => {
 // ---------------------------------------------------------------------------
 
 test("sets a new username on a credential that had none, and returns the updated summary", async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
-  await createCustomCredential(writeDeps, {
+  const { deps, repo, writeDeps } = fakeRouteDeps();
+  const created = await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "name.com",
     category: "hosting",
@@ -159,6 +159,7 @@ test("sets a new username on a credential that had none, and returns the updated
 
   assert.equal(result.label, "name.com");
   assert.equal(result.username, "leonaburime@gmail.com");
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id }))?.username, "leonaburime@gmail.com");
 });
 
 test("leaves the sealed ciphertext byte-identical — a username-only fix never rotates or re-seals the token", async () => {
@@ -181,8 +182,8 @@ test("leaves the sealed ciphertext byte-identical — a username-only fix never 
 });
 
 test("username: null clears a previously saved username", async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
-  await createCustomCredential(writeDeps, {
+  const { deps, repo, writeDeps } = fakeRouteDeps();
+  const created = await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "name.com",
     category: "hosting",
@@ -193,6 +194,9 @@ test("username: null clears a previously saved username", async () => {
   const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: null })) as object;
 
   assert.ok(!Object.hasOwn(result, "username"), "a cleared username must be an absent key, not username: ''");
+  const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id });
+  assert.ok(stored, "clearing the username must preserve the credential row");
+  assert.equal(stored.username, undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -209,7 +213,7 @@ test("rejects a blank string username — not a silent clear, not a silent no-op
     connection: { token: "namecom-secret-token" },
   });
 
-  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "" }));
+  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' must be a non-empty string, or null to clear it" });
 });
 
 test("rejects a call that omits username entirely — this tool always sets or clears, it never silently no-ops", async () => {
@@ -222,7 +226,7 @@ test("rejects a call that omits username entirely — this tool always sets or c
     connection: { token: "namecom-secret-token" },
   });
 
-  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com" }));
+  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' is required — pass a non-empty string to set it, or null to clear it" });
 });
 
 test("an unknown label is refused with CustomCredentialNotFoundError-shaped message", async () => {
@@ -255,7 +259,8 @@ test("rejects any attempt to pass a token-ish field alongside label/username —
       label: "name.com",
       username: "leona",
       token: "sneaky-attempt-to-rotate-the-token",
-    })
+    }),
+    (error: unknown) => error instanceof ToolInputError && error.message === "CUSTOM_CREDENTIALS_VALIDATION_FAILED: custom_credential_set_username accepts only 'label' and 'username' — refusing unexpected field(s): token. This tool writes ONLY the plaintext username column; it can never accept, read, or change a token."
   );
   // Refusing the call must not have cost a decrypt or a re-seal either.
   assert.equal(sealer.openCalls, 0);

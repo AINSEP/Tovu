@@ -121,6 +121,7 @@ test("import-subscriptions: forbidden 403s when unauthorized", async (t) => {
 test("import-subscriptions: successful import returns 207 Multi-Status", async (t) => {
   const { app, deps } = buildApp();
   await deps.newsletterReady;
+  const mail = t.mock.method(deps.mailer, "send");
   // Create a real list. `NewsletterListRepoPort.save` returns `Promise<void>` (ports.ts), not the
   // saved row, so the list literal itself — not a nonexistent return value — is the reference used
   // below.
@@ -170,6 +171,29 @@ test("import-subscriptions: successful import returns 207 Multi-Status", async (
   assert.equal(body.failed[0]?.index, 1);
   assert.equal(body.failed[0]?.code, "NEWSLETTER_SUBSCRIBER_NOT_FOUND");
   assert.equal(body.failed[0]?.message, "subscriber sub-nonexistent was not found");
+  const stored = await deps.newsletterSubscriptionRepo.findBySubscriberAndList({ workspaceId: WORKSPACE_ID, listId: list.id, subscriberId: "sub-valid-1" });
+  assert.ok(stored);
+  assert.deepEqual({ subscriberId: stored.subscriberId, listId: stored.listId, status: stored.status, source: stored.source }, {
+    subscriberId: "sub-valid-1", listId: list.id, status: "pending", source: "import",
+  });
+  assert.equal(await deps.newsletterSubscriptionRepo.findBySubscriberAndList({ workspaceId: WORKSPACE_ID, listId: list.id, subscriberId: "sub-nonexistent" }), null);
+  const tokens = await deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: stored.id });
+  assert.equal(tokens.length, 1);
+  assert.equal(mail.mock.calls.length, 1);
+  assert.equal(mail.mock.calls[0]!.arguments[0].to.email, "sub1@example.com");
+  assert.match(mail.mock.calls[0]!.arguments[0].text ?? "", /newsletter\/confirm\?token=[a-f0-9]{64}/);
+
+  const repeated = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/lists/${list.id}/subscriptions/import`, {
+    subscribers: [{ subscriberId: "sub-valid-1" }],
+  });
+  assert.equal(repeated.status, 207);
+  assert.deepEqual((repeated.json as { failed: unknown[] }).failed, []);
+  assert.equal((repeated.json as { created: Array<{ id: string }> }).created[0]?.id, stored.id);
+  assert.deepEqual(await deps.newsletterSubscriptionRepo.list({ workspaceId: WORKSPACE_ID, listId: list.id, limit: 10 }), [stored]);
+  assert.equal(mail.mock.calls.length, 2);
+  const renewed = await deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: stored.id });
+  assert.equal(renewed.length, 1);
+  assert.notEqual(renewed[0]!.id, tokens[0]!.id);
 });
 
 test("import-subscriptions: non-existent list returns 404", async (t) => {

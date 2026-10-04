@@ -145,6 +145,19 @@ test("writeGeneratedThemeOriginal: leaves no staging directory behind after a su
   );
 });
 
+test("writeGeneratedThemeOriginal: a failed source copy preserves the complete existing original", () => {
+  const root = makeThemesRoot();
+  const targetDir = join(root, "target");
+  mkdirSync(join(targetDir, "nested"), { recursive: true });
+  writeFileSync(join(targetDir, "theme.json"), '{"id":"existing"}');
+  const binary = Buffer.from([0, 255, 128, 10]);
+  writeFileSync(join(targetDir, "nested", "asset.bin"), binary);
+  assert.throws(() => writeGeneratedThemeOriginal({ liveDir: join(root, "missing-source"), targetDir }), { code: "ENOENT" });
+  assert.deepEqual(relativeFilePaths(targetDir), ["nested/asset.bin", "theme.json"]);
+  assert.deepEqual(readFileSync(join(targetDir, "nested", "asset.bin")), binary);
+  assert.equal(readFileSync(join(targetDir, "theme.json"), "utf8"), '{"id":"existing"}');
+});
+
 test("syncThemeOriginals: generates an original for every shipped theme, routed by its declared tier", () => {
   const root = makeThemesRoot();
   makeStaticThemeFixture(root, "theme-a");

@@ -318,9 +318,21 @@ test("taxonomy routes: assign-terms is idempotent per call and returns 204 (AC-1
   const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ contentType: "post", contentId: "post-1", termIds: [term.term.id] }),
+    body: JSON.stringify({ contentType: "post", contentId: "post-1", termIds: [term.term.id, term.term.id] }),
   });
   assert.equal(res.status, 204);
+  const readAssigned = async () => {
+    const read = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assigned-terms?contentType=post&contentId=post-1`, { headers: { cookie } });
+    assert.equal(read.status, 200);
+    assert.deepEqual(await read.json(), { termIds: [term.term.id] });
+  };
+  await readAssigned();
+  const repeat = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "post", contentId: "post-1", termIds: [term.term.id, term.term.id] }),
+  });
+  assert.equal(repeat.status, 204);
+  await readAssigned();
 });
 
 test("taxonomy routes: assign-terms rejects a nonexistent contentId with 404 (Finding 1 fix, TM-adr041-043-044-045-audit-001)", async (t) => {

@@ -92,6 +92,34 @@ test("database timeline route: a caller with zero grants is rejected FORBIDDEN (
   assert.equal(body.code, "FORBIDDEN");
 });
 
+test("database timeline route: bounded pages advance without overlap and each filter selects exact rows", async (t) => {
+  const ledger = new InMemoryDatabaseLedgerRepo();
+  for (const row of [
+    { id: "page-1", kind: "core.migration", createdAt: "2026-07-15T00:00:00.000Z", outcome: "success" },
+    { id: "page-2", kind: "restore.executed", createdAt: "2026-07-15T00:01:00.000Z", outcome: "failure" },
+    { id: "page-3", kind: "core.migration", createdAt: "2026-07-15T00:02:00.000Z", outcome: "failure" },
+  ]) await ledger.append({ ...row, restorePointId: null });
+  const { app } = buildTestApp(ledger);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const page = async (query: string) => {
+    const res = await fetch(`${baseUrl}/api/admin/v1/database/timeline?${query}`, { headers: { cookie } });
+    assert.equal(res.status, 200, await res.clone().text());
+    return await res.json() as { items: Array<{ id: string }>; nextCursor: string | null };
+  };
+  const first = await page("limit=2");
+  assert.deepEqual(first.items.map((row) => row.id), ["page-3", "page-2"]);
+  assert.equal(typeof first.nextCursor, "string");
+  const last = await page(`limit=2&cursor=${encodeURIComponent(first.nextCursor!)}`);
+  assert.deepEqual(last.items.map((row) => row.id), ["page-1"]);
+  assert.equal(last.nextCursor, null);
+  for (const [query, ids] of [
+    ["kind=core.migration", ["page-3", "page-1"]],
+    ["outcome=failure", ["page-3", "page-2"]],
+    ["fromDate=2026-07-15T00:01:00.000Z&toDate=2026-07-15T00:01:00.000Z", ["page-2"]],
+    ["limit=200", ["page-3", "page-2", "page-1"]],
+  ] as const) assert.deepEqual((await page(query)).items.map((row) => row.id), ids);
+});
+
 test("database timeline route: a limit above the server's 200-row cap is rejected VALIDATION_ERROR (REQ-04)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

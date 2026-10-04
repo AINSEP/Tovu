@@ -180,8 +180,9 @@ test("deployment_get_static_publish_capabilities still runs fine through the ord
   const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });
 
   assert.equal(result.status, "completed", `expected the read tool to complete normally: ${JSON.stringify(result)}`);
-  const output = result.output as { providers: unknown[] };
+  const output = result.output as { providers: { providerId: string }[] };
   // 5 providers as of the s3-compatible ("Custom" tab) addition — spec
   // `custom-publish-provider-contract.md` §10.7 — not 4.
-  assert.equal(output.providers.length, 5);
+  assert.deepEqual(output.providers.map(({ providerId }) => providerId).sort(),
+    ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"]);
 });

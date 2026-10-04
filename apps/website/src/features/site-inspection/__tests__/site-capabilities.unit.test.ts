@@ -262,3 +262,22 @@ test("tools section: a long description is still one capped line in the output",
   const summary = result.sections.tools?.data?.domains[0]?.tools[0]?.summary ?? "";
   assert.ok(summary.length > 0 && summary.length <= MAX_TOOL_SUMMARY_CHARS, `summary is ${summary.length} chars`);
 });
+
+
+test("an authorization-service rejection affects only its section and performs no corresponding read", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const logs: Logs = { permissions: [], reads: [] };
+  const deps = makeDeps({ logs });
+  const authorize = deps.authorize;
+  deps.authorize = async (params) => {
+    if (params.entityId === "contentTypes") throw new TypeError("PRIVATE_AUTH_SERVICE_FAILURE");
+    return authorize(params);
+  };
+  const result = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID });
+  assert.deepEqual(result.sections.contentTypes, { status: "unavailable", reason: "TypeError" });
+  assert.equal(logs.reads.includes("contentTypes"), false);
+  assert.equal(result.sections.tools?.status, "ok");
+  assert.deepEqual(result.sections.adminScreens?.data?.screens, ADMIN_SCREENS);
+  assert.equal(result.completeness, "partial");
+  assert.equal(JSON.stringify(result).includes("PRIVATE_AUTH_SERVICE_FAILURE"), false);
+});

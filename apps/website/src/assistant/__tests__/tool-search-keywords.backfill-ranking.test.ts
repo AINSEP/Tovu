@@ -157,3 +157,42 @@ test("the backfill measurably improves top-3 ranking for these cases versus the 
     `the keyword backfill must strictly improve top-3 ranking across these previously-unindexed-tool cases — before ${beforeResult.top3}/${beforeResult.total}, after ${afterResult.top3}/${afterResult.total}`,
   );
 });
+
+test("the production copy phrasing finds sites_duplicate_site in the top three", async () => {
+  const { after } = await buildBeforeAndAfterCatalogs();
+  const hits = after.search({ query: "copy Landing sample" }, { limit: 3 });
+  assert.ok(hits.some(hit => hit.id === "sites_duplicate_site"), JSON.stringify(hits));
+});
+
+test("backfilled ids remain wired except explicitly unwired tools and the merged list alias", async () => {
+  const { after } = await buildBeforeAndAfterCatalogs();
+  const missing = [
+    "backup_execute_restore",
+    "collections_execute_cleanup",
+    "collections_plan_cleanup",
+    "custom_credential_set_username",
+    "custom_credential_set_token",
+    "custom_credential_create",
+    "database_execute_migrate_forward",
+    "database_get_restore_guidance",
+    "external_mcp_list",
+    "external_mcp_save",
+    "external_mcp_test_connection",
+    "external_mcp_oauth_connect",
+    "external_mcp_oauth_poll_device",
+    "redirects_import",
+    "settings_clear_value",
+    "settings_register_definitions",
+    "settings_reset",
+    "settings_set_value",
+    "sites_duplicate_site",
+    "taxonomy_execute_merge_term",
+    "workspace_create",
+    "workspace_delete",
+  ].filter(id => after.describe({ id }) === null).sort();
+  assert.deepEqual(missing, [
+    "collections_execute_cleanup", "collections_plan_cleanup", "database_get_restore_guidance", "external_mcp_list",
+    "settings_register_definitions", "settings_reset", "workspace_create", "workspace_delete",
+  ]);
+  assert.ok(after.describe({ id: "content_read.external_mcp" }), "external_mcp_list's merged replacement must be wired");
+});

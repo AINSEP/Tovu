@@ -27,6 +27,8 @@ function cacheKey(workspaceId: UUID): string {
 
 /** Cached value is the `JSON.stringify`d `SitemapEntry[]` for that workspace. */
 const sitemapCache = new Map<string, string>();
+/** Only the most recently started build may publish into a workspace cache. */
+const sitemapBuilds = new Map<string, symbol>();
 
 // ---------------------------------------------------------------------------
 // `seo.sitemap.collect` (OQ-01) — a real, empty, in-module ordered registry.
@@ -142,8 +144,10 @@ export async function buildSitemap(deps: SeoSitemapDeps, input: { workspaceId: U
   const cached = sitemapCache.get(key);
   if (cached !== undefined) return JSON.parse(cached) as SitemapEntry[];
 
+  const build = Symbol();
+  sitemapBuilds.set(key, build);
   const entries = await computeSitemapEntries(deps, input.workspaceId);
-  sitemapCache.set(key, JSON.stringify(entries));
+  if (sitemapBuilds.get(key) === build) sitemapCache.set(key, JSON.stringify(entries));
   return entries;
 }
 
@@ -177,13 +181,17 @@ export async function buildRobots(
 
 /** REQ-13 — force-rebuilds the cache entry now, bypassing the cache-hit path. */
 export async function regenerateSitemapCache(deps: SeoSitemapDeps, input: { workspaceId: UUID }): Promise<void> {
+  const key = cacheKey(input.workspaceId);
+  const build = Symbol();
+  sitemapBuilds.set(key, build);
   const entries = await computeSitemapEntries(deps, input.workspaceId);
-  sitemapCache.set(cacheKey(input.workspaceId), JSON.stringify(entries));
+  if (sitemapBuilds.get(key) === build) sitemapCache.set(key, JSON.stringify(entries));
 }
 
 /** REQ-10/INV-08 — clears the workspace's cache entry. Idempotent: a repeat call on an already-clear key is a no-op. */
 export function invalidateSitemapCache(input: { workspaceId: UUID }): void {
   sitemapCache.delete(cacheKey(input.workspaceId));
+  sitemapBuilds.delete(cacheKey(input.workspaceId));
 }
 
 /**

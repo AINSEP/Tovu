@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import path from "node:path";
 import test from "node:test";
 
@@ -91,6 +94,31 @@ test("bundled agent plugins resolve to content/agent-plugins via the product-roo
   assert.ok(existsSync(path.join(bundledAgentPluginsDir(), "site-compliance")));
 });
 
+test("stock resolvers work from a dist/src module layout independently of cwd", (t) => {
+  const fixture = mkdtempSync(path.join(tmpdir(), "tovu-stock-layout-"));
+  t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  const product = path.join(fixture, "dist");
+  const elsewhere = path.join(fixture, "unrelated-cwd");
+  mkdirSync(path.join(product, "content", "themes"), { recursive: true });
+  mkdirSync(path.join(product, "content", "agent-plugins"), { recursive: true });
+  mkdirSync(elsewhere);
+  writeFileSync(path.join(product, "package.json"), JSON.stringify({ type: "module", imports: { "#src/*": "./src/*.ts" } }));
+  // Preserve the module location while loading the real source with tsx; no hand-copied resolver.
+  symlinkSync(path.join(REPO_ROOT, "apps", "website", "src"), path.join(product, "src"), "dir");
+  symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(product, "node_modules"), "dir");
+  const moduleUrl = pathToFileURL(path.join(product, "src", "server", "runtime", "composition", "deps.ts")).href;
+  const worker = path.join(product, "stock-paths.mjs");
+  writeFileSync(worker, `const { builtInThemesDir, bundledAgentPluginsDir } = await import(${JSON.stringify(moduleUrl)}); console.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
+  const env = { ...process.env };
+  delete env.TOVU_STOCK_THEMES_DIR;
+  delete env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  const result = spawnSync(process.execPath, [
+    "--preserve-symlinks", "--import", import.meta.resolve("tsx"), worker,
+  ], { cwd: elsewhere, env, encoding: "utf8", timeout: 30_000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout.trim()), [path.join(product, "content", "themes"), path.join(product, "content", "agent-plugins")]);
+});
+
 test("site templates resolve to content/templates via the product-root walk-up", () => {
   // `read-template.ts` holds `TEMPLATES_ROOT` in a module-private const with no accessor, so the
   // offset is asserted against the source text. Weaker than calling an export, but it is the only
@@ -107,11 +135,13 @@ test("site templates resolve to content/templates via the product-root walk-up",
 
 test("no stock data directory is left behind inside src/", () => {
   for (const stale of ["themes", "templates", "public", "agent-plugins"]) {
-    assert.equal(
-      existsSync(path.join(REPO_ROOT, "src", stale)),
-      false,
-      `src/${stale} still exists; stock data belongs in content/`,
-    );
+    for (const sourceRoot of ["src", "apps/website/src"]) {
+      assert.equal(
+        existsSync(path.join(REPO_ROOT, sourceRoot, stale)),
+        false,
+        `${sourceRoot}/${stale} still exists; stock data belongs in content/`,
+      );
+    }
   }
 });
 
@@ -169,7 +199,7 @@ test("the build script copies stock data to dist/content, not dist/src", () => {
   );
 });
 
-test("every asset copy in the build script cleans its destination first", () => {
+test("every asset copy in the build script cleans its destination first", (t) => {
   const buildScript = expandedBuildScript();
 
   for (const copy of assetCopies(buildScript)) {
@@ -189,5 +219,27 @@ test("every asset copy in the build script cleans its destination first", () => 
         `deleted source files would survive in dist/ forever (this is how dist/src/themes/ came to ` +
         `ship column, grayscale, handlebars and liquidjs after they were removed from source)`,
     );
+  }
+
+  // Execute the actual asset commands, with compilation excluded, in a disposable tree.
+  const fixture = mkdtempSync(path.join(tmpdir(), "tovu-asset-copy-"));
+  t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  const copies = assetCopies(buildScript);
+  assert.ok(copies.length > 0);
+  for (const copy of copies) {
+    mkdirSync(path.join(fixture, copy.from), { recursive: true });
+    mkdirSync(path.join(fixture, copy.to), { recursive: true });
+    writeFileSync(path.join(fixture, copy.from, "current.txt"), `current ${copy.from}`);
+    writeFileSync(path.join(fixture, copy.to, "stale.txt"), "deleted from source");
+    assert.ok(existsSync(path.join(fixture, copy.to, "stale.txt")));
+  }
+  for (const command of buildScript.split("&&").map(part => part.trim())) {
+    if (!/\b(?:rm -rf|mkdir -p|cp -R)\b/.test(command)) continue;
+    const result = spawnSync("sh", ["-c", command], { cwd: fixture, encoding: "utf8" });
+    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+  }
+  for (const copy of copies) {
+    assert.equal(existsSync(path.join(fixture, copy.to, "stale.txt")), false, `${copy.to} retained stale data`);
+    assert.equal(readFileSync(path.join(fixture, copy.to, "current.txt"), "utf8"), `current ${copy.from}`);
   }
 });

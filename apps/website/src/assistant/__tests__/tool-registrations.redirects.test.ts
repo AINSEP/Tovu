@@ -233,6 +233,8 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired redirects r
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   "content_read.redirect": {},
+  redirects_update: { id: "redirect-1", priority: 7 },
+  redirects_get_hits: { id: "redirect-1" },
   redirects_create: { matchType: "exact", fromPattern: "/old", toTarget: "/new", statusCode: 301 },
   redirects_import: { rules: [{ matchType: "exact", fromPattern: "/old-1", toTarget: "/new-1", statusCode: 301 }] },
 };
@@ -240,6 +242,9 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
 for (const toolId of Object.keys(TOOL_INPUTS)) {
   test(`${toolId}: calls authorize() with 'admin.redirects.manage' and the run's principal`, async () => {
     const { deps, authorizeCalls } = fakeRouteDeps();
+    if (TOOL_INPUTS[toolId]?.id) {
+      await wired(deps, "redirects_create").handler(executionContext({ matchType: "exact", fromPattern: "/seed", toTarget: "/target", statusCode: 301 }));
+    }
     authorizeCalls.length = 0;
 
     await wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId]));
@@ -248,6 +253,10 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
     assert.equal(authorizeCalls[0].permission, "admin.redirects.manage");
     assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+    if (TOOL_INPUTS[toolId]?.id) {
+      assert.equal(authorizeCalls[0].entityType, "redirect");
+      assert.equal(authorizeCalls[0].entityId, "redirect-1");
+    }
   });
 
   test(`${toolId}: a denied principal is rejected and nothing is written`, async () => {
@@ -277,6 +286,7 @@ test("redirects_create: rejects matchType 'regex' the same way the chokepoint do
   const { deps } = fakeRouteDeps();
   await assert.rejects(
     () => wired(deps, "redirects_create").handler(executionContext({ matchType: "regex", fromPattern: "/a.*", toTarget: "/b", statusCode: 301 })),
+    /matchType 'regex' is not enabled in v1 \(REQ-22\)/,
   );
 });
 
@@ -332,6 +342,8 @@ test("redirects_import: a per-rule failure (duplicate fromPattern) does NOT abor
   assert.equal(result.created.length, 2, "the two valid rows still commit despite two invalid siblings");
   assert.deepEqual(result.created.map((r) => r.fromPattern).sort(), ["/ok-1", "/ok-2"]);
   assert.equal(result.failed.length, 2);
+  assert.equal(result.failed[1]?.code, "REDIRECT_VALIDATION_ERROR");
+  assert.equal(result.failed[1]?.message, "matchType 'regex' is not enabled in v1 (REQ-22)");
   assert.deepEqual(result.failed.map((f) => f.index), [0, 2], "failure indices point back at the ORIGINAL batch position, not a compacted one");
   for (const failure of result.failed) {
     assert.equal(typeof failure.code, "string");
@@ -417,4 +429,21 @@ test("workflow: create a redirect, update it, tombstone it — state stays consi
     rules: unknown[];
   };
   assert.equal(afterTombstoneActiveList.rules.length, 0, "the tombstoned rule no longer appears in the active-only list");
+});
+
+test("redirects_get_hits selects the requested redirect's counts", async () => {
+  const { deps } = fakeRouteDeps();
+  const ids: string[] = [];
+  for (const fromPattern of ["/first", "/second"]) {
+    const created = await wired(deps, "redirects_create").handler(executionContext({ matchType: "exact", fromPattern, toTarget: "/target", statusCode: 301 })) as { rule: { id: string } };
+    ids.push(created.rule.id);
+  }
+  assert.notEqual(ids[0], ids[1]);
+  for (const redirectId of [ids[0]!, ids[1]!, ids[1]!]) {
+    await deps.redirectHitSink.record({ workspaceId: WORKSPACE_ID, redirectId, at: NOW });
+  }
+  for (const [redirectId, hitCount] of [[ids[0]!, 1], [ids[1]!, 2]] as const) {
+    assert.deepEqual(await wired(deps, "redirects_get_hits").handler(executionContext({ id: redirectId })),
+      { stats: { workspaceId: WORKSPACE_ID, redirectId, hitCount, lastHitAt: NOW } });
+  }
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
@@ -18,13 +19,37 @@ import { loadTheme } from "../theme.js";
  */
 
 const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../../../content/themes/static");
-const MIGRATED_STATIC_THEME_IDS = ["tailark-dusk", "tailark-quartz-dark", "tailark-quartz-libre"];
+const MIGRATED_STATIC_THEME_IDS = fs.readdirSync(STATIC_THEMES_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(STATIC_THEMES_DIR, entry.name, "theme.json")))
+  .filter((entry) => JSON.parse(fs.readFileSync(path.join(STATIC_THEMES_DIR, entry.name, "theme.json"), "utf8")).apiVersion === 2)
+  .map((entry) => entry.name).sort();
+
+function assetReferences(html: string): { stylesheets: string[]; scripts: string[] } {
+  const result = { stylesheets: [] as string[], scripts: [] as string[] };
+  function visit(node: DefaultTreeAdapterMap["node"]): void {
+    if ("tagName" in node) {
+      const attributes = new Map(node.attrs.map(({ name, value }) => [name, value]));
+      if (node.tagName === "link" && attributes.get("rel")?.split(/\s+/).includes("stylesheet")) {
+        result.stylesheets.push(attributes.get("href") ?? "");
+      }
+      if (node.tagName === "script") result.scripts.push(attributes.get("src") ?? "");
+    }
+    if ("childNodes" in node) node.childNodes.forEach(visit);
+  }
+  visit(parse(html));
+  return result;
+}
+
+test("the migrated-theme scan covers real apiVersion 2 themes", () => {
+  assert.ok(MIGRATED_STATIC_THEME_IDS.length > 0);
+});
 
 for (const themeId of MIGRATED_STATIC_THEME_IDS) {
   test(`${themeId}: every page's stylesheet/script links resolve to real files and design tokens inject, with no asset-path warnings`, () => {
     const dir = path.join(STATIC_THEMES_DIR, themeId);
     const theme = loadTheme({ themeDir: dir, id: themeId, source: "site" });
     assert.equal(theme.status, "valid", `${themeId} must load as a valid theme: ${JSON.stringify(theme.errors)}`);
+    assert.ok(Object.keys(theme.pages).length > 0, `${themeId}: must contain pages`);
 
     const warnings: unknown[][] = [];
     const originalWarn = console.warn;
@@ -35,6 +60,19 @@ for (const themeId of MIGRATED_STATIC_THEME_IDS) {
         const html = renderStaticPage({ theme, pageId, menus: {} }) as string | null;
         assert.notEqual(html, null, `${themeId}/${pageId}: must render`);
         const rendered = html as string;
+
+        const sourceAssets = assetReferences(theme.pages[pageId]);
+        const renderedAssets = assetReferences(rendered);
+        const expectedUrl = (url: string) => url.replace(/^\.\.\/(css|scripts)\//, `/theme-assets/${themeId}/$1/`);
+        assert.deepEqual(renderedAssets.stylesheets, sourceAssets.stylesheets.map(expectedUrl), `${themeId}/${pageId}: preserve every stylesheet with its exact URL`);
+        assert.deepEqual(renderedAssets.scripts, sourceAssets.scripts.map(expectedUrl), `${themeId}/${pageId}: preserve every script and src`);
+        for (const url of [...renderedAssets.stylesheets, ...renderedAssets.scripts]) {
+          const prefix = `/theme-assets/${themeId}/`;
+          if (url.startsWith(prefix)) {
+            const file = path.join(dir, url.slice(prefix.length));
+            assert.ok(fs.existsSync(file), `${themeId}/${pageId}: asset ${url} must exist at ${file}`);
+          }
+        }
 
         const cssMatch = rendered.match(/<link rel="stylesheet" href="\/theme-assets\/[^"]+\/css\/([^"]+)" \/>/);
         assert.ok(cssMatch, `${themeId}/${pageId}: stylesheet link must be present and rewritten to /theme-assets/.../css/...`);

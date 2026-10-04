@@ -325,3 +325,19 @@ test("live discovery coalesces concurrent calls while the provider is still resp
   assert.deepEqual(await second, await first);
   assert.equal(calls, 1);
 });
+
+// F6.2: an endpoint correction must invalidate even a cached failure inside the TTL.
+test("live discovery retries a cached failure when the stored baseUrl changes", async () => {
+  const fixture = liveDiscoveryFixture();
+  const endpoints: string[] = [];
+  const discovery = createLiveModelDiscovery({ ...fixture, clock: { nowMs: () => 0 }, discover: async ({ baseUrl }) => {
+    endpoints.push(baseUrl);
+    return baseUrl === "https://fixed.example" ? [{ id: "recovered", label: "Recovered" }] : null;
+  } });
+  const key = { workspaceId: "workspace", principalId: "principal" };
+  await fixture.save({ baseUrl: "https://broken.example" });
+  assert.equal(await discovery.getLiveClaudeModels(key), null);
+  await fixture.save({ baseUrl: "https://fixed.example" });
+  assert.deepEqual(await discovery.getLiveClaudeModels(key), [{ id: "recovered", label: "Recovered" }]);
+  assert.deepEqual(endpoints, ["https://broken.example", "https://fixed.example"]);
+});

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
 
-import { BASELINE_PATH, type Counts, countDeployVendors, DEPLOY_VENDOR_ALLOWLIST, scanDeployVendors, scanDeployVendorsRaw, sortedCounts } from "./deploy-vendor-scan.js";
+import { BASELINE_PATH, type Counts, countDeployVendors, DEPLOY_VENDOR_ALLOWLIST, SCAN_ROOTS, listSourceFiles, scanDeployVendors, scanDeployVendorsRaw, sortedCounts } from "./deploy-vendor-scan.js";
 
 /**
  * @file Ratchet: no NEW static-hosting vendor names in core (deploy plan T7, the boundary that
@@ -36,6 +36,13 @@ test("comment stripping: vendor names in prose never count; ids, hosts and origi
 
 test("no new deploy-vendor names in core (ratchet: the baseline only shrinks)", () => {
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Counts;
+  let scanned = 0;
+  for (const root of SCAN_ROOTS) {
+    const files = listSourceFiles(root);
+    assert.ok(files.length > 0, `scan root missing or empty: ${root}`);
+    scanned += files.length;
+  }
+  assert.ok(scanned > 0);
   const current = scanDeployVendors();
   const grew: string[] = [];
   const shrank: string[] = [];

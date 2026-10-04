@@ -18,7 +18,7 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../../..");
 export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-baseline.json");
 
 /** The core surfaces the plan's T7 and T10 boundaries name. Directory entries end in `/`. */
-const SCAN_ROOTS: readonly string[] = [
+export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/deployments/",
   "apps/website/src/features/site-export/",
   "apps/website/src/features/vendor-credentials/",
@@ -69,7 +69,7 @@ const ANY_RULE = new RegExp(RULES.map((rule) => rule.pattern.source).join("|"), 
 
 export type Counts = Record<string, Record<string, number>>;
 
-function listSourceFiles(entry: string): string[] {
+export function listSourceFiles(entry: string): string[] {
   const full = path.join(REPO_ROOT, entry);
   if (!fs.existsSync(full)) return [];
   if (!entry.endsWith("/")) return [full];

@@ -149,6 +149,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let releaseClose: () => void = () => {};
   let closed: Promise<void>;
   let exitCode: number | undefined;
+  const stopped: string[] = [];
   const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", db: {} };
   const deps = { workspaceId: bootResult.workspaceId };
   const moduleStubs = new Map<string, Record<string, unknown>>();
@@ -184,8 +185,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
         queueMicrotask(() => server.emit("listening"));
         return server;
       } },
-      outboxDrainer: { stop: async () => {} },
-      trashSweeper: { stop: async () => {} },
+      outboxDrainer: { stop: async () => { stopped.push("outbox"); } },
+      trashSweeper: { stop: async () => { stopped.push("trash"); } },
     }),
   });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
@@ -224,17 +225,21 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       closed = new Promise<void>(resolve => { releaseClose = resolve; });
       closeStarted = false;
       exitCode = undefined;
+      stopped.length = 0;
       await runServeCommand({ dir: target, port: "4567", host: scenario.host });
       assert.deepEqual(listens.at(-1), [4567, scenario.expected]);
       assert.equal(process.env.TOVU_SITE_DIR, target);
       assert.ok(signals.has("SIGTERM"));
-      signals.get("SIGTERM")!();
+      assert.ok(signals.has("SIGINT"));
+      signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
+      assert.deepEqual(stopped, ["outbox", "trash"], "shutdown must stop both workers before closing storage");
       assert.equal(closeStarted, true);
       assert.equal(exitCode, undefined, "storage close is still pending; exit must wait");
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
+      assert.deepEqual(stopped, ["outbox", "trash"], "each worker stops exactly once");
     }
   } finally {
     releaseClose();

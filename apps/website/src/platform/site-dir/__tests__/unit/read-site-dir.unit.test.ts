@@ -120,10 +120,9 @@ test("config.json.name empty/whitespace-only -> SiteDirInvalidError (state.spec.
 test("behavior.spec.md §4: config.json larger than 64 KiB -> SiteDirInvalidError (corruption guard)", () => {
   const dir = mkTempDir();
   try {
-    const oversizedName = "x".repeat(70 * 1024);
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: oversizedName, domain: null, port: null }));
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(validConfig()) + " ".repeat(70 * 1024));
     fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify(validMeta()));
-    assertSiteDirInvalid(() => readSiteDir({ dir }), /config\.json|size|64/i, "oversized config.json");
+    assertSiteDirInvalid(() => readSiteDir({ dir }), /config\.json exceeds the 64 KiB/, "oversized config.json");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -237,6 +236,22 @@ test("both files present, valid, within size -> readSiteDir returns { config, me
   }
 });
 
+test("a malformed metadata identity or schema stamp is not a valid commit marker", () => {
+  const dir = mkTempDir();
+  try {
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(validConfig()));
+    const invalid: unknown[] = [null, [], 42, {}, ...["siteId", "templateId", "templateVersion", "schemaTag", "createdAt"].flatMap((field) =>
+      [undefined, null, 42, "", "   "].map((value) => ({ ...validMeta(), [field]: value }))
+    ), ...[undefined, null, "17", -1, 1.5].map((schemaVersion) => ({ ...validMeta(), schemaVersion }))];
+    for (const meta of invalid) {
+      fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify(meta));
+      assertSiteDirInvalid(() => readSiteDir({ dir }), /\.site-meta\.json/, `invalid metadata ${JSON.stringify(meta)}`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // SPEC-050 REQ-13: the site display name read live, while the site is running
 // (`readSiteConfig`, `createLiveSiteDisplayName`)
@@ -298,7 +313,7 @@ test("SPEC-050 REQ-13: a config.json that is torn mid-write, empty, blank-named,
       ["torn mid-write", () => fs.writeFileSync(configPath, '{"name": "Half Wri')],
       ["empty", () => fs.writeFileSync(configPath, "")],
       ["blank name", () => writeConfigName(dir, "   ")],
-      ["oversized", () => writeConfigName(dir, "x".repeat(70 * 1024))],
+      ["oversized", () => fs.writeFileSync(configPath, JSON.stringify({ name: "Too Large", domain: null, port: null }) + " ".repeat(70 * 1024))],
       ["deleted", () => undefined],
       ["a directory", () => fs.mkdirSync(configPath)],
     ];

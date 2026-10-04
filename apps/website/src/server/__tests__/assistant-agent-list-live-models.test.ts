@@ -12,7 +12,7 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assist
 // see 2026-08-17 no-deep-imports:assistant triage notes for why this one was left as an open
 // violation rather than forced into the production barrel).
 import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache.js";
-import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
+import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/modules/assistant.ts`) —
@@ -55,6 +55,10 @@ const CODEX_AGENT = {
 };
 
 let daemonRequestCount = 0;
+const daemonEnvBefore = {
+  url: process.env.JINI_AGENT_DAEMON_URL,
+  token: process.env[AGENT_DAEMON_TOKEN_ENV_VAR],
+};
 
 async function startStandInDaemon(): Promise<{ origin: string; server: Server }> {
   const server = createServer((req, res) => {
@@ -79,7 +83,12 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
  *  loopback HTTP, not a mock — `validateBaseUrlResolved` short-circuits DNS for 127.0.0.1, so this
  *  needs no network/DNS injection (same pattern `live-model-cache.test.ts` uses). */
 async function startProviderServer(): Promise<{ baseUrl: string; server: Server }> {
-  const server = createServer((_req, res) => {
+  const server = createServer((req, res) => {
+    if (req.method !== "GET" || req.url !== "/v1/models?limit=1000" || req.headers["x-api-key"] !== "sk-ant-test-key" || req.headers["anthropic-version"] !== "2023-06-01") {
+      res.writeHead(401);
+      res.end("unexpected models request");
+      return;
+    }
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ data: [{ id: "claude-opus-5-20260101", display_name: "Claude Opus 5 (2026-01-01)" }] }));
   });
@@ -90,9 +99,8 @@ async function startProviderServer(): Promise<{ baseUrl: string; server: Server 
 }
 
 let harnessPromise: Promise<{
-  buildApp: () => express.Express;
+  buildApp: () => { app: express.Express; deps: import("../routes/types.js").RouteDeps };
   daemon: Server;
-  deps: import("../routes/types.js").RouteDeps;
 }> | null = null;
 function harness() {
   harnessPromise ??= (async () => {
@@ -105,16 +113,15 @@ function harness() {
     const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
     const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
 
-    const deps = createRouteDeps();
     return {
       daemon: server,
-      deps,
       buildApp: () => {
+        const deps = createRouteDeps();
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
         createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes(app);
-        return app;
+        return { app, deps };
       },
     };
   })();
@@ -122,9 +129,10 @@ function harness() {
 }
 
 async function bootProxy(t: import("node:test").TestContext) {
-  const { buildApp, deps } = await harness();
+  const { buildApp } = await harness();
+  const { app, deps } = buildApp();
   daemonRequestCount = 0;
-  const baseUrl = await startTestServer(buildApp(), t);
+  const baseUrl = await startTestServer(app, t);
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as {
     user: { id: string };
@@ -133,13 +141,18 @@ async function bootProxy(t: import("node:test").TestContext) {
 }
 
 test.after(async () => {
-  const built = await harnessPromise;
-  if (built) await new Promise<void>((resolve) => built.daemon.close(() => resolve()));
+  try {
+    const built = await harnessPromise;
+    if (built) await new Promise<void>((resolve) => built.daemon.close(() => resolve()));
+  } finally {
+    if (daemonEnvBefore.url === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
+    else process.env.JINI_AGENT_DAEMON_URL = daemonEnvBefore.url;
+    if (daemonEnvBefore.token === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = daemonEnvBefore.token;
+  }
 });
 
-// Runs first, deliberately, before any test below stores a credential for the shared seeded owner
-// account `loginAsOwner` always authenticates as — see this file's header for why the harness
-// intentionally shares one `deps` (and therefore one credential repo) across every test here.
+// Every boot builds fresh dependencies, including the execution-credential repository.
 
 test("no stored admin credential leaves the daemon's agent list byte-identical, including modelsSource", async (t) => {
   resetLiveModelCacheForTesting();
@@ -180,6 +193,10 @@ test("an anthropic admin credential enriches only the claude entry, unioned with
     { id: "claude-opus-5-20260101", label: "Claude Opus 5 (2026-01-01)" },
   ]);
   assert.deepEqual(codex, CODEX_AGENT, "a non-claude entry must be relayed untouched");
+  const otherCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const other = await fetch(`${baseUrl}/api/agents`, { headers: { cookie: otherCookie } });
+  assert.equal(other.status, 200);
+  assert.deepEqual(await other.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] }, "another principal cannot use the owner's credential or cached live models");
 });
 
 test("POST /api/agents/rescan gets the same enrichment as GET /api/agents", async (t) => {

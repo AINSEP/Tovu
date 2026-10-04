@@ -17,7 +17,9 @@ import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation 
  */
 
 test("normalizePackageEntryPath: rejects a lexical '..' segment", () => {
-  assert.throws(() => normalizePackageEntryPath("../outside"), PackagePathViolation);
+  for (const entry of ["../outside", "skills/../../x", "a/b/../../../x", ".", ""]) {
+    assert.throws(() => normalizePackageEntryPath(entry), PackagePathViolation, entry);
+  }
 });
 
 test("normalizePackageEntryPath: rejects an absolute POSIX path", () => {
@@ -33,6 +35,8 @@ test("normalizePackageEntryPath: rejects a NUL byte", () => {
 });
 
 test("normalizePackageEntryPath: accepts a normal relative path unchanged", () => {
+  assert.equal(normalizePackageEntryPath("skills/./a"), "skills/a");
+  assert.equal(normalizePackageEntryPath("./x"), "x");
   assert.equal(normalizePackageEntryPath("skills/a/SKILL.md"), "skills/a/SKILL.md");
 });
 
@@ -94,11 +98,16 @@ test("assertContainedOnDisk: rejects when the target ITSELF is a symlink escapin
 test("assertContainedOnDisk: re-resolves the root fresh on every call (no cached-root TOCTOU)", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-package-paths-test-"));
   try {
-    await mkdir(path.join(root, "skills"), { recursive: true });
-    // A plain, real subdirectory resolves fine even though `root` itself is re-realpath'd each call.
-    const resolved = await assertContainedOnDisk(root, "skills");
-    const realRoot = await realpath(root);
-    assert.equal(resolved, path.join(realRoot, "skills"));
+    const first = path.join(root, "first");
+    const second = path.join(root, "second");
+    const alias = path.join(root, "alias");
+    await mkdir(path.join(first, "skills"), { recursive: true });
+    await mkdir(path.join(second, "skills"), { recursive: true });
+    await symlink(first, alias);
+    assert.equal(await assertContainedOnDisk(alias, "skills"), path.join(await realpath(first), "skills"));
+    await rm(alias);
+    await symlink(second, alias);
+    assert.equal(await assertContainedOnDisk(alias, "skills"), path.join(await realpath(second), "skills"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

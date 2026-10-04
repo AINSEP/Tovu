@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { initSite } from "../../init-site.js";
+import { InternalError } from "../../errors.js";
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 /**
@@ -77,7 +78,10 @@ function mkTempParent(): string {
  * instrumentation.
  */
 function workerEnv(parent: string): NodeJS.ProcessEnv {
-  return childProcessCoverageEnv(path.join(parent, "worker-v8-coverage"));
+  const stockDir = path.join(parent, "stock-themes");
+  fs.mkdirSync(stockDir, { recursive: true });
+  fs.writeFileSync(path.join(stockDir, "small-theme.txt"), "fixture theme");
+  return { ...childProcessCoverageEnv(path.join(parent, "worker-v8-coverage")), TOVU_STOCK_THEMES_DIR: stockDir };
 }
 
 test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PARENT blocks target creation entirely -> InitSite throws, target never exists, no commit marker anywhere", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
@@ -87,7 +91,7 @@ test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PAREN
   const target = path.join(restrictedGrandparent, "demo");
   fs.chmodSync(restrictedGrandparent, 0o555);
   try {
-    await assert.rejects(() => initSite({ dir: target, name: "Demo" }));
+    await assert.rejects(() => initSite({ dir: target, name: "Demo" }), { name: InternalError.name, message: /EACCES/ });
     assert.equal(fs.existsSync(target), false, "AC-03: the target path must not exist at all — full cleanup (trivial here: nothing was ever created)");
   } finally {
     fs.chmodSync(restrictedGrandparent, 0o755);
@@ -101,7 +105,7 @@ test("U-003-B1/B2 (step-4 class, subdirectory creation denied): a pre-existing E
   fs.mkdirSync(target);
   fs.chmodSync(target, 0o555);
   try {
-    await assert.rejects(() => initSite({ dir: target, name: "Demo" }));
+    await assert.rejects(() => initSite({ dir: target, name: "Demo" }), { name: InternalError.name, message: /EACCES/ });
     fs.chmodSync(target, 0o755); // restore before inspecting, in case the impl left it restricted
     assert.deepEqual(fs.readdirSync(target), [], "INV-02: no partial content was created inside the (pre-existing, EC-01-allowed) target");
   } finally {
@@ -114,12 +118,29 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
   const parent = mkTempParent();
   const target = path.join(parent, "deep-failure");
   const workerPath = path.join(parent, "worker.ts");
+  const evidencePath = path.join(parent, "phase-evidence.json");
   const initSitePath = path.resolve(import.meta.dirname, "../../init-site");
   fs.writeFileSync(
     workerPath,
     [
       `const { initSite } = require(${JSON.stringify(initSitePath)});`,
       `const dir = process.argv[2];`,
+      `const fs = require("node:fs");`,
+      `const path = require("node:path");`,
+      `const remove = fs.rmSync;`,
+      // Observe the real files immediately before cleanup removes them; never replace a write
+      // or inject a synthetic error. Keep evidence outside the directory under test (F5.4).
+      `fs.rmSync = function(target, options) {`,
+      `  if (target === dir) {`,
+      `    const configPath = path.join(dir, "config.json");`,
+      `    const dbPath = path.join(dir, "content.db");`,
+      `    fs.writeFileSync(${JSON.stringify(evidencePath)}, JSON.stringify({`,
+      `      config: fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : null,`,
+      `      dbHeader: fs.existsSync(dbPath) ? fs.readFileSync(dbPath).subarray(0, 16).toString() : null,`,
+      `    }));`,
+      `  }`,
+      `  return remove.call(fs, target, options);`,
+      `};`,
       `(async () => {`,
       `try {`,
       `  const result = await initSite({ dir, name: "Deep Failure" });`,
@@ -136,6 +157,11 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
     assert.equal(proc.status, 0, `worker process itself should exit 0 and report failure via stdout JSON, not crash uncontrolled (stderr: ${proc.stderr})`);
     const reported = JSON.parse(proc.stdout);
     assert.equal(reported.ok, false, "the ulimit-constrained write must fail deep inside init (config.json's own tiny write must have already succeeded)");
+    assert.equal(reported.name, "InternalError");
+    assert.match(reported.message, /disk I\/O error|disk.*full|file.*too.*large|SQLITE_FULL|EFBIG|ENOSPC/i);
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    assert.deepEqual(evidence.config, { name: "Deep Failure", domain: null, port: null });
+    assert.equal(evidence.dbHeader, "SQLite format 3\u0000", "a real SQLite database was created before the failure");
 
     assert.equal(fs.existsSync(path.join(target, ".site-meta.json")), false, "INV-02: the commit marker must never exist after any mid-flight failure");
     assert.equal(fs.existsSync(target), false, "AC-03: full cleanup — the target path must not exist (this scenario: target did not pre-exist, so full removal is unambiguous)");
@@ -178,6 +204,11 @@ test("EC-10/RT-003/U-003-B3: when cleanup's own removal step hits a real EACCES 
     assert.equal(proc.status, 0, `worker process itself should exit 0 and report failure via stdout JSON (stderr: ${proc.stderr})`);
     const reported = JSON.parse(proc.stdout);
     assert.equal(reported.ok, false);
+    assert.equal(reported.name, "InternalError");
+    assert.match(reported.message, /cleanup failed.*manual removal required/);
+    assert.match(reported.message, /EACCES/);
+    assert.equal(fs.existsSync(target), true, "the partial directory survived the denied removal");
+    assert.equal(fs.existsSync(path.join(target, ".site-meta.json")), false);
     assert.ok(
       typeof reported.message === "string" && reported.message.includes(target),
       `U-003-B3: the surfaced error message must name the partial directory's path (${target}) so an operator knows manual removal is required — got: ${reported.message}`
