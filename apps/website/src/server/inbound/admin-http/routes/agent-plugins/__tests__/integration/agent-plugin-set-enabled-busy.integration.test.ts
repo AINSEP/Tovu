@@ -18,7 +18,7 @@ import type { AgentPluginsRouteDeps } from "../../deps.js";
  * `agent-plugin-set-enabled.integration.test.ts` already proves for the UNREADABLE case — never an
  * opaque 500, and nothing is written.
  *
- * Mocks `exclusive-file-lock.ts`'s `withExclusiveFileLock` to throw a real `FileLockTimeoutError`
+ * Mocks `@jini-ai/platform/fs/file-lock`'s `withFileLock` to throw a real `FileLockTimeoutError`
  * instantly rather than forcing real cross-process contention: the real lock's own correctness is
  * `activation-cross-process-writes.integration.test.ts`'s job; this file only proves the mapping
  * from that failure to this route's response. Same mock-before-any-real-import idiom as
