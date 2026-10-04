@@ -494,7 +494,7 @@ export const formSubmissions = pgTable("form_submissions", {
     foreignKey({ columns: [t.formDefinitionId], foreignColumns: [formDefinitions.id] }).onDelete("restrict"),
     index("idx_form_submissions_definition").on(t.formDefinitionId, t.submittedAt),
     index("idx_form_submissions_workspace").on(t.workspaceId),
-    index("idx_form_submissions_ip_retention").on(t.submittedAt, t.id).where(sql`${t.sourceIp} IS NOT NULL`),
+    index("idx_form_submissions_ip_retention").on(t.submittedAt, t.id).where(sql`source_ip IS NOT NULL`),
   ]);
 
 export const gatedMutationTokens = pgTable("gated_mutation_tokens", {

@@ -288,12 +288,19 @@ test("every index's column list and order in the generated schema exactly matche
       for (const entry of idx.config.columns) {
         assert.ok(!is(entry, SQL), `${describe} uses an expression/ordered column — extend this test with its exact expected text`);
       }
-      assert.equal(idx.config.where, undefined, `${describe} carries a WHERE predicate — extend this test with its exact expected text`);
-
       const argList = idx.config.columns.map((c) => `t.${tsNames.get(c as SQLiteColumn)}`).join(", ");
       const builder = idx.config.unique ? "uniqueIndex" : "index";
-      const expected = `${builder}(${JSON.stringify(idx.config.name)}).on(${argList})`;
-      assert.ok(GENERATED.includes(expected), `${describe}: expected to find exact "${expected}" in the generated file`);
+      let expected = `${builder}(${JSON.stringify(idx.config.name)}).on(${argList})`;
+      if (exportName === "formSubmissions" && idx.config.name === "idx_form_submissions_ip_retention") {
+        // Keep this expectation independent of the generator's SQL renderer: dropping or changing
+        // the retention predicate must fail even when the generated file is otherwise up to date.
+        assert.ok(is(idx.config.where, SQL), `${describe} must carry its retention WHERE predicate`);
+        assert.equal(expected, 'index("idx_form_submissions_ip_retention").on(t.submittedAt, t.id)');
+        expected += '.where(sql`source_ip IS NOT NULL`)';
+      } else {
+        assert.equal(idx.config.where, undefined, `${describe} carries a WHERE predicate — extend this test with its exact expected text`);
+      }
+      assert.ok(GENERATED.includes(`${expected},`), `${describe}: expected to find exact "${expected}" in the generated file`);
     }
   }
 });

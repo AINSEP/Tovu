@@ -25,14 +25,14 @@
  * `src/platform/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.sqlite.ts` at
  * run time; re-measure with `getTableConfig()` rather than trusting a number in this paragraph.
  *
- * Every one of those 65 indexes is a plain ascending column list today — no partial-index `WHERE`,
- * no `.asc()`/`.desc()` ordering, no expression index. The generator translates all three anyway
- * (`renderIndexColumnExpr`/`renderSqlText`) rather than refusing them outright: SQLite's Drizzle
+ * Source indexes use plain ascending column lists today; `idx_form_submissions_ip_retention` also
+ * carries a partial-index `WHERE` predicate. There is no `.asc()`/`.desc()` ordering or expression
+ * index. The generator translates all three shapes (`renderIndexColumnExpr`/`renderSqlText`): SQLite's Drizzle
  * represents ordering and expressions as the exact same `SQL`-chunk shape CHECK bodies already use
  * (`asc(col)`/`desc(col)` literally expand to `` sql`${col} asc` ``), so the hardened renderer that
  * shape needs already exists. `src/platform/db/__tests__/schema-postgres-generator-fixtures.test.ts` proves
- * the translation against hand-built fixture tables, since `schema.sqlite.ts` has no live case to prove it
- * against — read that file's own doc before assuming this paragraph is aspirational.
+ * the translation against hand-built fixture tables, including ordering and expression shapes with
+ * no live case in `schema.sqlite.ts` — read that file's own doc before assuming this paragraph is aspirational.
  *
  * What this deliberately does NOT handle:
  * FTS5. `post_search_fts` is a virtual table in external-content mode with three sync triggers,
