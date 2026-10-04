@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { MediaConflictError, type MediaRecord, type MediaRepoPort } from "@jini-ai/cms/media";
+import { MediaConflictError, type MediaRecord, type MediaRepoPort, type AssetRenditionRecord } from "@jini-ai/cms/media";
 
 /**
  * @file `MediaRepoPort` extended with an atomic compare-and-set write, and the in-memory adapter
@@ -35,6 +35,17 @@ import { MediaConflictError, type MediaRecord, type MediaRepoPort } from "@jini-
  *  `importMediaEntity` compares a caller-supplied `baseVersion` against a row read several awaits
  *  earlier, with real blob-store I/O in between). */
 export interface VersionedMediaRepoPort extends MediaRepoPort {
+  /** Explicit file replacement, separate from metadata/import's write-once source rule.
+   * The source compare-and-set and rendition invalidation MUST commit atomically. Hosts
+   * without that transaction capability omit this method and the route refuses the command.
+   * Old shared blobs are retained; replacing a file is never a purge. */
+  replaceFileIfVersion?(required: {
+    workspaceId: UUID; id: UUID; ifVersion: number; sha256: string; storageKey: string;
+    originalRenditionId: UUID; updatedAt: string;
+  }, optional?: Record<string, never>): Promise<{ applied: boolean }>;
+  /** A transform begun against an old source must not resurrect its invalidated preview. */
+  saveRenditionIfSource?(required: { record: AssetRenditionRecord; sourceSha256: string },
+    optional?: Record<string, never>): Promise<{ applied: boolean }>;
   /**
    * Compare-and-set: writes `record` over the existing row ONLY while it is still at `ifVersion`
    * (workspace + id + version compared and written in ONE atomic step — never a separate

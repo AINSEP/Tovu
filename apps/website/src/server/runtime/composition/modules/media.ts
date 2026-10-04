@@ -6,6 +6,7 @@ import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-h
 import { registerAdminMediaTrashRoute } from "#src/server/inbound/admin-http/routes/media/trash";
 import { registerAdminMediaUpdateRoute } from "#src/server/inbound/admin-http/routes/media/update";
 import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
+import { registerAdminMediaReplaceRoute } from "#src/server/inbound/admin-http/routes/media/replace";
 import type { MediaProviderRouteDeps, MediaRenditionRouteDeps, MediaRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
@@ -58,6 +59,7 @@ export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps 
     registerRoutes: (app) => {
       registerAdminMediaListRoute(app, deps);
       registerAdminMediaUploadRoute(app, deps);
+      registerAdminMediaReplaceRoute({ app, deps });
       registerAdminMediaUpdateRoute(app, deps);
       registerAdminMediaTrashRoute(app, deps);
       registerAdminMediaDeleteRoute(app, deps);

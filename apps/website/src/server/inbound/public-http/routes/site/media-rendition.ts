@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
 import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
@@ -498,7 +499,9 @@ async function sendMediaRenditionResult(
       deps: {
         mediaRepo: deps.mediaRepo,
         blobRepo: deps.assetBlobRepo,
-        renditionRepo: deps.assetRenditionRepo,
+        // The shared service assumes immutable sources. This host's explicit replace
+        // command needs an atomic source guard on late preview writes.
+        renditionRepo: guardMediaRenditionRepo({ mediaRepo: deps.mediaRepo, renditionRepo: deps.assetRenditionRepo, media: access.record }),
         transformRepo: deps.transformDefinitionRepo,
         blobStore: deps.blobStore,
         imageTransformer: deps.imageTransformer,

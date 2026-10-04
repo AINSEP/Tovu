@@ -248,10 +248,15 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
         await this.kernel.run(async (db) => {
           const existingRow = await db
             .selectFrom("media")
-            .select("slug")
+            .select(["slug", "source_sha256"])
             .where("workspace_id", "=", record.workspaceId)
             .where("id", "=", record.id)
             .executeTakeFirst();
+          // A metadata draft captured before replacement may arrive afterwards. Never let
+          // that ordinary save silently restore the old source or discard the replacement.
+          if (existingRow && existingRow.source_sha256 !== record.source.sha256) {
+            throw new MediaConflictError({ message: 'media file changed before metadata could be saved' });
+          }
           const claimant = await findSlugClaimant(db, record.workspaceId, record.slug);
           assertSlugReclaimable(claimant, record.id, record.slug);
           if (existingRow) {
@@ -312,6 +317,50 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     } catch (err) {
       translateSlugConflict(err, record.slug);
     }
+  }
+
+  /** An authorized replace command is the sole mutable-source operation. Invalidate derived
+   * previews in the SAME transaction: a failed insert must leave the old source and previews
+   * intact. Ordinary metadata/import writes retain their existing source policy. */
+  async replaceFileIfVersion(required: {
+    workspaceId: UUID; id: UUID; ifVersion: number; sha256: string; storageKey: string;
+    originalRenditionId: UUID; updatedAt: string;
+  }, _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
+    return this.kernel.transaction(async () => {
+      await this.kernel.lockKey(slugLockKey(required.workspaceId));
+      return this.kernel.run(async db => {
+        const blob = await db.selectFrom('asset_blobs').select('id')
+          .where('workspace_id', '=', required.workspaceId).where('sha256', '=', required.sha256)
+          .where('storage_key', '=', required.storageKey).where('status', '=', 'active').executeTakeFirst();
+        if (!blob) return { applied: false };
+        const rows = await db.updateTable('media').set({ source_sha256: required.sha256,
+          version: required.ifVersion + 1, updated_at: required.updatedAt })
+          .where('workspace_id', '=', required.workspaceId).where('id', '=', required.id)
+          .where('version', '=', required.ifVersion).where('status', '=', 'active')
+          .returning('id').execute();
+        if (!rows.length) return { applied: false };
+        await db.deleteFrom('asset_renditions').where('workspace_id', '=', required.workspaceId)
+          .where('asset_id', '=', required.id).execute();
+        await db.insertInto('asset_renditions').values({ id: required.originalRenditionId,
+          workspace_id: required.workspaceId, asset_id: required.id, transform_name: 'original',
+          version: 1, storage_key: required.storageKey, created_at: required.updatedAt }).execute();
+        return { applied: true };
+      });
+    });
+  }
+
+  async saveRenditionIfSource({ record, sourceSha256 }: { record: AssetRenditionRecord; sourceSha256: string },
+    _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
+    return this.kernel.transaction(async () => {
+      await this.kernel.lockKey(slugLockKey(record.workspaceId));
+      const current = await this.kernel.run(db => db.selectFrom('media').select('id')
+        .where('workspace_id', '=', record.workspaceId).where('id', '=', record.assetId)
+        .where('source_sha256', '=', sourceSha256).where('status', '=', 'active').executeTakeFirst());
+      if (!current) return { applied: false };
+      // run() joins this transaction; replacement cannot interleave between compare and insert.
+      await new SqlAssetRenditionRepo(this.kernel).save(record);
+      return { applied: true };
+    });
   }
 
   /**
