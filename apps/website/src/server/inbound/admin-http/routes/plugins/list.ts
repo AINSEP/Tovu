@@ -48,7 +48,7 @@ export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
         })
       );
 
-      res.json({ plugins, installSources: process.env.TOVU_PLUGIN_LOCAL_INSTALL === "1" && deps.pluginInstaller ? ["folder"] : [] });
+      res.json({ plugins, installSources: process.env.TOVU_PLUGIN_LOCAL_INSTALL === "1" && deps.pluginInstaller ? ["folder", "zip"] : [] });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

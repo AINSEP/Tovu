@@ -2380,7 +2380,7 @@ export function authenticatedAdminRequest<T>(
   { path, method, body }: { path: string; method: string; body?: unknown },
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<T> {
-  return request<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(signal ? { signal } : {}) });
+  return request<T>(path, { method, ...(body === undefined ? {} : body instanceof Blob ? { body, headers: { "Content-Type": body.type || "application/octet-stream" } } : { body: JSON.stringify(body) }), ...(signal ? { signal } : {}) });
 }
 export function authenticatedAdminUrl({ path }: { path: string }, _optional: Record<string, never> = {}): string {
   return `${BASE}${path}`;

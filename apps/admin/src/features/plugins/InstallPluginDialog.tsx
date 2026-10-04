@@ -9,6 +9,8 @@ export function InstallPluginDialog({ controller: c }: { controller: PluginInsta
         <h2 id="plugins-install-title">{c.t("Install plugin")}</h2>
         <label htmlFor="plugins-install-folder">{c.t("Folder on this server")}</label>
         <input id="plugins-install-folder" autoFocus value={c.folder} disabled={c.busy} onChange={(e) => c.setFolder(e.target.value)} {...agentHandle({ handle: "plugins-install-folder" }, { role: "field", label: c.t("Folder on this server") })} />
+        <label htmlFor="plugins-install-zip">{c.t("Upload .zip (max 32 MiB)")}</label>
+        <input ref={c.zipInputRef} id="plugins-install-zip" type="file" accept=".zip,application/zip" disabled={c.busy} onChange={(e) => c.setZipFile(e.target.files?.[0] ?? null)} {...agentHandle({ handle: "plugins-install-zip" }, { role: "field", label: c.t("Upload .zip (max 32 MiB)") })} />
         <label>
           <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={(e) => c.setReplace(e.target.checked)} />
           {c.t("Replace existing version")}

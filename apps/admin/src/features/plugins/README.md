@@ -5,23 +5,24 @@ The installed-plugins list behind the sidebar's **Design & System → Plugins** 
 | file | what it is |
 |---|---|
 | `Plugins.tsx` | List of installed plugins, enable/disable. |
-| `InstallPluginDialog.tsx` | Local folder review and explicit install consent. |
+| `InstallPluginDialog.tsx` | Local folder/ZIP review and explicit install consent. |
 | `hooks/use-plugin-install.hooks.ts` | Preview invalidation, install requests and modal lifecycle. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
 ## What this feature does not own
 
 - The plugin runtime itself (`src/features/plugin-runtime` at the app level) — this screen only
-  lists and toggles plugins, and sends reviewed folder installs to the server's installer port.
+  lists and toggles plugins, and sends reviewed folder/ZIP installs to the server's installer port.
 
 ## Notes for anyone editing here
 
 `Plugins.tsx` has a unit test (`__tests__/Plugins.unit.test.tsx`).
 
-## Local folder installs (first milestone)
+## Local folder and ZIP installs
 
 Start the server with `TOVU_PLUGIN_LOCAL_INSTALL=1` to expose **Install plugin** on the Plugins
-page. The folder is on the **server**, not the browser's computer. Preview it, review the full
+page. Choose **Upload .zip (max 32 MiB)** for a package on your computer, or enter a folder on the
+**server**. The ZIP must contain `tovu.plugin.json` and `server/index.mjs` at its root. Preview it, review the full
 machine access warning, then choose **Install (stays off)**. Installed packages appear on
 Downloaded; use Enable there when ready. Installing never evaluates the plugin's code and
 never writes an activation row. The route reuses `admin.plugins.enable`.
@@ -33,9 +34,19 @@ the complete `tovu.plugin.json` integrity map. Folder packages must declare `tie
 `server/index.mjs`, and cover every non-manifest file with its SHA-256 hash.
 
 Packages in Trash must be restored or purged there first. Upgrade and replacement refuse any
-enabled workspace. Same-version replacement refreshes the entry module on the next enable;
-restart the server after replacing a package with imported helpers because Node can retain those
-modules in its cache. ZIP upload, dev links and URL sources remain outside this milestone.
+enabled workspace. Same-version replacement refreshes all packaged modules on the next enable,
+including nested/dynamic ESM imports and CommonJS helpers. Dev links and URL sources remain deferred.
+
+ZIP review and confirmation each send the selected archive through the authenticated API. The
+server verifies the reviewed digest again before installation; changing the file, folder or
+replacement option clears consent. Uploads are limited to 32 MiB compressed, 4096 entries,
+16 MiB per file and 64 MiB expanded. Links, absolute/traversal paths, duplicates, case aliases and
+file/directory conflicts are rejected. Installation still never executes code.
+
+Enabled site plugins run from verified snapshots in `<plugins-dir>-runtime`, outside discovery,
+so Node receives a fresh identity for the whole package. Keep these snapshots while the server is
+running: late dynamic imports may still use them. They may be removed with the server stopped;
+automatic cleanup is not implemented in this slice.
 
 Install staging and the directory lock sit beside the plugin install root. A failed operation
 cleans both. After an abrupt process termination, stop all installers before removing an abandoned

@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import * as semver from "semver";
 import { validateManifest, type PluginManifest } from "./manifest.js";
 import type { PluginActivationRepoPort } from "./activation.js";
+import { readSitePluginArchive } from "./install-archive.js";
 
 export class PluginInstallError extends Error {
   constructor(public readonly code: string, message: string) { super(message); this.name = "PluginInstallError"; }
@@ -18,7 +19,7 @@ export interface PluginInstallPreview {
   capabilities: readonly string[]; hooks: readonly string[];
   hasCode: boolean; digest: string; upgradeFrom?: string;
 }
-export interface PluginInstallInput { sourceDir: string; replace?: boolean }
+export type PluginInstallInput = ({ sourceDir: string; archive?: never } | { archive: Uint8Array; sourceDir?: never }) & { replace?: boolean };
 export interface PluginInstallDeps {
   installDir: string; builtInIds: readonly string[];
   repo: Pick<PluginActivationRepoPort, "listAll">;
@@ -117,8 +118,18 @@ async function checkDestination(manifest: PluginManifest, input: PluginInstallIn
 }
 
 async function inspect(input: PluginInstallInput, deps: PluginInstallDeps) {
-  const sourceDir = await realpath(input.sourceDir).catch(() => fail("PLUGIN_SOURCE_INVALID", "Source folder was not found."));
-  if ((await lstat(input.sourceDir)).isSymbolicLink()) fail("PLUGIN_PACKAGE_UNSAFE", "Source folder must not be a link.");
+  const files = input.archive !== undefined ? await readSitePluginArchive({ archive: input.archive }) : await inspectFolder(input.sourceDir!, deps);
+  const manifest = validatePackage(files, deps.builtInIds);
+  const upgradeFrom = await checkDestination(manifest, input, deps);
+  // Include manifest bytes: changed capabilities/name/version must invalidate human consent too.
+  const digest = hash(Buffer.from(JSON.stringify([...files].map(([key, bytes]) => [key, hash(bytes)]).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0))));
+  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: "tier-3", capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: true, digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
+  return { files, manifest, preview };
+}
+
+async function inspectFolder(source: string, deps: PluginInstallDeps) {
+  const sourceDir = await realpath(source).catch(() => fail("PLUGIN_SOURCE_INVALID", "Source folder was not found."));
+  if ((await lstat(source)).isSymbolicLink()) fail("PLUGIN_PACKAGE_UNSAFE", "Source folder must not be a link.");
   // Canonicalize existing ancestors too: lexical checks alone miss symlink aliases.
   async function canonical(target: string): Promise<string> {
     try { return await realpath(target); } catch (e) {
@@ -130,13 +141,12 @@ async function inspect(input: PluginInstallInput, deps: PluginInstallDeps) {
   for (const destination of [root, root + "-staging", root + "-trash"]) {
     if (inside(destination, sourceDir) || inside(sourceDir, destination)) fail("PLUGIN_SOURCE_INVALID", "Source must be separate from installed, staging and Trash folders.");
   }
-  const files = await snapshot(sourceDir);
-  const manifest = validatePackage(files, deps.builtInIds);
-  const upgradeFrom = await checkDestination(manifest, input, deps);
-  // Include manifest bytes: changed capabilities/name/version must invalidate human consent too.
-  const digest = hash(Buffer.from(JSON.stringify([...files].map(([key, bytes]) => [key, hash(bytes)]).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0))));
-  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: "tier-3", capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: true, digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
-  return { files, manifest, preview };
+  return snapshot(sourceDir);
+}
+
+/** Loader uses the same bounded, link-free byte snapshot, then verifies the retained bytes. */
+export async function snapshotSitePluginPackage(required: { sourceDir: string }, _optional = {}): Promise<Map<string, Buffer>> {
+  return snapshot(required.sourceDir);
 }
 
 export async function computePluginIntegrity(required: { sourceDir: string }, _optional = {}): Promise<Record<string, string>> {

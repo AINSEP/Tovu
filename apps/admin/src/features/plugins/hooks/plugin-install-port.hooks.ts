@@ -4,7 +4,7 @@ export interface PluginInstallPreview {
   capabilities: readonly string[]; hooks: readonly string[];
   hasCode: boolean; digest: string; upgradeFrom?: string;
 }
-export interface PluginInstallSource { source: { kind: "folder"; path: string }; replace?: boolean }
+export interface PluginInstallSource { source: { kind: "folder"; path: string } | { kind: "zip"; file: File }; replace?: boolean }
 export interface PluginInstallPort {
   preview(required: PluginInstallSource, optional?: Record<string, never>): Promise<{ plugin: PluginInstallPreview }>;
   install(required: PluginInstallSource & { expectedDigest: string }, optional?: Record<string, never>): Promise<{ plugin: PluginInstallPreview }>;

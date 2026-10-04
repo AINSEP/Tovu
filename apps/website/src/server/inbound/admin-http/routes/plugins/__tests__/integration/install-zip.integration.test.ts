@@ -1,0 +1,62 @@
+/** Real authenticated upload routes exercise review/digest checks, caps and gate ordering. */
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
+import { sitePluginZip } from "#src/features/plugin-runtime/__tests__/fixtures/site-plugin-zip";
+import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
+
+test("ZIP upload -> review -> install stays off; unreviewed and changed digest refuse", async (t) => {
+  const old = process.env.TOVU_PLUGIN_LOCAL_INSTALL; process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
+  const root = await mkdtemp(path.join(tmpdir(), "plugin-zip-http-"));
+  t.after(async () => { if (old === undefined) delete process.env.TOVU_PLUGIN_LOCAL_INSTALL; else process.env.TOVU_PLUGIN_LOCAL_INSTALL = old; await rm(root, { recursive: true, force: true }); });
+  const deps = createRouteDeps({ installDir: path.join(root, "plugins") });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/install/zip`;
+  const archive = await sitePluginZip();
+  const headers = { cookie, "content-type": "application/zip" };
+  const post = (suffix: string, body = archive) => fetch(url + suffix, { method: "POST", headers, body: new Uint8Array(body) });
+  assert.equal((await post("")).status, 400);
+  const reviewed = await post("/preview");
+  assert.equal(reviewed.status, 200, await reviewed.clone().text());
+  const { plugin } = await reviewed.json() as { plugin: { digest: string; tier: string; hasCode: boolean } };
+  assert.equal(plugin.tier, "tier-3"); assert.equal(plugin.hasCode, true);
+  const mismatch = await post("?expectedDigest=sha256-" + "a".repeat(64));
+  assert.equal(mismatch.status, 409); assert.equal((await mismatch.json() as { code: string }).code, "PLUGIN_CHANGED_SINCE_PREVIEW");
+  const changed = await post(`?expectedDigest=${plugin.digest}`, await sitePluginZip({ name: "Changed since review" }));
+  assert.equal(changed.status, 409); assert.equal((await changed.json() as { code: string }).code, "PLUGIN_CHANGED_SINCE_PREVIEW");
+  assert.deepEqual(await readdir(path.join(root, "plugins")).catch(() => []), []);
+  const installed = await post(`?expectedDigest=${plugin.digest}`);
+  assert.equal(installed.status, 201, await installed.clone().text());
+  assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);
+  assert.equal(await readFile(path.join(root, "plugins/zip-test/1.0.0/server/index.mjs"), "utf8"), "throw new Error('ZIP MUST NOT EXECUTE');");
+  assert.equal((await post("/preview")).status, 409);
+  assert.equal((await post("/preview?replace=true")).status, 200);
+  const wrongMime = await fetch(url + "/preview", { method: "POST", headers: { cookie, "content-type": "text/plain" }, body: new Uint8Array(archive) });
+  assert.equal(wrongMime.status, 400);
+  const oversized = await post("/preview?replace=true", Buffer.alloc(MAX_PLUGIN_ARCHIVE_BYTES + 1));
+  assert.equal(oversized.status, 413); assert.equal((await oversized.json() as { code: string }).code, "PLUGIN_PACKAGE_TOO_LARGE");
+});
+
+test("ZIP env, permission, session and workspace guards precede archive parsing", async (t) => {
+  const old = process.env.TOVU_PLUGIN_LOCAL_INSTALL; delete process.env.TOVU_PLUGIN_LOCAL_INSTALL;
+  const root = await mkdtemp(path.join(tmpdir(), "plugin-zip-gates-"));
+  t.after(async () => { if (old === undefined) delete process.env.TOVU_PLUGIN_LOCAL_INSTALL; else process.env.TOVU_PLUGIN_LOCAL_INSTALL = old; await rm(root, { recursive: true, force: true }); });
+  const deps = createRouteDeps({ installDir: path.join(root, "plugins") });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const bare = await loginAsBarePrincipal(deps, baseUrl);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/install/zip/preview`;
+  const post = (session?: string, target = url) => fetch(target, { method: "POST", headers: { ...(session ? { cookie: session } : {}), "content-type": "application/zip" }, body: "malformed" });
+  const disabled = await post(cookie);
+  assert.equal(disabled.status, 403); assert.equal((await disabled.json() as { code: string }).code, "PLUGIN_LOCAL_INSTALL_DISABLED");
+  process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
+  assert.equal((await post()).status, 401);
+  assert.equal((await post(bare)).status, 403);
+  assert.equal((await post(cookie, url.replace(deps.workspaceId, "wrong-workspace"))).status, 404);
+  const malformed = await post(cookie);
+  assert.equal(malformed.status, 400); assert.equal((await malformed.json() as { code: string }).code, "PLUGIN_ARCHIVE_INVALID");
+  assert.deepEqual(await readdir(path.join(root, "plugins")).catch(() => []), []);
+});

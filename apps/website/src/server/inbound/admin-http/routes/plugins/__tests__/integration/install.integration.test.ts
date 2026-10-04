@@ -35,7 +35,7 @@ test("admin preview -> install disabled -> enable -> disable -> Trash -> reinsta
   assert.equal(installResponse.status, 201, await installResponse.clone().text());
   assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);
   const listing = await (await fetch(base, { headers })).json() as { plugins: { id: string; enabled: boolean }[]; installSources: string[] };
-  assert.deepEqual(listing.installSources, ["folder"]);
+  assert.deepEqual(listing.installSources, ["folder", "zip"]);
   assert.equal(listing.plugins.find((p) => p.id === "install-http")?.enabled, false);
   const lock = path.join(root, "plugins-install-lock");
   await mkdir(lock);

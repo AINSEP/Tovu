@@ -102,12 +102,20 @@ test("source within the installed tree is refused, and oversized files fail befo
   await assert.rejects(previewSitePluginInstall({ sourceDir: f.sourceDir, deps: f.deps }), { code: "PLUGIN_PACKAGE_TOO_LARGE" });
 });
 
-test("same-version replacement evaluates the new entry on enable, never on install", async (t) => {
+test("same-version replacement refreshes nested dynamic ESM and CommonJS helpers with unchanged entry, never on install", async (t) => {
   const f = await fixture(); t.after(() => rm(f.root, { recursive: true, force: true }));
   const marker = `pluginInstallTest_${path.basename(f.root).replaceAll("-", "_")}`;
   const globals = globalThis as unknown as Record<string, unknown>; t.after(() => { delete globals[marker]; });
   async function update(value: number) {
-    const code = `export default { definition: { setup() { globalThis[${JSON.stringify(marker)}] = ${value}; } } };`;
+    // Entry and intermediary never change: cache-busting just the entry cannot pass this test.
+    const code = `import { readValue } from './middle.mjs'; export default { definition: { async setup() { globalThis[${JSON.stringify(marker)}] = await readValue(); } } };`;
+    const middle = "export async function readValue() { return (await import('./helper.mjs')).value; }";
+    const helper = `import cjs from './helper.cjs'; export const value = cjs.value + ${value};`;
+    const commonjs = `module.exports = { value: ${value} };`;
+    for (const [name, bytes] of Object.entries({ "middle.mjs": middle, "helper.mjs": helper, "helper.cjs": commonjs })) {
+      await writeFile(path.join(f.sourceDir, "server", name), bytes);
+      f.manifest.integrity[`server/${name}`] = `sha256-${createHash("sha256").update(bytes).digest("hex")}`;
+    }
     await writeFile(path.join(f.sourceDir, "server/index.mjs"), code);
     f.manifest.integrity["server/index.mjs"] = `sha256-${createHash("sha256").update(code).digest("hex")}`;
     await f.save();
@@ -116,8 +124,8 @@ test("same-version replacement evaluates the new entry on enable, never on insta
   }
   const runtime = composePluginRuntime({ workspaceId: "workspace-local", clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, activationRepo: f.repo, sources: [], installDir: f.installDir });
   await update(1); assert.equal(globals[marker], undefined);
-  await runtime.onPluginEnabled("local-test"); assert.equal(globals[marker], 1);
-  runtime.onPluginDisabled("local-test");
-  await update(2); assert.equal(globals[marker], 1);
   await runtime.onPluginEnabled("local-test"); assert.equal(globals[marker], 2);
+  runtime.onPluginDisabled("local-test");
+  await update(2); assert.equal(globals[marker], 2);
+  await runtime.onPluginEnabled("local-test"); assert.equal(globals[marker], 4);
 });

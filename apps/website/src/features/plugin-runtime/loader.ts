@@ -40,6 +40,7 @@
  * for what is and is not covered by the extraction.
  */
 import { createHash } from "node:crypto";
+import { snapshotPluginModuleGraph, PluginSnapshotIntegrityError } from "./module-snapshot.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -218,15 +219,16 @@ export async function loadPlugin(
   // --- Step (3): only now, after both prior checks pass, is the plugin's code ever evaluated. ---
   let importedModule: unknown;
   try {
-    // Same-version replacement must evaluate the reviewed entry again. Build this URL only at
+    // Same-version replacement must evaluate the reviewed package again. Build this URL only at
     // step (3), after integrity and SDK compatibility have passed (CIC U-001 order unchanged).
-    // Injected import seams keep their original path contract. Imported helper modules may still
-    // be cached by Node; a restart remains necessary after replacing a package with helpers.
+    // Injected import seams keep their original path contract. A fresh filesystem graph refreshes
+    // ALL packaged helpers (including nested/dynamic imports and CommonJS require caches).
     const importPath = _optional.importModule === undefined
-      ? `${pathToFileURL(entryPath).href}?integrity=${createHash("sha256").update(JSON.stringify(manifest.integrity)).digest("hex")}`
+      ? pathToFileURL(record.source === "site" ? await snapshotPluginModuleGraph({ pluginRoot, manifest }) : entryPath).href
       : entryPath;
     importedModule = await importModule(importPath);
-  } catch {
+  } catch (error) {
+    if (error instanceof PluginSnapshotIntegrityError) return { loaded: false, reason: "INTEGRITY_FAILED" };
     return { loaded: false, reason: "CODE_ENTRY_MISSING" };
   }
 
