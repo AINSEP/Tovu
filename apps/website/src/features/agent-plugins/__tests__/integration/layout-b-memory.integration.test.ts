@@ -15,6 +15,7 @@ import { assertContainedOnDisk } from "../../package-paths.js";
 import { buildPluginMemoryRegistrations } from "../../memory-tools.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 
 const workspaceId = "workspace-local";
 async function fixture() {
@@ -23,10 +24,13 @@ async function fixture() {
   const workspace = layout.forWorkspace(workspaceId);
   const memory = (pluginId = "example") => pluginMemory({ workspaceId, pluginId }, { layout });
   const install = async (pluginId = "example", version = "1.0.0", seedText?: string) => {
-    const archive = Buffer.from(`${pluginId}:${version}`);
-    const files: Record<string, string> = { "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version }),
+    const archive = Buffer.from(`${pluginId}:${version}:${seedText ?? ""}`);
+    const files: Record<string, string> = { "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version,
+      extensions: { "dev.tovu.memory": { usesMemory: true } } }),
       [`skills/${pluginId}/SKILL.md`]: `# ${pluginId}\nInstructions.`,
-      ...(seedText ? { "dev.tovu.memory/notes-seed/unwanted.md": seedText } : {}),
+      "dev.tovu.memory/README.md": "Author guidance belongs in package docs, not learned facts.",
+      ...(seedText ? { "dev.tovu.memory/notes-seed/unwanted.md": seedText,
+        "dev.tovu.memory/learned-seed/unwanted.md": seedText } : {}),
     };
     const reader: AgentPluginArchiveReaderPort = { async *entries() {
       for (const [entryPath, text] of Object.entries(files)) yield { kind: "file", entryPath,
@@ -36,6 +40,34 @@ async function fixture() {
   };
   return { temporary, layout, workspace, memory, install };
 }
+
+// The installer already had no seed-copy mechanism at HEAD; these lock down that existing
+// behavior against the now-decided spec, including old packages carrying obsolete seed paths.
+test("approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty", async () => {
+  const firstSite = await fixture();
+  const secondSite = await fixture();
+  try {
+    const installed = await firstSite.install("example", "1.0.0", "Vendor account claim");
+    const parsed = parseAgentPluginManifest({ value: JSON.parse(await fs.readFile(path.join(installed.packageRoot, "plugin.json"), "utf8")) });
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) assert.fail(parsed.errors.join("; "));
+    assert.deepEqual(parsed.manifest.extensions?.["dev.tovu.memory"], { usesMemory: true });
+    assert.deepEqual(parsed.warnings, []);
+    assert.match(await fs.readFile(path.join(installed.packageRoot, "dev.tovu.memory", "README.md"), "utf8"), /Author guidance/);
+    assert.deepEqual(await firstSite.memory().list({ kind: "learned" }), []);
+    assert.deepEqual(await firstSite.memory().list({ kind: "notes" }), []);
+    await firstSite.memory().learned.write({ entryPath: "account.md", text: "Observed on first site" });
+    await firstSite.install("example", "2.0.0", "Changed vendor account claim");
+    await secondSite.install("example", "1.0.0", "Vendor account claim");
+    assert.deepEqual(await secondSite.memory().list({ kind: "learned" }), []);
+    assert.equal(await firstSite.memory().learned.read({ entryPath: "account.md" }), "Observed on first site");
+    assert.deepEqual((await firstSite.memory().list({ kind: "learned" })).map(entry => entry.relativePath), ["account.md"]);
+    await uninstallAgentPlugin({ layout: firstSite.layout, workspaceId, pluginId: "example" });
+    await firstSite.install("example", "1.0.0", "Vendor account claim");
+    assert.equal(await firstSite.memory().learned.read({ entryPath: "account.md" }), "Observed on first site");
+    assert.deepEqual(await firstSite.memory().list({ kind: "notes" }), []);
+  } finally { await forceRemove(firstSite.temporary); await forceRemove(secondSite.temporary); }
+});
 
 test("Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update", async () => {
   const f = await fixture();
@@ -56,7 +88,11 @@ test("Layout B isolates two packages and keeps mutable state outside the indexed
     assert.equal(await f.memory().learned.read({ entryPath: "account.json" }), '{"model":"observed"}');
     assert.deepEqual(await fs.readFile(path.join(f.workspace.pluginDataDir("example"), "cache.bin")), Buffer.from([0, 1, 2]));
     assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(p => p.pluginId).sort(), ["example", "example", "second"]);
-    assert.equal((await indexInstalledRoot(updated.packageRoot, updated.archiveDigest)).files.some(file => /memory|data/.test(file)), false);
+    const indexed = await indexInstalledRoot(updated.packageRoot, updated.archiveDigest);
+    // The approved dev.tovu.memory namespace contains immutable package guidance; only
+    // actual memory/ or data/ path components represent mutable state excluded from this index.
+    assert.equal(indexed.files.some(file => /(?:^|\/)(?:memory|data)(?:\/|$)/.test(file)), false);
+    assert.deepEqual(indexed.files, ["dev.tovu.memory/README.md", "plugin.json", "skills/example/SKILL.md"]);
     assert.equal((await fs.stat(path.dirname(f.workspace.pluginMemoryDir({ pluginId: "example", kind: "notes" })))).mode & 0o700, 0o700);
   } finally { await forceRemove(f.temporary); }
 });

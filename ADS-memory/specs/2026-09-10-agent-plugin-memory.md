@@ -1,12 +1,13 @@
 # Spec — per-site Agent Plugin memory
 
-Status: DRAFT, not started. Owner-requested 2026-09-10; owner decisions recorded 2026-09-14 (see
+Status: Layout B implemented; extension namespace and no-seed policy DECIDED by owner 2026-10-04.
+Owner-requested 2026-09-10; owner decisions recorded 2026-09-14 (see
 "Decisions"). Superseded 2026-09-14: layout revised from a `packages/` + `memory/` split ("Layout A")
 to a self-contained per-plugin folder ("Layout B") per owner review of the first draft. Extended
 2026-09-14 (same day, later): a Tovu reverse-domain extension namespace for author-declared memory
-behavior — see "Tovu extension namespace" below. That section is **PROPOSED, pending the owner's final
-confirmation** (the owner raised it as a question, not yet a decision); everything else in this file is
-already decided.
+behavior — see "Tovu extension namespace" below. **Owner decision, 2026-10-04:** the literal
+`dev.tovu.memory` is approved; shipped learned seeds are rejected. Learned memory starts empty
+per site, and author guidance belongs in package documentation.
 
 ## The problem
 
@@ -191,7 +192,7 @@ how to behave, but it can never grant a tool or widen access. The plugin may SUG
 - At skill activation, the contents of `notes/` are added to the plugin's context automatically.
   Because this costs tokens on every run, `notes/` has its own size cap.
 
-## Tovu extension namespace (PROPOSED — pending owner confirmation)
+## Tovu extension namespace (DECIDED — owner, 2026-10-04)
 
 The owner asked, quoting agent-plugins.org directly: "'Reverse-domain extension namespaces let
 individual clients add behavior without changing the portable core.' ... we'd be a vendor where we can
@@ -201,7 +202,7 @@ using the spec's own extension mechanism, on top of (not instead of) Layout B's 
 
 **What the spec actually says (re-fetched 2026-09-14, §8/§8.1/§8.2/§11.3, quoted verbatim, not
 paraphrased from the earlier debate below).** Two DIFFERENT mechanisms share the name "extension,"
-and this proposal uses both for different purposes:
+and this extension uses both for different purposes:
 
 - **§8.1 Manifest extension data** — client-specific FLAGS live in `plugin.json`'s own `extensions`
   field, reverse-domain keyed: `"extensions": { "dev.tovu.memory": { ... } }`. "A client MUST ignore
@@ -253,11 +254,9 @@ domain — it was rejected and never shipped, so there is no live code using it 
 (2) the REASON it was rejected is squarely about EXECUTABLE bindings and argument schemas — a
 different, narrower risk than a plugin declaring passive memory-behavior flags. The rule that ruling
 establishes — a plugin package must never author its own execution or authorization semantics; the
-host adapter does that — is exactly the rule this proposal's own constraints (below) are built to
-satisfy, not an obstacle to it. **The literal namespace string is nonetheless flagged
-[NEEDS CLARIFICATION: confirm "dev.tovu.memory" as the exact, permanent reverse-domain string]** —
-it ships inside every plugin's `plugin.json` forever once adopted, is expensive to rename later, and is
-a branding call, not an architecture one.
+host adapter does that — is exactly the rule this extension's own constraints (below) are built to
+satisfy. **Owner approved `dev.tovu.memory` as the exact namespace on 2026-10-04.** It ships inside
+plugin manifests once adopted and is expensive to rename later; the branding decision is settled.
 
 **What the extension may declare** — `extensions["dev.tovu.memory"]` in `plugin.json`:
 
@@ -267,11 +266,12 @@ a branding call, not an architecture one.
 | `notesAutoload` | `boolean` | A SUGGESTED default, exactly like an `mcp.json` server entry suggesting a tool name (see "What must NOT go in it" above) — the operator's own admin toggle always overrides it. Tovu Decision 4 ("notes/ loads automatically") remains the global default when the plugin declares nothing. |
 | `learnedSizeCapBytes`, `notesSizeCapBytes` | `number` | A plugin may request a SMALLER cap than Tovu's own global default (e.g. it knows it never needs much). Tovu's global cap is always the hard ceiling — `min(declared, global)`, never the reverse. A plugin cannot raise or disable its own cap. |
 
-`dev.tovu.memory/` (the sibling DIRECTORY, §8.2) — optional seed files:
+`dev.tovu.memory/` (the sibling DIRECTORY, §8.2) — package documentation, never memory seeds:
 
-- May ship a `learned-seed/` subtree whose files are copied into `learned/` at FIRST install only
-  (never on update or reinstall over existing content) — the same trust boundary as the plugin calling
-  its own write tool once at first run, not a new capability.
+- **Owner decision, 2026-10-04: NO shipped learned seeds.** `learned/` starts empty per site.
+  Author guidance and examples belong in package docs, not mutable account knowledge. Install,
+  update and reinstall never copy package files into learned memory; existing site observations
+  survive updates and reinstalls. Obsolete `learned-seed/` paths are ignored as memory input.
 - **MUST NOT ship anything under a `notes-seed/`-shaped path, and Tovu's installer MUST NOT read one if
   present.** `notes/` is the user's own, exclusively; a package seeding it would be indistinguishable
   from a vendor pre-writing "project knowledge" the user never actually said — this is the one hard
@@ -283,7 +283,7 @@ a branding call, not an architecture one.
   "provisioning is not authorization" rule (`federate-mcp.ts`, 2026-09-10) explicitly for this new
   surface, because it is the exact shape of mistake the rejected `org.tovu.commands` proposal made.
 
-**Inventory addition (Part 3 of the ask).** Checked whether today's code would even let a
+**Historical inventory (2026-09-14, Part 3 of the ask).** Checked whether that day's code would even let a
 `dev.tovu.memory/` directory or an `extensions` manifest field survive: install.ts's `extractEntries`
 (`apps/website/src/features/agent-plugins/install.ts:371`) has **no top-level directory allowlist at
 all** — every archive entry is extracted subject only to the existing path-containment/zip-slip/size/
@@ -302,6 +302,13 @@ Building this proposal requires: adding `"extensions"` to `KNOWN_MANIFEST_KEYS`,
 Readonly<Record<string, unknown>>` to `AgentPluginManifest`, and a NEW, separate validator for the
 `dev.tovu.memory` sub-shape specifically (Tovu-owned schema, not the open spec's concern) — none of
 which is a Layout B change, all of which is additive to `manifest.ts` alone.
+
+**Current implementation check (2026-10-04):** the installed `@jini-ai/agent-plugins` lifecycle
+parser already retains `extensions` without unknown-field warnings. Tovu's `install.ts` creates
+empty learned/notes directories and never copies package memory seeds; no shipped learned-seed
+mechanism or data exists at HEAD. Higgsfield author examples already live in
+`content/agent-plugins/higgsfield-media/skills/higgsfield-media/references/`, explicitly marked as
+historical guidance rather than site observations. Declared-flag validation remains target behavior.
 
 **`<pluginId>/` as a top-level directory name is already grammar-checked, not a new gap.** The open
 standard's own `name` grammar (§5.5, quoted in `manifest.ts`'s header, re-verified 2026-08-12: 1-64
@@ -523,7 +530,8 @@ prefer a stuck, visible, retriable state over a silent one.
 
 ## RED acceptance tests
 
-All of these must fail against today's code and pass once this spec is built:
+Original delivery contract: these had to fail against the pre-Layout-B implementation and pass
+once built. Existing behavior is now covered as regression protection:
 
 1. Installing a plugin places its digest directory at `<workspaceRoot>/<pluginId>/package/sha256/<digest>/`, not `<workspaceRoot>/packages/sha256/<digest>/`.
 2. Installing byte-identical content a second time still short-circuits to the SAME `finalRoot` without a second `freezeTree` call, and the returned `InstalledAgentPlugin` is identical to the first install's — proving the dedup guarantee survived the reordering described in "Install-time impact."
@@ -541,11 +549,12 @@ All of these must fail against today's code and pass once this spec is built:
 14. Two concurrent migration attempts on the same workspace (simulated) result in exactly one completing the moves; the other observes the lock and performs zero moves.
 15. A digest directory with an unparseable `plugin.json` is left at its old path after migration, the workspace's marker file is NOT written, and every OTHER digest in that same workspace still gets moved.
 
-The following extend the list for the "Tovu extension namespace" proposal above, and apply only once/if that section is confirmed:
+The following extend the list for the owner-approved "Tovu extension namespace" above. Approval
+settles the namespace and no-seed policy; it does not claim every declared-flag behavior is implemented:
 
 16. A `plugin.json` with a spec-legitimate `extensions` field parses with zero "unrecognized field" warnings, and `extensions["dev.tovu.memory"]`'s value is present on the parsed manifest result.
 17. A plugin declaring `extensions["dev.tovu.memory"].learnedSizeCapBytes` larger than Tovu's global default is capped at the global default, not the declared value — `min(declared, global)`, asserted both directions (declared smaller wins; declared larger is clamped).
-18. A plugin shipping `dev.tovu.memory/learned-seed/*` has that content present in `learned/` immediately after first install, and unchanged (not re-copied, not merged) after a subsequent update installs a new digest.
+18. Learned memory starts empty per site, even if an older package ships obsolete `dev.tovu.memory/learned-seed/*`. Those files are never copied on install, update or reinstall. Observations written by one site remain intact and do not appear on another site; author guidance remains available in immutable package docs.
 19. A plugin shipping ANYTHING under a `notes-seed/`-shaped path inside `dev.tovu.memory/` — install either refuses it outright or silently ignores it (implementation's choice, but one of the two, decided before this ships) and in neither case does any content appear in `notes/` as a result. `notes/` remains empty (or whatever the user separately wrote) after install.
 20. A plugin's `extensions["dev.tovu.memory"]` block cannot cause a tool grant, an MCP allowlist entry, or any permission change — asserted by installing a plugin whose extension block contains extraneous fields shaped like a tool/permission grant and confirming they have zero effect on the workspace's tool registrations.
 21. A client (real or simulated) that does not implement `dev.tovu.memory` ignores both the manifest field and the directory without error, per §8.1/§11.3 — Tovu's own parser is exactly such a client for every OTHER vendor's reverse-domain namespace, so this is also a test that Tovu ignores a `com.other-vendor.thing` extension it doesn't implement.
@@ -589,7 +598,7 @@ pre-extraction dedup short-circuit must be reordered, see "Install-time impact" 
 Roughly 10-14 test files are touched or added, concentrated in `features/agent-plugins/__tests__/`.
 Admin, desktop, and the Jini repo need no path-shape changes at all — admin talks to the API only,
 desktop only names the directory in comments, and Jini's `agent-plugins` package is manifest types,
-not layout. **If the proposed "Tovu extension namespace" section above is confirmed**, add: `install.ts`
+not layout. **The namespace is approved (owner, 2026-10-04)**; the original extension impact was: `install.ts`
 needs zero changes for the extension DIRECTORY (it already extracts arbitrary top-level entries with no
 allowlist); `manifest.ts` needs `"extensions"` added to `KNOWN_MANIFEST_KEYS`, a new field on
 `AgentPluginManifest`, and one new Tovu-owned validator for the `dev.tovu.memory` sub-shape — additive,
@@ -611,17 +620,16 @@ not a Layout B change.
 6. **Uninstall keeps memory by default**, with an explicit opt-in "also delete this plugin's memory"
    in the confirmation dialog — closes the first draft's open question 1.
 
+7. **Extension namespace approved** (owner, 2026-10-04): `dev.tovu.memory`.
+8. **No shipped learned seeds** (owner, 2026-10-04): learned memory starts empty per site;
+   author guidance goes in package docs. Old seed-shaped package files are ignored as memory input.
+
 ## Open questions
 
 1. Size caps for `learned/` and `notes/` — pick numbers against real skill context budgets.
 2. Whether `data/<pluginId>` (`PLUGIN_DATA`) should be relocated to `<pluginId>/data/` for symmetry
    whenever the stdio-process-spawning feature that would actually use it gets built — not this spec's
    decision (see Alternative C), flagged here so it is not forgotten.
-3. [NEEDS CLARIFICATION, owner]: confirm the "Tovu extension namespace" section (proposed, not yet
-   decided) — specifically the exact literal namespace string (`dev.tovu.memory` recommended, verified
-   against `tovu.dev`; flagging that it does not match the earlier, never-shipped, rejected
-   `org.tovu.commands` precedent from the 2026-08-12 debate) and whether `learned-seed/` shipping is
-   wanted at all for the first slice, or is safe to defer past `higgsfield-media`.
 
 ## First slice
 

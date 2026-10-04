@@ -260,6 +260,8 @@ export async function installAgentPlugin(
       await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
       await mkdir(packagesDir, { recursive: true, mode: 0o700 });
       const finalRoot = await assertContainedOnDisk(packagesDir, digest);
+      // Owner decision 2026-10-04: learned facts begin empty for each site; author guidance stays
+      // in package docs. Package extension files never seed learned memory or the user's notes.
       for (const directory of [workspaceLayout.pluginDataDir(pluginId),
         workspaceLayout.pluginMemoryDir({ pluginId, kind: "learned" }),
         workspaceLayout.pluginMemoryDir({ pluginId, kind: "notes" })]) {
