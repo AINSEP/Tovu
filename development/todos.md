@@ -72,7 +72,6 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Agent Plugins page redesign** (owner-decided 09-14, L696–708/L958): one list, On/Off for every plugin; Tovu-shipped = "Built in", switch-off only; user-added get Uninstall + confirm; drop the Downloaded tab. Needs an uninstall HTTP route + `origin` in the list response; Jini `AgentPluginRow` still disables Uninstall.
 - **Plugin hooks S2–S6** (09-23, L2984–2987): S1 catalog landed `068402eaf`; rest in `ADS-memory/.local-artifacts/handoffs/2026-09-23-hooks-lane.md`. Before the SDK 0.2.0 bump fix plugin ranges (`^0.1.0` excludes 0.2.0).
 - **Plugin-published namespaced hooks** (owner YES 09-23, L2981): runtime publication on top of the typed catalog, after hooks S2–S6.
-- **Plugin-memory layout B** (09-14, L704–718/L1014–1020): spec revised `ad7a90a55`; implementation not started; needs the owner's build go.
 - **Installed SKILL.md copies refresh on plugin upgrade?** (09-14, L1371): unverified; add a test.
 
 ### Publish
@@ -172,6 +171,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Desktop: Google Fonts vendored + CSP `style-src`/`font-src 'self'`** (L3053) — `ee199361f`.
 - **Desktop: auto-update on/off** (L3042): Settings → Automatically update Tovu, default on — `ee199361f`.
 - **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 + schema install still open under Publish.
+- **Plugin-memory layout B** (L704–718/L1014–1020): per-plugin package/memory/data, idempotent boot migration, memory tools, admin Memory pane, Higgsfield learns its account — `852d711e6` + Jini `e4eac924`/`9cac0d86` (unreleased `persistent-state` entry). Left: `dev.tovu.memory` namespace + learned seeds (owner call); Memory pane styling (`codex-waves/features-2026-10-04/followups/layout-b-memory-pane-ui.md`).
 
 ---
 
