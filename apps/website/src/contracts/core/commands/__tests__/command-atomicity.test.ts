@@ -76,7 +76,7 @@ function postUpdateMutation(
         deps: { repo, clock: fixedClock, outbox: postTransitionOutbox },
         input: { workspaceId: WORKSPACE, id: POST_ID, ...next },
       }),
-    captureEntityVersion: (r) => r.post.version,
+    captureEntityVersion: ({ result }) => result.post.version,
     rollback: async () => {
       if (priorPost) await repo.save(priorPost);
     },
