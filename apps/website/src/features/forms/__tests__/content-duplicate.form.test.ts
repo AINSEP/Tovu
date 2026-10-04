@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
@@ -32,6 +32,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["admin.forms.manage"]) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
+    executeCommand,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `form-copy-${++counter}` },
     changeSets: new InMemoryChangeSetRepo(),
