@@ -100,16 +100,24 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Walks a TipTap-shaped bodyJson tree collecting every `widgetEmbed` node (REQ-21) — same shape `core/entry-refs/extractor.ts` walks, kept separate since this module has no dependency on `core/entry-refs`. */
-function collectWidgetEmbeds(node: unknown, out: InlineEmbedRef[]): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectWidgetEmbeds(child, out);
-    return;
+function collectWidgetEmbeds(root: unknown, out: InlineEmbedRef[]): void {
+  // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
+  // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
+  // MAX_RENDER_DEPTH placeholder could ever apply. Children are pushed in reverse so the walk stays
+  // pre-order, the same visit order the recursive version had.
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      continue;
+    }
+    if (!isPlainObject(node)) continue;
+    if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string" && typeof node.attrs.placementId === "string") {
+      out.push({ placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
+    }
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  if (!isPlainObject(node)) return;
-  if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string" && typeof node.attrs.placementId === "string") {
-    out.push({ placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
-  }
-  if (Array.isArray(node.content)) collectWidgetEmbeds(node.content, out);
 }
 
 /**
@@ -727,19 +735,24 @@ function isRefBasedMediaNode(obj: Record<string, unknown>): obj is Record<string
   return (obj.type === "image" || obj.type === "media") && typeof obj.attrs === "object" && obj.attrs !== null;
 }
 
-function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectMediaRefAssetIds(child, out);
-    return;
-  }
-  if (typeof node !== "object" || node === null) return;
+function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
+  // Iterative for the same reason as {@link collectWidgetEmbeds} (a 5000-deep post overflowed here).
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      continue;
+    }
+    if (typeof node !== "object" || node === null) continue;
 
-  const obj = node as Record<string, unknown>;
-  if (isRefBasedMediaNode(obj)) {
-    const assetId = obj.attrs.assetId;
-    if (typeof assetId === "string") out.add(assetId);
+    const obj = node as Record<string, unknown>;
+    if (isRefBasedMediaNode(obj)) {
+      const assetId = obj.attrs.assetId;
+      if (typeof assetId === "string") out.add(assetId);
+    }
+    if (Array.isArray(obj.content)) stack.push(obj.content);
   }
-  if (Array.isArray(obj.content)) collectMediaRefAssetIds(obj.content, out);
 }
 
 /**

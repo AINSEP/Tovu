@@ -1492,16 +1492,24 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * that one. A legacy `image` node (only `attrs.src`/`attrs.title`, no `assetId`) is simply never
  * added — `render.ts`'s `image` case never reads `src`/`title` at all (see that case's own
  * comment), so there is nothing for a sizing override to key off for that shape anyway. */
-function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectMediaRefAssetIds(child, out);
-    return;
+function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
+  // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
+  // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
+  // MAX_RENDER_DEPTH placeholder could ever apply. Children are pushed in reverse so the walk stays
+  // pre-order, the same visit order the recursive version had.
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      continue;
+    }
+    if (!isPlainObject(node)) continue;
+    if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+      out.add(node.attrs.assetId);
+    }
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  if (!isPlainObject(node)) return;
-  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
-    out.add(node.attrs.assetId);
-  }
-  if (Array.isArray(node.content)) collectMediaRefAssetIds(node.content, out);
 }
 
 /** One resolved media ref's fetched row, ahead of the batched content-type lookup below — carries

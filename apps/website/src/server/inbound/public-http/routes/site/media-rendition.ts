@@ -113,16 +113,26 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectMediaRefAssetIds(child, out);
-    return;
+function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
+  // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
+  // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
+  // MAX_RENDER_DEPTH placeholder could ever apply. Children are pushed in reverse so the walk stays
+  // pre-order, the same visit order the recursive version had.
+  // Completeness matters most here: this set gates members-only media, so the walk must never stop
+  // early at a depth bound — an asset it misses would be served under the fail-open default.
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      continue;
+    }
+    if (!isPlainObject(node)) continue;
+    if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+      out.add(node.attrs.assetId);
+    }
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  if (!isPlainObject(node)) return;
-  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
-    out.add(node.attrs.assetId);
-  }
-  if (Array.isArray(node.content)) collectMediaRefAssetIds(node.content, out);
 }
 
 /**
